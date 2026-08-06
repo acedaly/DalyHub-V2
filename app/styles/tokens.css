@@ -1021,10 +1021,6 @@
   /* ---------------------------------------------------------------------- */
   /* Writing surface (EDIT-01)                                              */
   /* ---------------------------------------------------------------------- */
-  /* A formatting toolbar control on a FINE pointer. A coarse pointer promotes
-   * it to `--app-touch-target-min`; spending 44px per control on a laptop is
-   * what made the old word-button row dominate the note it was formatting. */
-  --app-editor-control-size: 2.25rem; /* 36 */
   /* The two writing-surface minimum heights. `comfortable` is an editor-first
    * workspace (a Note, a Diary entry) where the surface IS the page; `compact`
    * is an editor embedded in a record body, where the page already frames it and

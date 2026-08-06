@@ -233,17 +233,17 @@ test.describe("DS-16 inline editing — desktop", () => {
   }) => {
     test.slow();
     await page.emulateMedia({ colorScheme: "light" });
-    const title = await firstAreaRecord(page);
-    await expect(title).toBeVisible();
+    await firstAreaRecord(page);
     await shot(page, "inline-text-read-light");
 
-    await title.click();
+    await page.getByRole("button", { name: /^Area name:/ }).click();
     const input = page.getByRole("textbox", { name: "Area name" });
     await expect(input).toBeFocused();
     await shot(page, "inline-text-editing-light");
 
     // A refused save: the server rejects an empty Area name, and the field must
-    // stay open holding exactly what was typed.
+    // stay open holding exactly what was typed. The behavioural assertions live
+    // in the unit and E2E suites; what is captured here is what it LOOKS like.
     await input.fill("   ");
     await page.keyboard.press("Enter");
     await expect(page.getByRole("alert")).toBeVisible();
@@ -251,12 +251,14 @@ test.describe("DS-16 inline editing — desktop", () => {
       "   ",
     );
     await shot(page, "inline-text-failed-save-light");
+  });
 
-    // Leave the workspace as it was found.
-    await page.keyboard.press("Escape");
-    await expect(title).toBeFocused();
-
+  test("captures the read state in the dark appearance", async ({ page }) => {
+    // A separate test so it starts from a clean page rather than from the
+    // previous one's abandoned draft — a capture should never depend on
+    // another capture's teardown.
     await page.emulateMedia({ colorScheme: "dark" });
+    await firstAreaRecord(page);
     await shot(page, "inline-text-read-dark");
   });
 });
@@ -318,17 +320,18 @@ test.describe("EDIT-01 writing surface — desktop", () => {
     await shot(page, "editor-reading-light");
     await page.getByRole("button", { name: "Write" }).click();
 
-    // ACTIVE formatting: put the caret inside the bold span and capture the
-    // pressed control. The assertion and the image come from the same run.
+    // ACTIVE formatting. A line that is ONLY a bold span, with the caret placed
+    // deterministically inside it — Home then three ArrowRights clears the `**`
+    // and lands in the word. The assertion and the image come from the same run,
+    // so the screenshot cannot show a state the test did not verify.
     await page.locator(".cm-content").click();
-    await page.keyboard.press("ControlOrMeta+Home");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("Delete");
+    await page.keyboard.type("**cut**");
+    await page.keyboard.press("Home");
+    for (let i = 0; i < 3; i += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
     await expect(page.getByRole("button", { name: "Bold" })).toHaveAttribute(
       "aria-pressed",
       "true",

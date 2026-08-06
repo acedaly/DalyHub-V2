@@ -133,10 +133,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* A square icon target. 36px is the comfortable desktop size; the coarse
-   * pointer rule below promotes it to the 44px touch minimum. */
-  min-block-size: var(--app-editor-control-size);
-  min-inline-size: var(--app-editor-control-size);
+  /* A square icon target at the product's own 44px minimum — DalyHub holds that
+   * bar everywhere, on every pointer, and it is stricter than WCAG 2.2 AA's
+   * 24px. An earlier draft shrank it to 36px on fine pointers for compactness;
+   * that traded an accessibility contract for a visual one, which is the wrong
+   * way round. The compactness still arrives, from the ICON: thirteen 44px
+   * squares are narrower than eleven word-buttons, and they do not wrap. */
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
   padding: 0;
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
@@ -188,15 +192,6 @@
   color: var(--md-sys-color-on-surface-variant);
   opacity: 0.38;
   cursor: default;
-}
-
-/* Coarse pointers get the full 44px target; a mouse does not need it, and
- * spending 44px per control on a laptop is what made this row dominate. */
-@media (pointer: coarse) {
-  .dh-md-toolbar__button {
-    min-block-size: var(--app-touch-target-min);
-    min-inline-size: var(--app-touch-target-min);
-  }
 }
 
 @media (forced-colors: active) {

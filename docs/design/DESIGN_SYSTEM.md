@@ -284,7 +284,7 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 - **Icons carry the drawing; `aria-label` carries the word.** Nothing is icon-only to assistive tech, every control has a `title` tooltip naming its shortcut, and active state is `aria-pressed` **plus** a filled container — never a tint alone.
 - **Undo/redo appear only where they can be both performed and reported.** The no-JS fallback has the browser's own unqueryable undo stack, so the buttons are omitted there rather than shown permanently enabled.
 - **Enter is never an unconditional save** in a multiline surface. Commit is an explicit control or ⌘/Ctrl+Enter.
-- **44px targets on coarse pointers only.** A mouse does not need them, and spending 44px per control on a laptop is what made the previous word-button row dominate the note it was formatting. The row scrolls horizontally inside its own box, so a thirteen-control toolbar never produces page-level overflow at 320px.
+- **44px targets, on every pointer.** DalyHub holds that bar everywhere and it is stricter than WCAG 2.2 AA's 24px; an earlier draft of this work shrank the control to 36px on fine pointers for compactness, which traded an accessibility contract for a visual one. The compactness comes from the GLYPH instead: thirteen 44px squares are narrower than eleven word-buttons, and they do not wrap. The row scrolls horizontally inside its own box, so the toolbar never produces page-level overflow at 320px.
 
 ### Inline editing (DS-16)
 **Purpose.** Change a commonly-edited value where it is shown, instead of routing every small correction through a modal, a drawer or a dedicated edit page.

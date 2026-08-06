@@ -23,8 +23,9 @@ no version number to group them under.
 
 - **The editor got out of the way.** The formatting bar is now a compact row of
   icons attached to the top of what you are writing, instead of a strip of word
-  buttons floating above it in its own panel. It takes about a third of the
-  space it used to, and on a phone that space goes back to the words.
+  buttons floating above it in its own panel. It no longer wraps onto a second
+  line on a laptop, and on a phone the space it used to take goes back to the
+  words. Every button is still a full-size touch target.
 - **The buttons finally tell you what your text already is.** Put the cursor in
   something bold and **Bold** lights up; the same for italic, strikethrough,
   code, headings, lists, checklists and quotes. Press it again to take the
