@@ -30,6 +30,8 @@ This document is the *state of the work*, not the specification.
 | `ea47d17` | 17 kernel tests for the persistence contract. **Corrected a wrong claim**: `project_details` is sparse for a new Project, not dense, so the upsert is load-bearing. |
 | `b3b366f` | Export round-trip coverage — 7 unit tests, 3 more kernel tests. |
 | `d733ba9` | Route-boundary validation (`readEntityIconField`), create/update wiring for both modules, and record loaders carrying the key only. |
+| `5ecefea` | The shared `EntityIconPicker`, composed over `Sheet`, integrated into New/Edit Area and New/Edit Project; both record headers switched to `RecordIcon`. |
+| (this commit) | Picker approval gate: 7 browser tests, partial seed icons, the duplicate/clone audit, 17 captures, and two defects the captures exposed. |
 
 ### First fully green CI run
 
@@ -64,7 +66,7 @@ their own commits so they are separable from the visual work.
 | B — surfaces and shell | **Complete and approved**, including the review changes. |
 | C — shared components | **Foundation complete and approved.** The five components exist, are tested and are demonstrated. **No module consumes them yet.** |
 | Icons — persistence | **Complete and tested**, form boundary through to export — see §4. |
-| Icons — picker and form integration | **Not started.** This is the immediate next step. |
+| Icons — picker and form integration | **Complete**, with browser coverage and an approval-gate capture set — see §4. |
 | D — entity collections | Not started. |
 | E — records and forms | Not started. |
 | F — remaining modules | Not started. |
@@ -111,8 +113,9 @@ non-ASCII as a remote-D1 statement-splitting hazard. An em-dash in a comment is 
 
 ## 4. Icon persistence — state
 
-Persistence is **wired and tested end to end from the form boundary to the database and
-out through export.** What remains is the picker and its integration.
+The entity-icon unit is **complete**: persistence from the form boundary through to
+export, the shared picker, integration into all four flows, browser coverage and an
+approval-gate capture set.
 
 | Path | State |
 |---|---|
@@ -125,10 +128,12 @@ out through export.** What remains is the picker and its integration.
 | Record loaders (key only, serialisable) | **done** |
 | Snapshot types, D1 snapshot reader, vault frontmatter | **done** |
 | Round-trip preservation tests | **done** |
-| **Picker** | **not started** |
-| **Form integration** (New/Edit Area, New/Edit Project) | **not started** |
-| **e2e seed fixtures** (`e2e/seed-tasks.sql` has no `icon_key` values) | not done |
-| **Duplicate / clone flows** | not audited — confirm whether any exist |
+| Picker (`app/shared/entity/EntityIconPicker.tsx`) | **done** |
+| Form integration (New/Edit Area, New/Edit Project) | **done** |
+| e2e seed fixtures | **done** — partial on purpose, see below |
+| Duplicate / clone flows | **audited: none exist.** The only `duplicate` in the product is `taskViews.duplicate` (saved Tasks views), which carries no entity icon. There is nothing to preserve. |
+| Browser coverage (`e2e/entity-icons.spec.ts`) | **done** — 7 tests |
+| Approval-gate captures | **done** — 17 images under `assets/m3-polish-2026-08/icon-picker/` |
 | Collection loaders (`listAreas`, `listProjects`) | not done — needed for Gate D |
 | Activity metadata | deliberately none; see below |
 
@@ -152,14 +157,22 @@ out through export.** What remains is the picker and its integration.
 - **An invalid key is refused, never stored as `null`.** Silently normalising tells the
   owner their choice was saved and then shows a default.
 
+### Why the seed is deliberately partial
+
+`e2e/seed-tasks.sql` gives `a-health` and `pr-website` an icon and leaves `a-dh`
+and `pr-launch` without one. Seeding every record would make the FALLBACK path
+untestable in a browser; seeding none would make the persisted path untestable.
+Both assertions matter, so the fixture carries both cases.
+
 ### The next step, exactly
 
-Build `app/shared/entity/EntityIconPicker.tsx` (one shared component — not one per
-module) over the existing `searchEntityIcons`, `entityIconOptionsByCategory` and
-`ENTITY_ICON_CATEGORIES`, then integrate it into New/Edit Area and New/Edit Project.
-Requirements are in §4's picker list below and Appendix A.3. The server side it posts to
-already exists: `iconKey` on `POST /areas/new` and `POST /projects/new`, and the
-`setIcon` / `set_icon` intents on each module's mutate route.
+**Gate D — migrate the entity collections to the shared card family.** Nothing in
+this PR touches a real module's collection: Areas, Projects, Tasks, Goals, Meetings,
+People, Assets, Reviews, Notes and Diary all still render their pre-M3 compositions.
+Start with Areas and Projects (`EntityCard` + `EntityCardGrid`, the selected icon,
+Area accent inheritance, 3/2/1-column grids), verify those two, capture Gate D, and
+only then broaden. The collection LOADERS do not yet carry `iconKey` — only the record
+loaders do — so that is the first concrete change Gate D needs.
 
 <details>
 <summary>The original outstanding-paths table, kept for reference</summary>
@@ -188,7 +201,28 @@ already exists: `iconKey` on `POST /areas/new` and `POST /projects/new`, and the
 
 </details>
 
-### Picker — not started
+### Picker — built
+
+`app/shared/entity/EntityIconPicker.tsx`. One component for both entities and both
+breakpoints: it composes the shared `Sheet`, which `sheet.css` already renders as a
+bottom sheet on a phone and a centred dialog above 48rem, so there is no second focus
+trap, scroll lock or inert wrapper anywhere in this feature.
+
+Two defects the approval captures exposed, both fixed before the gate:
+
+1. **Captured mid-animation.** The sheet scales and fades in, and the first capture pass
+   caught it semi-transparent with the page showing through. The harness now passes
+   `animations: "disabled"`.
+2. **The staged preview was not actually pinned.** The CSS comment claimed it was, but it
+   was merely the first child — clicking a glyph near the bottom of the catalogue
+   scrolled it into view and carried the preview off the top, making Apply exactly the
+   guess it exists to prevent. Preview and search are now one opaque sticky band.
+
+**Known cosmetic remainder:** a few pixels of the topmost icon row are still visible above
+the sticky band. It is a seam between the sheet body's own padding and the band's
+background, not an overflow, and it does not affect behaviour or any assertion.
+
+### Original picker requirements
 
 One shared `EntityIconPicker` used by both Areas and Projects. Requirements (Appendix A.3):
 

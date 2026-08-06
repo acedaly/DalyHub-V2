@@ -79,8 +79,32 @@
   gap: var(--app-space-4);
 }
 
-/* The staged choice, pinned above the scrolling grid: "Apply" must never be a
- * guess about which glyph is currently selected. */
+/* The staged choice, GENUINELY pinned above the scrolling grid.
+ *
+ * It was merely the first child before, which is not the same thing: clicking a
+ * glyph near the bottom of the catalogue scrolls it into view and carries the
+ * preview off the top, so "Apply" became exactly the guess this element exists
+ * to prevent. `position: sticky` keeps it in view for the whole scroll, and the
+ * opaque background stops the grid showing through it. */
+.dh-icon-picker__header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  /* OPAQUE and full-width. Sticking the preview and the search separately left
+   * the gap between them transparent, and the grid scrolled through it. */
+  background: var(--md-app-color-surface-raised);
+  /* The band has to cover the panel's own top padding AND the flex gap beneath
+   * it, or the grid scrolls through those transparent strips — which is exactly
+   * what the first sticky attempt did. The negative top margin pulls the
+   * background up over the panel padding rather than leaving a seam. */
+  margin-block-start: calc(-1 * var(--app-space-4));
+  padding-block-start: var(--app-space-4);
+  padding-block-end: var(--app-space-4);
+}
+
 .dh-icon-picker__selected {
   display: flex;
   align-items: center;

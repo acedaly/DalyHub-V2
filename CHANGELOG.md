@@ -19,6 +19,20 @@ no version number to group them under.
 
 ## Unreleased
 
+### Added — choose an icon for an Area or a Project
+
+- **Areas and Projects can wear an icon you pick.** Open an Area or a Project,
+  go to **Settings → Appearance**, and choose from a searchable catalogue of
+  thirty-four icons grouped by theme — travel, property, people, learning,
+  safety and more. You can also pick one while creating the Area or Project.
+  The icon appears on the record wherever it is shown.
+- **Choosing one is optional, and reversible.** An Area or Project without a
+  chosen icon keeps the standard one for its type, exactly as before. **Use the
+  default** puts it back at any time. Nothing you already have has changed.
+- **Your choice travels with your data.** An icon is included in a workspace
+  export and in a Markdown vault export, so a record keeps its icon if you move
+  your data or restore it later.
+
 ### Changed — DalyHub has a new look, and it follows your device
 
 - **A new visual design, end to end.** Every surface in DalyHub has been rebuilt

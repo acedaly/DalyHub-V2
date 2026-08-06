@@ -1419,3 +1419,32 @@ WHERE workspace_id = 'local-dev-workspace'
 DELETE FROM entities
 WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
   AND title LIKE 'E2E %';
+
+-- ---------------------------------------------------------------------------
+-- Selectable Area / Project icons (migration 0032).
+--
+-- Deliberately PARTIAL: one Area and one Project carry a chosen icon, and their
+-- siblings carry none. Seeding every record would make the fallback path
+-- untestable in the browser, and seeding none would make the persisted path
+-- untestable -- the interesting assertions are "a chosen icon renders" AND "a
+-- record without one still renders its entity default".
+--
+-- `area_details` is sparse (no row until an Area is archived or given an icon),
+-- so the Area needs an upsert; `pr-website` already has a row written above, so
+-- it only needs the UPDATE.
+INSERT OR IGNORE INTO area_details (workspace_id, entity_id, entity_type, archived_at, icon_key, updated_at)
+VALUES
+  ('local-dev-workspace', 'a-health', 'area', NULL, 'shield', '2026-07-19T00:00:01.000Z');
+UPDATE area_details SET icon_key = 'shield'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'a-health';
+
+-- `a-dh` keeps NULL on purpose: it is the Area the fallback is proven on.
+UPDATE area_details SET icon_key = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'a-dh';
+
+UPDATE project_details SET icon_key = 'travel'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-website';
+
+-- `pr-launch` keeps NULL on purpose, for the same reason as `a-dh`.
+UPDATE project_details SET icon_key = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-launch';

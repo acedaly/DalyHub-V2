@@ -178,8 +178,10 @@ export function EntityIconPicker({
 
       {open ? (
         <Sheet
-          title={`Choose an ${entityType} icon`}
-          description="Pick an icon, or keep the default."
+          // Not `Choose an ${entityType} icon`: that renders "an project".
+          // The entity is named in the description, where it reads properly.
+          title="Choose an icon"
+          description={`Pick an icon for this ${entityType}, or keep the default.`}
           opener={triggerRef.current}
           onClose={() => setOpen(false)}
           initialFocusRef={searchRef}
@@ -211,39 +213,46 @@ export function EntityIconPicker({
           }
         >
           <div className="dh-icon-picker__panel">
-            {/* The staged choice, always visible, so "Apply" is never a guess. */}
-            <p className="dh-icon-picker__selected">
-              <RecordIcon
-                entityType={entityType}
-                iconKey={draft}
-                variant="badge"
-              />
-              <span>
-                <span className="dh-icon-picker__selected-name">
-                  {entityIconOption(draft)?.label ?? DEFAULT_LABEL}
-                </span>
-                {draft === null ? (
-                  <span className="dh-icon-picker__selected-note">
-                    The icon every {entityType} uses unless it chooses one.
+            {/* The staged choice and the search stay pinned together as ONE
+                opaque band. Sticking them separately left gaps the grid showed
+                through as it scrolled underneath. */}
+            <div className="dh-icon-picker__header">
+              <p className="dh-icon-picker__selected">
+                <RecordIcon
+                  entityType={entityType}
+                  iconKey={draft}
+                  variant="badge"
+                />
+                <span>
+                  <span className="dh-icon-picker__selected-name">
+                    {entityIconOption(draft)?.label ?? DEFAULT_LABEL}
                   </span>
-                ) : null}
-              </span>
-            </p>
+                  {draft === null ? (
+                    <span className="dh-icon-picker__selected-note">
+                      The icon every {entityType} uses unless it chooses one.
+                    </span>
+                  ) : null}
+                </span>
+              </p>
 
-            <div className="dh-icon-picker__search">
-              <span className="dh-icon-picker__search-icon" aria-hidden="true">
-                <SearchIcon />
-              </span>
-              <input
-                ref={searchRef}
-                type="search"
-                className="dh-icon-picker__search-input"
-                placeholder="Search icons"
-                aria-label="Search icons"
-                aria-describedby={statusId}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
+              <div className="dh-icon-picker__search">
+                <span
+                  className="dh-icon-picker__search-icon"
+                  aria-hidden="true"
+                >
+                  <SearchIcon />
+                </span>
+                <input
+                  ref={searchRef}
+                  type="search"
+                  className="dh-icon-picker__search-input"
+                  placeholder="Search icons"
+                  aria-label="Search icons"
+                  aria-describedby={statusId}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </div>
             </div>
 
             {/*
