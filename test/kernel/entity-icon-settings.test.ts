@@ -25,6 +25,8 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { createWorkspaceSnapshotRepository } from "~/platform/storage/d1";
+
 import {
   FakeClock,
   countActivitiesOfType,
@@ -342,5 +344,78 @@ describe("Project icon settings", () => {
     // ...and the status it was created with is the documented default, not a
     // value invented by the icon write.
     expect((await projectSettings().get(project.id))?.status).toBe("planned");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Export                                                                      */
+/* -------------------------------------------------------------------------- */
+
+describe("the stored icon reaches the export reader", () => {
+  /** The snapshot adapter reads through an explicit column list, so a column
+   * it forgot would come back `undefined` and quietly vanish from the archive. */
+  async function readDetails<K extends "areaDetails" | "projectDetails">(
+    collection: K,
+  ) {
+    const repository = createWorkspaceSnapshotRepository(
+      env.DB,
+      makeContext(WS),
+    );
+    const page = await repository.listPage(collection, null, 100);
+    return page.rows;
+  }
+
+  it("exports an Area's chosen key, and an explicit null when there is none", async () => {
+    const sp = spine();
+    const chosen = await sp.createArea({ title: "Chosen" });
+    const plain = await sp.createArea({ title: "Plain" });
+    const settings = areaSettings();
+    await settings.setIcon(chosen.id, "travel");
+    // Give the second Area a row WITHOUT an icon, so the null is a real stored
+    // null rather than a missing row the reader never sees.
+    await settings.archive(plain.id);
+
+    const rows = await readDetails("areaDetails");
+    const chosenRow = rows.find((row) => row.entityId === chosen.id);
+    const plainRow = rows.find((row) => row.entityId === plain.id);
+
+    expect(chosenRow?.iconKey).toBe("travel");
+    expect(plainRow?.iconKey).toBeNull();
+    // Explicitly not `undefined`: the snapshot validator rejects undefined, and
+    // a dropped column would present exactly that way.
+    expect(plainRow && "iconKey" in plainRow).toBe(true);
+  });
+
+  it("exports a Project's chosen key", async () => {
+    const sp = spine();
+    const area = await sp.createArea({ title: "Area" });
+    const project = await sp.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    await projectSettings().setIcon(project.id, "equipment");
+
+    const rows = await readDetails("projectDetails");
+    expect(rows.find((row) => row.entityId === project.id)?.iconKey).toBe(
+      "equipment",
+    );
+  });
+
+  it("exports an unrecognised key VERBATIM, unlike the read path", async () => {
+    // The asymmetry that matters. `get()` degrades an unknown key to the entity
+    // default so the record renders; the export must keep it, because an icon
+    // removed in one release and restored in the next would otherwise be erased
+    // from every archive taken in between.
+    const area = await spine().createArea({ title: "Chosen" });
+    const settings = areaSettings();
+    await settings.setIcon(area.id, "travel");
+    await forceStoredIcon("area_details", WS, area.id, "retired-glyph");
+
+    expect((await settings.get(area.id))?.iconKey).toBeNull();
+
+    const rows = await readDetails("areaDetails");
+    expect(rows.find((row) => row.entityId === area.id)?.iconKey).toBe(
+      "retired-glyph",
+    );
   });
 });
