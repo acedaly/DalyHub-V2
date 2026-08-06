@@ -48,6 +48,8 @@ import {
   SettingsRow,
   useImmediateSetting,
 } from "~/shared/settings";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { EntityIconPicker } from "~/shared/entity";
 import { SelectField } from "~/shared/forms";
 import { useFeedback } from "~/shared/feedback";
 import {
@@ -76,6 +78,8 @@ export interface ProjectSettingsTabProps {
   readonly onArchive: () => Promise<void>;
   /** Restore an archived project (`restore`). Reject to fail. */
   readonly onRestore: () => Promise<void>;
+  /** Choose or clear the project's icon (`set_icon`). Reject to fail. */
+  readonly onSetIcon?: (iconKey: EntityIconKey | null) => Promise<void>;
 }
 
 /** The current structural parent (goal takes precedence — a project advancing a
@@ -305,12 +309,52 @@ function RestoreGroup({
   );
 }
 
+/**
+ * The icon group. Commits on Apply — the picker has already staged the choice,
+ * and a second Save button for a single value would be ceremony. A failure is
+ * reported inline and the stored icon is unchanged, because the loader value is
+ * the truth and the write did not land.
+ */
+function ProjectAppearanceGroup({
+  iconKey,
+  onSetIcon,
+}: {
+  readonly iconKey: string | null;
+  readonly onSetIcon: (key: EntityIconKey | null) => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <SettingsGroup
+      title="Appearance"
+      description="The icon this project wears in collections, records and search."
+    >
+      <EntityIconPicker
+        entityType="project"
+        value={iconKey}
+        error={error}
+        help="Optional. Projects without one use the standard Project icon."
+        onChange={(next) => {
+          setError(null);
+          void onSetIcon(next).catch((cause: unknown) => {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "That couldn’t be saved. Please try again.",
+            );
+          });
+        }}
+      />
+    </SettingsGroup>
+  );
+}
+
 export function ProjectSettingsTab({
   overview,
   onSetStatus,
   onMove,
   onArchive,
   onRestore,
+  onSetIcon,
 }: ProjectSettingsTabProps) {
   const archived = isProjectArchived(overview);
   const parent = currentParent(overview);
@@ -335,6 +379,15 @@ export function ProjectSettingsTab({
     <div className="dh-project-settings" ref={rootRef}>
       <h2 className="dh-visually-hidden">Settings</h2>
       <SettingsLayout aria-label="Project settings">
+        {/* Hidden while archived rather than shown disabled: the route refuses
+            every non-restore intent on an archived Project, so an operable-
+            looking control here would be a lie. */}
+        {onSetIcon && !archived ? (
+          <ProjectAppearanceGroup
+            iconKey={overview.iconKey}
+            onSetIcon={onSetIcon}
+          />
+        ) : null}
         {archived ? (
           <>
             <SettingsGroup

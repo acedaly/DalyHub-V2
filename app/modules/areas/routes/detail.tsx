@@ -21,6 +21,7 @@ import {
   type ProjectHealthFacts,
   type ProjectHealthRepository,
 } from "~/kernel/project-health";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -367,6 +368,25 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     revalidator.revalidate();
   }, [areaId, revalidator]);
 
+  const onSetIcon = useCallback(
+    async (iconKey: EntityIconKey | null) => {
+      const result = await postAreaMutation(areaId, {
+        intent: "setIcon",
+        // Empty means reset-to-default, which is a real choice the server
+        // honours — not an omission.
+        iconKey: iconKey ?? "",
+      });
+      if (!result.ok) {
+        throw new Error(
+          ("formError" in result && result.formError) ||
+            "That couldn’t be saved. Please try again.",
+        );
+      }
+      revalidator.revalidate();
+    },
+    [areaId, revalidator],
+  );
+
   const onRestore = useCallback(async () => {
     const result = await postAreaMutation(areaId, { intent: "restore" });
     if (!result.ok) {
@@ -435,6 +455,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
           onArchive={onArchive}
           onRestore={onRestore}
           onDelete={onDelete}
+          onSetIcon={onSetIcon}
         />
       }
     />

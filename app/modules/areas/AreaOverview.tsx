@@ -17,7 +17,7 @@ import {
 } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
-import { EntityIcon } from "~/shared/entity";
+import { EntityIcon, RecordIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
 import {
   RecordLayout,
@@ -334,7 +334,10 @@ export function AreaOverviewView({
       <RecordLayout
         title={overview.title}
         typeLabel="Area"
-        icon={<EntityIcon type="area" />}
+        // The record's OWN icon, not merely its type's: `RecordIcon` renders
+        // the chosen glyph and falls back to the Area default when there is
+        // none (or when the stored key is one this build cannot resolve).
+        icon={<RecordIcon entityType="area" iconKey={overview.iconKey} />}
         breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
         status={{ label: state.label, tone: state.tone }}
         metadata={headerMetadata}

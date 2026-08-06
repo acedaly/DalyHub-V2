@@ -61,3 +61,8 @@ export {
   type EntityIconCategory,
   type EntityIconOption,
 } from "./entity-icon-catalogue";
+
+export {
+  EntityIconPicker,
+  type EntityIconPickerProps,
+} from "./EntityIconPicker";

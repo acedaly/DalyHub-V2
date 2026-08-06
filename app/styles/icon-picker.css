@@ -1,0 +1,248 @@
+/**
+ * The shared Area/Project icon picker.
+ *
+ * The surface itself is `Sheet` and is styled by `sheet.css` — a bottom sheet on
+ * a phone, a centred dialog above 48rem. Nothing here re-implements that; these
+ * rules dress the trigger, the grid and the staged-selection preview only.
+ *
+ * Every interactive target is at least `--app-touch-target-min` (44px, WCAG 2.2
+ * 2.5.8). The grid cells are deliberately larger than the glyph they hold,
+ * because the visible NAME under each icon is part of the target — a 24px glyph
+ * with a caption is one control, not a glyph with a decoration beside it.
+ */
+
+.dh-icon-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The field trigger                                                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-icon-picker__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  inline-size: 100%;
+  /* The shared single-line control height, so the icon field lines up with the
+   * text fields above and below it rather than sitting proud of them. */
+  min-block-size: 3.5rem;
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-icon-picker__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.dh-icon-picker[data-invalid="true"] .dh-icon-picker__trigger {
+  border-color: var(--md-sys-color-error);
+  /* Not colour alone: the border also thickens, so the invalid state survives a
+   * forced-colours mode and a monochrome display. */
+  border-width: var(--app-border-width-thick);
+}
+
+.dh-icon-picker__preview {
+  display: inline-flex;
+  flex: none;
+}
+
+.dh-icon-picker__current {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-icon-picker__change {
+  flex: none;
+  color: var(--md-sys-color-primary);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inside the sheet                                                           */
+/* -------------------------------------------------------------------------- */
+
+.dh-icon-picker__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+/* The staged choice, pinned above the scrolling grid: "Apply" must never be a
+ * guess about which glyph is currently selected. */
+.dh-icon-picker__selected {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  margin: 0;
+  padding: var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card-subtle);
+}
+
+.dh-icon-picker__selected-name {
+  display: block;
+  font-weight: 500;
+}
+
+.dh-icon-picker__selected-note {
+  display: block;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-icon-picker__search {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding-inline: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+}
+
+.dh-icon-picker__search-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-icon-picker__search-input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: var(--app-touch-target-min);
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.dh-icon-picker__search-input:focus {
+  outline: none;
+}
+
+/* The focus ring belongs to the whole pill, not to the bare input inside it. */
+.dh-icon-picker__search:focus-within {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.dh-icon-picker__category-title {
+  margin: 0 0 var(--app-space-2);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The grid                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-icon-picker__grid {
+  display: grid;
+  /* `min()` against 100% so a 320px viewport degrades to a single column
+   * instead of overflowing: a bare `minmax(5.5rem, 1fr)` cannot shrink below
+   * its floor and pushes the sheet sideways. */
+  grid-template-columns: repeat(auto-fill, minmax(min(5.5rem, 100%), 1fr));
+  gap: var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-icon-picker__option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-1);
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-1);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card-subtle);
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+.dh-icon-picker__option-icon {
+  display: inline-flex;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-icon-picker__option-label {
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* THREE independent signals for the selected option — a check glyph, a heavier
+ * border and a tinted plane — so it is perceivable without colour, without
+ * shape, or without either (AGENTS.md §15). `aria-pressed` carries it to
+ * assistive technology. */
+.dh-icon-picker__option[data-selected="true"] {
+  border-color: var(--md-sys-color-primary);
+  border-width: var(--app-border-width-thick);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.dh-icon-picker__option[data-selected="true"] .dh-icon-picker__option-icon {
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.dh-icon-picker__option-check {
+  position: absolute;
+  inset-block-start: var(--app-space-1);
+  inset-inline-end: var(--app-space-1);
+  display: inline-flex;
+  font-size: 0.875rem;
+  line-height: 0;
+}
+
+.dh-icon-picker__empty {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Footer actions                                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-icon-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  inline-size: 100%;
+}
+
+/* Pushes Cancel/Apply to the trailing edge and keeps "Use the default" at the
+ * leading one — a reset is not a confirmation and should not sit beside it. */
+.dh-icon-picker__actions-spacer {
+  flex: 1 1 auto;
+}
+
+/* In forced-colours mode the tinted plane disappears; the border and the check
+ * glyph are what remain, which is why the selected state never relied on the
+ * background. */
+@media (forced-colors: active) {
+  .dh-icon-picker__option[data-selected="true"] {
+    border-color: Highlight;
+  }
+}

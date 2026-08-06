@@ -26,6 +26,7 @@ import {
   DEFAULT_KNOWLEDGE_PAGE,
   loadProjectKnowledge,
 } from "~/platform/entity-links/project-knowledge";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
@@ -458,6 +459,26 @@ function ProjectDetail({
     [postMutation, revalidator],
   );
 
+  const onSetIcon = useCallback(
+    async (iconKey: EntityIconKey | null) => {
+      const body = new FormData();
+      body.set("intent", "set_icon");
+      // Empty means reset-to-default, which the server honours as a real
+      // choice rather than reading as an omitted field.
+      body.set("iconKey", iconKey ?? "");
+      const result = await postMutation(body);
+      if (result.kind !== "setIcon" || !result.ok) {
+        throw new Error(
+          result.kind === "setIcon" && !result.ok
+            ? result.formError
+            : SETTINGS_GENERIC_ERROR,
+        );
+      }
+      revalidator.revalidate();
+    },
+    [postMutation, revalidator],
+  );
+
   const onArchive = useCallback(async () => {
     const body = new FormData();
     body.set("intent", "archive");
@@ -657,6 +678,7 @@ function ProjectDetail({
           onMove={onMove}
           onArchive={onArchive}
           onRestore={onRestore}
+          onSetIcon={onSetIcon}
         />
       }
     />
