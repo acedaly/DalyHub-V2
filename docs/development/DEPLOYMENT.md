@@ -642,7 +642,7 @@ than from memory.
 | Navigation | One new row (`About`) | Registry-driven; appears automatically, hideable in Settings → Navigation like any optional module |
 | Empty production database | Safe | A fresh owner has no preference row, so `theme` resolves to `system` from `DEFAULT_APP_PREFERENCES` — no row is written until they choose |
 | Populated production database | Safe | Existing owners keep every preference and default to `system`, which is exactly the appearance they already had |
-| Theme persistence | Verified end to end | `e2e/themes.spec.ts` — selection, navigation, reload, and a fresh browser context reading the stored value |
+| Appearance | Follows the operating system | M3-01 removed the theme feature (ADR-074). `prefers-color-scheme` is the only input; the Playwright suite emulates both schemes rather than storing a preference |
 | Mobile use | Verified | Phone navigation in light and dark, picker at 320 px, Help and About at 320 px, no horizontal overflow |
 | Browser refresh | Verified | Reload re-applies the stored theme, from the first byte |
 | Rollback | Straightforward, with one caveat | Rolling the Worker back to the previous release is safe with `0023` still applied: the old code never reads the column, and the column is nullable-with-default so its writes still succeed. **Do not roll the migration back** — dropping the column would discard owners' theme choices, and the old code does not need it gone |

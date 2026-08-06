@@ -8,362 +8,191 @@
 
 ---
 
-## Foundations
+## Foundations — Material Design 3
 
-Before the components, the shared foundations they're built on. These are defined once and consumed everywhere.
+DalyHub's design language is **Material Design 3** ([ADR-074](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)). It is hand-rolled in plain CSS over DalyHub's own components — there is no `@material/web`, no CSS framework and **no runtime dependency**. What we adopt is M3's *vocabulary, values and anatomy*; the markup, the behaviour and the accessibility contract stay ours.
 
-- **Design tokens.** Colour, spacing, typography, radius, shadow, motion, and z-index are tokens — never hard-coded values. Light and dark themes are token maps. Changing a token changes the whole product.
-- **Palette.** Muted and calm by default (see [product philosophy](../product/PRODUCT_PRINCIPLES.md#the-philosophy-behind-the-product)). Colour is reserved for meaning — status, entity type, emphasis — not decoration. Every text/background pair meets [contrast requirements](#accessibility).
-- **Typography.** One type scale, generous line height, clear hierarchy. Density with air.
-- **Spacing.** A single spacing scale (e.g. 4px base). Consistent rhythm across every surface.
-- **Motion.** Purposeful and quick (see [Motion](#motion--feedback-timing)). Communicates causality; never decoration. Honours `prefers-reduced-motion`.
-- **Iconography.** One icon set, consistent weight and size. Icons support labels; they don't replace them. Realised by the in-house outline set in [`app/shared/icons`](../../app/shared/icons) (24×24, `currentColor`, 1.75px) — see [Entity Identity (PX-02)](#entity-identity-px-02).
-- **Entity identity.** Each entity type (Area, Goal, Project, Task, Note, Meeting, Person, Asset, Diary, Review) has a consistent icon and accent so it's recognisable at a glance anywhere it appears. Realised by the one **Entity Identity** system ([PX-02](#entity-identity-px-02), [`app/shared/entity`](../../app/shared/entity)).
+This matters because it changes where design questions get answered. "What radius does a chip take?" is no longer a DalyHub decision to make, defend and document — it has a published answer, and this document records how we apply it.
 
----
+| Token family | What it carries |
+| --- | --- |
+| `--md-sys-color-*` | Every colour role, **generated** from one seed |
+| `--md-app-color-*` | Four application surface aliases onto that ramp |
+| `--md-ref-typeface-*` | The two reference typefaces |
+| `--md-sys-typescale-*` | The fifteen type styles |
+| `--md-sys-shape-*` | The corner scale |
+| `--md-sys-elevation-*` | The five shadow levels |
+| `--md-sys-state-*` | The state-layer opacities and the disabled pattern |
+| `--md-sys-motion-*` | Durations and easing curves |
+| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, the shell's own measurements |
 
-## Design tokens (DS-01)
-
-The foundations above are made concrete by the **design token system** ([DS-01](../roadmap/ROADMAP_V2.md#-ds-01--design-tokens--theming)). Tokens are the single source of truth for every design *value*; application code — CSS and components — consumes tokens and never hard-codes a raw hex, pixel or duration where a token exists ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke)).
-
-- **Authoritative source:** [`app/styles/tokens.css`](../../app/styles/tokens.css) defines every token as a CSS custom property. A typed, greppable registry over the same names lives in [`app/shared/tokens`](../../app/shared/tokens) (`cssVar`/`colorVar` helpers, the breakpoint scale, and the colour maps as data used by the contrast and parity tests).
-- **Consumed once, correct everywhere:** components style themselves in CSS classes that read `var(--dh-*)`. Because the same semantic name carries a different value per theme, a component styled once is correct in light and dark.
-- **Adding a theme is a registry edit plus a CSS block plus a stored-value migration.** The `theme` column carries a CHECK naming the legal set, so a new theme id needs all three or it cannot be saved; `migrations/0026_extend_theme_preference_choices.sql` is the worked example.
-
-### Naming rules
-
-Every token is `--dh-<group>-<role>[-<variant>]`, kebab-case, and **semantic** — named for what it is *for*, not what it looks like.
-
-- ✅ `--dh-color-danger-surface`, `--dh-space-4`, `--dh-radius-md`, `--dh-duration-fast`
-- ❌ `--dh-red-500`, `--dh-16px`, `--dh-blue` — component- or value-specific names are forbidden; they defeat theming and meaning.
-
-Colour tokens are split by **role** so opposite theme requirements don't collide: `--dh-color-accent` is a *fill* (paired with `--dh-color-on-accent` text), while `--dh-color-accent-text` is a *foreground* (links, active indicators) that must contrast on the page background. Feedback colours come as a triple — solid (`--dh-color-danger`), surface tint (`--dh-color-danger-surface`), and text-on-surface (`--dh-color-danger-text`).
-
-### Taxonomy
-
-| Group | Tokens (examples) | Notes |
-|---|---|---|
-| **Colour — surfaces/text** | `surface-page`, `surface`, `surface-raised`, `surface-sunken`, `surface-nav`, `surface-header`, `surface-card`, `text`, `text-secondary`, `text-muted`, `on-accent`, `link`, `link-hover`, `border`, `border-strong`, `border-subtle`, `control-border`, `divider` | semantic surfaces & text, mapped in every theme. `surface-page` (DS-14) is the tinted page canvas cards sit on — it replaced `bg`, which is **retired**: two names for the page canvas is a drift generator and lets a theme satisfy the elevation contract on the token nothing paints. `surface-nav`/`surface-header`/`surface-card` let a theme separate navigation, chrome and cards independently. `control-border` is the **3:1** boundary that identifies a form control (WCAG 1.4.11); `border-strong` stays the decorative emphasis border |
-| **Colour — brand/interactive** | `accent`, `accent-hover`, `accent-active`, `accent-text`, `accent-surface`, `secondary`, `secondary-hover`, `hover-surface`, `active-surface`, `nav-selected-surface`, `nav-selected-text`, `disabled-surface`, `disabled-text`, `disabled-border` | fills vs foreground kept distinct. `nav-selected-*` (THEME-02) is the **selected navigation row** specifically — the sidebar's current module and the Settings section list — kept separate from `accent-surface` (a tinted informational region anywhere) so a theme can control "you are here" without moving every tinted panel with it |
-| **Colour — feedback** | `success{,-surface,-text}`, `warning{,-surface,-text}`, `danger{,-surface,-text}`, `info{,-surface,-text}` | never colour-only — always paired with a label/icon |
-| **Colour — priority** | `priority-p1{,-surface,-text}` … `priority-p4{,-surface,-text}` | P1–P4 are their OWN tokens, not the feedback triples: a P1 task is not an error |
-| **Colour — record states** | `state-overdue{,-surface,-text}`, `state-due-soon{…}`, `state-completed{…}`, `state-waiting{…}`, `state-on-hold{…}` | lifecycle, not feedback: "waiting on someone" is not a warning |
-| **Colour — progress & charts** | `progress-track`, `progress-fill`, `progress-complete`, `chart-1`…`chart-6` | track/fill hold 3:1 — and since DS-14 the **track holds 3:1 against `surface-card` too**, so the extent of a bar is a visible boundary rather than a suggestion. The six series are distinct in every theme |
-| **Colour — Area identity (DS-14)** | `area-accent-1…6`, each with `-surface` and `-text` | the six-step identity ramp. The bare token is the **dot** (≥3:1 on a card); the `-surface`/`-text` pair is its **pill** (≥4.5:1). Role colours (`danger`, `success`, `warning`) are reserved for state and are **never** an Area accent |
-| **Colour — absence & hairlines (DS-14)** | `pill-neutral-surface`, `pill-neutral-text`, `divider-subtle` | the neutral pill is the **absence** state ("No date", "Not linked"); `divider-subtle` is within-card row separation, deliberately quieter than `border`, which stays the boundary of the card itself |
-| **Colour — loading** | `skeleton-base`, `skeleton-highlight` | the shimmer pair, tuned per theme |
-| **Colour — focus/selection/overlay** | `focus-ring`, `selection-bg`, `selection-text`, `overlay` | focus ring meets 3:1 in every theme |
-| **Typography** | `--dh-font-sans/-serif/-mono`, `--dh-font-size-2xs…3xl` (incl. `-compact`, 14px), `--dh-line-height-*` (incl. `-dense` 1.4, `-loose` 1.75), `--dh-font-weight-regular/medium/semibold`, `--dh-letter-spacing-*` | one restrained, dense ramp (base 15px). `--dh-font-serif` is for **prose bodies inside a Reading region only** — every title, label, control and pill stays sans. **Three weights**: `bold` (700) was removed by DS-14 and its call sites moved to `semibold` |
-| **Spacing** | `--dh-space-0…16` (+ `-px`) | 4px base scale |
-| **Sizing** | `--dh-control-height-sm/md/lg`, `--dh-touch-target-min` (44px), `--dh-width-reading/narrow/prose/content/wide`, `--dh-shell-*`, `--dh-gutter` | control heights & content widths. `--dh-width-reading` (46ch) is the Reading preset's measure cap and supersedes `--dh-width-prose` **inside a region** |
-| **Density (DS-14)** | `--dh-density-body-size/-line-height/-measure/-body-family/-numerals/-section-gap/-card-padding-block/-card-padding-inline/-row-padding-block/-row-min-height` | resolved by `data-density` on a region wrapper, not set directly. See [Surface type](#surface-type-ds-14) |
-| **Shape** | `--dh-border-width-thin/thick`, `--dh-radius-pill/card/control/field` | the **semantic** radius scale (DS-14). The geometric `--dh-radius-xs…xl/full` scale it supersedes is retained only while module groups migrate; do not reach for it in new work |
-| **Elevation** | `--dh-shadow-sm/md/lg`, `--dh-shadow-focus` | shadows are theme-mapped (softer in light, deeper in dark) |
-| **Motion** | `--dh-duration-instant/fast/base/slow`, `--dh-ease-standard/emphasized/exit` | quick, purposeful; zeroed under reduced-motion |
-| **Layout** | `--dh-breakpoint-sm…2xl`, `--dh-z-base…tooltip` | breakpoints (also in TS) & z-index layers |
-
-### Theme mapping (THEME-01, extended by THEME-02)
-
-DalyHub ships **seven curated themes**. Each is a complete map over **the same semantic names**; only colour and elevation tokens change between them, so a component styled once is correct in all of them and **no component ever branches on the theme** (a test enforces this).
-
-| Theme | `data-theme` | Appearance | Character |
-|---|---|---|---|
-| **Daly Light** | `daly-light` | light | Warm off-white surfaces, restrained blue-green accent. The default and the safe fallback. |
-| **Daly Dark** | `daly-dark` | dark | Layered charcoal surfaces, softened text, desaturated status colours. A designed dark theme, not an inversion. |
-| **Modern Light** | `modern-light` | light | Warm cream page, near-white panels, genuinely white cards, teal accent with blue as the informational colour. The light half of the Modern pair. |
-| **Modern Dark** | `modern-dark` | dark | Deep charcoal with four separated elevations and a controlled indigo accent. The dark half of the Modern pair. |
-| **Eucalypt** | `eucalypt` | light | Warm stone surfaces, muted sage accent. |
-| **Coastal** | `coastal` | light | Cool neutral surfaces, sea-glass blue accent. |
-| **Ember** | `ember` | light | Warm neutral surfaces, terracotta accent; danger deliberately shifted cooler so a primary button never reads as destructive. |
-
-Every theme is **self-contained** — one palette, and choosing it never makes the application follow the OS appearance.
-
-#### The Modern pair (THEME-02)
-
-Modern Light and Modern Dark are the one **pair** in the registry: two treatments of a single visual system, so an owner can move between them by time of day and have nothing move. They are still two separately choosable themes — the pair is a design relationship, not a new mechanism, and neither half follows `prefers-color-scheme` on its own.
-
-What "a pair" means concretely, and what is asserted rather than asked for on trust ([`test/unit/tokens/modern-pair.test.ts`](../../test/unit/tokens/modern-pair.test.ts), [`e2e/themes.spec.ts`](../../e2e/themes.spec.ts)):
-
-- **the same token names**, declared in both blocks, so no value can fall back to the base map on one side only;
-- **only colour, entity accent and elevation** differ — geometry, spacing, type, motion and layout live on `:root` and are theme-independent, so switching cannot change the shape of the application. The E2E check measures the *rendered* radius, padding, type size and control height in both and requires them equal;
-- **no light surface leaks into the dark half** — every surface, tint, hover, disabled and skeleton value is below a luminance threshold as data, and the rendered page is swept for any element larger than a chip that paints light;
-- **the dark half is layered, not flat or black** — `sunken < surface-page < card < raised`, with the page held away from `#000000`;
-- **the light half is warm, not sterile** — the page is off-white, the card sits *above* it.
-
-Design intent, for anyone extending them: Modern Light is a cream surround with the content plane reading as paper. **DS-14 changed how that separation is carried**: a card was separated by its surface and a soft shadow rather than a hard outline; it is now separated by its surface value and a **hairline**, and shadow is reserved for genuinely floating layers (brief §1.8, adopted whole by ADR-068 decision 1). The character — paper on a cream surround — is unchanged; the mechanism is not. Modern Dark keeps the accent inside the narrow band that is both ≥3:1 against the page and ≥4.5:1 under white label text, which is why its hover and active states step only slightly *lighter*: a brighter indigo would lose its own button label. Violet is confined to the waiting state and one chart series, and nothing glows.
-
-`system` is an **appearance mode**, not an eighth palette: it pairs Daly Light with Daly Dark and follows `prefers-color-scheme`. Supporting the OS preference must never cost a curated theme. Choosing Modern Dark is a *choice*, so it stays Modern Dark in a light OS — an owner who wants the pair to follow their device today should use `system`, which is documented in the picker as pairing Daly Light with Daly Dark.
-
-**Mechanism** ([ADR-016 §5.11](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing), extended by [ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)): the server renders `data-theme` on `<html>` from the owner's **persisted preference**, so the first byte is already correct — **no flash, no client theme script, no inline bootstrapping**. `:root` carries the Daly Light map, so an unknown or missing `data-theme` degrades to a complete, readable theme rather than to unstyled colour.
-
-**Persistence**: the authority is the owner/workspace preferences record (`theme` column, migration `0023`, its legal set widened by migration `0026`), so a theme follows the owner between browsers. A cookie MIRRORS it purely so a document that never reaches the authenticated shell loader (a root error boundary) still gets the right first byte. Stored values are validated against the registry on read and on write; a removed theme degrades to the default. Legacy `light`/`dark` values map to Daly Light / Daly Dark.
-
-**The registry is the only theme list.** `app/kernel/preferences/theme-preference.ts` owns the ids and validation; `app/shared/shell/theme.ts` adds the owner-facing names and descriptions and re-exports the rest. Settings renders the registry, the tests iterate it. Adding a theme is a registry edit plus a CSS block — the tests fail if either is missing.
-
-`prefers-reduced-motion: reduce` collapses every transition/animation to `--dh-duration-instant`; meaning is never carried by motion alone.
-
-### Consumption & extension rules
-
-1. **Use tokens, not literals.** Any colour/space/size/radius/shadow/duration in application CSS or components must be a `var(--dh-*)`. A test scans `app/` and fails if a `var(--dh-*)` references an undefined token.
-2. **Extend by adding a token first**, then consuming it. Never widen a component with a one-off literal.
-3. **A new colour token must be given a value in EVERY theme block**, including both dark blocks (the explicit one and the `prefers-color-scheme` one, which a parity test keeps byte-identical). Coverage, cross-theme parity, and WCAG contrast (4.5:1 text, 3:1 UI) are enforced by `test/unit/tokens` in every theme.
-5. **Never branch on the theme in a component.** If a component needs to know which theme is active, the missing thing is a token. The one documented exception is the theme PREVIEW swatch (`app/shared/shell/ThemePreview.tsx`), which must paint a theme it is not in and therefore sets `--dh-preview-*` inline from the colour data; a test confines those properties to that component.
-4. **Prefer a semantic token over a raw palette value.** There is no exposed raw palette; semantics are the API.
+**Authoritative source:** [`app/styles/tokens.css`](../../app/styles/tokens.css). A typed, greppable registry over the same names lives in [`app/shared/tokens`](../../app/shared/tokens). Application code — CSS and components — consumes tokens and never hard-codes a raw hex, pixel or duration where a token exists ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke)).
 
 ---
 
-## The card-on-tint foundation (DS-14)
+## Colour is generated, never authored
 
-[DS-14](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul) restyles DalyHub to a **card-on-tint** visual system: a tinted page canvas with cards raised above it, a serif reading column on prose surfaces, and two density presets keyed to what a surface *is*. The brief is [`DS_14_OVERHAUL_BRIEF.md`](DS_14_OVERHAUL_BRIEF.md); the decisions are [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback).
-
-The direction is stated as **constraints, not adjectives** — every one of them is checkable in a diff:
-
-1. A tinted page canvas with cards raised above it at `radius-card`.
-2. Area identity carried by a small colour dot or pill. Never a filled card background, never a tinted row.
-3. Sans for all chrome, labels, controls, metadata and collection rows.
-4. Serif at a capped measure for prose bodies only.
-5. Two density presets keyed to **surface type**, not to module.
-6. Status pills, including a neutral variant that states absence in words.
-7. One progress component ([`ProgressMeter`](../../app/shared/progress)).
-8. Separation carried by surface value and a hairline, **not by shadow**, except on genuinely floating layers.
-
-### The elevation contract
-
-Every theme must satisfy, in the resolution it actually paints:
-
-> `surface-card` is perceptibly lighter than `surface-page`, and `surface-raised` perceptibly lighter than `surface-card` — **ΔL\* ≥ 3 in CIELAB**, in both light and dark palettes.
-
-ΔL\* rather than a WCAG luminance ratio because the question is "does this read as a step up", not "can this be read". The floor is 3 because that is the low end of a reliably perceptible step across a large flat area, which is the right place to put a floor every theme must clear rather than a target.
-
-It is **measured, not reviewed**, by [`test/unit/tokens/ds-14-theme-invariants.test.ts`](../../test/unit/tokens/ds-14-theme-invariants.test.ts), which enumerates the theme registry so a future theme is covered the moment it is registered and **cannot be registered while failing**. As measured on the values in `tokens.css`:
-
-| Theme | `data-theme` | `surface-page` (L\*) | `surface-card` (L\*) | ΔL\* | `surface-raised` (L\*) | ΔL\* |
-|---|---|---|---|---|---|---|
-| **Daly Light** | `daly-light` | `#ecebe8` (93.05) | `#f6f5f4` (96.59) | **3.54** | `#ffffff` (100.00) | **3.41** |
-| **Daly Dark** | `daly-dark` | `#101215` (5.39) | `#181c22` (10.11) | **4.72** | `#20242c` (14.12) | **4.01** |
-| **Modern Light** | `modern-light` | `#efeae0` (92.83) | `#f7f5f1` (96.59) | **3.76** | `#ffffff` (100.00) | **3.41** |
-| **Modern Dark** | `modern-dark` | `#0f1116` (5.06) | `#171b23` (9.70) | **4.64** | `#1f242e` (14.12) | **4.42** |
-| **Eucalypt** | `eucalypt` | `#eae8e0` (91.95) | `#f3f2ef` (95.49) | **3.55** | `#fdfcf8` (98.94) | **3.45** |
-| **Coastal** | `coastal` | `#e7ebee` (92.83) | `#f4f5f7` (96.51) | **3.68** | `#ffffff` (100.00) | **3.49** |
-| **Ember** | `ember` | `#ede8e3` (92.25) | `#f5f3f1` (95.94) | **3.69** | `#fffdfb` (99.41) | **3.47** |
-
-**No theme is exempt and there is no per-theme escape hatch.** Five of the seven light palettes could not satisfy this before DS-14 — three had `surface-card` and `surface-raised` both at `#ffffff`, with nothing above white — so their neutral ramps were recomposed. Each theme's *hue* is its own; only the lightness relationships are prescribed. A contract with an exemption is a review checklist with extra steps.
-
-The full surface ramp, ascending, in **every** theme and in both light and dark palettes:
-
-| Ordinal | Token | What it is |
-|---|---|---|
-| 1 | `surface-sunken` | wells and inset areas, below the canvas |
-| 2 | `surface-nav` / `surface-header` | the application **frame** — the rail and the header. One small step below the canvas, so the frame reads as the plane the canvas sits on, separated by a hairline |
-| 3 | `surface-page` | the tinted page canvas |
-| 4 | `surface` | in-flow secondary panels, between the canvas and a card |
-| 5 | `surface-card` | the card plane |
-| 6 | `surface-raised` | genuinely floating layers — menus, popovers, drawers |
-
-At most **two floating elevations** on screen at once; in-flow cards do not count, and drawer depth 3+ stops adding shadow rather than the stack being capped.
-
-### Shape
-
-Four semantic radius tokens. Pick by what a thing **is**, not by how round it should look:
-
-| Token | Value | Use |
-|---|---|---|
-| `--dh-radius-pill` | 999px | anything fully rounded — status pills, Area pills, dots, avatars |
-| `--dh-radius-card` | 16px | in-flow cards, panels, floating layers |
-| `--dh-radius-control` | 10px | buttons, tabs, menu items, chips with a square-ish shoulder |
-| `--dh-radius-field` | 10px | inputs, selects, textareas |
-
-`control` and `field` share a value deliberately: a button and the input beside it must agree, and one number each means they can only drift apart on purpose.
-
-**Two rules, not preferences.** There are no literal `border-radius` values in `app/` — every one is a token. And **rounded corners only ever go with a full border**; a single-sided accent border stays square. Where a state needs a loud edge on a card, it thickens or recolours one edge of the card's *existing full border* rather than adding a separate single-sided rule.
-
-### Surface type (DS-14)
-
-**Density is a property of the surface, not of a component, a module or the owner.** There is no density prop, no module branch and no user-facing switch. A region declares what kind of surface it is; the preset resolves that into sizing tokens; the components inside consume them.
-
-```tsx
-import { Region } from "~/shared/region";
-
-<Region density="collection">…</Region>   // scanned
-<Region density="reading">…</Region>      // read
-```
-
-That renders `data-density` on the wrapper, which [`tokens.css`](../../app/styles/tokens.css) resolves into `--dh-density-*` and [`density.css`](../../app/styles/density.css) paints with. Regions **nest**, and the nearest one wins, because every value is a custom property resolved by the cascade.
-
-#### You will almost never write one
-
-**Three shared boundaries already declare the region, so a surface inherits its classification from the component it was always going to use** ([ADR-069 decision 2](../decisions/ARCHITECTURE_DECISIONS.md#adr-069-ds-14-applied--the-group-is-the-card-the-shared-boundary-is-the-region-and-what-a-whole-application-restyle-cost-in-one-pr)):
-
-| Boundary | Declares | So this is automatic for |
-|---|---|---|
-| [`CollectionLayout`](../../app/shared/collection-layout) | Collection | every routed collection surface |
-| [`RecordLayout`](../../app/shared/record-layout) | Collection | every record's header, metadata, tabs, links and activity |
-| [`MarkdownContent`](../../app/shared/markdown) | **Reading** | every prose body in the product |
-
-The third is the important one. `MarkdownContent` is the ONE sanctioned place rendered Markdown reaches the DOM ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md) §4.5) — a boundary that already exists for a security reason — so a note body, a diary entry, a meeting summary, an area vision, a project description, a review response and a task description all get the reading column without any of them asking for it.
-
-**Write a `<Region>` by hand only for prose that does not go through the Markdown boundary** (Help topics are the shipped example) **or for a Collection surface that is not a routed collection**. If you find yourself wrapping a module's prose in a Reading region, check first whether it should be rendering through `MarkdownContent`.
-
-#### The classification rule
-
-Ask one question about the surface:
-
-> **Is the owner reading this prose, or scanning this for something?**
-
-- **Reading** — continuous prose the owner reads from the start: a note body, a diary entry, a meeting summary, a review prompt and response, a project description, an area vision, a help page, release notes.
-- **Collection** — anything scanned for an item: every list and table, Today, the Eisenhower Matrix, Time Sectors, search results, the command palette, linked-items lists, the people directory, the asset list, the activity timeline, settings sections.
-
-Three follow-ups resolve almost every remaining case:
-
-1. **A record is usually both, on separate regions.** A Note record is Reading for its body and Collection for its metadata, links and activity — one route, two regions, which is expected rather than a special case. Same for a meeting, a project, an asset and a review session.
-2. **A form is Collection.** Fields, labels and controls are chrome; the owner is operating them, not reading them. A form *inside* a Reading region does not make the form Reading.
-3. **When it is genuinely ambiguous, it is Collection.** Collection is the denser, safer default: a surface wrongly set to Reading gets a serif and a 46ch cap it does not want, which is a visible error; one wrongly set to Collection is merely denser than ideal.
-
-**Do not add a third preset.** If a surface fits neither, classify it with the rule above and record the classification in the PR that touches it — a third preset is a second design system.
-
-#### The two presets
-
-|  | Reading | Collection |
-|---|---|---|
-| Body size | 16px (`--dh-font-size-md`) | 14px (`--dh-font-size-compact`) |
-| Line height | 1.75 (`--dh-line-height-loose`) | 1.4 (`--dh-line-height-dense`) |
-| Measure cap | 46ch (`--dh-width-reading`) | none |
-| Family | **serif — prose body only** | sans |
-| Row padding | n/a | 9px block, `--dh-touch-target-min` minimum |
-| Section gap | 24px (`--dh-space-6`) | 12px (`--dh-space-3`) |
-| Card padding (block / inline) | 24px / 28px | 4px / 18px |
-| Numerals | default | tabular |
-| Separator | one hairline before linked items | hairline between every row |
-
-Sizes are authored in **rem**, never px, so OS text scaling still applies to the densest surfaces in the product ([AGENTS.md §15](../../AGENTS.md#15-accessibility-requirements)); the rendered size at the default root is the number above. Row and card padding are component-internal and are px, per the brief's rhythm rule.
-
-**Card padding is block / inline.** The Collection preset's 4px block is not a mistake: the card supplies the horizontal inset and each row supplies its own 9px vertical padding, which is what makes a list with a hairline between every row have even rhythm at both of its ends.
-
-**The serif is the prose body and nothing else.** Titles, labels, metadata, controls, pills, toolbars, save status and empty states stay sans on both presets. `--dh-density-body-family` and `--dh-density-measure` are consumed by the **prose element itself**, never by the region wrapper — which is what stops the serif leaking into the chrome around it. The worked example is `.dh-note-body` in [`markdown-editor.css`](../../app/styles/markdown-editor.css): the region wrapper carries the size and rhythm, and only the editor's content area takes the family and the cap.
-
-**The shared prose class is `.markdown-content`**, in [`base.css`](../../app/styles/base.css). It is the reading column: the measure, the family, the size and the rhythm, plus the rules for what inside a column is NOT prose — headings, code and tables are chrome and stay sans, and a table takes the collection's hairlines, tabular figures and its own horizontal scroll rather than widening the page. A blockquote's single-sided rule stays **square**, because one rounded edge on a three-sided shape is exactly the malformed corner [Shape](#shape) rules out.
-
-### Typography
-
-Two self-hosted variable families, subset to the Latin range actually used and precached so a first offline launch has them:
-
-| Family | Role | Transferred |
-|---|---|---|
-| **Inter** (`--dh-font-sans`) | all chrome, controls, collections | 31,200 B |
-| **Source Serif 4** (`--dh-font-serif`) | prose bodies in Reading regions | 32,292 B |
-
-Both are roman only — the browser synthesises an oblique — and both declare `font-weight: 400 600`, matching the instanced axis exactly so no weight can be synthesised. `font-display: swap` means the system stack paints first and text is never invisible. Provenance, licences and the exact regeneration commands are in [`public/fonts/README.md`](../../public/fonts/README.md); the measured budget impact is in [`PWA_AND_OFFLINE.md §12`](../development/PWA_AND_OFFLINE.md#12-measurements).
-
-**Three weights: 400, 500, 600.** `bold` (700) was removed. The brief asked for two (400/500); `semibold` is kept because `e2e/themes.spec.ts` asserts the selected navigation row's *computed* weight is ≥600 — an assertion that exists because THEME-02 found a real contrast defect in exactly that treatment, and a restyle is not entitled to weaken a state cue holding a WCAG floor ([ADR-068 decision 8](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback)).
-
-### Absence, pills and Area identity
-
-**Every field, badge and progress affordance has a defined rendering when the value does not exist.** Never an empty slot, never a zeroed bar, never a hyphen — the neutral pill, stating the absence in the owner's words:
-
-```tsx
-import { StatusPill } from "~/shared/pill";
-
-<StatusPill tone="neutral">No tags</StatusPill>
-<StatusPill tone="neutral">No date</StatusPill>
-<StatusPill tone="neutral">Not linked</StatusPill>
-```
-
-A status pill always says its state in text; colour is never the sole carrier of meaning. Area identity is a **dot or a pill**, never a filled card background and never a tinted row, and the dot always carries an accessible name. An Area's accent is **derived from its stable rank** in the workspace (`(rank mod 6) + 1`) — no column, no migration, no owner-facing picker ([ADR-068 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback), and [`areaAccentForRank`](../../app/shared/pill)).
-
-### What the invariant test asserts
-
-For **every registered theme**, enumerated from the kernel registry:
-
-1. every DS-14 token resolves to a non-empty colour;
-2. ΔL\* ≥ 3 from `surface-page` → `surface-card` → `surface-raised`;
-3. `text`, `text-secondary` and `text-muted` ≥ 4.5:1 on `surface-card`;
-4. every pill surface/text pairing ≥ 4.5:1 — all six Area accents, the neutral absence pill, every role pill;
-5. `progress-fill` ≥ 3:1 on `progress-track`, and `progress-track` ≥ 3:1 on `surface-card`;
-6. every Area dot ≥ 3:1 on `surface-card`;
-7. `focus-ring` ≥ 3:1 on **both** `surface-card` and `surface-page`;
-8. `nav-selected-text` ≥ 4.5:1 on `nav-selected-surface`.
-
-Failure messages name the theme id, the token pair and the measured value. This is the enforcement mechanism — not a review checklist item, and not a row in the acceptance matrix.
-
-### The group is the card
-
-**Inside a Collection region, the COLLECTION is the card and the row is not.** This is the single rule that carries card-on-tint across every list in the product, and it lives in one place — [`card.css`](../../app/styles/card.css), against the shared [`CardCollection`](../../app/shared/card)/[`Card`](../../app/shared/card).
-
-| | The group (`.dh-card-collection--list`) | The row (`.dh-card` inside it) |
-|---|---|---|
-| Surface | `surface-card` | `surface-card` — opaque, see below |
-| Border | full hairline | none |
-| Radius | `radius-card` | none |
-| Shadow | none | none |
-| Separator | — | `divider-subtle` **between** rows only |
-| Padding | 4px block / 18px inline (the preset) | 9px block, `--dh-touch-target-min` floor |
-
-**Why.** Fifty cards on a tint is fifty elevation decisions the eye has to make; one card holding fifty hairline rows is one. It is also what makes a dense list dense — a per-row border, radius, shadow and gap costs roughly 28px of vertical space per row carrying no information, which on Tasks is the difference between nine rows and fourteen on a laptop.
-
-**The row's opaque background is load-bearing, not decorative.** TODAY-06's swipe tray is a real element parked *behind* the card surface and revealed by translating it. A transparent row shows the tray at rest, on every row, at every width.
-
-**A collection already inside a card does not draw a second one.** Today's widgets, a record's tab panel, a linked-items panel and the record summary all host row collections; inside them the group drops its surface, border, radius and padding and only the hairlines remain. Same rule for the empty state.
-
-**Grid and board keep genuine cards.** Those presentations exist precisely because their items are tiles rather than rows. They take the card plane and radius and still take no shadow.
-
-### Mixed surfaces
-
-A record is routinely both, and that is the expected case rather than an exception:
+Every colour in the product comes out of [`scripts/generate-m3-scheme.mjs`](../../scripts/generate-m3-scheme.mjs), which runs the M3 tonal-palette algorithm over a single seed:
 
 ```
-RecordLayout ─────────────── Collection region (header, status, metadata, tabs)
- └─ tab panel ────────────── one card
-     ├─ MarkdownContent ──── Reading region — the serif column at 46ch
-     └─ CardCollection ───── Collection rows, hairlines, no second card
+SOURCE_COLOR = #2563EB
 ```
 
-Both regions are declared by shared components, so a mixed record composes without either surface knowing about the other. Anything inside the Reading region that is *not* prose — the record's title, its toolbar, its save status, its metadata, its pills — stays sans, because the region carries only the body values and the family is applied by `.markdown-content` itself.
+The script writes **both** the colour blocks in `tokens.css` and the typed mirror `app/shared/tokens/scheme.ts`, so the stylesheet and the tests cannot disagree. `pnpm run scheme:check` regenerates both in memory and byte-compares them; it runs inside `pnpm run verify`, so a hand-edited hex fails the build rather than surviving review.
 
-### Responsive
+**To change a colour, change the seed.** Re-branding the product is one line and one command.
 
-**The measure applies to collections, not only to prose.** `.dh-collection__content` is capped at `--dh-width-wide` and aligned to the inline **start**, not centred: the navigation rail is on the left, so a centred column drifts away from it as the viewport grows and leaves the navigation pointing at nothing. Without the cap, a 1440px row puts a record's title at one end and its status pill at the other — the "stretched mobile application" failure ([ADR-069 decision 7](../decisions/ARCHITECTURE_DECISIONS.md#adr-069-ds-14-applied--the-group-is-the-card-the-shared-boundary-is-the-region-and-what-a-whole-application-restyle-cost-in-one-pr), [DEBT-72](../product/PRODUCT_DEBT.md)).
+### One light/dark pair, and no theme feature
 
-**Below 480px** the row keeps its content on one line beside the selection control and moves its quick actions to their own row beneath. Two flexbox behaviours make this fiddly and both were shipped-then-fixed, so they are written down:
+There is one light scheme and one dark one, selected by `prefers-color-scheme` alone. There is no `data-theme`, no picker, no persisted preference and no theme column — the seven curated themes and their machinery are retired ([ADR-074 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism), migration `0031`). A component styled once is correct in both appearances, and nothing in the cascade branches on a theme.
 
-- a wrapping flex line places an item on a new line when its **hypothetical** size (flex-basis, `auto` = content width) exceeds the free space, and it does that *before* it considers shrinking. The card body therefore needs `flex-basis: 0` at narrow widths, or it drops below the checkbox instead of fitting beside it;
-- a title with `min-width: 0` and `overflow-wrap: anywhere` will shrink to whatever a status pill leaves it and then break **one character per line**. It needs a `min-inline-size` floor and a wrapping line.
+### The four application surfaces
 
-Verification widths: **320, 375, 390, 430, 768, 1280, 1440**, plus the DS-11 sweep's 1024 and 2560. Every theme, light and dark.
+`--md-app-color-surface-{page,card,raised,sunken}` alias different rungs of the system ramp in each scheme:
 
-**Ask the container, not the window (POLISH-02).** A surface's layout thresholds belong in a `@container` query wherever the surface is not the full width of the viewport — and inside the app shell, nothing is. The shell's navigation rail is `--dh-shell-nav-width` (15rem) plus two gutters, so a media query written against the window is wrong by ~17rem on every authenticated route. Today split into two columns at a 1024px *viewport* breakpoint and landed a primary column of ~390px: wide enough to pass a no-overflow check, narrow enough that a task row wrapped its project onto a second line. Container queries also survive the rail being collapsed, resized, or the surface being embedded somewhere narrower — none of which a viewport number can know about.
+| Token | Light | Dark |
+| --- | --- | --- |
+| `--md-app-color-surface-page` | `surface-container-low` | `surface` |
+| `--md-app-color-surface-card` | `surface-container-lowest` | `surface-container` |
+| `--md-app-color-surface-raised` | `surface-container-high` | `surface-container-high` |
+| `--md-app-color-surface-sunken` | `surface-container` | `surface-container-low` |
 
-Declare the container on the surface's own wrapper (`container-type: inline-size` plus a `container-name`, so a nested container cannot silently capture the query) and reserve media queries for things that genuinely are facts about the device: whether a phone bottom bar exists, `hover`/`pointer`, `prefers-reduced-motion`, `prefers-color-scheme`. Existing containers: [`.dh-today`](../../app/styles/today.css), [`.dh-record`](../../app/styles/record-layout.css), the [Activity Feed](../../app/styles/activity-feed.css) and [Settings](../../app/styles/settings.css).
+These exist because one requirement — **a card is lighter than the page it sits on, in both schemes** — cannot be expressed by a single system alias: light lifts the card toward white while dark lifts it away from black. Naming the four rungs the application actually paints with means every card in the product agrees by definition. A test asserts the lift in both schemes.
 
-### Correct vs incorrect
+### Custom colours
 
-| Do | Don't |
-|---|---|
-| Let `CollectionLayout` / `RecordLayout` / `MarkdownContent` declare the region | Thread a density prop through components, or branch on the module |
-| Make the collection the card and the rows hairlines | Give every row its own border, radius, shadow and gap |
-| Stand the container down when a collection is already inside a card | Nest a card in a card with the same surface and radius |
-| Reserve shadow for genuinely floating layers — drawer, sheet, menu, dialogue | Put a shadow on an in-flow card to "lift" it |
-| Separate with surface value plus a complete hairline | Separate with a heavier border, or with nothing |
-| Use `radius-card` / `-control` / `-field` / `-pill` | Reach for `radius-xs`/`-sm` outside component internals, or write a literal px |
-| Keep a single-sided accent square | Round one edge of a three-sided shape |
-| State an absent value with the neutral pill, in the owner's words | Leave a blank, a hyphen, or a 0% bar for a metric that does not exist |
-| Put an Area's colour in a dot or a pill, always beside its name | Fill a card or tint a row with an Area's colour; reuse a role colour for it |
-| Write labels in sentence case | SHOUT A LABEL IN UPPER CASE WITH LETTER-SPACING |
-| Set the reading column's serif on the prose body | Set a serif on a heading, a control, a pill or any other chrome |
+Feedback, priority, record state, chart series, Area identity and entity identity are M3 **custom colours**: a source hue harmonised toward the seed (a rotation of at most 15°) and then run through the same tonal machinery as the system roles. Each emits a full quartet — `<name>`, `on-<name>`, `<name>-container`, `on-<name>-container` — in both schemes, so any of them can be a filled badge as readily as a dot.
 
-### Reference implementations
+| Group | Tokens |
+| --- | --- |
+| Feedback | `success`, `warning`, `info` |
+| Priority | `priority-p1` … `priority-p4` |
+| Record state | `state-overdue`, `state-due-soon`, `state-completed`, `state-waiting`, `state-on-hold` |
+| Chart series | `chart-1` … `chart-6` |
+| Area identity | `area-accent-1` … `area-accent-6` (the chart ramp reused — an Area badge and a chart series never share a surface) |
+| Entity identity | one per entity type, table below |
 
-Every module uses the system. These are the worked examples to copy from, because each one shows a different part of it:
+**Chart series carry a hard rule:** a legend is the one place in this product where colour genuinely *is* the signal, so no two series may sit within **25° of hue**. Two of the obvious source hues could not hold that after harmonisation and were replaced; a test asserts the separation so the collision cannot come back.
 
-- **[Today](../../app/modules/today/TodayDashboard.tsx)** — the Collection reference, and (since POLISH-02) the reference for [dashboard regions](#dashboard-regions-polish-02), the [at-a-glance rail](#at-a-glance-rail-polish-02) and [bounded section previews](#bounded-section-preview-polish-02). One region; every widget is a card on the tint with a hairline and no shadow; rhythm, body size, tabular figures and row padding all come from the preset; layout thresholds are container queries, not media queries.
-- **[A Note record](../../app/modules/notes/NoteOverview.tsx)** — the Reading reference, and the "both, on separate regions" case. The body is a Reading region — the serif column at 46ch — inside entirely sans chrome; Backlinks, Links and Activity are Collection regions on the same route.
+### Entity identity
 
-- **[Tasks](../../app/modules/tasks)** — the densest collection in the product, and the clearest view of "the group is the card": one card, hairline rows, 9px block padding, 44px targets, tabular figures.
-- **[The Areas collection](../../app/modules/areas/AreasCollection.tsx)** — Area identity, and the only place the rank that drives it is available for free.
-- **[Settings](../../app/modules/settings)** — sections as cards, and the shared control baseline.
+Each entity type has one colour, and no two share one — an activity feed routinely shows several kinds at once. Each also carries its own glyph and its own label: **colour is never the only signal** ([AGENTS.md §15](../../AGENTS.md#15-accessibility-requirements)).
 
-Screenshots in all seven themes under both OS colour schemes: [`docs/design/assets/ds-14-2026-08/`](assets/ds-14-2026-08/), captured by [`e2e/ds-14-screenshots.spec.ts`](../../e2e/ds-14-screenshots.spec.ts).
+| Entity | Source hue | Glyph (Material Symbols) |
+| --- | --- | --- |
+| Area | teal `#00897B` | `layers` |
+| Goal | purple `#8E24AA` | `flag` |
+| Project | seed blue `#2563EB` | `folder` |
+| Task | green `#1B873F` | `check_circle` |
+| Note | amber `#B26A00` | `description` |
+| Meeting | magenta `#C2185B` | `groups` |
+| Person | cyan `#00ACC1` | `person` |
+| Asset | neutral `#5F6368` | `inventory_2` |
+| Diary | violet `#6750A4` | `menu_book` |
+| Review | olive `#827717` | `event_repeat` |
+
+The consumed token is `--md-sys-color-entity-<type>`, resolved through [`app/shared/entity`](../../app/shared/entity) — never hand-picked at a call site.
 
 ---
+
+## Typography
+
+One family: **Roboto Flex**, self-hosted, instanced to the `wght` axis (400–700) and subset to Latin (23,160 B — 33% of the per-family byte ceiling). Mono keeps the system stack and ships no file. **There is no serif and no prose family**: DS-14's Reading region is retired, and prose renders the plain typeface at `body-large` on a 65ch measure.
+
+The fifteen M3 type styles are defined as `--md-sys-typescale-<style>-{size,line-height,weight,tracking}`, authored in rem so OS text scaling applies to all of them.
+
+**Usage map — this is the contract:**
+
+| Surface | Style |
+| --- | --- |
+| Page headings | `headline-small` |
+| Dashboard hero figures | `headline-medium` |
+| Record titles, top app bar | `title-large` |
+| Card and widget titles | `title-medium` |
+| Section labels | `title-small` |
+| Body prose | `body-large` |
+| Collection rows, menu items | `body-large` / `body-medium` |
+| Metadata, supporting text | `body-small` |
+| Buttons, chips, navigation items, tabs | `label-large` |
+| Navigation bar labels, dense metadata | `label-medium` |
+
+Three sizes moved when the old ramp snapped onto M3's — body 15→16px, small text 13→12px, small headings 18→16px at weight 500. Those shifts **are** the move to the M3 scale, not rounding accidents; they are recorded in ADR-074 decision 9 so nobody restores them.
+
+There are no density presets. Density is a typescale choice per surface, made where the surface is built.
+
+---
+
+## Shape, elevation, state and motion
+
+**Shape.** `--md-sys-shape-corner-{none,extra-small,small,medium,large,extra-large,full}` = 0 / 4 / 8 / 12 / 16 / 28 / 9999px.
+
+| Component | Corner |
+| --- | --- |
+| Cards | `large` |
+| Chips | `small` |
+| Buttons, extended FAB, search bar, active navigation pill | `full` |
+| Standard FAB | `large` |
+| Text fields, menus | `extra-small` |
+| Dialogs and sheets | `extra-large` (a sheet rounds its top corners only; a side drawer its leading edge only) |
+
+**Elevation.** Five levels, each an M3 umbra/penumbra pair. Dark leans primarily on the container ramp rather than on shadow, so the *same* tokens are used in both appearances — they read faintly on a dark surface, which is correct rather than a defect.
+
+**State layers.** An interactive M3 component does not swap its container colour on hover; it grows a translucent layer of its own *content* colour on top. That is implemented **once**, as `.md-state-layer` in [`base.css`](../../app/styles/base.css), and applied by adding the class. Hover 8%, focus 10%, pressed 10%, dragged 16%.
+
+**Disabled.** One pattern everywhere: the container is the content colour at 12%, the content at 38%. A disabled filled button and a disabled text button therefore look like the same *state* rather than like faded versions of two different things.
+
+**Motion.** `--md-sys-motion-duration-{short1..4, medium1..4, long1..4}` and the six M3 easing curves. `prefers-reduced-motion` zeroes transitions against `--md-sys-motion-duration-none`.
+
+**Focus.** `outline: 2px solid var(--md-sys-color-primary); outline-offset: 2px` on `:focus-visible`. An outline follows the element's own corner radius, so a fully-rounded button gets a fully-rounded ring and a text field gets a 4px one, with nothing to keep in sync. `primary` clears 3:1 against every surface the ring is drawn over, in both appearances — asserted, not assumed.
+
+---
+
+## Iconography
+
+**Material Symbols Outlined**, weight 400, exposed through the one shared primitive in [`app/shared/icons`](../../app/shared/icons). Component names, props and accessibility behaviour are unchanged from the in-house set they replace — the *set* was always documented as swappable while the entity-identity mapping was the durable contract.
+
+- Icons are **decorative by default** (`aria-hidden`), because DalyHub never conveys meaning by icon alone. Pass `title` on the rare surface where an icon must carry its own name.
+- Size follows the surrounding text (`1em`) unless given explicitly, so an icon scales with its label and honours OS text scaling.
+- Symbols are **filled paths**, so `BASE_PROPS` is `fill="currentColor"` with no stroke.
+- Upstream authors them at 960 units with a flipped origin; `createIcon` maps that into the 24×24 viewBox with one transform, so the committed path data stays byte-identical to its Apache-2.0 source and a re-copy is a diff rather than a rewrite.
+- `BrandMark` is the one exception: it is the product identity, painted in the fixed brand gradient rather than in `currentColor`.
+
+---
+
+## M3 component anatomy, as shipped
+
+| Component | Anatomy |
+| --- | --- |
+| **Buttons** | 40px visual height on a 44px target, `corner-full`, `label-large`, 24px inline (16px with a leading glyph), built-in state layer. Filled (`--primary`, one per surface), tonal (`--secondary`), outlined (`--outlined`), text (`--ghost`), error-filled (`--danger`). |
+| **Chips** | 32px, `corner-small`, `label-large`, on the role's container pair. The neutral absence chip keeps an outline. |
+| **Text fields** | M3 outlined: 56px, `corner-extra-small`, 1px `outline` → 2px `primary` focused, 2px `error` invalid, `body-small` supporting text. The label sits **above** the field rather than notched into the outline — a deliberate deviation, for accessible-name stability across ~100 instances. |
+| **Cards** | `--md-app-color-surface-card`, `corner-large`, elevation 1, no border, 16/24px padding. Interactive cards lift to elevation 2. |
+| **Lists** | 56px one-line, 16px inline padding, `outline-variant` hairline between rows only. |
+| **Menus** | `surface-container-high`, `corner-extra-small`, elevation 2, 48px `body-large` items. |
+| **Navigation drawer** | `surface`, no edge border, 12px inline padding; 56px `corner-full` items with a 24px glyph, 12px gap, `label-large` and a `secondary-container` active-indicator fill. |
+| **Top app bar** | Small variant: 64px, `surface`, no rule, `title-large`. |
+| **Search bar** | 56px, `corner-full`, `surface-container-high`, leading glyph. |
+| **Navigation bar** | 80px, `surface-container`, a 64×32 `secondary-container` active-indicator pill behind the glyph, `label-medium` labels always visible. |
+| **FAB** | 56px, `corner-large`, `primary-container` pair, elevation 3, bottom-right, clearing the navigation bar, the home indicator and the keyboard. |
+| **Segmented buttons** | One 40px outlined container, `corner-full` ends, 1px dividers, `secondary-container` selected segment with a leading check glyph. |
+| **Snackbar** | `inverse-surface` pair, `corner-extra-small`, elevation 3, action text in `inverse-primary`. |
+| **Progress** | Linear: 4px `corner-full`, `primary` on `secondary-container`. Circular: the shared `ProgressRing` in [`app/shared/charts`](../../app/shared/charts), same tokens, same 4px stroke. |
+| **Bottom sheet** | Top corners `extra-large`, `surface-container-low`, elevation 1, 32×4 drag handle at `on-surface-variant` 40%. |
+| **Side drawer** | Leading edge `extra-large`, `surface-container-low`, elevation 1, scrim at `scrim` 32%. |
+
+---
+
+## Dashboard patterns (Today)
+
+The Today landing is the product's one dashboard surface. Its rules:
+
+- **Every figure is derived from a real read.** A metric with no data behind it is not shown, and it is never approximated by a related one. Where a card's title would overclaim what the number measures, the title is changed rather than the number.
+- **Every figure is stated in text beside its shape.** A ring carries its own generated `role="img"` sentence; a legend row states its bucket and its count in words; a chip's label says what it filters to.
+- **Every formula is written down.** A number on a dashboard that nobody can explain is a number nobody should trust. The productivity score's formula is stated at its definition in `insights.ts` and summarised on the card.
+- **No manufactured achievement.** No streaks, no percentiles, no comparisons — DalyHub has one user and nobody to be measured against. Scores saturate rather than punish: five overdue tasks and fifty score the same, because past five the number stops being information and starts being a rebuke.
+- **Every widget keeps the shared `EmptyState`** (compact) for its empty case, and personalisation (move, collapse, hide) applies to every widget uniformly.
+
+Charts are hand-rolled SVG in [`app/shared/charts`](../../app/shared/charts) — no charting dependency. They take typed data arrays, paint only with chart tokens, and carry `role="img"` plus a generated text summary.
 
 ## The pattern catalogue
 
@@ -605,15 +434,14 @@ by the shared layout (`app/styles/record-layout.css`), on DS-01 tokens only, so
 every consumer (Area, Goal, Project, Note, Task) gets it identically:
 
 - The record has deliberate **spacing from the global left navigation** and the top
-  of the pane (`.record-layout` padding, `--dh-space-6`/`--dh-gutter`), suppressed
+  of the pane (`.record-layout` padding, `--app-space-6`/`--app-gutter`), suppressed
   inside a Drawer where the drawer body already provides its own padding.
 - The **summary** and the **active tab panel / no-tabs content region** share ONE
-  contained surface treatment: `--dh-color-surface` fill, a hairline
-  `--dh-color-border`, `--dh-radius-lg`, and internal padding — so the tab content
-  no longer blends into the canvas. Light-theme borders stay visible against white;
-  dark-theme borders stay restrained (both from the theme-mapped token).
+  contained surface treatment: `--md-app-color-surface-card` fill,
+  `--md-sys-shape-corner-large` and elevation 1 — so the tab content no longer
+  blends into the canvas, in both appearances, from the one generated scheme.
 - **No doubled / stacked-card borders.** Cards inside a tab sit on
-  `--dh-color-surface-raised` (one shade above the panel), so nested cards stay
+  `--md-app-color-surface-raised` (one shade above the panel), so nested cards stay
   distinct without a second concentric border; a state slot that carries its own
   border (empty/error) drops it when nested directly inside the contained surface.
   The result is a bounded record, not a stack of rounded cards inside rounded cards.
@@ -998,7 +826,7 @@ The at-a-glance aggregates a record's [Summary Panel](#summary-panel) shows are 
 
 **Navigation.** A tile with an `href` becomes **ONE link for the whole card** — never a card wrapping a separate link, which would give one target two tab stops. Its accessible name defaults to `"<label>: <value>"`, so a screen-reader user hears what they are following before they follow it.
 
-**Semantics.** The grid is a `<ul>` of `<li>`s with an accessible name (`label`, or `labelledBy` pointing at a visible heading), so assistive tech announces "list, N items". The label always states the meaning; colour never carries it. Every tile clears the shared 44px touch target (`--dh-control-height-lg`) at every width, and the grid never produces horizontal overflow from 320px up (DS-11).
+**Semantics.** The grid is a `<ul>` of `<li>`s with an accessible name (`label`, or `labelledBy` pointing at a visible heading), so assistive tech announces "list, N items". The label always states the meaning; colour never carries it. Every tile clears the shared 44px touch target (`--app-control-height-lg`) at every width, and the grid never produces horizontal overflow from 320px up (DS-11).
 
 **Boundaries.** DS-13 lays out; it does **not** fetch, derive, format or decide. Callers pass already-derived, already-formatted strings — a loader evaluates the model server-side (see [Health](#health-signal-proj-02) and [Stay-in-touch](#stay-in-touch-signal-people-03)) and a pure module view-model maps it to `SummaryCardItem[]`.
 
@@ -1045,7 +873,7 @@ Form            <form> wrapper (owns nothing but layout + aria-busy)
 
 **Writing editor (live Markdown).** `~/shared/markdown-editor`'s `LiveMarkdownEditor` ([NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor), [ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline)) is the ONE writing-first editor for long-form Markdown records (Notes now; the Diary body is the intended second consumer). It styles the Markdown **source as it is typed** (Obsidian-style Live Preview — headings grow, emphasis/code style, task items become checkboxes, thematic breaks and tables render), revealing the raw source the instant the caret enters a construct (Live Preview, **not** WYSIWYG). Load-bearing rules a consumer must not break: the editor's document IS the Markdown source, byte-for-byte (`onChange` emits exactly that); it renders **no** HTML itself and adds **no** second parser/sanitiser/HTML sink — the FND-08 `MarkdownContent` stays the only sink, and the unobtrusive **Read** toggle renders through it; there is **no** persistent Source/Split/Preview and **no** rich-text/proprietary document model. It composes DS-06 autosave (`useAutosaveField`, `SaveStatusIndicator`, `UnsavedChangesGuard`) rather than a second save engine, exposes the shared roving-tabindex formatting `EditorToolbar` and editor-scoped keyboard shortcuts (never rebinding the reserved global `⌘K`/`/`), is styled only through DS-01 tokens, and degrades to an accessible controlled `<textarea>` on the server / without JavaScript.
 
-**Button sizes.** `FormButton` renders one shared `.dh-btn` in four variants (primary, secondary, danger, ghost). ASSET-02 added ONE size modifier, **`.dh-btn--sm`**, for dense action rows — an Asset obligation's Complete / Edit / Create task / Hold / Dismiss group, a history entry's Edit / Remove. It reduces the horizontal padding and the type size **only**: `min-block-size` stays at `--dh-control-height-lg`, so a "small" button is still a 44px touch target. **Compact must never mean unreachable on a phone** (AGENTS.md §15, WCAG 2.2 §2.5.8). There is no `--lg`, no `--xs`, and no per-module button size.
+**Button sizes.** `FormButton` renders one shared `.dh-btn` in the M3 variants — filled (`--primary`), tonal (`--secondary`), outlined (`--outlined`), text (`--ghost`) and error-filled (`--danger`). ASSET-02 added ONE size modifier, **`.dh-btn--sm`**, for dense action rows — an Asset obligation's Complete / Edit / Create task / Hold / Dismiss group, a history entry's Edit / Remove. It reduces the horizontal padding and the type size **only**: `min-block-size` stays at `--app-control-height-lg`, so a "small" button is still a 44px touch target. **Compact must never mean unreachable on a phone** (AGENTS.md §15, WCAG 2.2 §2.5.8). There is no `--lg`, no `--xs`, and no per-module button size.
 
 **Numeric keypads.** `TextField` accepts `inputMode="decimal"` alongside `numeric`, so a money field offers a decimal-point keypad on a phone while a meter reading offers a whole-number one. The attribute is a keyboard hint, never a validation: the boundary is still the authority.
 
@@ -1236,12 +1064,12 @@ The shared patterns above are composed by ONE application frame ([PX-02](../road
 │  … (spacer)  │                                               │
 │  (A) Owner ▾ │                                               │
 └──────────────┴───────────────────────────────────────────────┘
-sidebar: --dh-color-surface, --dh-shell-nav-width, icon+label rows,
+sidebar: --md-sys-color-surface, --app-shell-nav-width, icon+label rows,
 active = accent-surface tint + semibold + aria-current (never colour alone).
-Pane: --dh-color-surface-page. Grid: var(--dh-shell-nav-width) 1fr.
+Pane: --md-app-color-surface-page. Grid: var(--app-shell-nav-width) 1fr.
 ```
 
-- **Layout.** `AppShell` is a grid `grid-template-columns: var(--dh-shell-nav-width) 1fr`. The **document** is the scroll container and the sidebar is `position: sticky` — this preserves the [DS-03 Drawer](#shared-drawer-ds-03)'s body-scroll-lock and `ScrollRestoration` (which act on the window) while sticky Pane Headers and FilterBars still pin to the viewport (ADR-020 §20.2). There is exactly one frame; no surface builds its own.
+- **Layout.** `AppShell` is a grid `grid-template-columns: var(--app-shell-nav-width) 1fr`. The **document** is the scroll container and the sidebar is `position: sticky` — this preserves the [DS-03 Drawer](#shared-drawer-ds-03)'s body-scroll-lock and `ScrollRestoration` (which act on the window) while sticky Pane Headers and FilterBars still pin to the viewport (ADR-020 §20.2). There is exactly one frame; no surface builds its own.
 - **Landmarks.** The sidebar brand is the single `banner`; primary navigation is a labelled `navigation`; the pane is `main` (the skip-link target); the Pane Header is a plain container (not a second banner). Keyboard-complete, skip link preserved, focus never lost.
 
 ### Sidebar
@@ -1257,13 +1085,13 @@ Pane: --dh-color-surface-page. Grid: var(--dh-shell-nav-width) 1fr.
 
 **Purpose.** The header that belongs to the current screen, not the frame.
 **Anatomy.** Page title (a real heading, configurable level) · optional subtitle/count · optional view-switcher slot · one primary-action slot. Optionally an entity-identity glyph beside the title.
-**Rules.** It **never** contains theme controls, an email address or logout (those live in the User Menu). Exactly one primary action per pane. It pins (sticky) when hosted by a [Collection Layout](#collection-layout-px-02).
+**Rules.** It **never** contains an email address or logout (those live in the User Menu). Exactly one primary action per pane. It pins (sticky) when hosted by a [Collection Layout](#collection-layout-px-02).
 
 ### User Menu (PX-02)
 
 **Purpose.** Keep settings furniture off the desk.
-**Anatomy.** An avatar/initials trigger opening a small panel: name · email · the [theme control](#design-tokens-ds-01) · Settings · Sign out.
-**Behaviour.** An accessible disclosure (not a modal): `aria-expanded`/`aria-haspopup`, Escape closes and restores focus to the trigger, outside-click closes. The theme control is the **existing** implementation, only relocated — the cookie, `data-theme` SSR mechanism and persistence are unchanged.
+**Anatomy.** An avatar/initials trigger opening a small panel: name · email · Settings · Sign out. There is no theme control: appearance follows the operating system (ADR-074).
+**Behaviour.** An accessible disclosure (not a modal): `aria-expanded`/`aria-haspopup`, Escape closes and restores focus to the trigger, outside-click closes.
 
 ### Entity Identity (PX-02)
 
@@ -1272,16 +1100,16 @@ Pane: --dh-color-surface-page. Grid: var(--dh-shell-nav-width) 1fr.
 
 | Entity | Icon (idiom) | Accent token |
 |---|---|---|
-| Area | stacked layers | `--dh-entity-area-accent` |
-| Goal | target | `--dh-entity-goal-accent` |
-| Project | columns | `--dh-entity-project-accent` |
-| Task | checked circle | `--dh-entity-task-accent` |
-| Note | document | `--dh-entity-note-accent` |
-| Meeting | people | `--dh-entity-meeting-accent` |
-| Person | person | `--dh-entity-person-accent` |
-| Asset | package | `--dh-entity-asset-accent` |
-| Diary | open book | `--dh-entity-diary-accent` |
-| Review | cycle | `--dh-entity-review-accent` |
+| Area | `layers` | `--md-sys-color-entity-area` |
+| Goal | `flag` | `--md-sys-color-entity-goal` |
+| Project | `folder` | `--md-sys-color-entity-project` |
+| Task | `check_circle` | `--md-sys-color-entity-task` |
+| Note | `description` | `--md-sys-color-entity-note` |
+| Meeting | `groups` | `--md-sys-color-entity-meeting` |
+| Person | `person` | `--md-sys-color-entity-person` |
+| Asset | `inventory_2` | `--md-sys-color-entity-asset` |
+| Diary | `menu_book` | `--md-sys-color-entity-diary` |
+| Review | `event_repeat` | `--md-sys-color-entity-review` |
 
 **Rules.** Every accent has a light **and** dark value (parity + ≥3:1 contrast, both tested). Accents are used at **identity sites only** (icon, card edge, chip) — never as text colour ([PRODUCT_EXPERIENCE Part III §5](PRODUCT_EXPERIENCE.md)). Icons are decorative (`aria-hidden`); a text label always names the entity. Cards, Record Headers, the sidebar, empty states and (later) Search/Command Palette all consume this one map — never a hand-picked icon at a call site.
 
@@ -1338,11 +1166,11 @@ Only reach for a literal where the derived label genuinely does not fit (Diary c
 ### Correct vs incorrect usage
 
 - ✅ A new module ships: a registry-driven sidebar row (its entity icon derived from its manifest) + a `CollectionLayout` pane + `Card`s opening the Drawer + a URL-bound `FilterBar` + wired empty/loading/error slots — and **no new visual language**.
-- ✅ Identity, theme and sign-out live in the User Menu; the Pane Header carries only the title, one primary action and view controls.
+- ✅ Identity and sign-out live in the User Menu; the Pane Header carries only the title, one primary action and view controls.
 - ✅ A not-yet-built module gets a real route rendering `ModuleComingSoon` with roadmap-sourced copy — never a 404, never invented feature claims.
 - ❌ A module page with its own header bar, its own shell/provider, a bespoke empty/loading state, or a hand-picked icon instead of the entity-identity map.
 - ❌ A placeholder page with lorem ipsum, or "coming soon" copy claiming a feature no ROADMAP_V2 item actually plans.
-- ❌ Theme controls, an email address or logout in a Pane Header; a second focus-trap for the mobile nav; an internal pane scroll that breaks the Drawer's scroll contract.
+- ❌ An email address or logout in a Pane Header; a second focus-trap for the mobile nav; an internal pane scroll that breaks the Drawer's scroll contract.
 
 ---
 
@@ -1394,7 +1222,7 @@ Contract:
 - **More is the complete navigation.** It opens the SAME registry-driven sheet the hamburger opened, so every module — including any future one — is one tap away and nothing appears in two competing lists.
 - **Active state is never colour alone.** `aria-current="page"` plus an indicator bar, a filled icon treatment and a semibold label. Exactly one destination is active for any path (longest match wins); a route that is not a destination marks none.
 - **Its own landmark.** Labelled `Quick navigation`, distinct from the sidebar's `Primary`, because both are in the DOM at once.
-- **Out of the way when it must be.** It clears the home indicator (`env(safe-area-inset-bottom)`) and translates off-screen while the keyboard is up (`--dh-keyboard-inset`), so it can never cover a focused field or an error. Scrolling surfaces reserve `--dh-bottomnav-height`.
+- **Out of the way when it must be.** It clears the home indicator (`env(safe-area-inset-bottom)`) and translates off-screen while the keyboard is up (`--app-keyboard-inset`), so it can never cover a focused field or an error. Scrolling surfaces reserve `--app-bottomnav-height`.
 - **`display: none` from `md` up.** Desktop is untouched.
 
 A compact top bar keeps the **route title** (not the workspace name — content before chrome), a contextual Back, Search and the route's overflow actions. Routes publish their title through `useSetMobileTopBar`.
@@ -1424,7 +1252,7 @@ ONE capture surface for **Task, Diary entry, Meeting and Note**, opened from the
 
 ### The shared Sheet
 
-Every phone-scale overlay MOBILE-01 introduces (Quick Capture, the collection sheet, the More navigation) is one `Sheet`. It composes the **DS-03 modal hooks** (`useDrawerFocus`, `useInertBackground`, `useBodyScrollLock`) — there is never a second focus trap. Its body is the only scroll container (`overscroll-behavior: contain`), its footer is sticky and keyboard-safe, `Escape` closes only the topmost surface, and its height subtracts `--dh-keyboard-inset`. On tablet and desktop the same component renders as a centred dialog.
+Every phone-scale overlay MOBILE-01 introduces (Quick Capture, the collection sheet, the More navigation) is one `Sheet`. It composes the **DS-03 modal hooks** (`useDrawerFocus`, `useInertBackground`, `useBodyScrollLock`) — there is never a second focus trap. Its body is the only scroll container (`overscroll-behavior: contain`), its footer is sticky and keyboard-safe, `Escape` closes only the topmost surface, and its height subtracts `--app-keyboard-inset`. On tablet and desktop the same component renders as a centred dialog.
 
 ### Full-screen phone Drawer
 
@@ -1462,8 +1290,8 @@ The phone Card preset prioritises the leading state/completion control, the titl
 
 ### Keyboard & safe-area rules
 
-- **`--dh-keyboard-inset`** is published by the ONE Visual Viewport observer in the product (`app/shared/viewport`, mounted once by the AppShell). Surfaces consume it in **CSS**; no form ever adds its own resize listener. A noise threshold ignores a collapsing URL bar, so sticky controls never jitter while scrolling.
-- **`--dh-bottomnav-height`** is the space the phone bar occupies (`0px` elsewhere), reserved by scrolling surfaces and bottom-anchored controls.
+- **`--app-keyboard-inset`** is published by the ONE Visual Viewport observer in the product (`app/shared/viewport`, mounted once by the AppShell). Surfaces consume it in **CSS**; no form ever adds its own resize listener. A noise threshold ignores a collapsing URL bar, so sticky controls never jitter while scrolling.
+- **`--app-bottomnav-height`** is the space the phone bar occupies (`0px` elsewhere), reserved by scrolling surfaces and bottom-anchored controls.
 - Touch text inputs are raised to **16px**, because a smaller focused field makes a mobile browser zoom the page and leave it zoomed. The desktop type scale is unchanged.
 - `FormActions sticky` pins a long form's commitment above the keyboard, the safe area and the bottom bar — using tokens, never measurement. Do not use it on a short form.
 
@@ -1510,7 +1338,7 @@ The pattern's rules, all load-bearing:
 - **Phone is not a squeezed rail.** Below `md` the rail is **removed**, one step shows at a
   time under a compact progress header, a step sheet (the shared MOBILE-01 `Sheet`) offers
   direct navigation, and Back/Continue sit in a sticky footer using
-  `--dh-keyboard-inset`, `--dh-bottomnav-height` and `env(safe-area-inset-bottom)`. No
+  `--app-keyboard-inset`, `--app-bottomnav-height` and `env(safe-area-inset-bottom)`. No
   destructive action sits beside Continue.
 - **No nested scrolling trap.** A step's primary editor grows with its content rather than
   scrolling inside its own capped box; the page is the scroll container.

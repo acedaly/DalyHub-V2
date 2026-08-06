@@ -123,7 +123,8 @@ DalyHub models a life, and lives contain people. People are not a bolt-on CRM; t
 - **Density with air.** DalyHub is an information-dense product for a power user, but density is not clutter. Whitespace, hierarchy, and typography do the work.
 - **Never lose the user's place.** Navigation preserves context. Opening a task from Today should not throw away where you were. Back always works. State is restored.
 - **No dead ends.** Every empty state teaches the next action. Every error explains the recovery. See [Empty States](docs/design/DESIGN_SYSTEM.md#empty-states) and [Error Feedback](docs/design/DESIGN_SYSTEM.md#error-feedback).
-- **Calm defaults.** Muted palette, restrained motion, no gratuitous notifications. Motion communicates causality (this became that), never decoration.
+- **Calm defaults.** Restrained motion, no gratuitous notifications. Motion communicates causality (this became that), never decoration.
+- **The design language is Material Design 3.** DalyHub does not invent a visual vocabulary. Colour, typography, shape, elevation, state and motion come from M3, hand-rolled in CSS over our own components — so "what radius does a chip take?" has a published answer rather than a DalyHub debate. Colour is *generated* from one seed and never authored; there is one light/dark pair, selected by the operating system, and no theme feature. See [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) and [ADR-074](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism).
 
 ---
 
@@ -177,8 +178,18 @@ Every meaningful change to any entity appends to a single, uniform **Activity** 
 ### 9.7 Markdown strategy
 Long-form text (Notes, descriptions, Diary) is authored and stored as Markdown, rendered through one shared renderer. This keeps content portable, diff-able, and export-safe. See [ADR-006: Markdown Strategy](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy).
 
-### 9.8 Shared over bespoke
+### 9.8 Shared over bespoke, and one authoritative token layer
 Before building a module-specific version of anything — a card, a form, a filter bar — check the [Design System](docs/design/DESIGN_SYSTEM.md). If a shared pattern exists, use it. If one *should* exist but doesn't, build it as shared. A bespoke duplicate is [Product Debt](docs/product/PRODUCT_DEBT.md) the moment it's merged.
+
+The same rule applies to design VALUES. [`app/styles/tokens.css`](app/styles/tokens.css) is the one authoritative token layer, and application code — CSS and components alike — never hard-codes a raw hex, pixel, radius, shadow or duration where a token exists. The vocabulary is:
+
+| Prefix | Owns |
+|---|---|
+| `--md-sys-*` | Colour roles, typescale, shape, elevation, state layers, motion |
+| `--md-app-*` | The four application surfaces (page, card, raised, sunken) |
+| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, shell measurements |
+
+Colour is **generated**, not authored: `scripts/generate-m3-scheme.mjs` derives every role from one seed and writes both the stylesheet blocks and their typed mirror, and `pnpm run scheme:check` fails the build on a hand-edit. A new colour belongs in the generator; a new non-colour token belongs in `tokens.css`. Add the token first, then consume it.
 
 ---
 
@@ -294,8 +305,8 @@ Accessibility is a **requirement, not an enhancement**. Target: **WCAG 2.2 AA**.
 
 - **Keyboard-complete.** Every interaction is reachable and operable by keyboard, with a visible focus ring and a logical tab order. No keyboard trap. This aligns with the keyboard-first [interaction philosophy](#7-interaction-philosophy).
 - **Semantic and labelled.** Use native semantics first; ARIA only to fill gaps. Every control has an accessible name. Icon-only buttons have labels.
-- **Contrast.** Text meets AA contrast (4.5:1 body, 3:1 large/UI). The muted palette is checked, not assumed. See [Design System → Accessibility](docs/design/DESIGN_SYSTEM.md#accessibility).
-- **Respect user settings.** Honour `prefers-reduced-motion`, `prefers-color-scheme`, and OS text scaling. Motion never carries meaning that motion-off users lose.
+- **Contrast.** Text meets AA contrast (4.5:1 body, 3:1 large/UI). The generated palette is checked, not assumed: every `on-*` pair, the text ramp and the outline on every surface, the focus indicator and progress are asserted in **both** appearances over the generated scheme data (`test/unit/tokens/contrast.test.ts`). See [Design System → Accessibility](docs/design/DESIGN_SYSTEM.md#accessibility).
+- **Respect user settings.** Honour `prefers-reduced-motion`, `prefers-color-scheme` and OS text scaling. `prefers-color-scheme` is not merely honoured — it is the *only* thing that decides light or dark, because there is no theme preference to override it. Every type size is authored in rem so OS text scaling reaches all of them. Motion never carries meaning that motion-off users lose.
 - **Announce change.** Async results, toasts, and validation errors are announced to assistive tech via live regions.
 - **Don't rely on colour alone** to convey state.
 

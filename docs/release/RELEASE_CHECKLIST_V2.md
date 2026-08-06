@@ -51,7 +51,7 @@
 | X-02 (saved views) | ⏭️ Partly delivered | Tasks slice shipped (ADR-059) | **V2.1** — the cross-module contract |
 | X-03 (import & sync) | ⏭️ Not started | — | **After V2.1**, deliberately after restore |
 | X-04 (export & portability) | ✅ Complete | `e2e/export.spec.ts`; `test/kernel/workspace-export*.test.ts`; `test/unit/export/`; ADR-065 | ⚠️ Export only; not atomic; bounded at 50k rows/64 MiB, both reported |
-| THEME-01 · HELP-01 · RELEASE-01 · POLISH-01 · UX-01 | ✅ Complete | `e2e/themes.spec.ts`, `help-about.spec.ts`, `ux-01-daily-driver.spec.ts`; `test/unit/{help,about}` | — |
+| THEME-01 · HELP-01 · RELEASE-01 · POLISH-01 · UX-01 | ✅ Complete (THEME-01 superseded by M3-01) | `help-about.spec.ts`, `ux-01-daily-driver.spec.ts`; `test/unit/{help,about,tokens}` | — |
 | SET-01 (settings) | ✅ Complete | `e2e/settings.spec.ts`; `test/kernel/app-preferences.test.ts`; ADR-050 | — |
 | **SET-02 (backup & restore)** | ⏭️ **Deferred** | Not implemented. No control exists; Help and Settings say so; a test holds that wording. | **V2.1** — see §12 |
 | SET-03 (account & security) | ⏭️ Not started | Identity layer done (FND-09/ADR-016); the surface is not | **V2.1** |
@@ -97,7 +97,7 @@ Each row was exercised as a coherent workflow, on desktop **and** at phone width
 | Reviews compute the correct period | ✅ | Wall-calendar periods honouring first-day-of-week; `test/kernel/reviews*.test.ts` |
 | Review creation/navigation on both viewports | ✅ | `e2e/reviews.spec.ts` |
 | **Settings contain no placeholder controls** | ✅ | Deferred capabilities are named in prose with no control (`app/modules/settings/routes/index.tsx:534`); `e2e/settings.spec.ts` |
-| Theme switching across all five themes | ✅ | `e2e/themes.spec.ts`; `docs/design/THEME_ACCEPTANCE_MATRIX.md` |
+| Theme switching across all five themes | ⛔ Retired | M3-01 removed the theme feature (ADR-074): one generated light/dark pair, selected by the operating system |
 | **Help describes current V2 features** | ✅ | `test/unit/help/help-content.test.ts` asserts coverage, the five theme names, the missing-feature list, and no implementation jargon |
 | **About shows correct version/release/ownership** | ✅ | One authority pinned to `/health` by `test/unit/about/version.test.ts`; package metadata pinned by `test/unit/about/package-version.test.ts` |
 | **Deferred features not presented as available** | ✅ | Help's `not-yet` topic names backup/restore, import, weather, notifications and AI; a test asserts restore stays on that list |
@@ -167,7 +167,7 @@ state for deferred work, not a gap this closure introduced.
 | Usable at common phone widths | ✅ | `e2e/responsive.spec.ts` |
 | No important action requires hover | ✅ | DS-04/DS-12 overflow actions are focusable buttons, not hover-only |
 | Reduced motion respected | ✅ | `test/unit/shell/`, `prefers-reduced-motion` honoured in tokens |
-| No unreadable text or controls in any theme | ✅ | `test/unit/tokens/` asserts AA **per theme**, not sampled; `e2e/themes.spec.ts` |
+| No unreadable text or controls in either appearance | ✅ | `test/unit/tokens/contrast.test.ts` asserts AA over the generated scheme in **both** appearances, not sampled |
 | Known, non-blocking gaps | ⚠️ | [DEBT-14](../product/PRODUCT_DEBT.md#-debt-14--grouped-rolefeed-interleaves-non-article-children--p3), [DEBT-15](../product/PRODUCT_DEBT.md#-debt-15--listbox-options-wrap-a-focusable-result-control--p3), [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3), [DEBT-50](../product/PRODUCT_DEBT.md#-debt-50--card-quick-actions-are-28px-on-a-narrow-viewport-with-a-mouse--p3), [DEBT-54](../product/PRODUCT_DEBT.md#-debt-54--border-strong-is-still-below-31-where-it-is-a-decorative-border--p3), [DEBT-56](../product/PRODUCT_DEBT.md#-debt-56--axe-reports-label-title-only-for-one-shared-selectfield-in-the-tasks-drawer-and-the-dom-says-otherwise--p3) — all P3, each with a stated reason |
 
 ---

@@ -42,7 +42,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`roadmap/ROADMAP_V2_1.md`](roadmap/ROADMAP_V2_1.md) | **What comes after V2**, and where new work goes: SET-02 backup & restore (V2.1's first item), the named remainders from shipped V2 modules, module completion, and the items that were never in V2's scope — with the build order. |
 | **Design** | |
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) | The shared interaction language every module reuses. |
-| [`design/THEME_ACCEPTANCE_MATRIX.md`](design/THEME_ACCEPTANCE_MATRIX.md) | What was actually verified for each curated theme — THEME-01's five, and THEME-02's Modern pair with its screenshot pass — with the evidence for every claim and an honest record of what was not checked. |
+| [`design/THEME_ACCEPTANCE_MATRIX.md`](design/THEME_ACCEPTANCE_MATRIX.md) | **Retired (M3-01).** A tombstone: the seven-theme system it recorded no longer exists. It points at ADR-074 and at the tests that now prove, on every commit, what this document used to assert per theme. |
 | [`design/PRODUCT_EXPERIENCE.md`](design/PRODUCT_EXPERIENCE.md) | The product-wide experience contract: the 2026-07 UX review, scores, ranked improvements, philosophies, hierarchy/composition rules, and reference screens. |
 | **Architecture** | |
 | [`architecture/ARCHITECTURE_OVERVIEW.md`](architecture/ARCHITECTURE_OVERVIEW.md) | How the kernel, modules, and platform fit together technically. |
