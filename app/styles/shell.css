@@ -522,10 +522,27 @@
  * plus one hairline — not by a shadow, which would put a floating bar over a
  * calm canvas.
  */
+/*
+ * The bar sits in the DROPDOWN band, not the sticky one.
+ *
+ * It is application chrome, and it OPENS things — the account menu's panel drops
+ * out of it and down over the page. `position: sticky` + a z-index makes this bar
+ * a stacking context, so everything it opens is trapped inside its band: at
+ * `--app-z-sticky` the bar tied with the collection's own sticky pane header, DOM
+ * order decided it, and the pane header painted over the top of the open account
+ * panel — which is where the owner's name, email and now the appearance control
+ * live. (Visible on Today, whose sticky header is tallest.)
+ *
+ * `--app-z-dropdown` is the honest rung: above every page-level sticky surface,
+ * and still below the overlay/drawer/modal/toast bands, so Search, the Command
+ * Palette, the Drawer and the toast layer all continue to cover the bar exactly as
+ * before. Nothing about the bar's own painting changes — when the panel is closed
+ * the bar and the pane header do not overlap at all.
+ */
 .dh-topbar {
   position: sticky;
   top: 0;
-  z-index: var(--app-z-sticky);
+  z-index: var(--app-z-dropdown);
   display: flex;
   align-items: center;
   gap: var(--app-space-4);

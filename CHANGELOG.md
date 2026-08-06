@@ -19,6 +19,47 @@ no version number to group them under.
 
 ## Unreleased
 
+### Added — you can choose Light, Dark, or follow your device
+
+- **Appearance is yours again.** DalyHub still has exactly one light look and one
+  dark look, but you now choose which to use: **System**, **Light** or **Dark**.
+  System is the default, follows your phone or computer, and keeps following it
+  while DalyHub is open — so nothing changes unless you want it to.
+- **Two places, one setting.** Pick it from your account menu (the avatar at the
+  top right, or the bottom of the navigation sheet on a phone) or from
+  **Settings → General → Appearance**. Both show the same current choice, because
+  they are the same setting.
+- **It follows you between devices.** The choice is saved to your account, not to
+  one browser, so signing in on your phone gets the appearance you chose on your
+  laptop.
+- **No flash on load, and no waiting.** The page arrives already in the right
+  appearance rather than starting light and snapping to dark, and scrollbars,
+  dropdowns and other parts your browser draws match it too. Choosing an
+  appearance changes the screen immediately — it does not wait for the save — and
+  if the save fails it changes back and tells you.
+
+### Changed — one place to create, and page headers that stop repeating it
+
+- **The ⊕ capture button is the way to create a task, note, meeting or diary
+  entry.** It is on every page, at every size, and it always has been — but four
+  page headers were offering the same thing again a few centimetres away. Those
+  duplicates are gone from **Today** (Quick capture), **Tasks** (New task),
+  **Notes** (New Note) and **Meetings** (New meeting).
+- **Nothing became harder to reach.** Every one of those flows is unchanged and
+  still one tap away from the capture button, from the command palette, and from
+  the empty state on each page when you have no records yet. Meetings gained a
+  create action in its empty state so it can never dead-end.
+- **The create buttons that were doing real work all stayed.** New Area, New
+  Project, New Goal, New Person, New Asset and New Review are still where they
+  were, because each creates that page's own kind of record. So are the ones that
+  carry context you would otherwise have to re-enter: a task or note created
+  inside a Project, a follow-up on a meeting, a person's linked records, and
+  Diary's **New Diary entry**, which files the entry on the day you are looking
+  at rather than today.
+- **Your account menu shows more, not less.** Its top section could previously be
+  covered by a page's own sticky header on tall screens; it now sits above the
+  page as it always should have.
+
 ### Added — choose an icon for an Area or a Project
 
 - **Areas and Projects can wear an icon you pick.** Open an Area or a Project,

@@ -18,6 +18,11 @@ import {
   type TaskDefaultView,
 } from "./app-preferences";
 import { AppPreferencesValidationError } from "./app-preferences-errors";
+import {
+  APPEARANCE_PREFERENCES,
+  DEFAULT_APPEARANCE,
+  type AppearancePreference,
+} from "./appearance";
 
 const OWNER_ID_MAX_LENGTH = 256;
 
@@ -85,6 +90,24 @@ function parseEnum<T extends string>(
     return value as T;
   }
   throw new AppPreferencesValidationError(field, message);
+}
+
+/**
+ * APPEARANCE-01 — the STRICT parser, used on the write path.
+ *
+ * `parseAppearancePreference` (the kernel contract) coerces, because a bad value
+ * arriving from a cookie or a form must never break a page. A PATCH is different:
+ * it is a deliberate write, and an unknown value there means the caller and the
+ * value set disagree — a bug worth surfacing rather than silently storing
+ * `system` over the owner's actual choice.
+ */
+export function parseAppearance(value: unknown): AppearancePreference {
+  return parseEnum(
+    "appearance",
+    value,
+    APPEARANCE_PREFERENCES,
+    "Choose System, Light or Dark.",
+  );
 }
 
 export function parseDateFormat(value: unknown): DateFormat {
@@ -240,6 +263,8 @@ export function validateAppPreferencesPatch(
   const out: {
     -readonly [K in keyof AppPreferencePatch]: AppPreferencePatch[K];
   } = {};
+  if (patch.appearance !== undefined)
+    out.appearance = parseAppearance(patch.appearance);
   if (patch.timezone !== undefined)
     out.timezone = parseTimezone(patch.timezone);
   if (patch.dateFormat !== undefined)
@@ -283,6 +308,7 @@ export function validateAppPreferencesPatch(
 }
 
 export function normaliseStoredPreferences(input: {
+  readonly appearance?: unknown;
   readonly timezone: unknown;
   readonly dateFormat: unknown;
   readonly firstDayOfWeek: unknown;
@@ -296,6 +322,14 @@ export function normaliseStoredPreferences(input: {
   readonly navigation: unknown;
 }): AppPreferences {
   return {
+    // A row written before the appearance column existed, or carrying a value a
+    // later release removed, reads as `system` — the shipped behaviour — rather
+    // than failing the whole preferences read.
+    appearance:
+      typeof input.appearance === "string" &&
+      (APPEARANCE_PREFERENCES as readonly string[]).includes(input.appearance)
+        ? (input.appearance as AppearancePreference)
+        : DEFAULT_APPEARANCE,
     timezone: isSupportedTimezone(input.timezone)
       ? input.timezone
       : DEFAULT_APP_PREFERENCES.timezone,

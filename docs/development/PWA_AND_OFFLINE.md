@@ -89,18 +89,21 @@ compatibility purpose, not habit), `apple-mobile-web-app-status-bar-style`,
 `apple-mobile-web-app-title`, `application-name`. `viewport-fit=cover` was
 already present and is what makes `env(safe-area-inset-*)` resolve.
 
-**`theme-color` is resolved server-side, per theme.** It is derived from the same
-`theme` value that writes `data-theme`, so every curated theme — including
-eucalypt, coastal and ember — gets browser chrome matching its own page
-background, with no client script and no first-paint correction. Only the
-`system` preference emits a `prefers-color-scheme` pair, because only `system`
-genuinely defers the choice to the OS; emitting one for an explicitly chosen
-theme would let the OS contradict the owner.
+**`theme-color` is resolved server-side, from the appearance preference.** It is
+derived from the same value that writes `<html data-appearance>`
+([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation)),
+so browser chrome matches the page background with no client script and no
+first-paint correction. Only `system` emits a `prefers-color-scheme` PAIR, because
+only `system` genuinely defers the choice to the device — which is also what keeps
+the chrome following the device mid-session. An explicit Light or Dark emits a
+single value: emitting a media query for it would let the OS contradict the owner
+in the one place the stylesheet cannot correct.
 
 The colour has to be duplicated in `root.tsx` as a literal, because `theme-color`
-is read before any stylesheet is parsed and cannot reference a custom property.
-`tokens.css` stays the source of truth and
-`test/unit/pwa/manifest-and-icons.test.ts` fails if the two drift apart.
+is read before any stylesheet is parsed and cannot reference a custom property. It
+is imported from `app/shared/tokens/scheme.ts` — the typed mirror the same
+generator writes alongside `tokens.css` — so the two cannot drift, and
+`test/unit/pwa/manifest-and-icons.test.ts` covers the rest of the head.
 
 ### The icon system (BRAND-01)
 

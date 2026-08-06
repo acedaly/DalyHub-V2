@@ -396,13 +396,18 @@ describe("TODAY-04 command integration", () => {
     ).toBe(false);
   });
 
-  it("the Quick capture pane-header button focuses the capture entries directly (no palette involved)", () => {
+  it("carries no pane-header Quick capture button — the global capture control owns that", () => {
     renderTodayWithCommands();
-    fireEvent.click(screen.getByRole("button", { name: "Quick capture" }));
-    // The focus target is now the first shared capture entry rather than the
-    // retired fixture textarea; the PX-03 keyboard route into capture is
-    // unchanged.
-    expect(screen.getByTestId("today-capture-task")).toHaveFocus();
+    // Shell cleanup: the pane header's "Quick capture" button is gone. It created
+    // nothing itself — it scrolled to and focused the widget below — so Today was
+    // offering the same capture affordance three times over. The widget, the
+    // `today.focus_quick_capture` command and the global capture control are all
+    // untouched; only the duplicate header button went.
+    expect(
+      screen.queryByRole("button", { name: "Quick capture" }),
+    ).not.toBeInTheDocument();
+    // The widget it used to focus is still here, still offering all four types.
+    expect(screen.getByTestId("today-capture-task")).toBeInTheDocument();
   });
 
   it("exposes planning commands with shortcuts for the focused task (TODAY-05)", () => {

@@ -1621,15 +1621,15 @@ export function TodayDashboard({
       // empty canvas. The measure is still capped; it is capped for this shape.
       className="dh-collection--dashboard"
       selection={bulkBar}
-      primaryAction={
-        <button
-          type="button"
-          className="dh-today__primary"
-          onClick={focusCapture}
-        >
-          Quick capture
-        </button>
-      }
+      // Shell cleanup: the pane header's "Quick capture" button is gone. It did
+      // not create anything itself — it scrolled to and focused the Quick Capture
+      // WIDGET a few hundred pixels below it — so Today opened with the same
+      // capture affordance offered three times over (the header button, the
+      // widget's four entries, and the global capture control). The widget stays:
+      // it is an owner-arrangeable dashboard widget and the target of the "Focus
+      // Quick Capture" command, Morning Brief's capture entry and every empty
+      // state on this page, all of which still call `focusCapture` and still
+      // restore the widget if it has been hidden or collapsed.
     >
       {/* DS-14 reference implementation — Today is a COLLECTION region.
           Everything on it is scanned rather than read: widgets of task rows,

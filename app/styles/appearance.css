@@ -1,0 +1,204 @@
+/*
+ * APPEARANCE-01 — the appearance selector.
+ *
+ * ONE component, two densities, both of them a native radio group:
+ *
+ *   .dh-appearance--menu       the compact selection group in the account menu
+ *   .dh-appearance--settings   the fuller list, with a description per option,
+ *                              in Settings → General
+ *
+ * Nothing here is a new visual vocabulary. The options are M3 list items on the
+ * menu's own surface, the selected one takes the `secondary-container` pair the
+ * navigation drawer's active indicator already uses, and the shape, spacing and
+ * type all come from tokens. There is no appearance card, no preview swatch and no
+ * theme gallery — the product has one light/dark pair, and the whole screen is the
+ * preview.
+ *
+ * ── Why the selected state is never colour alone ─────────────────────────────
+ * Three signals carry it, and each survives on its own: the NATIVE radio's dot
+ * (which is also what forced-colours mode paints), a check GLYPH at the end of the
+ * row, and the container fill. A colour-blind reader, a forced-colours user and a
+ * screen-reader user each have something to go on (AGENTS.md §15).
+ */
+
+.dh-appearance {
+  display: block;
+}
+
+/* A fieldset is the group's semantics; it must not bring a fieldset's default
+ * border, padding or min-width with it. `min-inline-size: 0` is load-bearing:
+ * without it a fieldset refuses to shrink below its content and reintroduces
+ * horizontal overflow at 320px. */
+.dh-appearance__field {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dh-appearance__legend {
+  padding: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-transform: none;
+}
+
+.dh-appearance__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+}
+
+/* One option row. `min-block-size` is the WCAG 2.2 target minimum rather than
+ * M3's 48px menu item, because this row is also the touch target. */
+.dh-appearance__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  padding-block: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-small);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+}
+
+/* Hover and pressed come from the ONE shared `.md-state-layer` implementation
+ * (base.css), applied by the component's class list — never from a second
+ * hand-rolled colour-mix here. */
+
+.dh-appearance__option[data-selected="true"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/* The native radio, kept REAL and visible. It is the control's semantics, its
+ * keyboard model and — in forced-colours mode — the only thing that still paints
+ * the selection, so it is never `appearance: none`d away. */
+.dh-appearance__input {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+  accent-color: var(--md-sys-color-primary);
+  cursor: pointer;
+}
+
+/* The focus ring belongs to the ROW, not to the 16px radio, so it is visible at a
+ * glance and traces the target the pointer user is aiming at. The base
+ * `:focus-visible` rule still supplies the colour and width. */
+.dh-appearance__option:has(.dh-appearance__input:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.dh-appearance__glyph {
+  flex: none;
+  display: inline-flex;
+  font-size: 1.25rem;
+  line-height: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-appearance__option[data-selected="true"] .dh-appearance__glyph {
+  color: inherit;
+}
+
+.dh-appearance__text {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--app-space-px);
+  flex: 1 1 auto;
+}
+
+.dh-appearance__label {
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+}
+
+.dh-appearance__description {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  text-wrap: pretty;
+}
+
+.dh-appearance__option[data-selected="true"] .dh-appearance__description {
+  color: inherit;
+}
+
+/* Reserved whether or not it is filled, so choosing an option never shifts the
+ * row's metrics by the width of a glyph. */
+.dh-appearance__check {
+  flex: none;
+  display: inline-flex;
+  justify-content: center;
+  inline-size: 1.25rem;
+  font-size: 1.25rem;
+  line-height: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The account-menu density                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-appearance--menu .dh-appearance__legend {
+  padding-inline: var(--app-space-3);
+  padding-block-end: var(--app-space-1);
+}
+
+.dh-appearance--menu .dh-appearance__label {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The Settings density                                                        */
+/* -------------------------------------------------------------------------- */
+
+.dh-appearance--settings .dh-appearance__options {
+  gap: var(--app-space-1);
+}
+
+.dh-appearance--settings .dh-appearance__option {
+  align-items: flex-start;
+  padding-block: var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-medium);
+}
+
+/* The radio and the glyph sit on the first LINE of a two-line row rather than
+ * centred against both lines. */
+.dh-appearance--settings .dh-appearance__input,
+.dh-appearance--settings .dh-appearance__glyph,
+.dh-appearance--settings .dh-appearance__check {
+  margin-block-start: var(--app-space-px);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forced colours                                                              */
+/* -------------------------------------------------------------------------- */
+
+/* Under forced colours the container fill is discarded by the platform, so the
+ * selected row is given a real BORDER as well — a shape the platform must honour.
+ * The native radio and the check glyph continue to carry the state too. */
+@media (forced-colors: active) {
+  .dh-appearance__option {
+    border: var(--app-border-width-thin) solid transparent;
+  }
+
+  .dh-appearance__option[data-selected="true"] {
+    border-color: Highlight;
+  }
+
+  .dh-appearance__glyph,
+  .dh-appearance__check {
+    forced-color-adjust: auto;
+  }
+}

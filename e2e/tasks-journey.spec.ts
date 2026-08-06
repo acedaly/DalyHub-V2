@@ -31,7 +31,11 @@ async function createJourneyTask(
     readonly scheduledDate?: string;
   },
 ): Promise<void> {
-  await page.getByRole("link", { name: "New task" }).first().click();
+  // Fixture setup, not a UI assertion: the Tasks header's duplicate "New task"
+  // button was removed by the shell cleanup, so this opens the SAME (untouched,
+  // URL-backed) create drawer by its canonical URL — the one the empty state's
+  // trigger and a deep link both produce.
+  await page.goto("/tasks?drawer=new-task");
   const dialog = page.getByRole("dialog", { name: "New task" });
   await expect(dialog).toBeVisible();
 

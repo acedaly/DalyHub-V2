@@ -17,10 +17,11 @@
  *   5. collection-layout.css — the Shared Collection Layout.
  *   …then the remaining shared components, then the module surfaces, then print.
  *
- * Appearance (ADR-074): there is ONE generated light/dark pair, selected by
- * `prefers-color-scheme`. There is no `data-theme`, no picker and no persisted
- * preference — so nothing in the cascade below branches on a theme, and a
- * component styled once is correct in both appearances.
+ * Appearance (ADR-074 + APPEARANCE-01): there is ONE generated light/dark pair
+ * and no palettes. `<html data-appearance>` carries the owner's stored
+ * System / Light / Dark choice and `system` defers to `prefers-color-scheme`, but
+ * that decision is made ENTIRELY inside `tokens.css`: nothing in the cascade below
+ * branches on it, and a component styled once is correct in both appearances.
  */
 
 @import "./styles/tokens.css";
@@ -33,6 +34,10 @@
  * the shell, because the shell's rail composes the compact identity. */
 @import "./styles/brand.css";
 @import "./styles/shell.css";
+/* APPEARANCE-01 — the one appearance selector, in both of its densities. After
+ * the shell because the account-menu density sits inside the shell's panel, and
+ * before the Settings surface, which composes the same component. */
+@import "./styles/appearance.css";
 @import "./styles/collection-layout.css";
 @import "./styles/empty-state.css";
 @import "./styles/skeleton.css";

@@ -23,6 +23,7 @@ import type { RefObject } from "react";
 
 import { CloseIcon } from "~/shared/icons";
 
+import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
 import { PrimaryNavigation } from "./PrimaryNavigation";
@@ -35,6 +36,12 @@ export type SidebarProps = {
   readonly workspaceName: string;
   /** The authenticated owner's verified email. */
   readonly email: string;
+  /**
+   * The owner's stored appearance preference. Only the OVERLAY variant renders an
+   * account menu (the rail's identity lives in the desktop top app bar), so it is
+   * optional and defaults to `system` for a rail that is given nothing.
+   */
+  readonly appearance?: AppearancePreference;
   /** The registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
   /** The first-class Settings route. */
@@ -58,6 +65,7 @@ export type SidebarProps = {
 export function Sidebar({
   workspaceName,
   email,
+  appearance = "system",
   navigation,
   settingsHref,
   navId,
@@ -108,7 +116,11 @@ export function Sidebar({
       />
       <div className="dh-sidebar__spacer" />
       {variant === "overlay" ? (
-        <UserMenu email={email} settingsHref={settingsHref} />
+        <UserMenu
+          email={email}
+          appearance={appearance}
+          settingsHref={settingsHref}
+        />
       ) : null}
     </nav>
   );

@@ -27,6 +27,23 @@ export { SidebarBrand } from "./SidebarBrand";
 export { SidebarSearch } from "./SidebarSearch";
 export { CaptureFab } from "./CaptureFab";
 export { UserMenu, ACCESS_LOGOUT_PATH } from "./UserMenu";
+/**
+ * APPEARANCE-01 — the ONE appearance control and its presentation registry. Both
+ * the account menu and Settings compose the same component; there is no second
+ * appearance control anywhere in the product.
+ */
+export {
+  AppearanceSelector,
+  APPEARANCE_ACTION_PATH,
+  type AppearanceSelectorProps,
+} from "./AppearanceSelector";
+export {
+  APPEARANCE_LABEL,
+  APPEARANCE_OPTIONS,
+  appearanceLabel,
+  appearanceOption,
+  type AppearanceDescriptor,
+} from "./appearance";
 export {
   displayNameFromEmail,
   greetingNameFor,

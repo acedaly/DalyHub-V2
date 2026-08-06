@@ -44,7 +44,10 @@ async function waitForEditor(page: Page, timeout = 30_000): Promise<void> {
 }
 
 async function openNewNoteDialog(page: Page) {
-  await page.getByRole("link", { name: "New Note" }).first().click();
+  // Fixture setup, not a UI assertion: the Notes header's duplicate "New Note"
+  // button was removed by the shell cleanup, so this opens the SAME (untouched,
+  // URL-backed) create drawer by its canonical URL.
+  await page.goto("/notes?drawer=new-note");
   const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
   await page.waitForLoadState("networkidle");

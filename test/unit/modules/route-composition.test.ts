@@ -34,11 +34,15 @@ function findById(
 describe("the real app/routes.ts composition", () => {
   const config = routeConfig as unknown as RouteConfigEntry[];
 
-  it("keeps /health outside the shell layout", () => {
-    // M3-01 deleted the theme action that used to sit beside it: there is no
-    // appearance preference left to write (ADR-074).
+  it("keeps /health and the appearance action outside the shell layout", () => {
     const paths = config.map((entry) => entry.path);
     expect(paths).toContain("health");
+    // APPEARANCE-01 — the appearance action is a JSON resource route that renders
+    // no shell, and it MUST stay outside the layout: the account menu submits it
+    // from every route, including ones the shell layout does not wrap.
+    expect(paths).toContain("preferences/appearance");
+    // The seven-palette theme action M3-01 deleted stays deleted (ADR-074): this
+    // is a three-value appearance choice over one pair, not a theme feature.
     expect(paths).not.toContain("preferences/theme");
   });
 

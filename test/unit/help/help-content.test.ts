@@ -87,13 +87,23 @@ describe("HELP-01 coverage", () => {
 });
 
 describe("HELP-01 honesty", () => {
-  it("describes appearance as the device's choice, and names no theme", () => {
-    // M3-01 — DalyHub has one light appearance and one dark one, and follows the
-    // operating system (ADR-074). Help must not go on describing a picker that
-    // no longer exists, and must not name a palette that no longer ships.
+  it("describes the three appearance choices, and names no theme", () => {
+    // APPEARANCE-01 — DalyHub has one light appearance and one dark one, and the
+    // owner picks System / Light / Dark over that pair (ADR-075). Help must name
+    // all three, say where the setting lives, and still name no PALETTE — M3-01
+    // retired those and they are not coming back (ADR-074).
     const themes = HELP_TOPICS.find((t) => t.id === "themes");
     const text = JSON.stringify(themes);
-    expect(text).toContain("follows your device");
+    for (const required of [
+      "System",
+      "Light",
+      "Dark",
+      "follows your phone or computer",
+      "account menu",
+      "Settings",
+    ]) {
+      expect(text, `Help no longer mentions "${required}"`).toContain(required);
+    }
     for (const retired of [
       "Daly Light",
       "Daly Dark",

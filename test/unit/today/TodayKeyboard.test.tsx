@@ -455,8 +455,12 @@ describe("TODAY-05 shortcut ownership", () => {
   it("does NOT act on the last task after focus leaves the collection", () => {
     const { onCompleteTask, onPlan } = renderWithDispatcher();
     focusEl(taskLink("Task A"));
-    // Move focus OUT of the collection to a non-input control (the pane-header button).
-    focusEl(screen.getByRole("button", { name: "Quick capture" }));
+    // Move focus OUT of the collection to a non-input control. The pane-header
+    // "Quick capture" button used to be that control; the shell cleanup removed
+    // it as a duplicate of the global capture control, so this uses the Quick
+    // Capture widget's first entry instead — also a plain button, also outside
+    // the task collection, which is all this assertion needs.
+    focusEl(screen.getByTestId("today-capture-task"));
     pressKey("c");
     pressKey("p");
     expect(onCompleteTask).not.toHaveBeenCalled();

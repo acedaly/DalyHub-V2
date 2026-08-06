@@ -124,11 +124,17 @@ export function MeetingsCollection({
       title="Meetings"
       entityType="meeting"
       subtitle={subtitle}
-      primaryAction={
-        <Link className="dh-btn dh-btn--primary" to="/new/meeting">
-          New meeting
-        </Link>
-      }
+      // Shell cleanup: the header's "New meeting" button is gone. It navigated to
+      // the generic `/new/meeting` form with no context the global capture
+      // control does not already supply — capture asks for the same two things a
+      // meeting needs to exist (a title and a start) and posts to the same
+      // `POST /meetings/create` route, then opens the created Meeting's workspace
+      // where the rest of the detail belongs anyway.
+      //
+      // `/new/meeting` itself is untouched and still reachable: from the command
+      // palette, from a link, and from the empty state below — which is where a
+      // create action actually earns its place, because an owner with no meetings
+      // has nothing else on the screen to act on.
     >
       <div className="dh-collection-toolbar" aria-label="Meeting controls">
         <nav className="dh-meetings-views" aria-label="Meeting views">
@@ -178,6 +184,16 @@ export function MeetingsCollection({
           icon={<EntityIcon type="meeting" />}
           title={`No ${view} meetings`}
           description="Create a meeting when there is something worth preparing and remembering."
+          // An empty collection is the one place a page-level create still
+          // belongs: there is nothing else here to act on, and "no dead ends"
+          // (AGENTS.md §6) means an empty state teaches the next action. It
+          // arrived with the header button's removal so the empty view is not
+          // left without one.
+          primaryAction={
+            <Link className="dh-btn dh-btn--primary" to="/new/meeting">
+              New meeting
+            </Link>
+          }
         />
       ) : (
         <>

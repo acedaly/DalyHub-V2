@@ -55,6 +55,10 @@ import {
 import { resolveAiConfiguration } from "~/platform/ai";
 import { AiSettingsSection } from "../AiSettingsSection";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
+// The specific module, not the `~/shared/shell` barrel: the barrel also exports
+// `AppShell`, and importing it here would pull the whole application frame into
+// the Settings route chunk for the sake of one control.
+import { AppearanceSelector } from "~/shared/shell/AppearanceSelector";
 import { SelectField } from "~/shared/forms";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
@@ -180,6 +184,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       defaultTaskCaptureParentId: preferences.defaultTaskCaptureParentId,
       defaultTaskCaptureParentKind: preferences.defaultTaskCaptureParentKind,
       defaultDiaryMode: preferences.defaultDiaryMode,
+      appearance: preferences.appearance,
       version: preferences.version,
     },
     defaultTaskCaptureParent:
@@ -525,6 +530,25 @@ function GeneralSection({
       title="General"
       description="Defaults that shape where DalyHub opens and how daily work starts."
     >
+      {/* APPEARANCE-01 — the SAME control the account menu renders, reading the
+          same stored preference, so the two surfaces always agree. It leads the
+          General section because it is the one setting here that changes what the
+          owner is looking at while they look at it. */}
+      <SettingsGroup
+        title="Appearance"
+        description="DalyHub has one light and one dark appearance. Choose which one to use, or follow your device."
+      >
+        <SettingsRow
+          align="start"
+          control={
+            <AppearanceSelector
+              value={data.preferences.appearance}
+              variant="settings"
+              hideLegend
+            />
+          }
+        />
+      </SettingsGroup>
       <SettingsGroup title="Startup">
         <SelectSetting
           field="defaultLandingDestination"

@@ -1,5 +1,7 @@
 import type { WorkspaceId } from "~/kernel/workspaces";
 
+import { DEFAULT_APPEARANCE, type AppearancePreference } from "./appearance";
+
 export const APP_PREFERENCES_CHANGED = "settings.preferences_changed";
 
 export const DATE_FORMATS = ["dmy_slash", "d_mmm_yyyy", "iso"] as const;
@@ -40,6 +42,13 @@ export interface NavigationPreferences {
 }
 
 export interface AppPreferences {
+  /**
+   * APPEARANCE-01 — which half of the one generated M3 pair to paint: follow the
+   * device, or pin light/dark. Stored here (rather than device-locally) so the
+   * choice follows the owner between browsers; mirrored into a first-paint cookie
+   * by the appearance action.
+   */
+  readonly appearance: AppearancePreference;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly firstDayOfWeek: FirstDayOfWeek;
@@ -69,6 +78,7 @@ export interface AppPreferenceRecord extends AppPreferences {
 }
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
+  appearance: DEFAULT_APPEARANCE,
   timezone: "Australia/Sydney",
   dateFormat: "d_mmm_yyyy",
   firstDayOfWeek: "monday",
@@ -86,6 +96,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
 };
 
 export type AppPreferencePatch = Partial<{
+  readonly appearance: AppearancePreference;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly firstDayOfWeek: FirstDayOfWeek;

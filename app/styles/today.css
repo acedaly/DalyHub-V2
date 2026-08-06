@@ -788,7 +788,6 @@ a.dh-hero__stat:hover {
 /* Shared button treatments (tokens only) — one accent primary + a secondary.  */
 /* -------------------------------------------------------------------------- */
 
-.dh-today__primary,
 .dh-today__secondary {
   display: inline-flex;
   align-items: center;
@@ -808,30 +807,15 @@ a.dh-hero__stat:hover {
 
 /* Touch: keep the whole target comfortable (DESIGN_SYSTEM.md → touch targets). */
 @media (hover: none) {
-  .dh-today__primary,
   .dh-today__secondary {
     min-height: var(--app-touch-target-min);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dh-today__primary,
   .dh-today__secondary {
     transition-duration: var(--md-sys-motion-duration-none);
   }
-}
-
-.dh-today__primary {
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-}
-
-.dh-today__primary:hover {
-  background: var(--md-sys-color-primary);
-}
-
-.dh-today__primary:active {
-  background: var(--md-sys-color-primary);
 }
 
 .dh-today__secondary {
@@ -1923,19 +1907,10 @@ a.dh-hero__stat:hover {
     max-inline-size: none;
   }
 
-  /*
-   * No duplicate capture affordance.
-   *
-   * The phone bottom bar's Capture control IS Today's capture entry — it opens
-   * the same shared sheet as the pane-header "Quick capture" button. Showing
-   * both would be two controls competing for the same action, which the mobile
-   * principles explicitly forbid. The header action is hidden ONLY at phone
-   * width, where the bottom bar exists; nothing becomes unreachable, and the
-   * in-page Quick Capture widget (with its four typed entries) is untouched.
-   */
-  .dh-today__primary {
-    display: none;
-  }
+  /* The pane-header "Quick capture" button used to be hidden here, because the
+   * phone bottom bar's Capture control opens the same shared sheet. The shell
+   * cleanup removed that button at EVERY width for the same reason, so there is
+   * no longer a phone-only rule to write. */
 
   /* The customise toolbar is a low-frequency control: it stays reachable but
    * stops competing with the day's work for the top of the screen. `order`

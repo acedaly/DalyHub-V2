@@ -73,7 +73,14 @@ async function waitForEditor(page: Page, timeout = 30_000): Promise<void> {
  * on `/notes?drawer=new-note`. Waiting for the network to settle (a real
  * condition, not a fixed delay) closes that window deterministically. */
 async function openNewNoteDialog(page: Page) {
-  await page.getByRole("link", { name: "New Note" }).first().click();
+  // The shell cleanup removed the Notes header's "New Note" button as a duplicate
+  // of the global capture control. The DRAWER it opened is untouched and still
+  // URL-backed, so this spec — which is about the NOTES-05 editor, not about
+  // where the button lives — reaches it by its canonical URL. Creating a Note
+  // through the global control end to end is covered by
+  // `mobile-capture-journeys.spec.ts`, and the button's absence by
+  // `creation-controls.spec.ts`.
+  await page.goto("/notes?drawer=new-note");
   const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
   await page.waitForLoadState("networkidle");
@@ -534,18 +541,28 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   }) => {
     const noteTitle = ownNote(uniqueNoteTitle("kbd"));
     await gotoFixture(page, "/notes");
-    const newNoteLink = page.getByRole("link", { name: "New Note" }).first();
-    await newNoteLink.focus();
+
+    // The keyboard route to a new Note is now the GLOBAL capture control, which
+    // is on this page (and every other) rather than in the Notes header. This
+    // test follows the path an owner actually has: focus the control, open it
+    // with the keyboard, choose Note, type a title, submit — never touching the
+    // mouse, and never leaving Notes to do it.
+    const capture = page.locator("button.dh-fab");
+    await capture.focus();
     await page.keyboard.press("Enter");
-    const dialog = page.getByRole("dialog", { name: "New Note" });
-    await expect(dialog).toBeVisible();
-    // Let the drawer-open loader revalidation settle before submitting, so the
-    // create-navigation isn't dropped racing it (see openNewNoteDialog).
-    await page.waitForLoadState("networkidle");
-    await dialog.getByLabel(/Title/).focus();
-    await page.keyboard.type(noteTitle);
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
+
+    const sheet = page.getByTestId("capture-sheet");
+    await expect(sheet).toBeVisible();
+    const changeType = sheet.getByTestId("capture-change-type");
+    if (await changeType.isVisible()) {
+      await changeType.click();
+    }
+    await sheet.getByTestId("capture-choose-note").click();
+
+    await sheet.getByLabel("Title").fill(noteTitle);
+    await sheet.getByRole("button", { name: "Create and write" }).click();
+
+    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: noteTitle })).toBeVisible();
   });
 

@@ -23,6 +23,7 @@ import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
 
+import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
 import { Sidebar } from "./Sidebar";
@@ -33,6 +34,8 @@ export const MOBILE_NAV_ID = "primary-navigation-mobile";
 export type MobileNavProps = {
   readonly workspaceName: string;
   readonly email: string;
+  /** The owner's stored appearance preference, for the account menu's control. */
+  readonly appearance: AppearancePreference;
   readonly navigation: readonly NavigationItem[];
   readonly settingsHref?: string;
   /** The toggle that opened the sheet, to restore focus to on close. */
@@ -48,6 +51,7 @@ export type MobileNavProps = {
 export function MobileNav({
   workspaceName,
   email,
+  appearance,
   navigation,
   settingsHref,
   opener,
@@ -97,6 +101,7 @@ export function MobileNav({
         <Sidebar
           workspaceName={workspaceName}
           email={email}
+          appearance={appearance}
           navigation={navigation}
           settingsHref={settingsHref}
           navId={MOBILE_NAV_ID}
