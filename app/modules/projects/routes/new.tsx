@@ -25,7 +25,10 @@ import {
   SpineNotFoundError,
   SpineValidationError,
 } from "~/kernel/spine";
-import { requireAuthenticatedSession } from "~/platform/request";
+import {
+  readEntityIconField,
+  requireAuthenticatedSession,
+} from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/new";
@@ -74,11 +77,23 @@ export async function action({ request, context }: Route.ActionArgs) {
     return json({ ok: false, fieldErrors: { parentId: PARENT_ERROR } });
   }
 
+  // Validated BEFORE creation, so a bad key never leaves a half-made Project.
+  const icon = readEntityIconField(form);
+  if (!icon.ok) {
+    return json({ ok: false, fieldErrors: { iconKey: icon.message } });
+  }
+
   try {
     const project = await scope.spine.createProject({
       title,
       parent: { kind: parent.kind, id: parentId },
     });
+    // See the Area equivalent: identity is the spine's, the icon is the
+    // module's detail row, so this is a second write rather than a creation
+    // parameter.
+    if (icon.iconKey !== null) {
+      await scope.projectSettings.setIcon(project.id, icon.iconKey);
+    }
     return json({ ok: true, projectId: project.id });
   } catch (cause) {
     if (cause instanceof SpineValidationError) {

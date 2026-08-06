@@ -122,6 +122,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
+  const settings = await scope.areaSettings.get(areaId);
+
   const [rollup, goalPage, projectPage, momentumFacts, dependencies] =
     await Promise.all([
       scope.spine.getRollup(areaId),
@@ -207,7 +209,10 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   );
 
   return {
-    overview: serializeAreaOverview(overview),
+    // The KEY only. The settings repository has already normalised it, so a
+    // key this build no longer recognises arrives as `null` and the Area
+    // renders its entity default rather than an empty box.
+    overview: serializeAreaOverview(overview, settings?.iconKey ?? null),
     rollup: serializeAreaRollup(rollup),
     momentum,
     goals: goalPage.items.map(serializeAreaGoalItem),

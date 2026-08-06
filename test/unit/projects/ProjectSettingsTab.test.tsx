@@ -27,6 +27,7 @@ function overview(
     status: "planned",
     archivedAt: null,
     healthVisible: false,
+    iconKey: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
     ...over,

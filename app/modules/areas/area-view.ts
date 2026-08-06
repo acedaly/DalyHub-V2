@@ -57,6 +57,15 @@ export type SerializedAreaOverview = {
   readonly updatedAt: string;
   /** AREA-05: ISO archival timestamp, or `null` when the Area is active. */
   readonly archivedAt: string | null;
+  /**
+   * The owner's chosen icon, as the semantic KEY and nothing else — never a
+   * component, never markup, never a catalogue object. That restraint is what
+   * keeps this payload serialisable and the wire format stable: `RecordIcon`
+   * resolves the key in the browser, so the drawing can change without the
+   * route's data changing. `null` means "no choice", and the Area renders its
+   * entity default.
+   */
+  readonly iconKey: string | null;
 };
 
 export type SerializedAreaGoalItem = {
@@ -148,6 +157,7 @@ export function serializeAreaListItem(
 
 export function serializeAreaOverview(
   overview: AreaOverview,
+  iconKey: string | null = null,
 ): SerializedAreaOverview {
   return {
     id: overview.id,
@@ -155,6 +165,10 @@ export function serializeAreaOverview(
     createdAt: overview.createdAt.toISOString(),
     updatedAt: overview.updatedAt.toISOString(),
     archivedAt: overview.archivedAt ? overview.archivedAt.toISOString() : null,
+    // Passed in rather than read from `AreaOverview`: the icon lives in the
+    // Areas module's own detail row and is the settings repository's to serve
+    // (ADR-037/039), so the projection the collection reads stays unchanged.
+    iconKey,
   };
 }
 

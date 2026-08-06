@@ -29,7 +29,10 @@ import {
   type EntityLinkPickerDeps,
   type EntityLinkPickerPolicy,
 } from "~/platform/entity-links";
-import { requireAuthenticatedSession } from "~/platform/request";
+import {
+  readEntityIconField,
+  requireAuthenticatedSession,
+} from "~/platform/request";
 import {
   resolveAuthenticatedWorkspaceScope,
   type WorkspaceScope,
@@ -43,6 +46,13 @@ import type { Route } from "./+types/mutate";
 
 /** The discriminated project-mutation outcomes the client consumes. */
 export type ProjectMutationResult =
+  | {
+      readonly kind: "setIcon";
+      readonly ok: true;
+      /** The key that now applies — `null` when reset to the entity default. */
+      readonly iconKey: string | null;
+    }
+  | { readonly kind: "setIcon"; readonly ok: false; readonly formError: string }
   | { readonly kind: "rename"; readonly ok: true }
   | {
       readonly kind: "rename";
@@ -162,6 +172,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(
         await handleMove(scope, projectId, String(form.get("parentId") ?? "")),
       );
+    case "set_icon":
+      return json(await handleSetIcon(scope, projectId, form));
     case "archive":
       return json(await handleArchive(scope, projectId));
     case "restore":
@@ -171,6 +183,42 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         { kind: "rename", ok: false, formError: "Unknown action." },
         400,
       );
+  }
+}
+
+/**
+ * Choose or clear the Project's icon.
+ *
+ * No archived guard of its own: the dispatcher above already refuses every
+ * non-restore intent on an archived Project, and `set_icon` is deliberately
+ * routed through that same gate rather than carrying a second, divergent copy
+ * of the rule.
+ *
+ * A key this build does not recognise is REFUSED rather than quietly stored as
+ * "no icon", so an owner whose choice cannot be honoured is told, instead of
+ * being shown a success message and then a default glyph.
+ */
+async function handleSetIcon(
+  scope: WorkspaceScope,
+  projectId: string,
+  form: FormData,
+): Promise<ProjectMutationResult> {
+  const icon = readEntityIconField(form);
+  if (!icon.ok) {
+    return { kind: "setIcon", ok: false, formError: icon.message };
+  }
+  try {
+    const updated = await scope.projectSettings.setIcon(
+      projectId,
+      icon.iconKey,
+    );
+    return { kind: "setIcon", ok: true, iconKey: updated.iconKey };
+  } catch {
+    return {
+      kind: "setIcon",
+      ok: false,
+      formError: "That couldn’t be saved. Please try again.",
+    };
   }
 }
 

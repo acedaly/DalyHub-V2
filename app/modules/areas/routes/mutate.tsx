@@ -16,7 +16,10 @@ import { env } from "cloudflare:workers";
 
 import { SpineHasDependentsError, SpineValidationError } from "~/kernel/spine";
 import { AreaArchivedError } from "~/kernel/area-settings";
-import { requireAuthenticatedSession } from "~/platform/request";
+import {
+  readEntityIconField,
+  requireAuthenticatedSession,
+} from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/mutate";
@@ -38,6 +41,17 @@ export type AreaMutationResult =
       readonly kind: "delete";
       readonly ok: false;
       readonly blocked: boolean;
+      readonly formError: string;
+    }
+  | {
+      readonly kind: "setIcon";
+      readonly ok: true;
+      /** The key that now applies — `null` when reset to the entity default. */
+      readonly iconKey: string | null;
+    }
+  | {
+      readonly kind: "setIcon";
+      readonly ok: false;
       readonly formError: string;
     };
 
@@ -75,6 +89,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return handleRestore(scope, areaId);
     case "delete":
       return handleDelete(scope, areaId);
+    case "setIcon":
+      return handleSetIcon(scope, areaId, form);
     default:
       return json(
         { kind: "rename", ok: false, formError: "Unknown action." },
@@ -140,6 +156,50 @@ async function handleRestore(scope: Scope, areaId: string): Promise<Response> {
   } catch {
     return json({
       kind: "restore",
+      ok: false,
+      formError: "That couldn’t be saved. Please try again.",
+    });
+  }
+}
+
+/**
+ * Choose or clear the Area's icon.
+ *
+ * Guarded like `rename` rather than like `archive`: it is a non-lifecycle
+ * mutation, so an archived Area refuses it server-side and not merely by hiding
+ * the control (AGENTS.md §17 — never trust the client).
+ *
+ * A key this build does not recognise is REFUSED, never quietly stored as
+ * "no icon". `readEntityIconField` draws that line; the point is that an owner
+ * whose choice cannot be honoured is told so, instead of being shown a success
+ * message and then a default glyph.
+ */
+async function handleSetIcon(
+  scope: Scope,
+  areaId: string,
+  form: FormData,
+): Promise<Response> {
+  const settings = await scope.areaSettings.get(areaId);
+  if (settings?.archivedAt) {
+    return json({
+      kind: "setIcon",
+      ok: false,
+      formError:
+        "This Area is archived and read-only. Restore it to change its icon.",
+    });
+  }
+
+  const icon = readEntityIconField(form);
+  if (!icon.ok) {
+    return json({ kind: "setIcon", ok: false, formError: icon.message });
+  }
+
+  try {
+    const updated = await scope.areaSettings.setIcon(areaId, icon.iconKey);
+    return json({ kind: "setIcon", ok: true, iconKey: updated.iconKey });
+  } catch {
+    return json({
+      kind: "setIcon",
       ok: false,
       formError: "That couldn’t be saved. Please try again.",
     });

@@ -148,7 +148,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   // existing `/projects/parent-options?q=` search, so this loader (and every
   // ordinary revalidation of it — a task edit, a completion, a settings
   // change) stays independent of how many Areas/Goals the workspace has.
-  const [taskPage, links, knowledge] = await Promise.all([
+  const [taskPage, links, knowledge, settings] = await Promise.all([
     scope.tasks.listProjectTasks(projectId, { state: taskState }),
     listActiveLinks(
       { entities: scope.entities, entityLinks: scope.entityLinks },
@@ -164,10 +164,14 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     loadProjectKnowledge(scope, projectId, {
       limit: DEFAULT_KNOWLEDGE_PAGE,
     }).catch(() => ({ notes: [], nextCursor: null })),
+    scope.projectSettings.get(projectId),
   ]);
 
   return {
-    overview: serializeProjectOverview(overview),
+    // The KEY only. The settings repository has already normalised it, so a key
+    // this build no longer recognises arrives as `null` and the Project renders
+    // its entity default rather than an empty box.
+    overview: serializeProjectOverview(overview, settings?.iconKey ?? null),
     progress,
     health,
     tasks: taskPage.items.map(serializeProjectTask),

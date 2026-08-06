@@ -5,7 +5,10 @@
 import { env } from "cloudflare:workers";
 
 import { SpineValidationError } from "~/kernel/spine";
-import { requireAuthenticatedSession } from "~/platform/request";
+import {
+  readEntityIconField,
+  requireAuthenticatedSession,
+} from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/new";
@@ -36,9 +39,25 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const title = String(form.get("title") ?? "");
 
+  // Validated BEFORE the Area is created, so a bad key never produces a
+  // half-made record: an Area that exists with the wrong icon and an error
+  // message is worse than one that was never created.
+  const icon = readEntityIconField(form);
+  if (!icon.ok) {
+    return json({ ok: false, fieldErrors: { iconKey: icon.message } });
+  }
+
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const area = await scope.spine.createArea({ title });
+    // A second write rather than a creation parameter: identity belongs to the
+    // spine and the icon belongs to the Areas module's own detail table
+    // (ADR-037/039), so `createArea` has no business knowing about glyphs. The
+    // Area is already usable without one, which is why a failure here does not
+    // undo the creation — it is reported and the Area keeps its default icon.
+    if (icon.iconKey !== null) {
+      await scope.areaSettings.setIcon(area.id, icon.iconKey);
+    }
     return json({ ok: true, areaId: area.id });
   } catch (cause) {
     if (cause instanceof SpineValidationError) {

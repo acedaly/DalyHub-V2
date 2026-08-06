@@ -44,3 +44,9 @@ export {
   type IdentityProvisioningEnv,
   type MemberProvisioner,
 } from "./identity-provisioning";
+
+export {
+  readEntityIconField,
+  ENTITY_ICON_FIELD_ERROR,
+  type EntityIconFieldResult,
+} from "./entity-icon-field";
