@@ -212,7 +212,9 @@ function ProjectEntityCard({ card }: { readonly card: ProjectCardData }) {
           {card.updatedLabel ? <span>{card.updatedLabel}</span> : null}
         </>
       }
-      muted={card.status.label === "Archived"}
+      // The semantic fact, never the chip's English. A card must not stop
+      // looking archived because someone reworded a label.
+      muted={card.isArchived}
       href={`/projects/${encodeURIComponent(card.id)}`}
       openAriaLabel={`Open ${card.title}`}
     />

@@ -400,6 +400,144 @@ describe("Projects collection", () => {
     expect(plain?.getAttribute("data-accent")).toBeNull();
   });
 
+  it("derives the muted treatment from the archived FACT, not the chip's word", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "archived",
+          title: "Put away",
+          archivedAt: "2026-07-21T00:00:00.000Z",
+          healthVisible: false,
+        }),
+        project({ id: "live", title: "Still going" }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    expect(screen.getByRole("article", { name: "Put away" })).toHaveClass(
+      "dh-ecard--muted",
+    );
+    expect(
+      screen.getByRole("article", { name: "Still going" }),
+    ).not.toHaveClass("dh-ecard--muted");
+  });
+
+  it("gives each lifecycle and health state exactly one chip", () => {
+    const cases = [
+      {
+        id: "planned",
+        title: "Planned one",
+        over: { status: "planned" as const, healthVisible: false },
+        label: "Planned",
+      },
+      {
+        id: "onhold",
+        title: "On-hold one",
+        over: { status: "on_hold" as const, healthVisible: false },
+        label: "On hold",
+      },
+      { id: "active", title: "Active one", over: {}, label: "Active" },
+      {
+        id: "completed",
+        title: "Completed one",
+        over: {
+          completedAt: "2026-07-20T00:00:00.000Z",
+          healthVisible: false,
+        },
+        label: "Completed",
+      },
+      {
+        id: "archived",
+        title: "Archived one",
+        over: { archivedAt: "2026-07-21T00:00:00.000Z", healthVisible: false },
+        label: "Archived",
+      },
+      {
+        id: "warning",
+        title: "Warning one",
+        over: {
+          health: stubHealth({
+            taskTotal: 4,
+            taskCompleted: 0,
+            overdueOpen: 2,
+          }),
+        },
+        label: "At risk",
+      },
+    ];
+
+    renderCollection({
+      projects: cases.map((c) =>
+        project({ id: c.id, title: c.title, ...c.over }),
+      ),
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+
+    for (const c of cases) {
+      const card = screen.getByRole("article", { name: c.title });
+      // Exactly ONE status treatment per card, and it says the right thing.
+      expect(card.querySelectorAll(".dh-pill")).toHaveLength(1);
+      expect(within(card).getByText(c.label)).toBeInTheDocument();
+    }
+  });
+
+  it("navigates from the title link through the router, not a full page load", async () => {
+    /*
+     * Only the LINK's own activation can be proven here. Whether a click on the
+     * status chip or the metadata row reaches that link is CSS hit-testing —
+     * stacking order against the link's `::after` overlay — which jsdom does
+     * not do at all: `fireEvent.click` dispatches on the node you name, so this
+     * file would report a pass whatever the z-index said. That contract is
+     * asserted in the browser, in `e2e/projects.spec.ts`.
+     */
+    const seen: string[] = [];
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/projects",
+          element: (
+            <ProjectsCollectionView
+              projects={[project({ id: "p1", title: "Website relaunch" })]}
+              nextCursor={null}
+              parentOptions={[]}
+              state="all"
+              failed={false}
+            />
+          ),
+        },
+        {
+          path: "/projects/:id",
+          element: <p>record</p>,
+          loader: ({ params }) => {
+            seen.push(params.id ?? "");
+            return null;
+          },
+        },
+      ],
+      { initialEntries: ["/projects"] },
+    );
+    render(
+      <FeedbackProvider>
+        <RouterProvider router={router} />
+      </FeedbackProvider>,
+    );
+
+    const card = screen.getByRole("article", { name: "Website relaunch" });
+    const link = within(card).getByRole("link", {
+      name: "Open Website relaunch",
+    });
+    // A real href, so command-click, middle-click and copy-link-address all
+    // behave; the router handles the ordinary click.
+    expect(link).toHaveAttribute("href", "/projects/p1");
+    fireEvent.click(link, { button: 0 });
+    await waitFor(() => expect(seen).toEqual(["p1"]));
+  });
+
   it("shows a genuinely-empty state when there are no projects at all", () => {
     renderCollection({
       projects: [],

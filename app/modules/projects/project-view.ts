@@ -299,10 +299,12 @@ export function projectCardStatus(project: {
   readonly health: ProjectHealth;
   readonly healthVisible: boolean;
 }): ProjectCardStatus {
-  if (project.archivedAt !== null) {
+  // The SHARED lifecycle predicates, not a second copy of the same comparison
+  // — every surface that decides "is this archived?" asks the same function.
+  if (isProjectArchived(project)) {
     return { label: "Archived", tone: "neutral", fromHealth: false };
   }
-  if (project.completedAt !== null) {
+  if (isProjectComplete(project)) {
     return { label: "Completed", tone: "success", fromHealth: false };
   }
   // `on_track` is the absence of a signal, so promoting it would replace a
@@ -339,6 +341,19 @@ export interface ProjectCardData {
   readonly parentLabel: string | null;
   /** The ONE status chip. */
   readonly status: ProjectCardStatus;
+  /**
+   * Whether the Project is archived, as a fact rather than as an English word.
+   *
+   * The card's quieter treatment reads THIS, not `status.label === "Archived"`.
+   * Comparing against display text makes a lifecycle rule depend on copy: it
+   * breaks the moment the chip is reworded, and it would break silently — the
+   * card would simply stop looking archived, with no type error and no failing
+   * assertion about the label itself. The rule lives once, in
+   * `isProjectArchived`, and both the chip and the styling read it from here.
+   */
+  readonly isArchived: boolean;
+  /** Whether the Project is complete — same reasoning as {@link isArchived}. */
+  readonly isComplete: boolean;
   /**
    * The health REASON, only when the chip is a health chip AND the reason says
    * something the label does not. Never a second copy of the state.
@@ -429,6 +444,10 @@ export function toProjectCardData(
     iconKey: item.iconKey,
     parentLabel: projectParentLabel({ areaLabel, goalLabel }),
     status,
+    // The SAME predicates `projectCardStatus` branches on, so the chip and the
+    // styling can never disagree about what this Project is.
+    isArchived: isProjectArchived(item),
+    isComplete: isProjectComplete(item),
     // Only when the chip is a health chip, and only when the reason adds
     // something the chip's own word does not.
     statusDetail:
