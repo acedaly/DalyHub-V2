@@ -289,7 +289,7 @@ export function Card(props: CardProps) {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={normalisedProgress.percent}
-                aria-valuetext={normalisedProgress.text}
+                aria-valuetext={normalisedProgress.valueText}
                 aria-label="Progress"
               >
                 <div

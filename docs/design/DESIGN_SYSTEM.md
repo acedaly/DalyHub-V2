@@ -247,6 +247,17 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Clicking opens the [Drawer](#drawer). Cards support selection, drag (with keyboard equivalent), and inline quick actions. Density is configurable (comfortable/compact).
 **Rules.** **One Card component, configured** — not a bespoke card per module. If a module needs a new card affordance, add it to the shared Card. (This is a top target in [PRODUCT_DEBT](../product/PRODUCT_DEBT.md).)
 
+### Entity card and its grid (DS-14 Gate D)
+**Purpose.** A record you recognise before you read it — an Area, a Project, a Goal, an Asset — in a responsive grid. It replaces the full-width row card for collections whose records carry identity, where the audit found "the same generic card list" and an Area's whole identity carried by an 8px dot.
+**Anatomy.** `EntityCard` in `EntityCardGrid`. Identity container · title · subtitle (the parent context, or a one-line work state) · one status chip · one primary metric · a thin progress bar with its percentage · one wrapping metadata row · an optional footer and overflow menu.
+**Behaviour.** The whole card is one destination: the title is a router `Link` whose `::after` covers the card. The grid is `auto-fit` — roughly three columns on a wide desktop, two on a tablet, one on a phone — and it is a labelled `<ul>`/`<li>`, so a collection announces how many items it holds. Cards are content-height (`align-items: start`), not stretched to the tallest in the row.
+**Rules.**
+- **The identity container is the point.** 40px, rounded, tinted with a *generated* accent, holding the record's chosen glyph via `RecordIcon`. Use the shared `AccentIcon`; the accent is always **inherited** (an Area's own rank, a Project's Area's rank) and never invented, and a record with no Area takes the neutral container rather than a colour that means nothing.
+- **One status treatment.** Never a lifecycle chip beside a health chip, a status glyph and a repeated metadata line. Pick the single most decision-relevant fact; let a secondary signal *replace* the primary one rather than sit next to it, and keep its explanation as supporting text rather than a second copy of the state.
+- **Only interactive things sit above the card link.** A status chip is not a control. Raising static content makes that part of the card a dead zone — a real defect this component shipped with. Footer actions and overflow menus are raised; chips, metrics, bars and metadata are not.
+- **Never state a value the loader cannot support.** A count is exact or it says it is loaded; a zero-denominator progress shows no bar at all, because an empty bar at 0% reads as "nothing done" when the truth is "nothing planned".
+- **Progress states its value twice, from one source.** `CardProgress.label` is drawn beside the bar, `valueText` is announced; both derive from the same completed/total pair, so the visible text and `aria-valuenow` cannot disagree.
+
 ### Inline title editing on a Card (TASKS-04)
 **Purpose.** Rename a record from a list without opening it, for collections where renaming is a routine daily act (Tasks).
 **Anatomy.** The shared Card's optional `titleEditor` slot. When supplied, it replaces the title cell; when absent, the Card renders its ordinary open control (the link or button whose accessible name is `openAriaLabel`).

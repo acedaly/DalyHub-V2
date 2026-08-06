@@ -744,6 +744,36 @@ They are small and well-understood; none of them blocks the V2 release.*
   trend ([REVIEW-03](#-review-03--insights--alignment)).
 - **Priority.** P2 — closed.
 
+### ☐ DOC-EDITOR-01 — One document-editor shell for Notes and Meetings
+
+- **Recorded, not started.** Noted while migrating Areas and Projects to the M3
+  entity card (Gate D unit 1, PR #122). It is deliberately NOT in that PR: the M3
+  gates are a visual migration of collections and records, and this is a
+  composition change to two modules' authoring surfaces. Mixing them would make
+  both harder to review.
+- **The observation.** Notes and Meetings both compose their own authoring
+  surface over the shared `LiveMarkdownEditor`
+  (`app/modules/notes/NoteContentForm.tsx`,
+  `app/modules/meetings/MeetingMarkdown.tsx`), and Reviews composes a third
+  (`app/modules/reviews/guided/ReviewPromptEditor.tsx`). The editor itself is
+  shared; the shell around it — the toolbar, the writing measure, where metadata
+  sits, how saving is reported, how a long document scrolls — is not. The M3
+  audit already found the consequence for one of them:
+  `markdown-editor.css` declares five bespoke card blocks and puts a border
+  around every region.
+- **The proposal.** Consolidate Notes and Meetings onto ONE shared
+  document-editor shell ABOVE the existing `LiveMarkdownEditor` — keep the
+  editor, share the chrome. Reviews' prompt editor is a different shape (many
+  short authored answers, not one long document) and should be assessed rather
+  than assumed to fit.
+- **Why it is the next major PRODUCT-focused unit.** The remaining M3 gates are
+  presentational. This one changes how two modules are actually written in, which
+  is the kind of work that benefits from being the whole of a change rather than
+  a rider on one.
+- **Not scoped here.** No component names, no anatomy and no migration order are
+  being decided in this note. Do the audit first.
+- **Priority.** P2.
+
 ### ☐ REVIEW-03 — Insights & alignment
 
 - **Original entry.** [`ROADMAP_V2.md → REVIEW-03`](ROADMAP_V2.md#-review-03--insights--alignment).

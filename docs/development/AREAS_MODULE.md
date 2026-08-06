@@ -52,10 +52,40 @@ server; no client-supplied workspace or actor is accepted.
 
 ## Composition
 
-- **Collection** (`AreasCollection.tsx`) uses PX-02 `CollectionLayout`, DS-04
-  `Card`, shared `EmptyState`, shared `LoadMore`, and a DS-03 Drawer trigger for
-  New Area (`?drawer=new-area`). Cards are real links to `/areas/:areaId` and the
-  subtitle reports loaded rows honestly when more pages exist.
+- **Collection** (`AreasCollection.tsx`) uses PX-02 `CollectionLayout`, the DS-14
+  `EntityCard`/`EntityCardGrid`, shared `EmptyState`, shared `LoadMore`, and a
+  DS-03 Drawer trigger for New Area (`?drawer=new-area`). Cards are real links to
+  `/areas/:areaId` and the subtitle reports loaded rows honestly when more pages
+  exist.
+
+  **The Area card (DS-14 Gate D).** The owner's chosen icon on the Area's own
+  generated accent (`AccentIcon` over `listAreas().iconKey` and `colourRank`),
+  the title, ONE work-state line, the open-task count as the single metric, and
+  the Area record's own `Updated <date>`.
+
+  Three deliberate absences, each a finding from the M3 audit:
+
+  - **No status chip.** Every Area is permanent, so a "Permanent" chip said
+    something about Areas rather than about *this* Area, and `listAreas` never
+    returns archived Areas at all. A state is surfaced only when it is an
+    exception.
+  - **No progress bar.** Areas never complete (AGENTS.md §4), so a completion bar
+    answers a question the entity does not have — and it produced the audit's
+    "ragged alignment where some rows have progress bars and some don't".
+  - **One absence message, not three.** The audit found four of nine rows
+    repeating "Goals: No goals yet · Projects: No Projects yet · Tasks: No tasks
+    yet". An Area with nothing in flight says `No active work` once, paired with
+    one next step.
+
+  `areaWorkSummary` describes STRUCTURE only (active Projects, open Goals) and
+  returns `null` when the metric beside it has already said everything — an Area
+  holding only loose tasks would otherwise render its task count twice, once as
+  the summary and once as the metric. Such an Area is also **not** idle, so it
+  never falls through to `No active work`.
+
+  **Areas has no filtered-empty state**, because it has no filter dimension: no
+  query parameter, no segment control, so no filter can match nothing. Its
+  true-empty state is captured and tested.
 - **New Area** (`NewAreaForm.tsx`) uses DS-06 forms and validation. Failed server
   outcomes preserve the draft; duplicate submit is prevented by the shared form
   state; success navigates to the canonical record.
@@ -140,6 +170,33 @@ reason ever reports a zero count; a fact with zero positive instances simply doe
 not produce a reason. The evaluator does not average project percentages into an
 Area score and does not label an empty Area as healthy. Sensitive task free text,
 waiting notes and raw payloads are never exposed in aggregate reasons.
+
+## What the Area task roll-up counts (DS-14 Gate D)
+
+`rollup.tasks` — the number behind the card's open-task metric and the record's
+task totals — is a grouped aggregate over the whole workspace, computed in the
+same query that returns the Area. Its universe is:
+
+- **Tasks parented DIRECTLY to the Area**, always. These belong to the Area
+  itself, and no Project's lifecycle can hide them.
+- **Tasks under the Area's NON-ARCHIVED Projects**, whatever their workflow
+  status (planned, active, on-hold) and whether or not they are complete.
+
+**Archived Projects contribute nothing**, and they leave WHOLE — their completed
+tasks depart with their open ones. A partial exclusion would report an Area as 0%
+complete the moment its finished work was archived. This matches
+`activeProjectCount` beside it, and `listProjects`, which have always excluded
+archived Projects from the ordinary active-work buckets (ADR-037 §37.1: archival
+is reversible and is NOT soft-deletion).
+
+The **project** roll-up deliberately still counts archived Projects: "2 of 5
+Projects complete" is a statement about the Area's whole body of work.
+
+Two domain guards mean an Area could never report *open* tasks from archived work
+even before this: a Project with unfinished tasks cannot be archived
+(`ProjectArchiveBlockedError`), and a task inside an archived Project cannot be
+reopened (`SpineParentUnavailableError`). Both are asserted in
+`test/kernel/collection-cards.test.ts` so the narrower claim stays true.
 
 ## Tab totals
 

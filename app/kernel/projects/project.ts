@@ -13,6 +13,7 @@
  * project — Area/Goal titles are resolved live through the hierarchy.
  */
 
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type { WorkspaceId } from "~/kernel/workspaces";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 
@@ -105,6 +106,26 @@ export type ProjectListItem = {
   readonly archivedAt: Date | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
+  /**
+   * The resolved Area's stable colour rank (ADR-068 decision 5), or `null` when
+   * the Project has no Area at all.
+   *
+   * A Project card INHERITS its Area's accent rather than inventing one, which
+   * is what makes a grid of Projects readable as "these three belong to Health"
+   * without reading a word. It is the same lifecycle-independent rank
+   * `listAreas` computes — ranked over EVERY `area` row so archiving one Area
+   * never recolours another — resolved in the SAME query through one window
+   * function, never a per-Project follow-up read.
+   */
+  readonly areaColourRank: number | null;
+  /**
+   * The owner's chosen icon, as the semantic KEY and nothing else. Read from
+   * the `project_details` row this projection already joins for status and
+   * archival, so it costs no extra query. Normalised on the way OUT: an
+   * unrecognised stored key arrives as `null` and the card renders the Project
+   * default.
+   */
+  readonly iconKey: EntityIconKey | null;
   /** Total active direct child tasks. */
   readonly taskTotal: number;
   /** Completed active direct child tasks. */

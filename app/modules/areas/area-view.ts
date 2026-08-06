@@ -15,6 +15,7 @@ import {
   projectWorkflowStatusLabel,
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type {
   AreaGoalItem,
   AreaListItem,
@@ -42,9 +43,19 @@ export type SerializedAreaListItem = {
   readonly id: string;
   readonly title: string;
   readonly createdAt: string;
+  /**
+   * The AREA RECORD's own last edit — `entities.updated_at`, which ADR-014
+   * reserves for identity and title. It is NOT "something happened in this
+   * Area": adding a Project writes a link, and archiving writes
+   * `area_details`, and neither touches this column. The card therefore says
+   * "Updated <date>", which is exactly what this is, and never implies
+   * activity it cannot see.
+   */
   readonly updatedAt: string;
   /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
   readonly colourRank: number;
+  /** The owner's chosen icon KEY, or `null` for the Area default. */
+  readonly iconKey: EntityIconKey | null;
   readonly rollup: SerializedAreaRollup;
   readonly activeProjectCount: number;
   readonly completedProjectCount: number;
@@ -111,15 +122,38 @@ export type RollupProgress = {
   readonly summary: string;
 };
 
+/**
+ * The display data for one Area entity card.
+ *
+ * Every count here is EXACT, not page-derived: `listAreas` computes each one as
+ * a grouped aggregate over the whole workspace in the same query that returns
+ * the Area, so none of them is a count of loaded rows. See
+ * `docs/design/M3_POLISH_HANDOFF.md` for the exact/bounded ledger.
+ */
 export type AreaCardData = {
   readonly id: string;
   readonly title: string;
   /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
   readonly colourRank: number;
-  readonly state: { readonly label: string; readonly tone: CardTone };
-  readonly goals: RollupProgress;
-  readonly projects: RollupProgress;
-  readonly tasks: RollupProgress;
+  /** The owner's chosen icon KEY, or `null` for the Area default. */
+  readonly iconKey: EntityIconKey | null;
+  /** EXACT count of Projects in this Area that are neither complete nor archived. */
+  readonly activeProjects: number;
+  /** EXACT count of Goals in this Area that are not complete. */
+  readonly openGoals: number;
+  /** EXACT count of incomplete Tasks in this Area, direct and via its Projects. */
+  readonly openTasks: number;
+  /**
+   * Whether this Area has anything in flight at all. False collapses the card
+   * to ONE concise state instead of the three separate absence messages the
+   * audit found ("No goals yet · No Projects yet · No tasks yet").
+   */
+  readonly hasActiveWork: boolean;
+  /**
+   * The one-line work-state summary — never three absence messages, and `null`
+   * when the open-task metric beside it is already the whole story.
+   */
+  readonly workSummary: string | null;
   readonly updatedLabel: string | null;
 };
 
@@ -149,6 +183,7 @@ export function serializeAreaListItem(
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     colourRank: item.colourRank,
+    iconKey: item.iconKey,
     rollup: serializeAreaRollup(item.rollup),
     activeProjectCount: item.activeProjectCount,
     completedProjectCount: item.completedProjectCount,
@@ -323,21 +358,82 @@ export function areaDependencyBlockers(summary: {
   return blockers;
 }
 
+/**
+ * The card's date line. ONE word and ONE date — the audit found
+ * "Updated: Updated 29 Jul 2026", where the Card's own `label` prop and this
+ * string each contributed an "Updated". The entity card takes free-form meta
+ * nodes and adds no label of its own, so the word appears exactly once.
+ */
 export function areaUpdatedLabel(iso: string): string | null {
   const dateOnly = iso.slice(0, 10);
   const formatted = formatCalendarDate(dateOnly);
   return formatted ? `Updated ${formatted}` : null;
 }
 
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? one : many;
+}
+
+/**
+ * The one-line work-state summary — the STRUCTURE in the Area (its Projects and
+ * Goals), never its task count.
+ *
+ * The audit found four of nine Area rows repeating "Goals: No goals yet ·
+ * Projects: No Projects yet · Tasks: No tasks yet" — three absence messages
+ * saying one thing. An Area with nothing in flight now says that once, and an
+ * Area with work names only the dimensions it actually has.
+ *
+ * Tasks are deliberately absent here. The card already states them as its
+ * metric, and the first Gate D capture caught the consequence of not drawing
+ * that line: an Area holding one loose task and no structure read
+ * "1 open task" as its summary AND "1 open task" as its metric, one above the
+ * other. `null` means "the metric already said it" — an Area with only loose
+ * tasks is not idle, so it must not fall through to "No active work" either.
+ */
+export function areaWorkSummary(counts: {
+  readonly activeProjects: number;
+  readonly openGoals: number;
+  readonly openTasks: number;
+}): string | null {
+  const parts: string[] = [];
+  if (counts.activeProjects > 0) {
+    parts.push(
+      `${counts.activeProjects} active ${plural(counts.activeProjects, "Project", "Projects")}`,
+    );
+  }
+  if (counts.openGoals > 0) {
+    parts.push(
+      `${counts.openGoals} open ${plural(counts.openGoals, "Goal", "Goals")}`,
+    );
+  }
+  if (parts.length > 0) {
+    return parts.join(" · ");
+  }
+  return counts.openTasks > 0 ? null : "No active work";
+}
+
 export function toAreaCardData(item: SerializedAreaListItem): AreaCardData {
+  // Every one of these is a workspace-wide grouped aggregate from `listAreas`,
+  // not a count of the rows on this page.
+  const activeProjects = item.activeProjectCount;
+  const openGoals = Math.max(
+    0,
+    item.rollup.goals.total - item.rollup.goals.completed,
+  );
+  const openTasks = Math.max(
+    0,
+    item.rollup.tasks.total - item.rollup.tasks.completed,
+  );
   return {
     id: item.id,
     title: item.title,
     colourRank: item.colourRank,
-    state: areaStateLabel(),
-    goals: rollupProgress(item.rollup.goals, "goal"),
-    projects: rollupProgress(item.rollup.projects, "project"),
-    tasks: rollupProgress(item.rollup.tasks, "task"),
+    iconKey: item.iconKey,
+    activeProjects,
+    openGoals,
+    openTasks,
+    hasActiveWork: activeProjects > 0 || openGoals > 0 || openTasks > 0,
+    workSummary: areaWorkSummary({ activeProjects, openGoals, openTasks }),
     updatedLabel: areaUpdatedLabel(item.updatedAt),
   };
 }

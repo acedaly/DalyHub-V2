@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -17,8 +18,14 @@ test.describe("AREA-01 — Areas", () => {
 
     const seededArea = page.getByRole("link", { name: "Open DalyHub V2" });
     await expect(seededArea).toHaveAttribute("href", "/areas/a-dh");
-    await expect(page.getByText(/Goals:/).first()).toBeVisible();
-    await expect(page.getByText(/Projects:/).first()).toBeVisible();
+    // Gate D: the labelled "Goals: … · Projects: …" metadata is gone. The card
+    // states its structure in one line and its open work as one figure — both
+    // from exact aggregates, so these are contract assertions, not copy checks.
+    const dhCard = page.getByRole("article", { name: "DalyHub V2" });
+    await expect(dhCard.getByText(/\d+ active Projects?/)).toBeVisible();
+    await expect(dhCard.getByText("open tasks")).toBeVisible();
+    // The chip that said nothing about any particular Area is gone.
+    await expect(page.getByText("Permanent")).toHaveCount(0);
 
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
@@ -129,6 +136,110 @@ test.describe("AREA-01 — Areas", () => {
 
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("collection: icons, exact counts and one work-state line", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/areas");
+
+    // The seed is deliberately partial (PR #121): `a-health` carries a chosen
+    // icon and `a-dh` carries none, so BOTH the persisted and the fallback
+    // paths are proven in a browser rather than only one of them.
+    const withIcon = page.getByRole("article", { name: "Health" });
+    await expect(withIcon.locator('[data-icon-key="shield"]')).toBeVisible();
+
+    const fallback = page.getByRole("article", { name: "DalyHub V2" });
+    await expect(fallback.locator("[data-icon-key]")).toHaveCount(0);
+    await expect(
+      fallback.locator('.dh-accent-icon [data-entity="area"]'),
+    ).toBeVisible();
+
+    // Each Area wears its OWN accent, so a grid is scannable by colour.
+    const accents = await page
+      .locator(".dh-accent-icon")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-accent")),
+      );
+    expect(new Set(accents).size).toBeGreaterThan(1);
+
+    // The seeded `a-dh` Area holds Projects, Goals and Tasks; the counts come
+    // from workspace-wide aggregates, so they are integers, never blanks.
+    await expect(fallback.getByText(/\d+ active Projects?/)).toBeVisible();
+    await expect(fallback.getByText("open tasks")).toBeVisible();
+
+    // Areas never complete, so no Area card carries a completion bar — the
+    // source of the audit's ragged-alignment finding.
+    await expect(page.getByRole("progressbar")).toHaveCount(0);
+  });
+
+  test("collection: axe is clean in the dark appearance too", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await gotoFixture(page, "/areas");
+    await expect(page.getByRole("article").first()).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test("collection: the true-empty state is deliberate and accessible", async ({
+    page,
+  }) => {
+    // Areas has no filter dimension, so it has no filtered-empty state to
+    // distinguish this from — see the Gate D notes in M3_POLISH_HANDOFF.md.
+    // The true-empty state cannot be reached from the seeded workspace without
+    // destroying the shared local D1 every other spec in this run depends on,
+    // so it is rendered by the dev-only fixture over the SAME component.
+    await gotoFixture(page, "/design/collection-states?state=areas-empty");
+    await expect(page.getByText("No Areas yet")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "New Area" }).first(),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test("collection: an Area with nothing in it says so ONCE", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/design/collection-states?state=areas-icons");
+    const empty = page.getByRole("article", { name: "Finances" });
+    await expect(empty.getByText("No active work")).toBeVisible();
+    // The three absence messages the audit found are gone.
+    await expect(empty.getByText(/No goals yet/)).toHaveCount(0);
+    await expect(empty.getByText(/No Projects yet/)).toHaveCount(0);
+    await expect(empty.getByText(/No tasks yet/)).toHaveCount(0);
+
+    // An Area holding only loose tasks is NOT idle, and must not claim to be.
+    const loose = page.getByRole("article", { name: "Home" });
+    await expect(loose.getByText("No active work")).toHaveCount(0);
+    await expect(loose.getByText("open tasks")).toBeVisible();
+  });
+
+  test("collection: meets touch targets and stays overflow-free at 320px", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await gotoFixture(page, "/areas");
+    const card = page.getByRole("article", { name: "DalyHub V2" });
+    await expect(card).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    /*
+     * The card's destination is a STRETCHED link: the title anchor's `::after`
+     * is absolutely positioned over the whole card, so the area a finger can
+     * hit is the card, not the two lines of text the anchor's own box covers.
+     * Measuring the anchor would report ~19px and be wrong about the product.
+     *
+     * So: measure the card, then PROVE the stretched hit area by tapping its
+     * bottom-LEFT corner — far outside the anchor's own box, and clear of the
+     * capture FAB's fixed bottom-right position — which must still open the
+     * record.
+     */
+    await expectMinTouchTarget(card);
+    await card.scrollIntoViewIfNeeded();
+    const box = (await card.boundingBox())!;
+    await page.mouse.click(box.x + 8, box.y + box.height - 8);
+    await expect(page).toHaveURL(/\/areas\/a-dh/);
   });
 
   test("collection and record stay overflow-free across representative widths", async ({

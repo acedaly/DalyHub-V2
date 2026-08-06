@@ -47,6 +47,12 @@ const devFixtureRoutes =
         route("design/drawer", "routes/design-drawer.tsx"),
         route("design/cards-filters", "routes/design-cards-filters.tsx"),
         route("design/card-family", "routes/design-card-family.tsx"),
+        // Gate D — the Area/Project collection states real seeded data cannot
+        // reach (empty, filtered-empty, the progress extremes).
+        route(
+          "design/collection-states",
+          "routes/design-collection-states.tsx",
+        ),
         route(
           "design/collection-layout",
           "routes/design-collection-layout.tsx",

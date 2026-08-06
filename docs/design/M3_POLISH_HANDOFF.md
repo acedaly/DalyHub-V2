@@ -1,11 +1,23 @@
 # M3 visual polish — handover
 
-**Branch:** `claude/m3-visual-polish-6oq9z2` · **PR:** [#121](https://github.com/acedaly/DalyHub-V2/pull/121), open and unmerged
+**PR #121 is MERGED.** Gate D unit 1 (Areas and Projects) continues on
+`claude/m3-areas-projects-axf33x` · **PR:** [#122](https://github.com/acedaly/DalyHub-V2/pull/122).
+Do not reopen #121, do not resume its branch, and do not repeat the audit — it is done and merged.
+
+The design direction, surface tones, shell anatomy, icon architecture and gate list are in
+[`M3_POLISH_AUDIT.md`](M3_POLISH_AUDIT.md), Appendix A. **Read [§8](#8-gate-d--areas-and-projects)
+before touching either collection**; it records what the Areas and Projects cards now render, which
+numbers are exact and which are bounded, and the four defects the capture pass and review found.
+
+<details>
+<summary>The PR #121 header, kept for reference</summary>
+
+**Branch:** `claude/m3-visual-polish-6oq9z2` · **PR:** [#121](https://github.com/acedaly/DalyHub-V2/pull/121)
 **Resume from this branch.** Do not open a second PR and do not repeat the audit — it is done and committed.
 
-The design direction, the surface tones, the shell anatomy, the icon architecture, the Today
-composition and the gate list are all in [`M3_POLISH_AUDIT.md`](M3_POLISH_AUDIT.md), Appendix A. The
-authoritative reference mock-up is at
+</details>
+
+The authoritative reference mock-up is at
 [`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png).
 This document is the *state of the work*, not the specification.
 
@@ -67,17 +79,16 @@ their own commits so they are separable from the visual work.
 | C — shared components | **Foundation complete and approved.** The five components exist, are tested and are demonstrated. **No module consumes them yet.** |
 | Icons — persistence | **Complete and tested**, form boundary through to export — see §4. |
 | Icons — picker and form integration | **Complete**, with browser coverage and an approval-gate capture set — see §4. |
-| D — entity collections | Not started. |
+| D — entity collections | **Areas and Projects complete** (PR #122) — see §8. Tasks, Goals and the rest not started. |
 | E — records and forms | Not started. |
 | F — remaining modules | Not started. |
 | G — Today | Not started. |
 | H — responsive, a11y, docs | Not started. |
 
-**Nothing in the product's real modules has been migrated to the new card family.** Tasks,
-Projects, Areas, Goals, Notes, Diary, Meetings, People, Assets, Reviews, AI, Settings and Help all
-still render exactly as the audit describes them. That is deliberate: a half-migrated product is
-worse than a consistently old one, so the migration was stopped at a coherent point rather than
-spread thin.
+**Areas and Projects are migrated (PR #122). Nothing else is.** Tasks, Goals, Notes, Diary,
+Meetings, People, Assets, Reviews, AI, Settings and Help all still render exactly as the audit
+describes them. That is deliberate: the migration advances one coherent unit at a time rather than
+spreading thin.
 
 ---
 
@@ -166,13 +177,9 @@ Both assertions matter, so the fixture carries both cases.
 
 ### The next step, exactly
 
-**Gate D — migrate the entity collections to the shared card family.** Nothing in
-this PR touches a real module's collection: Areas, Projects, Tasks, Goals, Meetings,
-People, Assets, Reviews, Notes and Diary all still render their pre-M3 compositions.
-Start with Areas and Projects (`EntityCard` + `EntityCardGrid`, the selected icon,
-Area accent inheritance, 3/2/1-column grids), verify those two, capture Gate D, and
-only then broaden. The collection LOADERS do not yet carry `iconKey` — only the record
-loaders do — so that is the first concrete change Gate D needs.
+**~~Gate D — Areas and Projects.~~ DONE in PR #122 — see [§8](#8-gate-d--areas-and-projects).**
+The collection loaders now carry `iconKey`. The next unit is **Tasks** (`RecordRow`, one compact
+toolbar, grouping, the duplicated state indicators), then the remaining collections.
 
 <details>
 <summary>The original outstanding-paths table, kept for reference</summary>
@@ -307,3 +314,140 @@ inside the real shell; the existing pattern is `e2e/m3-screenshots.spec.ts` (opt
   CI Gate. Three "failures" during this work were cancellations, not defects.
 - `test/unit/tokens/tokens.test.ts` scans `app/styles` for the retired `--dh-` vocabulary,
   **including inside comments**.
+
+---
+
+## 8. Gate D — Areas and Projects
+
+**PR [#122](https://github.com/acedaly/DalyHub-V2/pull/122)**, branch
+`claude/m3-areas-projects-axf33x`, branched from `main` @ `585e06b` (the PR #121 merge).
+
+The first real module migration. Two collections moved off the one generic row card and onto the
+shared entity-card family; nothing else in the product changed.
+
+### What the cards render
+
+| Surface | Anatomy |
+|---|---|
+| **Area** | chosen icon on the Area's own accent · title · one work-state line (`3 active Projects · 2 open Goals`, or `No active work`) · open-task count as the single metric · `Updated <date>` |
+| **Project** | chosen icon on the ANCESTOR AREA's accent · title · `Area · Goal` · ONE status chip · thin progress bar with its percentage · `N of M tasks complete` · health reason where it explains the chip · `Updated <date>` |
+
+### Exact versus bounded — the ledger
+
+Every number on both cards is a workspace-wide SQL aggregate computed in the same query that
+returns the row. None is a count of the loaded page.
+
+| Card | Value | Source | Exactness |
+|---|---|---|---|
+| Area | active Projects | `activeProjectCount` | **exact** |
+| Area | open Goals | `rollup.goals.total − completed` | **exact** |
+| Area | open Tasks | `rollup.tasks.total − completed` | **exact** — direct Area tasks plus tasks of NON-archived Projects |
+| Area | `Updated …` | `entities.updated_at` | exact, and it is the **Area record's own last edit**. ADR-014 reserves that column for identity and title, so it does NOT mean "something happened in this Area" — adding a Project writes a link and archiving writes `area_details`, and neither touches it. |
+| Project | completed / total tasks, % | `taskCompleted` / `taskTotal` | **exact** |
+| Project | status, Area, Goal | resolved live through the hierarchy | **exact** — never stored labels |
+| Project | `Updated …` | effective presentation timestamp (ADR-037 §37.2) | **exact** |
+| Both | the collection count | loaded rows | **bounded** — says `N loaded` while a cursor remains, never `N projects` |
+
+**Deliberately not rendered.** Projects have no due-date field in the domain, and `listProjects`
+exposes no next-incomplete-task. Neither is approximated, and neither should be invented without
+the read behind it.
+
+### The one new read
+
+`ProjectListItem.areaColourRank`, so a Project inherits its Area's accent instead of inventing a
+second identity system. Same lifecycle-independent window function `listAreas` uses (ADR-068
+decision 5) — one CTE joined once per page, resolved through `COALESCE(direct area, goal's area)`
+so the tint and the Area label beside it can never name different Areas. `(created_at, id)` is
+already served by `entities_workspace_type_created_idx`: no index, no column, no migration.
+
+### The status rule (Projects)
+
+A card carries EXACTLY ONE chip. The audit found "two competing status systems — a state chip
+right, a health chip inline". `projectCardStatus` picks the single most decision-relevant fact:
+
+```
+archived                        -> "Archived"
+completed                       -> "Completed"
+not actively worked             -> "Planned" / "On hold"
+active, and health is speaking  -> the health state ("Stale", "At risk", "Blocked")
+active, and nothing is wrong    -> "Active"
+```
+
+Health REPLACES the workflow chip; it never sits beside it. `on_track` is the ABSENCE of a signal,
+so it is not promoted — swapping "Active" for "On track" would trade a useful word for a vaguer
+one. The health REASON survives as supporting text because it explains the chip rather than
+restating it. The full health vocabulary is unchanged on the Project record.
+
+### Four defects the capture pass and review found
+
+Captures and review are an implementation test, not decoration. These were all found after the
+code "worked":
+
+1. **An Area with only loose tasks said "1 open task" twice** — once as its summary line and once
+   as its metric, one above the other. `areaWorkSummary` is about STRUCTURE only now, and returns
+   `null` when the metric beside it has already said everything.
+2. **`.dh-ecard__status` was raised above the whole-card link's overlay** although a status chip is
+   not a control, making the top-right corner of every card a dead zone. Only genuinely interactive
+   descendants are raised now. This is CSS hit testing, so it is asserted in the browser — jsdom
+   dispatches on whatever node a test names and would have passed regardless.
+3. **The muted treatment read `status.label === "Archived"`** — a lifecycle rule expressed as a
+   comparison against display copy, which would have broken silently on a rewording.
+   `ProjectCardData` carries `isArchived` / `isComplete` as facts now, from the same shared
+   predicates the chip branches on.
+4. **The Area task roll-up counted archived Projects' tasks.** Probing the real domain showed the
+   symptom is narrower than it looks: a Project with unfinished tasks cannot be archived
+   (`ProjectArchiveBlockedError`) and a task inside an archived Project cannot be reopened
+   (`SpineParentUnavailableError`), so an Area could never report OPEN tasks from archived work.
+   What it DID do was keep an archived Project's COMPLETED tasks in the Area's totals. Archived
+   Projects now contribute nothing, and their tasks leave WHOLE — completed with open — so archival
+   can never skew a ratio.
+
+### Deliberate differences from the reference mock-up
+
+- **No due date on a Project card.** The reference's "Projects in motion" shows `Due 30 May`;
+  DalyHub Projects have no due-date field. Adding one is a domain change, not a visual one.
+- **No progress bar on an Area card.** Areas never complete (AGENTS.md §4), so a completion bar
+  answers a question the entity does not have — and it was the source of the audit's "ragged
+  alignment where some rows have progress bars and some don't".
+- **Cards are content-height, not row-height.** `align-items: start`, per the brief's "natural
+  alignment without forcing every card to the height of the largest one". The trade is visible: a
+  card with no progress bar is shorter than its neighbours.
+
+### Areas has no filtered-empty state
+
+Deliberate, and the one item in the requested capture list that does not exist. Areas has no filter
+dimension — no query parameter, no segment control — so there is no filter that can match nothing.
+Its true-empty state is captured and tested; `areas-filtered-empty.png` is absent because inventing
+a filter to satisfy a screenshot would be building a feature to fit the evidence. Projects has a
+real state filter, so both of its empty states are captured and asserted to be distinct.
+
+### Where the evidence is
+
+`docs/design/assets/m3-polish-2026-08/gate-d-areas-projects/` — 18 captures, all with
+`animations: "disabled"`.
+
+Desktop 1440×1000 (light + dark), tablet 1024×1100, phone 390×844 (light + dark) and 320px come
+from the REAL `/areas` and `/projects` routes over the seeded workspace. The 320px and tablet
+passes assert no horizontal overflow in the SAME run that takes the image, so the invariant and the
+evidence cannot disagree.
+
+Empty, filtered-empty, the three progress states and the icon comparisons come from
+`/design/collection-states`, a dev-only fixture. The e2e suite runs `workers: 1` against ONE shared
+local D1, so a capture pass that deleted every Area to photograph "No Areas yet" would poison every
+spec that ran after it. The fixture renders the SAME components inside the SAME shell; only the
+loader data is fictional, and its Project health is EVALUATED by the real rules from a fixed
+instant rather than hand-written, so it cannot drift from the evaluator or wobble as a staleness
+threshold is crossed mid-review.
+
+### Notes for the next unit
+
+- `EntityCard`'s whole-card destination is a router `Link`. A bare `<a>` — which is what it shipped
+  with — makes every card a full document load that discards the scroll position and the
+  accumulated "Load more" pages.
+- `EntityCardGrid` is a labelled `<ul>`/`<li>`. `aria-label` on a bare `<div>` names nothing: a
+  generic element has no role for the name to attach to.
+- `CardProgress` splits `label` (drawn beside the bar) from `valueText` (announced). Both derive
+  from the same value, so they cannot disagree about how far along the work is.
+- The touch-target helper measures a card's ANCHOR at ~19px, because the destination is a stretched
+  link whose `::after` covers the card. Measure the CARD, and prove the stretched area by clicking
+  a far corner — bottom-LEFT, since the capture FAB is fixed bottom-right.

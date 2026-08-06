@@ -32,6 +32,16 @@ test.describe("PROJ-01 — Projects", () => {
     await expect(card).toBeVisible();
     await expect(card).toHaveAttribute("href", "/projects/pr-website");
 
+    // Gate D: the entity card states the Area context, ONE status chip and a
+    // progress bar whose accessible value names the denominator.
+    const article = page.getByRole("article", { name: "Website relaunch" });
+    await expect(article.getByText(/DalyHub V2/)).toBeVisible();
+    await expect(article.locator(".dh-pill")).toHaveCount(1);
+    await expect(article.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuetext",
+      /^\d+% — \d+ of \d+ tasks? complete$/,
+    );
+
     // Selecting a project opens its overview through normal client navigation.
     await card.click();
     await expect(page).toHaveURL(/\/projects\/pr-website/);
@@ -189,6 +199,12 @@ test.describe("PROJ-01 — Projects", () => {
 
     // The subtitle must not present the loaded count as the total while more remain.
     await expect(page.getByText(/\d+ projects loaded/)).toBeVisible();
+    // Task roll-ups stay authoritative across pagination: the cards state each
+    // Project's OWN totals, never a figure derived from the loaded page.
+    const websiteBar = page
+      .getByRole("article", { name: "Website relaunch" })
+      .getByRole("progressbar");
+    const beforeLoadMore = await websiteBar.getAttribute("aria-valuetext");
 
     const loadMore = page.getByRole("button", { name: "Load more projects" });
     await expect(loadMore).toBeVisible();
@@ -204,6 +220,186 @@ test.describe("PROJ-01 — Projects", () => {
     await expect(
       page.getByRole("link", { name: "Open Website relaunch" }),
     ).toHaveCount(1);
+    // …and its roll-up is unchanged by loading more rows. A total derived from
+    // the loaded page would have moved here.
+    await expect(websiteBar).toHaveAttribute(
+      "aria-valuetext",
+      beforeLoadMore ?? "",
+    );
+  });
+
+  test("collection: icons, parent context and the exclusive status chip", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects");
+
+    // The seed is deliberately partial (PR #121): `pr-website` carries a chosen
+    // icon and `pr-launch` carries none, so BOTH the persisted and the fallback
+    // paths are proven in a browser rather than only one of them.
+    const withIcon = page.getByRole("article", { name: "Website relaunch" });
+    await expect(withIcon.locator('[data-icon-key="travel"]')).toBeVisible();
+
+    const fallback = page.getByRole("article", { name: "Launch checklist" });
+    await expect(fallback.locator("[data-icon-key]")).toHaveCount(0);
+    await expect(
+      fallback.locator('.dh-accent-icon [data-entity="project"]'),
+    ).toBeVisible();
+
+    // A goal-advancing Project resolves its Area THROUGH its Goal, and names
+    // the Area first so the Area stays discoverable from the card.
+    await expect(
+      fallback.getByText("DalyHub V2 · Launch the site"),
+    ).toBeVisible();
+
+    // Both cards inherit the SAME Area's accent, because they share an Area.
+    const accents = await page
+      .locator(".dh-accent-icon")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-accent")),
+      );
+    expect(accents.filter(Boolean).length).toBeGreaterThan(0);
+
+    // Exactly one status treatment per card — never a state chip AND a health
+    // chip saying overlapping things.
+    for (const article of await page.getByRole("article").all()) {
+      expect(await article.locator(".dh-pill").count()).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test("collection: axe is clean in the dark appearance too", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await gotoFixture(page, "/projects");
+    await expect(page.getByRole("article").first()).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test("collection: every non-interactive part of a card opens the record", async ({
+    page,
+  }) => {
+    /*
+     * Real hit testing, which is the only thing that can prove this: the
+     * whole-card link is an absolutely-positioned `::after` overlay, and
+     * whether a click reaches it is decided by stacking order, not by the DOM
+     * tree. jsdom dispatches on whatever node a test names and would pass
+     * regardless — which is how a raised, NON-interactive status chip turned
+     * the top-right corner of every card into a dead zone unnoticed.
+     */
+    const targets = ["entity-card-status", "entity-card-meta"] as const;
+    for (const testid of targets) {
+      await gotoFixture(page, "/projects");
+      const card = page.getByRole("article", { name: "Website relaunch" });
+      await expect(card).toBeVisible();
+      const region = card.getByTestId(testid);
+      await expect(region).toBeVisible();
+      const box = (await region.boundingBox())!;
+      // The geometric CENTRE of the region, so this is genuinely "what is on
+      // top here?" rather than a click that slipped past the edge.
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page, `clicking ${testid} should open the record`).toHaveURL(
+        /\/projects\/pr-website/,
+      );
+    }
+  });
+
+  test("card family: an overflow action is clickable and does NOT open the card", async ({
+    page,
+  }) => {
+    // The other half of the contract. Static content must fall through to the
+    // card's link; a real control must not.
+    await gotoFixture(page, "/design/card-family");
+    const card = page.getByRole("article", { name: "Fixture entity card" });
+    await expect(card).toBeVisible();
+
+    const action = card.getByTestId("entity-card-fixture-action");
+    await action.click();
+    // The button received the click…
+    await expect(action).toHaveAttribute("data-clicked", "true");
+    // …and the card's own destination was NOT followed.
+    expect(new URL(page.url()).hash).toBe("");
+
+    // The card still navigates from its ordinary content.
+    const status = card.getByTestId("entity-card-status");
+    const box = (await status.boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page).toHaveURL(/#entity-1$/);
+  });
+
+  test("collection: the empty and filtered-empty states are distinct", async ({
+    page,
+  }) => {
+    // The states seeded data cannot reach without destroying the shared local
+    // D1 every other spec in this run depends on — see
+    // `app/routes/design-collection-states.tsx`.
+    await gotoFixture(page, "/design/collection-states?state=projects-empty");
+    await expect(page.getByText("No Projects yet")).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await gotoFixture(
+      page,
+      "/design/collection-states?state=projects-filtered",
+    );
+    await expect(page.getByText("No archived projects")).toBeVisible();
+    // A filtered-empty state must NOT reuse the true-empty copy.
+    await expect(page.getByText("No Projects yet")).toHaveCount(0);
+  });
+
+  test("collection: progress is authoritative across zero, partial and complete", async ({
+    page,
+  }) => {
+    await gotoFixture(
+      page,
+      "/design/collection-states?state=projects-progress",
+    );
+
+    // Zero tasks: NO progressbar at all. An empty bar at 0% would read as
+    // "nothing done yet" when the truth is "nothing planned yet".
+    const zero = page.getByRole("article", { name: "Nothing planned yet" });
+    await expect(zero.getByRole("progressbar")).toHaveCount(0);
+    await expect(zero.getByText("No tasks yet")).toBeVisible();
+
+    // Partial: exact, and the visible percentage agrees with the value.
+    const partial = page.getByRole("article", { name: "Website relaunch" });
+    const bar = partial.getByRole("progressbar");
+    await expect(bar).toHaveAttribute("aria-valuenow", "67");
+    await expect(bar).toHaveAttribute(
+      "aria-valuetext",
+      "67% — 12 of 18 tasks complete",
+    );
+    await expect(partial.getByText("67%")).toBeVisible();
+
+    // Fully complete.
+    const full = page.getByRole("article", { name: "Kitchen renovation" });
+    await expect(full.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "100",
+    );
+    await expect(full.getByText("6 of 6 tasks complete")).toBeVisible();
+
+    await expectNoAxeViolations(page);
+  });
+
+  test("collection: meets touch targets and stays overflow-free at 320px", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await gotoFixture(page, "/projects");
+    const card = page.getByRole("article", { name: "Website relaunch" });
+    await expect(card).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    // The destination is a STRETCHED link — the title anchor's `::after` covers
+    // the whole card — so the card is the target a finger hits. Measuring the
+    // anchor's own box would report the height of its text and be wrong about
+    // the product. Proven by tapping the card's bottom-LEFT corner, far outside
+    // the anchor's own box (which sits top-right of the icon) and clear of the
+    // capture FAB's fixed bottom-right position.
+    await expectMinTouchTarget(card);
+    await card.scrollIntoViewIfNeeded();
+    const box = (await card.boundingBox())!;
+    await page.mouse.click(box.x + 8, box.y + box.height - 8);
+    await expect(page).toHaveURL(/\/projects\/pr-website/);
   });
 
   test("tasks tab: Load more reaches a task beyond the first page; roll-up total stays authoritative", async ({

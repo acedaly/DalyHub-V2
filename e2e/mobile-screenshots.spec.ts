@@ -129,7 +129,12 @@ test.describe("MOBILE-01 screenshots — 390px", () => {
     await shoot(page, "person-record-390");
 
     await gotoFixture(page, "/projects");
-    await page.locator(".dh-card__open").first().click();
+    // Gate D moved the Projects collection onto the entity card, so this opens
+    // through the card's accessible name rather than a styling class.
+    await page
+      .getByRole("link", { name: /^Open / })
+      .first()
+      .click();
     await page.waitForLoadState("networkidle");
     await shoot(page, "project-record-390");
 

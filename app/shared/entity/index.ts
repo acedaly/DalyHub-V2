@@ -52,6 +52,7 @@ export {
  * boundary validates.
  */
 export { RecordIcon, type RecordIconProps } from "./RecordIcon";
+export { AccentIcon, type AccentIconProps } from "./AccentIcon";
 export {
   ENTITY_ICON_CATEGORIES,
   ENTITY_ICON_OPTIONS,

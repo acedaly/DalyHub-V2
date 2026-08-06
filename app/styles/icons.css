@@ -35,3 +35,72 @@
   inline-size: 1rem;
   block-size: 1rem;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Identity container — a record's glyph on its Area's accent                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The 40px rounded square the reference uses for entity identity, and the thing
+ * that makes a grid of Area or Project cards scannable before a word is read.
+ *
+ * The tint is the Area's GENERATED container role, not an authored colour, and
+ * `on-*-container` is its checked partner — so the glyph's contrast is a
+ * property of the palette rather than of this rule. Without an accent (a
+ * Project with no Area) it falls back to the neutral card-subtle surface: a
+ * colour that means nothing would be worse than no colour at all.
+ */
+.dh-accent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  flex: none;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card-subtle);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--app-entity-icon-size);
+  line-height: 0;
+}
+
+.dh-accent-icon .dh-icon {
+  inline-size: var(--app-entity-icon-size);
+  block-size: var(--app-entity-icon-size);
+}
+
+.dh-accent-icon[data-accent="1"] {
+  background: var(--md-sys-color-area-accent-1-container);
+  color: var(--md-sys-color-on-area-accent-1-container);
+}
+.dh-accent-icon[data-accent="2"] {
+  background: var(--md-sys-color-area-accent-2-container);
+  color: var(--md-sys-color-on-area-accent-2-container);
+}
+.dh-accent-icon[data-accent="3"] {
+  background: var(--md-sys-color-area-accent-3-container);
+  color: var(--md-sys-color-on-area-accent-3-container);
+}
+.dh-accent-icon[data-accent="4"] {
+  background: var(--md-sys-color-area-accent-4-container);
+  color: var(--md-sys-color-on-area-accent-4-container);
+}
+.dh-accent-icon[data-accent="5"] {
+  background: var(--md-sys-color-area-accent-5-container);
+  color: var(--md-sys-color-on-area-accent-5-container);
+}
+.dh-accent-icon[data-accent="6"] {
+  background: var(--md-sys-color-area-accent-6-container);
+  color: var(--md-sys-color-on-area-accent-6-container);
+}
+
+/*
+ * Forced colours strip the generated tints, which would leave six identical
+ * boxes. The border restores the container as a SHAPE, so the identity mark
+ * survives as structure rather than depending on colour that is no longer there.
+ */
+@media (forced-colors: active) {
+  .dh-accent-icon {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+}

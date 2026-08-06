@@ -7,6 +7,7 @@
  * completion rules and structural parentage stay with `SpineRepository`.
  */
 
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 import type { AreaRollup } from "~/kernel/spine";
 import type { WorkspaceId } from "~/kernel/workspaces";
@@ -45,6 +46,18 @@ export type AreaListItem = {
    * every Area created after it.
    */
   readonly colourRank: number;
+  /**
+   * The owner's chosen icon, as the semantic KEY and nothing else — never a
+   * component, never markup, never a catalogue object.
+   *
+   * It is read in the SAME query as every other collection fact, from the
+   * `area_details` row this projection already LEFT JOINs to exclude archived
+   * Areas — so carrying it costs no extra read and cannot become an N+1. The
+   * key is normalised on the way OUT, so a value this build no longer
+   * recognises arrives here as `null` and the card renders the Area default
+   * rather than an empty box.
+   */
+  readonly iconKey: EntityIconKey | null;
   readonly rollup: AreaRollup;
   readonly activeProjectCount: number;
   readonly completedProjectCount: number;

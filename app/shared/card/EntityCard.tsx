@@ -30,9 +30,16 @@
  * so a click anywhere opens the record while the overflow menu and footer
  * controls stay above it and stay clickable. This is the same technique
  * `RecordRow` uses, for the same reason.
+ *
+ * The destination is a router `Link`, not a bare anchor: a real anchor would
+ * make every card a full document load, throwing away the scroll position,
+ * the accumulated "Load more" pages and the navigation budget. It is still one
+ * ordinary link — right-click, middle-click, ⌘-click and "copy link address"
+ * all behave, because the href is genuinely there.
  */
 
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
+import { Link } from "react-router";
 
 import { normaliseProgress, type CardProgress } from "./types";
 
@@ -97,7 +104,16 @@ export function EntityCard({
     .join(" ");
 
   return (
-    <article className={classes} data-testid={testId}>
+    // Named by the record's title. An `article` with no accessible name is a
+    // region a screen-reader user can land in without being told which record
+    // they landed in — in a grid of twelve cards that is the difference between
+    // navigable and unusable.
+    //
+    // `aria-label` rather than `aria-labelledby` pointing at the heading: the
+    // heading's only child is the whole-card link, whose own accessible name is
+    // "Open <title>", so referencing it would name the card "Open Website
+    // relaunch" instead of "Website relaunch".
+    <article className={classes} aria-label={title} data-testid={testId}>
       <div className="dh-ecard__header">
         {icon ? (
           <span className="dh-ecard__icon" aria-hidden="true">
@@ -107,20 +123,27 @@ export function EntityCard({
         <div className="dh-ecard__titles">
           <Heading className="dh-ecard__title">
             {href ? (
-              <a
+              <Link
                 className="dh-ecard__open"
-                href={href}
+                to={href}
                 aria-label={openAriaLabel ?? title}
               >
                 {title}
-              </a>
+              </Link>
             ) : (
               title
             )}
           </Heading>
           {subtitle ? <p className="dh-ecard__subtitle">{subtitle}</p> : null}
         </div>
-        {status ? <div className="dh-ecard__status">{status}</div> : null}
+        {/* `data-testid` so a test can aim at the status REGION — the one
+         * place a raised, non-interactive chip previously swallowed clicks —
+         * without reaching for a styling class. */}
+        {status ? (
+          <div className="dh-ecard__status" data-testid="entity-card-status">
+            {status}
+          </div>
+        ) : null}
       </div>
 
       {metric || resolved || meta ? (
@@ -142,7 +165,7 @@ export function EntityCard({
                 aria-valuenow={resolved.percent}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-valuetext={resolved.text}
+                aria-valuetext={resolved.valueText}
                 aria-label={`${title} progress`}
               >
                 <span
@@ -154,7 +177,11 @@ export function EntityCard({
             </div>
           ) : null}
 
-          {meta ? <div className="dh-ecard__meta">{meta}</div> : null}
+          {meta ? (
+            <div className="dh-ecard__meta" data-testid="entity-card-meta">
+              {meta}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -179,6 +206,12 @@ export function EntityCard({
  * available width rather than a breakpoint table: roughly three across a wide
  * desktop, two on a tablet, one on a phone, with no width at which a card is
  * absurdly wide or unreadably narrow.
+ *
+ * A labelled `<ul>`/`<li>`, exactly like `CardCollection` — so a screen reader
+ * announces "Projects, list, 12 items" and the owner knows how much is there
+ * before reading any of it. `aria-label` on a bare `<div>`, which is what this
+ * had, names nothing at all: a generic element has no role for a name to
+ * attach to, so the label was silently discarded.
  */
 export function EntityCardGrid({
   children,
@@ -192,12 +225,16 @@ export function EntityCardGrid({
   readonly "data-testid"?: string;
 }) {
   return (
-    <div
+    <ul
       className={["dh-ecard-grid", className].filter(Boolean).join(" ")}
       aria-label={label}
       data-testid={testId}
     >
-      {children}
-    </div>
+      {Children.map(children, (child) =>
+        child === null || child === undefined || child === false ? null : (
+          <li className="dh-ecard-grid__item">{child}</li>
+        ),
+      )}
+    </ul>
   );
 }

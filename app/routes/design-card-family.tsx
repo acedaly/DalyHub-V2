@@ -198,6 +198,24 @@ export default function DesignCardFamilyRoute() {
               </>
             }
             footer="Updated 19 Jul 2026"
+            /*
+             * A real control inside the card, so the "an action is NOT the
+             * card" contract is testable. The whole-card link covers the card;
+             * this must stay above it and stay separately clickable, while the
+             * non-interactive status chip beside it must NOT block the link.
+             */
+            overflow={
+              <button
+                type="button"
+                className="dh-btn dh-btn--text"
+                data-testid="entity-card-fixture-action"
+                onClick={(event) => {
+                  event.currentTarget.dataset.clicked = "true";
+                }}
+              >
+                More
+              </button>
+            }
             href="#entity-1"
           />
           <EntityCard

@@ -277,9 +277,35 @@ jobs:
         # concurrent workers inside a shard would trade a budget problem for a
         # correctness one.
         #
+        # 2026-08-06 (Gate D, Areas and Projects) — fourteen shards became
+        # eighteen, for the fourth time and by the same reasoning. MEASURED on
+        # run 31099208098 (PR #122 @ 51e1a3c) shard 6 reached the 900s
+        # globalTimeout with 85 passed, ZERO failed and 1 never run — the
+        # identical shape to every previous split, and again not a flake and not
+        # a slow runner. Shard 3 hit it in the same run.
+        #
+        # The cause is the usual one. Gate D added roughly a dozen browser tests
+        # across `areas.spec.ts` and `projects.spec.ts` — the collections' new
+        # icon, count, status, progress, empty-state, 320px and hit-testing
+        # contracts — and shard 6 was already carrying the two heaviest files in
+        # the suite: `people.spec.ts` (3.2 min, ten viewport tests at ~14s each)
+        # and `notes-knowledge.spec.ts` (2.4 min). It had no headroom to absorb
+        # anything, which is exactly the condition the previous notes describe.
+        #
+        # Eighteen restores the ~70% of the ceiling this split has always been
+        # tuned to: shard 6's slice drops from 86 tests to about 67, i.e. from
+        # 15m+ to roughly 11m at the same per-test cost.
+        #
+        # Raising `globalTimeout` is rejected for the fourth time, for the reason
+        # recorded above: it pins the worst shard against whatever the new
+        # ceiling is, and it hides a growing suite instead of splitting it.
+        # Deleting or weakening the new coverage was the other alternative and is
+        # also rejected — the tests that tipped the budget are the ones that
+        # caught a dead click area and a duplicated count.
+        #
         # `strategy.job-total` derives from this list, so `--shard=N/total` and
         # the job names follow automatically — this array is the only knob.
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

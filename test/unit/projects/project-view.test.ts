@@ -40,6 +40,8 @@ function listItem(over: Partial<ProjectListItem> = {}): ProjectListItem {
     archivedAt: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
+    areaColourRank: 0,
+    iconKey: null,
     taskTotal: 0,
     taskCompleted: 0,
     ...over,
@@ -279,7 +281,10 @@ describe("card mapping", () => {
     );
     expect(card.areaLabel).toBe("Career");
     expect(card.goalLabel).toBe("Ship v2");
-    expect(card.state.label).toBe("Active");
+    // The Area comes first: it is the stable coordinate an owner navigates by,
+    // and it keeps the Area discoverable from every Project card.
+    expect(card.parentLabel).toBe("Career · Ship v2");
+    expect(card.status.label).toBe("Active");
     expect(card.progress.summary).toBe("1 of 4 tasks");
     expect(card.updatedLabel).toBe("Updated 20 Jul 2026");
     expect(card.healthVisible).toBe(true);

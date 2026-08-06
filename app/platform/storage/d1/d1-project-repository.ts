@@ -18,6 +18,7 @@
  */
 
 import {
+  AREA,
   GOAL_BELONGS_TO_AREA,
   PROJECT,
   PROJECT_ADVANCES_GOAL,
@@ -27,6 +28,7 @@ import {
   validateSpineId,
   validateSpineLimit,
 } from "~/kernel/spine";
+import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import {
   decodeProjectCursorForScope,
   encodeProjectCursor,
@@ -87,6 +89,47 @@ const PROJECT_RELATION_COLUMNS = `
   ge.id AS goal_id, ge.title AS goal_title,
   gae.id AS goal_area_id, gae.title AS goal_area_title`;
 
+/*
+ * DS-14 / ADR-068 decision 5 — the Area colour rank a Project card INHERITS.
+ *
+ * The same window `listAreas` computes, for the same reason: ranked over EVERY
+ * `area` row in the workspace, deliberately WITHOUT the `deleted_at` /
+ * `archived_at` filters, so archiving one Area never recolours the Projects of
+ * another. `(created_at, id)` is the canonical total ordering (ADR-065 decision
+ * 3), already served by `entities_workspace_type_created_idx`, so this adds a
+ * CTE but no index, no column and no migration. 0-based, to match
+ * `areaAccentForRank`.
+ *
+ * It is a CTE joined ONCE for the whole page rather than a per-Project lookup —
+ * the same no-N+1 discipline the task counts already follow.
+ */
+const AREA_RANKS_CTE = `area_ranks AS (
+           SELECT id,
+                  ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
+                    AS colour_rank
+           FROM entities
+           WHERE workspace_id = ? AND type = '${AREA}'
+         )`;
+
+/**
+ * Attach the rank of whichever Area the Project resolved to — its direct Area
+ * (`ae`) or, for a goal-advancing Project, its Goal's Area (`gae`). The same
+ * COALESCE precedence `#resolveRelations` applies, so the accent can never
+ * disagree with the Area label beside it.
+ */
+const AREA_RANK_JOIN = `
+  LEFT JOIN area_ranks ar ON ar.id = COALESCE(ae.id, gae.id)`;
+
+/**
+ * The columns only the COLLECTION reads need: the inherited Area accent and the
+ * owner's chosen icon key. Kept out of `PROJECT_BASE_COLUMNS` so the record
+ * overview read — which resolves its icon through the settings repository — is
+ * left exactly as it was.
+ */
+const PROJECT_LIST_COLUMNS = `
+  ar.colour_rank AS area_colour_rank,
+  pd.icon_key AS icon_key`;
+
 /**
  * The authoritative PRESENTATION timestamp expression (ADR-037 §37.2): the later of
  * the spine entity's `updated_at` and the PROJ-05 `project_details.updated_at`. A
@@ -131,6 +174,8 @@ interface ProjectBaseRow extends ProjectRelationRow {
 interface ProjectListRow extends ProjectBaseRow {
   readonly task_total: number | null;
   readonly task_completed: number | null;
+  readonly area_colour_rank: number | null;
+  readonly icon_key: string | null;
 }
 
 export class D1ProjectRepository implements ProjectRepository {
@@ -153,14 +198,15 @@ export class D1ProjectRepository implements ProjectRepository {
     const result = await this.#run(
       this.#db
         .prepare(
-          `SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},
+          `WITH ${AREA_RANKS_CTE}
+           SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},${PROJECT_LIST_COLUMNS},
                   COALESCE(tc.total, 0) AS task_total,
                   COALESCE(tc.completed, 0) AS task_completed
            FROM entities e
            JOIN spine_records sr
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
            LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
-           ${PROJECT_RELATION_JOINS}
+           ${PROJECT_RELATION_JOINS}${AREA_RANK_JOIN}
            LEFT JOIN (
              SELECT tl.target_entity_id AS project_id,
                     COUNT(*) AS total,
@@ -187,7 +233,16 @@ export class D1ProjectRepository implements ProjectRepository {
                     e.id ASC
            LIMIT ?`,
         )
-        .bind(this.#workspaceId, this.#workspaceId, like, text, prefix, limit),
+        .bind(
+          // `area_ranks` is the first CTE, so its workspace binds first.
+          this.#workspaceId,
+          this.#workspaceId,
+          this.#workspaceId,
+          like,
+          text,
+          prefix,
+          limit,
+        ),
     );
     const rows = (result.results ?? []) as ProjectListRow[];
     return rows.map((row) => this.#toListItem(row));
@@ -266,14 +321,15 @@ export class D1ProjectRepository implements ProjectRepository {
     // (non-deleted) tasks linked by an active `task.belongs_to_project` link.
     const statement = this.#db
       .prepare(
-        `SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},
+        `WITH ${AREA_RANKS_CTE}
+         SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},${PROJECT_LIST_COLUMNS},
                 COALESCE(tc.total, 0) AS task_total,
                 COALESCE(tc.completed, 0) AS task_completed
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
-         ${PROJECT_RELATION_JOINS}
+         ${PROJECT_RELATION_JOINS}${AREA_RANK_JOIN}
          LEFT JOIN (
            SELECT tl.target_entity_id AS project_id,
                   COUNT(*) AS total,
@@ -293,6 +349,8 @@ export class D1ProjectRepository implements ProjectRepository {
          LIMIT ?`,
       )
       .bind(
+        // `area_ranks` is the first CTE, so its workspace binds first.
+        this.#workspaceId,
         this.#workspaceId,
         this.#workspaceId,
         ...(input.workflowStatus !== undefined ? [input.workflowStatus] : []),
@@ -376,6 +434,15 @@ export class D1ProjectRepository implements ProjectRepository {
         row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
       area: relations.area,
       goal: relations.goal,
+      areaColourRank:
+        relations.area === null || row.area_colour_rank === null
+          ? null
+          : Number(row.area_colour_rank),
+      // Normalised on the way OUT, not only on the way in: a key removed from
+      // the vocabulary in a later release, or restored from an older export,
+      // must degrade to the Project's default icon rather than reach a
+      // component that cannot draw it.
+      iconKey: normaliseEntityIconKey(row.icon_key),
       taskTotal: Number(row.task_total ?? 0),
       taskCompleted: Number(row.task_completed ?? 0),
     };
