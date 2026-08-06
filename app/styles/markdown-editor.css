@@ -37,9 +37,9 @@
 }
 
 .dh-md-editor__reading-note {
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
 }
 
 /* The Read/Write toggle. Its LABEL carries the state (it reads "Read" while
@@ -51,27 +51,33 @@
   min-block-size: var(--dh-touch-target-min);
   min-inline-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-secondary);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   cursor: pointer;
   transition:
-    background-color var(--dh-duration-fast) var(--dh-ease-standard),
-    color var(--dh-duration-fast) var(--dh-ease-standard);
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 .dh-md-editor__mode-toggle:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-md-editor__mode-toggle[aria-pressed="true"] {
-  color: var(--dh-color-text);
-  border-color: var(--dh-color-border-strong);
+  color: var(--md-sys-color-on-surface);
+  border-color: var(--md-sys-color-outline);
 }
 
 /* ------------------------------------------------------------------------- *
@@ -87,9 +93,9 @@
   align-items: center;
   min-inline-size: 0;
   padding: var(--dh-space-1);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-sunken);
   overflow-x: auto;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
@@ -105,33 +111,44 @@
   min-inline-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
   border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   scroll-snap-align: start;
   transition:
-    background-color var(--dh-duration-fast) var(--dh-ease-standard),
-    color var(--dh-duration-fast) var(--dh-ease-standard),
-    border-color var(--dh-duration-fast) var(--dh-ease-standard);
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 .dh-md-toolbar__button:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
-  border-color: var(--dh-color-border);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  border-color: var(--md-sys-color-outline-variant);
 }
 
 .dh-md-toolbar__button:active {
-  background: var(--dh-color-active-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 10%,
+    transparent
+  );
 }
 
 .dh-md-toolbar__button:disabled {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   cursor: default;
 }
 
@@ -155,36 +172,36 @@
   inline-size: 100%;
   min-block-size: max(40dvh, 16rem);
   padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-page);
-  color: var(--dh-color-text);
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-base);
-  line-height: var(--dh-line-height-relaxed);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-page);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: 1.65;
   resize: vertical;
 }
 
 /* CodeMirror host. The library injects its own structural CSS; we override only
  * the design surface here, all through tokens. */
 .dh-md-editor__cm {
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-page);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-page);
   overflow: hidden;
 }
 
 .dh-md-editor__cm:focus-within {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: var(--dh-border-width-thin);
-  border-color: var(--dh-color-border-strong);
+  border-color: var(--md-sys-color-outline);
 }
 
 .dh-md-editor__cm .cm-editor {
   background: transparent;
-  color: var(--dh-color-text);
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-base);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
   max-block-size: 70vh;
 }
 
@@ -193,115 +210,115 @@
 }
 
 .dh-md-editor__cm .cm-scroller {
-  font-family: var(--dh-font-sans);
-  line-height: var(--dh-line-height-relaxed);
+  font-family: var(--md-ref-typeface-plain);
+  line-height: 1.65;
 }
 
 .dh-md-editor__cm .cm-content {
   padding: var(--dh-space-4);
-  caret-color: var(--dh-color-accent);
+  caret-color: var(--md-sys-color-primary);
   max-inline-size: var(--dh-width-prose);
 }
 
 .dh-md-editor__cm .cm-cursor,
 .dh-md-editor__cm .cm-dropCursor {
-  border-left-color: var(--dh-color-text);
+  border-left-color: var(--md-sys-color-on-surface);
 }
 
 .dh-md-editor__cm .cm-selectionBackground,
 .dh-md-editor__cm .cm-focused .cm-selectionBackground,
 .dh-md-editor__cm .cm-line ::selection {
-  background: var(--dh-color-selection-bg);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-md-editor__cm .cm-placeholder {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* --- Live-preview construct styling (applied to source ranges) ------------ */
 
 .dh-md-editor__cm .cm-dh-heading {
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-normal);
+  font-weight: 500;
+  line-height: 1.5;
 }
 .dh-md-editor__cm .cm-dh-h1 {
-  font-size: var(--dh-font-size-2xl);
+  font-size: var(--md-sys-typescale-headline-small-size);
 }
 .dh-md-editor__cm .cm-dh-h2 {
-  font-size: var(--dh-font-size-xl);
+  font-size: var(--md-sys-typescale-title-large-size);
 }
 .dh-md-editor__cm .cm-dh-h3 {
-  font-size: var(--dh-font-size-lg);
+  font-size: var(--md-sys-typescale-title-medium-size);
 }
 .dh-md-editor__cm .cm-dh-h4 {
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 .dh-md-editor__cm .cm-dh-h5,
 .dh-md-editor__cm .cm-dh-h6 {
-  font-size: var(--dh-font-size-base);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-md-editor__cm .cm-dh-strong {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 .dh-md-editor__cm .cm-dh-em {
   font-style: italic;
 }
 .dh-md-editor__cm .cm-dh-strike {
   text-decoration: line-through;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 .dh-md-editor__cm .cm-dh-inline-code {
-  font-family: var(--dh-font-mono);
+  font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
   padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-xs);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-sunken);
 }
 .dh-md-editor__cm .cm-dh-link {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   text-decoration: underline;
 }
 
 .dh-md-editor__cm .cm-dh-quote {
   padding-inline-start: var(--dh-space-3);
   border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-border-strong);
-  color: var(--dh-color-text-secondary);
+    var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
 }
 
 .dh-md-editor__cm .cm-dh-callout {
   padding: var(--dh-space-1) var(--dh-space-3);
   border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-info-text);
-  background: var(--dh-color-info-surface);
-  color: var(--dh-color-info-text);
+    var(--md-sys-color-on-info-container);
+  background: var(--md-sys-color-info-container);
+  color: var(--md-sys-color-on-info-container);
 }
 .dh-md-editor__cm .cm-dh-callout-warning,
 .dh-md-editor__cm .cm-dh-callout-caution {
-  border-inline-start-color: var(--dh-color-warning-text);
-  background: var(--dh-color-warning-surface);
-  color: var(--dh-color-warning-text);
+  border-inline-start-color: var(--md-sys-color-on-warning-container);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
 }
 .dh-md-editor__cm .cm-dh-callout-danger,
 .dh-md-editor__cm .cm-dh-callout-error {
-  border-inline-start-color: var(--dh-color-danger-text);
-  background: var(--dh-color-danger-surface);
-  color: var(--dh-color-danger-text);
+  border-inline-start-color: var(--md-sys-color-on-error-container);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 .dh-md-editor__cm .cm-dh-callout-tip,
 .dh-md-editor__cm .cm-dh-callout-success {
-  border-inline-start-color: var(--dh-color-success-text);
-  background: var(--dh-color-success-surface);
-  color: var(--dh-color-success-text);
+  border-inline-start-color: var(--md-sys-color-on-success-container);
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
 }
 
 .dh-md-editor__cm .cm-dh-code-block {
-  font-family: var(--dh-font-mono);
+  font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
-  background: var(--dh-color-surface-sunken);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-md-editor__cm .cm-dh-hr {
@@ -310,7 +327,7 @@
 .dh-md-editor__cm .cm-dh-hr hr {
   margin: 0;
   border: none;
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-top: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
 }
 
 /* Interactive task checkbox replacing the `[ ]` marker. */
@@ -324,7 +341,7 @@
   block-size: 1em;
   margin: 0;
   cursor: pointer;
-  accent-color: var(--dh-color-accent);
+  accent-color: var(--md-sys-color-primary);
 }
 
 /* Non-fetching image placeholder. */
@@ -333,11 +350,11 @@
   align-items: center;
   gap: var(--dh-space-1);
   padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) dashed var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-sunken);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  border: var(--dh-border-width-thin) dashed var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* Rendered GFM table widget. */
@@ -349,17 +366,17 @@
   border-collapse: collapse;
   inline-size: max-content;
   max-inline-size: 100%;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 .dh-md-editor__cm .cm-dh-table th,
 .dh-md-editor__cm .cm-dh-table td {
   padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
   text-align: start;
 }
 .dh-md-editor__cm .cm-dh-table th {
-  background: var(--dh-color-surface-sunken);
-  font-weight: var(--dh-font-weight-semibold);
+  background: var(--md-app-color-surface-sunken);
+  font-weight: 500;
 }
 
 /* ------------------------------------------------------------------------- *
@@ -369,9 +386,9 @@
 .dh-md-editor__reading {
   max-inline-size: var(--dh-width-prose);
   padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-page);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-page);
   overflow-wrap: anywhere;
 }
 
@@ -379,7 +396,7 @@
 .dh-md-editor__reading-loading,
 .dh-md-editor__reading-error {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Help + validation messages. */
@@ -390,19 +407,19 @@
 }
 .dh-md-editor__help {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 .dh-md-editor__error {
   display: flex;
   align-items: center;
   gap: var(--dh-space-1);
   margin: 0;
-  color: var(--dh-color-danger-text);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-error-container);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 .dh-md-editor__error-icon {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -451,23 +468,24 @@
   flex-direction: column;
   gap: var(--dh-space-2);
   padding: var(--dh-space-3);
-  border-block-end: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface-sunken);
+  border-block-end: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-record-link-picker__label {
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
 }
 
 .dh-record-link-picker__input {
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
 }
 
@@ -491,27 +509,27 @@
   gap: var(--dh-space-2);
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 
 /* The active option is signalled by BOTH a surface change and a start rule —
  * never colour alone (AGENTS.md §15). */
 .dh-record-link-picker__option[data-active="true"] {
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset var(--dh-space-1) 0 0 0 var(--dh-color-accent);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset var(--dh-space-1) 0 0 0 var(--md-sys-color-primary);
 }
 
 .dh-record-link-picker__icon {
   display: inline-flex;
   flex: 0 0 auto;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-record-link-picker__title {
   flex: 1 1 auto;
   min-inline-size: 0;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   /* A long record title truncates rather than forcing the row wider than the
    * editor — the phone requirement of no horizontal overflow. */
   overflow: hidden;
@@ -521,15 +539,15 @@
 
 .dh-record-link-picker__type {
   flex: 0 0 auto;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-xs);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
   letter-spacing: 0.04em;
 }
 
 .dh-record-link-picker__status {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-record-link-picker__actions {
@@ -565,31 +583,31 @@
  * ------------------------------------------------------------------------- */
 
 .dh-note-body .dh-md-editor__cm .cm-content {
-  font-family: var(--dh-density-body-family);
-  font-size: var(--dh-density-body-size);
-  max-inline-size: var(--dh-density-measure);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
+  max-inline-size: var(--dh-width-prose);
   margin-inline: auto;
 }
 
 .dh-note-body .dh-md-editor__cm .cm-scroller {
-  line-height: var(--dh-density-line-height);
+  line-height: var(--md-sys-typescale-body-large-line-height);
 }
 
 /* Reading mode renders the same note through the FND-08 pipeline rather than
  * through CodeMirror. It is the same column and must read identically. */
 .dh-note-body .dh-md-editor__reading {
-  font-family: var(--dh-density-body-family);
-  font-size: var(--dh-density-body-size);
-  line-height: var(--dh-density-line-height);
-  max-inline-size: var(--dh-density-measure);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  max-inline-size: var(--dh-width-prose);
   margin-inline: auto;
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
 }
 
 /* Headings inside the column stay serif — they are part of the prose, not
  * chrome — but never take the removed `bold` weight. */
 .dh-note-body .dh-md-editor__reading :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--dh-density-body-family);
-  font-weight: var(--dh-font-weight-semibold);
+  font-family: var(--md-ref-typeface-plain);
+  font-weight: 500;
 }

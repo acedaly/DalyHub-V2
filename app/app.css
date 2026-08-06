@@ -39,9 +39,6 @@
 /* DS-14 — the two self-hosted variable families, before anything consumes them. */
 @import "./styles/fonts.css";
 @import "./styles/base.css";
-/* DS-14 — the two density presets. Early, so every later stylesheet can consume
- * the sizing tokens a region resolves. */
-@import "./styles/density.css";
 @import "./styles/pill.css";
 @import "./styles/icons.css";
 /* BRAND-01 — the product-identity surfaces (sidebar brand, full lockup). Before
@@ -81,7 +78,6 @@
 @import "./styles/feedback.css";
 @import "./styles/inspector.css";
 @import "./styles/settings.css";
-@import "./styles/theme-picker.css";
 @import "./styles/help.css";
 @import "./styles/markdown-editor.css";
 @import "./styles/diary.css";

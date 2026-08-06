@@ -18,13 +18,13 @@
 
 .cf-demo__header h1 {
   margin: 0 0 var(--dh-space-1);
-  font-size: var(--dh-font-size-2xl);
-  line-height: var(--dh-line-height-tight);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: 1.2;
 }
 
 .cf-demo__lead {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   max-width: var(--dh-width-prose);
 }
 
@@ -34,9 +34,9 @@
   gap: var(--dh-space-3);
   align-items: center;
   padding: var(--dh-space-3);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .cf-demo__group {
@@ -48,17 +48,17 @@
   margin: 0;
   padding: 0;
   min-width: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .cf-demo__group legend {
   float: none;
   padding: 0;
   margin-inline-end: var(--dh-space-1);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-xs);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 .cf-demo__group label {
@@ -69,15 +69,15 @@
 }
 
 .cf-demo__selected {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .cf-demo__action-log {
   margin: 0;
   min-height: var(--dh-space-5);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-accent-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-primary);
 }
 
 .cf-demo__collection {
@@ -101,21 +101,22 @@
 
 .cf-demo__board-heading {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .cf-demo__drawer-prose {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.65;
 }
 
 .cf-demo__filler {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   padding-top: var(--dh-space-4);
 }
 

@@ -13,9 +13,9 @@
 
 .dh-goal-overview__definition-heading {
   margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-goal-overview__definition-text {
@@ -28,32 +28,32 @@
 
 .dh-goal-overview__definition-empty {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
 }
 
 .dh-goal-overview__progress {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-goal-overview__progress-label {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-semibold);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
 }
 
 .dh-goal-overview__alignment-heading {
   margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-goal-bounded-note {
   margin: var(--dh-space-4) 0 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
 

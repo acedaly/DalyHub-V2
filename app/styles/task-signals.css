@@ -25,55 +25,55 @@
   gap: var(--dh-space-1);
   padding: 0 var(--dh-space-2);
   min-height: var(--dh-space-5);
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wide);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .dh-priority__dot {
   inline-size: var(--dh-space-2);
   block-size: var(--dh-space-2);
-  border-radius: var(--dh-radius-full);
+  border-radius: var(--md-sys-shape-corner-full);
   background: currentColor;
   flex: none;
 }
 
 .dh-priority__tag {
-  line-height: var(--dh-line-height-tight);
+  line-height: 1.2;
 }
 
 /* P1 · Do — the most urgent-and-important. */
 .dh-priority[data-priority="p1"] {
-  color: var(--dh-color-priority-p1-text);
-  background: var(--dh-color-priority-p1-surface);
+  color: var(--md-sys-color-on-priority-p1-container);
+  background: var(--md-sys-color-priority-p1-container);
   border-color: transparent;
 }
 /* P2 · Defer — important, not urgent. */
 .dh-priority[data-priority="p2"] {
-  color: var(--dh-color-priority-p2-text);
-  background: var(--dh-color-priority-p2-surface);
+  color: var(--md-sys-color-on-priority-p2-container);
+  background: var(--md-sys-color-priority-p2-container);
   border-color: transparent;
 }
 /* P3 · Delegate — urgent, but not yours to do. */
 .dh-priority[data-priority="p3"] {
-  color: var(--dh-color-priority-p3-text);
-  background: var(--dh-color-priority-p3-surface);
+  color: var(--md-sys-color-on-priority-p3-container);
+  background: var(--md-sys-color-priority-p3-container);
   border-color: transparent;
 }
 /* P4 · Delete / Review — neither; calm and muted. */
 .dh-priority[data-priority="p4"] {
-  color: var(--dh-color-priority-p4-text);
-  background: var(--dh-color-priority-p4-surface);
-  border-color: var(--dh-color-border-subtle);
+  color: var(--md-sys-color-on-priority-p4-container);
+  background: var(--md-sys-color-priority-p4-container);
+  border-color: var(--md-sys-color-outline-variant);
 }
 /* Untriaged, rendered only when explicitly requested (e.g. the Drawer). */
 .dh-priority--none {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   background: transparent;
   border-style: dashed;
 }
@@ -86,12 +86,12 @@
   gap: var(--dh-space-1);
   padding: 0 var(--dh-space-2);
   min-height: var(--dh-space-5);
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -100,31 +100,31 @@
 }
 
 .dh-urgency__label {
-  line-height: var(--dh-line-height-tight);
+  line-height: 1.2;
 }
 
 /* Overdue — past its due date. Its own token, not "danger": overdue work is late,
  * not broken, and a warm theme should be able to say that differently. */
 .dh-urgency[data-tone="danger"] {
-  color: var(--dh-color-state-overdue-text);
-  background: var(--dh-color-state-overdue-surface);
+  color: var(--md-sys-color-on-state-overdue-container);
+  background: var(--md-sys-color-state-overdue-container);
   border-color: transparent;
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 /* Due soon — approaching, worth noticing, not yet late. */
 .dh-urgency[data-tone="warning"] {
-  color: var(--dh-color-state-due-soon-text);
-  background: var(--dh-color-state-due-soon-surface);
+  color: var(--md-sys-color-on-state-due-soon-container);
+  background: var(--md-sys-color-state-due-soon-container);
   border-color: transparent;
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 .dh-urgency[data-tone="info"] {
-  color: var(--dh-color-info-text);
-  background: var(--dh-color-info-surface);
+  color: var(--md-sys-color-on-info-container);
+  background: var(--md-sys-color-info-container);
   border-color: transparent;
 }
 .dh-urgency[data-tone="neutral"] {
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
-  border-color: var(--dh-color-border);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
+  border-color: var(--md-sys-color-outline-variant);
 }

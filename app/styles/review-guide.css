@@ -41,7 +41,7 @@
 .dh-review-guide__step-description,
 .dh-review-guide__queue {
   margin: 0;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-review-guide__meta,
@@ -63,11 +63,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--dh-space-1);
-  border-radius: var(--dh-radius-pill);
+  border-radius: var(--md-sys-shape-corner-full);
   padding: var(--dh-space-1) var(--dh-space-3);
-  background: var(--dh-color-surface-card);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
-  color: var(--dh-color-text);
+  background: var(--md-app-color-surface-card);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -89,16 +89,16 @@
   gap: var(--dh-space-2);
   margin: 0;
   padding: var(--dh-space-4);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   min-width: 0;
 }
 
 .dh-review-guide__rail-progress {
   margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-review-guide__rail ol {
@@ -117,23 +117,23 @@
   inline-size: 100%;
   min-block-size: var(--dh-touch-target-min);
   border: 0;
-  border-radius: var(--dh-radius-control);
+  border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   padding: var(--dh-space-2) var(--dh-space-3);
   text-align: start;
   cursor: pointer;
 }
 
 .dh-review-guide__rail-step:hover {
-  background: var(--dh-color-surface-raised);
+  background: var(--md-app-color-surface-raised);
 }
 
 .dh-review-guide__rail-step[aria-current="step"] {
-  background: var(--dh-color-nav-selected-surface);
-  color: var(--dh-color-nav-selected-text);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
-  font-weight: var(--dh-font-weight-semibold);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
+  font-weight: 500;
 }
 
 .dh-review-guide__rail-order {
@@ -143,17 +143,17 @@
   flex: 0 0 auto;
   inline-size: 1.75rem;
   block-size: 1.75rem;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
-  font-size: var(--dh-font-size-sm);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* Done is carried by the border weight AND the "Done" text beside it. */
 .dh-review-guide__rail-step[data-state="complete"]
   .dh-review-guide__rail-order {
-  background: var(--dh-color-accent-surface);
-  box-shadow: inset 0 0 0 2px var(--dh-color-accent);
+  background: var(--md-sys-color-primary-container);
+  box-shadow: inset 0 0 0 2px var(--md-sys-color-primary);
 }
 
 .dh-review-guide__rail-text {
@@ -167,9 +167,9 @@
 }
 
 .dh-review-guide__rail-state {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 400;
 }
 
 .dh-review-guide__panel {
@@ -177,9 +177,9 @@
   gap: var(--dh-space-4);
   min-width: 0;
   padding: var(--dh-space-5);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
 }
 
 .dh-review-guide__panel h2 {
@@ -231,12 +231,12 @@
 
 .dh-review-guide__prompt-question {
   margin: 0;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-review-guide__save-state {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-review-guide__prompts-nav ol {
@@ -253,25 +253,25 @@
   gap: 2px;
   min-block-size: var(--dh-touch-target-min);
   border: 0;
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
-  color: var(--dh-color-text);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
   padding: var(--dh-space-2) var(--dh-space-3);
   text-align: start;
   cursor: pointer;
 }
 
 .dh-review-guide__prompts-nav button[aria-current="true"] {
-  background: var(--dh-color-nav-selected-surface);
-  color: var(--dh-color-nav-selected-text);
-  font-weight: var(--dh-font-weight-semibold);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 500;
 }
 
 .dh-review-guide__prompt-nav-state {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 400;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -291,16 +291,16 @@
   display: grid;
   gap: var(--dh-space-1);
   min-width: 0;
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   padding: var(--dh-space-3);
 }
 
 .dh-review-guide__fact dt,
 .dh-review-guide__summary dt {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-review-guide__fact dd,
@@ -313,19 +313,18 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--dh-touch-target-min);
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 .dh-review-guide__fact-value {
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
 }
 
 /* An outstanding summary line is marked with a word in the value, not a colour
  * — this only adds a quiet emphasis on top of that. */
 .dh-review-guide__summary > div[data-outstanding="true"] {
-  box-shadow: inset 0 0 0 1px
-    var(--dh-color-border-strong, var(--dh-color-border));
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline);
 }
 
 .dh-review-guide__projects,
@@ -345,9 +344,9 @@
   align-items: center;
   gap: var(--dh-space-2) var(--dh-space-3);
   min-width: 0;
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   padding: var(--dh-space-3);
 }
 
@@ -364,9 +363,9 @@
   display: grid;
   gap: var(--dh-space-2);
   min-width: 0;
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   padding: var(--dh-space-3);
 }
 
@@ -389,7 +388,7 @@
 .dh-review-guide__project-context,
 .dh-review-guide__project-next,
 .dh-review-guide__label {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-review-guide__project-next,
@@ -399,7 +398,7 @@
 }
 
 .dh-review-guide__label {
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -419,21 +418,21 @@
 }
 
 .dh-review-guide__project-counts dt {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-review-guide__project-counts dd {
   margin: 0;
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 
 .dh-review-guide__blockers {
   display: grid;
   gap: var(--dh-space-2);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 2px var(--dh-color-border);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--md-sys-color-outline-variant);
   padding: var(--dh-space-4);
 }
 
@@ -472,7 +471,7 @@
   align-items: center;
   gap: var(--dh-space-3);
   flex-wrap: wrap;
-  border-top: 1px solid var(--dh-color-border);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
   padding-top: var(--dh-space-4);
 }
 
@@ -516,22 +515,22 @@
 
   .dh-review-guide__stepper-progress {
     margin: 0;
-    color: var(--dh-color-text-muted);
-    font-size: var(--dh-font-size-sm);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
   }
 
   .dh-review-guide__stepper-track {
     block-size: 0.375rem;
-    border-radius: var(--dh-radius-pill);
-    background: var(--dh-color-surface-raised);
-    box-shadow: inset 0 0 0 1px var(--dh-color-border);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-app-color-surface-raised);
+    box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
     overflow: hidden;
   }
 
   .dh-review-guide__stepper-fill {
     display: block;
     block-size: 100%;
-    background: var(--dh-color-accent);
+    background: var(--md-sys-color-primary);
   }
 
   .dh-review-guide__stepper-menu {
@@ -548,7 +547,7 @@
       var(--dh-bottomnav-height, 0px) + var(--dh-keyboard-inset, 0px)
     );
     z-index: 1;
-    background: var(--dh-color-surface-card);
+    background: var(--md-app-color-surface-card);
     margin-inline: calc(var(--dh-space-4) * -1);
     padding: var(--dh-space-3) var(--dh-space-4)
       calc(var(--dh-space-3) + env(safe-area-inset-bottom, 0px));

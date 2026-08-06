@@ -20,18 +20,18 @@
 
 .dh-ask__title {
   margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-2xl);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-ask__lead,
 .dh-ask__note,
 .dh-ask__budget {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
@@ -42,9 +42,9 @@
 }
 
 .dh-ask__label {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-ask__input {
@@ -52,16 +52,16 @@
   min-width: 0;
   padding: var(--dh-space-3);
   font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
   resize: vertical;
 }
 
 .dh-ask__input:focus-visible,
 .dh-ai-review__proposal :is(input, select):focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: var(--dh-space-1);
 }
 
@@ -77,27 +77,27 @@
   flex-direction: column;
   gap: var(--dh-space-3);
   padding: var(--dh-space-4);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 /* A label, never a colour: the classification is readable without colour. */
 .dh-ask__badge,
 .dh-ask__classification {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-secondary);
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-ask__summary,
 .dh-ask__statement-text {
   margin: 0;
-  color: var(--dh-color-text);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface);
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
@@ -116,16 +116,16 @@
   gap: var(--dh-space-1);
   list-style: disc;
   padding-inline-start: var(--dh-space-5);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-ask__subheading,
 .dh-ai-review__heading {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 /* ── Shared AI chrome ──────────────────────────────────────────────────────── */
@@ -139,9 +139,9 @@
   align-items: center;
   gap: var(--dh-space-3);
   padding: var(--dh-space-3) var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-ai__disclosure {
@@ -157,14 +157,14 @@
 .dh-ai__disclosure-note,
 .dh-ai__notice {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
 .dh-ai__failure-text {
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-ai__citations {
@@ -183,44 +183,45 @@
   gap: var(--dh-space-2);
   padding: var(--dh-space-2) var(--dh-space-3);
   border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-divider);
-  background: var(--dh-color-surface-sunken);
-  border-radius: var(--dh-radius-sm);
+    var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-small);
   min-width: 0;
 }
 
 .dh-ai__citation-kind,
 .dh-ai__citation-date {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
+  letter-spacing: 0.02em;
 }
 
 .dh-ai__citation-link {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
 .dh-ai__citation-excerpt {
   flex-basis: 100%;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
-  line-height: var(--dh-line-height-relaxed);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
 .dh-ai__details {
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   padding-top: var(--dh-space-3);
 }
 
 .dh-ai__details-summary {
   cursor: pointer;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   /* A 44px target without a fixed height: padding keeps it comfortable at every
      text size, including OS text scaling. */
   padding: var(--dh-space-2) 0;
@@ -230,7 +231,7 @@
 }
 
 .dh-ai__details-summary:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: var(--dh-space-1);
 }
 
@@ -238,7 +239,7 @@
   margin: 0;
   display: grid;
   gap: var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-ai__details-list > div {
@@ -249,13 +250,13 @@
 }
 
 .dh-ai__details-list dt {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   min-width: 0;
 }
 
 .dh-ai__details-list dd {
   margin: 0;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
   min-width: 0;
 }
@@ -274,9 +275,9 @@
 .dh-ai-review__hint,
 .dh-ai-review__confidence {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.65;
 }
 
 .dh-ai-review__block {
@@ -289,8 +290,8 @@
 .dh-ai-review__summary,
 .dh-ai-review__item-text {
   margin: 0;
-  color: var(--dh-color-text);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface);
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
@@ -300,9 +301,9 @@
   flex-direction: column;
   gap: var(--dh-space-2);
   padding: var(--dh-space-4);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
   min-width: 0;
 }
 
@@ -311,8 +312,8 @@
   align-items: center;
   gap: var(--dh-space-2);
   min-height: var(--dh-touch-target-min);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
   cursor: pointer;
 }
 
@@ -329,10 +330,10 @@
 }
 
 .dh-ai-review__label {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
+  letter-spacing: 0.02em;
 }
 
 .dh-ai-review__field :is(input, select, textarea) {
@@ -341,10 +342,10 @@
   min-height: var(--dh-touch-target-min);
   padding: var(--dh-space-2) var(--dh-space-3);
   font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
 }
 
 /* AI-02 — a proposed Note's body. Editable in place, and tall enough to read a
@@ -352,13 +353,13 @@
    never widen past its column and introduce a horizontal scroll. */
 .dh-ai-review__body {
   min-height: calc(var(--dh-space-8) * 2);
-  line-height: var(--dh-line-height-normal);
+  line-height: 1.5;
   resize: vertical;
 }
 
 /* The link to a Note the owner just kept. */
 .dh-ai-review__created {
-  color: var(--dh-color-link);
+  color: var(--md-sys-color-primary);
   min-height: var(--dh-touch-target-min);
   display: inline-flex;
   align-items: center;
@@ -382,7 +383,8 @@
   flex-wrap: wrap;
   gap: var(--dh-space-3);
   padding-top: var(--dh-space-3);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-ai-review__actions .dh-btn {

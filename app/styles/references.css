@@ -33,9 +33,9 @@
   align-items: flex-start;
   gap: var(--dh-space-3);
   padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
   /* A long unbroken title (a URL, an id) wraps instead of widening the row. */
   min-width: 0;
 }
@@ -43,7 +43,7 @@
 .dh-reference__icon {
   display: inline-flex;
   flex: 0 0 auto;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-reference__body {
@@ -64,10 +64,10 @@
 }
 
 .dh-reference__state {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
   padding: 0 var(--dh-space-2);
 }
 
@@ -76,13 +76,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-reference__context {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -99,13 +99,13 @@
 
 .dh-reference-group__heading {
   margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-reference-group__count {
-  font-weight: var(--dh-font-weight-regular);
+  font-weight: 400;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -120,22 +120,22 @@
 
 .dh-note-references__heading {
   margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
 }
 
 .dh-note-references__help {
   margin: 0 0 var(--dh-space-3);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   max-width: var(--dh-width-prose);
 }
 
 /* NOTES-05 §6 — the backlink count, stated in the heading. Muted and lighter
  * than the heading itself: it is a fact about the list, not part of its name. */
 .dh-note-references__count {
-  color: var(--dh-color-text-muted);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 400;
 }
 
 /* NOTES-05 §6 — the backlinks module filter. A native control, so it wraps and
@@ -146,19 +146,19 @@
   align-items: center;
   gap: var(--dh-space-2);
   margin-block-end: var(--dh-space-3);
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-note-references__filter select {
   min-block-size: var(--dh-touch-target-min);
   max-inline-size: 100%;
   padding: var(--dh-space-1) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -196,19 +196,19 @@
 }
 
 .dh-notes-filters__label {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-notes-filters__control {
   min-height: var(--dh-touch-target-min);
   width: 100%;
   padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
 }
 
@@ -224,8 +224,8 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--dh-touch-target-min);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -240,14 +240,14 @@
 
 .dh-project-knowledge__heading {
   margin: 0;
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
 }
 
 .dh-project-knowledge__help {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   max-width: var(--dh-width-prose);
 }
 

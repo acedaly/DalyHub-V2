@@ -20,9 +20,9 @@
   align-items: flex-start;
   gap: var(--dh-space-2) var(--dh-space-3);
   padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-meeting-item__body {
@@ -43,8 +43,8 @@
   flex-wrap: wrap;
   gap: var(--dh-space-2);
   align-items: center;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-meeting-item__tag {
@@ -52,10 +52,10 @@
   align-items: center;
   padding: 0 var(--dh-space-2);
   min-block-size: 1.5rem;
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
 }
 
 .dh-meeting-item__actions {
@@ -78,13 +78,13 @@
 }
 
 .dh-follow-up-group__count {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 400;
 }
 
 .dh-follow-up-empty {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   margin: 0;
 }
 
@@ -103,8 +103,8 @@
   align-items: center;
   gap: var(--dh-space-2) var(--dh-space-3);
   padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 .dh-follow-up-row__title {
@@ -114,8 +114,8 @@
 }
 
 .dh-follow-up-row__state {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
 }
 
@@ -161,10 +161,12 @@
   padding-inline-start: max(var(--dh-gutter), env(safe-area-inset-left));
   padding-inline-end: max(var(--dh-gutter), env(safe-area-inset-right));
   padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  background: var(--dh-color-surface);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
-  box-shadow: var(--dh-shadow-md);
-  transition: bottom var(--dh-duration-fast) var(--dh-ease-standard);
+  background: var(--md-app-color-surface-card);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-2);
+  transition: bottom var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 /* When the keyboard is up the safe-area padding is meaningless (the home
@@ -191,27 +193,31 @@
   justify-content: center;
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .dh-meeting-capturebar__type:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 /* Selected: aria-pressed (semantic) + accent border + weight — never colour
  * alone. */
 .dh-meeting-capturebar__type[aria-pressed="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
-  font-weight: var(--dh-font-weight-semibold);
-  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
 }
 
 .dh-meeting-capturebar__form {
@@ -234,8 +240,8 @@
  * the input the user is typing into. */
 .dh-meeting-capturebar__status {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-meeting-capturebar__status:empty {

@@ -13,16 +13,16 @@
   min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
-  border-radius: var(--dh-radius-control);
+  border-radius: var(--md-sys-shape-corner-full);
   padding: var(--dh-space-2) var(--dh-space-3);
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
 }
 
 .dh-reviews-views__link[aria-current="page"] {
-  background: var(--dh-color-nav-selected-surface);
-  color: var(--dh-color-nav-selected-text);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
 }
 
 .dh-reviews-filters__field,
@@ -34,8 +34,8 @@
 
 .dh-reviews-filters__label,
 .dh-review-date-grid span {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-review-new {
@@ -56,7 +56,7 @@
 .dh-review-muted,
 .dh-review-new__help,
 .dh-review-context-note {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-review-new__form,
@@ -66,7 +66,7 @@
   display: grid;
   gap: var(--dh-space-3);
   padding-block: var(--dh-space-4);
-  border-top: 1px solid var(--dh-color-border);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
 }
 
 .dh-review-new__section-header,
@@ -86,25 +86,25 @@
 
 .dh-review-type-option {
   min-height: 3rem;
-  border: 1px solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   text-align: left;
   padding: var(--dh-space-3);
 }
 
 .dh-review-type-option[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-review-period-preview {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 
 .dh-review-form-error {
-  color: var(--dh-color-danger);
+  color: var(--md-sys-color-error);
 }
 
 .dh-review-section {
@@ -118,9 +118,9 @@
 }
 
 .dh-review-section-readonly {
-  border: 1px solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
   padding: var(--dh-space-4);
 }
 
@@ -128,7 +128,7 @@
   white-space: pre-wrap;
   margin: 0;
   font: inherit;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-review-context-list {
@@ -149,8 +149,8 @@
   justify-content: space-between;
   gap: var(--dh-space-3);
   align-items: center;
-  border: 1px solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
   padding: var(--dh-space-3);
 }
 
@@ -160,7 +160,7 @@
   align-items: center;
   border: 0;
   background: transparent;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   padding: 0;
   text-align: left;
   text-decoration: underline;

@@ -83,7 +83,7 @@ describe("Card — density & presentation (one component)", () => {
       />,
     );
     let article = screen.getByRole("article");
-    expect(article).toHaveAttribute("data-density", "comfortable");
+    expect(article).toHaveAttribute("data-card-density", "comfortable");
     expect(article).toHaveAttribute("data-presentation", "list");
 
     for (const presentation of ["board", "grid"] as const) {
@@ -97,7 +97,7 @@ describe("Card — density & presentation (one component)", () => {
         />,
       );
       article = screen.getByRole("article");
-      expect(article).toHaveAttribute("data-density", "compact");
+      expect(article).toHaveAttribute("data-card-density", "compact");
       expect(article).toHaveAttribute("data-presentation", presentation);
     }
   });

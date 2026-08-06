@@ -178,7 +178,7 @@ export function Card(props: CardProps) {
       data-card-id={id}
       data-accent={accent}
       data-selected={selection?.selected ? "true" : "false"}
-      data-density={density}
+      data-card-density={density}
       data-presentation={presentation}
       data-testid={props["data-testid"]}
       {...(hasSwipe

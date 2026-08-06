@@ -353,33 +353,31 @@ pre {
   padding-left: var(--dh-space-5);
 }
 
-/* The shared Markdown sink (FND-08) inherits the token typography; DS-01 gives
- * it a readable measure and restrained rhythm without changing its behaviour. */
 /*
- * DS-14 §4 — the READING COLUMN.
+ * M3-01 — the shared Markdown sink (FND-08), and the product's ONE prose
+ * treatment.
  *
- * `MarkdownContent` carries `data-density="reading"`, so the preset's values are
- * resolved on this element itself; this is where they are spent. It is the one
- * place in the product that takes the serif, and it takes it only for the BODY:
- * headings, code and the chrome around the column stay sans, so the boundary
- * between "something you read" and "something you operate" is visible.
+ * DS-14 gave prose its own serif inside a `Reading` region; ADR-074 decision 6
+ * retired both. Prose is now the plain typeface at `body-large` on a 65ch
+ * measure — one decision, applied everywhere long-form text renders, with no
+ * region wrapper to declare and no second family to load.
  *
- * The measure supersedes `--dh-width-prose` (68ch) with `--dh-width-reading`
- * (46ch): a shorter measure wants a taller line and a serif at 16px wants both,
- * which is why the three values are one decision rather than three (ADR-068
- * decision 3).
+ * The boundary between "something you read" and "something you operate" is now
+ * carried by SIZE and MEASURE rather than by a typeface: prose is `body-large`
+ * on a capped column, and the chrome around it is `label-large` and
+ * `body-medium` at full width.
  */
 .markdown-content {
-  max-inline-size: var(--dh-density-measure, var(--dh-width-prose));
-  font-family: var(--dh-density-body-family, inherit);
-  font-size: var(--dh-density-body-size, inherit);
-  line-height: var(--dh-density-line-height, 1.65);
+  max-inline-size: var(--dh-width-prose);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
 }
 
 /*
- * A heading inside the column is CHROME — it labels the prose rather than being
- * it — so it stays sans and steps down in weight, and it gets its space from the
- * rhythm rather than from a browser default.
+ * A heading inside the column labels the prose rather than being it, so it steps
+ * onto the title styles and gets its space from the rhythm rather than from a
+ * browser default.
  */
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--md-ref-typeface-plain);

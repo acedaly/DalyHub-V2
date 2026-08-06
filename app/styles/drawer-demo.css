@@ -14,15 +14,15 @@
 }
 
 .drawer-demo__header h1 {
-  font-size: var(--dh-font-size-2xl);
-  line-height: var(--dh-line-height-tight);
-  letter-spacing: var(--dh-letter-spacing-tight);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   margin: 0 0 var(--dh-space-2);
 }
 
 .drawer-demo__lead {
-  font-size: var(--dh-font-size-md);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface-variant);
   margin: 0 0 var(--dh-space-6);
   max-width: var(--dh-width-prose);
 }
@@ -35,9 +35,9 @@
   align-items: end;
   padding: var(--dh-space-4);
   margin-bottom: var(--dh-space-6);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .drawer-demo__field {
@@ -47,35 +47,35 @@
 }
 
 .drawer-demo__field label {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .drawer-demo__field input {
   min-height: var(--dh-control-height-md);
   padding: 0 var(--dh-space-3);
   font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-sm);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
 }
 
 .drawer-demo__button {
   min-height: var(--dh-control-height-lg);
   padding: 0 var(--dh-space-4);
   font: inherit;
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
-  background: var(--dh-color-secondary);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-sm);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-secondary-container);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 
 .drawer-demo__button:hover {
-  background: var(--dh-color-secondary-hover);
+  background: var(--md-sys-color-secondary-container);
 }
 
 /* The record list on the background page: each item opens a drawer. */
@@ -90,31 +90,36 @@
 .drawer-demo__card {
   display: block;
   padding: var(--dh-space-4);
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   text-decoration: none;
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  transition: border-color var(--dh-duration-fast) var(--dh-ease-standard);
+  background: var(--md-app-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  transition: border-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .drawer-demo__card:hover {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-hover-surface);
+  border-color: var(--md-sys-color-outline);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .drawer-demo__card-type {
   display: block;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-accent-text);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-primary);
 }
 
 .drawer-demo__card-title {
   display: block;
   margin-top: var(--dh-space-1);
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
 }
 
 /* A long, scrollable filler used to prove the background scroll position is kept
@@ -127,15 +132,15 @@
 
 .drawer-demo__filler p {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Inline demo bodies inside the drawers reuse the record layout; these classes
  * only style the small demo affordances (link rows, prose). */
 .drawer-demo-prose {
   margin: 0 0 var(--dh-space-3);
-  line-height: var(--dh-line-height-relaxed);
-  color: var(--dh-color-text-secondary);
+  line-height: 1.65;
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
@@ -151,16 +156,16 @@
   align-items: center;
   min-height: var(--dh-control-height-md);
   padding: 0 var(--dh-space-3);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-on-accent);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-primary);
   text-decoration: none;
-  background: var(--dh-color-accent);
-  border-radius: var(--dh-radius-sm);
+  background: var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-corner-small);
 }
 
 .drawer-demo-link:hover {
-  background: var(--dh-color-accent-hover);
+  background: var(--md-sys-color-primary);
 }
 
 .drawer-demo-guard {
@@ -168,8 +173,8 @@
   align-items: center;
   gap: var(--dh-space-2);
   margin-bottom: var(--dh-space-4);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .drawer-demo-longlist {
@@ -182,8 +187,8 @@
 
 .drawer-demo-longlist li {
   padding: var(--dh-space-3);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  border-radius: var(--dh-radius-sm);
-  color: var(--dh-color-text-secondary);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  color: var(--md-sys-color-on-surface-variant);
 }

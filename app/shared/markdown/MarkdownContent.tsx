@@ -57,7 +57,6 @@ export function MarkdownContent({ html, className }: MarkdownContentProps) {
      * (see `base.css`), never by the wrapper.
      */
     <div
-      data-density="reading"
       className={wrapperClassName}
       // Safe by construction: `html` is `SanitizedMarkdownHtml`, a branded value
       // only the shared sanitising pipeline can produce (ADR-015 §4.5). This is

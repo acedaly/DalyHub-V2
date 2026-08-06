@@ -17,19 +17,19 @@
 
 .dh-design-search h1 {
   margin: 0;
-  font-size: var(--dh-font-size-2xl);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-design-search p {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.65;
 }
 
 .dh-design-search__hint {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-design-search__actions {
@@ -41,24 +41,28 @@
 .dh-design-search__actions button {
   min-height: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-4);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .dh-design-search__actions button:hover {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-hover-surface);
+  border-color: var(--md-sys-color-outline);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-design-search code,
 .dh-design-search kbd {
-  font-family: var(--dh-font-mono);
+  font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
   padding: 0 var(--dh-space-1);
-  background: var(--dh-color-surface-sunken);
-  border-radius: var(--dh-radius-xs);
+  background: var(--md-app-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }

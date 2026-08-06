@@ -42,20 +42,20 @@
   min-block-size: var(--dh-control-height-md);
   padding: 0 var(--dh-space-3);
   border-block-end: var(--dh-border-width-thick) solid transparent;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
 }
 
 .dh-diary-modes__tab:hover {
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-modes__tab[aria-current="true"] {
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text);
-  border-block-end-color: var(--dh-color-accent);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  border-block-end-color: var(--md-sys-color-primary);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -77,20 +77,24 @@
   justify-content: center;
   min-inline-size: var(--dh-touch-target-min);
   min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
   cursor: pointer;
 }
 
 .dh-diary-datenav__step:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-datenav__step:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -106,16 +110,16 @@
   flex: 1 1 auto;
   min-block-size: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-field);
-  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-diary-datenav__label {
   min-inline-size: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -137,7 +141,7 @@
 }
 
 .dh-diary-datenav__current:focus-within {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -146,22 +150,26 @@
   align-items: center;
   min-block-size: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
   cursor: pointer;
 }
 
 .dh-diary-datenav__today:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-datenav__today:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -194,13 +202,13 @@
   gap: var(--dh-space-1);
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
   white-space: nowrap;
-  background: var(--dh-color-surface);
+  background: var(--md-app-color-surface-card);
 }
 
 /* PX-05 — the chip's subtype glyph: decorative, subordinate to the label, and
@@ -208,34 +216,38 @@
 .dh-diary-filter__icon {
   display: inline-flex;
   flex: none;
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .dh-diary-filter__option:hover {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-filter__option[aria-current="true"] {
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-accent-text);
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
+  font-weight: 500;
+  color: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-diary-filter__count {
   min-inline-size: 1.25rem;
   padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-2xs);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
   font-variant-numeric: tabular-nums;
   text-align: center;
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface-sunken);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-diary-filter__option[aria-current="true"] .dh-diary-filter__count {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   background: transparent;
 }
 
@@ -272,27 +284,27 @@
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-2);
-  padding: var(--dh-density-card-padding-block, var(--dh-space-2))
-    var(--dh-density-card-padding-inline, var(--dh-space-4));
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  padding: var(--dh-space-2) var(--dh-space-4);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 /* Entries are rows inside it, separated by the within-card hairline. */
 .dh-diary-day__entries > .dh-diary-entry-item + .dh-diary-entry-item,
 .dh-diary-day__entries > li + li {
   border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-diary-day__heading {
   margin: 0 0 var(--dh-space-1);
   padding-block-end: var(--dh-space-2);
-  border-block-end: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-secondary);
+  border-block-end: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The continuous vertical rule runs behind the nodes, down the node column. */
@@ -313,7 +325,7 @@
     var(--diary-tl-rule-x) - (var(--dh-border-width-thick) / 2)
   );
   inline-size: var(--dh-border-width-thick);
-  background: var(--dh-color-border);
+  background: var(--md-sys-color-outline-variant);
 }
 
 .dh-diary-entry {
@@ -323,23 +335,27 @@
   column-gap: var(--diary-tl-gap);
   align-items: start;
   padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-2) 0;
-  border-radius: var(--dh-radius-control);
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 .dh-diary-entry:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-diary-entry[data-selected="true"] {
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-diary-entry__time {
   padding-block-start: var(--dh-space-1);
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--md-sys-typescale-label-medium-size);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
   text-align: end;
   white-space: nowrap;
 }
@@ -350,10 +366,10 @@
   justify-content: center;
   inline-size: var(--diary-tl-node);
   block-size: var(--diary-tl-node);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  color: var(--dh-entity-diary-accent);
-  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-entity-diary);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-diary-entry__node svg {
@@ -362,7 +378,7 @@
 }
 
 .dh-diary-entry[data-selected="true"] .dh-diary-entry__node {
-  border-color: var(--dh-color-accent);
+  border-color: var(--md-sys-color-primary);
 }
 
 .dh-diary-entry__main {
@@ -375,10 +391,10 @@
 
 .dh-diary-entry__title {
   margin: 0;
-  font-size: var(--dh-font-size-base);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface);
 }
 
 /* The primary action: a title button that stretches over the whole row (so the
@@ -400,13 +416,13 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: var(--dh-radius-control);
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 .dh-diary-entry__excerpt {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -423,19 +439,19 @@
 
 .dh-diary-entry__type {
   padding: 0 var(--dh-space-2);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-diary-entry__backdated {
   padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-muted);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-entry__edit {
@@ -447,8 +463,8 @@
   min-inline-size: var(--dh-touch-target-min);
   min-block-size: var(--dh-touch-target-min);
   border: 0;
-  border-radius: var(--dh-radius-control);
-  color: var(--dh-color-text-muted);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-on-surface-variant);
   background: transparent;
   cursor: pointer;
   opacity: 0;
@@ -461,8 +477,12 @@
 }
 
 .dh-diary-entry__edit:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-active-surface);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 10%,
+    transparent
+  );
 }
 
 /* Keep the Edit affordance visible where hover isn't available (touch). */
@@ -484,10 +504,10 @@
 
 .dh-diary-detail__title {
   margin: 0;
-  font-size: var(--dh-font-size-xl);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-title-large-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
@@ -501,7 +521,8 @@
 
 .dh-diary-detail__stamps {
   padding-block-start: var(--dh-space-3);
-  border-block-start: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-diary-detail__fact {
@@ -512,9 +533,9 @@
 }
 
 .dh-diary-detail__fact dt {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-detail__fact dd {
@@ -523,25 +544,25 @@
   flex-wrap: wrap;
   gap: var(--dh-space-2);
   align-items: baseline;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-detail__type {
   padding: 0 var(--dh-space-2);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-diary-detail__badge {
   padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-muted);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-detail__section {
@@ -550,13 +571,13 @@
 
 .dh-diary-detail__empty-body {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-detail__render-error {
   margin: 0;
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .dh-diary-detail__actions {
@@ -566,7 +587,7 @@
 
 .dh-diary-detail__loading,
 .dh-diary-detail__pending {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-detail__error {
@@ -574,7 +595,7 @@
   flex-direction: column;
   gap: var(--dh-space-3);
   align-items: flex-start;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -600,9 +621,9 @@
 .dh-diary-capture__legend {
   padding: 0;
   margin-block-end: var(--dh-space-2);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-capture__chips {
@@ -617,11 +638,11 @@
   gap: var(--dh-space-1);
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
   cursor: pointer;
 }
 
@@ -631,15 +652,19 @@
 }
 
 .dh-diary-capture__chip:hover {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-capture__chip[data-checked="true"] {
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-accent-text);
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
+  font-weight: 500;
+  color: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
 }
 
 /* The native radio is the accessible control; visually it's the chip itself. */
@@ -656,7 +681,7 @@
 }
 
 .dh-diary-capture__chip:focus-within {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -673,7 +698,8 @@
   flex-direction: column;
   gap: var(--dh-space-3);
   padding-block-start: var(--dh-space-3);
-  border-block-start: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* The `display: flex` above outranks the UA `[hidden]` rule, so restore hiding
@@ -702,18 +728,18 @@
 
 .dh-diary-editor__partial {
   margin: 0;
-  color: var(--dh-color-warning-text);
+  color: var(--md-sys-color-on-warning-container);
 }
 
 .dh-diary-when__input {
   inline-size: 100%;
   min-block-size: var(--dh-control-height-md);
   padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
   font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
 }
 
 /* -------------------------------------------------------------------------- */
