@@ -43,6 +43,7 @@ import {
   type AreaSearchHit,
   type AreaSearchInput,
 } from "~/kernel/areas";
+import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
@@ -82,6 +83,8 @@ interface AreaDependencyRow {
 interface AreaListRow extends AreaRow {
   /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
   readonly colour_rank: number;
+  /** The owner's chosen icon key, from the `area_details` row already joined. */
+  readonly icon_key: string | null;
   readonly goal_total: number | null;
   readonly goal_completed: number | null;
   readonly project_total: number | null;
@@ -429,6 +432,7 @@ export class D1AreaRepository implements AreaRepository {
            )
            SELECT e.id, e.workspace_id, e.title, e.created_at, e.updated_at,
                   ar.colour_rank,
+                  ad.icon_key AS icon_key,
                   COALESCE(gc.total, 0) AS goal_total,
                   COALESCE(gc.completed, 0) AS goal_completed,
                   COALESCE(pc.total, 0) AS project_total,
@@ -951,6 +955,11 @@ export class D1AreaRepository implements AreaRepository {
     return {
       ...this.#toAreaOverview(row),
       colourRank: Number(row.colour_rank),
+      // Normalised on the way OUT, not only on the way in: a key removed from
+      // the vocabulary in a later release, or restored from an older export,
+      // must degrade to the Area's default icon rather than reach a component
+      // that cannot draw it.
+      iconKey: normaliseEntityIconKey(row.icon_key),
       rollup: areaRollup(row),
       activeProjectCount: Number(row.active_project_count ?? 0),
       completedProjectCount: Number(row.completed_project_count ?? 0),
