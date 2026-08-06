@@ -17,7 +17,7 @@
  * or it fails with an actionable list.
  */
 
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { expectNoAxeViolations, gotoFixture } from "./helpers";
 
@@ -179,10 +179,18 @@ test.describe("automated accessibility — open overlays", () => {
     await page.keyboard.press("Escape");
   });
 
-  test("Area rename sheet has no violations", async ({ page }) => {
+  // DS-16 — the rename Drawer is gone: the Area's heading IS the control, so the
+  // surface to scan is the record with its inline editor OPEN. That is the state
+  // an owner is actually in while renaming, and it is where a labelling or
+  // focus-order violation would now live.
+  test("Area inline rename has no violations while editing", async ({
+    page,
+  }) => {
     await gotoFixture(page, "/areas/a-dh");
-    await page.getByRole("button", { name: "Rename" }).click();
-    await page.getByRole("dialog", { name: "Rename Area" }).waitFor();
+    await page.getByRole("button", { name: /^Area name:/ }).click();
+    await expect(
+      page.getByRole("textbox", { name: "Area name" }),
+    ).toBeFocused();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");
   });

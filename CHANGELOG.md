@@ -52,9 +52,28 @@ no version number to group them under.
 - **Things you cannot change do not pretend otherwise.** An archived Area's name
   is plain text, with no hover, no cursor change and no tab stop.
 
+### Changed — Goals joins the gallery, and pickers stop making you clear before you choose
+
+- **Goals now look like Areas and Projects.** Same cards, same grid, same column
+  behaviour — including the Deleted view, so switching between Active and
+  Deleted no longer feels like landing on a different page.
+- **You can change a choice without emptying the field first.** Picking a
+  different Area for a Project, a different parent for a Task, a different type
+  for an Asset: click the field and every option is there. Previously the box
+  filtered itself down to the thing you had already chosen, so you had to press
+  **×** first — and nothing told you that.
+- **Typing still filters**, and clicking a field with a value in it now selects
+  the text, so your first keystroke replaces it rather than joining onto it.
+- **"Choose a type…" is no longer a type you can choose.** On the New Asset
+  form it was in the list of options; it is now the prompt in the empty box,
+  where it belongs.
+- **"No priority", "No sector" and "Does not repeat" are staying exactly as they
+  are** — those are real answers about a task, not empty fields, and they keep
+  their own words.
+
 ### Changed — Areas and Projects are proper galleries
 
-- **About four cards across on a normal desktop screen**, five on a wide
+- **About four cards across on a normal desktop screen** (Areas, Projects and Goals alike), five on a wide
   monitor, three or two as the window narrows, and one on a phone — comfortably
   usable down to a 320px screen with no sideways scrolling.
 - **Cards read like places, not database rows.** The old `Goals: 2 · Projects: 4

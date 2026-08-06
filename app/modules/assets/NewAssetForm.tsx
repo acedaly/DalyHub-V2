@@ -47,10 +47,19 @@ type Values = {
 /** The string-valued field keys (every value type is `string`). */
 type StringField = Exclude<keyof Values, "tags">;
 
-const TYPE_OPTIONS = [
-  { value: "", label: "Choose a type…" },
-  ...ASSET_TYPES.map((t) => ({ value: t.value, label: t.label })),
-];
+/**
+ * DS-16 — the type vocabulary, and ONLY the type vocabulary.
+ *
+ * This list used to open with `{ value: "", label: "Choose a type…" }` — a
+ * PLACEHOLDER dressed as an option. It could be arrowed to and chosen, and
+ * choosing it "selected" a non-type that the required-field validation then had
+ * to reject. `SelectField` already renders a real placeholder in the empty
+ * input, so the prompt belongs there, where it cannot be picked.
+ */
+const TYPE_OPTIONS = ASSET_TYPES.map((t) => ({
+  value: t.value,
+  label: t.label,
+}));
 
 // All possible revealed field names, so `useForm` always holds their value even
 // before they are shown (switching type never loses a common value).
@@ -187,6 +196,7 @@ export function NewAssetForm({ onCreated, onCancel }: NewAssetFormProps) {
       <SelectField
         label="Type"
         required
+        placeholder="Choose a type…"
         options={TYPE_OPTIONS}
         {...form.field("assetType")}
       />

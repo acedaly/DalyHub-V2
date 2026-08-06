@@ -52,6 +52,16 @@
   border-color: var(--md-sys-color-outline-variant);
 }
 
+/* On a coarse pointer the affordance is a real touch target. A mouse does not
+ * need 44px and a dense metadata row would grow by a third if it took it — the
+ * same fine/coarse split the editor toolbar makes, for the same reason. */
+@media (pointer: coarse) {
+  .dh-inline-edit__trigger,
+  .dh-inline-edit__edit {
+    min-block-size: var(--app-touch-target-min);
+  }
+}
+
 .dh-inline-edit__value {
   min-inline-size: 0;
   overflow-wrap: anywhere;

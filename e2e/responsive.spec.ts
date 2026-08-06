@@ -224,14 +224,19 @@ test.describe("responsive — open overlays never overflow", () => {
       await page.keyboard.press("Escape");
     });
 
-    test(`Area rename sheet at ${viewport.label}`, async ({ page }) => {
+    // DS-16 — the Area rename is no longer a sheet: the heading IS the control.
+    // The overflow question it used to answer still has to be answered, so it
+    // moved with the interaction rather than being deleted. The editing state is
+    // where the risk actually is: a full-width input replaces a heading that was
+    // already wrapping, at the two viewport extremes.
+    test(`Area inline rename at ${viewport.label}`, async ({ page }) => {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
       });
       await gotoFixture(page, "/areas/a-dh");
-      await page.getByRole("button", { name: "Rename" }).click();
-      await page.getByRole("dialog", { name: "Rename Area" }).waitFor();
+      await page.getByRole("button", { name: /^Area name:/ }).click();
+      await page.getByRole("textbox", { name: "Area name" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
     });
