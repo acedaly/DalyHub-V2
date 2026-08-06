@@ -44,7 +44,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) | The shared interaction language every module reuses. |
 | [`design/THEME_ACCEPTANCE_MATRIX.md`](design/THEME_ACCEPTANCE_MATRIX.md) | **Retired (M3-01).** A tombstone: the seven-theme system it recorded no longer exists. It points at ADR-074 and at the tests that now prove, on every commit, what this document used to assert per theme. |
 | [`design/PRODUCT_EXPERIENCE.md`](design/PRODUCT_EXPERIENCE.md) | The product-wide experience contract: the 2026-07 UX review, scores, ranked improvements, philosophies, hierarchy/composition rules, and reference screens. |
-| [`design/M3_POLISH_AUDIT.md`](design/M3_POLISH_AUDIT.md) | The whole-product visual audit taken after the Material Design 3 migration (PR #120): what the token change did **not** fix, the cause of each gap, the design targets the follow-up work is measured against, and the current-state evidence in `assets/m3-polish-2026-08/`. |
+| [`design/M3_POLISH_AUDIT.md`](design/M3_POLISH_AUDIT.md) | The whole-product visual audit taken after the Material Design 3 migration (PR #120): what the token change did **not** fix, the cause of each gap, the design targets the follow-up work is measured against, the authoritative reference mock-up, and the current-state evidence in `assets/m3-polish-2026-08/`. |
 | **Architecture** | |
 | [`architecture/ARCHITECTURE_OVERVIEW.md`](architecture/ARCHITECTURE_OVERVIEW.md) | How the kernel, modules, and platform fit together technically. |
 | [`decisions/ARCHITECTURE_DECISIONS.md`](decisions/ARCHITECTURE_DECISIONS.md) | The ADRs — why the system is built the way it is. |
@@ -113,7 +113,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   ├── THEME_ACCEPTANCE_MATRIX.md
     │   ├── M3_POLISH_AUDIT.md          (post-M3 visual audit + design targets)
     │   ├── assets/theme-02-2026-08/    (Modern pair screenshots)
-    │   ├── assets/m3-polish-2026-08/   (audit + approval-gate captures)
+    │   ├── assets/m3-polish-2026-08/   (reference mock-up, audit + gate captures)
     │   └── PRODUCT_EXPERIENCE.md
     ├── architecture/
     │   └── ARCHITECTURE_OVERVIEW.md

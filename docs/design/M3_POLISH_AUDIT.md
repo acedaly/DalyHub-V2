@@ -352,10 +352,10 @@ This is the commit sequence (restated in full in Appendix A.5). Nothing below is
 
 ## 8. Open questions for approval
 
-1. **The reference mock-up** was supplied after this audit was first drafted, and its measured
-   values are folded into Appendix A.1. It is a dashboard mock-up of Today showing the intended
-   shell, surface and card language; it is not checked into the repository, so Appendix A records
-   everything derived from it that the implementation depends on.
+1. **The reference mock-up** is checked in at
+   [`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png).
+   Appendix A still restates everything the implementation depends on, so the requirements survive
+   independently of the image.
 2. **The date-dependent kernel test** (section 0) — approval to fix it properly with a pinned clock, so
    `verify` can be green at branch head.
 3. **A richer local demo seed** for the three collections that render empty (Diary, Meetings,
@@ -375,6 +375,15 @@ implementer needs nothing but this file.
 
 Where a value came from the reference mock-up it is marked *(measured)*; where it came from the
 written direction it is marked *(specified)*.
+
+**The reference:**
+[`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png)
+— a Today dashboard showing the intended shell, surface and card language. It is the authoritative
+visual reference for the whole product, not only for Today: the drawer, the top app bar, the card
+family, the metric row, the timeline and the entity-icon treatment it shows are what every other
+surface is being brought into line with.
+
+![The DalyHub dashboard reference](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png)
 
 ### A.1 Application surfaces
 
