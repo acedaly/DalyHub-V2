@@ -14,7 +14,7 @@
  *     withdraws an untouched one.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RouterContextProvider } from "react-router";
 import { env } from "cloudflare:test";
 
@@ -266,7 +266,36 @@ describe("route: set_recurrence", () => {
 });
 
 describe("route: completing and undoing a recurring task", () => {
+  /*
+   * The ROUTE builds its own repository from the environment, so it reads the
+   * real system clock — only `taskRepo()` above gets the `FakeClock`. That made
+   * the successor's date depend on the day the suite happened to run: a weekly
+   * rule anchored to Thursday 30 July lands on 6 August every day up to and
+   * including the 5th, and rolls to the 13th from the 6th onward. The
+   * assertion below hard-codes 6 August, so this test passed for a week and
+   * then began failing on `main` with no code change — which is exactly what it
+   * was doing when this branch started.
+   *
+   * Pinning the clock to the same instant the repository already uses makes the
+   * date arithmetic deterministic without weakening what is being asserted: the
+   * successor is still required to be the NEXT occurrence, exactly once, and
+   * still has to be withdrawn on undo.
+   */
   it("reports the successor it created, then withdraws it on undo", async () => {
+    // Scoped to THIS test, not the describe block: the sibling
+    // "RETAINS an edited successor" case distinguishes an edited successor from
+    // an untouched one by its timestamps, and a frozen clock makes the two
+    // indistinguishable. Only the date arithmetic here needs pinning.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-30T00:00:00.000Z"));
+    try {
+      await assertSuccessorCreatedThenWithdrawn();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  async function assertSuccessorCreatedThenWithdrawn() {
     const tasks = taskRepo();
     const task = await tasks.createTask({
       title: "Weekly review",
@@ -297,7 +326,7 @@ describe("route: completing and undoing a recurring task", () => {
     expect(reopened.ok).toBe(true);
     expect(reopened.recurrence?.outcome).toBe("removed");
     expect(await tasks.getTask(successorId)).toBeNull();
-  });
+  }
 
   it("RETAINS an edited successor and says so", async () => {
     const tasks = taskRepo();
