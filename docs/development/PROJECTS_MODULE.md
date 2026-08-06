@@ -78,7 +78,7 @@ same pattern the shared task record surface uses).
 ## Composition
 
 - **Collection** — [`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx):
-  PX-02 `CollectionLayout`, the one DS-04 `Card`, a restrained URL-reflected state
+  PX-02 `CollectionLayout`, the DS-14 `EntityCard`/`EntityCardGrid`, a restrained URL-reflected state
   segment ([`SegmentedFilter`](../../app/shared/segmented-filter/SegmentedFilter.tsx):
   All/Open/Completed/**Archived**, PROJ-05), the shared `EmptyState` (empty vs filtered-empty vs error), and
   the shared [`LoadMore`](../../app/shared/load-more) affordance. A card opens the
@@ -88,6 +88,47 @@ same pattern the shared task record surface uses).
   de-duplicated by id, and the accumulation resets only when the state filter (or
   first-page cursor) changes — so opening the new-project Drawer keeps the loaded pages.
   The subtitle reads "N projects loaded" while more remain (never a false total).
+
+  **The Project card (DS-14 Gate D).** The owner's chosen icon on the ANCESTOR
+  AREA's generated accent (`AccentIcon` over `listProjects().iconKey` and
+  `areaColourRank`), so a grid of Projects groups visually by the Area it serves
+  without a heading. Then the title, the `Area · Goal` context resolved live
+  through the hierarchy, ONE status chip, a thin progress bar with its
+  percentage, `N of M tasks complete`, and `Updated <date>`.
+
+  **One status treatment.** The audit found "two competing status systems (state
+  chip right, health chip inline)". `projectCardStatus` picks the single most
+  decision-relevant fact:
+
+  | Condition | Chip |
+  |---|---|
+  | archived | `Archived` |
+  | completed | `Completed` |
+  | not actively worked | `Planned` / `On hold` |
+  | active, and health is speaking | the health state (`Stale`, `At risk`, `Blocked`) |
+  | active, and nothing is wrong | `Active` |
+
+  Health **replaces** the workflow chip; it never sits beside it, and only under
+  the same `isProjectHealthVisible` rule every other surface applies. `on_track`
+  is the ABSENCE of a signal and is deliberately not promoted — swapping
+  `Active` for `On track` would trade a useful word for a vaguer one. The health
+  REASON survives as supporting text because it explains the chip rather than
+  restating it. The full health vocabulary is unchanged on the record.
+
+  **Progress.** A Project with no tasks shows **no bar at all**: an empty bar at
+  0% reads as "nothing done yet" when the truth is "nothing planned yet". Where
+  a bar is shown, the visible percentage and the announced
+  `67% — 12 of 18 tasks complete` derive from the same completed/total pair, so
+  they cannot disagree.
+
+  **Lifecycle styling reads state, not copy.** `ProjectCardData` carries
+  `isArchived` / `isComplete` as facts, from the same shared predicates the chip
+  branches on. Comparing against the chip's English would make a lifecycle rule
+  depend on wording and break silently on a rewrite.
+
+  **Deliberately not rendered:** a due date (Projects have no due-date field in
+  the domain) and a next-incomplete-task (`listProjects` exposes none). Neither
+  is approximated.
 - **Overview** — [`ProjectOverview.tsx`](../../app/modules/projects/ProjectOverview.tsx):
   the DS-02 Record Layout (header: identity, Archived/Completed/workflow-status pill,
   Area/Goal context, Complete/Reopen + Rename — both HIDDEN while archived; summary:
