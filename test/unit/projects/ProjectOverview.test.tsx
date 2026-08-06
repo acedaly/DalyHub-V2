@@ -1,5 +1,5 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
@@ -59,7 +59,7 @@ describe("ProjectOverview", () => {
         completed={false}
         completionPending={false}
         onToggleComplete={() => {}}
-        onRename={() => {}}
+        onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
@@ -102,7 +102,7 @@ describe("ProjectOverview", () => {
         completed={false}
         completionPending={false}
         onToggleComplete={() => {}}
-        onRename={() => {}}
+        onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
@@ -129,7 +129,7 @@ describe("ProjectOverview", () => {
         completed={false}
         completionPending={false}
         onToggleComplete={() => {}}
-        onRename={() => {}}
+        onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
@@ -154,7 +154,7 @@ describe("ProjectOverview", () => {
         completed
         completionPending={false}
         onToggleComplete={() => {}}
-        onRename={() => {}}
+        onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
@@ -177,7 +177,7 @@ describe("ProjectOverview", () => {
         completed={false}
         completionPending={false}
         onToggleComplete={() => {}}
-        onRename={() => {}}
+        onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
@@ -188,9 +188,9 @@ describe("ProjectOverview", () => {
     expect(screen.getAllByText(/No tasks yet/).length).toBeGreaterThan(0);
   });
 
-  it("exposes the Tasks and Key links tabs and triggers completion + rename", () => {
+  it("exposes the Tasks and Key links tabs and triggers completion + rename", async () => {
     const onToggleComplete = vi.fn();
-    const onRename = vi.fn();
+    const onRename = vi.fn(async () => ({ ok: true }) as const);
     renderInRouter(
       <ProjectOverview
         overview={overview()}
@@ -237,8 +237,16 @@ describe("ProjectOverview", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Complete project" }));
     expect(onToggleComplete).toHaveBeenCalledWith(true);
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    expect(onRename).toHaveBeenCalled();
+
+    // DS-16 — the rename is the heading itself, not a "Rename" button opening a
+    // Drawer form. Same module callback, one fewer surface.
+    fireEvent.click(screen.getByRole("button", { name: /^Project name:/ }));
+    const titleInput = screen.getByRole("textbox", { name: "Project name" });
+    fireEvent.change(titleInput, { target: { value: "Renamed project" } });
+    fireEvent.keyDown(titleInput, { key: "Enter" });
+    await waitFor(() =>
+      expect(onRename).toHaveBeenCalledWith("Renamed project"),
+    );
   });
 
   describe("health visibility (PROJ-05 §8 / ADR-037)", () => {
@@ -251,7 +259,7 @@ describe("ProjectOverview", () => {
           completed={false}
           completionPending={false}
           onToggleComplete={() => {}}
-          onRename={() => {}}
+          onRename={async () => ({ ok: true }) as const}
           tasksTab={<div>tasks-content</div>}
           knowledgeTab={<div>Knowledge content</div>}
           linksTab={<div>links-content</div>}
@@ -299,7 +307,7 @@ describe("ProjectOverview", () => {
             completed={completed}
             completionPending={false}
             onToggleComplete={() => {}}
-            onRename={() => {}}
+            onRename={async () => ({ ok: true }) as const}
             tasksTab={<div>tasks-content</div>}
             knowledgeTab={<div>Knowledge content</div>}
             linksTab={<div>links-content</div>}
@@ -329,7 +337,7 @@ describe("ProjectOverview", () => {
           completed={false}
           completionPending={false}
           onToggleComplete={() => {}}
-          onRename={() => {}}
+          onRename={async () => ({ ok: true }) as const}
           tasksTab={<div>tasks-content</div>}
           knowledgeTab={<div>Knowledge content</div>}
           linksTab={<div>links-content</div>}
@@ -380,7 +388,7 @@ describe("ProjectOverview", () => {
           completed
           completionPending={false}
           onToggleComplete={() => {}}
-          onRename={() => {}}
+          onRename={async () => ({ ok: true }) as const}
           tasksTab={<div>tasks-content</div>}
           knowledgeTab={<div>Knowledge content</div>}
           linksTab={<div>links-content</div>}

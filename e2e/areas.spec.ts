@@ -100,25 +100,21 @@ test.describe("AREA-01 — Areas", () => {
     await expect(page.getByText("No active work")).toBeVisible();
     await expect(page.getByText("No Goals in this Area")).toBeVisible();
 
-    const renameButton = page.getByRole("button", { name: "Rename" });
-    await renameButton.focus();
-    await renameButton.click();
-    const renameDialog = page.getByRole("dialog", { name: "Rename Area" });
-    await expect(renameDialog).toBeVisible();
+    // DS-16 — the heading IS the rename control. Escape restores focus to it
+    // with the stored name intact; Enter commits.
+    const titleControl = page.getByRole("button", { name: /^Area name:/ });
+    await titleControl.focus();
+    await titleControl.click();
+    const titleInput = page.getByRole("textbox", { name: "Area name" });
+    await expect(titleInput).toBeFocused();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(renameButton).toBeFocused();
+    await expect(titleControl).toBeFocused();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
-    await renameButton.click();
+    await titleControl.click();
     const renamed = `${title} renamed`;
-    await page
-      .getByRole("dialog", { name: "Rename Area" })
-      .getByLabel(/Title/)
-      .fill(renamed);
-    await page
-      .getByRole("dialog", { name: "Rename Area" })
-      .getByRole("button", { name: "Save" })
-      .click();
+    await page.getByRole("textbox", { name: "Area name" }).fill(renamed);
+    await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { name: renamed })).toBeVisible();
 
     await page.getByRole("tab", { name: "Projects" }).click();

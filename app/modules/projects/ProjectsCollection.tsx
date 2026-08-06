@@ -24,10 +24,10 @@
  * clickable container.
  */
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import { EntityCard, EntityCardGrid } from "~/shared/card";
+import { CardMetaFact, EntityCard, EntityCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -41,7 +41,10 @@ import {
 } from "~/shared/drawer";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
+import { CheckCircleIcon, HistoryIcon, TaskIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { OverflowMenu } from "~/shared/overflow-menu";
+import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
 import { StatusPill } from "~/shared/pill";
 import { SegmentedFilter } from "~/shared/segmented-filter";
@@ -171,53 +174,130 @@ function NewProjectFormHost({
  * the two are different facts. Where progress IS shown, the bar and the text
  * come from the same `normaliseProgress` call inside `EntityCard`, so the
  * visible percentage and the `aria-valuenow` can never disagree.
+ *
+ * DS-16 — the metadata region became a compact fact group (outstanding tasks,
+ * completed tasks, last update) and the card gained the shared DS-12 overflow,
+ * so archiving a Project no longer means opening it and finding its Settings
+ * tab. A sparse Project — no Area, no tasks, no health reason — renders every
+ * absent value as ABSENT rather than as an empty row, which is what keeps the
+ * grid coherent when half a workspace has just been created.
  */
-function ProjectEntityCard({ card }: { readonly card: ProjectCardData }) {
+function ProjectEntityCard({
+  card,
+  onLifecycleChange,
+}: {
+  readonly card: ProjectCardData;
+  readonly onLifecycleChange: () => void;
+}) {
+  const post = useCallback(
+    async (intent: "archive" | "restore") => {
+      const body = new FormData();
+      body.set("intent", intent);
+      const response = await fetch(
+        `/projects/${encodeURIComponent(card.id)}/mutate`,
+        { method: "POST", body, headers: { accept: "application/json" } },
+      );
+      const result = (await response.json()) as {
+        readonly ok: boolean;
+        readonly formError?: string;
+      };
+      if (!result.ok) {
+        throw new Error(
+          result.formError ?? "That couldn’t be saved. Please try again.",
+        );
+      }
+      onLifecycleChange();
+    },
+    [card.id, onLifecycleChange],
+  );
+
+  // Derived from the SAME completed/total pair the progress bar reads, so the
+  // count beside the bar and the bar itself can never tell different stories.
+  const openTasks = Math.max(0, card.progress.total - card.progress.completed);
+
+  const lifecycle = useRecordLifecycle({
+    entityType: "project",
+    title: card.title,
+    archived: card.isArchived,
+    onArchive: () => post("archive"),
+    onRestore: () => post("restore"),
+  });
+
   return (
-    <EntityCard
-      data-testid="project-card"
-      icon={
-        <AccentIcon
-          entityType="project"
-          iconKey={card.iconKey}
-          colourRank={card.areaColourRank}
-        />
-      }
-      title={card.title}
-      headingLevel={2}
-      subtitle={card.parentLabel}
-      status={
-        <StatusPill tone={card.status.tone}>{card.status.label}</StatusPill>
-      }
-      progress={
-        card.progress.has
-          ? {
-              value: card.progress.completed,
-              max: card.progress.total,
-              // Compact beside the bar, complete for assistive tech — both
-              // derived from the same completed/total pair.
-              label: `${card.progress.percent}%`,
-              valueText: `${card.progress.percent}% — ${card.progress.summary} complete`,
-            }
-          : undefined
-      }
-      meta={
-        <>
-          {card.progress.has ? (
-            <span>{card.progress.summary} complete</span>
-          ) : (
-            <span>No tasks yet</span>
-          )}
-          {card.statusDetail ? <span>{card.statusDetail}</span> : null}
-          {card.updatedLabel ? <span>{card.updatedLabel}</span> : null}
-        </>
-      }
-      // The semantic fact, never the chip's English. A card must not stop
-      // looking archived because someone reworded a label.
-      muted={card.isArchived}
-      href={`/projects/${encodeURIComponent(card.id)}`}
-      openAriaLabel={`Open ${card.title}`}
-    />
+    <>
+      <EntityCard
+        data-testid="project-card"
+        icon={
+          <AccentIcon
+            entityType="project"
+            iconKey={card.iconKey}
+            colourRank={card.areaColourRank}
+          />
+        }
+        title={card.title}
+        headingLevel={2}
+        subtitle={card.parentLabel}
+        status={
+          <StatusPill tone={card.status.tone}>{card.status.label}</StatusPill>
+        }
+        progress={
+          card.progress.has
+            ? {
+                value: card.progress.completed,
+                max: card.progress.total,
+                // Compact beside the bar, complete for assistive tech — both
+                // derived from the same completed/total pair.
+                label: `${card.progress.percent}%`,
+                valueText: `${card.progress.percent}% — ${card.progress.summary} complete`,
+              }
+            : undefined
+        }
+        meta={
+          <>
+            {card.progress.has ? (
+              <>
+                {openTasks > 0 ? (
+                  <CardMetaFact
+                    icon={TaskIcon}
+                    value={openTasks}
+                    label={openTasks === 1 ? "open task" : "open tasks"}
+                  />
+                ) : null}
+                <CardMetaFact
+                  icon={CheckCircleIcon}
+                  value={card.progress.completed}
+                  label="done"
+                />
+              </>
+            ) : (
+              <span>No tasks yet</span>
+            )}
+            {card.statusDetail ? <span>{card.statusDetail}</span> : null}
+            {card.updatedLabel ? (
+              <span className="dh-ecard__fact">
+                <HistoryIcon
+                  className="dh-ecard__fact-icon"
+                  aria-hidden="true"
+                />
+                {card.updatedLabel}
+              </span>
+            ) : null}
+          </>
+        }
+        overflow={
+          <OverflowMenu
+            items={lifecycle.overflowActions}
+            label={`More actions for ${card.title}`}
+          />
+        }
+        // The semantic fact, never the chip's English. A card must not stop
+        // looking archived because someone reworded a label.
+        muted={card.isArchived}
+        href={`/projects/${encodeURIComponent(card.id)}`}
+        openAriaLabel={`Open ${card.title}`}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }
 
@@ -290,6 +370,9 @@ function ProjectsCollection({
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } =
     useProjectPagination(projects, nextCursor, state);
+  // Archiving moves a Project between state filters, so the list is re-read
+  // rather than patched: the server decides which segment it now belongs to.
+  const revalidator = useRevalidator();
 
   const cards = useMemo(
     () => items.map((project) => toProjectCardData(project)),
@@ -385,7 +468,11 @@ function ProjectsCollection({
     >
       <EntityCardGrid label="Projects">
         {cards.map((card) => (
-          <ProjectEntityCard key={card.id} card={card} />
+          <ProjectEntityCard
+            key={card.id}
+            card={card}
+            onLifecycleChange={() => revalidator.revalidate()}
+          />
         ))}
       </EntityCardGrid>
       {!failed && hasMore ? (

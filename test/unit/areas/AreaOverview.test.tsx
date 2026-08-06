@@ -1,5 +1,5 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
@@ -81,7 +81,9 @@ function renderRecord(
     projects?: readonly SerializedAreaProjectItem[];
     goalsNextCursor?: string | null;
     projectsNextCursor?: string | null;
-    onRename?: () => void;
+    onRename?: (
+      title: string,
+    ) => Promise<{ ok: true } | { ok: false; message: string }>;
     onOpenGoal?: (id: string) => void;
     onOpenProject?: (id: string) => void;
   } = {},
@@ -100,7 +102,7 @@ function renderRecord(
               goalsNextCursor={over.goalsNextCursor ?? null}
               projects={over.projects ?? [project]}
               projectsNextCursor={over.projectsNextCursor ?? null}
-              onRename={over.onRename ?? (() => {})}
+              onRename={over.onRename ?? (async () => ({ ok: true }) as const)}
               onOpenGoal={over.onOpenGoal ?? (() => {})}
               onOpenProject={over.onOpenProject ?? (() => {})}
               linkedTab={<div>linked-content</div>}
@@ -189,11 +191,18 @@ describe("AreaOverview", () => {
     expect(screen.getByText("No Projects in this Area")).toBeInTheDocument();
   });
 
-  it("triggers the single rename action and exposes Activity tab", () => {
-    const onRename = vi.fn();
+  it("renames from the heading itself and exposes the Activity tab", async () => {
+    // DS-16 — the rename is no longer a Drawer form behind a "Rename" button:
+    // the heading IS the control. The assertion is the user-visible contract
+    // (activate the name, type, press Enter, the module's save runs with the
+    // new text), not which component renders it.
+    const onRename = vi.fn(async () => ({ ok: true }) as const);
     renderRecord({ onRename });
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    expect(onRename).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /^Area name:/ }));
+    const input = screen.getByRole("textbox", { name: "Area name" });
+    fireEvent.change(input, { target: { value: "Renamed Area" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(onRename).toHaveBeenCalledWith("Renamed Area"));
     fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
     expect(screen.getByText("activity-content")).toBeInTheDocument();
   });

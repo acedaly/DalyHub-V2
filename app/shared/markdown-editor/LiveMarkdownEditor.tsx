@@ -1,5 +1,5 @@
 /**
- * NOTES-05 — the shared writing-first Markdown editor.
+ * NOTES-05 / EDIT-01 — the shared writing-first Markdown editor.
  *
  * ONE primary editor across desktop and mobile: the document is styled as it is
  * typed (headings grow, emphasis/strikethrough/code style, task items become
@@ -20,9 +20,21 @@
  * `<MarkdownContent>`) — the sole renderer/sanitiser and the single sanctioned
  * HTML sink. The live editor itself adds no HTML sink.
  *
- * There is deliberately NO persistent Source/Split/Preview (retired from
- * NOTES-01C): the live editor is the writing surface, Read is the reading
- * surface, nothing else.
+ * There is deliberately NO persistent Source/Split/Preview: the live editor is
+ * the writing surface, Read is the reading surface, nothing else.
+ *
+ * ── EDIT-01 ──────────────────────────────────────────────────────────────────
+ * Three additions, all in service of "this should feel like Docs, not like a
+ * form panel":
+ *
+ *   1. the toolbar reports ACTIVE formatting (`aria-pressed`), derived from the
+ *      Markdown source at the selection by the pure `formatting-state.ts` — for
+ *      BOTH surfaces, not only the enhanced one;
+ *   2. undo/redo are real toolbar controls with real enabled state, read from
+ *      CodeMirror's history depth (and absent on the fallback surface, where the
+ *      browser owns an unqueryable undo stack — see `EditorToolbar`);
+ *   3. `density="compact"` trims the chrome for an editor embedded in a record
+ *      body, where the surrounding page already provides the frame.
  */
 
 import {
@@ -39,16 +51,23 @@ import type { EditorView } from "@codemirror/view";
 
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { MarkdownContent } from "~/shared/markdown";
+import { LinkIcon } from "~/shared/icons";
 
-import { EditorToolbar, type EditorToolbarCommand } from "./EditorToolbar";
+import {
+  EditorToolbar,
+  type EditorHistoryCommands,
+  type EditorToolbarCommand,
+} from "./EditorToolbar";
 import { RecordLinkPicker, type RecordLinkOption } from "./RecordLinkPicker";
 import { applyMarkdownTransform } from "./editor-commands";
+import type { EditorSurfaceState } from "./editor-setup";
 import {
   editorViewModeLabel,
   otherEditorViewMode,
   type EditorViewMode,
 } from "./editor-view-mode";
 import type { MarkdownFormattingAction } from "./formatting-actions";
+import { activeFormattingIds } from "./formatting-state";
 import {
   recordLinkTransform,
   type MarkdownTransform,
@@ -78,11 +97,37 @@ export interface LiveMarkdownEditorProps {
   /** Number of rows for the no-JS/SSR fallback textarea. */
   readonly rows?: number;
   /**
+   * EDIT-01 — how much chrome the editor carries.
+   *
+   * `comfortable` (the default) is the editor-first workspace: a Note, a Diary
+   * entry, a Review — where the writing surface IS the page and a generous
+   * minimum height is right. `compact` is an editor embedded in a record body,
+   * where the page already provides the frame: a shorter minimum height and no
+   * Read/Write toggle, because the surrounding surface already shows the record.
+   */
+  readonly density?: "comfortable" | "compact";
+  /**
+   * Hide the Read/Write toggle. Implied by `density="compact"`, and available
+   * separately for a host that renders its own view/edit transition (the DS-16
+   * inline Markdown field does exactly that).
+   */
+  readonly hideModeToggle?: boolean;
+  /**
+   * Focus the writing surface as soon as it is ready.
+   *
+   * Deliberately NOT called `autoFocus`: this is not the DOM attribute, and the
+   * distinction matters. The DOM attribute steals focus on page load, which is
+   * the behaviour the accessibility lint (correctly) refuses. This flag is set
+   * only when the user has just ASKED to edit — the caret belongs in the text
+   * they chose to open, and dropping them outside it would be the defect.
+   */
+  readonly autoFocusOnMount?: boolean;
+  /**
    * NOTES-05 §5 — enable the record-link picker.
    *
    * Optional, so the editor keeps working with no linking capability at all (the
    * Diary body, its intended second consumer, may not want one). When supplied,
-   * a "Link" command joins the toolbar; choosing a record splices
+   * a "Record link" command joins the toolbar; choosing a record splices
    * `[Label](dalyhub://type/id)` into the source as ONE undoable edit.
    *
    * The search is the caller's, because only the caller has a workspace-scoped
@@ -100,6 +145,14 @@ export interface LiveMarkdownEditorProps {
   };
 }
 
+/** The surface state before anything has been reported by a live editor. */
+const INITIAL_SURFACE: Omit<EditorSurfaceState, "value"> = {
+  selectionStart: 0,
+  selectionEnd: 0,
+  canUndo: false,
+  canRedo: false,
+};
+
 export function LiveMarkdownEditor({
   value,
   onChange,
@@ -111,6 +164,9 @@ export function LiveMarkdownEditor({
   toolbarLabel = "Formatting",
   statusSlot,
   rows = 18,
+  density = "comfortable",
+  hideModeToggle = false,
+  autoFocusOnMount = false,
   recordLink,
 }: LiveMarkdownEditorProps) {
   const [mode, setMode] = useState<EditorViewMode>("write");
@@ -126,6 +182,8 @@ export function LiveMarkdownEditor({
   onBlurRef.current = onBlur;
   const valueRef = useRef(value);
   valueRef.current = value;
+  const autoFocusRef = useRef(autoFocusOnMount);
+  autoFocusRef.current = autoFocusOnMount;
 
   const baseId = `dh-md-editor-${label.replace(/\s+/g, "-").toLowerCase()}`;
   const { helpId, errorId } = deriveFieldIds(baseId);
@@ -134,6 +192,46 @@ export function LiveMarkdownEditor({
     helpId: help ? helpId : null,
     errorId: invalid ? errorId : null,
   });
+
+  /* -- Toolbar state (EDIT-01) -------------------------------------------- */
+
+  // The selection and history depth of whichever surface is live. The live
+  // editor reports them; the fallback textarea's selection is read from the DOM
+  // on the events that can move it, and it contributes no history (see below).
+  const [surface, setSurface] = useState(INITIAL_SURFACE);
+
+  const activeIds = useMemo(
+    () =>
+      activeFormattingIds({
+        value,
+        selectionStart: surface.selectionStart,
+        selectionEnd: surface.selectionEnd,
+      }),
+    [value, surface.selectionStart, surface.selectionEnd],
+  );
+
+  const onSurfaceState = useCallback((next: EditorSurfaceState) => {
+    setSurface({
+      selectionStart: next.selectionStart,
+      selectionEnd: next.selectionEnd,
+      canUndo: next.canUndo,
+      canRedo: next.canRedo,
+    });
+  }, []);
+
+  /** Read the fallback textarea's selection after any event that can move it. */
+  const syncFallbackSelection = useCallback(() => {
+    const textarea = fallbackRef.current;
+    if (!textarea) return;
+    setSurface((previous) => {
+      const start = textarea.selectionStart ?? 0;
+      const end = textarea.selectionEnd ?? 0;
+      if (previous.selectionStart === start && previous.selectionEnd === end) {
+        return previous;
+      }
+      return { ...previous, selectionStart: start, selectionEnd: end };
+    });
+  }, []);
 
   // Holds the teardown for an in-flight async view creation (see below).
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -163,12 +261,16 @@ export function LiveMarkdownEditor({
                     ariaLabel: label,
                     placeholder,
                     onChange: (next) => onChangeRef.current(next),
+                    onSurfaceState,
                     onBlur: () => onBlurRef.current?.(),
                   }),
                 }),
               });
               viewRef.current = view;
               setEditorReady(true);
+              if (autoFocusRef.current) {
+                view.focus();
+              }
             },
           )
           .catch(() => {
@@ -189,9 +291,10 @@ export function LiveMarkdownEditor({
           viewRef.current = null;
         }
         setEditorReady(false);
+        setSurface(INITIAL_SURFACE);
       }
     },
-    [label, placeholder],
+    [label, placeholder, onSurfaceState],
   );
 
   // When the live surface becomes ready, the container's `hidden` attribute is
@@ -203,6 +306,14 @@ export function LiveMarkdownEditor({
       viewRef.current?.requestMeasure();
     }
   }, [editorReady]);
+
+  // Focus the fallback surface when asked to, so the caller's "enter editing"
+  // transition lands the caret in the text regardless of which surface is live.
+  useEffect(() => {
+    if (autoFocusOnMount && !editorReady) {
+      fallbackRef.current?.focus();
+    }
+  }, [autoFocusOnMount, editorReady]);
 
   // Sync an EXTERNAL value change (e.g. a programmatic reset) into the editor.
   // The common case — our own onChange echoing back — is a no-op because the
@@ -244,11 +355,47 @@ export function LiveMarkdownEditor({
     } catch {
       // Detached-node environments can throw; focus alone is acceptable.
     }
+    setSurface((previous) => ({
+      ...previous,
+      selectionStart: result.selectionStart,
+      selectionEnd: result.selectionEnd,
+    }));
   }, []);
 
   const applyAction = useCallback(
     (action: MarkdownFormattingAction) => applyTransform(action.transform),
     [applyTransform],
+  );
+
+  /* -- Undo / redo --------------------------------------------------------- */
+
+  const runHistoryCommand = useCallback(async (command: "undo" | "redo") => {
+    const view = viewRef.current;
+    if (!view) return;
+    const commands = await import("@codemirror/commands");
+    (command === "undo" ? commands.undo : commands.redo)(view);
+    view.focus();
+  }, []);
+
+  /**
+   * Undo/redo are offered ONLY on the enhanced surface.
+   *
+   * The fallback `<textarea>` has the browser's own undo stack, which no API can
+   * query — a permanently-enabled button that may silently do nothing is exactly
+   * the non-functional control this toolbar refuses to render. ⌘Z still works
+   * there, natively, because nothing intercepts it.
+   */
+  const history = useMemo<EditorHistoryCommands | undefined>(
+    () =>
+      editorReady
+        ? {
+            canUndo: surface.canUndo,
+            canRedo: surface.canRedo,
+            onUndo: () => void runHistoryCommand("undo"),
+            onRedo: () => void runHistoryCommand("redo"),
+          }
+        : undefined,
+    [editorReady, surface.canUndo, surface.canRedo, runHistoryCommand],
   );
 
   /* -- Record-link picker (NOTES-05 §5) ----------------------------------- */
@@ -294,9 +441,10 @@ export function LiveMarkdownEditor({
               // NOT "Link": the formatting catalogue already has a "Link"
               // action (an ordinary Markdown link). Two toolbar buttons sharing
               // one accessible name is indistinguishable to a screen-reader
-              // user, and the visible word IS the accessible name here.
+              // user.
               label: "Record link",
               hint: "Link a DalyHub record (project, person, meeting, asset…)",
+              icon: <LinkIcon data-variant="record" />,
               expanded: linkPickerOpen,
               onSelect: () => setLinkPickerOpen((wasOpen) => !wasOpen),
             },
@@ -336,11 +484,13 @@ export function LiveMarkdownEditor({
 
   const toggleMode = () => setMode((m) => otherEditorViewMode(m));
   const hasContent = value.trim().length > 0;
+  const showModeToggle = !hideModeToggle && density !== "compact";
 
   return (
     <div
       className="dh-md-editor"
       data-mode={mode}
+      data-density={density}
       // A stable, surface-agnostic readiness contract: `true` once the live
       // CodeMirror writing surface has mounted and replaced the SSR/no-JS
       // `<textarea>` fallback, `false` while the fallback is still the editing
@@ -357,21 +507,27 @@ export function LiveMarkdownEditor({
             onAction={applyAction}
             label={toolbarLabel}
             commands={toolbarCommands}
+            activeIds={activeIds}
+            history={history}
           />
         ) : (
           <span className="dh-md-editor__reading-note">Reading</span>
         )}
-        <div className="dh-md-editor__bar-end">
-          {statusSlot}
-          <button
-            type="button"
-            className="dh-md-editor__mode-toggle"
-            aria-pressed={mode === "read"}
-            onClick={toggleMode}
-          >
-            {editorViewModeLabel(otherEditorViewMode(mode))}
-          </button>
-        </div>
+        {statusSlot || showModeToggle ? (
+          <div className="dh-md-editor__bar-end">
+            {statusSlot}
+            {showModeToggle ? (
+              <button
+                type="button"
+                className="dh-md-editor__mode-toggle"
+                aria-pressed={mode === "read"}
+                onClick={toggleMode}
+              >
+                {editorViewModeLabel(otherEditorViewMode(mode))}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {/* The picker sits between the toolbar and the writing surface so the
@@ -401,7 +557,13 @@ export function LiveMarkdownEditor({
               aria-describedby={describedBy}
               aria-invalid={invalid || undefined}
               spellCheck
-              onChange={(event) => onChange(event.target.value)}
+              onChange={(event) => {
+                onChange(event.target.value);
+                syncFallbackSelection();
+              }}
+              onSelect={syncFallbackSelection}
+              onKeyUp={syncFallbackSelection}
+              onClick={syncFallbackSelection}
               onBlur={() => onBlur?.()}
             />
           ) : null}

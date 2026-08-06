@@ -362,7 +362,6 @@ function ProjectDetail({
 }) {
   const revalidator = useRevalidator();
   const navigate = useNavigate();
-  const { openDrawer } = useDrawer();
   const { notifySuccess, notifyError, notifyUndo } = useFeedback();
   const [completionPending, setCompletionPending] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -418,6 +417,46 @@ function ProjectDetail({
   /** A calm, generic failure message for a settings mutation whose route did
    * not itself return one (e.g. a network failure, or a malformed response). */
   const SETTINGS_GENERIC_ERROR = "That couldn’t be saved. Please try again.";
+
+  /**
+   * DS-16 — the Project rename, driven from the record heading.
+   *
+   * Same trusted `rename` intent, same endpoint, same server-side guards (the
+   * dispatcher already refuses every non-restore intent on an archived Project).
+   * The refusal is RETURNED rather than thrown so the inline field can keep the
+   * typed name and show the message — which the Drawer form could not do,
+   * because closing it discarded the draft.
+   */
+  const onRename = useCallback(
+    async (title: string) => {
+      const body = new FormData();
+      body.set("intent", "rename");
+      body.set("title", title);
+      const result = await postMutation(body);
+      if (result.kind === "rename" && result.ok) {
+        revalidator.revalidate();
+        return { ok: true } as const;
+      }
+      const fieldError =
+        result.kind === "rename" && "fieldErrors" in result
+          ? result.fieldErrors?.title
+          : undefined;
+      const formError =
+        "formError" in result
+          ? result.formError
+          : "message" in result
+            ? result.message
+            : undefined;
+      return {
+        ok: false,
+        message:
+          fieldError ??
+          formError ??
+          "That couldn’t be saved. Your text is safe — try again.",
+      } as const;
+    },
+    [postMutation, revalidator],
+  );
 
   const onSetStatus = useCallback(
     async (status: ProjectWorkflowStatus, signal: AbortSignal) => {
@@ -619,7 +658,7 @@ function ProjectDetail({
       completed={completed}
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}
-      onRename={() => openDrawer(RENAME_KEY)}
+      onRename={onRename}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       tasksTab={

@@ -297,7 +297,16 @@ describe("Projects collection", () => {
       "25% — 1 of 4 tasks complete",
     );
     expect(within(card).getByText("25%")).toBeInTheDocument();
-    expect(within(card).getByText("1 of 4 tasks complete")).toBeInTheDocument();
+    // DS-16 — the run-on "1 of 4 tasks complete" sentence became a compact fact
+    // group. The complete phrasing survives where it is genuinely needed: on the
+    // progress bar's `aria-valuetext`, which is what assistive tech reads.
+    expect(within(card).getByText("3")).toBeInTheDocument();
+    expect(within(card).getByText("open tasks")).toBeInTheDocument();
+    expect(within(card).getByText("done")).toBeInTheDocument();
+    expect(within(card).getByRole("progressbar")).toHaveAttribute(
+      "aria-valuetext",
+      "25% — 1 of 4 tasks complete",
+    );
   });
 
   it("never implies 0% progress for a Project with no tasks", () => {
@@ -343,7 +352,15 @@ describe("Projects collection", () => {
       "aria-valuenow",
       "100",
     );
-    expect(within(card).getByText("6 of 6 tasks complete")).toBeInTheDocument();
+    // Nothing outstanding: the "open tasks" fact is OMITTED rather than
+    // rendered as "0 open tasks", and the completed count carries the story.
+    expect(within(card).queryByText("open tasks")).not.toBeInTheDocument();
+    expect(within(card).getByText("6")).toBeInTheDocument();
+    expect(within(card).getByText("done")).toBeInTheDocument();
+    expect(within(card).getByRole("progressbar")).toHaveAttribute(
+      "aria-valuetext",
+      "100% — 6 of 6 tasks complete",
+    );
   });
 
   it("names the Area first so it stays discoverable, then the Goal", () => {
@@ -759,5 +776,108 @@ describe("Projects collection", () => {
     // The same control retries and recovers.
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(screen.getByText("Bravo")).toBeInTheDocument());
+  });
+});
+
+/**
+ * DS-16 — the Projects gallery, on the SAME shared grid foundation as Areas.
+ *
+ * The most important assertion in this block is the sparse one: a Project with
+ * nothing filled in must still produce a polished card, because that is the
+ * state a workspace is in for its first week.
+ */
+describe("Projects gallery grid (DS-16)", () => {
+  it("renders the shared gallery grid, not a second implementation", () => {
+    const { container } = renderCollection({
+      projects: [project(), project({ id: "p2", title: "Second" })],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const grid = container.querySelector(".dh-ecard-grid");
+    expect(grid?.tagName).toBe("UL");
+    expect(grid?.getAttribute("aria-label")).toBe("Projects");
+    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
+  });
+
+  it("stays polished for a Project with no Area, no tasks and no health", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "sparse",
+          title: "Just started",
+          area: null,
+          goal: null,
+          areaColourRank: null,
+          taskTotal: 0,
+          taskCompleted: 0,
+          healthVisible: false,
+          health: stubHealth({ taskTotal: 0, taskCompleted: 0 }),
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Just started" });
+    // Absent values are ABSENT — no empty placeholder rows, no 0% bar.
+    expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(
+      within(card).queryByTestId("entity-card-fact"),
+    ).not.toBeInTheDocument();
+    expect(within(card).getByText("No tasks yet")).toBeInTheDocument();
+    // And it is still a complete, navigable card.
+    expect(
+      within(card).getByRole("link", { name: "Open Just started" }),
+    ).toHaveAttribute("href", "/projects/sparse");
+  });
+
+  it("offers lifecycle actions from the card without navigating it", () => {
+    renderCollection({
+      projects: [project({ title: "DalyHub V2" })],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "DalyHub V2" });
+    fireEvent.click(
+      within(card).getByRole("button", { name: "More actions for DalyHub V2" }),
+    );
+    expect(
+      within(card).getByRole("menuitem", { name: /Archive/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(card).getByRole("link", { name: "Open DalyHub V2" }),
+    ).toHaveAttribute("href", "/projects/p1");
+  });
+
+  it("offers Restore rather than Archive on an archived Project", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "arch",
+          title: "Old work",
+          archivedAt: "2026-07-01T00:00:00.000Z",
+          healthVisible: false,
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "archived",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Old work" });
+    fireEvent.click(
+      within(card).getByRole("button", { name: "More actions for Old work" }),
+    );
+    expect(
+      within(card).getByRole("menuitem", { name: /Restore/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(card).queryByRole("menuitem", { name: /^Archive/ }),
+    ).not.toBeInTheDocument();
   });
 });

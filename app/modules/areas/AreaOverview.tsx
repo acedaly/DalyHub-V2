@@ -19,11 +19,8 @@ import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, RecordIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
-import {
-  RecordLayout,
-  type RecordAction,
-  type RecordMetaItem,
-} from "~/shared/record-layout";
+import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
+import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type { AreaMomentum } from "~/kernel/areas";
@@ -53,7 +50,15 @@ interface AreaOverviewViewProps {
   /** AREA-05: whether this Area is archived — drives the status label and guards
    * the non-lifecycle actions (Rename, New Goal) that are invalid while archived. */
   readonly archived?: boolean;
-  readonly onRename: () => void;
+  /**
+   * DS-16 — rename the Area from the record heading itself.
+   *
+   * Replaces the AREA-01 Drawer form: a one-line rename does not deserve a
+   * panel, a form and a round trip through a second surface. Returns an outcome
+   * rather than throwing, so a refusal keeps the typed name in the field with
+   * the server's own message beside it.
+   */
+  readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
   readonly onOpenGoal: (goalId: string) => void;
   readonly onOpenProject: (projectId: string) => void;
   readonly activityTab: ReactNode;
@@ -303,15 +308,9 @@ export function AreaOverviewView({
     value: state.label,
   });
 
-  const renameAction: RecordAction = {
-    id: "rename",
-    label: "Rename",
-    variant: "secondary",
-    onSelect: onRename,
-  };
-  // AREA-05: an archived Area is read-only — the Rename action is not offered
-  // (the mutation is also refused server-side).
-  const secondaryActions: RecordAction[] = archived ? [] : [renameAction];
+  // AREA-05: an archived Area is read-only, so the heading renders as plain
+  // text rather than as an editable control — a value that cannot be changed
+  // must not look like one that can. The mutation is refused server-side too.
 
   // PX-04: Archive/Restore/Delete now ALSO live in the shared header overflow, in
   // the same place and wording as every other record. The Settings tab keeps the
@@ -333,6 +332,17 @@ export function AreaOverviewView({
     <>
       <RecordLayout
         title={overview.title}
+        titleSlot={
+          <InlineTextField
+            label="Area name"
+            value={overview.title}
+            onSave={onRename}
+            readOnly={archived}
+            variant="heading"
+            maxLength={200}
+            data-testid="area-title-edit"
+          />
+        }
         typeLabel="Area"
         // The record's OWN icon, not merely its type's: `RecordIcon` renders
         // the chosen glyph and falls back to the Area default when there is
@@ -341,7 +351,6 @@ export function AreaOverviewView({
         breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
         status={{ label: state.label, tone: state.tone }}
         metadata={headerMetadata}
-        secondaryActions={secondaryActions}
         overflowActions={lifecycle.overflowActions}
         summary={{
           description: (

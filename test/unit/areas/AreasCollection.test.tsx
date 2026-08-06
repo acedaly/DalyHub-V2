@@ -1,5 +1,5 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
@@ -177,5 +177,83 @@ describe("Areas collection", () => {
     expect(
       screen.getByRole("button", { name: "Load more Areas" }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * DS-16 — the Areas gallery.
+ *
+ * The assertions are about what the collection PRESENTS and how its controls
+ * behave, not about pixel geometry: a layout test that pins column widths breaks
+ * on every refinement and proves nothing about whether the grid works.
+ */
+describe("Areas gallery grid (DS-16)", () => {
+  it("renders the SHARED gallery grid rather than a module-local layout", () => {
+    const { container } = renderCollection([area(), area({ id: "a2" })]);
+    const grid = container.querySelector(".dh-ecard-grid");
+    expect(grid).not.toBeNull();
+    // A labelled list, so a screen reader is told how much is there before
+    // reading any of it.
+    expect(grid?.tagName).toBe("UL");
+    expect(grid?.getAttribute("aria-label")).toBe("Areas");
+    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
+  });
+
+  it("states counts as compact facts with their nouns beside them", () => {
+    renderCollection([
+      area({
+        title: "Career",
+        activeProjectCount: 2,
+        rollup: {
+          kind: "area",
+          goals: { total: 3, completed: 1, ratio: 1 / 3 },
+          projects: { total: 2, completed: 0, ratio: 0 },
+          tasks: { total: 5, completed: 1, ratio: 0.2 },
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: "Career" });
+    expect(within(card).getByText("Projects")).toBeInTheDocument();
+    expect(within(card).getByText("Goals")).toBeInTheDocument();
+    // Never an icon on its own: every fact carries its noun as text.
+    for (const fact of within(card).getAllByTestId("entity-card-fact")) {
+      expect(fact.textContent?.trim().length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it("omits an absent dimension instead of rendering a zero row", () => {
+    renderCollection([
+      area({
+        title: "Fresh start",
+        activeProjectCount: 0,
+        rollup: {
+          kind: "area",
+          goals: { total: 0, completed: 0, ratio: null },
+          projects: { total: 0, completed: 0, ratio: null },
+          tasks: { total: 0, completed: 0, ratio: null },
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: "Fresh start" });
+    expect(within(card).queryByText("Projects")).not.toBeInTheDocument();
+    expect(within(card).queryByText("Goals")).not.toBeInTheDocument();
+    expect(
+      within(card).getByText("Ready for its first Project"),
+    ).toBeInTheDocument();
+  });
+
+  it("carries an accessible overflow menu that does not navigate the card", () => {
+    renderCollection([area({ title: "Career" })]);
+    const card = screen.getByRole("article", { name: "Career" });
+    const trigger = within(card).getByRole("button", {
+      name: "More actions for Career",
+    });
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    fireEvent.click(trigger);
+    // The menu opened in place; the whole-card link did not fire.
+    expect(within(card).getByRole("menu")).toBeInTheDocument();
+    expect(
+      within(card).getByRole("link", { name: "Open Career" }),
+    ).toHaveAttribute("href", "/areas/a1");
   });
 });

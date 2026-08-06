@@ -370,6 +370,25 @@ export const boldTransform = makeInlineWrap("**", "bold text");
 export const italicTransform = makeInlineWrap("_", "italic text");
 
 /**
+ * Strikethrough — `~~text~~`.
+ *
+ * Safe to offer because the canonical format is Markdown rendered through the
+ * ONE FND-08 pipeline, and that pipeline already runs `remark-gfm`, whose
+ * `delete` node is in the sanitisation schema's allow-list. Nothing here invents
+ * a representation the renderer cannot express, which is the bar every toolbar
+ * control has to clear (a control the store cannot round-trip is a lie).
+ *
+ * There is deliberately no UNDERLINE counterpart: CommonMark and GFM have no
+ * underline node, so the only way to produce one is raw `<u>` HTML — which the
+ * sanitising renderer strips. A control that silently does nothing is worse than
+ * an absent one.
+ */
+export const strikethroughTransform = makeInlineWrap(
+  "~~",
+  "struck-through text",
+);
+
+/**
  * Inline code. Backticks are NOT a fixed single delimiter: a code span's
  * delimiter must be a run of backticks LONGER than any run inside it, or the
  * span closes early (selecting `` a`b `` would otherwise render as code `a`

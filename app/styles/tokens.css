@@ -1018,6 +1018,33 @@
   /* The one progress-bar thickness in the product. */
   --app-progress-bar-height: 0.25rem; /* 4 */
 
+  /* ---------------------------------------------------------------------- */
+  /* Writing surface (EDIT-01)                                              */
+  /* ---------------------------------------------------------------------- */
+  /* A formatting toolbar control on a FINE pointer. A coarse pointer promotes
+   * it to `--app-touch-target-min`; spending 44px per control on a laptop is
+   * what made the old word-button row dominate the note it was formatting. */
+  --app-editor-control-size: 2.25rem; /* 36 */
+  /* The two writing-surface minimum heights. `comfortable` is an editor-first
+   * workspace (a Note, a Diary entry) where the surface IS the page; `compact`
+   * is an editor embedded in a record body, where the page already frames it and
+   * a half-screen of emptiness under one sentence is the defect. */
+  --app-editor-min-height: 16rem; /* 256 */
+  --app-editor-min-height-compact: 8rem; /* 128 */
+
+  /* ---------------------------------------------------------------------- */
+  /* Gallery grid (DS-16)                                                   */
+  /* ---------------------------------------------------------------------- */
+  /* The minimum readable width of an entity card, and therefore the ONE value
+   * that decides the column count at every viewport (the grid is
+   * `auto-fill`/`minmax`, never a breakpoint table). Chosen against real Area
+   * and Project content: an Area name plus a work-summary line, or a Project
+   * title plus its Area, a status chip and a progress bar, all without a
+   * two-word title wrapping to three lines. At the collection's own measure it
+   * yields roughly four columns on an ordinary desktop and five on a wide one,
+   * degrading to three, two and one as the width falls. */
+  --app-entity-card-min-width: 16.5rem; /* 264 */
+
   /* Breakpoints (reference + container queries) and z-index layers. */
   --app-breakpoint-sm: 30rem; /* 480 */
   --app-breakpoint-md: 48rem; /* 768 */

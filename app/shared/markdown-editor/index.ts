@@ -14,7 +14,17 @@
 export { LiveMarkdownEditor } from "./LiveMarkdownEditor";
 export type { LiveMarkdownEditorProps } from "./LiveMarkdownEditor";
 export { EditorToolbar } from "./EditorToolbar";
-export type { EditorToolbarProps, EditorToolbarCommand } from "./EditorToolbar";
+export type {
+  EditorToolbarProps,
+  EditorToolbarCommand,
+  EditorHistoryCommands,
+} from "./EditorToolbar";
+export {
+  activeFormattingIds,
+  NO_ACTIVE_FORMATTING,
+  type ActiveFormattingId,
+  type FormattingProbe,
+} from "./formatting-state";
 export { RecordLinkPicker } from "./RecordLinkPicker";
 export type {
   RecordLinkPickerProps,
@@ -22,6 +32,10 @@ export type {
 } from "./RecordLinkPicker";
 export {
   MARKDOWN_FORMATTING_ACTIONS,
+  PRIMARY_FORMATTING_ACTIONS,
+  SECONDARY_FORMATTING_ACTIONS,
+  FORMATTING_GROUP_ORDER,
+  type FormattingGroup,
   type MarkdownFormattingAction,
 } from "./formatting-actions";
 export { recordLinkTransform } from "./markdown-transforms";

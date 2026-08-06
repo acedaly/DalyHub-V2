@@ -25,6 +25,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { ProgressMeter } from "~/shared/progress";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -47,7 +48,12 @@ interface ProjectOverviewProps {
   readonly completionPending: boolean;
   readonly onToggleComplete: (complete: boolean) => void;
   /** Opens the Rename drawer. */
-  readonly onRename: () => void;
+  /**
+   * DS-16 — rename from the record heading. Same trusted `rename` intent, same
+   * archived guard, same validation; a refusal comes back as an outcome so the
+   * typed name stays in the field (see `~/shared/inline-edit`).
+   */
+  readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
   readonly tasksTab: ReactNode;
   readonly linksTab: ReactNode;
   readonly knowledgeTab: ReactNode;
@@ -210,13 +216,6 @@ export function ProjectOverview({
           onSelect: () => onToggleComplete(true),
         };
 
-  const renameAction: RecordAction = {
-    id: "rename",
-    label: "Rename",
-    variant: "secondary",
-    onSelect: onRename,
-  };
-
   // PX-04: Archive/Restore was reachable ONLY through the Settings sub-tab — the
   // commonest removal in the product was the hardest to find (UXA-06). It now
   // also sits in the shared header overflow, in the same slot as every other
@@ -265,6 +264,17 @@ export function ProjectOverview({
     <>
       <RecordLayout
         title={overview.title}
+        titleSlot={
+          <InlineTextField
+            label="Project name"
+            value={overview.title}
+            onSave={onRename}
+            readOnly={archived}
+            variant="heading"
+            maxLength={200}
+            data-testid="project-title-edit"
+          />
+        }
         typeLabel="Project"
         // The record's OWN icon — the chosen glyph, falling back to the
         // project default when there is none or the stored key is unresolvable.
@@ -273,7 +283,6 @@ export function ProjectOverview({
         status={{ label: state.label, tone: state.tone }}
         metadata={headerMetadata}
         primaryAction={primaryAction}
-        secondaryActions={archived ? [] : [renameAction]}
         overflowActions={[
           ...contextualCreateActions,
           ...lifecycle.overflowActions.map((item, index) =>

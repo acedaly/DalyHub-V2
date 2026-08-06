@@ -92,6 +92,17 @@ export interface RecordTab {
 export interface RecordHeaderProps {
   /** The record title (rendered as the record's heading). */
   readonly title: string;
+  /**
+   * DS-16 — an editable presentation of the title, rendered INSIDE the record's
+   * heading element in place of the plain text.
+   *
+   * The `title` string stays required and stays the source of every derived
+   * name (the overflow's accessible label, the tablist's, the document title),
+   * so a record whose heading is interactive is still named the same way to
+   * assistive tech as one whose heading is text. The slot only changes what the
+   * heading RENDERS.
+   */
+  readonly titleSlot?: ReactNode;
   /** Heading element id, so the layout landmark can be `aria-labelledby` it. */
   readonly titleId?: string;
   /** Heading level for correct document outline; defaults to 1. */
