@@ -61,3 +61,25 @@ export type {
   CardTone,
   NormalisedProgress,
 } from "./types";
+
+/**
+ * The rest of the card FAMILY (see `app/styles/card-family.css`). `Card` above is
+ * the record card; these are the four presentations it cannot be, and they exist
+ * so a module never forks one again.
+ */
+export { DashboardCard, type DashboardCardProps } from "./DashboardCard";
+export {
+  MetricTile,
+  MetricRow,
+  MetricRowItem,
+  type MetricTileProps,
+  type MetricTileTone,
+} from "./MetricTile";
+export { RecordRow, RecordRowList, type RecordRowProps } from "./RecordRow";
+export { EntityCard, EntityCardGrid, type EntityCardProps } from "./EntityCard";
+export {
+  Timeline,
+  TimelineItem,
+  type TimelineItemProps,
+  type TimelineTone,
+} from "./TimelineItem";
