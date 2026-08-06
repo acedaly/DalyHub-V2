@@ -483,10 +483,33 @@
  * which is the whole point of a responsive grid. Caught by the 320px
  * no-horizontal-overflow assertion.
  */
+/*
+ * `align-items: start` so a card is as tall as its own content.
+ *
+ * The grid default is `stretch`, which pulls every card in a row up to the
+ * tallest one — so a single Project with a long wrapped title adds dead space
+ * to the two beside it. Starting them instead keeps each card content-driven,
+ * which is what the reference does and what the audit asked for.
+ */
 .dh-ecard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
   gap: var(--app-dashboard-gap);
+  align-items: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The list item IS the grid track; the card fills it. */
+.dh-ecard-grid__item {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.dh-ecard-grid__item > .dh-ecard {
+  flex: 1;
+  min-inline-size: 0;
 }
 
 .dh-ecard {

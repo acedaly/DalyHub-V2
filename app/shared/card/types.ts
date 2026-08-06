@@ -94,8 +94,21 @@ export interface CardDateLabel {
 export interface CardProgress {
   readonly value: number;
   readonly max?: number;
-  /** Accessible/visible text override; defaults to a percentage. */
+  /** The VISIBLE text beside the bar; defaults to a percentage. */
   readonly label?: string;
+  /**
+   * The accessible value, when it should say more than the visible label.
+   *
+   * These were one field, which forced a choice between a bar captioned "67%"
+   * (compact, but a screen reader then hears only "67%" with no denominator)
+   * and one captioned "67% — 12 of 18 tasks complete" (informative, but the
+   * string squeezes the bar it sits beside). Splitting them lets the card show
+   * the percentage and announce the whole fact, and the two are derived from
+   * the SAME value, so they cannot disagree about how far along the work is.
+   *
+   * Defaults to the visible label, so a caller that sets neither is unchanged.
+   */
+  readonly valueText?: string;
 }
 
 /** Controlled selection. Native checkbox semantics; selection never opens a card. */
@@ -255,7 +268,10 @@ export interface CardProps {
 export interface NormalisedProgress {
   readonly fraction: number;
   readonly percent: number;
+  /** What is drawn beside the bar. */
   readonly text: string;
+  /** What assistive tech is told. Falls back to {@link text}. */
+  readonly valueText: string;
 }
 
 export function normaliseProgress(progress: CardProgress): NormalisedProgress {
@@ -267,7 +283,7 @@ export function normaliseProgress(progress: CardProgress): NormalisedProgress {
   const fraction = Math.min(1, Math.max(0, rawFraction));
   const percent = Math.round(fraction * 100);
   const text = progress.label ?? `${percent}%`;
-  return { fraction, percent, text };
+  return { fraction, percent, text, valueText: progress.valueText ?? text };
 }
 
 export function primaryOpenIsModifiedClick(
