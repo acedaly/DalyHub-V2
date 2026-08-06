@@ -1,10 +1,12 @@
 /*
- * THEME-01 — the shared progress meter.
+ * M3-01 — the shared LINEAR PROGRESS indicator.
  *
- * Theme-aware by construction: the track and fill are dedicated tokens
- * (`--dh-color-progress-track` / `-fill` / `-complete`) whose 3:1 pairing is held
- * by the contrast test in every theme, so a progress bar is legible in Daly Dark
- * and in Ember without either being special-cased.
+ * M3's own metrics: a 4px fully-rounded track in `secondary-container` with a
+ * `primary` fill. The pair is held at 3:1 in BOTH appearances by the contrast
+ * tests, so a progress bar is legible in either without being special-cased.
+ *
+ * The CIRCULAR form is `~/shared/charts/ProgressRing`, which the Today
+ * dashboard's rings are built from — same tokens, same 4px stroke.
  */
 
 .dh-progress {
@@ -24,47 +26,51 @@
 }
 
 .dh-progress__label {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-medium);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
 }
 
 /* The authoritative statement of progress. Secondary, never faint: it carries the
  * meaning for anyone who cannot see the bar. */
 .dh-progress__summary {
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
   overflow-wrap: anywhere;
 }
 
 .dh-progress__track {
   position: relative;
   inline-size: 100%;
-  /* 6px — a meter, not a bar. At 8px on a card the track competed with the
-     text beside it for the same attention; the number is the authority and the
-     track illustrates it. */
-  block-size: 6px;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-progress-track);
+  /* 4px — M3's linear progress height, and a meter rather than a bar: the
+     number beside it is the authority and the track illustrates it. */
+  block-size: 4px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-secondary-container);
   overflow: hidden;
 }
 
 .dh-progress__fill {
   block-size: 100%;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-progress-fill);
-  transition: inline-size var(--dh-duration-base) var(--dh-ease-standard);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 /* Complete is signalled by colour AND by the summary text ("8 of 8 complete"),
  * never by the bar reaching the end alone. */
 .dh-progress__track[data-complete="true"] .dh-progress__fill {
-  background: var(--dh-color-progress-complete);
+  background: var(--md-sys-color-success);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dh-progress__fill {
-    transition-duration: var(--dh-duration-instant);
+    transition-duration: var(--md-sys-motion-duration-none);
   }
 }
 
@@ -77,4 +83,49 @@
   .dh-progress__fill {
     background: Highlight;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Circular progress (`~/shared/charts/ProgressRing`)                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The circular form of the same indicator: the same tokens, the same 4px stroke.
+ * The component owns the geometry (radius, dash offset); this owns the paint and
+ * the centred content well, so a ring can never be drawn in a colour the token
+ * layer does not know about.
+ */
+.dh-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.dh-ring__svg {
+  display: block;
+}
+
+.dh-ring__track {
+  stroke: var(--md-sys-color-secondary-container);
+}
+
+.dh-ring__arc {
+  transition: stroke-dashoffset var(--md-sys-motion-duration-long2)
+    var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+/* The centre well. `aria-hidden` in the component — it repeats the ring's own
+ * accessible label, and a screen reader should hear the value once. */
+.dh-ring__centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-0);
+  text-align: center;
+  pointer-events: none;
 }

@@ -1,8 +1,9 @@
 /*
- * DS-12 — the shared overflow (⋯) menu.
+ * M3-01 — the shared overflow (⋯) menu, as an M3 MENU.
  *
- * One appearance for every overflow surface (Record Header, Card). Values are
- * DS-01 tokens only, so the menu is correct in light and dark with no per-surface
+ * `surface-container-high` at `corner-extra-small` and elevation 2, with 48px
+ * items at `body-large`. One appearance for every overflow surface (Record
+ * Header, Card), so the menu is correct in both appearances with no per-surface
  * override. A destructive item is distinguished by its icon and wording first —
  * the tone is reinforcement, never the only cue.
  */
@@ -20,28 +21,30 @@
   min-height: var(--dh-control-height-sm);
   min-width: var(--dh-control-height-sm);
   padding: var(--dh-space-1);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  background: transparent;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
   cursor: pointer;
 }
 
 .dh-overflow-menu__trigger:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
-  border-color: var(--dh-color-border-strong);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-overflow-menu[data-open="true"] .dh-overflow-menu__trigger {
-  color: var(--dh-color-text);
-  background: var(--dh-color-active-surface);
-  border-color: var(--dh-color-border-strong);
+  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-secondary-container);
 }
 
 .dh-overflow-menu__glyph {
   display: inline-flex;
-  font-size: var(--dh-font-size-lg);
+  font-size: var(--md-sys-typescale-title-medium-size);
   line-height: 1;
 }
 
@@ -53,11 +56,11 @@
   flex-direction: column;
   min-inline-size: 13rem;
   max-inline-size: min(20rem, calc(100vw - var(--dh-space-6)));
-  padding: var(--dh-space-1);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  box-shadow: var(--dh-shadow-md);
+  padding-block: var(--dh-space-2);
+  background: var(--md-sys-color-surface-container-high);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 .dh-overflow-menu__panel[data-align="end"] {
@@ -68,41 +71,47 @@
   inset-inline-start: 0;
 }
 
+/* The M3 menu item: 48px tall, 12px inline, `body-large`, and no radius of its
+ * own — the menu's corner is the shape. */
 .dh-overflow-menu__item {
   display: flex;
-  align-items: flex-start;
-  gap: var(--dh-space-2);
+  align-items: center;
+  gap: var(--dh-space-3);
   width: 100%;
-  padding: var(--dh-space-2);
+  min-block-size: 3rem;
+  padding-inline: var(--dh-space-3);
   font-family: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
   text-align: start;
   text-decoration: none;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   background: transparent;
   border: 0;
-  border-radius: var(--dh-radius-sm);
   cursor: pointer;
 }
 
 .dh-overflow-menu__item:hover,
 .dh-overflow-menu__item:focus-visible {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-overflow-menu__item[data-tone="danger"] {
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-error);
 }
 
 .dh-overflow-menu__item[data-tone="danger"]:hover,
 .dh-overflow-menu__item[data-tone="danger"]:focus-visible {
-  background: var(--dh-color-danger-surface);
+  background: var(--md-sys-color-error-container);
 }
 
 .dh-overflow-menu__item[aria-disabled="true"] {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -113,8 +122,10 @@
 /* A decorative group break — the label wording always carries the grouping too. */
 .dh-overflow-menu__item[data-separator="true"] {
   margin-block-start: var(--dh-space-1);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  border-radius: 0 0 var(--dh-radius-sm) var(--dh-radius-sm);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  border-radius: 0 0 var(--md-sys-shape-corner-small)
+    var(--md-sys-shape-corner-small);
   padding-block-start: calc(var(--dh-space-2) + var(--dh-space-1));
 }
 
@@ -122,7 +133,7 @@
   display: inline-flex;
   flex: none;
   margin-block-start: 0.1em;
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
   color: currentcolor;
 }
 
@@ -138,9 +149,9 @@
 }
 
 .dh-overflow-menu__description {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-regular);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 

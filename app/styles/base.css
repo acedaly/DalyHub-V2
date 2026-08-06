@@ -38,11 +38,11 @@ html {
 }
 
 body {
-  background: var(--dh-color-surface-page);
-  color: var(--dh-color-text);
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-base);
-  line-height: var(--dh-line-height-normal);
+  background: var(--md-app-color-surface-page);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -139,11 +139,11 @@ body {
   min-block-size: var(--dh-control-height-md);
   padding: var(--dh-space-1) var(--dh-space-3);
   font: inherit;
-  font-size: var(--dh-font-size-base);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-field);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 :where(select) {
@@ -156,25 +156,33 @@ body {
 
 :where(textarea) {
   padding-block: var(--dh-space-2);
-  line-height: var(--dh-line-height-normal);
+  line-height: 1.5;
   resize: vertical;
 }
 
 :where(input, select, textarea)::placeholder {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 :where(input, select, textarea):disabled {
-  color: var(--dh-color-disabled-text);
-  background: var(--dh-color-disabled-surface);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
   cursor: not-allowed;
 }
 
 /* Selection and toggle controls take the accent so they are unmistakably the
  * product's, and a 44px target on touch is provided by their labels/cells. */
 :where(input[type="checkbox"], input[type="radio"]) {
-  accent-color: var(--dh-color-accent);
+  accent-color: var(--md-sys-color-primary);
   inline-size: var(--dh-space-5);
   block-size: var(--dh-space-5);
   cursor: pointer;
@@ -190,7 +198,7 @@ body {
  * themes. Zero specificity, so every existing link treatment still wins.
  */
 :where(a) {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 /* Honour the user's reduced-motion preference: motion never carries meaning that
@@ -246,32 +254,32 @@ body {
 }
 
 .page h1 {
-  font-size: var(--dh-font-size-2xl);
-  line-height: var(--dh-line-height-tight);
-  letter-spacing: var(--dh-letter-spacing-tight);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   margin: 0 0 var(--dh-space-2);
 }
 
 .page h2,
 .dh-pane-body h2 {
-  font-size: var(--dh-font-size-lg);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: 1.35;
   margin: var(--dh-space-6) 0 var(--dh-space-2);
 }
 
 .lead {
-  font-size: var(--dh-font-size-md);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface-variant);
   margin: 0 0 var(--dh-space-4);
 }
 
 .muted {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .page a,
 .dh-pane-body a {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 .page ul,
@@ -287,7 +295,8 @@ body {
 
 .page hr {
   border: none;
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   margin: var(--dh-space-8) 0;
 }
 
@@ -310,34 +319,34 @@ body {
   margin-top: var(--dh-space-6);
   padding: var(--dh-space-6);
   max-width: var(--dh-width-narrow);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 .dh-coming-soon__title {
   display: inline-flex;
   align-items: center;
   gap: var(--dh-space-2);
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
   margin: 0 0 var(--dh-space-3);
 }
 
 .dh-coming-soon__label {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   margin: 0 0 var(--dh-space-2);
 }
 
 pre {
   overflow-x: auto;
   padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-sm);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .home-modules {
@@ -364,7 +373,7 @@ pre {
   max-inline-size: var(--dh-density-measure, var(--dh-width-prose));
   font-family: var(--dh-density-body-family, inherit);
   font-size: var(--dh-density-body-size, inherit);
-  line-height: var(--dh-density-line-height, var(--dh-line-height-relaxed));
+  line-height: var(--dh-density-line-height, 1.65);
 }
 
 /*
@@ -373,9 +382,9 @@ pre {
  * rhythm rather than from a browser default.
  */
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--dh-font-sans);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
+  font-family: var(--md-ref-typeface-plain);
+  font-weight: 500;
+  line-height: 1.35;
   margin-block: var(--dh-space-6) var(--dh-space-2);
 }
 
@@ -384,13 +393,13 @@ pre {
 }
 
 .markdown-content h1 {
-  font-size: var(--dh-font-size-xl);
+  font-size: var(--md-sys-typescale-title-large-size);
 }
 .markdown-content h2 {
-  font-size: var(--dh-font-size-lg);
+  font-size: var(--md-sys-typescale-title-medium-size);
 }
 .markdown-content :is(h3, h4, h5, h6) {
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .markdown-content p {
@@ -409,8 +418,8 @@ pre {
   margin-block: var(--dh-space-4);
   padding-inline-start: var(--dh-space-4);
   border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-divider-subtle);
-  color: var(--dh-color-text-secondary);
+    var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .markdown-content :is(ul, ol) {
@@ -426,16 +435,16 @@ pre {
   margin-block: var(--dh-space-6);
   border: none;
   border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+    var(--md-sys-color-outline-variant);
 }
 
 .markdown-content a {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 /* Code is sans-adjacent chrome inside prose: monospace, and never the serif. */
 .markdown-content :is(code, pre) {
-  font-family: var(--dh-font-mono);
+  font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
 }
 
@@ -448,20 +457,20 @@ pre {
   max-inline-size: 100%;
   margin-block: var(--dh-space-4);
   border-collapse: collapse;
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-compact);
-  line-height: var(--dh-line-height-dense);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
 .markdown-content :is(th, td) {
   padding: var(--dh-space-2) var(--dh-space-3);
   border-block-end: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+    var(--md-sys-color-outline-variant);
   text-align: start;
 }
 
 .markdown-content th {
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }

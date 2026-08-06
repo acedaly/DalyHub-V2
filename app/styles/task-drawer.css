@@ -13,7 +13,7 @@
   min-height: var(--dh-touch-target-min);
   padding: var(--dh-space-1) 0;
   cursor: pointer;
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-task-drawer__completion input {
@@ -32,7 +32,7 @@
  * name. Only the genuinely task-specific description fallback stays here. */
 .dh-task-drawer__description-fallback {
   margin: 0;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
@@ -44,8 +44,8 @@
 }
 
 .dh-task-drawer__meta dt {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-task-drawer__meta dd {
@@ -70,12 +70,12 @@
 }
 
 .dh-task-drawer__relationship-kind {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-task-drawer__relationship-title {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
@@ -94,9 +94,9 @@
 
 .dh-task-waiting--active {
   padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-warning);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-warning-surface);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-warning);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-warning-container);
 }
 
 .dh-task-waiting__label {
@@ -108,23 +108,23 @@
 }
 
 .dh-task-waiting__badge {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-warning-text);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-warning-container);
 }
 
 .dh-task-waiting__subject {
   display: inline-flex;
   align-items: center;
   gap: var(--dh-space-1);
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-task-waiting__since {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-task-waiting__modes {
@@ -137,8 +137,8 @@
 }
 
 .dh-task-waiting__legend {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   padding: 0;
   margin-bottom: var(--dh-space-1);
 }
@@ -158,8 +158,8 @@
 
 .dh-task-waiting__error {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-danger-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -185,13 +185,13 @@
 }
 
 .dh-task-planning__date dt {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-task-planning__date dd {
   margin: 0;
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-task-planning__actions {
@@ -206,12 +206,12 @@
 
 .dh-task-planning__muted {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-task-planning__error {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-danger-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-error-container);
 }

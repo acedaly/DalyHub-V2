@@ -140,6 +140,13 @@ export function Sheet({
         ref={panelRef}
         tabIndex={-1}
       >
+        {/* M3's DRAG HANDLE. Decorative: the sheet is dismissed by the close
+            button, Escape and the scrim, all of which are real controls — the
+            handle is the affordance that says "this is a sheet", not a second
+            way to close it. */}
+        {variant === "full" ? null : (
+          <div className="dh-sheet__handle" aria-hidden="true" />
+        )}
         <div className="dh-sheet__header">
           {leading ? <div className="dh-sheet__leading">{leading}</div> : null}
           <div className="dh-sheet__heading">

@@ -11,15 +11,15 @@
   display: block;
   inline-size: 100%;
   block-size: 1em;
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   /* THEME-01 — dedicated skeleton tokens, so a loading placeholder is tuned per
    * theme rather than reusing whichever surface happened to look right in light
    * and dark. The sweep is the highlight over the base. */
-  background: var(--dh-color-skeleton-base);
+  background: var(--md-sys-color-surface-container-high);
   background-image: linear-gradient(
     90deg,
     transparent 0%,
-    var(--dh-color-skeleton-highlight) 50%,
+    var(--md-sys-color-surface-container-highest) 50%,
     transparent 100%
   );
   background-size: 200% 100%;
@@ -28,7 +28,7 @@
 }
 
 .dh-skeleton--circle {
-  border-radius: var(--dh-radius-full);
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 @keyframes dh-skeleton-shimmer {
@@ -53,9 +53,9 @@
   flex-direction: column;
   gap: var(--dh-space-2);
   padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-raised);
 }
 
 .dh-card-skeleton--compact {

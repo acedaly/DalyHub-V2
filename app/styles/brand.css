@@ -57,28 +57,28 @@
 
 .dh-brand-lockup__name {
   margin: 0;
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  line-height: var(--dh-line-height-tight);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .dh-brand-lockup--md .dh-brand-lockup__name {
-  font-size: var(--dh-font-size-xl);
+  font-size: var(--md-sys-typescale-title-large-size);
 }
 
 .dh-brand-lockup--lg .dh-brand-lockup__name {
-  font-size: var(--dh-font-size-3xl);
+  font-size: var(--md-sys-typescale-headline-large-size);
 }
 
 .dh-brand-lockup__tagline {
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-tight);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.2;
 }
 
 .dh-brand-lockup--lg .dh-brand-lockup__tagline {
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 /* BRAND-01 — About leads with the lockup and then states the page's own

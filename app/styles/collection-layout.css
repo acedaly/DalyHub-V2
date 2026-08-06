@@ -17,7 +17,7 @@
   position: sticky;
   top: 0;
   z-index: var(--dh-z-sticky);
-  background: var(--dh-color-surface-page);
+  background: var(--md-app-color-surface-page);
 }
 
 .dh-collection__filters {
@@ -69,8 +69,8 @@
 /* A filter label names its control; it is not a section heading. */
 .dh-collection__filters :where(label),
 .dh-collection-toolbar :where(.dh-field__label-text) {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /*
@@ -145,7 +145,7 @@
  */
 .dh-collection__sticky {
   border-block-end: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+    var(--md-sys-color-outline-variant);
 }
 
 /* The bottom-anchored selection / bulk-action bar sticks to the pane bottom. */
@@ -155,8 +155,9 @@
   z-index: var(--dh-z-sticky);
   padding: var(--dh-space-3) var(--dh-gutter);
   padding-block-end: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  background: var(--dh-color-surface);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--md-app-color-surface-card);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -174,7 +175,8 @@
 .dh-collection--persistent-controls .dh-collection__mobile-controls {
   display: block;
   padding: var(--dh-space-3) var(--dh-gutter);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-bottom: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* The shared active-filter chips: every applied filter as a labelled, removable
@@ -207,20 +209,20 @@
   gap: var(--dh-space-1);
   padding: var(--dh-space-1) var(--dh-space-1) var(--dh-space-1)
     var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-tight);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.2;
 }
 
 .dh-filter-chips__label {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-filter-chips__value {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-filter-chips__remove {
@@ -230,14 +232,14 @@
   min-width: var(--dh-touch-target-min);
   min-height: var(--dh-touch-target-min);
   margin-inline-start: var(--dh-space-1);
-  border-radius: var(--dh-radius-full);
-  color: var(--dh-color-text-secondary);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
 }
 
 .dh-filter-chips__remove:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-filter-chips__reset {
@@ -245,8 +247,8 @@
   display: inline-flex;
   align-items: center;
   padding-inline: var(--dh-space-2);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-collection-controls {
@@ -264,13 +266,13 @@
   flex: none;
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -282,11 +284,11 @@
   justify-content: center;
   min-inline-size: 1.25rem;
   padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -296,8 +298,8 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -317,9 +319,9 @@
 
 .dh-collection-sheet__label {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 @media (max-width: 48rem) {
@@ -340,7 +342,8 @@
   .dh-collection__mobile-controls {
     display: block;
     padding: var(--dh-space-2) var(--dh-gutter) var(--dh-space-3);
-    border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+    border-bottom: var(--dh-border-width-thin) solid
+      var(--md-sys-color-outline-variant);
   }
 
   /* A compact pane header: the title and its count on one line, the primary
@@ -352,7 +355,7 @@
   }
 
   .dh-collection .dh-pane-header__title {
-    font-size: var(--dh-font-size-xl);
+    font-size: var(--md-sys-typescale-title-large-size);
   }
 
   /* Bulk actions sit ABOVE the bottom navigation, never under it. */

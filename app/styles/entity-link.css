@@ -22,9 +22,9 @@
 }
 
 .dh-entity-link {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   text-decoration: none;
-  border-radius: var(--dh-radius-xs);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 /* The leading entity glyph: decorative, subordinate to the label, and sized to
@@ -39,7 +39,7 @@
 }
 
 .dh-entity-link:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
   text-decoration: underline;
 }
@@ -68,11 +68,11 @@
 }
 
 .dh-entity-relationship__kind {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-entity-relationship__title {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }

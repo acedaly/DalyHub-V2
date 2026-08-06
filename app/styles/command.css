@@ -26,9 +26,10 @@
   border: 0;
   margin: 0;
   padding: 0;
-  background: var(--dh-color-overlay);
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
   cursor: default;
-  animation: dh-command-fade var(--dh-duration-fast) var(--dh-ease-standard);
+  animation: dh-command-fade var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-command__panel {
@@ -38,12 +39,13 @@
   width: 100%;
   max-width: 40rem;
   max-height: min(34rem, calc(100vh - var(--dh-space-16)));
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  box-shadow: var(--dh-shadow-lg);
+  background: var(--md-app-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-3);
   overflow: hidden;
-  animation: dh-command-rise var(--dh-duration-base) var(--dh-ease-emphasized);
+  animation: dh-command-rise var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
 }
 
 .dh-command__header {
@@ -56,9 +58,9 @@
 
 .dh-command__title {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
   letter-spacing: 0.04em;
 }
 
@@ -69,17 +71,21 @@
   min-width: var(--dh-touch-target-min);
   min-height: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 
 .dh-command__close:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-command__inputrow {
@@ -87,12 +93,13 @@
   align-items: center;
   gap: var(--dh-space-3);
   padding: var(--dh-space-3) var(--dh-space-4);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-bottom: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-command__inputicon {
   display: inline-flex;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-command__input {
@@ -101,13 +108,13 @@
   min-height: var(--dh-touch-target-min);
   border: 0;
   background: transparent;
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-lg);
-  font-family: var(--dh-font-sans);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-family: var(--md-ref-typeface-plain);
 }
 
 .dh-command__input::placeholder {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-command__input:focus {
@@ -120,22 +127,23 @@
   gap: var(--dh-space-3);
   margin: 0;
   padding: var(--dh-space-2) var(--dh-space-4);
-  font-size: var(--dh-font-size-xs);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  border-bottom: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-command__feedback[data-tone="pending"] {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-command__feedback[data-tone="success"] {
-  color: var(--dh-color-success-text);
-  background: var(--dh-color-success-surface);
+  color: var(--md-sys-color-on-success-container);
+  background: var(--md-sys-color-success-container);
 }
 
 .dh-command__feedback[data-tone="error"] {
-  color: var(--dh-color-danger-text);
-  background: var(--dh-color-danger-surface);
+  color: var(--md-sys-color-on-error-container);
+  background: var(--md-sys-color-error-container);
 }
 
 .dh-command__feedback-text {
@@ -153,14 +161,14 @@
 .dh-command__partial {
   margin: 0;
   padding: var(--dh-space-4);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-command__partial {
-  color: var(--dh-color-warning-text);
-  background: var(--dh-color-warning-surface);
-  border-radius: var(--dh-radius-sm);
+  color: var(--md-sys-color-on-warning-container);
+  background: var(--md-sys-color-warning-container);
+  border-radius: var(--md-sys-shape-corner-small);
   margin-bottom: var(--dh-space-2);
 }
 
@@ -174,20 +182,20 @@
   gap: var(--dh-space-2);
   margin: 0;
   padding: var(--dh-space-2) var(--dh-space-3);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-command__groupcount {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-command__option {
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .dh-command__optionbtn,
@@ -204,9 +212,9 @@
   text-decoration: none;
   background: transparent;
   border: 0;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
-  font-family: var(--dh-font-sans);
+  font-family: var(--md-ref-typeface-plain);
 }
 
 /* The disabled option is a non-interactive row (no button/link semantics). */
@@ -215,8 +223,8 @@
 }
 
 .dh-command__option[data-active="true"] {
-  background: var(--dh-color-accent-surface);
-  outline: var(--dh-border-width-thin) solid var(--dh-color-accent);
+  background: var(--md-sys-color-primary-container);
+  outline: var(--dh-border-width-thin) solid var(--md-sys-color-primary);
   outline-offset: calc(-1 * var(--dh-border-width-thin));
 }
 
@@ -232,11 +240,11 @@
 .dh-command__optionunavailable {
   flex: 0 0 auto;
   padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
@@ -255,17 +263,17 @@
 }
 
 .dh-command__optiontitle {
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dh-command__optionsubtitle {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-xs);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -274,28 +282,28 @@
 .dh-command__optiontype {
   flex: 0 0 auto;
   padding-left: var(--dh-space-2);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-2xs);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
   letter-spacing: 0.03em;
 }
 
 .dh-command__optionshortcut {
   flex: 0 0 auto;
   padding: 0 var(--dh-space-1);
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-xs);
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-2xs);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
 }
 
 .dh-command__mark,
 .dh-command .dh-search__mark {
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
-  font-weight: var(--dh-font-weight-semibold);
-  border-radius: var(--dh-radius-xs);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
+  font-weight: 500;
+  border-radius: var(--md-sys-shape-corner-extra-small);
   padding: 0 0.1em;
 }
 
@@ -305,9 +313,10 @@
   justify-content: space-between;
   gap: var(--dh-space-3);
   padding: var(--dh-space-2) var(--dh-space-4);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-2xs);
+  border-top: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
 }
 
 .dh-command__hint {
@@ -321,17 +330,17 @@
   min-height: var(--dh-touch-target-min);
   min-width: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-3);
-  color: var(--dh-color-on-accent);
-  background: var(--dh-color-accent);
+  color: var(--md-sys-color-on-primary);
+  background: var(--md-sys-color-primary);
   border: 0;
-  border-radius: var(--dh-radius-sm);
-  font-weight: var(--dh-font-weight-medium);
-  font-size: var(--dh-font-size-2xs);
+  border-radius: var(--md-sys-shape-corner-small);
+  font-weight: 500;
+  font-size: var(--md-sys-typescale-label-small-size);
   cursor: pointer;
 }
 
 .dh-command__retry:hover {
-  background: var(--dh-color-accent-hover);
+  background: var(--md-sys-color-primary);
 }
 
 @keyframes dh-command-fade {
@@ -371,7 +380,7 @@
 @media (prefers-reduced-motion: reduce) {
   .dh-command__scrim,
   .dh-command__panel {
-    animation-duration: var(--dh-duration-instant);
+    animation-duration: var(--md-sys-motion-duration-none);
   }
 }
 
@@ -392,8 +401,8 @@
 
 .dh-keyboard-help__intro {
   margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-keyboard-help__group {
@@ -404,8 +413,8 @@
 
 .dh-keyboard-help__group-title {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-keyboard-help__list {
@@ -435,15 +444,15 @@
   align-items: center;
   min-height: 1.5rem;
   padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-sunken);
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-sunken);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-keyboard-help__desc {
   margin: 0;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
 }

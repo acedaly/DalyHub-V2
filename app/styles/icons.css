@@ -25,7 +25,7 @@
 .dh-entity-icon--badge {
   inline-size: 1.75rem;
   block-size: 1.75rem;
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   background: color-mix(in srgb, currentColor 12%, transparent);
   border: var(--dh-border-width-thin) solid
     color-mix(in srgb, currentColor 26%, transparent);

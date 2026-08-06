@@ -16,7 +16,7 @@
   gap: var(--dh-space-5);
   min-width: 0;
   max-width: var(--dh-width-content);
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   /* Full-page records mount directly into the unpadded pane, so without this the
    * record sits flush against the sidebar border and the top of the canvas. This
    * gives the record deliberate breathing room from the global left navigation and
@@ -51,8 +51,8 @@
   gap: var(--dh-space-1) var(--dh-space-2);
   margin: 0;
   padding: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /*
@@ -71,22 +71,22 @@
 .record-breadcrumb li + li::before {
   content: "/";
   margin-inline-end: var(--dh-space-2);
-  color: var(--dh-color-border-strong);
+  color: var(--md-sys-color-outline);
 }
 
 .record-breadcrumb a {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
 }
 
 .record-breadcrumb a:hover {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   text-decoration: underline;
 }
 
 .record-breadcrumb [aria-current="page"] {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
 }
 
 .record-header__bar {
@@ -110,15 +110,15 @@
   display: inline-flex;
   align-items: center;
   gap: var(--dh-space-1);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .record-type__icon {
   display: inline-flex;
   align-items: center;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 .record-header__titlerow {
@@ -136,10 +136,10 @@
  */
 .record-title {
   margin: 0;
-  font-size: var(--dh-font-size-2xl);
-  line-height: var(--dh-line-height-tight);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 500;
   /* Long titles wrap and break rather than force the page wider. */
   min-width: 0;
   overflow-wrap: anywhere;
@@ -152,94 +152,94 @@
   align-items: center;
   gap: var(--dh-space-1);
   padding: var(--dh-space-px) var(--dh-space-2);
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .record-status__dot {
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-text-muted);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-on-surface-variant);
   flex: none;
 }
 
 .record-status[data-tone="accent"] {
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
-  border-color: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary-container);
 }
 .record-status[data-tone="accent"] .record-status__dot {
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
 }
 
 .record-status[data-tone="success"] {
-  background: var(--dh-color-success-surface);
-  color: var(--dh-color-success-text);
-  border-color: var(--dh-color-success-surface);
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+  border-color: var(--md-sys-color-success-container);
 }
 .record-status[data-tone="success"] .record-status__dot {
-  background: var(--dh-color-success);
+  background: var(--md-sys-color-success);
 }
 
 .record-status[data-tone="warning"] {
-  background: var(--dh-color-warning-surface);
-  color: var(--dh-color-warning-text);
-  border-color: var(--dh-color-warning-surface);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  border-color: var(--md-sys-color-warning-container);
 }
 .record-status[data-tone="warning"] .record-status__dot {
-  background: var(--dh-color-warning);
+  background: var(--md-sys-color-warning);
 }
 
 .record-status[data-tone="danger"] {
-  background: var(--dh-color-danger-surface);
-  color: var(--dh-color-danger-text);
-  border-color: var(--dh-color-danger-surface);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+  border-color: var(--md-sys-color-error-container);
 }
 .record-status[data-tone="danger"] .record-status__dot {
-  background: var(--dh-color-danger);
+  background: var(--md-sys-color-error);
 }
 
 .record-status[data-tone="info"] {
-  background: var(--dh-color-info-surface);
-  color: var(--dh-color-info-text);
-  border-color: var(--dh-color-info-surface);
+  background: var(--md-sys-color-info-container);
+  color: var(--md-sys-color-on-info-container);
+  border-color: var(--md-sys-color-info-container);
 }
 .record-status[data-tone="info"] .record-status__dot {
-  background: var(--dh-color-info);
+  background: var(--md-sys-color-info);
 }
 
 /* THEME-01 lifecycle tones — completed / waiting / on-hold carry their own tokens
  * rather than borrowing success / warning / neutral, so a theme can say "paused"
  * without changing what a real warning looks like. */
 .record-status[data-tone="completed"] {
-  background: var(--dh-color-state-completed-surface);
-  color: var(--dh-color-state-completed-text);
-  border-color: var(--dh-color-state-completed-surface);
+  background: var(--md-sys-color-state-completed-container);
+  color: var(--md-sys-color-on-state-completed-container);
+  border-color: var(--md-sys-color-state-completed-container);
 }
 .record-status[data-tone="completed"] .record-status__dot {
-  background: var(--dh-color-state-completed);
+  background: var(--md-sys-color-state-completed);
 }
 .record-status[data-tone="waiting"] {
-  background: var(--dh-color-state-waiting-surface);
-  color: var(--dh-color-state-waiting-text);
-  border-color: var(--dh-color-state-waiting-surface);
+  background: var(--md-sys-color-state-waiting-container);
+  color: var(--md-sys-color-on-state-waiting-container);
+  border-color: var(--md-sys-color-state-waiting-container);
 }
 .record-status[data-tone="waiting"] .record-status__dot {
-  background: var(--dh-color-state-waiting);
+  background: var(--md-sys-color-state-waiting);
 }
 .record-status[data-tone="on-hold"] {
-  background: var(--dh-color-state-on-hold-surface);
-  color: var(--dh-color-state-on-hold-text);
-  border-color: var(--dh-color-state-on-hold-surface);
+  background: var(--md-sys-color-state-on-hold-container);
+  color: var(--md-sys-color-on-state-on-hold-container);
+  border-color: var(--md-sys-color-state-on-hold-container);
 }
 .record-status[data-tone="on-hold"] .record-status__dot {
-  background: var(--dh-color-state-on-hold);
+  background: var(--md-sys-color-state-on-hold);
 }
 
 /* Actions: wrap onto their own line on narrow containers rather than disappear. */
@@ -258,26 +258,28 @@
   gap: var(--dh-space-2);
   min-height: var(--dh-control-height-md);
   padding: 0 var(--dh-space-3);
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   border: var(--dh-border-width-thin) solid transparent;
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-tight);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background-color var(--dh-duration-fast) var(--dh-ease-standard),
-    border-color var(--dh-duration-fast) var(--dh-ease-standard);
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 .record-action--primary {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
 }
 .record-action--primary:hover {
-  background: var(--dh-color-accent-hover);
+  background: var(--md-sys-color-primary);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -286,23 +288,31 @@
   }
 }
 .record-action--primary:active {
-  background: var(--dh-color-accent-active);
+  background: var(--md-sys-color-primary);
 }
 
 .record-action--secondary {
-  background: var(--dh-color-secondary);
-  color: var(--dh-color-text);
-  border-color: var(--dh-color-border);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-surface);
+  border-color: var(--md-sys-color-outline-variant);
 }
 .record-action--secondary:hover {
-  background: var(--dh-color-secondary-hover);
+  background: var(--md-sys-color-secondary-container);
 }
 
 .record-action:disabled,
 .record-action[aria-disabled="true"] {
-  background: var(--dh-color-disabled-surface);
-  color: var(--dh-color-disabled-text);
-  border-color: var(--dh-color-disabled-border);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
   cursor: not-allowed;
 }
 
@@ -321,17 +331,17 @@
   display: inline-flex;
   align-items: baseline;
   gap: var(--dh-space-1);
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
   min-width: 0;
 }
 
 .record-meta-chip__label {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .record-meta-chip__value {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
@@ -352,15 +362,15 @@
   flex-direction: column;
   gap: var(--dh-space-4);
   padding: var(--dh-space-5);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
   min-width: 0;
 }
 
 .record-summary__description {
-  color: var(--dh-color-text-secondary);
-  line-height: var(--dh-line-height-relaxed);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.65;
   max-width: var(--dh-width-prose);
   overflow-wrap: anywhere;
 }
@@ -390,15 +400,15 @@
  * shouting.
  */
 .record-summary__meta-item dt {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-regular);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .record-summary__meta-item dd {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
@@ -419,7 +429,8 @@
   display: flex;
   align-items: stretch;
   gap: var(--dh-space-1);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-bottom: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   min-width: 0;
 }
 
@@ -454,28 +465,29 @@
   border-bottom: var(--dh-border-width-thick) solid transparent;
   margin-bottom: calc(-1 * var(--dh-border-width-thin));
   background: none;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .record-tab:hover {
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
 }
 
 /* Active tab: weight change + underline bar carry the state without colour. */
 .record-tab[data-active="true"] {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-semibold);
-  border-bottom-color: var(--dh-color-accent);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+  border-bottom-color: var(--md-sys-color-primary);
 }
 
 .record-tab[data-disabled="true"] {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -485,11 +497,11 @@
   justify-content: center;
   min-width: 1.25rem;
   padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-sunken);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
 }
 
 /* The active tab panel and the no-tabs content region are the record's main
@@ -508,13 +520,13 @@
 .record-layout__content {
   min-width: 0;
   padding: var(--dh-space-5);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 .record-tabs__panel:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -540,11 +552,11 @@
 
 .record-content__error {
   padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-danger-surface);
-  border-left: var(--dh-border-width-thick) solid var(--dh-color-danger);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-danger-surface);
-  color: var(--dh-color-danger-text);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-error-container);
+  border-left: var(--dh-border-width-thick) solid var(--md-sys-color-error);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .record-content__error-message {
@@ -554,8 +566,8 @@
 .record-content__empty {
   padding: var(--dh-space-8) var(--dh-space-4);
   text-align: center;
-  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border: var(--dh-border-width-thin) dashed var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .record-content__loading {
@@ -572,16 +584,16 @@
 
 .record-skeleton__line {
   height: 0.75rem;
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   background: linear-gradient(
     90deg,
-    var(--dh-color-surface-sunken) 0%,
-    var(--dh-color-hover-surface) 50%,
-    var(--dh-color-surface-sunken) 100%
+    var(--md-app-color-surface-sunken) 0%,
+    color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent) 50%,
+    var(--md-app-color-surface-sunken) 100%
   );
   background-size: 200% 100%;
-  animation: record-skeleton-shimmer var(--dh-duration-slow) linear infinite
-    alternate;
+  animation: record-skeleton-shimmer var(--md-sys-motion-duration-long2) linear
+    infinite alternate;
 }
 
 .record-skeleton__line--title {
@@ -654,7 +666,7 @@
   /* Long titles WRAP (never truncate — a record's name is essential) but do not
    * push the actions off-screen, because the actions already wrap below. */
   .record-header__title {
-    font-size: var(--dh-font-size-lg);
+    font-size: var(--md-sys-typescale-title-medium-size);
     overflow-wrap: anywhere;
   }
 
@@ -662,7 +674,7 @@
    * fixed-width key/value table. */
   .record-header__meta {
     gap: var(--dh-space-1) var(--dh-space-3);
-    font-size: var(--dh-font-size-xs);
+    font-size: var(--md-sys-typescale-label-medium-size);
   }
 
   /* An empty metadata row must not reserve vertical space on a phone. */
@@ -680,7 +692,7 @@
    * the record. */
   .record-tab {
     padding: 0 var(--dh-space-2);
-    font-size: var(--dh-font-size-sm);
+    font-size: var(--md-sys-typescale-body-small-size);
   }
 }
 
@@ -714,14 +726,14 @@
 /* A section's eyebrow label. Restrained, uppercase, never the record heading. */
 .dh-record-section__label {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Calm supporting/absent-state prose inside a record section. */
 .dh-record-muted {
   margin: 0;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }

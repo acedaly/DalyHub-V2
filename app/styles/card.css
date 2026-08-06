@@ -1,5 +1,11 @@
 /*
- * DS-04 — the Shared Card, expressed entirely in DS-01 tokens.
+ * M3-01 — the Shared Card, as an M3 ELEVATED CARD.
+ *
+ * `--md-app-color-surface-card` at `corner-large` with elevation 1, and no
+ * border: M3 separates a card from its page with tone and shadow, and a card
+ * that also draws an outline reads as a bordered box sitting on a page rather
+ * than as a surface lifted off it. An INTERACTIVE card additionally grows the
+ * shared state layer and lifts to elevation 2 on hover.
  *
  * One card, three presentations (list/board/grid) and two densities
  * (comfortable/compact). Structure/behaviour live in the components; this file
@@ -51,54 +57,62 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-2);
+  gap: var(--dh-space-3);
   min-width: 0;
-  padding: var(--dh-space-3) var(--dh-space-4);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
-  box-shadow: none;
+  padding: var(--dh-space-4) var(--dh-space-6);
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-1);
   transition:
-    border-color var(--dh-duration-fast) var(--dh-ease-standard),
-    background-color var(--dh-duration-fast) var(--dh-ease-standard);
+    box-shadow var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 .dh-card--compact {
-  padding: var(--dh-space-2) var(--dh-space-3);
-  gap: var(--dh-space-1);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  gap: var(--dh-space-2);
 }
 
-.dh-card:hover {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-surface-card);
+/* An interactive card lifts a level; a static one does not move, because
+ * elevation that responds to a pointer is a claim that the surface does
+ * something. */
+.dh-card:hover:has(a, button) {
+  box-shadow: var(--md-sys-elevation-2);
 }
 
-/* Selected state: a clear border/background cue AND the native checked checkbox —
+/* Selected state: the primary container fill AND the native checked checkbox —
  * never colour alone. */
 .dh-card[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
 }
 
 /* Optional entity accent: a restrained left rule keyed to the tone. */
 .dh-card[data-accent="accent"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--md-sys-color-primary);
 }
 .dh-card[data-accent="success"] {
   border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-success);
+    var(--md-sys-color-success);
 }
 .dh-card[data-accent="warning"] {
   border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-warning);
+    var(--md-sys-color-warning);
 }
 .dh-card[data-accent="danger"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-danger);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--md-sys-color-error);
 }
 .dh-card[data-accent="info"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-info);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--md-sys-color-info);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -120,35 +134,39 @@
   min-width: var(--dh-space-6);
   min-height: var(--dh-space-6);
   padding: var(--dh-space-1);
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   background: transparent;
   border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: grab;
   touch-action: none;
 }
 
 .dh-card__reorder-handle:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-card__reorder-handle[data-grabbed="true"] {
-  background: var(--dh-color-accent-surface);
-  border-color: var(--dh-color-accent);
-  color: var(--dh-color-accent-text);
+  background: var(--md-sys-color-primary-container);
+  border-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-primary);
   cursor: grabbing;
 }
 
 .dh-card__reorder-handle:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-card__select-input {
   width: var(--dh-space-5);
   height: var(--dh-space-5);
-  accent-color: var(--dh-color-accent);
+  accent-color: var(--md-sys-color-primary);
   cursor: pointer;
 }
 
@@ -176,14 +194,14 @@
   display: inline-flex;
   align-items: center;
   gap: var(--dh-space-1);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
 }
 
 .dh-card__icon {
   display: inline-flex;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-card__status {
@@ -191,73 +209,73 @@
   align-items: center;
   padding: 0 var(--dh-space-2);
   min-height: var(--dh-space-5);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-pill-neutral-surface);
-  color: var(--dh-color-pill-neutral-text);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
 }
 
 .dh-card__status[data-tone="accent"] {
-  color: var(--dh-color-accent-text);
-  background: var(--dh-color-accent-surface);
+  color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="success"] {
-  color: var(--dh-color-success-text);
-  background: var(--dh-color-success-surface);
+  color: var(--md-sys-color-on-success-container);
+  background: var(--md-sys-color-success-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="warning"] {
-  color: var(--dh-color-warning-text);
-  background: var(--dh-color-warning-surface);
+  color: var(--md-sys-color-on-warning-container);
+  background: var(--md-sys-color-warning-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="danger"] {
-  color: var(--dh-color-danger-text);
-  background: var(--dh-color-danger-surface);
+  color: var(--md-sys-color-on-error-container);
+  background: var(--md-sys-color-error-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="info"] {
-  color: var(--dh-color-info-text);
-  background: var(--dh-color-info-surface);
+  color: var(--md-sys-color-on-info-container);
+  background: var(--md-sys-color-info-container);
   border-color: transparent;
 }
 
 /* THEME-01 lifecycle tones — their own tokens, not borrowed feedback colours. */
 .dh-card__status[data-tone="completed"] {
-  color: var(--dh-color-state-completed-text);
-  background: var(--dh-color-state-completed-surface);
+  color: var(--md-sys-color-on-state-completed-container);
+  background: var(--md-sys-color-state-completed-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="waiting"] {
-  color: var(--dh-color-state-waiting-text);
-  background: var(--dh-color-state-waiting-surface);
+  color: var(--md-sys-color-on-state-waiting-container);
+  background: var(--md-sys-color-state-waiting-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="on-hold"] {
-  color: var(--dh-color-state-on-hold-text);
-  background: var(--dh-color-state-on-hold-surface);
+  color: var(--md-sys-color-on-state-on-hold-container);
+  background: var(--md-sys-color-state-on-hold-container);
   border-color: transparent;
 }
 
 .dh-card__title {
   margin: 0;
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .dh-card--compact .dh-card__title {
-  font-size: var(--dh-font-size-base);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .dh-card__open {
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   text-decoration: none;
   background: none;
   border: none;
@@ -278,26 +296,26 @@
 
 .dh-card__subtitle {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-snug);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .dh-card__context {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-card__context-link {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 .dh-card--compact .dh-card__subtitle,
 .dh-card--compact .dh-card__context {
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 /* Progress */
@@ -313,22 +331,23 @@
   flex: 1 1 auto;
   min-width: 0;
   height: var(--dh-space-2);
-  background: var(--dh-color-surface-sunken);
-  border-radius: var(--dh-radius-full);
+  background: var(--md-app-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-full);
   overflow: hidden;
 }
 
 .dh-card__progress-fill {
   height: 100%;
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
   border-radius: inherit;
-  transition: inline-size var(--dh-duration-base) var(--dh-ease-standard);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-card__progress-text {
   flex: 0 0 auto;
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   font-variant-numeric: tabular-nums;
 }
 
@@ -344,26 +363,26 @@
 }
 
 .dh-card__meta {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .dh-card__meta-label {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-card__date {
   margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 .dh-card__date[data-tone="warning"] {
-  color: var(--dh-color-warning-text);
+  color: var(--md-sys-color-on-warning-container);
 }
 .dh-card__date[data-tone="danger"] {
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -383,7 +402,8 @@
 @media (hover: hover) and (pointer: fine) {
   .dh-card__actions {
     opacity: 0;
-    transition: opacity var(--dh-duration-fast) var(--dh-ease-standard);
+    transition: opacity var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
   }
   .dh-card:hover .dh-card__actions,
   .dh-card:focus-within .dh-card__actions {
@@ -397,28 +417,40 @@
   gap: var(--dh-space-1);
   padding: var(--dh-space-1) var(--dh-space-2);
   min-height: var(--dh-control-height-sm);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .dh-card__action:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
-  border-color: var(--dh-color-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
+  border-color: var(--md-sys-color-outline);
 }
 
 .dh-card__action:disabled,
 .dh-card__action[aria-busy="true"] {
-  color: var(--dh-color-disabled-text);
-  background: var(--dh-color-disabled-surface);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
   cursor: not-allowed;
 }
 
@@ -426,7 +458,7 @@
  * to sit in the card's action row. Its appearance is otherwise inherited from
  * overflow-menu.css, so a card menu and a record menu look identical. */
 .dh-card__action--overflow {
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 .dh-card__action-icon {
@@ -434,9 +466,9 @@
 }
 
 .dh-card__action-shortcut {
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-muted);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -551,8 +583,8 @@
   }
 
   .dh-card__meta[data-priority="low"] {
-    font-size: var(--dh-font-size-2xs);
-    color: var(--dh-color-text-muted);
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: var(--md-sys-color-on-surface-variant);
   }
 
   /* High-priority signals sort ahead of supporting detail without the module
@@ -589,9 +621,9 @@
 
 /* The group: one in-flow card, hairline border, no shadow. */
 [data-density="collection"] .dh-card-collection--list {
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  background: var(--md-app-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
   padding-block: var(--dh-density-card-padding-block);
   padding-inline: var(--dh-density-card-padding-inline);
   gap: 0;
@@ -630,7 +662,7 @@
   > .dh-card-collection__item
   + .dh-card-collection__item {
   border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+    var(--md-sys-color-outline-variant);
 }
 
 /*
@@ -647,7 +679,7 @@
   padding-block: var(--dh-density-row-padding-block);
   padding-inline: 0;
   min-block-size: var(--dh-density-row-min-height);
-  background: var(--dh-color-surface-card);
+  background: var(--md-app-color-surface-card);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -658,11 +690,16 @@
  * padding so it reads as a full-width row rather than a floating strip. */
 [data-density="collection"] .dh-card-collection--list .dh-card:hover {
   border-color: transparent;
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
   box-shadow:
     calc(-1 * var(--dh-density-card-padding-inline)) 0 0
-      var(--dh-color-hover-surface),
-    var(--dh-density-card-padding-inline) 0 0 var(--dh-color-hover-surface);
+      color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent),
+    var(--dh-density-card-padding-inline) 0 0
+      color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
 }
 
 /* Selection stays a surface + the native checked control, never colour alone. */
@@ -670,11 +707,12 @@
   .dh-card-collection--list
   .dh-card[data-selected="true"] {
   border-color: transparent;
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
   box-shadow:
     calc(-1 * var(--dh-density-card-padding-inline)) 0 0
-      var(--dh-color-accent-surface),
-    var(--dh-density-card-padding-inline) 0 0 var(--dh-color-accent-surface);
+      var(--md-sys-color-primary-container),
+    var(--dh-density-card-padding-inline) 0 0
+      var(--md-sys-color-primary-container);
 }
 
 /* The swipe wrapper owns elevation and shape on a standalone card; inside a row
@@ -781,9 +819,9 @@
   flex: 1 1 auto;
   min-width: 0;
   min-inline-size: 12ch;
-  font-size: var(--dh-font-size-base);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 [data-density="collection"] .dh-card__status {
@@ -815,9 +853,9 @@
 [data-density="collection"] .dh-card__context,
 [data-density="collection"] .dh-card__date,
 [data-density="collection"] .dh-card__meta {
-  font-size: var(--dh-font-size-xs);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 [data-density="collection"] .dh-card__metadata {
@@ -839,11 +877,11 @@
 
 [data-density="collection"] .dh-card__progress-track {
   block-size: 6px;
-  background: var(--dh-color-progress-track);
+  background: var(--md-sys-color-secondary-container);
 }
 
 [data-density="collection"] .dh-card__progress-fill {
-  background: var(--dh-color-progress-fill);
+  background: var(--md-sys-color-primary);
 }
 
 /* Actions stay visible on touch and reveal on hover/focus on a pointer device —
@@ -860,15 +898,15 @@
  */
 [data-density="collection"] .dh-card-collection--grid .dh-card,
 [data-density="collection"] .dh-card-collection--board .dh-card {
-  background: var(--dh-color-surface-card);
-  border-radius: var(--dh-radius-card);
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--md-sys-shape-corner-large);
   box-shadow: none;
 }
 
 [data-density="collection"] .dh-card-collection--grid .dh-card:hover,
 [data-density="collection"] .dh-card-collection--board .dh-card:hover {
   box-shadow: none;
-  border-color: var(--dh-color-border-strong);
+  border-color: var(--md-sys-color-outline);
 }
 
 /*
@@ -933,7 +971,7 @@
 .dh-card-swipe {
   position: relative;
   min-width: 0;
-  border-radius: var(--dh-radius-card);
+  border-radius: var(--md-sys-shape-corner-large);
   overflow: hidden;
   isolation: isolate;
   box-shadow: none;
@@ -985,7 +1023,8 @@
   /* `--swipe-reveal` is a runtime state variable (set by the swipe hook), not a
    * DS-01 design token — deliberately outside the `--dh-*` token namespace. */
   transform: translateX(calc(-1 * var(--swipe-reveal, 0px)));
-  transition: transform var(--dh-duration-base) var(--dh-ease-standard);
+  transition: transform var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-card-swipe > .dh-card[data-swipe-dragging="true"] {
@@ -1002,7 +1041,7 @@
   z-index: 0;
   display: flex;
   align-items: stretch;
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-card__swipe-action {
@@ -1015,13 +1054,14 @@
   min-block-size: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-3);
   border: none;
-  border-inline-start: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-inline-start: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   background: transparent;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   font: inherit;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
@@ -1033,12 +1073,12 @@
 }
 
 .dh-card__swipe-action:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-card__swipe-action-icon {
   display: inline-flex;
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
   line-height: 0;
 }

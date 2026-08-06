@@ -1,8 +1,13 @@
 /**
- * The shared, restrained segmented state filter (`~/shared/segmented-filter`).
+ * M3-01 — the shared state filter, as M3 SEGMENTED BUTTONS.
  *
- * Originally styled inline in `projects.css` (PROJ-01) and promoted here
- * unchanged (NOTES-01C) when Notes needed the identical Active/Deleted
+ * One 40px outlined container with fully-rounded ends and 1px `outline`
+ * dividers between the segments — not a row of separate pills in a tray. The
+ * selected segment fills with `secondary-container`, which the contrast tests
+ * hold at 4.5:1 against its own label.
+ *
+ * The component is shared (`~/shared/segmented-filter`) and was promoted here
+ * unchanged from Projects when Notes needed the identical Active/Deleted
  * pattern — one shared component, one shared stylesheet, never forked per
  * module.
  */
@@ -10,53 +15,81 @@
 .dh-segmented {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1);
   max-inline-size: 100%;
-  padding: var(--dh-space-1);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  overflow: hidden;
 }
 
 .dh-segmented__option {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--dh-space-2);
   min-height: var(--dh-touch-target-min);
   min-inline-size: 0;
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border-radius: var(--dh-radius-sm);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  padding-inline: var(--dh-space-3);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
   text-align: center;
   text-decoration: none;
   overflow-wrap: anywhere;
-  transition:
-    background-color var(--dh-duration-fast) var(--dh-ease-standard),
-    color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
+}
+
+/* The divider between segments is a border on the segment itself, so a wrapped
+ * row never grows a stray leading rule. */
+.dh-segmented__option + .dh-segmented__option {
+  border-inline-start: var(--dh-border-width-thin) solid
+    var(--md-sys-color-outline);
 }
 
 .dh-segmented__option:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
+/*
+ * The selected segment. M3 puts a leading CHECK glyph here as well as the fill,
+ * so selection is a shape rather than only a tone — which is what keeps the
+ * control readable under forced colours and to a colour-blind owner
+ * (AGENTS.md §15). The glyph is drawn in CSS because the segments are links and
+ * their labels come from the shared component.
+ */
 .dh-segmented__option[aria-current="true"] {
-  color: var(--dh-color-on-accent);
-  background: var(--dh-color-accent);
+  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-secondary-container);
+}
+
+.dh-segmented__option[aria-current="true"]::before {
+  content: "";
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  flex: none;
+  background: currentColor;
+  /* The Material Symbols `check` glyph, as a mask so it takes `currentColor`. */
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+@media (forced-colors: active) {
+  .dh-segmented__option[aria-current="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dh-segmented__option {
     transition: none;
-  }
-}
-
-@media (max-width: 30rem) {
-  .dh-segmented {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    inline-size: 100%;
   }
 }
