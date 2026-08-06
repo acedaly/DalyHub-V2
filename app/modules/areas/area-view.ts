@@ -149,8 +149,11 @@ export type AreaCardData = {
    * audit found ("No goals yet · No Projects yet · No tasks yet").
    */
   readonly hasActiveWork: boolean;
-  /** The one-line work-state summary — never three absence messages. */
-  readonly workSummary: string;
+  /**
+   * The one-line work-state summary — never three absence messages, and `null`
+   * when the open-task metric beside it is already the whole story.
+   */
+  readonly workSummary: string | null;
   readonly updatedLabel: string | null;
 };
 
@@ -372,18 +375,26 @@ function plural(count: number, one: string, many: string): string {
 }
 
 /**
- * The one-line work-state summary.
+ * The one-line work-state summary — the STRUCTURE in the Area (its Projects and
+ * Goals), never its task count.
  *
  * The audit found four of nine Area rows repeating "Goals: No goals yet ·
  * Projects: No Projects yet · Tasks: No tasks yet" — three absence messages
  * saying one thing. An Area with nothing in flight now says that once, and an
  * Area with work names only the dimensions it actually has.
+ *
+ * Tasks are deliberately absent here. The card already states them as its
+ * metric, and the first Gate D capture caught the consequence of not drawing
+ * that line: an Area holding one loose task and no structure read
+ * "1 open task" as its summary AND "1 open task" as its metric, one above the
+ * other. `null` means "the metric already said it" — an Area with only loose
+ * tasks is not idle, so it must not fall through to "No active work" either.
  */
 export function areaWorkSummary(counts: {
   readonly activeProjects: number;
   readonly openGoals: number;
   readonly openTasks: number;
-}): string {
+}): string | null {
   const parts: string[] = [];
   if (counts.activeProjects > 0) {
     parts.push(
@@ -398,13 +409,7 @@ export function areaWorkSummary(counts: {
   if (parts.length > 0) {
     return parts.join(" · ");
   }
-  // Tasks parked directly in an Area, with no Project or Goal around them, are
-  // still active work — saying "No active work" over a pile of open tasks
-  // would be a lie the owner can see through.
-  if (counts.openTasks > 0) {
-    return `${counts.openTasks} open ${plural(counts.openTasks, "task", "tasks")}`;
-  }
-  return "No active work";
+  return counts.openTasks > 0 ? null : "No active work";
 }
 
 export function toAreaCardData(item: SerializedAreaListItem): AreaCardData {

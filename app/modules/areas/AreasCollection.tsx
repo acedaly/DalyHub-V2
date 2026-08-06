@@ -140,9 +140,7 @@ function AreaEntityCard({ card }: { readonly card: AreaCardData }) {
       }
       meta={
         <>
-          {card.hasActiveWork ? null : (
-            <span>Add a Project or a Goal to get this Area moving</span>
-          )}
+          {card.hasActiveWork ? null : <span>Ready for its first Project</span>}
           {card.updatedLabel ? <span>{card.updatedLabel}</span> : null}
         </>
       }
