@@ -182,6 +182,24 @@ There are no density presets. Density is a typescale choice per surface, made wh
 
 ---
 
+## What it looks like
+
+Screenshots of the shipped surfaces in **both appearances**, captured by
+[`e2e/m3-screenshots.spec.ts`](../../e2e/m3-screenshots.spec.ts):
+[`docs/design/assets/m3-2026-08/`](assets/m3-2026-08/).
+
+The pass is opt-in, like every other screenshot pass, so the ordinary gate
+neither slows down nor writes into the repository:
+
+```sh
+CAPTURE_SCREENSHOTS=1 pnpm exec playwright test e2e/m3-screenshots.spec.ts
+```
+
+Appearance is **emulated** rather than stored, because that is where the choice
+lives now — there is no preference to set.
+
+---
+
 ## Dashboard patterns (Today)
 
 The Today landing is the product's one dashboard surface. Its rules:
