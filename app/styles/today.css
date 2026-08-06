@@ -2064,3 +2064,156 @@ a.dh-hero__stat:hover {
     justify-content: center;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* M3-01 — the dashboard summary cards                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Two figure cards: the day's tasks as a ring with a legend and a chip row, and
+ * a single 0-100 score for the day.
+ *
+ * Both are built from the SHARED `ProgressRing` primitive, which paints with the
+ * same `secondary-container` track and `primary` arc as the linear progress bar
+ * in `progress.css` — so a ring and a bar on the same screen are the same
+ * indicator in two shapes rather than two indicators that resemble each other.
+ *
+ * Every figure on both cards is stated in TEXT beside it, and each ring carries
+ * its own generated `role="img"` sentence, so nothing here depends on colour or
+ * on seeing the shape (AGENTS.md §15).
+ */
+
+.dh-today-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-5);
+}
+
+.dh-today-summary__ring {
+  flex: none;
+}
+
+/* The centred figure. `headline-medium` for the number and `body-small` for the
+ * denominator, so the pair reads as one statement rather than as two labels. */
+.dh-today-summary__figure {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-summary__of {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-today-summary__legend {
+  flex: 1 1 8rem;
+  min-inline-size: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-today-summary__legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+}
+
+/* The swatch is REINFORCEMENT: every row states its bucket and its count in
+ * words beside it, so the dot adds recognition rather than meaning. */
+.dh-today-summary__swatch {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: var(--md-sys-shape-corner-full);
+}
+
+.dh-today-summary__swatch[data-tone="todo"] {
+  background: var(--md-sys-color-outline);
+}
+
+.dh-today-summary__swatch[data-tone="waiting"] {
+  background: var(--md-sys-color-state-waiting);
+}
+
+.dh-today-summary__swatch[data-tone="done"] {
+  background: var(--md-sys-color-primary);
+}
+
+.dh-today-summary__legend-label {
+  flex: 1;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-today-summary__legend-count {
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-summary__chips {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+/* A chip's count sits inside the chip, in tabular figures so a row of them does
+ * not jitter as the numbers change. */
+.dh-today-summary__chip-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.dh-today-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-5);
+}
+
+.dh-today-score__figure {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-score__body {
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-today-score__line {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-sys-color-on-surface);
+}
+
+/* The footnote that says what the number is made of. It is not decoration: a
+ * score nobody can explain is a score nobody should trust. */
+.dh-today-score__note {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}

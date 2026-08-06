@@ -144,3 +144,110 @@ export function briefFocusLine(input: InsightsInput): string {
   }
   return "A clear day. Capture anything on your mind below.";
 }
+
+/* -------------------------------------------------------------------------- */
+/* M3-01 — the dashboard summaries                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The task summary a ring can be drawn from: three mutually exclusive buckets
+ * that add up to the whole open-plus-completed-today picture.
+ *
+ * "In progress" is `waiting` — tasks blocked on someone or something else — and
+ * that naming is deliberate rather than loose: DalyHub has no per-task started
+ * flag, so the only honest thing the product can say about a task being underway
+ * is that it is waiting on something. The card labels it in those words.
+ */
+export interface TaskSummary {
+  /** Open and not waiting: planned for today, overdue, or still in the inbox. */
+  readonly toDo: number;
+  /** Open and blocked on someone or something else. */
+  readonly inProgress: number;
+  /** Completed on the owner's today. */
+  readonly done: number;
+  /** Everything above — the denominator the ring is drawn against. */
+  readonly total: number;
+  /** `done / total`, 0 when there is nothing to divide by. */
+  readonly completedFraction: number;
+}
+
+/** Derive the task summary from facts the loader has already read. */
+export function deriveTaskSummary(input: InsightsInput): TaskSummary {
+  const toDo = Math.max(
+    0,
+    input.plannedTodayCount + input.overdueCount + input.inboxCount,
+  );
+  const inProgress = Math.max(0, input.waitingCount);
+  const done = Math.max(0, input.completedTodayCount);
+  const total = toDo + inProgress + done;
+  return {
+    toDo,
+    inProgress,
+    done,
+    total,
+    completedFraction: total === 0 ? 0 : done / total,
+  };
+}
+
+/**
+ * A 0–100 score for the day, from two facts and nothing else.
+ *
+ * THE FORMULA, stated here because a number on a dashboard that nobody can
+ * explain is a number nobody should trust:
+ *
+ *     completion = done / (done + open)      the share of the day's work finished
+ *     penalty    = min(overdue, 5) / 5       how far the plan has slipped, capped
+ *     score      = round(100 * completion * (1 - 0.4 * penalty))
+ *
+ * Three properties are deliberate:
+ *
+ *   - It is bounded and it saturates. Five overdue tasks and fifty overdue tasks
+ *     score the same, because past five the number stops being information and
+ *     starts being a rebuke (AGENTS.md §2.4, the anti-guilt rule).
+ *   - The penalty is a 40% ceiling, not a wipe-out. A day with real progress and
+ *     some slippage still reads as a day with real progress.
+ *   - A day with nothing to do scores 0 rather than 100, and the card renders its
+ *     empty state instead of the ring — a perfect score for having no tasks would
+ *     be a manufactured achievement.
+ *
+ * It counts nothing else. No streaks, no percentile, no comparison to other
+ * people: DalyHub has one user and nobody to be measured against.
+ */
+export const PRODUCTIVITY_OVERDUE_CAP = 5;
+export const PRODUCTIVITY_OVERDUE_WEIGHT = 0.4;
+
+export function deriveProductivityScore(input: InsightsInput): number {
+  const done = Math.max(0, input.completedTodayCount);
+  const open = Math.max(
+    0,
+    input.plannedTodayCount + input.overdueCount + input.waitingCount,
+  );
+  const considered = done + open;
+  if (considered === 0) {
+    return 0;
+  }
+  const completion = done / considered;
+  const penalty =
+    Math.min(Math.max(0, input.overdueCount), PRODUCTIVITY_OVERDUE_CAP) /
+    PRODUCTIVITY_OVERDUE_CAP;
+  return Math.round(
+    100 * completion * (1 - PRODUCTIVITY_OVERDUE_WEIGHT * penalty),
+  );
+}
+
+/**
+ * One short, honest line for the score. It never congratulates a bad day and
+ * never scolds a slow one; it says what the number means and stops.
+ */
+export function productivityEncouragement(score: number, done: number): string {
+  if (done === 0) {
+    return "Nothing finished yet today. The first one is the hard one.";
+  }
+  if (score >= 75) {
+    return "A strong day so far. The plan and the work agree.";
+  }
+  if (score >= 40) {
+    return "Steady progress, with some of the plan still open.";
+  }
+  return "More is open than closed today. Worth picking one thing.";
+}

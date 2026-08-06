@@ -100,6 +100,8 @@ import {
   InsightsWidget,
   MeetingsWidget,
   NotesWidget,
+  ProductivityWidget,
+  TaskSummaryWidget,
 } from "./landing/widgets";
 import { TodayWidget } from "./landing/TodayWidget";
 import { useTodayLayout } from "./landing/useTodayLayout";
@@ -1481,6 +1483,14 @@ export function TodayDashboard({
         );
       case "insights":
         return <InsightsWidget signals={insightSignals} />;
+      case "task-summary":
+        return landing ? (
+          <TaskSummaryWidget data={landing.taskSummary} />
+        ) : null;
+      case "productivity":
+        return landing ? (
+          <ProductivityWidget data={landing.productivity} />
+        ) : null;
       case "quick-capture":
         return captureBody;
       default:
@@ -1544,6 +1554,12 @@ export function TodayDashboard({
         return link("/meetings", "All meetings", count > 0);
       case "assets":
         return link("/assets", "All assets", count > 0);
+      case "task-summary":
+        return link(
+          "/tasks",
+          "All tasks",
+          (landing?.taskSummary.total ?? 0) > 0,
+        );
       case "diary":
         return link(
           "/diary",

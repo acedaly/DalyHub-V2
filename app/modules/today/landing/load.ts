@@ -28,8 +28,11 @@ import { ownerCalendarIso } from "~/shared/datetime";
 import {
   briefFocusLine,
   deriveInsights,
+  deriveProductivityScore,
+  deriveTaskSummary,
   greetingFor,
   dayPartForHour,
+  productivityEncouragement,
 } from "./insights";
 import type {
   AreaHealthItem,
@@ -439,6 +442,20 @@ export async function loadTodayLanding(
     goals: { goals },
     meetings,
     insights: { signals: deriveInsights(insightsInput) },
+    taskSummary: {
+      ...deriveTaskSummary(insightsInput),
+      dueTodayCount: facts.plannedTodayCount,
+      overdueCount: facts.overdueCount,
+    },
+    productivity: {
+      score: deriveProductivityScore(insightsInput),
+      completedTodayCount: facts.completedTodayCount,
+      overdueCount: facts.overdueCount,
+      encouragement: productivityEncouragement(
+        deriveProductivityScore(insightsInput),
+        facts.completedTodayCount,
+      ),
+    },
     assets,
   };
 }

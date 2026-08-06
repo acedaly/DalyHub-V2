@@ -11,6 +11,7 @@
 
 import { Link } from "react-router";
 
+import { ProgressRing } from "~/shared/charts";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, type EntityType } from "~/shared/entity";
 
@@ -21,7 +22,9 @@ import type {
   DiaryWidgetData,
   GoalsWidgetData,
   MeetingsWidgetData,
+  ProductivityWidgetData,
   RecentNoteItem,
+  TaskSummaryWidgetData,
 } from "./types";
 import type { InsightSignal } from "./insights";
 
@@ -491,5 +494,152 @@ export function AssetsWidget({ data }: { readonly data: AssetsTodayData }) {
         </p>
       ) : null}
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Task summary                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * M3-01 — the day's tasks as one ring, a legend and a chip row.
+ *
+ * The ring is the shared `ProgressRing` primitive, which carries its own
+ * `role="img"` summary — so the proportion it shows is available as a sentence
+ * to anyone who cannot see it. Everything beside it is TEXT: each legend row
+ * states its bucket and its count in words, and each chip is a link whose label
+ * says what it filters to. Nothing on this card is carried by colour alone
+ * (AGENTS.md §15).
+ *
+ * Every figure comes from `deriveTaskSummary`, a pure function of counts the
+ * loader had already read. There is no second query and no invented metric.
+ */
+export function TaskSummaryWidget({
+  data,
+}: {
+  readonly data: TaskSummaryWidgetData;
+}) {
+  if (data.total === 0) {
+    return (
+      <WidgetEmpty
+        entityType="task"
+        title="No tasks in play"
+        description="Nothing planned, overdue, waiting or finished today."
+        action={
+          <Link className="dh-btn dh-btn--secondary dh-btn--sm" to="/tasks">
+            Go to Tasks
+          </Link>
+        }
+      />
+    );
+  }
+
+  const legend = [
+    { id: "todo", label: "To do", count: data.toDo, tone: "todo" },
+    {
+      id: "in-progress",
+      label: "Waiting",
+      count: data.inProgress,
+      tone: "waiting",
+    },
+    { id: "done", label: "Done", count: data.done, tone: "done" },
+  ] as const;
+
+  return (
+    <div className="dh-today-summary">
+      <div className="dh-today-summary__ring">
+        <ProgressRing
+          value={data.completedFraction}
+          size={112}
+          label={`${data.done} of ${data.total} tasks finished today`}
+        >
+          <span className="dh-today-summary__figure">{data.done}</span>
+          <span className="dh-today-summary__of">of {data.total}</span>
+        </ProgressRing>
+      </div>
+
+      <ul className="dh-today-summary__legend">
+        {legend.map((row) => (
+          <li key={row.id} className="dh-today-summary__legend-row">
+            <span
+              className="dh-today-summary__swatch"
+              data-tone={row.tone}
+              aria-hidden="true"
+            />
+            <span className="dh-today-summary__legend-label">{row.label}</span>
+            <span className="dh-today-summary__legend-count">{row.count}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Assist chips linking to the task views that answer each figure. They are
+          links rather than filters of their own: Tasks already owns those views,
+          and a second filtering vocabulary here is exactly the drift the shared
+          design system exists to prevent. */}
+      <div className="dh-today-summary__chips">
+        <Link className="dh-pill" data-tone="accent" to="/tasks?due=today">
+          Due today
+          <span className="dh-today-summary__chip-count">
+            {data.dueTodayCount}
+          </span>
+        </Link>
+        {data.overdueCount > 0 ? (
+          <Link className="dh-pill" data-tone="danger" to="/tasks?due=overdue">
+            Overdue
+            <span className="dh-today-summary__chip-count">
+              {data.overdueCount}
+            </span>
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Productivity score                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * M3-01 — a 0–100 score for the day, and a footnote saying what it is made of.
+ *
+ * The formula is stated in full in `insights.ts` and summarised on the card
+ * itself, because a number on a dashboard that nobody can explain is a number
+ * nobody should trust. It is computed from exactly two facts — completions and
+ * overdue tasks — and it deliberately carries NO percentile, no comparison and
+ * no streak: DalyHub has one user and nobody to be measured against.
+ */
+export function ProductivityWidget({
+  data,
+}: {
+  readonly data: ProductivityWidgetData;
+}) {
+  if (data.completedTodayCount === 0 && data.overdueCount === 0) {
+    return (
+      <WidgetEmpty
+        entityType="task"
+        title="Nothing to score yet"
+        description="The score appears once there is work finished or overdue today."
+      />
+    );
+  }
+
+  return (
+    <div className="dh-today-score">
+      <ProgressRing
+        value={data.score / 100}
+        size={112}
+        label={`Productivity score ${data.score} out of 100`}
+      >
+        <span className="dh-today-score__figure">{data.score}</span>
+      </ProgressRing>
+      <div className="dh-today-score__body">
+        <p className="dh-today-score__line">{data.encouragement}</p>
+        <p className="dh-today-score__note">
+          Based on tasks completed today, reduced by how far the plan has
+          slipped.
+        </p>
+      </div>
+    </div>
   );
 }

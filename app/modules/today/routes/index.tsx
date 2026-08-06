@@ -41,6 +41,7 @@ import {
   dayPartForHour,
   deriveInsights,
   greetingFor,
+  productivityEncouragement,
 } from "../landing/insights";
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
@@ -134,6 +135,21 @@ function emptyLanding(
       plannedTodayCount: 0,
       overdueCount: 0,
       inboxCount: 0,
+    },
+    taskSummary: {
+      toDo: 0,
+      inProgress: 0,
+      done: 0,
+      total: 0,
+      completedFraction: 0,
+      dueTodayCount: 0,
+      overdueCount: 0,
+    },
+    productivity: {
+      score: 0,
+      completedTodayCount: 0,
+      overdueCount: 0,
+      encouragement: productivityEncouragement(0, 0),
     },
     notes: [],
     diary: { today: [], recent: [], capturedToday: false },
