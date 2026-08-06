@@ -152,6 +152,248 @@ describe("Areas collection — exact aggregates", () => {
     expect(item.rollup.tasks).toMatchObject({ total: 3, completed: 1 });
   });
 
+  /*
+   * ARCHIVED PROJECTS AND THE AREA TASK ROLL-UP.
+   *
+   * Archival is reversible and is NOT soft-deletion (ADR-037 §37.1), but it is
+   * out of the ordinary active-work buckets everywhere else in the product:
+   * `listProjects` excludes archived Projects from "all", and
+   * `activeProjectCount` excludes them too. The Area TASK roll-up did not — it
+   * swept in every task under every aligned Project regardless of archival.
+   *
+   * What that did and did not cause, established by probing the real domain
+   * rather than assumed:
+   *
+   *   - It could NOT make an Area report OPEN tasks from an archived Project.
+   *     Two independent guards stop that state existing at all, and both are
+   *     asserted below: a Project with unfinished tasks cannot be archived
+   *     (`ProjectArchiveBlockedError`), and a task under an archived Project
+   *     cannot be reopened (`SpineParentUnavailableError`).
+   *   - It DID keep an archived Project's COMPLETED tasks in the Area's
+   *     total and completed counts, so an Area whose only Project had been
+   *     put away still carried that Project's finished work in its roll-up.
+   *
+   * The semantics now, and what each case below pins down:
+   *   - Tasks parented DIRECTLY to the Area always count.
+   *   - Tasks under NON-archived Projects count, whatever their workflow
+   *     status (planned, active, on-hold) and whether or not they are complete.
+   *   - Tasks under archived Projects count for NOTHING, and they leave WHOLE
+   *     — completed ones with open ones — so archival can never skew a ratio.
+   *   - Archiving one Project touches nothing else.
+   */
+  it("refuses to archive a Project that still has unfinished tasks", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Guarded" });
+    const project = await s.createProject({
+      title: "Still going",
+      parent: { kind: "area", id: area.id },
+    });
+    await s.createTask({
+      title: "Unfinished",
+      parent: { kind: "project", id: project.id },
+    });
+
+    // The FIRST guard: this is why an Area can never report open tasks that
+    // live inside an archived Project.
+    await expect(
+      makeProjectSettingsRepository(makeContext(WS)).archive(project.id),
+    ).rejects.toThrow(/unfinished tasks/i);
+
+    const item = (await makeAreaRepository(makeContext(WS)).listAreas())
+      .items[0]!;
+    expect(item.rollup.tasks).toMatchObject({ total: 1, completed: 0 });
+    expect(item.activeProjectCount).toBe(1);
+  });
+
+  it("refuses to reopen a task inside an archived Project", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Guarded" });
+    const project = await s.createProject({
+      title: "Put away",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await s.createTask({
+      title: "Done",
+      parent: { kind: "project", id: project.id },
+    });
+    await s.complete(task.id);
+    await makeProjectSettingsRepository(makeContext(WS)).archive(project.id);
+
+    // The SECOND guard: an archived Project is read-only, so a completed task
+    // inside it cannot become open again while it is archived.
+    await expect(s.reopen(task.id)).rejects.toThrow(/archived and read-only/i);
+  });
+
+  it("drops an archived Project's completed tasks out of the Area roll-up", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Wound down" });
+    const project = await s.createProject({
+      title: "Shelved work",
+      parent: { kind: "area", id: area.id },
+    });
+    // Archiving REQUIRES every task to be finished, so this is the only shape
+    // an archived Project can actually have.
+    const done = await s.createTask({
+      title: "Already done",
+      parent: { kind: "project", id: project.id },
+    });
+    const alsoDone = await s.createTask({
+      title: "Also done",
+      parent: { kind: "project", id: project.id },
+    });
+    await s.complete(done.id);
+    await s.complete(alsoDone.id);
+
+    const repo = makeAreaRepository(makeContext(WS));
+    const before = (await repo.listAreas()).items[0]!;
+    expect(before.rollup.tasks).toMatchObject({ total: 2, completed: 2 });
+    expect(before.activeProjectCount).toBe(1);
+
+    await makeProjectSettingsRepository(makeContext(WS)).archive(project.id);
+
+    const after = (await repo.listAreas()).items[0]!;
+    // Both tasks leave together. A partial exclusion would have left
+    // `total: 2, completed: 0` and reported an Area as 0% complete the moment
+    // its finished work was put away.
+    expect(after.rollup.tasks).toMatchObject({ total: 0, completed: 0 });
+    expect(after.activeProjectCount).toBe(0);
+    // The Project itself is still part of the Area's body of work, so the
+    // PROJECT roll-up deliberately still counts it.
+    expect(after.rollup.projects).toMatchObject({ total: 1, completed: 0 });
+  });
+
+  it("still reports a direct Area task when the Area's only Project is archived", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Home" });
+    const project = await s.createProject({
+      title: "Shelved work",
+      parent: { kind: "area", id: area.id },
+    });
+    const projectTask = await s.createTask({
+      title: "Hidden by archival",
+      parent: { kind: "project", id: project.id },
+    });
+    await s.complete(projectTask.id);
+    await s.createTask({
+      title: "Loose task",
+      parent: { kind: "area", id: area.id },
+    });
+    await makeProjectSettingsRepository(makeContext(WS)).archive(project.id);
+
+    const item = (await makeAreaRepository(makeContext(WS)).listAreas())
+      .items[0]!;
+    // A task attached to the AREA belongs to the Area, and no Project's
+    // lifecycle can hide it. Exactly one task survives: the loose one.
+    expect(item.rollup.tasks).toMatchObject({ total: 1, completed: 0 });
+  });
+
+  it("still reports tasks under active, planned and on-hold Projects", async () => {
+    const s = spine(WS);
+    const settings = makeProjectSettingsRepository(makeContext(WS));
+    const area = await s.createArea({ title: "Career" });
+    const planned = await s.createProject({
+      title: "Planned",
+      parent: { kind: "area", id: area.id },
+    });
+    const active = await s.createProject({
+      title: "Active",
+      parent: { kind: "area", id: area.id },
+    });
+    const onHold = await s.createProject({
+      title: "On hold",
+      parent: { kind: "area", id: area.id },
+    });
+    await settings.setStatus(active.id, "active");
+    await settings.setStatus(onHold.id, "on_hold");
+    for (const project of [planned, active, onHold]) {
+      await s.createTask({
+        title: `Task in ${project.id}`,
+        parent: { kind: "project", id: project.id },
+      });
+    }
+
+    const item = (await makeAreaRepository(makeContext(WS)).listAreas())
+      .items[0]!;
+    // Only ARCHIVAL removes a Project's tasks — workflow status does not.
+    expect(item.rollup.tasks).toMatchObject({ total: 3, completed: 0 });
+    expect(item.activeProjectCount).toBe(3);
+  });
+
+  it("archiving one Project leaves every other Area and Project untouched", async () => {
+    const s = spine(WS);
+    const first = await s.createArea({ title: "First" });
+    const second = await s.createArea({ title: "Second" });
+    const archiveMe = await s.createProject({
+      title: "Archive me",
+      parent: { kind: "area", id: first.id },
+    });
+    const sibling = await s.createProject({
+      title: "Sibling in the same Area",
+      parent: { kind: "area", id: first.id },
+    });
+    const elsewhere = await s.createProject({
+      title: "Different Area",
+      parent: { kind: "area", id: second.id },
+    });
+    const doomed = await s.createTask({
+      title: "Doomed",
+      parent: { kind: "project", id: archiveMe.id },
+    });
+    // Archiving requires every task finished, so this one has to be completed
+    // before the Project can be put away.
+    await s.complete(doomed.id);
+    await s.createTask({
+      title: "Sibling task",
+      parent: { kind: "project", id: sibling.id },
+    });
+    await s.createTask({
+      title: "Other area task",
+      parent: { kind: "project", id: elsewhere.id },
+    });
+
+    const areaRepo = makeAreaRepository(makeContext(WS));
+    const projectRepo = makeProjectRepository(makeContext(WS));
+    await makeProjectSettingsRepository(makeContext(WS)).archive(archiveMe.id);
+
+    const areas = new Map(
+      (await areaRepo.listAreas()).items.map((item) => [item.id, item]),
+    );
+    // The archived Project's own Area loses only ITS task.
+    expect(areas.get(first.id)?.rollup.tasks).toMatchObject({
+      total: 1,
+      completed: 0,
+    });
+    expect(areas.get(first.id)?.activeProjectCount).toBe(1);
+    // The unrelated Area is completely unaffected.
+    expect(areas.get(second.id)?.rollup.tasks).toMatchObject({
+      total: 1,
+      completed: 0,
+    });
+    expect(areas.get(second.id)?.activeProjectCount).toBe(1);
+
+    // And no other Project's own roll-up moved.
+    const projects = new Map(
+      (await projectRepo.listProjects({ state: "all" })).items.map((item) => [
+        item.id,
+        item,
+      ]),
+    );
+    expect(projects.get(sibling.id)).toMatchObject({
+      taskTotal: 1,
+      taskCompleted: 0,
+    });
+    expect(projects.get(elsewhere.id)).toMatchObject({
+      taskTotal: 1,
+      taskCompleted: 0,
+    });
+    // The archived Project keeps its own task count on its own card.
+    const archived = await projectRepo.listProjects({ state: "archived" });
+    expect(archived.items[0]).toMatchObject({
+      id: archiveMe.id,
+      taskTotal: 1,
+    });
+  });
+
   it("reports zeroes for an Area with nothing in it", async () => {
     const s = spine(WS);
     await s.createArea({ title: "Empty" });

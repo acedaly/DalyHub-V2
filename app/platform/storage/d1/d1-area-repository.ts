@@ -372,7 +372,16 @@ export class D1AreaRepository implements AreaRepository {
                ON gsr.workspace_id = ? AND gsr.entity_id = ag.goal_id
              GROUP BY ag.area_id
            ),
-           active_projects AS (
+           /*
+            * EVERY Project aligned to the Area — directly, or through one of
+            * its Goals — regardless of lifecycle state. This is the set the
+            * PROJECT roll-up is computed over, because "2 of 5 Projects
+            * complete" is a statement about the Area's whole body of work.
+            *
+            * It is deliberately NOT the set the TASK roll-up uses; see
+            * \`unarchived_area_projects\` below.
+            */
+           area_projects AS (
              SELECT pl.target_entity_id AS area_id, pe.id AS project_id
              FROM entity_links pl
              JOIN entities pe
@@ -396,13 +405,53 @@ export class D1AreaRepository implements AreaRepository {
                     SUM(CASE WHEN psr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed,
                     SUM(CASE WHEN psr.completed_at IS NULL AND pd.archived_at IS NULL THEN 1 ELSE 0 END) AS active_count,
                     SUM(CASE WHEN psr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed_count
-             FROM active_projects ap
+             FROM area_projects ap
              JOIN spine_records psr
                ON psr.workspace_id = ? AND psr.entity_id = ap.project_id
              LEFT JOIN project_details pd
                ON pd.workspace_id = ? AND pd.entity_id = ap.project_id
              GROUP BY ap.area_id
            ),
+           /*
+            * The Area's aligned Projects MINUS the archived ones.
+            *
+            * Archival is reversible and is NOT soft-deletion (ADR-037 §37.1):
+            * an archived Project stays structurally present and readable, but
+            * it is deliberately out of the ordinary active-work buckets
+            * everywhere else in the product — \`listProjects\` excludes it from
+            * "all", and \`active_count\` above already excludes it. The TASK
+            * roll-up did not, which meant an Area whose only remaining work sat
+            * inside an archived Project reported open tasks and read as
+            * active. Putting work away has to actually put it away.
+            *
+            * \`LEFT JOIN … WHERE pd.archived_at IS NULL\` rather than an inner
+            * join: \`project_details\` is SPARSE (a Project has no row until it
+            * is archived or given a status/icon), so an inner join would drop
+            * every Project that has never been touched — which is most of them.
+            */
+           unarchived_area_projects AS (
+             SELECT ap.area_id, ap.project_id
+             FROM area_projects ap
+             LEFT JOIN project_details pd
+               ON pd.workspace_id = ? AND pd.entity_id = ap.project_id
+             WHERE pd.archived_at IS NULL
+           ),
+           /*
+            * The Area's task universe, for BOTH the total and the completed
+            * count, so a percentage derived from them stays coherent:
+            *
+            *   - Tasks parented DIRECTLY to the Area, always. These belong to
+            *     the Area itself and no Project's lifecycle can hide them.
+            *   - Tasks under the Area's NON-ARCHIVED Projects. Planned, active,
+            *     on-hold and completed Projects all still contribute, exactly
+            *     as before; only archived ones drop out, and they drop out
+            *     WHOLE — their completed tasks leave with their open ones, so
+            *     archiving can never inflate a completion ratio.
+            *
+            * A grouped aggregate over the whole workspace, joined once — never
+            * a per-Area or per-Project follow-up read, and never anything
+            * derived from the rows this page happens to return.
+            */
            area_tasks AS (
              SELECT tl.target_entity_id AS area_id, te.id AS task_id
              FROM entity_links tl
@@ -413,7 +462,7 @@ export class D1AreaRepository implements AreaRepository {
                    AND tl.deleted_at IS NULL
              UNION
              SELECT ap.area_id, te.id AS task_id
-             FROM active_projects ap
+             FROM unarchived_area_projects ap
              JOIN entity_links tl
                ON tl.workspace_id = ? AND tl.target_entity_id = ap.project_id
                   AND tl.type = '${TASK_BELONGS_TO_PROJECT}' AND tl.deleted_at IS NULL
@@ -456,7 +505,16 @@ export class D1AreaRepository implements AreaRepository {
            LIMIT ?`,
         )
         .bind(
-          // `area_ranks` is the first CTE, so its workspace binds first.
+          /*
+           * Twelve workspace binds, in CTE order — the placeholders are
+           * positional, so this list and the query above have to be read
+           * together:
+           *   area_ranks 1 · active_goals 1 · goal_counts 1 ·
+           *   area_projects 2 · project_counts 2 ·
+           *   unarchived_area_projects 1 · area_tasks 2 · task_counts 1 ·
+           *   the outer SELECT 1.
+           */
+          this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
