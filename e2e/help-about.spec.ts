@@ -46,7 +46,7 @@ test.describe("HELP-01 Help", () => {
       "Search",
       "Command Palette",
       "Archive, delete and restore",
-      "Themes and Settings",
+      "Appearance and Settings",
       "Your data and privacy",
     ]) {
       expect(body, `Help does not cover "${subject}"`).toContain(subject);

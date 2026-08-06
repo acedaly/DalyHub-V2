@@ -680,6 +680,20 @@
   /* The M3 navigation bar's own height, before safe-area padding. */
   --app-bottomnav-bar-height: 5rem;
 
+  /* The vertical space the floating action button occupies at the bottom-right:
+   * the phone navigation bar beneath it, its 24px inset, its 56px height and a
+   * 16px gap above it — so this is exactly "the height of the FAB's top edge,
+   * plus breathing room". It collapses to 96px on desktop, where
+   * `--app-bottomnav-height` is `0px`.
+   *
+   * It exists because the notification region is the one other surface anchored
+   * to that corner, and it stacks above the FAB rather than over it (`shell.css`
+   * for the FAB itself, `feedback.css` for the region). */
+  --app-fab-band: calc(
+    var(--app-bottomnav-height, 0px) + var(--app-space-6) + 3.5rem +
+      var(--app-space-4)
+  );
+
   --app-border-width-thin: 1px;
   --app-border-width-thick: 2px;
 

@@ -141,6 +141,7 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "app-shell-nav-width",
     "app-inspector-width",
     "app-gutter",
+    "app-fab-band",
     "app-border-width-thin",
     "app-border-width-thick",
   ],

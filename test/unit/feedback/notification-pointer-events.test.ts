@@ -64,9 +64,21 @@ describe("notification region pointer contract (DEBT-38)", () => {
     expect(optIns).toHaveLength(INTERACTIVE.length);
   });
 
-  it("keeps the mobile stack bottom-anchored inside the safe area", () => {
-    // The region overlays content on a phone too; the safe-area inset keeps it
-    // clear of the home indicator rather than pushing it further over controls.
-    expect(feedbackCss).toMatch(/env\(safe-area-inset-bottom,\s*0px\)/);
+  it("anchors the stack above the FAB band, not inside it", () => {
+    // The region overlays content on a phone too, and the bottom-right corner it
+    // occupies is also the floating action button's. Overlapping a 56px control
+    // leaves it a sliver of unobscured height, which the target-size audit fails
+    // (e2e/touch-targets.spec.ts). `--app-fab-band` is the shared expression: it
+    // folds in the phone navigation bar AND the home indicator's safe-area inset
+    // (see `--app-bottomnav-height` in shell.css), so the region clears the bar,
+    // the indicator and the FAB in one term — and collapses to the FAB's own band
+    // on desktop, where the navigation bar height is `0px`.
+    expect(ruleBody(".dh-feedback")).toMatch(
+      /bottom:\s*calc\([^;]*--app-fab-band/,
+    );
+    // Both the desktop rule and the phone override, so neither can drift back
+    // over the button on its own.
+    const anchored = feedbackCss.match(/bottom:\s*calc\([^;]*--app-fab-band/g);
+    expect(anchored).toHaveLength(2);
   });
 });

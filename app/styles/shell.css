@@ -844,6 +844,15 @@
  * keyboard. All three are already-published tokens, so nothing here measures
  * anything — on desktop `--app-bottomnav-height` is `0px` and the whole
  * expression collapses to 24px.
+ *
+ * `--app-fab-band` (tokens.css) is this same expression plus the button's own
+ * height and a gap, published for the one other surface anchored to this corner:
+ * the notification region, which stacks ABOVE the FAB rather than over it
+ * (`feedback.css`). Two fixed controls in one corner is not a stacking-order
+ * question — the notification layer is click-through, so a pointer reaches the
+ * FAB either way, but an automated target-size audit sees a 56px control with
+ * 8px of unobscured height and is right to fail it. They are given separate
+ * space instead.
  */
 .dh-fab {
   position: fixed;
