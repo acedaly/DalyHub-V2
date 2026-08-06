@@ -69,19 +69,26 @@ describe("Area view model", () => {
     expect(blockers.some((b) => b.id === "tasks")).toBe(false);
   });
 
-  it("maps long Area card data with deterministic progress summaries", () => {
+  it("maps long Area card data to exact counts and one work-state line", () => {
     const card = toAreaCardData({
       id: "area-long",
       title: "A very long Area title that should wrap across several lines",
       createdAt: "2026-07-18T00:00:00.000Z",
       updatedAt: "2026-07-20T00:00:00.000Z",
       colourRank: 0,
+      iconKey: null,
       rollup: serializeAreaRollup(rollup),
       activeProjectCount: 2,
       completedProjectCount: 1,
     });
     expect(card.title).toContain("very long Area");
-    expect(card.tasks.summary).toBe("2 of 4 tasks");
+    // Open counts are the exact aggregate minus the exact completed aggregate —
+    // never a count of the rows on this page.
+    expect(card.activeProjects).toBe(2);
+    expect(card.openTasks).toBe(2);
+    expect(card.hasActiveWork).toBe(true);
     expect(card.updatedLabel).toMatch(/Updated/);
+    // ONE "Updated", not the "Updated: Updated 20 Jul 2026" the audit found.
+    expect(card.updatedLabel?.match(/Updated/g)).toHaveLength(1);
   });
 });
