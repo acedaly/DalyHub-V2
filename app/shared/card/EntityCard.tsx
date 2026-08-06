@@ -136,7 +136,14 @@ export function EntityCard({
           </Heading>
           {subtitle ? <p className="dh-ecard__subtitle">{subtitle}</p> : null}
         </div>
-        {status ? <div className="dh-ecard__status">{status}</div> : null}
+        {/* `data-testid` so a test can aim at the status REGION — the one
+         * place a raised, non-interactive chip previously swallowed clicks —
+         * without reaching for a styling class. */}
+        {status ? (
+          <div className="dh-ecard__status" data-testid="entity-card-status">
+            {status}
+          </div>
+        ) : null}
       </div>
 
       {metric || resolved || meta ? (
@@ -170,7 +177,11 @@ export function EntityCard({
             </div>
           ) : null}
 
-          {meta ? <div className="dh-ecard__meta">{meta}</div> : null}
+          {meta ? (
+            <div className="dh-ecard__meta" data-testid="entity-card-meta">
+              {meta}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

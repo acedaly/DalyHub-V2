@@ -275,6 +275,57 @@ test.describe("PROJ-01 — Projects", () => {
     await expectNoAxeViolations(page);
   });
 
+  test("collection: every non-interactive part of a card opens the record", async ({
+    page,
+  }) => {
+    /*
+     * Real hit testing, which is the only thing that can prove this: the
+     * whole-card link is an absolutely-positioned `::after` overlay, and
+     * whether a click reaches it is decided by stacking order, not by the DOM
+     * tree. jsdom dispatches on whatever node a test names and would pass
+     * regardless — which is how a raised, NON-interactive status chip turned
+     * the top-right corner of every card into a dead zone unnoticed.
+     */
+    const targets = ["entity-card-status", "entity-card-meta"] as const;
+    for (const testid of targets) {
+      await gotoFixture(page, "/projects");
+      const card = page.getByRole("article", { name: "Website relaunch" });
+      await expect(card).toBeVisible();
+      const region = card.getByTestId(testid);
+      await expect(region).toBeVisible();
+      const box = (await region.boundingBox())!;
+      // The geometric CENTRE of the region, so this is genuinely "what is on
+      // top here?" rather than a click that slipped past the edge.
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page, `clicking ${testid} should open the record`).toHaveURL(
+        /\/projects\/pr-website/,
+      );
+    }
+  });
+
+  test("card family: an overflow action is clickable and does NOT open the card", async ({
+    page,
+  }) => {
+    // The other half of the contract. Static content must fall through to the
+    // card's link; a real control must not.
+    await gotoFixture(page, "/design/card-family");
+    const card = page.getByRole("article", { name: "Fixture entity card" });
+    await expect(card).toBeVisible();
+
+    const action = card.getByTestId("entity-card-fixture-action");
+    await action.click();
+    // The button received the click…
+    await expect(action).toHaveAttribute("data-clicked", "true");
+    // …and the card's own destination was NOT followed.
+    expect(new URL(page.url()).hash).toBe("");
+
+    // The card still navigates from its ordinary content.
+    const status = card.getByTestId("entity-card-status");
+    const box = (await status.boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page).toHaveURL(/#entity-1$/);
+  });
+
   test("collection: the empty and filtered-empty states are distinct", async ({
     page,
   }) => {
