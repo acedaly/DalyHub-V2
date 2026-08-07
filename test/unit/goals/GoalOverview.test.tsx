@@ -1,8 +1,9 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import type { ReactElement } from "react";
 
 import { GoalOverview } from "~/modules/goals/GoalOverview";
@@ -21,11 +22,15 @@ import type {
  * AREA-02 — the canonical Goal record: identity + explicit Open/Completed
  * state kept separate from derived Project-contribution progress, the
  * definition-of-done empty/set states, the target-date states, the Projects
- * tab's exact badge independent of the supplied page, and the Rename/Edit
- * details/Complete actions.
+ * tab's exact badge independent of the supplied page, the Complete action, and
+ * (EDIT-02) that the title, the target date and the definition of done are all
+ * edited IN PLACE rather than through a Drawer form.
  */
 
 const TODAY = "2026-07-22";
+
+/** The default inline-save stub: every field accepts, nothing is asserted. */
+const accept = async (): Promise<InlineSaveOutcome> => ({ ok: true });
 
 function overview(
   over: Partial<SerializedGoalOverview> = {},
@@ -119,8 +124,9 @@ function renderGoal(
     alignmentEvidenceHasMore: boolean;
     completionPending: boolean;
     onToggleComplete: (complete: boolean) => void;
-    onRename: () => void;
-    onEditDetails: () => void;
+    onRename: (title: string) => Promise<InlineSaveOutcome>;
+    onSetTargetDate: (value: string | null) => Promise<InlineSaveOutcome>;
+    onSetDefinitionOfDone: (value: string) => Promise<InlineSaveOutcome>;
     onOpenProject: (id: string) => void;
     onOpenTask: (id: string) => void;
   }> = {},
@@ -138,8 +144,9 @@ function renderGoal(
       alignmentEvidenceHasMore={over.alignmentEvidenceHasMore ?? false}
       completionPending={over.completionPending ?? false}
       onToggleComplete={over.onToggleComplete ?? (() => {})}
-      onRename={over.onRename ?? (() => {})}
-      onEditDetails={over.onEditDetails ?? (() => {})}
+      onRename={over.onRename ?? accept}
+      onSetTargetDate={over.onSetTargetDate ?? accept}
+      onSetDefinitionOfDone={over.onSetDefinitionOfDone ?? accept}
       onOpenProject={over.onOpenProject ?? (() => {})}
       onOpenTask={over.onOpenTask ?? (() => {})}
       linkedTab={<div>linked-content</div>}
@@ -227,10 +234,14 @@ describe("GoalOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the empty definition-of-done state", () => {
+  it("shows the empty definition-of-done state as an invitation to fill it in", () => {
     renderGoal();
+    // EDIT-02 — the empty state IS the control, so it names the next action
+    // rather than reporting an absence.
     expect(
-      screen.getByText("No definition of done recorded yet."),
+      screen.getByRole("button", {
+        name: "Definition of done: Add a definition of done",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -238,18 +249,69 @@ describe("GoalOverview", () => {
     renderGoal({
       details: details({ definitionOfDone: "Cross the line.\nUnder 2 hours." }),
     });
-    const node = screen.getByText(
-      (_content, element) =>
-        element?.textContent === "Cross the line.\nUnder 2 hours.",
-    );
-    expect(node).toHaveClass("dh-goal-overview__definition-text");
-    // Preserved via CSS (`white-space: pre-wrap`), not a Markdown pipeline.
-    expect(node.textContent).toContain("\n");
+    const trigger = screen.getByRole("button", {
+      name: "Definition of done: Cross the line.\nUnder 2 hours.",
+    });
+    // Preserved via CSS (`white-space: pre-wrap` on the multiline read state),
+    // not a Markdown pipeline.
+    expect(trigger.textContent).toContain("\n");
+    expect(
+      trigger.closest("[data-multiline]")?.getAttribute("data-multiline"),
+    ).toBe("true");
   });
 
-  it("shows the unset target-date state", () => {
+  it("edits the definition of done in place, with explicit Save", async () => {
+    const onSetDefinitionOfDone = vi.fn(accept);
+    renderGoal({ onSetDefinitionOfDone });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Definition of done: Add a definition of done",
+      }),
+    );
+    const editor = screen.getByRole("textbox", { name: "Definition of done" });
+    fireEvent.change(editor, { target: { value: "Finish under 2 hours." } });
+    // Enter is a PARAGRAPH here, never a save — that is the whole point of the
+    // multiline form.
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onSetDefinitionOfDone).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(onSetDefinitionOfDone).toHaveBeenCalledWith(
+        "Finish under 2 hours.",
+      ),
+    );
+  });
+
+  it("shows the unset target-date state as an invitation", () => {
     renderGoal();
-    expect(screen.getByText("No target date set")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Target date: Add a target date" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sets and clears the target date from the record itself", async () => {
+    const onSetTargetDate = vi.fn(accept);
+    const { rerender } = renderGoal({
+      details: details({ targetDate: "2026-08-01" }),
+      onSetTargetDate,
+    });
+    void rerender;
+
+    fireEvent.click(screen.getByRole("button", { name: /^Target date: / }));
+    const input = screen.getByLabelText("Target date");
+    fireEvent.change(input, { target: { value: "2026-09-03" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(onSetTargetDate).toHaveBeenCalledWith("2026-09-03"),
+    );
+
+    // Clearing is a first-class outcome (`null`), reachable without leaving the
+    // record — the data model permits an unset target.
+    fireEvent.click(screen.getByRole("button", { name: /^Target date: / }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    await waitFor(() => expect(onSetTargetDate).toHaveBeenCalledWith(null));
   });
 
   it("shows a set, upcoming target date (in both the header and the summary)", () => {
@@ -317,21 +379,28 @@ describe("GoalOverview", () => {
    * the Goal IS) and Rename — a low-frequency management action — moves into
    * the menu. Both still work; only where they live changed.
    */
-  it("triggers Edit details from the header and Rename from the overflow", () => {
-    const onRename = vi.fn();
-    const onEditDetails = vi.fn();
-    renderGoal({ onRename, onEditDetails });
+  it("renames from the heading, and offers no Rename or Edit details control", async () => {
+    const onRename = vi.fn(accept);
+    renderGoal({ onRename });
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit details" }));
-    expect(onEditDetails).toHaveBeenCalled();
-
-    // Rename is one press away, not gone.
+    // EDIT-02 — both Drawer entry points are gone, from the header AND from the
+    // overflow: the values they edited are edited where they are shown.
     expect(
       screen.queryByRole("button", { name: "Rename" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /More actions/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
-    expect(onRename).toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Edit details" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Goal name: Run a half-marathon" }),
+    );
+    const input = screen.getByRole("textbox", { name: "Goal name" });
+    fireEvent.change(input, { target: { value: "Run a marathon" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(onRename).toHaveBeenCalledWith("Run a marathon"),
+    );
   });
 
   it("triggers Complete then Reopen through the primary action", () => {
@@ -359,9 +428,13 @@ describe("GoalOverview", () => {
     expect(
       screen.getByRole("heading", { name: longTitle }),
     ).toBeInTheDocument();
-    expect(screen.getByText(longDefinition)).toHaveClass(
-      "dh-goal-overview__definition-text",
-    );
+    // The long definition stays inside the inline field's own capped measure,
+    // so neither value can widen the record's column.
+    expect(
+      screen.getByRole("button", {
+        name: `Definition of done: ${longDefinition}`,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("exposes Activity tab content", () => {

@@ -883,3 +883,21 @@ which wants the exhaustive ranked statement rather than this bounded scan.)
 **Actions offered.** Open the canonical Project, open its Task list, change status through
 the Project's own Settings tab. The Project form is not embedded, and every action preserves
 the normal Project, Task and Activity contracts.
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+The Project title has been edited on the heading since DS-16 (PR #124). EDIT-02
+deleted the orphaned `?drawer=rename` entry and `RenameProjectForm.tsx`, which
+that PR left registered with nothing to open them. The Settings tab's workflow
+status and Area/Goal selects are deliberately unchanged: they are already
+immediate, already on the shared `SelectField`, and already support
+`current → new` in one action.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

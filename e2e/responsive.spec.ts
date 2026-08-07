@@ -242,8 +242,8 @@ test.describe("responsive — open overlays never overflow", () => {
     });
 
     // AREA-04 — the New Goal sheet (opened from the Area record's Goals tab)
-    // and the Goal record's Edit details sheet (target date + definition of
-    // done), at the viewport extremes.
+    // and (EDIT-02) the inline fields that replaced the Goal record's Edit
+    // details sheet, at the viewport extremes.
     test(`Areas new-goal sheet at ${viewport.label}`, async ({ page }) => {
       await page.setViewportSize({
         width: viewport.width,
@@ -256,16 +256,33 @@ test.describe("responsive — open overlays never overflow", () => {
       await page.keyboard.press("Escape");
     });
 
-    test(`Goal edit-details sheet at ${viewport.label}`, async ({ page }) => {
+    test(`Goal inline target-date popover at ${viewport.label}`, async ({
+      page,
+    }) => {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
       });
       await gotoFixture(page, "/goals/g-launch");
-      await page.getByRole("button", { name: "Edit details" }).click();
-      await page.getByRole("dialog", { name: "Goal details" }).waitFor();
+      await page.getByRole("button", { name: /^Target date: / }).click();
+      await page.getByRole("dialog", { name: "Edit target date" }).waitFor();
+      // The anchored popover flips to the inline-end edge rather than hanging
+      // off the viewport, so opening it never produces a page scrollbar.
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
+    });
+
+    test(`Goal inline definition editor at ${viewport.label}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/goals/g-launch");
+      await page.getByRole("button", { name: /^Definition of done: / }).click();
+      await page.getByRole("textbox", { name: "Definition of done" }).waitFor();
+      await expectNoHorizontalOverflow(page);
     });
 
     test(`Project task Drawer at ${viewport.label}`, async ({ page }) => {

@@ -2,10 +2,19 @@
  * NOTES-01B/01C/02/03/06 — the canonical Note record, composed through the
  * shared DS-02 Record Layout.
  *
- * Presentation only: the header (generic entity identity — title, Rename, and
- * the ONE shared DS-12 overflow holding Tags, Export, Archive and Delete), the
+ * Presentation only: the header (generic entity identity — title, and the ONE
+ * shared DS-12 overflow holding Tags, Export, Archive and Delete), the
  * "Note" tab (the writing editor), "Backlinks", "Links" and "Activity". Data
  * loading and mutations live in the route; this component only renders them.
+ *
+ * ── EDIT-02: the title is edited where it is shown ───────────────────────────
+ * Notes were the last canonical record that renamed through a Drawer FORM while
+ * Areas and Projects renamed by clicking their heading (DS-16). One product, two
+ * answers to "change this record's name" — and the Notes answer was the worse
+ * one, because closing the Drawer discarded whatever had been typed. The
+ * heading now carries the shared `InlineTextField`, posting the SAME `rename`
+ * intent to the SAME trusted endpoint, and the separate Rename action is gone
+ * rather than kept as a second path to an interaction the title already offers.
  *
  * The knowledge completion added three things here and nothing else:
  *   - two relationship tabs, because "who points at this" and "what does this
@@ -20,17 +29,15 @@
 
 import { useRef, type ReactNode } from "react";
 
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { EntityIcon } from "~/shared/entity";
 import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
+import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { MarkdownContent } from "~/shared/markdown";
 import { AbsenceText } from "~/shared/pill";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
-import {
-  RecordLayout,
-  type RecordAction,
-  type RecordMetaItem,
-} from "~/shared/record-layout";
+import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
@@ -47,7 +54,12 @@ import {
 interface NoteOverviewProps {
   readonly overview: SerializedNoteOverview;
   readonly details: SerializedNoteDetails;
-  readonly onRename: () => void;
+  /**
+   * DS-16 — rename from the record heading. Returns an outcome rather than
+   * throwing, so a refusal keeps the typed name in the field with the server's
+   * own message beside it.
+   */
+  readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
   readonly onEditTags: () => void;
   readonly onSaved: () => void;
   readonly backlinksTab: ReactNode;
@@ -143,13 +155,6 @@ export function NoteOverview({
     pending: exportPending,
   } = useNoteExport(overview.id, overview.title);
 
-  const renameAction: RecordAction = {
-    id: "rename",
-    label: "Rename",
-    variant: "secondary",
-    onSelect: onRename,
-  };
-
   // The module's own items sit ABOVE the shared lifecycle group in the ONE
   // overflow, exactly as `useRecordLifecycle` documents — so "where do I find
   // the other things I can do to this record?" has the same answer everywhere.
@@ -226,10 +231,19 @@ export function NoteOverview({
     <>
       <RecordLayout
         title={overview.title}
+        titleSlot={
+          <InlineTextField
+            label="Note title"
+            value={overview.title}
+            onSave={onRename}
+            variant="heading"
+            maxLength={TITLE_MAX_LENGTH}
+            data-testid="note-title-edit"
+          />
+        }
         typeLabel="Note"
         icon={<EntityIcon type="note" />}
         breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
-        secondaryActions={[renameAction]}
         overflowActions={lifecycle.overflowActions}
         summary={
           summaryMetadata.length > 0 ? { metadata: summaryMetadata } : undefined

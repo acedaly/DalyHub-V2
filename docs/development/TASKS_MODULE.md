@@ -918,3 +918,24 @@ type) and routes accordingly:
 In every branch the Task itself is canonical, the actor is the owner, and the
 owner's reviewed title, description, due date, scheduled date and Project — or
 **Inbox**, which is preserved everywhere — are what is written.
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+The Task record Drawer edits four values in place: the **title** (heading,
+focused `rename`), the **priority** (`InlineSelectField` with real priorities only
+and a separated `Clear priority`), and the **scheduled** and **due** dates
+(`InlineDateField` in the Planning section, alongside the existing
+Today/Tomorrow/Next week quick actions). Those four left the Details form, and
+`handleUpdate` now treats an absent key as *unchanged* — without that, pressing
+**Save changes** could revert an inline edit made while the form was open. Status,
+Time Sector, Commitment, delegation and the description stay in the form; the
+description now renders on the shared writing surface.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

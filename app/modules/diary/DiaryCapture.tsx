@@ -9,7 +9,8 @@
  * behind a disclosure so they never slow the fast path. `Cmd/Ctrl+Enter` submits
  * from any field.
  *
- * Built entirely from DS-06 shared controls (`useForm`, `TextField`, `MarkdownField`)
+ * Built entirely from DS-06 shared controls (`useForm`, `TextField`) over the
+ * shared writing surface (`MarkdownEditorField`)
  * plus the owner-local `WhenField`. `useForm` gives duplicate-submit prevention and
  * draft retention on failure for free. On success the entry is captured through the
  * reserved `DiaryRepository.create` (via `POST /diary/new`); the parent revalidates
@@ -24,12 +25,12 @@ import {
   FormActions,
   FormButton,
   FormErrorSummary,
-  MarkdownField,
   TextField,
   required as requiredRule,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
+import { MarkdownEditorField } from "~/shared/markdown-editor";
 
 import { entryTypeIcon } from "./diary-icons";
 import { entryTypeOptions } from "./diary-view";
@@ -277,11 +278,15 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
             label="When"
             help="Leave blank to use now. Set a past date and time to record an earlier moment."
           />
-          <MarkdownField
+          {/* EDIT-02 — the same writing surface as the entry record and as a
+              Note, so what you type in capture looks like what you'll read
+              afterwards. Capture keeps its own submit semantics. */}
+          <MarkdownEditorField
             label="Details"
             rows={4}
-            placeholder="Optional notes, in Markdown."
+            placeholder="What happened? Markdown is supported."
             showOptionalCue={false}
+            disabled={form.isSubmitting}
             {...bodyField}
           />
         </div>

@@ -18,7 +18,9 @@ import {
   type DrawerEntry,
   type DrawerRenderResult,
 } from "~/shared/drawer";
+import { MEETING_TITLE_MAX_LENGTH } from "~/kernel/meetings";
 import { EntityIcon, EntityLink } from "~/shared/entity";
+import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { useFeedback } from "~/shared/feedback";
@@ -261,6 +263,29 @@ function MeetingRecord({
       }
     },
     [m.id, r],
+  );
+
+  /**
+   * DS-16 — the Meeting title, edited on the heading (EDIT-02).
+   *
+   * The `update` intent is already a PARTIAL patch server-side — it copies only
+   * the keys present in the submission — so posting `title` alone changes the
+   * title and nothing else. That is what makes it safe to edit here while the
+   * scheduling fields (start, end, timezone, location, mode, link) stay in their
+   * disclosure form: those genuinely interact and belong together (§1, category
+   * E), a one-line name does not.
+   */
+  const renameMeeting = useCallback(
+    async (title: string): Promise<InlineSaveOutcome> => {
+      const ok = await post({ intent: "update", title });
+      return ok
+        ? { ok: true }
+        : {
+            ok: false,
+            message: "That couldn’t be saved. Your text is safe — try again.",
+          };
+    },
+    [post],
   );
 
   /**
@@ -538,6 +563,19 @@ function MeetingRecord({
     <>
       <RecordLayout
         title={m.title}
+        titleSlot={
+          <InlineTextField
+            label="Meeting title"
+            value={m.title}
+            onSave={renameMeeting}
+            // An archived meeting is read-only until it is restored, so its
+            // title renders as plain text rather than as a control (DS-16).
+            readOnly={m.archivedAt !== null}
+            variant="heading"
+            maxLength={MEETING_TITLE_MAX_LENGTH}
+            data-testid="meeting-title-edit"
+          />
+        }
         typeLabel="Meeting"
         icon={<EntityIcon type="meeting" />}
         breadcrumb={[{ id: "meetings", label: "Meetings", href: "/meetings" }]}
@@ -765,8 +803,15 @@ function formatMeetingDuration(
   return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
 }
 
+/**
+ * EDIT-02 — the SCHEDULING slice, and only that.
+ *
+ * `title` used to live here too, which meant pressing "Save details" resubmitted
+ * whatever title the form had captured when it mounted — silently reverting a
+ * rename made anywhere else since. It is now edited on the heading and is not
+ * part of this patch at all.
+ */
 type MeetingDetailsValues = {
-  readonly title: string;
   readonly startsAtLocal: string;
   readonly endsAtLocal: string;
   readonly timezone: string;
@@ -776,7 +821,6 @@ type MeetingDetailsValues = {
 };
 
 const MEETING_DETAILS_LABELS: Record<string, string> = {
-  title: "Title",
   startsAtLocal: "Start date and time",
   endsAtLocal: "End time",
   timezone: "Timezone",
@@ -795,7 +839,6 @@ function MeetingDetailsEditor({
   const [open, setOpen] = useState(false);
   const form = useForm<MeetingDetailsValues>({
     initialValues: {
-      title: meeting.title,
       startsAtLocal:
         utcToOwnerLocal(new Date(meeting.startsAt), meeting.timezone) ?? "",
       endsAtLocal: meeting.endsAt
@@ -807,14 +850,12 @@ function MeetingDetailsEditor({
       meetingUrl: meeting.meetingUrl ?? "",
     },
     fields: {
-      title: { validate: required("Enter a meeting title.") },
       startsAtLocal: {
         validate: required("Enter the start date and time."),
       },
       timezone: { validate: required("Choose a timezone.") },
     },
     fieldOrder: [
-      "title",
       "startsAtLocal",
       "endsAtLocal",
       "timezone",
@@ -825,7 +866,6 @@ function MeetingDetailsEditor({
     onSubmit: async (values): Promise<SubmitOutcome<MeetingDetailsValues>> => {
       const ok = await onSave({
         intent: "update_details",
-        title: values.title,
         startsAtLocal: values.startsAtLocal,
         endsAtLocal: values.endsAtLocal,
         timezone: values.timezone,
@@ -867,12 +907,6 @@ function MeetingDetailsEditor({
           order={form.fieldOrder as string[]}
           labels={MEETING_DETAILS_LABELS}
           onFocusField={form.focusField}
-        />
-        <TextField
-          label="Title"
-          required
-          maxLength={240}
-          {...form.field("title")}
         />
         <LocalDateTimeField
           label="Start date and time"

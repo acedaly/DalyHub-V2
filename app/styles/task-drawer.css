@@ -200,10 +200,6 @@
   gap: var(--app-space-2);
 }
 
-.dh-task-planning__custom {
-  max-width: 16rem;
-}
-
 .dh-task-planning__muted {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);

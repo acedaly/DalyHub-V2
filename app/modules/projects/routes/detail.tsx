@@ -62,7 +62,6 @@ import { ProjectLinksTab } from "../ProjectLinksTab";
 import { ProjectOverview } from "../ProjectOverview";
 import { ProjectSettingsTab } from "../ProjectSettingsTab";
 import { NEW_TASK_KEY, ProjectTasksTab } from "../ProjectTasksTab";
-import { RenameProjectForm } from "../RenameProjectForm";
 import { PROJECT_RELATES_TO } from "../project-links";
 import {
   isProjectArchived,
@@ -76,7 +75,6 @@ import {
 import type { ProjectMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
-const RENAME_KEY = "rename";
 type TaskState = "open" | "completed" | "all";
 
 export function meta() {
@@ -231,13 +229,20 @@ export default function ProjectDetailRoute({
 }
 
 /**
- * The Drawer resolver: a task record, the new-task form, or the rename form. An
- * ARCHIVED project is read-only (PROJ-05 §5): a Task record itself stays
+ * The Drawer resolver: a task record, or the new-task form.
+ *
+ * EDIT-02 removed the rename form and its `?drawer=rename` key. DS-16 moved the
+ * Project rename onto the heading in PR #124 and left the form registered with
+ * nothing to open it — a dead surface reachable only by hand-editing the URL,
+ * carrying a second (and worse) failure behaviour for the same mutation.
+ *
+ * An ARCHIVED project is read-only (PROJ-05 §5): a Task record itself stays
  * readable (its OWN Drawer still opens — the shared task surface already
  * communicates a rejected mutation calmly, no second error path is built here),
- * but the "New Task" and "Rename" forms are never rendered — even for a stale or
- * hand-edited `?drawer=` deep link — because every mutation they'd attempt is
- * rejected server-side anyway. A calm read-only panel explains why instead.
+ * but the "New Task" form is never rendered — even for a stale or hand-edited
+ * `?drawer=` deep link — because every mutation it would attempt is rejected
+ * server-side anyway. A calm read-only panel explains why instead. The heading's
+ * inline title field renders read-only for the same reason.
  */
 function createProjectDrawerRenderer(overview: SerializedProjectOverview) {
   const archived = isProjectArchived(overview);
@@ -267,25 +272,6 @@ function createProjectDrawerRenderer(overview: SerializedProjectOverview) {
         children: <NewTaskDrawerHost projectId={overview.id} />,
       };
     }
-    if (entry.key === RENAME_KEY) {
-      if (archived) {
-        return {
-          title: "Project archived",
-          description: "Restore this project to rename it.",
-          children: <ArchivedDrawerNotice action="rename this project" />,
-        };
-      }
-      return {
-        title: "Rename project",
-        description: "Give this project a clearer name.",
-        children: (
-          <RenameDrawerHost
-            projectId={overview.id}
-            currentTitle={overview.title}
-          />
-        ),
-      };
-    }
     return null;
   };
 }
@@ -311,28 +297,6 @@ function NewTaskDrawerHost({ projectId }: { readonly projectId: string }) {
         // Reflect the new task and roll-up, then open it in the shared Task Drawer.
         revalidator.revalidate();
         replaceDrawer(`task:${taskId}`);
-      }}
-      onCancel={closeDrawer}
-    />
-  );
-}
-
-function RenameDrawerHost({
-  projectId,
-  currentTitle,
-}: {
-  readonly projectId: string;
-  readonly currentTitle: string;
-}) {
-  const { closeDrawer } = useDrawer();
-  const revalidator = useRevalidator();
-  return (
-    <RenameProjectForm
-      projectId={projectId}
-      currentTitle={currentTitle}
-      onDone={() => {
-        revalidator.revalidate();
-        closeDrawer();
       }}
       onCancel={closeDrawer}
     />

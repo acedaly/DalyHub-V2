@@ -28,14 +28,13 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LinkedItemsTab } from "~/shared/linked-items";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useFeedback } from "~/shared/feedback";
 import { useReversibleDelete } from "~/shared/record-lifecycle";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { GoalActivityTab } from "../GoalActivityTab";
-import { GoalDetailsForm } from "../GoalDetailsForm";
 import { GoalOverview } from "../GoalOverview";
-import { RenameGoalForm } from "../RenameGoalForm";
 import {
   serializeGoalDetails,
   serializeGoalOverview,
@@ -45,8 +44,6 @@ import {
 import type { GoalMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
-const RENAME_KEY = "rename";
-const EDIT_DETAILS_KEY = "edit-details";
 const GOAL_PROJECT_PAGE_SIZE = 50;
 /** A calm handful of real contributing Tasks — enough to be useful, small
  * enough to stay scannable in a Summary panel (ADR-040 §40.6). */
@@ -104,21 +101,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 }
 
 export default function GoalDetailRoute({ loaderData }: Route.ComponentProps) {
-  const renderDrawer = useMemo(
-    () =>
-      createGoalDrawerRenderer(
-        loaderData.overview.id,
-        loaderData.overview.title,
-        loaderData.details.targetDate,
-        loaderData.details.definitionOfDone,
-      ),
-    [
-      loaderData.overview.id,
-      loaderData.overview.title,
-      loaderData.details.targetDate,
-      loaderData.details.definitionOfDone,
-    ],
-  );
+  const renderDrawer = useMemo(() => createGoalDrawerRenderer(), []);
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
@@ -127,12 +110,12 @@ export default function GoalDetailRoute({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function createGoalDrawerRenderer(
-  goalId: string,
-  title: string,
-  targetDate: string | null,
-  definitionOfDone: string | null,
-) {
+/**
+ * EDIT-02 — the Goal Drawer now hosts ONE thing: a Task record opened from the
+ * alignment evidence. The rename and details forms are gone, because the values
+ * they edited are edited on the record itself.
+ */
+function createGoalDrawerRenderer() {
   return function render(entry: DrawerEntry): DrawerRenderResult | null {
     const separator = entry.key.indexOf(":");
     const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
@@ -144,75 +127,8 @@ function createGoalDrawerRenderer(
         children: <TaskRecordDrawer taskId={id} />,
       };
     }
-    if (entry.key === RENAME_KEY) {
-      return {
-        title: "Rename Goal",
-        description: "Give this Goal a clearer name.",
-        children: <RenameDrawerHost goalId={goalId} currentTitle={title} />,
-      };
-    }
-    if (entry.key === EDIT_DETAILS_KEY) {
-      return {
-        title: "Goal details",
-        description: "Set a target date and definition of done.",
-        children: (
-          <DetailsDrawerHost
-            goalId={goalId}
-            currentTargetDate={targetDate}
-            currentDefinitionOfDone={definitionOfDone}
-          />
-        ),
-      };
-    }
     return null;
   };
-}
-
-function RenameDrawerHost({
-  goalId,
-  currentTitle,
-}: {
-  readonly goalId: string;
-  readonly currentTitle: string;
-}) {
-  const { closeDrawer } = useDrawer();
-  const revalidator = useRevalidator();
-  return (
-    <RenameGoalForm
-      goalId={goalId}
-      currentTitle={currentTitle}
-      onDone={() => {
-        revalidator.revalidate();
-        closeDrawer();
-      }}
-      onCancel={closeDrawer}
-    />
-  );
-}
-
-function DetailsDrawerHost({
-  goalId,
-  currentTargetDate,
-  currentDefinitionOfDone,
-}: {
-  readonly goalId: string;
-  readonly currentTargetDate: string | null;
-  readonly currentDefinitionOfDone: string | null;
-}) {
-  const { closeDrawer } = useDrawer();
-  const revalidator = useRevalidator();
-  return (
-    <GoalDetailsForm
-      goalId={goalId}
-      currentTargetDate={currentTargetDate}
-      currentDefinitionOfDone={currentDefinitionOfDone}
-      onDone={() => {
-        revalidator.revalidate();
-        closeDrawer();
-      }}
-      onCancel={closeDrawer}
-    />
-  );
 }
 
 function parseTab(value: string | null): "projects" | "linked" | "activity" {
@@ -255,6 +171,73 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       return (await response.json()) as GoalMutationResult;
     },
     [props.overview.id],
+  );
+
+  /**
+   * DS-16 — one helper for the three inline fields.
+   *
+   * Each posts its OWN focused intent to the SAME trusted endpoint the Drawer
+   * forms used, so every server-side rule is untouched: the workspace is
+   * resolved server-side, the id is verified to be an active Goal in it, and
+   * `SpineValidationError`/`GoalDetailsValidationError` still produce the field
+   * message. A refusal is RETURNED rather than thrown, because `useInlineEdit`
+   * keeps the user's draft in the field and shows the message — the behaviour
+   * closing a Drawer could never offer.
+   */
+  const inlineSave = useCallback(
+    async (
+      kind: "rename" | "set_target_date" | "set_definition_of_done",
+      fields: Record<string, string>,
+    ): Promise<InlineSaveOutcome> => {
+      const body = new FormData();
+      body.set("intent", kind);
+      for (const [key, value] of Object.entries(fields)) body.set(key, value);
+      let result: GoalMutationResult;
+      try {
+        result = await postMutation(body);
+      } catch {
+        return {
+          ok: false,
+          message:
+            "That couldn’t be saved. Your change is still here — try again.",
+        };
+      }
+      if (result.kind === kind && result.ok) {
+        revalidator.revalidate();
+        return { ok: true };
+      }
+      const fieldErrors =
+        result.kind === kind && !result.ok ? result.fieldErrors : undefined;
+      const formError =
+        result.kind === kind && !result.ok ? result.formError : undefined;
+      return {
+        ok: false,
+        message:
+          (fieldErrors ? Object.values(fieldErrors)[0] : undefined) ??
+          formError ??
+          "That couldn’t be saved. Your change is still here — try again.",
+      };
+    },
+    [postMutation, revalidator],
+  );
+
+  const onRename = useCallback(
+    (title: string) => inlineSave("rename", { title }),
+    [inlineSave],
+  );
+
+  const onSetTargetDate = useCallback(
+    (targetDate: string | null) =>
+      // An empty string is the endpoint's own "clear it" wire form
+      // (`emptyToNull`), so clearing needs no second intent.
+      inlineSave("set_target_date", { targetDate: targetDate ?? "" }),
+    [inlineSave],
+  );
+
+  const onSetDefinitionOfDone = useCallback(
+    (definitionOfDone: string) =>
+      inlineSave("set_definition_of_done", { definitionOfDone }),
+    [inlineSave],
   );
 
   const submitCompletion = useCallback(
@@ -338,8 +321,9 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}
-      onRename={() => openDrawer(RENAME_KEY)}
-      onEditDetails={() => openDrawer(EDIT_DETAILS_KEY)}
+      onRename={onRename}
+      onSetTargetDate={onSetTargetDate}
+      onSetDefinitionOfDone={onSetDefinitionOfDone}
       onDelete={onDelete}
       deletePending={deletePending}
       onOpenProject={(projectId) =>

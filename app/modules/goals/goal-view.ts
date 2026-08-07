@@ -236,5 +236,12 @@ export function targetDatePresentation(
   return { state, formatted, raw: targetDate };
 }
 
-/** The honest empty-state text for an unset definition of done. */
-export const NO_DEFINITION_OF_DONE_TEXT = "No definition of done recorded yet.";
+/**
+ * The empty state for an unset definition of done.
+ *
+ * EDIT-02 turned it from a report ("No definition of done recorded yet.") into
+ * an INVITATION, because the empty state is now the control you press to fill
+ * it in — and an empty state that is also a button has to say what pressing it
+ * does (AGENTS.md §6 — no dead ends).
+ */
+export const NO_DEFINITION_OF_DONE_TEXT = "Add a definition of done";

@@ -1,11 +1,17 @@
 /**
  * PEOPLE-01 — the Person "Settings" tab.
  *
- * Rename / Archive / Restore / Delete, composed from the DS-10b Settings system,
- * mirroring the Projects lifecycle convention. Archive is a reversible put-away
- * (a calm button + success toast — undo over confirmation, AGENTS.md §7); Delete
- * is destructive and goes through a confirmation dialog. The callbacks post to
- * `/person/:id/mutate` (owned by `PersonRecord`).
+ * LIFECYCLE only — Archive / Restore / Delete — composed from the DS-10b
+ * Settings system, mirroring the Projects lifecycle convention. Archive is a
+ * reversible put-away (a calm button + success toast — undo over confirmation,
+ * AGENTS.md §7); Delete is destructive and goes through a confirmation dialog.
+ * The callbacks post to `/person/:id/mutate` (owned by `PersonRecord`).
+ *
+ * EDIT-02 removed the "Name" group. It held one button that opened a Drawer
+ * form to change a value shown at the top of the same record — the third place
+ * (header action, settings row, drawer form) the product offered for one
+ * rename. The heading now edits itself, so this tab holds only the actions that
+ * genuinely need explaining before you take them.
  */
 
 import {
@@ -19,7 +25,6 @@ import type { SerializedPerson } from "./person-view";
 
 interface PersonSettingsTabProps {
   readonly person: SerializedPerson;
-  readonly onRename: () => void;
   readonly onArchive: () => void;
   readonly onRestore: () => void;
   readonly onDelete: () => Promise<void>;
@@ -28,7 +33,6 @@ interface PersonSettingsTabProps {
 
 export function PersonSettingsTab({
   person,
-  onRename,
   onArchive,
   onRestore,
   onDelete,
@@ -36,22 +40,6 @@ export function PersonSettingsTab({
 }: PersonSettingsTabProps) {
   return (
     <SettingsLayout aria-label="Person settings">
-      <SettingsGroup title="Name" headingLevel={3}>
-        <SettingsRow
-          label="Display name"
-          description="The name shown everywhere this person appears."
-          control={
-            <button
-              type="button"
-              className="dh-btn dh-btn--secondary"
-              onClick={onRename}
-            >
-              Rename
-            </button>
-          }
-        />
-      </SettingsGroup>
-
       <SettingsGroup
         title="Lifecycle"
         headingLevel={3}

@@ -21,7 +21,7 @@ import {
   undoDepth,
 } from "@codemirror/commands";
 import { markdownKeymap } from "@codemirror/lang-markdown";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
   EditorView,
   drawSelection,
@@ -71,6 +71,34 @@ export interface EditorSetupOptions {
   readonly readOnly?: boolean;
 }
 
+/**
+ * EDIT-02 — the editable/read-only slice of the configuration, isolated so a
+ * host can turn the writing surface off and on again WITHOUT rebuilding the
+ * view.
+ *
+ * A form that disables its controls while a submit is in flight must be able to
+ * disable this one too, and re-creating the editor to do it would destroy the
+ * undo history and the caret every time the user pressed Save. A `Compartment`
+ * is CodeMirror's own answer: one identity token, reconfigured per view.
+ * Sharing the token across views is safe — each view's state holds its own
+ * configuration for it.
+ */
+const editableCompartment = new Compartment();
+
+/**
+ * Turn editing on or off for a live view. A no-op for a view that was never
+ * created (the SSR/no-JS fallback textarea carries its own `disabled`).
+ */
+export function setEditorEditable(view: EditorView, editable: boolean): void {
+  view.dispatch({
+    effects: editableCompartment.reconfigure(editableExtension(!editable)),
+  });
+}
+
+function editableExtension(readOnly: boolean): Extension {
+  return [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)];
+}
+
 export function createEditorExtensions(options: EditorSetupOptions): Extension {
   const {
     onChange,
@@ -95,8 +123,7 @@ export function createEditorExtensions(options: EditorSetupOptions): Extension {
     EditorView.lineWrapping,
     drawSelection(),
     placeholder ? placeholderExt(placeholder) : [],
-    EditorState.readOnly.of(readOnly),
-    EditorView.editable.of(!readOnly),
+    editableCompartment.of(editableExtension(readOnly)),
     EditorView.contentAttributes.of({
       "aria-label": ariaLabel,
       role: "textbox",

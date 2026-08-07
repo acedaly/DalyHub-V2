@@ -634,3 +634,23 @@ active, plus how many active Projects have no Goal linked. Wording stays calm an
 gamification or moral language. Trend and history remain
 [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) /
 [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+A Goal now edits three values on the record itself: the **name** (shared
+`InlineTextField` on the heading), the **target date** (`InlineDateField` in the
+Summary) and the **definition of done** (`InlineTextField multiline` — plain text,
+not Markdown, because that is what the column stores). Each posts its OWN focused
+intent — `rename`, `set_target_date`, `set_definition_of_done` — so changing one
+can never overwrite the other. `RenameGoalForm.tsx`, `GoalDetailsForm.tsx` and
+both Drawer entries are deleted; `update_details` remains for a caller that
+genuinely wants to write both detail fields at once.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

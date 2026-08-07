@@ -128,14 +128,38 @@ test.describe("TODAY-02 — desktop", () => {
     await gotoFixture(page, DRAWER_URL);
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Edit details" }).click();
-    const title = dialog.getByRole("textbox", { name: /Title/ });
-    await title.fill("A discarded title");
+    // EDIT-02 — the title left this form for the record's own heading, so the
+    // discardable value here is the description.
+    const description = dialog.getByRole("textbox", { name: "Description" });
+    await description.fill("A discarded description");
     await dialog.getByRole("button", { name: "Cancel" }).click();
     // The read view returns and the discarded edit is not shown.
     await expect(
       dialog.getByRole("button", { name: "Edit details" }),
     ).toBeVisible();
-    await expect(dialog.getByText("A discarded title")).toHaveCount(0);
+    await expect(dialog.getByText("A discarded description")).toHaveCount(0);
+  });
+
+  test("EDIT-02: renames from the record heading, and cancels without saving", async ({
+    page,
+  }) => {
+    await gotoFixture(page, DRAWER_URL);
+    const dialog = page.getByRole("dialog");
+    const trigger = dialog.getByRole("button", { name: /^Task title: / });
+    const original = (await trigger.getAttribute("aria-label")) ?? "";
+
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    const input = dialog.getByRole("textbox", { name: "Task title" });
+    await expect(input).toBeFocused();
+    await input.fill("A discarded title");
+    await page.keyboard.press("Escape");
+
+    await expect(
+      dialog.getByRole("textbox", { name: "Task title" }),
+    ).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-label", original);
   });
 
   test("completes and reopens the task", async ({ page }) => {

@@ -81,6 +81,21 @@
   font-style: italic;
 }
 
+/* A multi-line plain-text value keeps its line breaks AT REST. Without this the
+ * read state joins the paragraphs into one run-on line and the editor re-splits
+ * them the moment it opens, which reads as if the record had lost its
+ * formatting. */
+.dh-inline-edit[data-multiline="true"] .dh-inline-edit__trigger {
+  display: flex;
+  inline-size: auto;
+  align-items: flex-start;
+}
+
+.dh-inline-edit[data-multiline="true"] .dh-inline-edit__value {
+  white-space: pre-wrap;
+  max-inline-size: var(--app-width-prose);
+}
+
 /* Read-only: text, and nothing else. No container, no hover, no tab stop. */
 .dh-inline-edit__static {
   display: inline-block;
@@ -197,6 +212,15 @@
   font: inherit;
 }
 
+/* The multiline editor keeps the same measure as the value it replaces, so
+ * opening the editor does not widen the column and shift the page. */
+.dh-inline-edit__textarea {
+  max-inline-size: var(--app-width-prose);
+  min-block-size: 0;
+  resize: vertical;
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
 .dh-inline-edit[data-variant="heading"] .dh-inline-edit__input {
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: var(--md-sys-typescale-headline-small-line-height);
@@ -287,6 +311,9 @@
   inset-block-start: calc(100% + var(--app-space-1));
   inset-inline-start: 0;
   z-index: var(--app-z-dropdown);
+  /* The surface measures itself on open and flips to the inline-END edge when a
+   * start-anchored box would run past the viewport (`useAnchoredAlignment`).
+   * Only the anchor changes — never the width — so nothing reflows. */
   min-inline-size: var(--app-space-16);
   max-inline-size: min(20rem, 90vw);
   padding: var(--app-space-1);
@@ -295,6 +322,12 @@
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
+}
+
+.dh-inline-select__menu[data-align="end"],
+.dh-inline-date__popover[data-align="end"] {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 
 .dh-inline-select__option {
@@ -322,6 +355,19 @@
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
   font-weight: 500;
+}
+
+/* The clear command is the "none of these" choice, separated from the real
+ * values by a hairline so it reads as a different KIND of item — and it is
+ * quieter than them, because unsetting a field is rarely the point of opening
+ * the menu. */
+.dh-inline-select__option[data-clear="true"] {
+  margin-block-start: var(--app-space-1);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-inline-select__option-description {

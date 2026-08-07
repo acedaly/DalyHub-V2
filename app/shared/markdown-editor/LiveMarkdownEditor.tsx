@@ -123,6 +123,19 @@ export interface LiveMarkdownEditorProps {
    */
   readonly autoFocusOnMount?: boolean;
   /**
+   * EDIT-02 — render the writing surface as temporarily un-editable.
+   *
+   * For a host whose save semantics are an explicit FORM submit: while the
+   * request is in flight every other control in that form is disabled, and an
+   * editor that stayed live would let the user type into a document that is
+   * about to be replaced by the server's answer. The toolbar goes with it —
+   * a formatting button that edits a frozen document is a control that lies.
+   *
+   * It is NOT a read view. Reading is the Read toggle (or the caller's own
+   * rendered content); this is the disabled STATE of an editing control.
+   */
+  readonly disabled?: boolean;
+  /**
    * NOTES-05 §5 — enable the record-link picker.
    *
    * Optional, so the editor keeps working with no linking capability at all (the
@@ -167,6 +180,7 @@ export function LiveMarkdownEditor({
   density = "comfortable",
   hideModeToggle = false,
   autoFocusOnMount = false,
+  disabled = false,
   recordLink,
 }: LiveMarkdownEditorProps) {
   const [mode, setMode] = useState<EditorViewMode>("write");
@@ -184,6 +198,10 @@ export function LiveMarkdownEditor({
   valueRef.current = value;
   const autoFocusRef = useRef(autoFocusOnMount);
   autoFocusRef.current = autoFocusOnMount;
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
+  /** Reconfigure the live view's editable state, once one exists. */
+  const setEditableRef = useRef<((editable: boolean) => void) | null>(null);
 
   const baseId = `dh-md-editor-${label.replace(/\s+/g, "-").toLowerCase()}`;
   const { helpId, errorId } = deriveFieldIds(baseId);
@@ -251,7 +269,11 @@ export function LiveMarkdownEditor({
           import("./editor-setup"),
         ])
           .then(
-            ([{ EditorState }, { EditorView }, { createEditorExtensions }]) => {
+            ([
+              { EditorState },
+              { EditorView },
+              { createEditorExtensions, setEditorEditable },
+            ]) => {
               if (cancelled || !node.isConnected) return;
               const view = new EditorView({
                 parent: node,
@@ -260,6 +282,7 @@ export function LiveMarkdownEditor({
                   extensions: createEditorExtensions({
                     ariaLabel: label,
                     placeholder,
+                    readOnly: disabledRef.current,
                     onChange: (next) => onChangeRef.current(next),
                     onSurfaceState,
                     onBlur: () => onBlurRef.current?.(),
@@ -267,8 +290,12 @@ export function LiveMarkdownEditor({
                 }),
               });
               viewRef.current = view;
+              // Reconfiguration, not re-creation: a later disable must not cost
+              // the author their undo history or their caret.
+              setEditableRef.current = (editable) =>
+                setEditorEditable(view, editable);
               setEditorReady(true);
-              if (autoFocusRef.current) {
+              if (autoFocusRef.current && !disabledRef.current) {
                 view.focus();
               }
             },
@@ -286,6 +313,7 @@ export function LiveMarkdownEditor({
       } else {
         cleanupRef.current?.();
         cleanupRef.current = null;
+        setEditableRef.current = null;
         if (viewRef.current) {
           viewRef.current.destroy();
           viewRef.current = null;
@@ -310,10 +338,15 @@ export function LiveMarkdownEditor({
   // Focus the fallback surface when asked to, so the caller's "enter editing"
   // transition lands the caret in the text regardless of which surface is live.
   useEffect(() => {
-    if (autoFocusOnMount && !editorReady) {
+    if (autoFocusOnMount && !editorReady && !disabled) {
       fallbackRef.current?.focus();
     }
-  }, [autoFocusOnMount, editorReady]);
+  }, [autoFocusOnMount, editorReady, disabled]);
+
+  // Track the host's disabled state onto whichever surface is live.
+  useEffect(() => {
+    setEditableRef.current?.(!disabled);
+  }, [disabled, editorReady]);
 
   // Sync an EXTERNAL value change (e.g. a programmatic reset) into the editor.
   // The common case — our own onChange echoing back — is a no-op because the
@@ -491,6 +524,7 @@ export function LiveMarkdownEditor({
       className="dh-md-editor"
       data-mode={mode}
       data-density={density}
+      data-disabled={disabled ? "true" : undefined}
       // A stable, surface-agnostic readiness contract: `true` once the live
       // CodeMirror writing surface has mounted and replaced the SSR/no-JS
       // `<textarea>` fallback, `false` while the fallback is still the editing
@@ -508,7 +542,11 @@ export function LiveMarkdownEditor({
             label={toolbarLabel}
             commands={toolbarCommands}
             activeIds={activeIds}
+            // The toolbar keeps its shape while disabled — the controls grey
+            // out rather than disappearing, so nothing shifts under the pointer
+            // when a save starts and finishes.
             history={history}
+            disabled={disabled}
           />
         ) : (
           <span className="dh-md-editor__reading-note">Reading</span>
@@ -556,6 +594,7 @@ export function LiveMarkdownEditor({
               aria-label={label}
               aria-describedby={describedBy}
               aria-invalid={invalid || undefined}
+              disabled={disabled}
               spellCheck
               onChange={(event) => {
                 onChange(event.target.value);

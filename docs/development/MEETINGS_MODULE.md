@@ -465,3 +465,22 @@ The **owner** is the actor on every event, and an accepted proposal produces
 exactly the events the same action taken by hand would produce. There is no
 "AI created this" event and AI is never an Activity actor
 ([`ACTIVITY_TIMELINE.md`](ACTIVITY_TIMELINE.md)).
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+A Meeting's title is edited on the record heading through the shared
+`InlineTextField`, posting `intent=update` with **only** the `title` key (the
+mutate action has always copied just the keys present in the submission). It was
+also removed from the "Edit details" disclosure form, which fixed a live defect:
+that form submitted the title it captured when it mounted, so pressing **Save
+details** silently reverted a rename made anywhere else since the page loaded.
+Scheduling, attendees, items and the follow-up workflow are untouched.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

@@ -3,10 +3,18 @@
  *
  * A clear VIEW state (rendered Markdown description + created/updated metadata) and
  * an EDIT state built entirely from DS-06 shared controls (`useForm`, `TextField`,
- * `MarkdownField`, `SelectField`, `DateField`) with explicit Save/Cancel, dirty
- * tracking, server-authoritative validation and unsaved-changes protection wired to
- * the Drawer via `UnsavedChangesGuard`. No bespoke field controls, no second parser
+ * `SelectField`, `DateField`) over the shared writing surface
+ * (`MarkdownEditorField`), with explicit Save/Cancel, dirty tracking,
+ * server-authoritative validation and unsaved-changes protection wired to the
+ * Drawer via `UnsavedChangesGuard`. No bespoke field controls, no second parser
  * or HTML sink (Markdown renders through the ONE shared pipeline), no raw JSON.
+ *
+ * EDIT-02 narrowed what this form is FOR. The title, the priority and the two
+ * dates are now edited on the record itself, where they are shown; the form
+ * keeps the fields that genuinely interact — status, commitment, recurrence and
+ * the four delegation fields — because those are a workflow, not four
+ * independent values, and inlining them one by one would let a user build a
+ * half-delegated task one refused save at a time (§1, category E).
  */
 
 import { useEffect, useState } from "react";
@@ -19,30 +27,24 @@ import {
   FormActions,
   FormButton,
   FormErrorSummary,
-  MarkdownField,
   SelectField,
   TextField,
   UnsavedChangesGuard,
-  required,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
+import { MarkdownEditorField } from "~/shared/markdown-editor";
 
 import {
   formatCalendarDate,
-  taskPriorityLabel,
   taskRecurrenceLabel,
   type SerializedTaskView,
 } from "./task-view";
 
 /** The editable values of the Details form (all strings for the shared controls). */
 export type TaskDetailsValues = {
-  readonly title: string;
   readonly description: string;
   readonly status: string;
-  readonly priority: string;
-  readonly dueDate: string;
-  readonly scheduledDate: string;
   readonly timeSector: string;
   readonly commitmentState: string;
   readonly delegateTo: string;
@@ -71,14 +73,6 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const PRIORITY_OPTIONS = [
-  { value: "", label: "No priority" },
-  { value: "p1", label: taskPriorityLabel("p1") },
-  { value: "p2", label: taskPriorityLabel("p2") },
-  { value: "p3", label: taskPriorityLabel("p3") },
-  { value: "p4", label: taskPriorityLabel("p4") },
-];
-
 const SECTOR_OPTIONS = [
   { value: "", label: "No sector" },
   { value: "this_week", label: "This Week" },
@@ -95,12 +89,8 @@ const COMMITMENT_OPTIONS = [
 ];
 
 const FIELD_LABELS: Record<string, string> = {
-  title: "Title",
   description: "Description",
   status: "Status",
-  priority: "Priority",
-  dueDate: "Due date",
-  scheduledDate: "Scheduled date",
   timeSector: "Time Sector",
   commitmentState: "Commitment",
   delegateTo: "Delegated to",
@@ -197,12 +187,8 @@ function TaskDetailsForm({
 }: Omit<TaskDetailsTabProps, "isEditing" | "onEdit">) {
   const form = useForm<TaskDetailsValues>({
     initialValues: {
-      title: task.title,
       description: task.description ?? "",
       status: task.status,
-      priority: task.priority ?? "",
-      dueDate: task.dueDate ?? "",
-      scheduledDate: task.scheduledDate ?? "",
       timeSector: task.timeSector ?? "",
       commitmentState: task.commitmentState,
       delegateTo: task.delegation?.to ?? "",
@@ -210,17 +196,10 @@ function TaskDetailsForm({
       followUpOn: task.delegation?.followUpOn ?? "",
       delegateNote: task.delegation?.note ?? "",
     },
-    fields: {
-      title: { validate: required("A title is required") },
-    },
     fieldOrder: [
-      "title",
       "status",
-      "priority",
       "timeSector",
       "commitmentState",
-      "dueDate",
-      "scheduledDate",
       "delegateTo",
       "delegatedOn",
       "followUpOn",
@@ -236,12 +215,8 @@ function TaskDetailsForm({
     },
   });
 
-  const titleField = form.field("title");
   const descriptionField = form.field("description");
   const statusField = form.field("status");
-  const priorityField = form.field("priority");
-  const dueField = form.field("dueDate");
-  const scheduledField = form.field("scheduledDate");
   const sectorField = form.field("timeSector");
   const commitmentField = form.field("commitmentState");
   const delegateToField = form.field("delegateTo");
@@ -262,14 +237,7 @@ function TaskDetailsForm({
         labels={FIELD_LABELS}
         onFocusField={form.focusField}
       />
-      <TextField label="Title" required maxLength={512} {...titleField} />
       <SelectField label="Status" options={STATUS_OPTIONS} {...statusField} />
-      <SelectField
-        label="Priority"
-        help="P1 · Urgent · P2 · High · P3 · Normal · P4 · Low"
-        options={PRIORITY_OPTIONS}
-        {...priorityField}
-      />
       <SelectField
         label="Time Sector"
         help="When you intend to work on this — separate from the due date."
@@ -282,8 +250,6 @@ function TaskDetailsForm({
         options={COMMITMENT_OPTIONS}
         {...commitmentField}
       />
-      <DateField label="Due date" {...dueField} />
-      <DateField label="Scheduled date" {...scheduledField} />
       <TextField
         label="Delegated to"
         help="A person or party — leave blank if not delegated."
@@ -297,9 +263,12 @@ function TaskDetailsForm({
         maxLength={500}
         {...delegateNoteField}
       />
-      <MarkdownField
+      <MarkdownEditorField
         label="Description"
-        help="Markdown is supported."
+        help="Markdown — headings, lists, checklists, quotes and tables format as you type."
+        rows={6}
+        placeholder="Anything worth remembering about this task…"
+        disabled={form.isSubmitting}
         {...descriptionField}
       />
       <FormActions>

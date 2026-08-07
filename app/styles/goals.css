@@ -18,18 +18,26 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.dh-goal-overview__definition-text {
-  margin: 0;
-  /* Plain text, not Markdown — line breaks are preserved accessibly without a
-   * rendering pipeline, and long content wraps without horizontal overflow. */
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+/* EDIT-02 — the definition of done is edited in place, so its READ state is the
+ * shared inline field's own trigger. Plain text, not Markdown: line breaks are
+ * preserved by the shared `[data-multiline]` rule, and long content wraps
+ * without horizontal overflow. */
+.dh-goal-overview__definition-field {
+  min-inline-size: 0;
 }
 
-.dh-goal-overview__definition-empty {
-  margin: 0;
+/* The target date sits inline in the Summary metadata; "overdue" stays a WORD
+ * beside it, never a colour alone. */
+.dh-goal-overview__target {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+.dh-goal-overview__target-note {
   color: var(--md-sys-color-on-surface-variant);
-  font-style: italic;
 }
 
 .dh-goal-overview__progress {
