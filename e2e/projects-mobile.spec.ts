@@ -292,13 +292,23 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await expectNoHorizontalOverflow(page);
 
     await openTab(page, "Settings");
+    /*
+     * M3-INT (PR #127) converged the product's application-style selects on the
+     * shared `SelectField`, so Workflow status is a combobox rather than a
+     * native `<select>`. Two mechanical consequences, both already applied to
+     * `project-settings.spec.ts` in that PR and missed here: the control
+     * reflects its chosen option's LABEL rather than the stored enum value, and
+     * it is driven by opening the listbox and choosing an option rather than by
+     * `selectOption`.
+     */
     const status = page.getByRole("combobox", { name: "Workflow status" });
-    await expect(status).toHaveValue("planned");
-    await status.selectOption("active");
+    await expect(status).toHaveValue("Planned");
+    await status.click();
+    await page.getByRole("option", { name: "Active", exact: true }).click();
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
-    await expect(status).toHaveValue("active");
+    await expect(status).toHaveValue("Active");
 
     const archive = page.getByRole("button", { name: "Archive project…" });
     await expectMinTouchTarget(archive);

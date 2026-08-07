@@ -603,3 +603,22 @@ shown on a phone too**. Diary therefore still has exactly ONE in-page primary
 create action per viewport — and it is the right one to keep, because it opens
 capture on the day currently being VIEWED, with backdating, which the global
 Capture control deliberately does not do.
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+The entry body — in both the details panel and capture — is now the shared
+writing surface (`MarkdownEditorField` over `LiveMarkdownEditor`), the same
+editor, toolbar and typography as a Note. **Only the presentation converged.**
+The panel keeps its explicit `Save changes`, its dirty tracking and its honest
+partial-success reporting, and capture keeps its own submit — the split-ownership
+save (title through `EntityRepository`, body through `DiaryRepository`, ADR-041)
+is unchanged, as is every day-scoped behaviour.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

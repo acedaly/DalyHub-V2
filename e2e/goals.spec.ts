@@ -45,63 +45,90 @@ test.describe("AREA-02 — Goals", () => {
     );
     await expect(page.locator(".record-status")).toHaveText(/Open/);
     await expect(page.getByText("No Projects contributing yet")).toBeVisible();
-    await expect(
-      page.getByText("No definition of done recorded yet."),
-    ).toBeVisible();
-    await expect(page.getByText("No target date set")).toBeVisible();
 
-    // 3. Set target date and definition of done via the "Edit details" Drawer.
-    const editDetailsButton = page.getByRole("button", {
-      name: "Edit details",
+    // 3. EDIT-02 — set the target date and the definition of done IN PLACE.
+    // Both empty states are the controls, and both name the next action rather
+    // than reporting an absence.
+    const targetTrigger = page.getByRole("button", {
+      name: "Target date: Add a target date",
     });
-    await editDetailsButton.focus();
-    await editDetailsButton.click();
-    const detailsDialog = page.getByRole("dialog", { name: "Goal details" });
-    await expect(detailsDialog).toBeVisible();
+    const definitionTrigger = page.getByRole("button", {
+      name: "Definition of done: Add a definition of done",
+    });
+    await expect(targetTrigger).toBeVisible();
+    await expect(definitionTrigger).toBeVisible();
+
+    // The dedicated Drawer entry points are gone — the values are the controls.
+    await expect(
+      page.getByRole("button", { name: "Edit details" }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Rename" })).toHaveCount(0);
+
+    await targetTrigger.focus();
+    await targetTrigger.click();
+    const datePopover = page.getByRole("dialog", { name: "Edit target date" });
+    await expect(datePopover).toBeVisible();
     await expectNoAxeViolations(page);
 
-    // Focus restoration: Escape returns focus to the trigger.
+    // Focus restoration: Escape closes and returns focus to the value.
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(editDetailsButton).toBeFocused();
+    await expect(targetTrigger).toBeFocused();
 
-    await editDetailsButton.click();
-    await detailsDialog.getByLabel(/Target date/).fill("2027-01-01");
-    await detailsDialog
-      .getByLabel(/Definition of done/)
-      .fill("Cross the finish line.\nCelebrate with the team.");
-    await detailsDialog.getByRole("button", { name: "Save" }).click();
+    await targetTrigger.click();
+    await datePopover.getByLabel("Target date").fill("2027-01-01");
+    await datePopover.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-
     await expect(page.getByText(/1 Jan 2027/).first()).toBeVisible();
-    await expect(page.getByText("Cross the finish line.")).toBeVisible();
+
+    await definitionTrigger.click();
+    await page
+      .getByRole("textbox", { name: "Definition of done" })
+      .fill("Cross the finish line.\nCelebrate with the team.");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: /^Definition of done: Cross the/ }),
+    ).toBeVisible();
 
     // 3b. Regression: with the Activity tab already open (no navigation, no
-    // reload), a SECOND details-only edit is reflected immediately. The
+    // reload), a FURTHER details-only edit is reflected immediately. The
     // details mutation only touches `goal_details`, never the spine record —
     // the Activity tab's reload key must be the Goal's EFFECTIVE updatedAt
     // (the later of the two) for the Timeline to notice and refetch.
+    //
+    // EDIT-02 — two events so far, because the target date and the definition
+    // of done now save SEPARATELY (each posts only its own key, so changing one
+    // can never revert the other). That is the intended trade: two honest
+    // events instead of one covering a write the user did not make.
     await page.getByRole("tab", { name: "Activity" }).click();
     const activityFeed = page.getByRole("feed", { name: "Goal activity" });
-    await expect(activityFeed.getByText("Updated goal details")).toHaveCount(1);
+    await expect(activityFeed.getByText("Updated goal details")).toHaveCount(2);
 
-    await editDetailsButton.click();
-    await detailsDialog.getByLabel(/Target date/).fill("2027-02-01");
-    await detailsDialog.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: /^Target date: / }).click();
+    await page
+      .getByRole("dialog", { name: "Edit target date" })
+      .getByLabel("Target date")
+      .fill("2027-02-01");
+    await page
+      .getByRole("dialog", { name: "Edit target date" })
+      .getByRole("button", { name: "Save" })
+      .click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
-    // Still on the Activity tab the whole time — the second edit's event is
+    // Still on the Activity tab the whole time — the newest edit's event is
     // already visible, with no tab switch and no page reload. The Summary
     // (rendered alongside whichever tab is active, not a tab itself) reflects
     // the new target date too.
-    await expect(activityFeed.getByText("Updated goal details")).toHaveCount(2);
+    await expect(activityFeed.getByText("Updated goal details")).toHaveCount(3);
     await expect(page.getByText(/1 Feb 2027/).first()).toBeVisible();
 
     // 4. Verify persistence after navigation (reload the canonical record).
     await gotoFixture(page, goalUrl);
     await expect(page.getByRole("heading", { name: goalTitle })).toBeVisible();
     await expect(page.getByText(/1 Feb 2027/).first()).toBeVisible();
-    await expect(page.getByText("Cross the finish line.")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /^Definition of done: Cross the/ }),
+    ).toBeVisible();
 
     // 5. The Area Goal card links back to the canonical record and shows the
     // target date, batched with every other Goal card (no per-Goal fetch).

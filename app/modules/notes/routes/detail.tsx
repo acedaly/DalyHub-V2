@@ -5,7 +5,8 @@
  * DESIGN_SYSTEM.md's flagged exception that warrants the full Record Layout
  * surface (mirrors how `~/modules/goals/routes/detail.tsx` and
  * `~/modules/projects/routes/detail.tsx` already host their canonical
- * records). The Drawer here hosts the "Rename" and "Edit tags" forms.
+ * records). The Drawer here hosts the "Edit tags" form; the title is edited in
+ * place on the heading (EDIT-02), so there is no rename form left to host.
  *
  * The loader server-renders the FIRST page of the note's backlinks and outgoing
  * links, so the relationship tabs are populated without JavaScript and without a
@@ -47,15 +48,14 @@ import { NoteActivityTab } from "../NoteActivityTab";
 import { NoteBacklinksTab, NoteLinksTab } from "../NoteReferences";
 import { NoteOverview } from "../NoteOverview";
 import { NoteTagsForm } from "../NoteTagsForm";
-import { RenameNoteForm } from "../RenameNoteForm";
 import {
   effectiveNoteUpdatedAt,
   serializeNoteDetails,
   serializeNoteOverview,
 } from "../note-view";
+import type { NoteMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
-const RENAME_KEY = "rename";
 const TAGS_KEY = "tags";
 
 export function meta() {
@@ -123,16 +123,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 export default function NoteDetailRoute({ loaderData }: Route.ComponentProps) {
   const renderDrawer = useMemo(
     () =>
-      createNoteDrawerRenderer(
-        loaderData.overview.id,
-        loaderData.overview.title,
-        loaderData.details.tags,
-      ),
-    [
-      loaderData.overview.id,
-      loaderData.overview.title,
-      loaderData.details.tags,
-    ],
+      createNoteDrawerRenderer(loaderData.overview.id, loaderData.details.tags),
+    [loaderData.overview.id, loaderData.details.tags],
   );
 
   return (
@@ -142,19 +134,8 @@ export default function NoteDetailRoute({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function createNoteDrawerRenderer(
-  noteId: string,
-  title: string,
-  tags: readonly string[],
-) {
+function createNoteDrawerRenderer(noteId: string, tags: readonly string[]) {
   return function render(entry: DrawerEntry): DrawerRenderResult | null {
-    if (entry.key === RENAME_KEY) {
-      return {
-        title: "Rename note",
-        description: "Give this note a clearer title.",
-        children: <RenameDrawerHost noteId={noteId} currentTitle={title} />,
-      };
-    }
     if (entry.key === TAGS_KEY) {
       return {
         title: "Edit tags",
@@ -164,28 +145,6 @@ function createNoteDrawerRenderer(
     }
     return null;
   };
-}
-
-function RenameDrawerHost({
-  noteId,
-  currentTitle,
-}: {
-  readonly noteId: string;
-  readonly currentTitle: string;
-}) {
-  const { closeDrawer } = useDrawer();
-  const revalidator = useRevalidator();
-  return (
-    <RenameNoteForm
-      noteId={noteId}
-      currentTitle={currentTitle}
-      onDone={() => {
-        revalidator.revalidate();
-        closeDrawer();
-      }}
-      onCancel={closeDrawer}
-    />
-  );
 }
 
 function TagsDrawerHost({
@@ -251,11 +210,56 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
     [setSearchParams],
   );
 
+  /**
+   * DS-16 — the Note rename, driven from the record heading.
+   *
+   * It posts the SAME `rename` intent to the SAME trusted endpoint the Drawer
+   * form used, so every server-side rule is untouched: the workspace is resolved
+   * server-side, the id is verified to be an active Note in it, and an
+   * `EntityValidationError` still produces the field message. Only the surface
+   * changed — and with it the failure behaviour, since `useInlineEdit` keeps the
+   * typed title in the field where closing the Drawer used to discard it.
+   */
+  const noteId = props.overview.id;
+  const onRename = useCallback(
+    async (title: string) => {
+      const body = new FormData();
+      body.set("intent", "rename");
+      body.set("title", title);
+      let result: NoteMutationResult;
+      try {
+        const response = await fetch(
+          `/notes/${encodeURIComponent(noteId)}/mutate`,
+          { method: "POST", body, headers: { accept: "application/json" } },
+        );
+        result = (await response.json()) as NoteMutationResult;
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Your text is safe — try again.",
+        } as const;
+      }
+      if (result.kind === "rename" && result.ok) {
+        revalidator.revalidate();
+        return { ok: true } as const;
+      }
+      return {
+        ok: false,
+        message:
+          (result.kind === "rename" && !result.ok
+            ? (result.fieldErrors?.title ?? result.formError)
+            : undefined) ??
+          "That couldn’t be saved. Your text is safe — try again.",
+      } as const;
+    },
+    [noteId, revalidator],
+  );
+
   return (
     <NoteOverview
       overview={props.overview}
       details={props.details}
-      onRename={() => openDrawer(RENAME_KEY)}
+      onRename={onRename}
       onEditTags={() => openDrawer(TAGS_KEY)}
       onSaved={() => revalidator.revalidate()}
       activeTabId={activeTabId}

@@ -40,6 +40,31 @@ export type GoalMutationResult =
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
     }
+  /**
+   * EDIT-02 — the two FOCUSED detail intents behind the record's inline fields.
+   *
+   * `update_details` writes both Goal-owned fields at once, which is right for a
+   * form that shows both and wrong for an inline edit that shows one: submitting
+   * the whole slice to change a date would resubmit whatever definition of done
+   * the page happened to be holding, silently reverting a change made elsewhere
+   * since the load. `UpdateGoalDetailsInput` is already a partial patch, so each
+   * inline field posts only its own key (DESIGN_SYSTEM.md → inline editing:
+   * "prefer a focused intent over resubmitting a whole record").
+   */
+  | { readonly kind: "set_target_date"; readonly ok: true }
+  | {
+      readonly kind: "set_target_date";
+      readonly ok: false;
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+    }
+  | { readonly kind: "set_definition_of_done"; readonly ok: true }
+  | {
+      readonly kind: "set_definition_of_done";
+      readonly ok: false;
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+    }
   | {
       readonly kind: "completion";
       readonly ok: true;
@@ -151,6 +176,34 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       return json({
         kind: "update_details",
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
+  // The focused, single-field detail intents. Same repository, same validation,
+  // same atomic `goal.details_updated` Activity event — they differ from
+  // `update_details` only in writing ONE key of the patch, so an inline edit can
+  // never overwrite the field beside it.
+  if (intent === "set_target_date" || intent === "set_definition_of_done") {
+    const patch =
+      intent === "set_target_date"
+        ? { targetDate: emptyToNull(form.get("targetDate")) }
+        : { definitionOfDone: emptyToNull(form.get("definitionOfDone")) };
+    try {
+      await scope.goalDetails.update(goalId, patch);
+      return json({ kind: intent, ok: true });
+    } catch (cause) {
+      if (cause instanceof GoalDetailsValidationError) {
+        return json({
+          kind: intent,
+          ok: false,
+          fieldErrors: { [cause.field]: cause.message },
+        });
+      }
+      return json({
+        kind: intent,
         ok: false,
         formError: "That couldn’t be saved. Please try again.",
       });

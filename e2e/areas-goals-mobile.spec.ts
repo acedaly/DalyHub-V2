@@ -251,46 +251,57 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
 
-    // 6. Edit Goal details: target date + definition of done, via the
-    // route-backed Drawer, with focus restoration on close.
-    const editDetailsButton = page.getByRole("button", {
-      name: "Edit details",
+    // 6. EDIT-02 — set the target date and the definition of done IN PLACE, on a
+    // phone: both values are 44px targets at rest, the date popover stays inside
+    // the viewport, and the multiline editor's Save is reachable rather than
+    // hidden under the software keyboard.
+    const targetTrigger = page.getByRole("button", {
+      name: "Target date: Add a target date",
     });
-    await expectMinTouchTarget(editDetailsButton);
-    await editDetailsButton.focus();
-    await editDetailsButton.click();
-    const detailsDialog = page.getByRole("dialog", { name: "Goal details" });
-    await expect(detailsDialog).toBeVisible();
-    await expect(page).toHaveURL(/drawer=edit-details/);
+    await expectMinTouchTarget(targetTrigger);
+    await targetTrigger.focus();
+    await targetTrigger.click();
+    const datePopover = page.getByRole("dialog", { name: "Edit target date" });
+    await expect(datePopover).toBeVisible();
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
 
+    // Focus restoration: Escape closes and hands focus back to the value.
     await page.keyboard.press("Escape");
-    await expect(detailsDialog).toHaveCount(0);
-    await expect(editDetailsButton).toBeFocused();
+    await expect(datePopover).toHaveCount(0);
+    await expect(targetTrigger).toBeFocused();
 
-    await editDetailsButton.click();
-    await detailsDialog.getByLabel(/Target date/).fill("2027-03-15");
-    await detailsDialog
-      .getByLabel(/Definition of done/)
-      .fill(
-        "A long definition of done that spans several sentences and must wrap without any horizontal overflow on a narrow phone viewport.\nA second line after an explicit break.",
-      );
-    await expectNoHorizontalOverflow(page);
-    await detailsDialog.getByRole("button", { name: "Save" }).click();
+    await targetTrigger.click();
+    await datePopover.getByLabel("Target date").fill("2027-03-15");
+    await expectMinTouchTarget(
+      datePopover.getByRole("button", { name: "Save" }),
+    );
+    await datePopover.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByText(/15 Mar 2027/).first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    // 12 (part 1). Browser Back/Forward for a route-backed Drawer.
-    await editDetailsButton.click();
-    await expect(detailsDialog).toBeVisible();
-    await page.goBack();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.goForward();
-    await expect(detailsDialog).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const definitionTrigger = page.getByRole("button", {
+      name: "Definition of done: Add a definition of done",
+    });
+    await expectMinTouchTarget(definitionTrigger);
+    await definitionTrigger.click();
+    await page
+      .getByRole("textbox", { name: "Definition of done" })
+      .fill(
+        "A long definition of done that spans several sentences and must wrap without any horizontal overflow on a narrow phone viewport.\nA second line after an explicit break.",
+      );
+    await expectNoHorizontalOverflow(page);
+    const saveDefinition = page.getByRole("button", {
+      name: "Save",
+      exact: true,
+    });
+    await expectMinTouchTarget(saveDefinition);
+    await saveDefinition.click();
+    await expect(
+      page.getByRole("button", { name: /^Definition of done: A long/ }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
 
     // 7. Complete, then reopen — explicit completion stays visually distinct
     // from derived Project-contribution progress.
@@ -429,24 +440,24 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
 
+    // EDIT-02 — the same short-viewport question for the inline editor that
+    // replaced the Goal details sheet: a long paragraph must not push its own
+    // Save and Cancel off the screen.
     await gotoFixture(page, "/goals/g-launch");
-    await page.getByRole("button", { name: "Edit details" }).click();
-    const detailsDialog = page.getByRole("dialog", { name: "Goal details" });
-    await expect(detailsDialog).toBeVisible();
-    await detailsDialog
-      .getByLabel(/Definition of done/)
+    await page.getByRole("button", { name: /^Definition of done: / }).click();
+    await page
+      .getByRole("textbox", { name: "Definition of done" })
       .fill(
-        "A long definition of done that must remain scrollable within the sheet and keep Save reachable on a short 568px-tall mobile viewport without being obscured.",
+        "A long definition of done that must remain scrollable within the record and keep Save reachable on a short 568px-tall mobile viewport without being obscured.",
       );
     await expectNoHorizontalOverflow(page);
     await expectMinTouchTarget(
-      detailsDialog.getByRole("button", { name: "Save" }),
+      page.getByRole("button", { name: "Save", exact: true }),
     );
     await expectMinTouchTarget(
-      detailsDialog.getByRole("button", { name: "Cancel" }),
+      page.getByRole("button", { name: "Cancel", exact: true }),
     );
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
   });
 
   test("wraps a long parent breadcrumb without a floating separator on a narrow phone", async ({

@@ -21,6 +21,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
+import { TASK_PRIORITIES } from "~/kernel/tasks";
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { useDrawer } from "~/shared/drawer";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
@@ -32,6 +34,11 @@ import type {
   EntityLinkSelection,
   EntityLinkTargetOption,
 } from "~/shared/forms/model";
+import {
+  InlineSelectField,
+  InlineTextField,
+  type InlineSaveOutcome,
+} from "~/shared/inline-edit";
 import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import { CollectionSkeleton } from "~/shared/skeleton";
 
@@ -52,10 +59,33 @@ import { UrgencyChip } from "./UrgencyChip";
 import {
   isTaskComplete,
   taskDisplayState,
+  taskPriorityLabel,
   taskRecurrenceLabel,
   timeSectorLabel,
   type SerializedTaskView,
 } from "./task-view";
+
+/**
+ * EDIT-02 — the Task record's three most-changed values, edited where they are
+ * shown.
+ *
+ * A Task's priority and dates were reachable only through the Details FORM (open
+ * the tab, press "Edit details", change one control among twelve, press "Save
+ * changes") or through the quick-edit panel on another surface entirely. Both
+ * are heavier than the change deserves, and neither matches how the same values
+ * are changed on an Area or a Project. The title, the priority and the two dates
+ * now use the shared DS-16 fields; the form stays for the rest, because
+ * delegation, recurrence and status genuinely interact and belong together.
+ *
+ * The priority menu carries REAL priorities only. "No priority" was an option in
+ * the list, which made an untriaged Task read as though someone had chosen that
+ * — so it is now the field's EMPTY state, and unsetting is one separated Clear
+ * command that appears only when a priority is actually set.
+ */
+const PRIORITY_OPTIONS = TASK_PRIORITIES.map((priority) => ({
+  value: priority,
+  label: taskPriorityLabel(priority),
+}));
 
 /**
  * The live task-record API a host module can observe to add behaviour AROUND the
@@ -153,11 +183,11 @@ export function TaskRecordDrawer({
     ): Promise<SubmitOutcome<TaskDetailsValues>> => {
       const form = new FormData();
       form.set("intent", "update");
-      form.set("title", values.title);
+      // EDIT-02 — the title, the priority and the two dates are NOT submitted
+      // here any more: they are edited on the record, and carrying them would
+      // let this Save revert a change made in the Summary while the form was
+      // open. The action treats an absent key as unchanged.
       form.set("status", values.status);
-      form.set("priority", values.priority);
-      form.set("dueDate", values.dueDate);
-      form.set("scheduledDate", values.scheduledDate);
       form.set("timeSector", values.timeSector);
       form.set("commitmentState", values.commitmentState);
       form.set("delegateTo", values.delegateTo);
@@ -186,6 +216,89 @@ export function TaskRecordDrawer({
       };
     },
     [postAction, notifySuccess, refresh],
+  );
+
+  /**
+   * A single-id `/tasks/bulk` field change — the SAME trusted authority the bulk
+   * bar and the quick-edit panel already use, so priority and due-date edits
+   * from the record go through one server path rather than a third one. It
+   * returns the DS-16 outcome shape: a refusal keeps the field's own message
+   * beside the value and never applies anything optimistically.
+   */
+  const postBulkField = useCallback(
+    async (fields: Record<string, string>): Promise<InlineSaveOutcome> => {
+      const body = new FormData();
+      body.append("id", taskId);
+      for (const [key, value] of Object.entries(fields)) body.set(key, value);
+      try {
+        const response = await fetch(`${basePath}/bulk`, {
+          method: "POST",
+          body,
+        });
+        const result = (await response.json()) as {
+          readonly ok?: boolean;
+          readonly formError?: string;
+        };
+        if (result.ok) {
+          refresh();
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          message:
+            result.formError ??
+            "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      }
+    },
+    [basePath, refresh, taskId],
+  );
+
+  const renameTask = useCallback(
+    async (title: string): Promise<InlineSaveOutcome> => {
+      const form = new FormData();
+      form.set("intent", "rename");
+      form.set("title", title);
+      try {
+        const result = await postAction(form);
+        if (result.kind === "update" && result.status === "success") {
+          refresh();
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          message:
+            (result.kind === "update" && result.status === "error"
+              ? (result.fieldErrors?.title ?? result.formError)
+              : undefined) ??
+            "That couldn’t be saved. Your text is safe — try again.",
+        };
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Your text is safe — try again.",
+        };
+      }
+    },
+    [postAction, refresh],
+  );
+
+  const setPriority = useCallback(
+    (priority: string) => postBulkField({ intent: "set_priority", priority }),
+    [postBulkField],
+  );
+
+  // TASKS-03: the DUE date is a deadline, distinct from the scheduled date —
+  // setting one never touches the other. An empty value clears it.
+  const setDueDate = useCallback(
+    (dueDate: string | null) =>
+      postBulkField({ intent: "set_due", dueDate: dueDate ?? "" }),
+    [postBulkField],
   );
 
   const toggleCompletion = useCallback(
@@ -488,7 +601,28 @@ export function TaskRecordDrawer({
   metadata.push({
     id: "priority",
     label: "Priority",
-    value: <PriorityIndicator priority={task.priority} showEmpty />,
+    // DS-16 — direct change, no clearing step: the current priority is the
+    // trigger, every other priority is one press away in the menu, and the
+    // separated Clear command appears only when there is one to clear.
+    value: (
+      <InlineSelectField
+        label="Priority"
+        value={task.priority ?? ""}
+        options={PRIORITY_OPTIONS}
+        onSave={setPriority}
+        emptyLabel="No priority"
+        clearable
+        clearLabel="Clear priority"
+        renderValue={(option) =>
+          option ? (
+            <PriorityIndicator
+              priority={option.value as SerializedTaskView["priority"]}
+            />
+          ) : null
+        }
+        data-testid="task-priority-edit"
+      />
+    ),
   });
   if (task.dueDate || task.scheduledDate) {
     metadata.push({
@@ -571,6 +705,16 @@ export function TaskRecordDrawer({
   return (
     <RecordLayout
       title={task.title}
+      titleSlot={
+        <InlineTextField
+          label="Task title"
+          value={task.title}
+          onSave={renameTask}
+          variant="heading"
+          maxLength={TITLE_MAX_LENGTH}
+          data-testid="task-title-edit"
+        />
+      }
       headingLevel={3}
       typeLabel="Task"
       icon={<EntityIcon type="task" />}
@@ -596,6 +740,7 @@ export function TaskRecordDrawer({
               completed={completed}
               onPlan={planTask}
               onClear={clearPlan}
+              onSetDue={setDueDate}
             />
           </div>
         ),

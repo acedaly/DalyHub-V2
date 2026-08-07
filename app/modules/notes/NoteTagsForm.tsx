@@ -8,7 +8,10 @@
  * trim/case-fold/de-duplicate/sort/bound policy lives once in the kernel
  * (`parseNoteTagInput`), server-side, and the server stays the authority.
  *
- * Mirrors `RenameNoteForm`'s shape exactly, swapping the intent.
+ * A single-purpose DS-06 Drawer form: tags are a multi-value control with its
+ * own parsing and normalisation rules, which is why they stay a form while the
+ * title moved onto the heading (EDIT-02 §9 — inline editing is for values a
+ * single control can express).
  */
 
 import {

@@ -108,8 +108,9 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
       page.getByRole("region", { name: "Project settings" }),
     ).toBeFocused();
 
-    // The record shows the Archived state prominently, with Rename/Complete
-    // hidden and Settings showing Restore instead of Archive.
+    // The record shows the Archived state prominently, with Complete hidden and
+    // Settings showing Restore instead of Archive. (EDIT-02: there is no Rename
+    // button on any record any more — see the DS-16 assertion below.)
     await expect(
       page.getByText("Archived", { exact: true }).first(),
     ).toBeVisible();

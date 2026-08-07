@@ -15,6 +15,10 @@ import type {
   SerializedNoteOverview,
 } from "~/modules/notes/note-view";
 import { FeedbackProvider } from "~/shared/feedback";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
+
+/** The default inline-save stub: the title field accepts, nothing is asserted. */
+const accept = async (): Promise<InlineSaveOutcome> => ({ ok: true });
 
 // Force the live editor's accessible `<textarea>` fallback in happy-dom (see the
 // note in NoteContentForm.test.tsx): CodeMirror mounts only in a real browser.
@@ -83,8 +87,8 @@ function openOverflowDelete(): HTMLElement {
 }
 
 describe("NoteOverview", () => {
-  it("renders the generic entity identity (title, type label) and Rename/Delete actions", () => {
-    const onRename = vi.fn();
+  it("renders the generic entity identity and edits the title in place", async () => {
+    const onRename = vi.fn(accept);
     renderInRouter(
       <NoteOverview
         overview={overview({ title: "Reading list" })}
@@ -108,8 +112,19 @@ describe("NoteOverview", () => {
       "Note",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    expect(onRename).toHaveBeenCalledTimes(1);
+    // EDIT-02 — the dedicated Rename action is gone; the heading itself is the
+    // control, exactly as it is on an Area, a Project and a Goal.
+    expect(
+      screen.queryByRole("button", { name: "Rename" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Note title: Reading list" }),
+    );
+    const input = screen.getByRole("textbox", { name: "Note title" });
+    fireEvent.change(input, { target: { value: "Reading queue" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(onRename).toHaveBeenCalledWith("Reading queue"));
+
     // PX-04: Delete now lives in the ONE shared overflow menu, the same slot as
     // every other record's lifecycle actions, with the shared wording.
     fireEvent.click(
@@ -125,7 +140,7 @@ describe("NoteOverview", () => {
       <NoteOverview
         overview={overview()}
         details={details()}
-        onRename={() => {}}
+        onRename={accept}
         onSaved={() => {}}
         onEditTags={() => {}}
         backlinksTab={<div>Backlinks content</div>}
@@ -154,7 +169,7 @@ describe("NoteOverview", () => {
       <NoteOverview
         overview={overview()}
         details={details({ content: "# Hello" })}
-        onRename={() => {}}
+        onRename={accept}
         onSaved={() => {}}
         onEditTags={() => {}}
         backlinksTab={<div>Backlinks content</div>}
@@ -176,7 +191,7 @@ describe("NoteOverview", () => {
           content: "Hello",
           contentUpdatedAt: "2026-07-22T09:00:00.000Z",
         })}
-        onRename={() => {}}
+        onRename={accept}
         onSaved={() => {}}
         onEditTags={() => {}}
         backlinksTab={<div>Backlinks content</div>}
@@ -195,7 +210,7 @@ describe("NoteOverview", () => {
       <NoteOverview
         overview={overview()}
         details={details()}
-        onRename={() => {}}
+        onRename={accept}
         onSaved={() => {}}
         onEditTags={() => {}}
         backlinksTab={<div>Backlinks content</div>}
@@ -225,7 +240,7 @@ describe("NoteOverview", () => {
         <NoteOverview
           overview={overview({ title: "Reading list" })}
           details={details()}
-          onRename={() => {}}
+          onRename={accept}
           onSaved={() => {}}
           onEditTags={() => {}}
           backlinksTab={<div>Backlinks content</div>}
@@ -295,7 +310,7 @@ describe("NoteOverview", () => {
         <NoteOverview
           overview={overview({ title: "Reading list" })}
           details={details()}
-          onRename={() => {}}
+          onRename={accept}
           onSaved={() => {}}
           onEditTags={() => {}}
           backlinksTab={<div>Backlinks content</div>}
@@ -346,7 +361,7 @@ describe("NoteOverview", () => {
         <NoteOverview
           overview={overview({ title: "Reading list" })}
           details={details({ content: "original" })}
-          onRename={() => {}}
+          onRename={accept}
           onSaved={() => {}}
           onEditTags={() => {}}
           backlinksTab={<div>Backlinks content</div>}
@@ -399,7 +414,7 @@ describe("NoteOverview", () => {
         <NoteOverview
           overview={overview({ title: "Reading list" })}
           details={details({ content: "original" })}
-          onRename={() => {}}
+          onRename={accept}
           onSaved={() => {}}
           onEditTags={() => {}}
           backlinksTab={<div>Backlinks content</div>}

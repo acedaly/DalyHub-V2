@@ -2,7 +2,7 @@
  * PEOPLE-01 — the canonical Person record, composed through the shared DS-02
  * Record Layout.
  *
- * Presentation + client-side mutation plumbing only: the header (identity, Rename,
+ * Presentation + client-side mutation plumbing only: the header (identity,
  * archive state) and the six tabs (Summary / Contact / Linked / Notes / Activity /
  * Settings — the shared tab vocabulary, with Activity and Settings last). Data loading lives in the route; this component renders it and posts
  * lifecycle intents (`archive` / `restore` / `delete`) to `/person/:id/mutate`,
@@ -12,16 +12,14 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import type { PersonRelationship } from "~/kernel/relationships";
 import { EntityIcon } from "~/shared/entity";
+import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useFeedback } from "~/shared/feedback";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { StayInTouchIndicator } from "~/shared/relationships";
-import {
-  RecordLayout,
-  type RecordAction,
-  type RecordMetaItem,
-} from "~/shared/record-layout";
+import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import {
   lifecycleSuccessMessage,
   useRecordLifecycle,
@@ -41,7 +39,13 @@ interface PersonRecordProps {
   readonly relationship: PersonRelationship;
   readonly activeTabId: string;
   readonly onTabChange: (tabId: string) => void;
-  readonly onRename: () => void;
+  /**
+   * DS-16 — rename from the record heading (EDIT-02). A Person's display name
+   * is a one-line focused mutation with its own `rename` intent, so it takes
+   * the same interaction as an Area's, a Project's or a Note's rather than the
+   * only remaining Drawer form in the module.
+   */
+  readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
   readonly onSaved: () => void;
 }
 
@@ -113,13 +117,6 @@ export function PersonRecord({
     throw new Error("Couldn’t delete this person.");
   }, [post, navigate]);
 
-  const renameAction: RecordAction = {
-    id: "rename",
-    label: "Rename",
-    variant: "secondary",
-    onSelect: onRename,
-  };
-
   const headerMetadata: RecordMetaItem[] = [];
   if (person.organisation) {
     headerMetadata.push({
@@ -167,6 +164,16 @@ export function PersonRecord({
     <>
       <RecordLayout
         title={person.title}
+        titleSlot={
+          <InlineTextField
+            label="Person name"
+            value={person.title}
+            onSave={onRename}
+            variant="heading"
+            maxLength={TITLE_MAX_LENGTH}
+            data-testid="person-title-edit"
+          />
+        }
         typeLabel="Person"
         icon={<EntityIcon type="person" />}
         breadcrumb={[{ id: "people", label: "People", href: "/people" }]}
@@ -174,7 +181,6 @@ export function PersonRecord({
           person.archived ? { label: "Archived", tone: "warning" } : undefined
         }
         metadata={headerMetadata}
-        secondaryActions={[renameAction]}
         overflowActions={lifecycle.overflowActions}
         activeTabId={activeTabId}
         onTabChange={onTabChange}
@@ -236,7 +242,6 @@ export function PersonRecord({
             content: (
               <PersonSettingsTab
                 person={person}
-                onRename={onRename}
                 onArchive={onArchive}
                 onRestore={onRestore}
                 onDelete={onDelete}

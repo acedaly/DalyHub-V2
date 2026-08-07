@@ -25,6 +25,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 
 import { InlineEditShell } from "./InlineEditShell";
+import { useAnchoredAlignment } from "./use-anchored-alignment";
 import { useInlineEdit } from "./use-inline-edit";
 import type { InlineSaveOutcome } from "./inline-edit-model";
 
@@ -60,9 +61,11 @@ export function InlineDateField({
   const inputId = `${generatedId}-input`;
   const errorId = `${generatedId}-error`;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const open = field.editing;
+  const alignment = useAnchoredAlignment(popoverRef, open);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -135,8 +138,14 @@ export function InlineDateField({
         <div
           className="dh-inline-date__popover"
           id={popoverId}
+          ref={popoverRef}
+          data-align={alignment}
           role="dialog"
-          aria-label={label}
+          // "Edit due date", not "Due date": the dialog and the date input
+          // inside it are two different things, and giving them the same
+          // accessible name made "the due date" ambiguous to anything
+          // navigating by name — including the tests that drove this out.
+          aria-label={`Edit ${label.toLocaleLowerCase()}`}
           onKeyDown={onKeyDown}
         >
           <label className="dh-inline-date__label" htmlFor={inputId}>

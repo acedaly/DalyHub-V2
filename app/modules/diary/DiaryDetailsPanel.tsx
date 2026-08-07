@@ -27,7 +27,6 @@ import {
   FormActions,
   FormButton,
   FormErrorSummary,
-  MarkdownField,
   SaveStatusIndicator,
   SelectField,
   TextField,
@@ -36,6 +35,7 @@ import {
   type AutosaveStatus,
   type SubmitOutcome,
 } from "~/shared/forms";
+import { MarkdownEditorField } from "~/shared/markdown-editor";
 import { MarkdownContent } from "~/shared/markdown";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import {
@@ -424,11 +424,21 @@ function DiaryEditForm({
       <TextField label="Title" required maxLength={512} {...titleField} />
       <SelectField label="Type" options={options} {...typeField} />
       <WhenField binding={whenField} label="When" required />
-      <MarkdownField
+      {/*
+        EDIT-02 — the Diary body is the SAME writing surface as a Note's and a
+        Meeting's: one toolbar, one set of formatting shortcuts, one typography,
+        one empty state. Only the presentation converged — this panel keeps its
+        explicit Save/Cancel, its dirty tracking and its honest partial-success
+        reporting, because the Diary's split-ownership save (title through the
+        entity kernel, body through the Diary repository — ADR-041) is not
+        something a shared editor should be allowed to change.
+      */}
+      <MarkdownEditorField
         label="Details"
         rows={8}
-        placeholder="Optional notes, in Markdown."
+        placeholder="What happened? Markdown is supported."
         showOptionalCue={false}
+        disabled={form.isSubmitting}
         {...bodyField}
       />
       {partialNotice ? (

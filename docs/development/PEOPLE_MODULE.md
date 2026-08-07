@@ -724,3 +724,20 @@ link a **Person**. The two are independent, and the rule matters:
 A Person's relationship timeline surfaces Asset work through the shared Activity
 stream and the existing `asset.linked_person` relationship, exactly as it does for
 every other module — Assets adds no second People surface and no second timeline.
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+A Person's display name is edited on the record heading through the shared
+`InlineTextField`, posting the same `rename` intent. The three former entry points
+for that one mutation — the `Rename` header action, the `Name` group in the
+Settings tab and the Drawer form (`RenamePersonForm.tsx`) — are all removed. The
+Settings tab keeps lifecycle only.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

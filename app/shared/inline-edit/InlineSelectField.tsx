@@ -20,12 +20,30 @@
  * gesture. A REFUSED save leaves the field showing the previous value with the
  * server's message beside it — the menu is not reopened and nothing is silently
  * applied.
+ *
+ * ── An optional value is EMPTY, not "No priority" (EDIT-02) ──────────────────
+ * The pattern this replaces put the unset state in the options list, as a real
+ * choice labelled `No priority` / `No project` / `Not set`. Two things go wrong
+ * with that, and the August interaction audit found both:
+ *
+ *   1. it reads as a SELECTED DEFAULT. A task nobody has triaged is not "set to
+ *      No priority" — the field has simply not been filled in, and saying
+ *      otherwise makes an absence look like a decision;
+ *   2. it competes with the real values for the first item in the menu, which is
+ *      where the eye and the keyboard both start.
+ *
+ * So `options` carries only REAL values, an unset field renders `emptyLabel` in
+ * the shell's quiet empty style, and clearing — where the data model permits it
+ * — is one separated command at the END of the menu, present only when there is
+ * something to clear. Changing `Current value → New value` therefore stays what
+ * it always should have been: open, choose, done. Never "clear it first".
  */
 
 import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -34,6 +52,7 @@ import {
 import { ChevronDownIcon } from "~/shared/icons";
 
 import { InlineEditShell } from "./InlineEditShell";
+import { useAnchoredAlignment } from "./use-anchored-alignment";
 import { useInlineEdit } from "./use-inline-edit";
 import type { InlineSaveOutcome } from "./inline-edit-model";
 
@@ -47,16 +66,29 @@ export interface InlineSelectOption {
 
 export interface InlineSelectFieldProps {
   readonly label: string;
+  /** The stored value, or `""` when the (optional) field is unset. */
   readonly value: string;
+  /** The REAL values only — never an "unset" pseudo-option (see above). */
   readonly options: readonly InlineSelectOption[];
+  /** Persist. `""` is passed when the clear command is chosen. */
   readonly onSave: (next: string) => Promise<InlineSaveOutcome>;
   readonly emptyLabel?: string;
   readonly readOnly?: boolean;
+  /**
+   * Offer a clear command for an OPTIONAL field. It appears only when a value is
+   * actually set, because "clear" with nothing to clear is a dead control.
+   */
+  readonly clearable?: boolean;
+  /** Wording for that command. Defaults to `Clear <label>`. */
+  readonly clearLabel?: string;
   /** Render the current value with the caller's own chip/pill. */
   readonly renderValue?: (option: InlineSelectOption | null) => React.ReactNode;
   readonly className?: string;
   readonly "data-testid"?: string;
 }
+
+/** The sentinel the clear command submits. Never a real option value. */
+const CLEAR_VALUE = "";
 
 export function InlineSelectField({
   label,
@@ -65,6 +97,8 @@ export function InlineSelectField({
   onSave,
   emptyLabel = "Not set",
   readOnly = false,
+  clearable = false,
+  clearLabel,
   renderValue,
   className,
   "data-testid": testId,
@@ -76,11 +110,31 @@ export function InlineSelectField({
   const errorId = `${generatedId}-error`;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const open = field.editing;
   const selected = options.find((option) => option.value === value) ?? null;
+  const alignment = useAnchoredAlignment(menuRef, open);
+
+  /**
+   * The rendered item list: the real options, plus the clear command when the
+   * field is optional AND currently holds something. It is ONE list because
+   * roving focus, Home/End and the ref array all index by position — a command
+   * bolted on outside it would be unreachable by keyboard, which is exactly the
+   * defect the shared primitive exists to prevent.
+   */
+  const items = useMemo<readonly InlineSelectOption[]>(() => {
+    if (!clearable || value === CLEAR_VALUE) return options;
+    return [
+      ...options,
+      {
+        value: CLEAR_VALUE,
+        label: clearLabel ?? `Clear ${label.toLocaleLowerCase()}`,
+      },
+    ];
+  }, [clearable, clearLabel, label, options, value]);
 
   const close = useCallback(() => {
     setActiveIndex(-1);
@@ -88,10 +142,10 @@ export function InlineSelectField({
   }, [field]);
 
   const openMenu = useCallback(() => {
-    const index = options.findIndex((option) => option.value === value);
+    const index = items.findIndex((option) => option.value === value);
     setActiveIndex(index === -1 ? 0 : index);
     field.begin();
-  }, [field, options, value]);
+  }, [field, items, value]);
 
   useEffect(() => {
     if (!open || activeIndex < 0) return;
@@ -119,8 +173,8 @@ export function InlineSelectField({
   const step = (delta: number) => {
     setActiveIndex((current) => {
       const next = current + delta;
-      if (next < 0) return options.length - 1;
-      if (next >= options.length) return 0;
+      if (next < 0) return items.length - 1;
+      if (next >= items.length) return 0;
       return next;
     });
   };
@@ -141,7 +195,7 @@ export function InlineSelectField({
         break;
       case "End":
         event.preventDefault();
-        setActiveIndex(options.length - 1);
+        setActiveIndex(items.length - 1);
         break;
       case "Escape":
         event.preventDefault();
@@ -193,40 +247,49 @@ export function InlineSelectField({
         <div
           className="dh-inline-select__menu"
           id={menuId}
+          ref={menuRef}
+          data-align={alignment}
           role="menu"
           aria-labelledby={triggerId}
           tabIndex={-1}
           onKeyDown={onMenuKeyDown}
         >
-          {options.map((option, index) => (
-            <button
-              key={option.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={option.value === value}
-              aria-disabled={option.disabled ? true : undefined}
-              className="dh-inline-select__option"
-              tabIndex={activeIndex === index ? 0 : -1}
-              ref={(node) => {
-                itemRefs.current[index] = node;
-              }}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => {
-                if (option.disabled) return;
-                setActiveIndex(-1);
-                field.submit(option.value);
-              }}
-            >
-              <span className="dh-inline-select__option-label">
-                {option.label}
-              </span>
-              {option.description ? (
-                <span className="dh-inline-select__option-description">
-                  {option.description}
+          {items.map((option, index) => {
+            const isClear = clearable && option.value === CLEAR_VALUE;
+            return (
+              <button
+                key={option.value === CLEAR_VALUE ? "__clear" : option.value}
+                type="button"
+                role="menuitemradio"
+                // The clear command is still a radio in the same group: it is
+                // the "none of these" choice, and announcing it as unchecked
+                // beside a checked value is exactly the state of the field.
+                aria-checked={option.value === value}
+                aria-disabled={option.disabled ? true : undefined}
+                className="dh-inline-select__option"
+                data-clear={isClear ? "true" : undefined}
+                tabIndex={activeIndex === index ? 0 : -1}
+                ref={(node) => {
+                  itemRefs.current[index] = node;
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => {
+                  if (option.disabled) return;
+                  setActiveIndex(-1);
+                  field.submit(option.value);
+                }}
+              >
+                <span className="dh-inline-select__option-label">
+                  {option.label}
                 </span>
-              ) : null}
-            </button>
-          ))}
+                {option.description ? (
+                  <span className="dh-inline-select__option-description">
+                    {option.description}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>

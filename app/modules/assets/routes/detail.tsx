@@ -14,9 +14,10 @@
  * history. Each ASSET-02 surface degrades to empty on failure rather than failing
  * the whole record.
  *
- * The Drawer hosts every write form — rename, event capture, obligation edit and
- * obligation completion — so the record never navigates away mid-capture and focus
- * returns to where it came from. Fails closed with a 404 for a missing, wrong-type
+ * The Drawer hosts the remaining write forms — event capture, obligation edit
+ * and obligation completion — so the record never navigates away mid-capture and
+ * focus returns to where it came from. The NAME is edited on the heading itself
+ * (EDIT-02); it needed no form, only a field. Fails closed with a 404 for a missing, wrong-type
  * or cross-workspace id.
  */
 
@@ -45,7 +46,6 @@ import { AssetEventForm } from "../AssetEventForm";
 import type { QuickEventAction } from "../AssetHistoryTab";
 import { AssetObligationForm } from "../AssetObligationForm";
 import { AssetRecord } from "../AssetRecord";
-import { RenameAssetForm } from "../RenameAssetForm";
 import {
   formatHistoryDate,
   serializeAssetEvent,
@@ -57,6 +57,7 @@ import {
 } from "../asset-history-view";
 import { serializeAsset, type SerializedAsset } from "../asset-view";
 import { resolveEventNames } from "./history";
+import type { AssetMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
 const DRAWER_KEY = "asset-drawer";
@@ -242,7 +243,6 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
 /** What the record's single Drawer is currently showing. */
 type DrawerState =
-  | { readonly kind: "rename" }
   | { readonly kind: "event"; readonly action: QuickEventAction }
   | { readonly kind: "edit-event"; readonly event: SerializedAssetEvent }
   | {
@@ -340,6 +340,48 @@ function AssetDetail({
     [openDrawer, setDrawerState],
   );
 
+  /**
+   * DS-16 — the Asset rename, driven from the record heading (EDIT-02).
+   *
+   * The SAME `rename` intent and the SAME trusted endpoint the Drawer form
+   * posted to; the server still resolves the workspace, verifies the id is an
+   * Asset in it and returns `EntityValidationError` as a field message.
+   */
+  const assetId = loaderData.asset.id;
+  const onRename = useCallback(
+    async (title: string) => {
+      const body = new FormData();
+      body.set("intent", "rename");
+      body.set("title", title);
+      let result: AssetMutationResult;
+      try {
+        const response = await fetch(
+          `/asset/${encodeURIComponent(assetId)}/mutate`,
+          { method: "POST", body },
+        );
+        result = (await response.json()) as AssetMutationResult;
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Your text is safe — try again.",
+        } as const;
+      }
+      if (result.kind === "rename" && result.ok) {
+        revalidator.revalidate();
+        return { ok: true } as const;
+      }
+      return {
+        ok: false,
+        message:
+          (result.kind === "rename" && !result.ok
+            ? (result.fieldErrors?.title ?? result.formError)
+            : undefined) ??
+          "That couldn’t be saved. Your text is safe — try again.",
+      } as const;
+    },
+    [assetId, revalidator],
+  );
+
   const overview = useMemo(
     () => ({
       obligations: loaderData.obligations,
@@ -375,7 +417,7 @@ function AssetDetail({
       eventsHasMore={loaderData.eventsHasMore}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
-      onRename={() => open({ kind: "rename" })}
+      onRename={onRename}
       onSaved={() => revalidator.revalidate()}
       onQuickEvent={(action) => open({ kind: "event", action })}
       onEditEvent={(event) => open({ kind: "edit-event", event })}
@@ -461,19 +503,6 @@ function renderAssetDrawer({
       : "");
 
   switch (state.kind) {
-    case "rename":
-      return {
-        title: "Rename asset",
-        description: "Update this asset’s display name.",
-        children: host(({ onSaved, onCancel }) => (
-          <RenameAssetForm
-            assetId={asset.id}
-            currentTitle={asset.title}
-            onDone={onSaved}
-            onCancel={onCancel}
-          />
-        )),
-      };
     case "event":
       return {
         title: quickActionTitle(state.action),
