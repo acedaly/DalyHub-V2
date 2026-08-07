@@ -150,8 +150,12 @@ async function openTab(
 }
 
 async function expectImportantTouchTargets(page: Page) {
+  // DS-16 — the Project name IS the rename control now (the Drawer form is
+  // gone), so the target under test is the heading's inline-edit affordance. It
+  // has to clear the same 44px minimum: it is the primary way to rename a
+  // Project on a phone, and it is a touch target like any other.
   await expectMinTouchTarget(
-    page.getByRole("button", { name: "Rename" }).first(),
+    page.getByRole("button", { name: /^Project name:/ }).first(),
   );
   await expectMinTouchTarget(
     page.getByRole("button", { name: "Complete project" }).first(),
