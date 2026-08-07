@@ -19,6 +19,42 @@ no version number to group them under.
 
 ## Unreleased
 
+### Fixed — the August 2026 UI quality audit
+
+A systematic pass over every module — clicking, hovering, typing and resizing
+the way a person actually uses DalyHub. The register of everything found, fixed
+and deliberately deferred lives in
+[`docs/design/DALYHUB_UI_QUALITY_AUDIT_2026_08.md`](docs/design/DALYHUB_UI_QUALITY_AUDIT_2026_08.md).
+
+- **Pointing at a task no longer paints purple slabs across it.** On a desktop,
+  hovering a task row in Today or Tasks showed the phone's swipe-action panel
+  through the row — large coloured blocks with a half-clipped button at the
+  edge, worse in dark. The touch panel now simply doesn't exist on a device
+  with a mouse, and a highlighted row can never turn see-through again.
+- **Task rows use their whole width.** The hover buttons ("Complete", "Plan
+  today"…) were invisibly reserving about a third of every row, which is why
+  chips wrapped onto an extra line for ordinary Area names and rows sat at
+  uneven heights. The buttons now appear over the end of the row only when you
+  point at it (or reach it with the keyboard); at rest the title and details
+  own the row, so the list reads at an even rhythm. On a phone nothing changes
+  — the buttons there were always visible and still are.
+- **Renaming a record keeps the name in view.** Clicking a record's title to
+  rename it collapsed the editor to a small box showing only the end of the
+  name, with most of the header empty beside it. The editor now takes the width
+  the title had.
+- **Project cards on Today keep their shape with longer names.** A wrapping
+  title used to strand the folder icon on its own line and drop the "Active"
+  chip to the end of the last line; the icon and chip now stay put while the
+  name wraps beside them.
+- **Meetings speak the product's language.** "planned" is now "Planned",
+  "Aug 10, 2026, 7:00 PM" is now "10 Aug 2026, 7:00 pm", and the Meeting
+  details list uses the same tidy label-over-value layout as every other
+  record instead of browser-default indentation.
+- **Small consistency corrections.** Today's Waiting section puts its
+  "View all" link on the heading row like every other section; the Assets
+  filter row's fields share one height (and the Tag box says what it is for);
+  a Review row no longer states its period twice.
+
 ### Changed — every record's name is edited the same way
 
 - **Click a record's name to change it.** Notes, Goals, People, Assets, Meetings

@@ -288,6 +288,7 @@ export function AssetsCollectionView({
           defaultValue={data.filters.tag ?? ""}
           onChange={(e) => setParam("tag", e.currentTarget.value)}
           aria-label="Filter by tag"
+          placeholder="Any tag"
         />
       </label>
       {data.view === "all" ||

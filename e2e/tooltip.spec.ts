@@ -209,6 +209,13 @@ test.describe("the shared tooltip", () => {
     const overflow = page.locator(".dh-card__action--overflow").first();
     const name = await overflow.getAttribute("aria-label");
     expect(name).toBeTruthy();
+    // UIQ-002 — the rail is pointer-inert until its row is hovered; point at
+    // the row first, as a person does, so the trigger can receive the pointer.
+    await page
+      .locator(".dh-card--list")
+      .filter({ has: overflow })
+      .first()
+      .hover();
     await hover(overflow);
     await expect(tooltip(page)).toHaveText(name!);
 

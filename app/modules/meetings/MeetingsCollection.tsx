@@ -21,7 +21,11 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 
-import type { SerializedMeeting } from "./meeting-view";
+import {
+  formatMeetingInstant,
+  meetingStatusLabel,
+  type SerializedMeeting,
+} from "./meeting-view";
 
 /** The loader payload each `/meetings/*` view returns. */
 type MeetingsPageData = {
@@ -211,7 +215,9 @@ export function MeetingsCollection({
                 icon={<EntityIcon type="meeting" />}
                 headingLevel={2}
                 status={{
-                  label: meeting.archivedAt ? "Archived" : meeting.status,
+                  label: meeting.archivedAt
+                    ? "Archived"
+                    : meetingStatusLabel(meeting.status),
                   tone: meeting.archivedAt ? "warning" : "neutral",
                 }}
                 metadata={meetingMetadata(meeting)}
@@ -256,11 +262,7 @@ function meetingMetadata(meeting: SerializedMeeting): CardMetaItem[] {
       id: "when",
       label: "When",
       // MOBILE-01: when a meeting IS is the thing you scan a meeting list for.
-      value: new Intl.DateTimeFormat("en", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: meeting.timezone,
-      }).format(new Date(meeting.startsAt)),
+      value: formatMeetingInstant(meeting.startsAt, meeting.timezone),
     },
   ];
   if (meeting.location || meeting.mode) {

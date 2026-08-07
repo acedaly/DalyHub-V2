@@ -699,12 +699,6 @@ a.dh-hero__stat:hover {
   overflow-wrap: anywhere;
 }
 
-.dh-today__waiting-all {
-  align-self: flex-start;
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
-}
-
 /* TODAY-03 — the "Waiting for" subject cell in a Waiting card. */
 .dh-waiting-card__subject {
   display: inline-flex;

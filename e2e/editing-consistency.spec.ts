@@ -108,10 +108,15 @@ test.describe("EDIT-02 §2 — one way to edit a record title", () => {
  * it itself.
  */
 test.afterEach(async ({ request }) => {
-  for (const fields of [
+  // Typed explicitly: inferred as a union of the two literals, the elements
+  // carry `dueDate?: undefined` / `priority?: undefined` members, and a spread
+  // of those does not satisfy `postSameOrigin`'s
+  // `Record<string, string | number | boolean>` form.
+  const restores: ReadonlyArray<Record<string, string>> = [
     { intent: "set_priority", priority: SEEDED_TASK.priority },
     { intent: "set_due", dueDate: SEEDED_TASK.dueDate },
-  ]) {
+  ];
+  for (const fields of restores) {
     await postSameOrigin(request, "/tasks/bulk", {
       form: { id: SEEDED_TASK.id, ...fields },
     }).catch(() => {

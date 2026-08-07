@@ -92,8 +92,12 @@ test.describe("DS-04/DS-07 — desktop", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByText("1 selected")).toBeVisible();
 
-    // A quick action fires without opening the card.
+    // A quick action fires without opening the card. On a fine pointer the
+    // rail reveals on hover (UIQ-002: concealed actions are pointer-inert, so
+    // nothing invisible is clickable) — pointing at the row is part of the
+    // interaction being asserted, exactly as a person performs it.
     const projectCard = page.getByRole("article", { name: "Website relaunch" });
+    await projectCard.hover();
     await projectCard.getByRole("button", { name: "Complete" }).click();
     await expect(
       page.getByText(/Marked "Website relaunch" complete/),

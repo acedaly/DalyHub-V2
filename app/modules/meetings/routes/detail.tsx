@@ -64,7 +64,12 @@ import {
   meetingHeldSuccessMessage,
 } from "../meeting-held-action";
 import { MeetingTimelineTab } from "../MeetingTimelineTab";
-import { serializeMeeting } from "../meeting-view";
+import {
+  formatMeetingDate,
+  formatMeetingInstant,
+  meetingStatusLabel,
+  serializeMeeting,
+} from "../meeting-view";
 import { useAttendeeSearch } from "../use-attendee-search";
 import type { FollowUpTaskEntry } from "../follow-up-view";
 import type { Route } from "./+types/detail";
@@ -80,14 +85,6 @@ interface MarkHeldPayload {
   readonly attendeeCount?: number;
   readonly attendeesRecorded?: number;
   readonly error?: string;
-}
-
-/** Render an instant in the meeting's own display timezone (MEET-01 semantics). */
-function formatInMeetingZone(instant: string, timezone: string): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeZone: timezone,
-  }).format(new Date(instant));
 }
 
 export function meta() {
@@ -342,7 +339,7 @@ function MeetingRecord({
   const heldMenuItems = useMemo<OverflowMenuItem[]>(() => {
     const item = meetingHeldActionItem(
       { heldAt: m.heldAt, archived: readOnly, pending: markingHeld },
-      (instant) => formatInMeetingZone(instant, m.timezone),
+      (instant) => formatMeetingDate(instant, m.timezone),
     );
     if (!item) return [];
     return [
@@ -580,18 +577,14 @@ function MeetingRecord({
         icon={<EntityIcon type="meeting" />}
         breadcrumb={[{ id: "meetings", label: "Meetings", href: "/meetings" }]}
         status={{
-          label: m.archivedAt ? "Archived" : m.status,
+          label: m.archivedAt ? "Archived" : meetingStatusLabel(m.status),
           tone: m.archivedAt ? "warning" : "neutral",
         }}
         metadata={[
           {
             id: "when",
             label: "When",
-            value: new Intl.DateTimeFormat("en", {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZone: m.timezone,
-            }).format(new Date(m.startsAt)),
+            value: formatMeetingInstant(m.startsAt, m.timezone),
           },
           {
             id: "where",
@@ -609,33 +602,44 @@ function MeetingRecord({
             content: (
               <section className="dh-record-section">
                 <h2>Meeting details</h2>
-                <dl>
-                  <dt>Status</dt>
-                  <dd>{m.status}</dd>
-                  <dt>Duration</dt>
-                  <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
-                  <dt>Timezone</dt>
-                  <dd>{m.timezone}</dd>
+                {/* UIQ-007 — the SHARED summary facts grid, not a bare
+                 * browser-default `<dl>`: the label-over-value presentation
+                 * every other record's metadata already uses. */}
+                <dl className="record-summary__meta">
+                  <div className="record-summary__meta-item">
+                    <dt>Status</dt>
+                    <dd>{meetingStatusLabel(m.status)}</dd>
+                  </div>
+                  <div className="record-summary__meta-item">
+                    <dt>Duration</dt>
+                    <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
+                  </div>
+                  <div className="record-summary__meta-item">
+                    <dt>Timezone</dt>
+                    <dd>{m.timezone}</dd>
+                  </div>
                   {/*
                     MEET-03 — the held state, stated in words on the record itself
                     so it is legible without opening a menu, and so the outcome of
                     "Mark as held" is visible rather than implied.
                   */}
-                  <dt>Held</dt>
-                  <dd>
-                    {m.heldAt
-                      ? `Recorded as held on ${formatInMeetingZone(m.heldAt, m.timezone)}`
-                      : "Not recorded as held yet"}
-                  </dd>
+                  <div className="record-summary__meta-item">
+                    <dt>Held</dt>
+                    <dd>
+                      {m.heldAt
+                        ? `Recorded as held on ${formatMeetingDate(m.heldAt, m.timezone)}`
+                        : "Not recorded as held yet"}
+                    </dd>
+                  </div>
                   {m.meetingUrl && (
-                    <>
+                    <div className="record-summary__meta-item">
                       <dt>Meeting link</dt>
                       <dd>
                         <a href={m.meetingUrl} target="_blank" rel="noreferrer">
                           Open meeting link
                         </a>
                       </dd>
-                    </>
+                    </div>
                   )}
                 </dl>
                 {!readOnly ? (

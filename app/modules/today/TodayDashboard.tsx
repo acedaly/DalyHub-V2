@@ -1232,6 +1232,15 @@ export function TodayDashboard({
           label="Waiting"
           count={waiting.count}
           level={3}
+          /* UIQ-008 — the exit lives on the HEADING row, like every sibling
+           * section (bounded-section-preview rule): a control after the last
+           * row of a roving collection stands between the keyboard user and
+           * the way out. */
+          action={
+            <Link className="dh-today__section-all" to="/today/waiting">
+              {`View all ${waiting.count} waiting`}
+            </Link>
+          }
         >
           <ul className="dh-today__waiting" aria-label="Waiting tasks preview">
             {waiting.preview.map((item) => {
@@ -1267,9 +1276,6 @@ export function TodayDashboard({
               );
             })}
           </ul>
-          <Link className="dh-today__waiting-all" to="/today/waiting">
-            View all waiting ({waiting.count})
-          </Link>
         </TodaySection>
       ) : null}
     </>

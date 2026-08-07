@@ -382,6 +382,10 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
 
     const card = page.getByRole("article", { name: `Open ${title}` });
     await expect(card).toBeVisible();
+    // UIQ-002 — on a fine pointer the row's action rail reveals on hover and is
+    // pointer-inert while concealed, so pointing at the row precedes the click,
+    // exactly as a person performs it.
+    await card.hover();
     await card.getByRole("button", { name: `Complete ${title}` }).click();
 
     // The row reflects the SERVER, so the state pill becomes Completed and the
@@ -412,7 +416,9 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     await expect(card).toBeVisible();
 
     // Set the DUE date from the row's overflow — the long tail of quick edits
-    // lives in the ONE shared menu, not in extra buttons on every row.
+    // lives in the ONE shared menu, not in extra buttons on every row. The rail
+    // (overflow trigger included) reveals on hover (UIQ-002).
+    await card.hover();
     await card
       .getByRole("button", { name: `More actions for Open ${title}` })
       .click();
@@ -422,6 +428,7 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     // Then PLAN it for today. The due date is a deadline and the planned date is
     // a commitment (ADR-043 §3): setting one must never overwrite the other, so
     // the canonical record is asked directly.
+    await card.hover();
     await card.getByRole("button", { name: `Plan ${title} for today` }).click();
     await expect(card).toBeVisible();
     await page.getByRole("link", { name: title }).first().click();
@@ -446,6 +453,9 @@ test.describe("TASKS-03 — Today integration", () => {
     await field.press("Enter");
 
     const card = page.getByRole("article", { name: `Open ${title}` });
+    // UIQ-002 — the rail reveals on hover; pointing at the row precedes the
+    // click, exactly as a person performs it.
+    await card.hover();
     await card.getByRole("button", { name: `Plan ${title} for today` }).click();
     await expect(card).toBeVisible();
 
@@ -467,6 +477,7 @@ test.describe("TASKS-03 — Today integration", () => {
       "/tasks?view=list&system=all&sort=created&dir=desc",
     );
     const again = page.getByRole("article", { name: `Open ${title}` });
+    await again.hover();
     await again
       .getByRole("button", { name: `More actions for Open ${title}` })
       .click();
@@ -591,6 +602,8 @@ test.describe("TASKS-03 — accessibility, keyboard and responsive", () => {
     await field.press("Enter");
 
     const card = page.getByRole("article", { name: `Open ${title}` });
+    // UIQ-002 — the rail reveals on hover; pointer users point before clicking.
+    await card.hover();
     await card.getByRole("button", { name: `Complete ${title}` }).click();
     await expect(
       page.locator("[role='status']").filter({ hasText: "Completed" }).first(),

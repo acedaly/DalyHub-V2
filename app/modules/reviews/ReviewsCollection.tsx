@@ -61,8 +61,9 @@ function hrefFor(
 function cardMeta(
   review: ReviewsCollectionData["reviews"][number],
 ): CardMetaItem[] {
+  // UIQ-010 — the card's subtitle already states the period; repeating it as a
+  // "Period:" fact printed the same range twice on every row.
   const metadata: CardMetaItem[] = [
-    { id: "period", label: "Period", value: review.periodLabel },
     { id: "updated", label: "Updated", value: review.updatedLabel },
   ];
   if (review.completedAt) {

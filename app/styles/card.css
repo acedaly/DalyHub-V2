@@ -400,14 +400,48 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  /* UIQ-002 — concealed actions cannot be CLICKED, but stay keyboard- and
+   * AT-reachable. Opacity alone left the invisible rail hit-testable, so a
+   * click in the row's empty trailing space could activate an unseen
+   * "Complete"; `pointer-events: none` removes exactly that. It is
+   * deliberately NOT `visibility: hidden`, which would also make the buttons
+   * unfocusable and drop them from the accessibility tree — Tab reaching a
+   * concealed action is what reveals the rail (`:focus-within`), and the DS-04
+   * contract promises the actions are "always in the DOM and keyboard/AT
+   * reachable". */
   .dh-card__actions {
     opacity: 0;
+    pointer-events: none;
     transition: opacity var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard);
   }
   .dh-card:hover .dh-card__actions,
   .dh-card:focus-within .dh-card__actions {
     opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* UIQ-002 — the revealed rail OVERLAYS the row instead of reserving a third
+   * of it. In flow, the concealed rail's width was the stability mechanism:
+   * nothing moved on hover because ~200px of every row was permanently blank,
+   * which squeezed the body until metadata wrapped onto a third line and
+   * titles broke while the row stood a third empty. Anchored to the trailing
+   * edge, geometry is stable with nothing reserved. `background: inherit`
+   * tracks the row's own surface in EVERY state — rest, the opaque hover mix,
+   * `primary-container` selection — so covered content never bleeds between
+   * the action chips. Touch keeps the always-visible in-flow rail: on a
+   * coarse pointer the space is genuinely used. */
+  .dh-card--list {
+    position: relative;
+  }
+  .dh-card--list .dh-card__actions {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: var(--app-space-6);
+    translate: 0 -50%;
+    background: inherit;
+    padding-inline-start: var(--app-space-2);
+    border-radius: var(--md-sys-shape-corner-small);
   }
 }
 
@@ -688,19 +722,33 @@
 
 /* A row highlights by SURFACE, not by growing an outline that would reflow the
  * hairline grid. The paired shadows bleed the highlight into the group's inline
- * padding so it reads as a full-width row rather than a floating strip. */
+ * padding so it reads as a full-width row rather than a floating strip.
+ *
+ * UIQ-001 — the mix is over the CARD SURFACE, never over `transparent`. The
+ * swipe tray sits *behind* this element relying on it being opaque; the
+ * translucent mix uncovered the tray on every desktop hover. Over the opaque
+ * surface the resolved colour is what the eye always saw (8% on-surface over
+ * the group's card surface), and the covering invariant holds in every state. */
 .dh-card-collection--list .dh-card:hover {
   border-color: transparent;
   background: color-mix(
     in srgb,
     var(--md-sys-color-on-surface) 8%,
-    transparent
+    var(--md-app-color-surface-card)
   );
   box-shadow:
     calc(-1 * var(--app-space-4)) 0 0
-      color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent),
+      color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) 8%,
+        var(--md-app-color-surface-card)
+      ),
     var(--app-space-4) 0 0
-      color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+      color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) 8%,
+        var(--md-app-color-surface-card)
+      );
 }
 
 /* Selection stays a surface + the native checked control, never colour alone. */
@@ -825,6 +873,50 @@
   flex: 0 0 auto;
   order: 9;
   margin-inline-start: auto;
+}
+
+/*
+ * UIQ-004 — a grid/board card's primary line is two-dimensional.
+ *
+ * The dense-ROW treatment above flattens the heading (`display: contents`) into
+ * one wrapping flex line, which is right for a row and wrong for a card: the
+ * moment a card title could not share the line, the wrap distributed the
+ * pieces vertically — entity glyph orphaned on a line of its own, title
+ * beneath it, status chip dangling at the end of the title's LAST line. Two
+ * cards side by side rendered two different anatomies.
+ *
+ * A grid places the pieces instead of flowing them: glyph column, title column
+ * (wrapping INSIDE it), status column — pinned to the first row at every title
+ * length. The row presentations keep the flex line untouched.
+ */
+.dh-card--board .dh-card__line,
+.dh-card--grid .dh-card__line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--app-space-2);
+}
+
+.dh-card--board .dh-card__type,
+.dh-card--grid .dh-card__type {
+  grid-row: 1;
+  grid-column: 1;
+  /* Optically centre the small glyph against the title's first line box. */
+  margin-block-start: var(--app-space-1);
+}
+
+.dh-card--board .dh-card__title,
+.dh-card--grid .dh-card__title {
+  grid-row: 1;
+  grid-column: 2;
+  min-inline-size: 0;
+}
+
+.dh-card--board .dh-card__status,
+.dh-card--grid .dh-card__status {
+  grid-row: 1;
+  grid-column: 3;
+  margin-inline-start: 0;
 }
 
 /* The supporting run: everything that QUALIFIES the row, on one wrapped line. */
@@ -1039,6 +1131,20 @@
   display: flex;
   align-items: stretch;
   background: var(--md-sys-color-primary-container);
+}
+
+/* UIQ-001 — the tray exists for the swipe gesture, and the gesture only fires
+ * on a touch-first device (`useCardSwipe` gates on `(hover: none) and
+ * (pointer: coarse)`). On a hover-capable fine pointer it was invisible dead
+ * weight with one failure mode: any state that made the card surface
+ * translucent uncovered it — which is exactly what the row hover did,
+ * painting full-height `primary-container` slabs and phantom action labels
+ * down the trailing edge of every desktop row. Where the gesture cannot
+ * happen, the tray does not paint. */
+@media (hover: hover) and (pointer: fine) {
+  .dh-card__swipe-tray {
+    display: none;
+  }
 }
 
 .dh-card__swipe-action {
