@@ -21,20 +21,22 @@ body {
   padding: 0;
 }
 
-/* MOBILE-01 — the document scroller must know about the phone bottom bar.
+/* MOBILE-01 / CAPTURE-02 — the document scroller must know what is anchored to
+ * the bottom of the window.
  *
  * `scrollIntoView`, keyboard focus scrolling and anchor jumps all stop at the
- * viewport edge, which on a phone is UNDERNEATH the fixed bottom navigation. A
- * card or control scrolled to the last row therefore lands beneath the bar and
- * cannot be clicked or seen — which is exactly what happened to the last cards in
- * the Notes collection. `scroll-padding` is the standard mechanism for telling the
- * scroller that a band at the end of the viewport is spoken for, and it is stated
- * with the same token the bar's own height comes from, so nothing is measured or
- * guessed. `0px` on desktop, where the bar does not exist. */
+ * viewport edge, which on a phone is UNDERNEATH the fixed bottom navigation, and
+ * on a larger window is underneath the floating action button. A card or control
+ * scrolled to the last row therefore lands beneath one of them and cannot be
+ * clicked or seen — which is exactly what happened to the last cards in the
+ * Notes collection. `scroll-padding` is the standard mechanism for telling the
+ * scroller that a band at the end of the viewport is spoken for, and it is
+ * stated with `--app-fab-band`, the ONE token that already describes that band
+ * in both shells: the navigation bar's height on a phone (where there is no
+ * floating button), and the button's inset + height + gap on a larger window
+ * (where there is no bar). Nothing here is measured or guessed. */
 html {
-  scroll-padding-block-end: calc(
-    var(--app-bottomnav-height, 0px) + var(--app-space-2)
-  );
+  scroll-padding-block-end: calc(var(--app-fab-band, 0px) + var(--app-space-2));
 }
 
 /*

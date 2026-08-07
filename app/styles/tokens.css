@@ -913,18 +913,43 @@
   /* The M3 navigation bar's own height, before safe-area padding. */
   --app-bottomnav-bar-height: 5rem;
 
-  /* The vertical space the floating action button occupies at the bottom-right:
-   * the phone navigation bar beneath it, its 24px inset, its 56px height and a
-   * 16px gap above it — so this is exactly "the height of the FAB's top edge,
-   * plus breathing room". It collapses to 96px on desktop, where
-   * `--app-bottomnav-height` is `0px`.
+  /* CAPTURE-02 — the floating action button's anatomy, as tokens.
    *
-   * It exists because the notification region is the one other surface anchored
-   * to that corner, and it stacks above the FAB rather than over it (`shell.css`
-   * for the FAB itself, `feedback.css` for the region). */
+   * The specification's standard FAB: 56px, anchored 24px from the corner, with
+   * a 16px gap between it and anything the page puts beside it. Stated here
+   * rather than inline in `shell.css` because THREE other things have to reason
+   * about the space this button occupies — the pane's reserved corner, the
+   * document's `scroll-padding`, and the notification region that stacks above
+   * it — and a button whose size is a literal in one file cannot be reserved
+   * for correctly in the others. */
+  --app-fab-size: 3.5rem; /* 56 */
+  --app-fab-inset: var(--app-space-6); /* 24 */
+  --app-fab-gap: var(--app-space-4); /* 16 */
+
+  /* The space the FAB spoke for, in each axis, measured from the corresponding
+   * viewport edge.
+   *
+   * `--app-fab-band` (BLOCK) also folds in the phone navigation bar beneath the
+   * button, so one token describes "everything anchored to the bottom of the
+   * window". It is what every scroll container reserves at its end, what the
+   * document's `scroll-padding-block-end` uses so keyboard focus never parks a
+   * control underneath the button, and what the notification region stacks above
+   * (`feedback.css`).
+   *
+   * `--app-fab-inline-band` (INLINE) is what the content pane reserves at its
+   * trailing edge, which is the half the August 2026 audit's finding 1 was
+   * about: a page whose content runs to the right edge put a form control under
+   * a fixed button, and no amount of bottom padding can reach content that is
+   * not at the bottom.
+   *
+   * Both are overridden at phone widths (`shell.css`), where there is no FAB at
+   * all and the bottom navigation bar's Capture slot owns the action instead. */
   --app-fab-band: calc(
-    var(--app-bottomnav-height, 0px) + var(--app-space-6) + 3.5rem +
-      var(--app-space-4)
+    var(--app-bottomnav-height, 0px) + var(--app-fab-inset) +
+      var(--app-fab-size) + var(--app-fab-gap)
+  );
+  --app-fab-inline-band: calc(
+    var(--app-fab-inset) + var(--app-fab-size) + var(--app-fab-gap)
   );
 
   --app-border-width-thin: 1px;

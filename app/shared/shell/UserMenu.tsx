@@ -37,6 +37,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
+import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import { AppearanceSelector } from "./AppearanceSelector";
 import { displayNameFromEmail, initialsFromName } from "./identity-display";
@@ -182,28 +183,45 @@ export function UserMenu({
     </div>
   ) : null;
 
+  /*
+   * M3-TIP — the COMPACT trigger is two initials and a chevron: it has an
+   * accessible name ("Account — …") and nothing a pointer or keyboard user can
+   * read, which is exactly the shape the August 2026 audit's finding 2 named.
+   * The full trigger already shows the name in text, so it gets no tooltip —
+   * a tooltip that repeats visible text is noise. No tooltip while the panel is
+   * open either: the panel says far more than the trigger could.
+   */
   const trigger = (
-    <button
-      type="button"
-      className="dh-user-menu__trigger"
-      ref={triggerRef}
-      aria-expanded={open}
-      aria-controls={open ? panelId : undefined}
-      onClick={() => setOpen((value) => !value)}
+    <Tooltip
+      label={`Account — ${displayName}`}
+      placement="bottom"
+      disabled={!compact || open}
     >
-      <span className="dh-user-menu__avatar" aria-hidden="true">
-        {initials}
-      </span>
-      {compact ? null : (
-        <span className="dh-user-menu__trigger-name">{displayName}</span>
+      {(tip) => (
+        <button
+          type="button"
+          className="dh-user-menu__trigger"
+          ref={composeRefs(triggerRef, tip.ref)}
+          aria-expanded={open}
+          aria-controls={open ? panelId : undefined}
+          aria-describedby={tip.describedBy}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="dh-user-menu__avatar" aria-hidden="true">
+            {initials}
+          </span>
+          {compact ? null : (
+            <span className="dh-user-menu__trigger-name">{displayName}</span>
+          )}
+          <span className="dh-user-menu__chevron" aria-hidden="true">
+            <ChevronDownIcon />
+          </span>
+          {compact ? (
+            <span className="dh-visually-hidden">Account — {displayName}</span>
+          ) : null}
+        </button>
       )}
-      <span className="dh-user-menu__chevron" aria-hidden="true">
-        <ChevronDownIcon />
-      </span>
-      {compact ? (
-        <span className="dh-visually-hidden">Account — {displayName}</span>
-      ) : null}
-    </button>
+    </Tooltip>
   );
 
   return (

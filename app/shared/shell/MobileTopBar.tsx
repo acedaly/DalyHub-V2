@@ -23,6 +23,7 @@ import { useNavigate } from "react-router";
 
 import { PRODUCT_NAME } from "~/shared/brand";
 import { BrandMark, ChevronRightIcon, SearchIcon } from "~/shared/icons";
+import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import { useMobileTopBar } from "./mobile-top-bar-context";
 
@@ -48,17 +49,27 @@ export function MobileTopBar({
 
   return (
     <header className="dh-mobilebar">
+      {/* M3-TIP — both bar controls are icon-only. A phone has no hover, so the
+       * tooltip earns its place here on `:focus-visible` instead: an external
+       * keyboard on a tablet-width window is exactly the case the audit's
+       * finding 2 was about. */}
       {backTo !== null ? (
-        <button
-          type="button"
-          className="dh-mobilebar__back"
-          onClick={() => navigate(backTo)}
-        >
-          <span className="dh-mobilebar__back-icon" aria-hidden="true">
-            <ChevronRightIcon />
-          </span>
-          <span className="dh-visually-hidden">Back</span>
-        </button>
+        <Tooltip label="Back" placement="bottom">
+          {(tip) => (
+            <button
+              type="button"
+              ref={tip.ref}
+              className="dh-mobilebar__back"
+              aria-describedby={tip.describedBy}
+              onClick={() => navigate(backTo)}
+            >
+              <span className="dh-mobilebar__back-icon" aria-hidden="true">
+                <ChevronRightIcon />
+              </span>
+              <span className="dh-visually-hidden">Back</span>
+            </button>
+          )}
+        </Tooltip>
       ) : null}
 
       {/*
@@ -82,21 +93,26 @@ export function MobileTopBar({
 
       <div className="dh-mobilebar__actions">
         {actions}
-        <button
-          type="button"
-          ref={searchRef}
-          className="dh-mobilebar__action"
-          onClick={() => {
-            if (searchRef.current) {
-              onOpenSearch(searchRef.current);
-            }
-          }}
-        >
-          <span aria-hidden="true">
-            <SearchIcon />
-          </span>
-          <span className="dh-visually-hidden">Search</span>
-        </button>
+        <Tooltip label="Search" shortcut="/" placement="bottom">
+          {(tip) => (
+            <button
+              type="button"
+              ref={composeRefs(searchRef, tip.ref)}
+              className="dh-mobilebar__action"
+              aria-describedby={tip.describedBy}
+              onClick={() => {
+                if (searchRef.current) {
+                  onOpenSearch(searchRef.current);
+                }
+              }}
+            >
+              <span aria-hidden="true">
+                <SearchIcon />
+              </span>
+              <span className="dh-visually-hidden">Search</span>
+            </button>
+          )}
+        </Tooltip>
       </div>
     </header>
   );

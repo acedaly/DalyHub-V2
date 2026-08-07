@@ -180,9 +180,10 @@ There are no density presets. Density is a typescale choice per surface, made wh
 | **Top app bar** | Small variant: 64px, `surface`, no rule, `title-large`. |
 | **Search bar** | 56px, `corner-full`, `surface-container-high`, leading glyph. |
 | **Navigation bar** | 80px, `surface-container`, a 64×32 `secondary-container` active-indicator pill behind the glyph, `label-medium` labels always visible. |
-| **FAB** | 56px, `corner-large`, `primary-container` pair, elevation 3, bottom-right, clearing the navigation bar, the home indicator and the keyboard. |
+| **FAB** | 56px, `corner-large`, `primary-container` pair, elevation 3, bottom-right, clearing the navigation bar, the home indicator and the keyboard. Shown only where the navigation **bar** is not — below `md` the bar's Capture slot is the single global affordance. The corner it occupies is reserved by the content pane in both axes (`--app-fab-band` / `--app-fab-inline-band`), so it never sits on top of a control. |
 | **Segmented buttons** | One 40px outlined container, `corner-full` ends, 1px dividers, `secondary-container` selected segment with a leading check glyph. |
 | **Snackbar** | `inverse-surface` pair, `corner-extra-small`, elevation 3, action text in `inverse-primary`. |
+| **Tooltip** | Plain variant: `inverse-surface` pair, `corner-extra-small`, elevation 2, `body-small`, 8px from its trigger and clamped to the viewport. Shown on hover **and** `:focus-visible`. |
 | **Progress** | Linear: 4px `corner-full`, `primary` on `secondary-container`. Circular: the shared `ProgressRing` in [`app/shared/charts`](../../app/shared/charts), same tokens, same 4px stroke. |
 | **Bottom sheet** | Top corners `extra-large`, `surface-container-low`, elevation 1, 32×4 drag handle at `on-surface-variant` 40%. |
 | **Side drawer** | Leading edge `extra-large`, `surface-container-low`, elevation 1, scrim at `scrim` 32%. |
@@ -281,7 +282,7 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** The editor's document **is** the Markdown source, byte for byte — there is no rich-text document model and no second parser or sanitiser. The toolbar is a compact icon row **attached** to the writing surface (they share one outline), grouped by hairline separators, with `aria-pressed` derived from the source at the selection and real enabled state on undo/redo. `density="compact"` trims the chrome for an editor embedded in a record body; `comfortable` is the editor-first workspace.
 **Rules.**
 - **The canonical format decides what the toolbar may offer.** Every control must round-trip through the stored Markdown and the sanitising renderer. Strikethrough is offered because `remark-gfm`'s `delete` node survives sanitisation; **underline is not**, because CommonMark and GFM have no underline node and the only way to produce one is raw `<u>`, which the renderer strips. A control that silently does nothing is worse than an absent one.
-- **Icons carry the drawing; `aria-label` carries the word.** Nothing is icon-only to assistive tech, every control has a `title` tooltip naming its shortcut, and active state is `aria-pressed` **plus** a filled container — never a tint alone.
+- **Icons carry the drawing; `aria-label` carries the word.** Nothing is icon-only to assistive tech, every control composes the [shared tooltip](#tooltip-m3-tip) — which names what it does and shows its shortcut on hover *and* on keyboard focus — and active state is `aria-pressed` **plus** a filled container, never a tint alone. This toolbar is the tooltip primitive's reference adoption; no control here carries a browser `title`.
 - **Undo/redo appear only where they can be both performed and reported.** The no-JS fallback has the browser's own unqueryable undo stack, so the buttons are omitted there rather than shown permanently enabled.
 - **Enter is never an unconditional save** in a multiline surface. Commit is an explicit control or ⌘/Ctrl+Enter.
 - **44px targets, on every pointer.** DalyHub holds that bar everywhere and it is stricter than WCAG 2.2 AA's 24px; an earlier draft of this work shrank the control to 36px on fine pointers for compactness, which traded an accessibility contract for a visual one. The compactness comes from the GLYPH instead: thirteen 44px squares are narrower than eleven word-buttons, and they do not wrap. The row scrolls horizontally inside its own box, so the toolbar never produces page-level overflow at 320px.
@@ -376,6 +377,18 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** A WAI-ARIA menu button, not a modal: `aria-haspopup="menu"` + `aria-expanded`, arrow/Home/End navigation with roving focus, Escape closing only the menu and restoring focus, Tab and outside-pointer dismissal. A blocked action stays **visible and disabled with an explanation** rather than disappearing.
 **Rules.** Exactly one primary action stays in the header; everything else belongs here or in the [Command Palette](#command-palette). Meaning is always the item's wording — tone and glyph are reinforcement. Never build a second menu.
 **Realised by** the [Shared overflow menu (DS-12)](#shared-overflow-menu-ds-12).
+
+### Tooltip (M3-TIP)
+**Purpose.** ONE way to explain a control whose meaning is carried by a glyph — and, where the control has one, to show its keyboard shortcut to the person most likely to want it.
+**Anatomy.** [`app/shared/tooltip`](../../app/shared/tooltip): a `Tooltip` render-prop component (no wrapper element — it attaches to the trigger by ref, so adopting it changes no layout) rendering a portalled `role="tooltip"` with the supporting text and an optional `<kbd>` shortcut chip, formatted by the ONE shared shortcut formatter (`~/shared/commands/shortcut`).
+**Behaviour.** Opens on pointer hover after a short intent delay and on `:focus-visible`; closes on pointer leave, blur, pointer press and Escape. Associated with its trigger by `aria-describedby` while shown. Never focusable, never a Tab stop, never a focus trap, `pointer-events: none` so it cannot intercept a click. Positioned `fixed` from the trigger's measured rect, flipped and clamped to the viewport so an edge control never produces horizontal overflow. Motion honours `prefers-reduced-motion`; forced colours get a real border rather than the fill.
+**Rules.**
+- **A tooltip describes; it never NAMES.** Every adopter keeps its own `aria-label` or visually-hidden text. A description is not announced by every assistive technology, so a control named only by its tooltip is a control with no name.
+- **It replaces `title` on controls that need explaining, and only those.** A control with visible text does not get a tooltip to raise a migration count; `title` remains legitimate for genuinely supplementary detail beside a labelled control.
+- **It does not open on a touch tap.** Touch has no hover state, and a tooltip over the surface a tap just opened is in the way.
+- **Escape yields to the layer above it.** Propagation is stopped only when the trigger itself holds focus, so a stale hover tooltip can never swallow the Escape that closes a Drawer.
+**Adopted by** the [shared writing surface](#shared-writing-surface-edit-01)'s toolbar (the reference adoption), the [overflow menu](#overflow-menu)'s ⋯ trigger, the shell's top-bar icon controls, the account menu's compact trigger, the phone bar's Back/Search, the capture FAB and icon-only [card](#cards) actions. Deliberately **not** the account menu's full trigger, which already shows the name in text.
+**Not** the [Hover Card](#linked-items--hover-card) — that is a rich, asynchronously loaded summary of a linked record, and it stays its own component.
 
 ### Record lifecycle
 **Purpose.** One vocabulary and one interaction for Archive / Restore / Delete, on every entity.

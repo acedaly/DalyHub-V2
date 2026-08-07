@@ -221,3 +221,91 @@ test.describe("SETTINGS-01A — application settings", () => {
     await expectNoHorizontalOverflow(page);
   });
 });
+
+/**
+ * SETTINGS-LABEL — one setting, one control, one label.
+ *
+ * "Default task destination" appeared TWICE in its own row: as the row's label
+ * on the left and again as the combobox's field label above the input on the
+ * right (finding 7 of the August 2026 interaction audit). It is a small defect
+ * with a specific cost — a settings list is read item by item by a screen-reader
+ * user, and this one said the same thing twice — so the fix has to hold the
+ * accessible name as firmly as it removes the duplicate.
+ */
+test.describe("SETTINGS-LABEL — no setting labels itself twice", () => {
+  test("the task-destination row names its control exactly once", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/settings");
+
+    const row = page
+      .locator(".dh-settings-row")
+      .filter({ hasText: "Default task destination" });
+    await expect(row).toHaveCount(1);
+
+    // Visible: the words appear once in the row, in the row's own label.
+    await expect(row.getByText("Default task destination")).toHaveCount(1);
+    // ...and the field renders no label block of its own beside it.
+    await expect(row.locator(".dh-field__label-text")).toHaveCount(0);
+
+    // Programmatic: still exactly one control, still named — by the real,
+    // visible text of the row rather than by an invented `aria-label`.
+    const control = page.getByRole("combobox", {
+      name: "Default task destination",
+    });
+    await expect(control).toHaveCount(1);
+    await expect(control).toHaveAccessibleName("Default task destination");
+    await expect(control).not.toHaveAttribute("aria-label", /.*/);
+    // The row's supporting copy describes the control, which is what it always
+    // meant and never said.
+    await expect(control).toHaveAccessibleDescription(
+      /Inbox is the fast default/,
+    );
+  });
+
+  test("no Settings row labels its own field twice", async ({ page }) => {
+    // The audit found one. This is the sweep that keeps it at one.
+    for (const section of [
+      "general",
+      "date-time",
+      "navigation",
+      "ai",
+      "privacy-data",
+      "offline",
+      "about",
+    ]) {
+      await gotoFixture(page, `/settings?section=${section}`);
+      const duplicates = await page.evaluate(() => {
+        const found: string[] = [];
+        for (const row of document.querySelectorAll(".dh-settings-row")) {
+          const name = row
+            .querySelector(".dh-settings-row__label")
+            ?.textContent?.trim()
+            .toLocaleLowerCase();
+          if (!name) continue;
+          const inner = row.querySelectorAll(
+            ".dh-settings-row__control .dh-field__label-text, .dh-settings-row__control label, .dh-settings-row__control legend",
+          );
+          for (const element of inner) {
+            if (element.textContent?.trim().toLocaleLowerCase() === name) {
+              found.push(name);
+            }
+          }
+        }
+        return found;
+      });
+      expect(duplicates, `duplicated labels in ${section}`).toEqual([]);
+    }
+  });
+
+  test("the corrected General section stays axe-clean, in Light and Dark", async ({
+    page,
+  }) => {
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await gotoFixture(page, "/settings?section=general");
+      await expectNoAxeViolations(page);
+    }
+    await page.emulateMedia({ colorScheme: null });
+  });
+});

@@ -29,21 +29,31 @@ answers the class correctly, using the product's own bands, would be circular.
 
 ## Summary
 
-| # | Finding | Kind | Severity |
-|---|---|---|---|
-| 1 | The floating action button covers content and form controls | defect | **High** |
-| 2 | Icon-only controls rely on `title` for their tooltip — 91 instances, none keyboard-reachable | gap | **High** |
-| 3 | The state layer is documented as one shared class and implemented ~5× by hand | divergence | Medium |
-| 4 | No navigation rail: the medium window class gets the phone layout | gap | Medium |
-| 5 | A 240px permanent drawer starves the expanded window class | divergence | Medium |
-| 6 | Settings mixes native `<select>` with the shared combobox | divergence | Medium |
-| 7 | A settings row labels its own field twice | defect | Low |
-| 8 | No switch: every boolean in the product is a checkbox | gap | Low |
-| 9 | No press ripple; the state layer stops at opacity | divergence | Low (accepted) |
+| # | Finding | Kind | Severity | Status |
+|---|---|---|---|---|
+| 1 | The floating action button covers content and form controls | defect | **High** | **Closed** — PR #126 |
+| 2 | Icon-only controls rely on `title` for their tooltip — 91 instances, none keyboard-reachable | gap | **High** | **Closed for the agreed adoption set** — PR #126 |
+| 3 | The state layer is documented as one shared class and implemented ~5× by hand | divergence | Medium | Open |
+| 4 | No navigation rail: the medium window class gets the phone layout | gap | Medium | Open — needs its own ADR |
+| 5 | A 240px permanent drawer starves the expanded window class | divergence | Medium | Open — same decision as 4 |
+| 6 | Settings mixes native `<select>` with the shared combobox | divergence | Medium | Open |
+| 7 | A settings row labels its own field twice | defect | Low | **Closed** — PR #126 |
+| 8 | No switch: every boolean in the product is a checkbox | gap | Low | Open |
+| 9 | No press ripple; the state layer stops at opacity | divergence | Low (accepted) | Open — owed a written decision |
 
 Findings 1, 2 and 7 are defects a user meets. 3 and 6 are consistency debt that
 grows with every new surface. 4 and 5 are the one genuinely *structural*
 question. 8 and 9 are small and arguably fine as they are.
+
+**What PR #126 changed, and what it deliberately did not.** It took the three
+control-level defects (1, 2, 7) and left everything else exactly where this audit
+put it. In particular it did **not** build a navigation rail, sweep the state
+layer, converge the select controls, adopt the switch or decide the ripple — those
+are recorded below, unchanged, with their evidence intact. Each finding's own
+section now ends with a **Resolution** or **Still open** note; nothing has been
+deleted, and no counted evidence has been rewritten to make a number look
+better. The `title` count in finding 2 is deliberately left at the 91 it measured,
+with the current figure stated beside it.
 
 ---
 
@@ -70,6 +80,37 @@ padding, or the FAB is scoped to the surfaces that want one.
 the FAB and the bottom bar both say "Capture", in the same corner. The audit
 confirms that entry and adds the overlap, which is the more serious half.
 
+> **Resolution — PR #126 (CAPTURE-02). Closed.**
+>
+> Two changes, both at the shell rather than in a module.
+>
+> **The corner is reserved, in both axes.** `--app-fab-band` (block) already
+> existed and was already consumed by `.dh-pane`; on its own it only cleared the
+> *end* of a page, which is why the Settings combobox — nowhere near the end —
+> was still under the button. It is now joined by `--app-fab-inline-band`, and
+> the pane reserves both: `padding-inline-end: max(0px, var(--app-fab-inline-band)
+> - var(--app-page-padding))`, so a page's own gutter counts towards the
+> reservation and no surface ends up with two stacked. The same band is what
+> `html { scroll-padding-block-end }` now uses, so keyboard focus and
+> `scrollIntoView` cannot park a control underneath the button either. Both
+> tokens collapse at phone widths, where there is no button.
+>
+> **The phone loses the button entirely** — see the DEBT-96 half below.
+>
+> **Evidence.** [`e2e/global-capture.spec.ts`](../../e2e/global-capture.spec.ts)
+> measures rectangles rather than comparing screenshots: at 900px and 1400px, on
+> Settings (both the General and AI sections), Today, Tasks, Projects and Notes,
+> no interactive element's rect intersects the button's — at rest *and* scrolled
+> to the end of the document — with no horizontal overflow introduced. The
+> keyboard case is asserted directly against the combobox this finding names.
+> The bulk-selection suppression rule that PR #121 added is re-sited to a width
+> where the button exists and still holds.
+>
+> **What it cost.** Roughly 64px of trailing gutter on a desktop page (96px of
+> reservation, less the 32px the page already padded). That is the price of the
+> guarantee being absolute rather than "unless you scroll to the wrong place",
+> and it was measured before it was accepted.
+
 ## 2 — `title` is the only tooltip mechanism · **gap, high**
 
 **Evidence.** 91 `title={…}` attributes on controls across `app/`; two
@@ -88,6 +129,44 @@ usability gap that M3's plain tooltip exists to fill.
 `aria-describedby`, shown on hover *and* focus-visible, dismissed on Escape),
 adopted by the icon-only controls first: the editor toolbar, the card overflow
 triggers, the shell's icon buttons.
+
+> **Resolution — PR #126 (M3-TIP). Closed for the agreed adoption set.**
+>
+> [`app/shared/tooltip`](../../app/shared/tooltip) is the one primitive: M3's
+> plain tooltip, `role="tooltip"` + `aria-describedby`, opened on hover *and* on
+> `:focus-visible`, dismissed on pointer-leave / blur / press / Escape, never a
+> Tab stop, never focusable, `pointer-events: none`, portalled and clamped to the
+> viewport, `prefers-reduced-motion`-aware and painted with the `inverse-surface`
+> pair so both appearances and forced colours are right. It adds no dependency
+> and no wrapper element — it attaches to the trigger by ref, which is what let
+> the editor toolbar adopt it without touching its roving-tabindex model.
+> Shortcuts render through the shortcut formatter that already existed for the
+> Command Palette (`~/shared/commands/shortcut`), so `Mod-b` reads as `⌘B` or
+> `Ctrl+B` correctly rather than being spelled out in a string.
+>
+> **Adopted by:** the PR #124 editor toolbar (the reference adoption — all
+> thirteen controls, `title` removed), the shared `OverflowMenu` ⋯ trigger (which
+> is every EntityCard and every record header at once), the desktop top bar's
+> command-palette and help controls, the account menu's compact avatar trigger,
+> the phone bar's Back and Search, the capture FAB, and icon-only `CardAction`s.
+>
+> **Deliberately not adopted by** controls that show their own text. The audit's
+> own rule was "leave `title` in place only where the control already has visible
+> text", and that is what happened: the element-level `title` attributes in `app/`
+> went from **12 to 6**, and every survivor is either on a control with a visible
+> label (`RecordAction`, an overflow menu ITEM, a labelled `CardAction`) or on
+> non-interactive supplementary text (the account menu's email, an activity
+> timestamp). The **91** in the evidence above counted every `title={…}` in
+> `app/`, most of which are React component props (`<EmptyState title=…>`) rather
+> than HTML attributes; that number is left as it was measured, and stands at 90
+> today for the same reason.
+>
+> **Evidence.** [`test/unit/tooltip`](../../test/unit/tooltip),
+> [`e2e/tooltip.spec.ts`](../../e2e/tooltip.spec.ts) and the tooltip block in
+> [`test/unit/markdown-editor/EditorToolbar.test.tsx`](../../test/unit/markdown-editor/EditorToolbar.test.tsx),
+> which asserts that the toolbar still has exactly one Tab stop, that arrow
+> navigation still works, and that a disabled Undo is still outside the roving
+> stop.
 
 ## 3 — The state layer is one class in the docs and five patterns in the CSS · **divergence, medium**
 
@@ -116,6 +195,11 @@ inline-edit trigger and editor toolbar) to the shared class, then add a test tha
 fails when a new `:hover` rule sets `background` on an element that also carries
 an interactive role.
 
+> **Still open after PR #126.** Untouched, deliberately: it is a sweep across many
+> files with low per-file payoff, and folding it into a PR that also moved the FAB
+> and introduced a primitive would have made both unreviewable. The new tooltip is
+> not a counter-example — it has no hover fill of its own to convert.
+
 ## 4 — No navigation rail: the medium window class gets the phone layout · **gap, medium**
 
 **Evidence.** [`nav-today-medium-700.png`](assets/m3-audit-2026-08/nav-today-medium-700.png)
@@ -136,6 +220,9 @@ state, its own tests, its own screenshots — to serve a device the owner may no
 use. This is a finding, not automatically a task; it deserves a decision, and
 the decision may legitimately be "no rail, and here is why".
 
+> **Still open after PR #126.** See the note under finding 5 — these two are one
+> decision, and PR #126 did not take it or start it.
+
 ## 5 — A 240px permanent drawer starves the expanded window class · **divergence, medium**
 
 **Evidence.** [`nav-today-expanded-900.png`](assets/m3-audit-2026-08/nav-today-expanded-900.png):
@@ -147,6 +234,14 @@ M3's answer for the expanded class is a rail (compact, icon + label, ~80px) with
 the drawer reserved for large windows, which is the same fix as finding 4 seen
 from the other side — one rail component would serve 600–1199dp and the drawer
 would start where it earns its width.
+
+> **Still open after PR #126.** Findings 4 and 5 are one decision and PR #126 did
+> not take it. There is no navigation rail in that change and none was started
+> opportunistically: it needs its own ADR, its own responsive matrix and its own
+> acceptance work, and the honest answer may still be "no rail, and here is why".
+> The one shell rule PR #126 *did* change at these widths is narrow and named:
+> below `md`, the bottom bar's Capture slot owns global capture and the floating
+> button is not shown. Nothing else about the drawer/bar breakpoint moved.
 
 ## 6 — Settings mixes native `<select>` with the shared combobox · **divergence, medium**
 
@@ -164,6 +259,12 @@ not. The 2026-08 selection-control audit
 found the shared combobox had a defect nobody noticed for months; a second,
 undocumented select surface is how that happens.
 
+> **Still open after PR #126.** The task-destination row that PR #126 *did* touch
+> is the shared combobox, and it stayed one: the fix was to stop it printing its
+> own label beside the row's (finding 7), not to convert the two native `<select>`
+> rows above it. Converging the two presentations is a separate decision about
+> which control wins product-wide, and it is unchanged by this PR.
+
 ## 7 — A settings row labels its own field twice · **defect, low**
 
 **Evidence.** [`surface-settings.png`](assets/m3-audit-2026-08/surface-settings.png):
@@ -173,6 +274,31 @@ as the field label above the input on the right.
 **Why it matters.** Small, but it is a duplicated accessible name in a settings
 list a screen-reader user reads item by item, and it is the kind of thing that
 tells a careful user the surface was assembled rather than designed.
+
+> **Resolution — PR #126 (SETTINGS-LABEL). Closed.**
+>
+> `SettingsRow` already documented two naming patterns, and this row was using
+> neither cleanly: it gave the row a label *and* rendered a self-naming field
+> inside it. `SelectField` now accepts `labelledBy` (and `describedBy`), so it can
+> take the row's own visible label as its name and render no second label block —
+> which is the row-owned pattern the component was designed for. The name is
+> still real, visible text; no `aria-label` was introduced to paper over the
+> duplication, and the row's supporting copy became the control's description,
+> which is what it always meant.
+>
+> **The neighbours were audited too.** A DOM sweep of every Settings section
+> found exactly one offender — this row. The AI budget rows, the navigation
+> toggles and the three native `<select>` rows all already use the render-prop
+> `aria-labelledby` correctly, and the Project settings' `SelectField` row
+> correctly omits the row label entirely. Nothing else was changed; this was not
+> turned into a Settings redesign.
+>
+> **Evidence.** [`e2e/settings.spec.ts`](../../e2e/settings.spec.ts) asserts one
+> visible instance of the words, one `combobox` with that accessible name, no
+> `aria-label` on it, the row's description as its accessible description, an
+> axe-clean General section in both appearances — and, as the thing that keeps it
+> at one, a sweep over every Settings section for a row whose control repeats its
+> label.
 
 ## 8 — No switch: every boolean is a checkbox · **gap, low**
 
@@ -186,6 +312,9 @@ effect immediately. DalyHub's settings toggles are immediate, so they are
 switches wearing checkboxes. The component already exists, so this is adoption,
 not construction.
 
+> **Still open after PR #126.** No checkbox became a switch. PR #126 was in the
+> Settings panel for finding 7 and deliberately left the control choice alone.
+
 ## 9 — No press ripple · **divergence, low, arguably correct**
 
 **Evidence.** `ripple`: 0 occurrences in `app/`. The state layer implements hover
@@ -198,9 +327,27 @@ here, and it would need a `prefers-reduced-motion` path. **Recommendation: recor
 this as a deliberate deviation in `DESIGN_SYSTEM.md` and close it**, rather than
 leave it as an undocumented absence that every future audit re-raises.
 
+> **Still open after PR #126.** `ripple` is still 0 occurrences in `app/`, and the
+> written decision this finding asks for has still not been made. It is one
+> paragraph of owed documentation, not a code change, and it belongs with the
+> consistency group (findings 3, 6, 8) rather than with the control-level defects.
+
 ---
 
 ## What the evidence says PR #125 should be
+
+> **How this landed.** Playwright 1.62.1 took the number PR #125, so the work
+> scoped below shipped as **PR #126**. The recommendation is otherwise unchanged
+> and is left as it was written — it is the reasoning that produced the scope, and
+> rewriting it after the fact would hide the fact that the scope was decided
+> before the code. Group A (findings 1, 2, 7) is done; groups B and C are not, and
+> their findings above say so individually.
+>
+> One decision the section below asks for **before** the work — "does DalyHub want
+> a navigation rail?" — was *not* made, and the work went ahead without it. That
+> was correct: the rail is orthogonal to the three control-level defects, and
+> deciding it under time pressure inside an unrelated PR is exactly what findings
+> 4 and 5 warn against. It remains owed.
 
 The findings fall into three natural groups, and only one of them is a coherent
 single PR.

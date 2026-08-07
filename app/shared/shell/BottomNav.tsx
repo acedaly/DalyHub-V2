@@ -7,6 +7,13 @@
  *
  *     Today · Tasks · Capture · Diary · More
  *
+ * CAPTURE-02 — the Capture slot is the SINGLE global capture affordance at these
+ * widths. The floating action button is hidden below `md` (`shell.css`), so a
+ * phone no longer carries two controls for the same action in the same corner
+ * (DEBT-96). The slot opens the same shared Quick Capture surface the button
+ * opens, through the same callback and with the same opener, so every capture
+ * type, every route behaviour and the focus restoration on close are unchanged.
+ *
  * Nothing in that list is hard-coded here. The destinations are DERIVED from the
  * registry-driven navigation model by `buildBottomNavigation` — a module earns a
  * slot by declaring `meta.mobilePrimaryOrder` in its own route manifest — and
