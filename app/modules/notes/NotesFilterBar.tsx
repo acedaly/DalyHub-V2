@@ -6,7 +6,9 @@
  * was missing — search, tag, Project, Area, relationship state and ordering —
  * WITHOUT inventing a Notes-only filtering system:
  *
- *   - the lifecycle state stays the shared `SegmentedFilter` (now three states);
+ *   - the lifecycle state is the shared VIEW SWITCHER, in the pane header's own
+ *     view slot (UIQ-013) — it selects which principal collection of Notes is
+ *     shown, which is a different question from the filters here;
  *   - everything else is ONE ordinary GET `<form>` whose controls are native
  *     `<input>`/`<select>` elements. That is a deliberate accessibility and
  *     mobile choice: native controls give a real on-screen keyboard and a native
@@ -24,10 +26,7 @@
 
 import { Link, useSearchParams } from "react-router";
 
-import {
-  SegmentedFilter,
-  type SegmentedFilterOption,
-} from "~/shared/segmented-filter";
+import type { ViewSwitcherOption } from "~/shared/view-switcher";
 
 import type {
   NoteCollectionState,
@@ -35,7 +34,12 @@ import type {
   NoteFilterValues,
 } from "./note-view";
 
-const STATE_OPTIONS: readonly SegmentedFilterOption[] = [
+/**
+ * UIQ-013 — the three lifecycle states are the collection's principal MODE, so
+ * they render through the shared view switcher in the pane header's view slot,
+ * not inside this filter bar. Exported for the collection to place.
+ */
+export const NOTE_STATE_OPTIONS: readonly ViewSwitcherOption[] = [
   { value: "active", label: "Active" },
   { value: "archived", label: "Archived" },
   { value: "deleted", label: "Deleted" },
@@ -127,12 +131,6 @@ export function NotesFilterBar({
 
   return (
     <div className="dh-notes-filters">
-      <SegmentedFilter
-        param="state"
-        options={STATE_OPTIONS}
-        value={state}
-        label="Filter notes by state"
-      />
       {/*
         `key` remounts the form whenever the applied filter scope changes.
         The controls are deliberately UNCONTROLLED (that is what lets them work

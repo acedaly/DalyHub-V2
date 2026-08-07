@@ -106,7 +106,7 @@ describe("Diary workspace", () => {
       screen.getByRole("heading", { level: 1, name: "Diary" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("group", { name: "Diary view" }),
+      screen.getByRole("group", { name: "Diary views" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("group", { name: "Selected day" }),

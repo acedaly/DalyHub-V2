@@ -10,8 +10,14 @@
  * What replaced it:
  *
  *   - `EntityCard` in `EntityCardGrid` — a 3/2/1-column responsive grid.
- *   - The owner's CHOSEN icon on the Area's accent (`AccentIcon`), so a grid of
- *     Projects groups visually by the Area they serve without a heading.
+ *   - The owner's CHOSEN icon on the Project's OWN accent (`AccentIcon`). This
+ *     was the Area's accent until #130: inheriting made a grid group visually
+ *     by Area, but it also meant a Project had no identity of its own, several
+ *     Projects in one Area were indistinguishable at a glance, and a Project
+ *     with no Area got the neutral container — no identity at all. The Project
+ *     now carries its own stable rank (the SAME ADR-068 mechanism Areas use,
+ *     generalised rather than duplicated), and the Area stays named in the
+ *     card's context line, which is where it was always legible as text.
  *   - ONE status chip (`projectCardStatus`), never a chip plus an inline health
  *     pill. The health REASON survives as supporting text, because it explains
  *     the chip rather than restating it.
@@ -47,7 +53,7 @@ import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
 import { StatusPill } from "~/shared/pill";
-import { SegmentedFilter } from "~/shared/segmented-filter";
+import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { NewProjectForm } from "./NewProjectForm";
 import {
@@ -231,7 +237,7 @@ function ProjectEntityCard({
           <AccentIcon
             entityType="project"
             iconKey={card.iconKey}
-            colourRank={card.areaColourRank}
+            colourRank={card.colourRank}
           />
         }
         title={card.title}
@@ -405,12 +411,17 @@ function ProjectsCollection({
           New Project
         </DrawerTrigger>
       }
-      filterBar={
-        <SegmentedFilter
+      // UIQ-013 — the lifecycle segment is the collection's principal MODE (one
+      // of the four is always active, and each is a different collection of
+      // Projects rather than a narrowing of one), so it moves from the filter
+      // row into the shared header view slot. Same control, same URL contract,
+      // one consistent place.
+      viewSwitcher={
+        <ViewSwitcher
           param="state"
           options={STATE_OPTIONS}
           value={state}
-          label="Filter projects by state"
+          label="Project views"
         />
       }
       error={

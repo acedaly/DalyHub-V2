@@ -262,17 +262,39 @@ should not re-litigate them.
 
 | Id | Surface | Severity | Finding | Why deferred |
 | --- | --- | --- | --- | --- |
-| UIQ-011 | Person record summary | Medium | Eight equally-weighted tonal pill actions (Call … Copy phone) compete; Quick Actions says a curated 2–3 with the tail in overflow/palette. | Which 2–3 lead is a product decision about the People module, not a mechanical correction; needs the owner's call. |
-| UIQ-012 | Goals gallery | Medium | The goal status chip label "Open" sits top-right where every other card shows its ⋯ menu and reads as an *action* ("Open the record"), not a state. Alignment absence is also stated twice (chip + identical sentence). | "Open" is the shared goal-state vocabulary used across the module; renaming it (e.g. "Active") is a vocabulary decision that should change the record chip, filters and copy together. |
-| UIQ-013 | All collections | Medium | View switchers render four ways: segmented control (Goals/Projects/Meetings/Notes), pill tabs under the header (People), pill row inside the pane header (Assets), menu + button row (Tasks). | Converging on one presentation touches every module's header; right change is a shared `viewSwitcher` slot standard — too broad for this audit PR. |
-| UIQ-014 | Reviews header | Medium | "New Review" renders inline after the view pills instead of the pane-header primary slot every other module uses. | Same header-slot convergence as UIQ-013; fixing Reviews alone re-forks the pattern. |
+| UIQ-011 | Person record summary | Medium | Eight equally-weighted tonal pill actions (Call … Copy phone) compete; Quick Actions says a curated 2–3 with the tail in overflow/palette. | **Still open — owned by PR #131.** #130 is collection-level; this is record-detail hierarchy, and one instance of a systemic pattern across seven modules. Fixing People alone would re-fork the hierarchy #131 exists to converge. |
+| UIQ-012 | Goals gallery | Medium | The goal status chip label "Open" sits top-right where every other card shows its ⋯ menu and reads as an *action* ("Open the record"), not a state. Alignment absence is also stated twice (chip + identical sentence). | **Investigated in #130 and deliberately RETAINED.** "Open" is not Goals-only: Projects use `open` as a typed repository filter value, a segment label and a shareable **URL parameter** (`?state=open`). Renaming only the Goal chip would put two words on one binary across sibling spine entities; renaming both is a vocabulary migration with a persistence-visible surface. Needs an owner decision — see [PRODUCT_DEBT](../product/PRODUCT_DEBT.md). |
+| UIQ-013 | All collections | Medium | View switchers render four ways: segmented control (Goals/Projects/Meetings/Notes), pill tabs under the header (People), pill row inside the pane header (Assets), menu + button row (Tasks). | **RESOLVED in #130** — one `~/shared/view-switcher`, one documented collection-header anatomy, eight collections + Diary migrated. |
+| UIQ-014 | Reviews header | Medium | "New Review" renders inline after the view pills instead of the pane-header primary slot every other module uses. | **RESOLVED in #130** — the shared primary slot, at the trailing end of the header, on every collection; asserted by measuring Reviews against Areas. |
 | UIQ-015 | Task drawer / desktop | Low | "Mark as waiting" and "Edit details" are full-width tonal bars on a desktop drawer — phone-first weight on a pointer surface. | Deliberate shared mobile contract (`stickyActions` weight); a desktop-specific variant deserves its own design pass. |
 | UIQ-016 | Capture sheet / desktop | Low | The centred desktop dialog keeps the sheet's 32×4 drag handle — a touch affordance with no meaning under a mouse. | Cosmetic; the handle is documented as decorative. Fix folded into a future Sheet polish item. |
 | UIQ-017 | Editor toolbar / phone | Low | The horizontally scrollable toolbar gives no scroll affordance (a control simply sits half-clipped at the fold). | Contract-compliant (row scrolls in its own box); an overflow fade is polish for the editor's own roadmap item. |
 | UIQ-018 | Tasks → Review Inbox | Low | "Back to Tasks" appears twice at equal weight (header action + empty-state primary). | Both placements are individually per-pattern; dropping one is a copy decision. |
 | UIQ-019 | Notes filter bar | Low | Second filter row's tracks don't align with the first row's columns; Apply floats detached at the row end. | Native-select filter bars are already documented as the deliberate exception; alignment polish only. |
 | UIQ-020 | Today Waiting rows | Low | Waiting previews render a bespoke light row (no checkbox, no chips) while My-day rows are full shared Cards — two anatomies for the same entity on one surface. | The bounded-preview pattern permits light slice rows; upgrading them to Cards is a Today design decision, not a defect fix. |
-| UIQ-021 | Shared overflow menu (DS-12) | Medium | The panel always opens below its trigger with no max-height and no flip, so a long menu (a Tasks row carries ~12 items ≈ 600px) opened low on the screen runs past the viewport bottom. Recoverable — the menu is non-modal so the page still scrolls, and arrow-key focus scrolls items into view — but pointer users must notice that. | The right fix is placement logic in the ONE shared menu (measure the trigger rect, flip above / clamp height exactly as the shared Tooltip already does), which changes DS-12's tested behavioural surface — too much risk to fold into this audit PR. Recorded with the recommended approach. |
+| UIQ-021 | Shared overflow menu (DS-12) | Medium | **RESOLVED in #130** — flip / clamp / internal scroll with an 8px viewport margin, decided by a pure unit-tested function and proven against real browser geometry. *(Original finding:)* The panel always opens below its trigger with no max-height and no flip, so a long menu (a Tasks row carries ~12 items ≈ 600px) opened low on the screen runs past the viewport bottom. Recoverable — the menu is non-modal so the page still scrolls, and arrow-key focus scrolls items into view — but pointer users must notice that. | The right fix is placement logic in the ONE shared menu (measure the trigger rect, flip above / clamp height exactly as the shared Tooltip already does), which changes DS-12's tested behavioural surface — too much risk to fold into this audit PR. Recorded with the recommended approach. |
+
+## Convergence evidence (#130)
+
+Before/after pairs for the three findings #130 resolved, captured by
+[`e2e/collection-header-screenshots.spec.ts`](../../e2e/collection-header-screenshots.spec.ts)
+(opt-in: `CAPTURE_SCREENSHOTS=1 SHOT_STAGE=before|after`).
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Tasks header, 1440 | [`uiq-013-before-tasks-1440.png`](assets/uiq-2026-08/uiq-013-before-tasks-1440.png) | [`uiq-013-after-tasks-1440.png`](assets/uiq-2026-08/uiq-013-after-tasks-1440.png) |
+| Goals header, 1440 | [`uiq-013-before-goals-1440.png`](assets/uiq-2026-08/uiq-013-before-goals-1440.png) | [`uiq-013-after-goals-1440.png`](assets/uiq-2026-08/uiq-013-after-goals-1440.png) |
+| People header, 1440 | [`uiq-013-before-people-1440.png`](assets/uiq-2026-08/uiq-013-before-people-1440.png) | [`uiq-013-after-people-1440.png`](assets/uiq-2026-08/uiq-013-after-people-1440.png) |
+| Reviews header, 1440 | [`uiq-013-before-reviews-1440.png`](assets/uiq-2026-08/uiq-013-before-reviews-1440.png) | [`uiq-013-after-reviews-1440.png`](assets/uiq-2026-08/uiq-013-after-reviews-1440.png) |
+| Assets header (five views), 1440 | [`uiq-013-before-assets-1440.png`](assets/uiq-2026-08/uiq-013-before-assets-1440.png) | [`uiq-013-after-assets-1440.png`](assets/uiq-2026-08/uiq-013-after-assets-1440.png) |
+| Areas gallery header, 1440 | [`uiq-013-before-areas-gallery-1440.png`](assets/uiq-2026-08/uiq-013-before-areas-gallery-1440.png) | [`uiq-013-after-areas-gallery-1440.png`](assets/uiq-2026-08/uiq-013-after-areas-gallery-1440.png) |
+| Meetings header, 1440 | [`uiq-013-before-meetings-1440.png`](assets/uiq-2026-08/uiq-013-before-meetings-1440.png) | [`uiq-013-after-meetings-1440.png`](assets/uiq-2026-08/uiq-013-after-meetings-1440.png) |
+| Tasks / People, 1280 laptop | [`uiq-013-before-tasks-1280.png`](assets/uiq-2026-08/uiq-013-before-tasks-1280.png) · [`uiq-013-before-people-1280.png`](assets/uiq-2026-08/uiq-013-before-people-1280.png) | [`uiq-013-after-tasks-1280.png`](assets/uiq-2026-08/uiq-013-after-tasks-1280.png) · [`uiq-013-after-people-1280.png`](assets/uiq-2026-08/uiq-013-after-people-1280.png) |
+| Phone 390 (People, Reviews) | [`uiq-013-before-people-390.png`](assets/uiq-2026-08/uiq-013-before-people-390.png) · [`uiq-013-before-reviews-390.png`](assets/uiq-2026-08/uiq-013-before-reviews-390.png) | [`uiq-013-after-people-390.png`](assets/uiq-2026-08/uiq-013-after-people-390.png) · [`uiq-013-after-reviews-390.png`](assets/uiq-2026-08/uiq-013-after-reviews-390.png) |
+| UIQ-014 — Reviews full pane | [`uiq-014-before-reviews-full-1440.png`](assets/uiq-2026-08/uiq-014-before-reviews-full-1440.png) | [`uiq-014-after-reviews-full-1440.png`](assets/uiq-2026-08/uiq-014-after-reviews-full-1440.png) |
+| UIQ-021 — long menu low on a 1280×800 screen | [`uiq-021-before-menu-bottom-1280.png`](assets/uiq-2026-08/uiq-021-before-menu-bottom-1280.png) | [`uiq-021-after-menu-bottom-1280.png`](assets/uiq-2026-08/uiq-021-after-menu-bottom-1280.png) |
+| Project identity colour, light | [`project-colour-before-gallery-light-1440.png`](assets/uiq-2026-08/project-colour-before-gallery-light-1440.png) | [`project-colour-after-gallery-light-1440.png`](assets/uiq-2026-08/project-colour-after-gallery-light-1440.png) |
+| Project identity colour, dark | [`project-colour-before-gallery-dark-1440.png`](assets/uiq-2026-08/project-colour-before-gallery-dark-1440.png) | [`project-colour-after-gallery-dark-1440.png`](assets/uiq-2026-08/project-colour-after-gallery-dark-1440.png) |
 
 ## Verified healthy (so the next audit starts ahead)
 
@@ -322,3 +344,25 @@ browser, failing against the pre-fix CSS:
   width (the collapse regression);
 - a wrapping grid-card title keeps the icon on its first line and the status
   chip in the heading band (the shattered-heading regression).
+
+`e2e/collection-header.spec.ts` (#130) — the collection-level geometry
+contracts, likewise measured rather than asserted from source:
+
+- every migrated collection renders the ONE shared switcher, at ≥44px, with no
+  segment moving when the selected view changes;
+- Reviews places its create action at the same distance from the header's
+  trailing edge as Areas does, after the switcher rather than among it;
+- at 1280 and 1440 the title, switcher and action share one row on Tasks,
+  Reviews, Assets and People — the "wraps while width sits unused" regression;
+- at 390 the title and the create action hold row one and the switcher takes
+  row two, the switcher stays one row tall (scrolling rather than wrapping),
+  and no collection produces horizontal document overflow;
+- the shared menu keeps its below placement where it fits, flips above where it
+  does not, clamps and scrolls internally when neither side can hold it, stays
+  8px clear of every viewport edge wherever its trigger sits, and still lets
+  End reach — and show — its last item.
+
+`test/unit/overflow-menu/menu-placement.test.ts` and
+`test/unit/view-switcher/ViewSwitcher.test.tsx` hold the same contracts as pure
+logic; `test/kernel/collection-cards.test.ts` proves the Project colour rank is
+stable across lifecycle changes, later creations and query order.

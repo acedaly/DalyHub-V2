@@ -515,6 +515,110 @@ describe("Projects collection — icon keys and inherited Area accent", () => {
     expect(byId.get(viaGoal.id)?.goal?.title).toBe("Ship it");
   });
 
+  /*
+   * #130 — the Project's OWN identity colour, over the real SQL window.
+   *
+   * The properties that make it an identity rather than a decoration: it is
+   * assigned without asking, neighbours differ, and nothing the owner does to a
+   * Project afterwards can move it. Ranked over EVERY project row, so a
+   * lifecycle change recolours nothing.
+   */
+  it("gives each Project a stable rank of its own, independent of its Area", async () => {
+    const s = spine(WS, "project-colour");
+    const area = await s.createArea({ title: "One area" });
+    const created: { id: string }[] = [];
+    for (const title of ["First", "Second", "Third", "Fourth"]) {
+      created.push(
+        await s.createProject({
+          title,
+          parent: { kind: "area", id: area.id },
+        }),
+      );
+    }
+
+    const repo = makeProjectRepository(makeContext(WS));
+    const first = new Map(
+      (await repo.listProjects({ state: "all" })).items.map((item) => [
+        item.id,
+        item,
+      ]),
+    );
+
+    // Four Projects in ONE Area: inheriting the Area's rank gave all four the
+    // same colour. Their own ranks are 0..3 — four distinct ramp entries.
+    const ranks = created.map((project) => first.get(project.id)?.colourRank);
+    expect(ranks).toEqual([0, 1, 2, 3]);
+    // And the Area's rank is a different fact, still reported beside it.
+    for (const project of created) {
+      expect(first.get(project.id)?.areaColourRank).toBe(0);
+    }
+
+    // Archiving one moves NOTHING: the window spans every row regardless of
+    // lifecycle, so the Projects created after it keep their colours — the
+    // failure mode a rank over the ACTIVE set would have had.
+    await makeProjectSettingsRepository(makeContext(WS)).archive(created[1].id);
+    const after = new Map(
+      (await repo.listProjects({ state: "all" })).items.map((item) => [
+        item.id,
+        item,
+      ]),
+    );
+    // "all" means every NON-archived Project, so the archived one is absent
+    // here; the three that remain kept the ranks they had.
+    expect(
+      [created[0], created[2], created[3]].map(
+        (p) => after.get(p.id)?.colourRank,
+      ),
+    ).toEqual([0, 2, 3]);
+    // And the archived Project itself still wears its own colour where it is
+    // shown, rather than being recoloured by having left the active set.
+    const archivedPage = await repo.listProjects({ state: "archived" });
+    expect(
+      archivedPage.items.find((item) => item.id === created[1].id)?.colourRank,
+    ).toBe(1);
+
+    // Creating another Project appends at the end and disturbs no existing one.
+    const fifth = await s.createProject({
+      title: "Fifth",
+      parent: { kind: "area", id: area.id },
+    });
+    const later = new Map(
+      (await repo.listProjects({ state: "all" })).items.map((item) => [
+        item.id,
+        item,
+      ]),
+    );
+    expect(
+      [created[0], created[2], created[3]].map(
+        (project) => later.get(project.id)?.colourRank,
+      ),
+    ).toEqual([0, 2, 3]);
+    expect(later.get(fifth.id)?.colourRank).toBe(4);
+  });
+
+  it("reports the same Project colour whatever the query's state or order", async () => {
+    const s = spine(WS, "project-colour-stable");
+    const area = await s.createArea({ title: "Stable" });
+    const alpha = await s.createProject({
+      title: "Zebra",
+      parent: { kind: "area", id: area.id },
+    });
+    const beta = await s.createProject({
+      title: "Aardvark",
+      parent: { kind: "area", id: area.id },
+    });
+
+    const repo = makeProjectRepository(makeContext(WS));
+    // A different filter is a different query with a different result ORDER;
+    // the colour is a function of creation facts, so it cannot follow it.
+    for (const state of ["all", "open"] as const) {
+      const page = await repo.listProjects({ state });
+      const byId = new Map(page.items.map((item) => [item.id, item]));
+      expect(byId.get(alpha.id)?.colourRank).toBe(0);
+      expect(byId.get(beta.id)?.colourRank).toBe(1);
+    }
+  });
+
   it("never leaks another workspace's Project, icon or rank", async () => {
     const mine = spine(WS, "mine");
     const theirs = spine(OTHER, "theirs");
@@ -535,9 +639,10 @@ describe("Projects collection — icon keys and inherited Area accent", () => {
 
     const page = await makeProjectRepository(makeContext(WS)).listProjects();
     expect(page.items.map((item) => item.id)).toEqual([ours.id]);
-    // The rank window is workspace-scoped too: our only Area is rank 0, even
-    // though another workspace has an older one.
+    // The rank windows are workspace-scoped too: our only Area is rank 0 and
+    // our only Project is rank 0, even though another workspace has older ones.
     expect(page.items[0]?.areaColourRank).toBe(0);
+    expect(page.items[0]?.colourRank).toBe(0);
   });
 });
 

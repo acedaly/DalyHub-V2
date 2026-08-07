@@ -56,11 +56,13 @@ export interface SerializedProjectListItem {
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
   /**
-   * The resolved Area's stable colour rank, so the card can inherit the Area's
-   * accent instead of inventing a second identity system. `null` when the
-   * Project has no Area.
+   * The resolved Area's stable colour rank. Retained as the fact it is — which
+   * Area this Project belongs to — after the card's identity accent moved to
+   * the Project's OWN rank. `null` when the Project has no Area.
    */
   readonly areaColourRank: number | null;
+  /** The Project's own stable identity colour rank (see the kernel type). */
+  readonly colourRank: number;
   /** The owner's chosen icon KEY, or `null` for the Project default. */
   readonly iconKey: EntityIconKey | null;
   readonly taskTotal: number;
@@ -116,6 +118,7 @@ export function serializeProjectListItem(
     area: item.area,
     goal: item.goal,
     areaColourRank: item.areaColourRank,
+    colourRank: item.colourRank,
     iconKey: item.iconKey,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
@@ -330,11 +333,17 @@ export interface ProjectCardData {
   readonly areaLabel: string | null;
   readonly goalLabel: string | null;
   /**
-   * The Area's stable colour rank, so the Project card wears its Area's accent.
-   * `null` when the Project has no Area and the card falls back to the neutral
-   * entity container.
+   * The Area's stable colour rank. No longer the card's accent — see
+   * `colourRank` — but kept because it still answers "which Area is this".
+   * `null` when the Project has no Area.
    */
   readonly areaColourRank: number | null;
+  /**
+   * The Project's OWN identity colour rank, and what the card's `AccentIcon`
+   * paints. Every Project therefore has an identity of its own, including one
+   * with no Area, which previously fell back to the neutral container.
+   */
+  readonly colourRank: number;
   /** The owner's chosen icon KEY, or `null` for the Project default. */
   readonly iconKey: EntityIconKey | null;
   /** The parent context line — "DalyHub V2 · Launch the site" — or null. */
@@ -441,6 +450,7 @@ export function toProjectCardData(
     areaLabel,
     goalLabel,
     areaColourRank: item.areaColourRank,
+    colourRank: item.colourRank,
     iconKey: item.iconKey,
     parentLabel: projectParentLabel({ areaLabel, goalLabel }),
     status,

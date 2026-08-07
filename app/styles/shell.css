@@ -900,10 +900,23 @@
   gap: var(--app-space-2);
 }
 
+/*
+ * UIQ-013 — the lead OWNS the free width, and yields it only when it must.
+ *
+ * The header is one flex row whose lead grows and whose control cluster does
+ * not. Without `flex: 1 1 auto` + `min-inline-size: 0` the lead's base size is
+ * its max-content contribution, so a long collection title (or a long count
+ * line) pushed the switcher and the primary action onto a second row while
+ * several hundred pixels of laptop width sat unused — the "wrapping while width
+ * remains" defect PR #129 found in three other places. Growing rather than
+ * sizing to content also means the title and its supporting line get the width
+ * first, which is the Record Header's rule applied to the pane.
+ */
 .dh-pane-header__lead {
   display: flex;
   align-items: center;
   gap: var(--app-space-3);
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -942,12 +955,73 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
+  flex: none;
   gap: var(--app-space-2) var(--app-space-3);
 }
 
+/*
+ * UIQ-013 — the view switcher is its own header slot, between the title and
+ * the actions. `flex: 0 1 auto` + `min-inline-size: 0` lets a many-view
+ * switcher (Assets carries five) give up width before the primary action does:
+ * the switcher scrolls inside its own box (see `segmented-filter.css`), which
+ * is a far better failure mode than the primary action wrapping away from the
+ * title it belongs to.
+ */
 .dh-pane-header__views {
   display: flex;
   align-items: center;
+  flex: 0 1 auto;
+  min-inline-size: 0;
+}
+
+/*
+ * UIQ-014 — the primary action is the LAST thing in the row, on every
+ * collection, and it never shrinks: a create button that has been squeezed to
+ * two wrapped words is not "immediately discoverable".
+ */
+.dh-pane-header__primary {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/*
+ * UIQ-013 — the intentional NARROW composition.
+ *
+ * Below the `md` boundary the header stops being one row and becomes a
+ * deliberate two-row shape:
+ *
+ *     Title / count                                     [ New ]
+ *     [ View | Switcher ]
+ *
+ * A grid rather than flex wrapping, because wrapping decides the composition
+ * from whatever happens to fit — which is how a desktop row "collapses
+ * accidentally" instead of changing on purpose. The title keeps its own column
+ * and the primary action keeps its place beside it, so the two things the
+ * screen is about stay on the first line at 320px.
+ */
+@media (max-width: 48rem) {
+  .dh-pane-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .dh-pane-header__lead {
+    grid-column: 1;
+  }
+
+  .dh-pane-header__actions {
+    grid-column: 2;
+  }
+
+  /* Its own row, spanning the full width, so a four-view switcher has the
+   * whole screen to scroll within rather than a leftover sliver. */
+  .dh-pane-header__views {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 /* -------------------------------------------------------------------------- */

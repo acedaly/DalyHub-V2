@@ -11,12 +11,14 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  NOTE_STATE_OPTIONS,
   NotesFilterBar,
   hasActiveFilters,
 } from "~/modules/notes/NotesFilterBar";
 import { NoteBacklinksTab, NoteLinksTab } from "~/modules/notes/NoteReferences";
 import { ProjectKnowledgeTab } from "~/modules/projects/ProjectKnowledgeTab";
 import { FeedbackProvider } from "~/shared/feedback";
+import { ViewSwitcher } from "~/shared/view-switcher";
 import type { NoteFilterValues } from "~/modules/notes/note-view";
 import type { RecordReference } from "~/shared/references";
 
@@ -105,17 +107,20 @@ describe("NotesFilterBar", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the three lifecycle states as one shared segmented filter", () => {
+  // UIQ-013 — the three lifecycle states are the collection's principal MODE,
+  // so they render through the ONE shared view switcher in the pane header's
+  // view slot rather than inside the filter bar. The filter bar below carries
+  // only controls that narrow WHICH records are included.
+  it("keeps the three lifecycle states as one shared view switcher", () => {
     renderAt(
-      <NotesFilterBar
-        state="archived"
-        filters={NO_FILTERS}
-        tags={[]}
-        projects={[]}
-        areas={[]}
+      <ViewSwitcher
+        param="state"
+        options={NOTE_STATE_OPTIONS}
+        value="archived"
+        label="Note views"
       />,
     );
-    const group = screen.getByRole("group", { name: "Filter notes by state" });
+    const group = screen.getByRole("group", { name: "Note views" });
     expect(
       within(group)
         .getAllByRole("link")

@@ -217,7 +217,7 @@ describe("Notes collection", () => {
 
   it("renders the Active/Deleted segmented filter with the active state current", () => {
     renderCollection({ notes: [note()], nextCursor: null, failed: false });
-    const group = screen.getByRole("group", { name: "Filter notes by state" });
+    const group = screen.getByRole("group", { name: "Note views" });
     const active = within(group).getByRole("link", { name: "Active" });
     expect(active).toHaveAttribute("aria-current", "true");
     const deletedLink = within(group).getByRole("link", { name: "Deleted" });

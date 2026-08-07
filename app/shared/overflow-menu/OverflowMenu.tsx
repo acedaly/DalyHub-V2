@@ -27,12 +27,31 @@
  * own `aria-label`, so the tooltip supplements the name rather than being it.
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { MoreIcon } from "~/shared/icons";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
 
+import {
+  clampMenuInline,
+  placeMenu,
+  type MenuPlacement,
+} from "./menu-placement";
 import type { OverflowMenuItem, OverflowMenuProps } from "./types";
+
+/**
+ * The gap between the trigger and the panel. Mirrors the `--app-space-1`
+ * offset the panel's CSS anchoring uses, so the measurement and the paint
+ * agree about where the panel starts.
+ */
+const MENU_OFFSET_PX = 4;
 
 /** Whether an item can be activated (a disabled or in-flight item cannot). */
 function isActionable(item: OverflowMenuItem): boolean {
@@ -52,7 +71,15 @@ export function OverflowMenu({
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [panel, setPanel] = useState<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
+  /**
+   * UIQ-021 — where the panel actually fits. `null` until measured; the panel
+   * paints below-and-unclamped in that first frame, which is what it always
+   * did, and `useLayoutEffect` corrects it before the browser paints.
+   */
+  const [placement, setPlacement] = useState<MenuPlacement | null>(null);
+  const [inlineShift, setInlineShift] = useState(0);
   const generatedId = useId();
   const triggerId = `${generatedId}-trigger`;
   const menuId = `${generatedId}-menu`;
@@ -60,6 +87,8 @@ export function OverflowMenu({
   const close = useCallback((restoreFocus: boolean) => {
     setOpen(false);
     setActiveIndex(-1);
+    setPlacement(null);
+    setInlineShift(0);
     if (restoreFocus) {
       triggerRef.current?.focus();
     }
@@ -84,6 +113,73 @@ export function OverflowMenu({
     }
     itemRefs.current[activeIndex]?.focus();
   }, [open, activeIndex]);
+
+  /*
+   * UIQ-021 — place the panel within the viewport.
+   *
+   * The same philosophy the shared Tooltip already uses, applied to a surface
+   * that has real height: measure the trigger's viewport rect, prefer the
+   * normal below placement, flip above when that fits better, and clamp the
+   * height (leaving the panel to scroll internally) when neither side can hold
+   * the whole menu. The DECISION is the pure `placeMenu`; this effect does the
+   * measuring and nothing else.
+   *
+   * `useLayoutEffect` so the correction lands before paint — a menu must never
+   * be seen jumping from the wrong side to the right one. Re-measured on scroll
+   * and resize, exactly like the tooltip, because either can invalidate the
+   * trigger's rect while the menu is open (the menu is deliberately non-modal,
+   * so the page behind it still scrolls).
+   */
+  useLayoutEffect(() => {
+    if (!open || !panel) {
+      return;
+    }
+    const trigger = triggerRef.current;
+    if (!trigger) {
+      return;
+    }
+    const place = () => {
+      const anchor = trigger.getBoundingClientRect();
+      const next = placeMenu({
+        triggerTop: anchor.top,
+        triggerBottom: anchor.bottom,
+        // `scrollHeight` is the panel's NATURAL height — unaffected by a clamp
+        // this effect applied on a previous pass, so re-measuring can never
+        // ratchet the menu smaller on every scroll event.
+        menuHeight: panel.scrollHeight,
+        viewportHeight: document.documentElement.clientHeight,
+        offset: MENU_OFFSET_PX,
+      });
+      setPlacement((current) =>
+        current &&
+        current.side === next.side &&
+        current.maxHeight === next.maxHeight
+          ? current
+          : next,
+      );
+
+      // The inline clamp is measured with any previous shift removed, so the
+      // correction is computed against the panel's natural position rather
+      // than compounding with itself.
+      const box = panel.getBoundingClientRect();
+      setInlineShift((currentShift) => {
+        const shift = clampMenuInline({
+          panelLeft: box.left - currentShift,
+          panelRight: box.right - currentShift,
+          viewportWidth: document.documentElement.clientWidth,
+        });
+        return Math.abs(shift - currentShift) < 0.5 ? currentShift : shift;
+      });
+    };
+
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open, panel, items]);
 
   // Dismiss on an outside pointer press. Escape and Tab are handled on the panel
   // itself (focus is inside it whenever the menu is open).
@@ -236,9 +332,22 @@ export function OverflowMenu({
         <div
           className="dh-overflow-menu__panel"
           id={menuId}
+          ref={setPanel}
           role="menu"
           aria-labelledby={triggerId}
           data-align={align}
+          // UIQ-021 — which side the panel took, and (when clamped) how tall it
+          // may be. Both are presentation only: flipping or clamping changes no
+          // keyboard semantics, no item order and no focus behaviour, so a menu
+          // that opens upward is navigated exactly like one that opens down.
+          data-side={placement?.side ?? "below"}
+          style={{
+            ...(placement?.maxHeight !== null &&
+            placement?.maxHeight !== undefined
+              ? { maxHeight: `${placement.maxHeight}px` }
+              : {}),
+            ...(inlineShift !== 0 ? { translate: `${inlineShift}px` } : {}),
+          }}
           // The WAI-ARIA menu-button pattern keeps focus on the `menuitem`
           // children (roving tabindex) and delegates their key events up here.
           // `-1` makes the container programmatically focusable without adding a

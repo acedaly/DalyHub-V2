@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 
 import {
   Card,
@@ -37,6 +37,7 @@ import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { GridIcon, ListIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { ViewSwitcher } from "~/shared/view-switcher";
 import {
   StayInTouchIndicator,
   formatRelationshipDate,
@@ -419,56 +420,43 @@ function PeopleCollection({
         }
       : undefined;
 
+  /*
+   * UIQ-013 — People had TWO bespoke switchers and now has none of its own.
+   *
+   * Both are the one shared primitive, and both are genuinely views rather
+   * than filters: the scope decides which principal collection is shown (one
+   * of the three is always active) and the layout decides how those records
+   * are presented. They sit side by side in the header's view slot — scope
+   * first, because it is the bigger decision — and the layout toggle is
+   * icon-only so a second control costs a pair of 44px squares rather than a
+   * second row of pills.
+   */
   const viewSwitcher = (
-    <div
-      className="dh-people-view-switch"
-      role="group"
-      aria-label="Card layout"
-    >
-      <button
-        type="button"
-        className="dh-people-view-switch__btn"
-        aria-pressed={presentation === "list"}
-        onClick={() => setPresentation("list")}
-      >
-        <ListIcon aria-hidden="true" />
-        <span className="dh-visually-hidden">List view</span>
-      </button>
-      <button
-        type="button"
-        className="dh-people-view-switch__btn"
-        aria-pressed={presentation === "grid"}
-        onClick={() => setPresentation("grid")}
-      >
-        <GridIcon aria-hidden="true" />
-        <span className="dh-visually-hidden">Grid view</span>
-      </button>
-    </div>
-  );
-
-  const viewsNav = (
-    <nav className="dh-people-views" aria-label="People views">
-      <Link to="/people" aria-current={view === "all" ? "page" : undefined}>
-        All people
-      </Link>
-      <Link
-        to="/people/recent"
-        aria-current={view === "recent" ? "page" : undefined}
-      >
-        Recent
-      </Link>
-      <Link
-        to="/people/archived"
-        aria-current={view === "archived" ? "page" : undefined}
-      >
-        Archived
-      </Link>
-    </nav>
+    <>
+      <ViewSwitcher
+        options={[
+          { value: "all", label: "All people", href: "/people" },
+          { value: "recent", label: "Recent", href: "/people/recent" },
+          { value: "archived", label: "Archived", href: "/people/archived" },
+        ]}
+        value={view}
+        label="People views"
+      />
+      <ViewSwitcher
+        options={[
+          { value: "list", label: "List view", icon: <ListIcon /> },
+          { value: "grid", label: "Gallery view", icon: <GridIcon /> },
+        ]}
+        value={presentation}
+        label="Card layout"
+        iconOnly
+        onSelect={(next) => setPresentation(next as "list" | "grid")}
+      />
+    </>
   );
 
   const filterBar = (
     <div className="dh-people-filters">
-      {viewsNav}
       <label className="dh-people-filters__search">
         <span className="dh-visually-hidden">Search people</span>
         <input

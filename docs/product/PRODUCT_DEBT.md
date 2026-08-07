@@ -70,6 +70,26 @@ authority now.)
 
 ## Debt register
 
+### ☑ UIQ-013 / UIQ-014 / UIQ-021 — collection view switchers, the Reviews primary action, and overflow-menu viewport placement — **RESOLVED 2026-08-07 (#130)**
+
+- **Current issue (was).** Three findings the August 2026 UI quality audit recorded rather than fixed, because each needed a shared change too broad for an audit PR. **UIQ-013**: view switchers rendered four ways — the shared segmented control (Projects/Goals/Notes/Tasks), pill tabs under the header (People), pill rows inside the pane header (Assets/Reviews) and loose segment links in a content toolbar (Meetings) — three selected-state treatments, two corner radii, and three of the four below the 44px target. **UIQ-014**: "New Review" rendered beside the view pills instead of the shared primary slot. **UIQ-021**: the one shared menu always opened below its trigger with no max-height and no flip, so a ~713px Tasks row menu opened low on an 800px viewport ran past the bottom.
+- **Resolved by.** One documented [collection-header anatomy](../design/DESIGN_SYSTEM.md#the-collection-header-anatomy-uiq-013uiq-014) with fixed semantic ownership of its slots; ONE [view switcher](../design/DESIGN_SYSTEM.md#the-view-switcher-uiq-013) (`~/shared/view-switcher`) that eight collections and Diary now render, with the `SegmentedFilter` wrapper kept for genuine in-content filters; the primary action in the shared slot on every collection, with an intentional two-row narrow composition instead of accidental wrapping; and viewport-aware flip/clamp/scroll placement in the one shared menu, with the decision logic as a pure, unit-tested function.
+- **Also removed.** A `projects.css` rule that turned EVERY `.dh-segmented` in the product into a two-column grid below 30rem — a module stylesheet deciding how a shared primitive degrades, and the reason the four Review scopes rendered as a 2×2 block with the container's rounded ends mid-row.
+- **Not done here.** UIQ-011 and UIQ-012 remain open; see below.
+
+### ☐ UIQ-011 — Person record exposes eight equally-weighted actions — P3 — **deferred to PR #131**
+
+- **Current issue.** The Person record's Summary carries eight tonal pills at one weight (Call, Email, New Task, Diary entry, New Meeting, New Note, Copy email, Copy phone), where the Quick Actions contract says a curated two or three live on the surface and the tail lives in the overflow and the Command Palette. A greyed-out Call on a person with no phone number is also a control that can never do anything.
+- **Why deferred.** This is RECORD-detail hierarchy, and it is one instance of a systemic pattern now identified across Areas, Goals, Projects, Notes, Meetings, People and Assets — oversized record headers, repeated metadata, working content starting too low, panel-inside-panel presentation, local-vs-global creation actions. Fixing People alone would re-fork the very hierarchy PR #131 exists to converge. PR #130 is deliberately collection-level and stops there.
+- **Owner.** PR #131 — *DalyHub Record Screen Convergence & Working-Surface Polish*.
+
+### ☐ UIQ-012 — the Goal status "Open" reads as a command, not a state — P3 — **retained, with the reason**
+
+- **Current issue.** A Goal card's status chip says "Open", which sits where every other card shows its ⋯ menu and reads as *"Open this record"* rather than as a state.
+- **Investigated, and deliberately not renamed.** "Open" is not Goals-only vocabulary. It is the shared spine word for "not yet completed", used by the Goal chip (`goalStateLabel`), the Area's equivalent, the Goal search projection, and — decisively — by **Projects**, where `open` is a real `ProjectStateFilter` value in the repository, a documented segment (`All / Open / Completed / Archived`) and a **URL parameter** (`?state=open`) that is shareable and bookmarkable.
+- **Why that settles it.** Renaming only the Goal chip would replace one inconsistency with a worse one: two different words for the same binary state on two sibling spine entities. Renaming both coherently means changing a domain filter value, a URL contract, the repository's typed state filter, the segment labels, the tests and the docs together — a vocabulary migration with a persistence-visible surface, which is exactly what this PR was told not to fold in. The audit's own instruction was to leave it recorded rather than guess.
+- **Desired future state.** If the product decides "Active" is the clearer DalyHub-wide word, change it as one vocabulary change across Goals AND Projects — chip, filter value, URL parameter (with the old value still accepted), forms, accessibility labels, tests and documentation — not as incidental cleanup. **This needs the owner's decision, not an implementer's.**
+
 ### ◐ DEBT-01 — Duplicate card implementations per module — P2
 > **P1 → P2 (V2 release closure, 2026-08-01).** The shared DS-04 Card is what every
 > collection composes; UX-01 retired the last bespoke collection card (Meetings).

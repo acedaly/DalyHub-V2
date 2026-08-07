@@ -48,7 +48,6 @@ const STATE_LAYER_PERCENTAGES = ["8%", "10%", "12%", "16%"];
  */
 const KNOWN_HAND_ROLLED: readonly string[] = [
   "activity-feed.css: .dh-activity__btn:hover",
-  "assets.css: .dh-assets-views__link:hover",
   "capture.css: .dh-capture-chip:hover",
   "card.css: .dh-card-collection--list .dh-card:hover",
   "card.css: .dh-card__reorder-handle:hover:not(:disabled)",
@@ -72,7 +71,6 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   "inspector.css: .dh-inspector__close:hover",
   "linked-items.css: .dh-linked-items__item:hover",
   "meetings.css: .dh-meeting-capturebar__type:hover",
-  "people.css: .dh-people-views a:hover",
   "search.css: .dh-search__clear:hover",
   "search.css: .dh-search__close:hover",
   "settings.css: .dh-confirm__button--cancel:hover:not(:disabled)",

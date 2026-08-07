@@ -27,6 +27,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { ViewSwitcher } from "~/shared/view-switcher";
 
 import type { ReviewsCollectionData } from "./review-collection-data";
 import { REVIEW_TYPE_LABELS } from "./review-view";
@@ -111,21 +112,24 @@ export function ReviewsCollectionView({
   const filtersActive =
     data.view !== "current" || data.query.length > 0 || data.type !== "all";
 
+  // UIQ-013 — the four Review scopes are the collection's principal MODE (one
+  // is always active), so they are the ONE shared view switcher rather than
+  // the module-local pill row they used to be. UIQ-014 — with the switcher in
+  // its own header slot, "New Review" sits in the shared primary slot at the
+  // trailing end of the row, exactly where every other collection puts its
+  // create action, instead of reading as the fifth pill.
   const viewSwitcher = (
-    <nav className="dh-reviews-views" aria-label="Review views">
-      {VIEWS.map((view) => (
-        <Link
-          key={view.view}
-          to={hrefFor(searchParams, {
-            view: view.view === "current" ? null : view.view,
-          })}
-          className="dh-reviews-views__link"
-          aria-current={data.view === view.view ? "page" : undefined}
-        >
-          {view.label}
-        </Link>
-      ))}
-    </nav>
+    <ViewSwitcher
+      options={VIEWS.map((view) => ({
+        value: view.view,
+        label: view.label,
+        href: hrefFor(searchParams, {
+          view: view.view === "current" ? null : view.view,
+        }),
+      }))}
+      value={data.view}
+      label="Review views"
+    />
   );
 
   const filterBar = (

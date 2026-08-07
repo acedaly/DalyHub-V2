@@ -41,6 +41,7 @@ function listItem(over: Partial<ProjectListItem> = {}): ProjectListItem {
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
     areaColourRank: 0,
+    colourRank: 0,
     iconKey: null,
     taskTotal: 0,
     taskCompleted: 0,

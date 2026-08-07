@@ -7,14 +7,18 @@
  * implemented (the mock-up shows them as longer-term visual direction, not licence
  * to ship placeholders).
  *
- * A group of client-navigation links (deep-linkable, Back/Forward correct) marking
- * the active mode with `aria-current`. Switching mode is a SCOPE change, so it drops
- * the pagination `cursor` (a cursor is bound to its range/filter scope and must not
- * survive); leaving Day drops the now-irrelevant `date`. The entry-type filter and
- * an open details panel are preserved.
+ * UIQ-013 — the presentation is the ONE shared `ViewSwitcher` (Diary's own
+ * `.dh-diary-modes` pills are retired); this component keeps only the thing that
+ * is genuinely Diary's, which is what switching mode does to the URL. Switching
+ * is a SCOPE change, so it drops the pagination `cursor` (a cursor is bound to
+ * its range/filter scope and must not survive); leaving Day drops the
+ * now-irrelevant `date`. The entry-type filter and an open details panel are
+ * preserved.
  */
 
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
+
+import { ViewSwitcher } from "~/shared/view-switcher";
 
 import type { DiaryMode } from "./routes/index";
 
@@ -33,8 +37,6 @@ export function DiaryModeTabs({ mode }: DiaryModeTabsProps) {
 
   const hrefFor = (target: DiaryMode): string => {
     const next = new URLSearchParams(searchParams);
-    // Switching mode changes the query scope: the cursor is scope-bound and must
-    // be dropped so a stale page never bleeds into the new mode.
     next.delete("cursor");
     if (target === "timeline") {
       next.set("mode", "timeline");
@@ -48,19 +50,18 @@ export function DiaryModeTabs({ mode }: DiaryModeTabsProps) {
   };
 
   return (
-    <div className="dh-diary-modes" role="group" aria-label="Diary view">
-      {MODES.map((item) => (
-        <Link
-          key={item.value}
-          to={hrefFor(item.value)}
-          replace
-          preventScrollReset
-          className="dh-diary-modes__tab"
-          aria-current={mode === item.value ? "true" : undefined}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </div>
+    <ViewSwitcher
+      options={MODES.map((item) => ({
+        value: item.value,
+        label: item.label,
+        href: hrefFor(item.value),
+      }))}
+      value={mode}
+      label="Diary views"
+      // Day/Timeline is a same-route scope switch, so it keeps the `replace`
+      // history semantics it had: Back leaves the Diary rather than walking
+      // every mode the owner glanced at.
+      replace
+    />
   );
 }

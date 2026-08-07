@@ -79,12 +79,19 @@ a.dh-btn {
 }
 
 @media (max-width: 30rem) {
-  .dh-segmented {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    inline-size: 100%;
-  }
-
+  /*
+   * UIQ-013 — the `.dh-segmented { display: grid }` override that used to live
+   * here is GONE.
+   *
+   * It was a module stylesheet reaching into a shared primitive and changing
+   * how it degrades for the whole product: below 30rem every segmented control
+   * in DalyHub became a two-column grid, which is why the four Review scopes
+   * rendered as a 2×2 block with the container's rounded ends landing mid-row.
+   * How the control behaves when it runs out of width is the control's own
+   * decision, and it now scrolls horizontally inside its own box
+   * (`segmented-filter.css`) — one answer, everywhere, instead of one module's
+   * answer imposed on eight others.
+   */
   .dh-project-tasks__toolbar {
     align-items: stretch;
   }
