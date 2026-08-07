@@ -131,7 +131,13 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     );
 
     await gotoFixture(page, "/areas/a-dh");
-    await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    // DS-16 — the Area name IS the rename control now (the Drawer form is gone),
+    // so the target under test is the heading's inline-edit affordance. It has
+    // to clear the same 44px minimum: it is the primary way to rename an Area
+    // on a phone, and it is a touch target like any other.
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /^Area name:/ }),
+    );
     for (const name of ["Goals", "Projects", "Activity"] as const) {
       await expectMinTouchTarget(page.getByRole("tab", { name }));
     }

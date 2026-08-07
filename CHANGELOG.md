@@ -19,6 +19,76 @@ no version number to group them under.
 
 ## Unreleased
 
+### Changed — writing feels like writing, and small edits happen in place
+
+- **The editor got out of the way.** The formatting bar is now a compact row of
+  icons attached to the top of what you are writing, instead of a strip of word
+  buttons floating above it in its own panel. It no longer wraps onto a second
+  line on a laptop, and on a phone the space it used to take goes back to the
+  words. Every button is still a full-size touch target.
+- **The buttons finally tell you what your text already is.** Put the cursor in
+  something bold and **Bold** lights up; the same for italic, strikethrough,
+  code, headings, lists, checklists and quotes. Press it again to take the
+  formatting off.
+- **Undo and redo are on the bar**, and they are greyed out when there is
+  nothing to undo — so they never pretend to do something and then do nothing.
+- **Strikethrough is new.** There is still no underline, and that is deliberate:
+  the notes are stored as Markdown so you keep them forever and can export them
+  anywhere, and Markdown has no underline. A button that quietly did nothing
+  would be worse than no button.
+- **Everything you have already written is untouched.** Notes, diary entries,
+  meeting content and reviews are stored exactly as they were — plain Markdown,
+  yours, portable. Nothing was converted and nothing needs to be.
+
+### Added — edit a value where you see it
+
+- **Rename an Area or a Project by clicking its name.** No panel, no form, no
+  second screen. Type, press Enter, done — Escape puts it back the way it was.
+- **If a save is refused, your words stay put.** The field stays open holding
+  exactly what you typed, with the reason beside it, so you can fix it and try
+  again. Previously a rejected rename closed and threw your text away.
+- **It works without a mouse.** Every editable value is a real control you can
+  reach with Tab and open with Enter, and focus comes back to it when you are
+  done. Nothing is hidden behind hover.
+- **Things you cannot change do not pretend otherwise.** An archived Area's name
+  is plain text, with no hover, no cursor change and no tab stop.
+
+### Changed — Goals joins the gallery, and pickers stop making you clear before you choose
+
+- **Goals now look like Areas and Projects.** Same cards, same grid, same column
+  behaviour — including the Deleted view, so switching between Active and
+  Deleted no longer feels like landing on a different page.
+- **You can change a choice without emptying the field first.** Picking a
+  different Area for a Project, a different parent for a Task, a different type
+  for an Asset: click the field and every option is there. Previously the box
+  filtered itself down to the thing you had already chosen, so you had to press
+  **×** first — and nothing told you that.
+- **Typing still filters**, and clicking a field with a value in it now selects
+  the text, so your first keystroke replaces it rather than joining onto it.
+- **"Choose a type…" is no longer a type you can choose.** On the New Asset
+  form it was in the list of options; it is now the prompt in the empty box,
+  where it belongs.
+- **"No priority", "No sector" and "Does not repeat" are staying exactly as they
+  are** — those are real answers about a task, not empty fields, and they keep
+  their own words.
+
+### Changed — Areas and Projects are proper galleries
+
+- **About four cards across on a normal desktop screen** (Areas, Projects and Goals alike), five on a wide
+  monitor, three or two as the window narrows, and one on a phone — comfortably
+  usable down to a 320px screen with no sideways scrolling.
+- **Cards read like places, not database rows.** The old `Goals: 2 · Projects: 4
+· Tasks: 11` line is gone. Counts now appear as small icon-and-number facts,
+  and a count of zero is simply left out instead of taking up a line saying "0".
+- **Archive from the gallery.** Each card carries the same ⋯ menu every record
+  has, so you no longer have to open a Project and find its Settings tab to
+  archive it. Opening the menu never opens the card.
+- **A brand-new Project still looks finished.** No area, no tasks, no dates,
+  nothing written yet — the card just shows less, rather than showing a column
+  of empty labels.
+- **Nothing else moved.** Filters, search, sorting, "Load more", empty states,
+  the back button and your scroll position all behave exactly as before.
+
 ### Added — you can choose Light, Dark, or follow your device
 
 - **Appearance is yours again.** DalyHub still has exactly one light look and one

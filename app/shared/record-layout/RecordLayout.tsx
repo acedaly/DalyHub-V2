@@ -24,6 +24,7 @@ import type { RecordLayoutProps } from "./types";
 export function RecordLayout({
   // Header
   title,
+  titleSlot,
   titleId,
   headingLevel,
   typeLabel,
@@ -78,6 +79,7 @@ export function RecordLayout({
     <article className="record-layout" aria-labelledby={resolvedTitleId}>
       <RecordHeader
         title={title}
+        titleSlot={titleSlot}
         titleId={resolvedTitleId}
         headingLevel={headingLevel}
         typeLabel={typeLabel}

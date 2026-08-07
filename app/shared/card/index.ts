@@ -77,6 +77,7 @@ export {
 } from "./MetricTile";
 export { RecordRow, RecordRowList, type RecordRowProps } from "./RecordRow";
 export { EntityCard, EntityCardGrid, type EntityCardProps } from "./EntityCard";
+export { CardMetaFact, type CardMetaFactProps } from "./CardMetaFact";
 export {
   Timeline,
   TimelineItem,

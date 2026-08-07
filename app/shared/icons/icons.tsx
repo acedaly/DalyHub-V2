@@ -279,6 +279,127 @@ export const TagIcon = createIcon(
 );
 
 /* -------------------------------------------------------------------------- */
+/* Editor formatting icons (the shared writing surface's toolbar).            */
+/*                                                                            */
+/* One glyph per formatting COMMAND, so a compact icon toolbar can replace the */
+/* word-per-button row that previously cost a phone most of its writing space. */
+/* Every one is still labelled at the call site — the icon is the drawing, the */
+/* accessible name is the word (AGENTS.md §15).                               */
+/* -------------------------------------------------------------------------- */
+
+/** Bold. Material Symbols `format_bold`. */
+export const BoldIcon = createIcon(
+  "BoldIcon",
+  <path d="M275-200v-560h228q66 0 114.5 42T666-612q0 38-21 70t-56 49v6q43 14 69.5 50t26.5 81q0 68-52.5 112T510-200H275Zm86-76h144q38 0 66-25t28-63q0-37-28-62t-66-25H361v175Zm0-247h136q35 0 60.5-23t25.5-58q0-35-25.5-58.5T497-686H361v163Z" />,
+);
+
+/** Italic. Material Symbols `format_italic`. */
+export const ItalicIcon = createIcon(
+  "ItalicIcon",
+  <path d="M224-199v-80h134l139-409H338v-80h380v80H584L445-279h159v80H224Z" />,
+);
+
+/** Strikethrough. Material Symbols `format_strikethrough`. */
+export const StrikethroughIcon = createIcon(
+  "StrikethroughIcon",
+  <path d="M80-410v-60h800v60H80Zm350-120v-170H200v-100h560v100H530v170H430Zm0 370v-190h100v190H430Z" />,
+);
+
+/** Heading. Material Symbols `format_h2` (the level the cycle lands on first). */
+export const HeadingIcon = createIcon(
+  "HeadingIcon",
+  <path d="M120-280v-400h60v170h180v-170h60v400h-60v-170H180v170h-60Zm420 0v-170q0-24.75 17.63-42.38Q575.25-510 600-510h180v-110H540v-60h240q25 0 42.5 17.62Q840-644.75 840-620v110q0 24.75-17.62 42.37Q804.75-450 780-450H600v110h240v60H540Z" />,
+);
+
+/** Bulleted list. Material Symbols `format_list_bulleted`. */
+export const BulletListIcon = createIcon(
+  "BulletListIcon",
+  <path d="M377-198v-60h463v60H377Zm0-252v-60h463v60H377Zm0-253v-60h463v60H377ZM189-161q-28.05 0-48.02-19Q121-199 121-227.5t19.5-48q19.5-19.5 48-19.5t47.5 19.98q19 19.97 19 48.02 0 27.23-19.39 46.61Q216.23-161 189-161Zm0-252q-28.05 0-48.02-19.5Q121-452 121-480t19.98-47.5Q160.95-547 189-547q27.23 0 46.61 19.5Q255-508 255-480t-19.39 47.5Q216.23-413 189-413Zm-48.5-272.5Q121-705 121-733t19.5-47.5Q160-800 188-800t47.5 19.5Q255-761 255-733t-19.5 47.5Q216-666 188-666t-47.5-19.5Z" />,
+);
+
+/** Numbered list. Material Symbols `format_list_numbered`. */
+export const NumberedListIcon = createIcon(
+  "NumberedListIcon",
+  <path d="M120-80v-60h100v-30h-60v-60h60v-30H120v-60h120q17 0 28.5 11.5T280-280v40q0 17-11.5 28.5T240-200q17 0 28.5 11.5T280-160v40q0 17-11.5 28.5T240-80H120Zm0-280v-110q0-17 11.5-28.5T160-510h60v-30H120v-60h120q17 0 28.5 11.5T280-560v70q0 17-11.5 28.5T240-450h-60v30h100v60H120Zm60-280v-180h-60v-60h120v240h-60Zm189 431v-60h471v60H369Zm0-243v-60h471v60H369Zm0-243v-60h471v60H369Z" />,
+);
+
+/** Checklist. Material Symbols `checklist`. */
+export const ChecklistIcon = createIcon(
+  "ChecklistIcon",
+  <path d="M222-214 80-356l42-42 100 99 179-179 42 43-221 221Zm0-320L80-676l42-42 100 99 179-179 42 43-221 221Zm298 244v-60h360v60H520Zm0-320v-60h360v60H520Z" />,
+);
+
+/** Blockquote. Material Symbols `format_quote`. */
+export const QuoteIcon = createIcon(
+  "QuoteIcon",
+  <path d="m248-240 94-162q-5 1-11 1.5t-11 .5q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 21-5.5 41T458-480L320-240h-72Zm360 0 94-162q-5 1-11 1.5t-11 .5q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 21-5.5 41T818-480L680-240h-72ZM376.5-503.5Q400-527 400-560t-23.5-56.5Q353-640 320-640t-56.5 23.5Q240-593 240-560t23.5 56.5Q287-480 320-480t56.5-23.5Zm360 0Q760-527 760-560t-23.5-56.5Q713-640 680-640t-56.5 23.5Q600-593 600-560t23.5 56.5Q647-480 680-480t56.5-23.5ZM680-560Zm-360 0Z" />,
+);
+
+/** Link. Material Symbols `link`. */
+export const LinkIcon = createIcon(
+  "LinkIcon",
+  <path d="M450-280H280q-83 0-141.5-58.5T80-480q0-83 58.5-141.5T280-680h170v60H280q-58.33 0-99.17 40.76-40.83 40.77-40.83 99Q140-422 180.83-381q40.84 41 99.17 41h170v60ZM325-450v-60h310v60H325Zm185 170v-60h170q58.33 0 99.17-40.76 40.83-40.77 40.83-99Q820-538 779.17-579q-40.84-41-99.17-41H510v-60h170q83 0 141.5 58.5T880-480q0 83-58.5 141.5T680-280H510Z" />,
+);
+
+/** Inline code. Material Symbols `code`. */
+export const CodeIcon = createIcon(
+  "CodeIcon",
+  <path d="M320-242 80-482l242-242 43 43-199 199 197 197-43 43Zm318 2-43-43 199-199-197-197 43-43 240 240-242 242Z" />,
+);
+
+/** Fenced code block. Material Symbols `code_blocks`. */
+export const CodeBlockIcon = createIcon(
+  "CodeBlockIcon",
+  <path d="m379-343 44-44-93-93 92-92-44-44-136 136 137 137Zm202 0 137-137-137-137-44 44 93 93-93 93 44 44ZM180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h600q24 0 42 18t18 42v600q0 24-18 42t-42 18H180Zm0-60h600v-600H180v600Zm0-600v600-600Z" />,
+);
+
+/** Table. Material Symbols `table`. */
+export const TableIcon = createIcon(
+  "TableIcon",
+  <path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h600q24 0 42 18t18 42v600q0 24-18 42t-42 18H180Zm270-250H180v190h270v-190Zm60 0v190h270v-190H510Zm-60-60v-190H180v190h270Zm60 0h270v-190H510v190ZM180-680h600v-100H180v100Z" />,
+);
+
+/** Remove formatting. Material Symbols `format_clear`. */
+export const ClearFormattingIcon = createIcon(
+  "ClearFormattingIcon",
+  <path d="m507-524-77-76 24-56h-79L271-760h529v100H565l-58 136ZM806-56 457-406l-88 206H260l120-282L56-806l42-42L848-98l-42 42Z" />,
+);
+
+/** Undo. Material Symbols `undo`. */
+export const UndoIcon = createIcon(
+  "UndoIcon",
+  <path d="M259-200v-60h310q70 0 120.5-46.5T740-422q0-69-50.5-115.5T569-584H274l114 114-42 42-186-186 186-186 42 42-114 114h294q95 0 163.5 64T800-422q0 94-68.5 158T568-200H259Z" />,
+);
+
+/** Redo. Material Symbols `redo`. */
+export const RedoIcon = createIcon(
+  "RedoIcon",
+  <path d="M392-200q-95 0-163.5-64T160-422q0-94 68.5-158T392-644h294L572-758l42-42 186 186-186 186-42-42 114-114H391q-70 0-120.5 46.5T220-422q0 69 50.5 115.5T391-260h310v60H392Z" />,
+);
+
+/* -------------------------------------------------------------------------- */
+/* Card metadata icons (a compact, grouped metadata region on a gallery card). */
+/* -------------------------------------------------------------------------- */
+
+/** A moment in time — "updated 3 days ago". Material Symbols `history`. */
+export const HistoryIcon = createIcon(
+  "HistoryIcon",
+  <path d="M477-120q-149 0-253-105.5T120-481h60q0 125 86 213t211 88q127 0 215-89t88-216q0-124-89-209.5T477-780q-68 0-127.5 31T246-667h105v60H142v-208h60v106q52-61 123.5-96T477-840q75 0 141 28t115.5 76.5Q783-687 811.5-622T840-482q0 75-28.5 141t-78 115Q684-177 618-148.5T477-120Zm128-197L451-469v-214h60v189l137 134-43 43Z" />,
+);
+
+/** A deadline. Material Symbols `schedule`. */
+export const ScheduleIcon = createIcon(
+  "ScheduleIcon",
+  <path d="m627-287 45-45-159-160v-201h-60v225l174 181ZM480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-82 31.5-155t86-127.5Q252-817 325-848.5T480-880q82 0 155 31.5t127.5 86Q817-708 848.5-635T880-480q0 82-31.5 155t-86 127.5Q708-143 635-111.5T480-80Zm0-400Zm0 340q140 0 240-100t100-240q0-140-100-240T480-820q-140 0-240 100T140-480q0 140 100 240t240 100Z" />,
+);
+
+/** Completed work. Material Symbols `check_circle`. */
+export const CheckCircleIcon = createIcon(
+  "CheckCircleIcon",
+  <path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z" />,
+);
+
+/* -------------------------------------------------------------------------- */
 /* Content-kind icons (Diary entry kinds, empty states).                      */
 /* -------------------------------------------------------------------------- */
 

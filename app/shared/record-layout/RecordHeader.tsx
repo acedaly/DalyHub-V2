@@ -32,6 +32,7 @@ function StatusPill({
 
 export function RecordHeader({
   title,
+  titleSlot,
   titleId,
   headingLevel = 1,
   typeLabel,
@@ -90,7 +91,7 @@ export function RecordHeader({
           )}
           <div className="record-header__titlerow">
             <Heading id={titleId} className="record-title">
-              {title}
+              {titleSlot ?? title}
             </Heading>
             {status !== undefined && (
               <StatusPill label={status.label} tone={status.tone} />

@@ -14,26 +14,35 @@
  * wording to the Notes collection's (ADR-042): `deleted` lists ONLY soft-deleted
  * Goals and offers a one-click Restore, so removing a Goal is reversible for good
  * and never a dead end — the durable path back when an Undo toast is missed.
+ *
+ * DS-16 — the presentation moves from the generic full-width row Card to the
+ * SAME `EntityCard`/`EntityCardGrid` foundation Areas and Projects use. A Goal
+ * is a record you recognise before you read it, exactly like the other two, and
+ * leaving it as the odd one out would have meant the spine's three collection
+ * surfaces disagreeing about what a collection looks like. Nothing Goal-specific
+ * was introduced: the grid, the card, the identity container, the fact group and
+ * the overflow all come from `~/shared/card`, so the column behaviour here is
+ * whatever `--app-entity-card-min-width` says it is everywhere else.
+ *
+ * The DELETED view uses the same grid, deliberately. Its cards carry identity, a
+ * deletion date and one Restore action — no open target, because a soft-deleted
+ * record's canonical route 404s — but switching layouts between two views of the
+ * same collection would make the lifecycle filter feel like a different page.
  */
 
 import { useCallback } from "react";
-import { useNavigate } from "react-router";
 
-import {
-  Card,
-  CardCollection,
-  type CardAction,
-  type CardMetaItem,
-  type CardProps,
-} from "~/shared/card";
+import { EntityCard, EntityCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
-import { EntityIcon, emptyCollectionTitle } from "~/shared/entity";
+import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
+import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
+import { StatusPill } from "~/shared/pill";
 import {
   SegmentedFilter,
   type SegmentedFilterOption,
@@ -91,7 +100,6 @@ export function GoalsCollectionView({
   state = "active",
   failed,
 }: GoalsCollectionViewProps) {
-  const navigate = useNavigate();
   return (
     <GoalsCollection
       goals={goals}
@@ -99,7 +107,6 @@ export function GoalsCollectionView({
       nextCursor={nextCursor}
       state={state}
       failed={failed}
-      onOpenGoal={(id) => navigate(`/goals/${encodeURIComponent(id)}`)}
     />
   );
 }
@@ -109,35 +116,45 @@ export function GoalsCollectionView({
  * records read as "not found" everywhere in the kernel), just identity and a
  * "Restore" quick action. The SAME shape the Deleted Notes view uses.
  */
-function toDeletedCardProps(
-  goal: SerializedDeletedGoalItem,
-  onRestore: (id: string, title: string) => void,
-  pending: boolean,
-): CardProps {
-  const metadata: CardMetaItem[] = [];
+function DeletedGoalCard({
+  goal,
+  onRestore,
+  pending,
+}: {
+  readonly goal: SerializedDeletedGoalItem;
+  readonly onRestore: (id: string, title: string) => void;
+  readonly pending: boolean;
+}) {
   const deletedOn = formatCalendarDate(goal.updatedAt.slice(0, 10));
-  if (deletedOn) {
-    metadata.push({ id: "deleted", label: "Deleted", value: deletedOn });
-  }
-
-  const restoreAction: CardAction = {
-    id: "restore",
-    label: "Restore",
-    pending,
-    onSelect: () => onRestore(goal.id, goal.title),
-  };
-
-  return {
-    id: goal.id,
-    title: goal.title,
-    typeLabel: "Goal",
-    icon: <EntityIcon type="goal" />,
-    headingLevel: 2,
-    metadata,
-    density: "comfortable",
-    presentation: "list",
-    quickActions: [restoreAction],
-  };
+  return (
+    <EntityCard
+      data-testid="deleted-goal-card"
+      icon={<AccentIcon entityType="goal" iconKey={null} />}
+      title={goal.title}
+      headingLevel={2}
+      meta={
+        deletedOn ? (
+          <span className="dh-ecard__fact">
+            <HistoryIcon className="dh-ecard__fact-icon" aria-hidden="true" />
+            {`Deleted ${deletedOn}`}
+          </span>
+        ) : undefined
+      }
+      // Quieter than an active Goal, and the muting is never the only signal —
+      // the footer says "Deleted" in words.
+      muted
+      footer={
+        <button
+          type="button"
+          className="dh-btn dh-btn--outlined dh-btn--sm"
+          disabled={pending}
+          onClick={() => onRestore(goal.id, goal.title)}
+        >
+          {pending ? "Restoring…" : "Restore"}
+        </button>
+      }
+    />
+  );
 }
 
 /**
@@ -205,36 +222,53 @@ function useRestoreGoal() {
   return useCollectionRestore({ post });
 }
 
-function toCardProps(
-  goal: SerializedGoalWithAlignment,
-  onOpenGoal: (id: string) => void,
-): CardProps {
-  const metadata: CardMetaItem[] = [
-    {
-      id: "alignment",
-      label: "Alignment",
-      value: <AlignmentIndicator alignment={goal.alignment} showReason />,
-    },
-  ];
-
-  return {
-    id: goal.id,
-    title: goal.title,
-    typeLabel: "Goal",
-    icon: <EntityIcon type="goal" />,
-    headingLevel: 2,
-    status: goalStateLabel(goal),
-    context: {
-      label: goal.area.title,
-      href: `/areas/${encodeURIComponent(goal.area.id)}`,
-    },
-    metadata,
-    density: "comfortable",
-    presentation: "list",
-    href: `/goals/${encodeURIComponent(goal.id)}`,
-    onOpen: () => onOpenGoal(goal.id),
-    openAriaLabel: `Open ${goal.title}`,
-  };
+/**
+ * One Goal card.
+ *
+ * The Goal's own accent is its AREA's, exactly as a Project card inherits its
+ * Area's — a grid of Goals then groups visually by the part of life they serve
+ * without needing a heading. `SerializedGoalListItem` does not carry the Area's
+ * colour rank, so the neutral entity container applies rather than a colour that
+ * would mean nothing; that is the same rule a Project with no Area follows.
+ *
+ * Alignment is the one derived signal on the card, and it is the EXISTING
+ * `AlignmentIndicator` (ADR-040) — no new health score, no fabricated momentum.
+ */
+function GoalEntityCard({
+  goal,
+}: {
+  readonly goal: SerializedGoalWithAlignment;
+}) {
+  // The label stays the SHARED one, so the word cannot drift from the Goal
+  // record's own chip. Only the tone is narrowed here: `goalStateLabel` speaks
+  // the Card family's wider `CardTone`, and the pill's vocabulary is a subset —
+  // narrowing at the boundary is honest, casting would hide a future mismatch.
+  const state = goalStateLabel(goal);
+  const tone = state.tone === "success" ? "success" : "neutral";
+  const updated = formatCalendarDate(goal.updatedAt.slice(0, 10));
+  return (
+    <EntityCard
+      data-testid="goal-card"
+      icon={<AccentIcon entityType="goal" iconKey={null} />}
+      title={goal.title}
+      headingLevel={2}
+      subtitle={goal.area.title}
+      status={<StatusPill tone={tone}>{state.label}</StatusPill>}
+      meta={
+        <>
+          <AlignmentIndicator alignment={goal.alignment} showReason />
+          {updated ? (
+            <span className="dh-ecard__fact">
+              <HistoryIcon className="dh-ecard__fact-icon" aria-hidden="true" />
+              {`Updated ${updated}`}
+            </span>
+          ) : null}
+        </>
+      }
+      href={`/goals/${encodeURIComponent(goal.id)}`}
+      openAriaLabel={`Open ${goal.title}`}
+    />
+  );
 }
 
 /** UX-01 — the ONE shared keyset paginator (DEBT-45). */
@@ -291,14 +325,12 @@ function GoalsCollection({
   nextCursor,
   state,
   failed,
-  onOpenGoal,
 }: {
   readonly goals: readonly SerializedGoalWithAlignment[];
   readonly deletedGoals: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
   readonly state: GoalCollectionState;
   readonly failed: boolean;
-  readonly onOpenGoal: (id: string) => void;
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } = useGoalPagination(
     goals,
@@ -332,6 +364,7 @@ function GoalsCollection({
                 : `${deleted.length} deleted Goals`
         }
         entityType="goal"
+        presentation="grid"
         filterBar={
           <SegmentedFilter
             param="state"
@@ -359,18 +392,16 @@ function GoalsCollection({
           />
         }
       >
-        <CardCollection
-          items={deleted}
-          getItemId={(goal) => goal.id}
-          ariaLabel="Deleted Goals"
-          presentation="list"
-          density="comfortable"
-          renderCard={(goal) => (
-            <Card
-              {...toDeletedCardProps(goal, restore, pendingIds.has(goal.id))}
+        <EntityCardGrid label="Deleted Goals">
+          {deleted.map((goal) => (
+            <DeletedGoalCard
+              key={goal.id}
+              goal={goal}
+              onRestore={restore}
+              pending={pendingIds.has(goal.id)}
             />
-          )}
-        />
+          ))}
+        </EntityCardGrid>
         {!failed && deletedPages.hasMore ? (
           <LoadMore
             loading={deletedPages.loading}
@@ -406,6 +437,7 @@ function GoalsCollection({
       title="Goals"
       subtitle={subtitle}
       entityType="goal"
+      presentation="grid"
       filterBar={
         <SegmentedFilter
           param="state"
@@ -441,14 +473,11 @@ function GoalsCollection({
           {summary}
         </p>
       ) : null}
-      <CardCollection
-        items={items}
-        getItemId={(goal) => goal.id}
-        ariaLabel="Goals"
-        presentation="list"
-        density="comfortable"
-        renderCard={(goal) => <Card {...toCardProps(goal, onOpenGoal)} />}
-      />
+      <EntityCardGrid label="Goals">
+        {items.map((goal) => (
+          <GoalEntityCard key={goal.id} goal={goal} />
+        ))}
+      </EntityCardGrid>
       {!failed && hasMore ? (
         <LoadMore
           loading={loading}

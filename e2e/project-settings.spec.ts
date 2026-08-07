@@ -89,7 +89,12 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     await expect(
       page.getByRole("button", { name: "Complete project" }),
     ).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Rename" })).toHaveCount(0);
+    // DS-16 — renaming is the heading itself, and an archived Project is
+    // read-only, so the heading renders as PLAIN TEXT with no control at all.
+    // The absence of the button is still the assertion; only its identity moved.
+    await expect(
+      page.getByRole("button", { name: /^Project name:/ }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Restore project…" }),
     ).toBeVisible();

@@ -16,27 +16,43 @@
 .dh-md-editor {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-3);
+  min-inline-size: 0;
 }
 
-/* Top bar: formatting toolbar on the left, save status + Read/Write toggle on
- * the right. Wraps calmly on a narrow viewport. */
+/* ------------------------------------------------------------------------- *
+ * EDIT-01 — the editor reads as ONE surface, not as a toolbar panel stacked on
+ * a text panel.
+ *
+ * The bar and the writing surface share a single outline: the bar carries the
+ * top corners and no bottom edge, the surface carries the bottom corners, and
+ * the hairline between them is the bar's own rule. That is the difference
+ * between "a formatting palette is sitting on my note" and "my note has a
+ * toolbar" — and it is why the gap between the two is 0.
+ * ------------------------------------------------------------------------- */
 .dh-md-editor__bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+  padding: var(--app-space-1) var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-start-start-radius: var(--md-sys-shape-corner-medium);
+  border-start-end-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-md-editor__bar-end {
   display: inline-flex;
   align-items: center;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
   flex: 0 0 auto;
 }
 
 .dh-md-editor__reading-note {
+  padding-inline: var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -49,11 +65,10 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--app-touch-target-min);
-  min-inline-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
+  background: transparent;
   color: var(--md-sys-color-on-surface-variant);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
@@ -76,30 +91,41 @@
 }
 
 .dh-md-editor__mode-toggle[aria-pressed="true"] {
-  color: var(--md-sys-color-on-surface);
-  border-color: var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-secondary-container);
 }
 
 /* ------------------------------------------------------------------------- *
- * Formatting toolbar. Writing-first on a phone: a SINGLE horizontally-scrolling
- * row (never several wrapped rows that eat the vertical writing space), so every
- * control stays reachable by swipe while the editor keeps its height. Wraps to
- * full visibility on a wide viewport.
+ * Formatting toolbar — a compact ICON row.
+ *
+ * Writing-first on a phone: a SINGLE horizontally-scrolling row (never several
+ * wrapped rows that eat the vertical writing space), so every control stays
+ * reachable by swipe while the editor keeps its height. It scrolls INSIDE its
+ * own box, which is what keeps a thirteen-control row from producing
+ * page-level horizontal overflow at 320px.
+ *
+ * The row has no border and no fill of its own: it lives inside the bar, and
+ * groups are divided by a hairline separator rather than by a box drawn around
+ * every button.
  * ------------------------------------------------------------------------- */
 .dh-md-toolbar {
   display: flex;
   flex-wrap: nowrap;
-  gap: var(--app-space-1);
+  gap: var(--app-space-px);
   align-items: center;
   min-inline-size: 0;
-  padding: var(--app-space-1);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
   overflow-x: auto;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
+}
+
+.dh-md-toolbar__separator {
+  flex: 0 0 auto;
+  inline-size: var(--app-border-width-thin);
+  block-size: var(--app-space-5);
+  margin-inline: var(--app-space-1);
+  background: var(--md-sys-color-outline-variant);
 }
 
 .dh-md-toolbar__button {
@@ -107,55 +133,71 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* A square icon target at the product's own 44px minimum — DalyHub holds that
+   * bar everywhere, on every pointer, and it is stricter than WCAG 2.2 AA's
+   * 24px. An earlier draft shrank it to 36px on fine pointers for compactness;
+   * that traded an accessibility contract for a visual one, which is the wrong
+   * way round. The compactness still arrives, from the ICON: thirteen 44px
+   * squares are narrower than eleven word-buttons, and they do not wrap. */
   min-block-size: var(--app-touch-target-min);
   min-inline-size: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-3);
+  padding: 0;
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
   color: var(--md-sys-color-on-surface-variant);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
-  white-space: nowrap;
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: 0;
   cursor: pointer;
   scroll-snap-align: start;
   transition:
     background-color var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard),
     color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard),
-    border-color var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard);
 }
 
-.dh-md-toolbar__button:hover {
+.dh-md-toolbar__button .dh-icon {
+  inline-size: var(--app-space-5);
+  block-size: var(--app-space-5);
+}
+
+.dh-md-toolbar__button:hover:not(:disabled) {
   color: var(--md-sys-color-on-surface);
   background: color-mix(
     in srgb,
     var(--md-sys-color-on-surface) 8%,
     transparent
   );
-  border-color: var(--md-sys-color-outline-variant);
 }
 
-.dh-md-toolbar__button:active {
+.dh-md-toolbar__button:active:not(:disabled) {
   background: color-mix(
     in srgb,
-    var(--md-sys-color-on-surface) 10%,
+    var(--md-sys-color-on-surface) 12%,
     transparent
   );
 }
 
+/* ACTIVE formatting. A filled container plus `aria-pressed` — a state layer
+ * alone would be colour-only, and a screen-reader user would have nothing. */
+.dh-md-toolbar__button[aria-pressed="true"],
+.dh-md-toolbar__button[aria-expanded="true"] {
+  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-secondary-container);
+}
+
 .dh-md-toolbar__button:disabled {
   color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.38;
   cursor: default;
 }
 
-@media (min-width: 48rem) {
-  .dh-md-toolbar {
-    flex-wrap: wrap;
-    overflow-x: visible;
+@media (forced-colors: active) {
+  .dh-md-toolbar__button[aria-pressed="true"],
+  .dh-md-toolbar__button[aria-expanded="true"] {
+    border-color: Highlight;
   }
 }
 
@@ -170,23 +212,40 @@
 .dh-md-editor__fallback {
   display: block;
   inline-size: 100%;
-  min-block-size: max(40dvh, 16rem);
-  padding: var(--app-space-3);
+  min-block-size: max(40dvh, var(--app-editor-min-height));
+  padding: var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-block-start: none;
+  border-end-start-radius: var(--md-sys-shape-corner-medium);
+  border-end-end-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-page);
   color: var(--md-sys-color-on-surface);
-  font-family: var(--md-ref-typeface-mono);
+  font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
   resize: vertical;
+}
+
+/* The embedded density: an editor inside a record body, where the page already
+ * provides the frame. A shorter predictable minimum — tall enough that a
+ * paragraph does not feel cramped, short enough that a one-line description does
+ * not open a half-screen of emptiness. */
+.dh-md-editor[data-density="compact"] .dh-md-editor__fallback {
+  min-block-size: var(--app-editor-min-height-compact);
+}
+
+.dh-md-editor[data-density="compact"] .dh-md-editor__cm .cm-editor {
+  min-block-size: var(--app-editor-min-height-compact);
+  max-block-size: 50vh;
 }
 
 /* CodeMirror host. The library injects its own structural CSS; we override only
  * the design surface here, all through tokens. */
 .dh-md-editor__cm {
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-block-start: none;
+  border-end-start-radius: var(--md-sys-shape-corner-medium);
+  border-end-end-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-page);
   overflow: hidden;
 }

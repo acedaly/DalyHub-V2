@@ -100,10 +100,12 @@ describe("Goals collection (the Alignment view)", () => {
         name: /Open Run a half-marathon/,
       }),
     ).toHaveAttribute("href", "/goals/g1");
-    expect(within(card).getByRole("link", { name: "Health" })).toHaveAttribute(
-      "href",
-      "/areas/a1",
-    );
+    // DS-16 — the Area is the card's CONTEXT LINE, as it is on a Project card,
+    // not a second link inside a card whose whole surface is already one link.
+    // A nested anchor beneath the whole-card overlay is unclickable anyway; the
+    // Area is one hop away through the Goal it names.
+    expect(within(card).getByText("Health")).toBeInTheDocument();
+    expect(within(card).getAllByRole("link")).toHaveLength(1);
     expect(within(card).getByText("Recently active")).toBeInTheDocument();
     // Meaning is never colour-alone: the reason text is visible too.
     expect(
@@ -362,5 +364,58 @@ describe("Goals collection — the Deleted view", () => {
     expect(
       screen.queryByRole("button", { name: "Load more deleted Goals" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * DS-16 — Goals joins the SHARED gallery, and shares it rather than copying it.
+ *
+ * The most valuable assertion here is the negative one: the markup must be the
+ * same `dh-ecard-grid`/`dh-ecard` the Areas and Projects collections render, so
+ * a future change to the column rule reaches all three at once.
+ */
+describe("Goals gallery grid (DS-16)", () => {
+  it("renders the shared gallery grid, not a Goals-only layout", () => {
+    const { container } = renderCollection([
+      goal(),
+      goal({ id: "g2", title: "Learn to sail" }),
+    ]);
+    const grid = container.querySelector(".dh-ecard-grid");
+    expect(grid?.tagName).toBe("UL");
+    expect(grid?.getAttribute("aria-label")).toBe("Goals");
+    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
+    // The SAME card component, not a Goal-shaped lookalike.
+    expect(container.querySelectorAll(".dh-ecard").length).toBe(2);
+  });
+
+  it("keeps the derived alignment signal on the card, with its reason in words", () => {
+    renderCollection([goal({ title: "Run a half-marathon" })]);
+    const card = screen.getByRole("article", { name: /Run a half-marathon/ });
+    expect(within(card).getByText("Recently active")).toBeInTheDocument();
+    expect(
+      within(card).getByText("Contributing Task activity was recorded today."),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the same grid for the Deleted view, with Restore and no open target", () => {
+    const { container } = renderCollection([], {
+      state: "deleted",
+      deletedGoals: [
+        {
+          id: "gd1",
+          title: "Abandoned goal",
+          updatedAt: "2026-07-20T00:00:00.000Z",
+        },
+      ],
+    });
+    const grid = container.querySelector(".dh-ecard-grid");
+    expect(grid?.getAttribute("aria-label")).toBe("Deleted Goals");
+    const card = screen.getByRole("article", { name: "Abandoned goal" });
+    // A soft-deleted record's canonical route 404s, so there is deliberately no
+    // way in — only a way back.
+    expect(within(card).queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      within(card).getByRole("button", { name: "Restore" }),
+    ).toBeInTheDocument();
   });
 });

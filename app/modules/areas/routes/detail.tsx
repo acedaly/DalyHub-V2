@@ -40,7 +40,6 @@ import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { AreaActivityTab } from "../AreaActivityTab";
 import { NEW_GOAL_KEY, AreaOverviewView } from "../AreaOverview";
 import { AreaSettingsTab } from "../AreaSettingsTab";
-import { RenameAreaForm } from "../RenameAreaForm";
 import {
   serializeAreaGoalItem,
   serializeAreaOverview,
@@ -50,7 +49,6 @@ import {
 import type { AreaMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
-const RENAME_KEY = "rename";
 const AREA_CHILD_PAGE_SIZE = 50;
 
 /**
@@ -226,12 +224,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
 export default function AreaDetailRoute({ loaderData }: Route.ComponentProps) {
   const renderDrawer = useMemo(
-    () =>
-      createAreaDrawerRenderer(
-        loaderData.overview.id,
-        loaderData.overview.title,
-      ),
-    [loaderData.overview.id, loaderData.overview.title],
+    () => createAreaDrawerRenderer(loaderData.overview.id),
+    [loaderData.overview.id],
   );
 
   return (
@@ -241,7 +235,7 @@ export default function AreaDetailRoute({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function createAreaDrawerRenderer(areaId: string, title: string) {
+function createAreaDrawerRenderer(areaId: string) {
   return function render(entry: DrawerEntry): DrawerRenderResult | null {
     const separator = entry.key.indexOf(":");
     const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
@@ -253,13 +247,6 @@ function createAreaDrawerRenderer(areaId: string, title: string) {
         children: <TaskRecordDrawer taskId={id} />,
       };
     }
-    if (entry.key === RENAME_KEY) {
-      return {
-        title: "Rename Area",
-        description: "Give this Area a clearer name.",
-        children: <RenameDrawerHost areaId={areaId} currentTitle={title} />,
-      };
-    }
     if (entry.key === NEW_GOAL_KEY) {
       return {
         title: "New Goal",
@@ -269,28 +256,6 @@ function createAreaDrawerRenderer(areaId: string, title: string) {
     }
     return null;
   };
-}
-
-function RenameDrawerHost({
-  areaId,
-  currentTitle,
-}: {
-  readonly areaId: string;
-  readonly currentTitle: string;
-}) {
-  const { closeDrawer } = useDrawer();
-  const revalidator = useRevalidator();
-  return (
-    <RenameAreaForm
-      areaId={areaId}
-      currentTitle={currentTitle}
-      onDone={() => {
-        revalidator.revalidate();
-        closeDrawer();
-      }}
-      onCancel={closeDrawer}
-    />
-  );
 }
 
 function NewGoalDrawerHost({ areaId }: { readonly areaId: string }) {
@@ -331,7 +296,6 @@ async function postAreaMutation(
 }
 
 function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
-  const { openDrawer } = useDrawer();
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -355,6 +319,43 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       );
     },
     [setSearchParams],
+  );
+
+  /**
+   * DS-16 — the Area rename, now driven from the record heading.
+   *
+   * It posts the SAME `rename` intent to the SAME trusted endpoint the Drawer
+   * form used, so every server-side rule is untouched: the workspace is resolved
+   * server-side, the id is verified to be an Area in it, an archived Area is
+   * refused, and `SpineValidationError` still produces the field message. Only
+   * the surface changed.
+   *
+   * A refusal is returned rather than thrown, because `useInlineEdit` keeps the
+   * typed name in the field and shows the message — the one behaviour the Drawer
+   * form could not offer, since closing it discarded the draft.
+   */
+  const onRename = useCallback(
+    async (title: string) => {
+      const result = await postAreaMutation(areaId, {
+        intent: "rename",
+        title,
+      });
+      if (result.ok) {
+        revalidator.revalidate();
+        return { ok: true } as const;
+      }
+      const fieldError =
+        "fieldErrors" in result ? result.fieldErrors?.title : undefined;
+      const formError = "formError" in result ? result.formError : undefined;
+      return {
+        ok: false,
+        message:
+          fieldError ??
+          formError ??
+          "That couldn’t be saved. Your text is safe — try again.",
+      } as const;
+    },
+    [areaId, revalidator],
   );
 
   const onArchive = useCallback(async () => {
@@ -420,7 +421,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
       archived={archived}
-      onRename={() => openDrawer(RENAME_KEY)}
+      onRename={onRename}
       onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
       onOpenProject={(projectId) =>
         navigate(`/projects/${encodeURIComponent(projectId)}`)

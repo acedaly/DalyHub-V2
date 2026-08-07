@@ -144,6 +144,19 @@ export function EntityCard({
             {status}
           </div>
         ) : null}
+        {/*
+         * DS-16 — an overflow with no footer beside it sits in the HEADER, not
+         * in a footer band of its own. A bordered band holding one 44px button
+         * added ~56px of empty height to every card in the gallery, which is the
+         * "cards should not become unnecessarily tall" defect in its purest
+         * form. With a footer present the menu stays down there, next to the
+         * content it belongs with.
+         */}
+        {overflow && !footer ? (
+          <div className="dh-ecard__overflow dh-ecard__overflow--header">
+            {overflow}
+          </div>
+        ) : null}
       </div>
 
       {metric || resolved || meta ? (
@@ -185,11 +198,9 @@ export function EntityCard({
         </div>
       ) : null}
 
-      {footer || overflow ? (
+      {footer ? (
         <div className="dh-ecard__footer">
-          {footer ? (
-            <div className="dh-ecard__footer-content">{footer}</div>
-          ) : null}
+          <div className="dh-ecard__footer-content">{footer}</div>
           {overflow ? (
             <div className="dh-ecard__overflow">{overflow}</div>
           ) : null}

@@ -1,5 +1,11 @@
 /**
- * MOBILE-01 — the writing toolbar's primary/secondary split.
+ * MOBILE-01 / EDIT-01 — the writing toolbar's primary/secondary split.
+ *
+ * EDIT-01 turned the row from words-in-tiles into compact icon controls. The
+ * accessible NAME is still the word, which is why every assertion below still
+ * queries by it — the contract these tests protect never depended on the glyph.
+ * The "More" toggle's name became self-describing ("More formatting options"),
+ * because "More" beside eleven other buttons named nothing on its own.
  *
  * The contract: common formatting is offered directly, low-frequency commands sit
  * one tap away behind "More", nothing becomes unreachable, and the whole row stays
@@ -16,6 +22,9 @@ import {
   PRIMARY_FORMATTING_ACTIONS,
   SECONDARY_FORMATTING_ACTIONS,
 } from "~/shared/markdown-editor/formatting-actions";
+
+const MORE_LABEL = "More formatting options";
+const LESS_LABEL = "Fewer formatting options";
 
 /** Every focusable control the toolbar currently renders. */
 function controls(): HTMLButtonElement[] {
@@ -54,7 +63,7 @@ describe("EditorToolbar", () => {
         screen.queryByRole("button", { name: action.label }),
       ).not.toBeInTheDocument();
     }
-    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: MORE_LABEL })).toHaveAttribute(
       "aria-expanded",
       "false",
     );
@@ -62,13 +71,13 @@ describe("EditorToolbar", () => {
 
   it("reveals every remaining command in one tap — nothing is unreachable", () => {
     render(<EditorToolbar onAction={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: MORE_LABEL }));
     for (const action of SECONDARY_FORMATTING_ACTIONS) {
       expect(
         screen.getByRole("button", { name: action.label }),
       ).toBeInTheDocument();
     }
-    expect(screen.getByRole("button", { name: "Less" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: LESS_LABEL })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
@@ -79,13 +88,13 @@ describe("EditorToolbar", () => {
     const tabStops = () =>
       controls().filter((button) => button.tabIndex === 0).length;
     expect(tabStops()).toBe(1);
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: MORE_LABEL }));
     expect(tabStops()).toBe(1);
   });
 
   it("moves across every visible control with the arrow keys", () => {
     render(<EditorToolbar onAction={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: MORE_LABEL }));
 
     const first = controls()[0];
     first.focus();
@@ -111,7 +120,7 @@ describe("EditorToolbar", () => {
   it("applies a revealed secondary action through the same callback", () => {
     const onAction = vi.fn();
     render(<EditorToolbar onAction={onAction} />);
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: MORE_LABEL }));
     const table = SECONDARY_FORMATTING_ACTIONS.find(
       (action) => action.id === "table",
     );
@@ -130,5 +139,183 @@ describe("EditorToolbar", () => {
     });
     bold.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+/**
+ * EDIT-01 — the state a formatting toolbar has to be able to show.
+ *
+ * A control that cannot say "this text is already bold" is a control that makes
+ * the user guess, and guessing is how you end up with `****double bold****`.
+ */
+describe("EditorToolbar — active, history and grouping", () => {
+  it("presses the controls whose formatting already applies", () => {
+    render(<EditorToolbar onAction={vi.fn()} activeIds={new Set(["bold"])} />);
+    expect(screen.getByRole("button", { name: "Bold" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Italic" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("gives one-shot insertions no pressed state at all", () => {
+    // "Link" inserts; it is not a state the text can be IN, so `aria-pressed`
+    // would be a lie in either direction.
+    render(<EditorToolbar onAction={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Link" })).not.toHaveAttribute(
+      "aria-pressed",
+    );
+  });
+
+  it("omits undo/redo entirely when the surface cannot report them", () => {
+    // The SSR/no-JS textarea has the browser's own undo stack, which no API can
+    // query. A permanently-enabled button that may do nothing is worse than an
+    // absent one.
+    render(<EditorToolbar onAction={vi.fn()} />);
+    expect(
+      screen.queryByRole("button", { name: "Undo" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Redo" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables undo and redo until there is history to move through", () => {
+    const onUndo = vi.fn();
+    const onRedo = vi.fn();
+    const { rerender } = render(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{ canUndo: false, canRedo: false, onUndo, onRedo }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+
+    rerender(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{ canUndo: true, canRedo: false, onUndo, onRedo }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(onUndo).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+  });
+
+  it("separates the groups with dividers rather than a box per button", () => {
+    const { container } = render(<EditorToolbar onAction={vi.fn()} />);
+    expect(
+      container.querySelectorAll(".dh-md-toolbar__separator").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("names every control, so nothing is icon-only to assistive tech", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    for (const button of controls()) {
+      expect(
+        button.getAttribute("aria-label")?.trim().length ?? 0,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps the toolbar one Tab stop once undo/redo join it", () => {
+    render(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{
+          canUndo: true,
+          canRedo: true,
+          onUndo: vi.fn(),
+          onRedo: vi.fn(),
+        }}
+      />,
+    );
+    expect(controls().filter((b) => b.tabIndex === 0).length).toBe(1);
+  });
+});
+
+/**
+ * EDIT-01 — the roving tab stop must always land on an ENABLED control.
+ *
+ * This is not a nicety. Undo is the FIRST control in the row and is disabled on
+ * a freshly mounted editor, so parking the toolbar's single tab stop at index 0
+ * put it on a button the browser will not tab to: the whole toolbar dropped out
+ * of the Tab order. And because the row scrolls horizontally, that also left a
+ * scrollable region with no focusable content — which axe reports as a serious
+ * WCAG failure (`scrollable-region-focusable`), and did, on three CI shards.
+ */
+describe("EditorToolbar — the tab stop never rests on a disabled control", () => {
+  const noHistory = { canUndo: false, canRedo: false } as const;
+
+  function renderWithHistory(history: { canUndo: boolean; canRedo: boolean }) {
+    return render(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{ ...history, onUndo: vi.fn(), onRedo: vi.fn() }}
+      />,
+    );
+  }
+
+  it("gives a freshly mounted editor a tabbable control, not a disabled Undo", () => {
+    renderWithHistory(noHistory);
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Undo" }).tabIndex).toBe(-1);
+    // Exactly one control is tabbable, and it is an enabled one.
+    const tabbable = controls().filter((button) => button.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBeEnabled();
+  });
+
+  it("leaves the scrollable toolbar with focusable content", () => {
+    // The axe rule this guards asks for either focusable content or a focusable
+    // container. The assertion is the observable property, not the mechanism.
+    const { container } = renderWithHistory(noHistory);
+    const toolbar = container.querySelector(".dh-md-toolbar") as HTMLElement;
+    const tabbable = Array.from(
+      toolbar.querySelectorAll<HTMLElement>("button:not([disabled])"),
+    ).filter((node) => node.tabIndex === 0);
+    expect(tabbable.length + (toolbar.tabIndex === 0 ? 1 : 0)).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("skips disabled controls when arrowing", () => {
+    renderWithHistory({ canUndo: false, canRedo: true });
+    const redo = screen.getByRole("button", { name: "Redo" });
+    redo.focus();
+    // Arrowing backwards from Redo must not land on the disabled Undo; it wraps
+    // to the last enabled control instead.
+    fireEvent.keyDown(redo, { key: "ArrowLeft" });
+    expect(document.activeElement).not.toBe(
+      screen.getByRole("button", { name: "Undo" }),
+    );
+    expect(document.activeElement).toBeEnabled();
+  });
+
+  it("moves the tab stop off a control that BECOMES disabled", () => {
+    // Undoing the last edit disables Undo underneath the user's own focus. The
+    // stop has to move rather than evaporate.
+    const { rerender } = renderWithHistory({ canUndo: true, canRedo: false });
+    screen.getByRole("button", { name: "Undo" }).focus();
+    expect(screen.getByRole("button", { name: "Undo" }).tabIndex).toBe(0);
+
+    rerender(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{
+          canUndo: false,
+          canRedo: true,
+          onUndo: vi.fn(),
+          onRedo: vi.fn(),
+        }}
+      />,
+    );
+    const tabbable = controls().filter((button) => button.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBeEnabled();
   });
 });

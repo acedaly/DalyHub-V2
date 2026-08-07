@@ -11,6 +11,20 @@
  *     is shown plainly and labelled unavailable, never crashing the control.
  *
  * The value is the stable option value(s); labels are display-only.
+ *
+ * ── DS-16: replacing a selection must not require clearing it first ──────────
+ * A single-select reflects its chosen option's LABEL into the input, which is
+ * what makes the closed control read as "Career" rather than as an empty box.
+ * That text was then also treated as a search query, so reopening a field that
+ * already had a value showed exactly one option — the one already chosen. To
+ * pick a different Area you first had to clear the field, which is a step no
+ * combobox in any reference product asks for and which no user discovers.
+ *
+ * The fix is to distinguish the two things the input's text can mean. `typed`
+ * is true only once the user has actually edited the box; until then the text is
+ * a REFLECTION of the selection and the effective query is empty, so the whole
+ * list is offered. Focusing also selects the reflected text, so the first
+ * keystroke replaces it rather than appending to it.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -86,16 +100,22 @@ export function SelectField(props: SelectFieldProps) {
   );
 
   const [query, setQuery] = useState("");
+  /**
+   * Whether `query` is something the USER typed, as opposed to the label this
+   * control reflected back from the current selection. Only a typed query
+   * filters — see the note at the top of this file.
+   */
+  const [typed, setTyped] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Options currently displayed: async consumers own filtering; otherwise filter
   // locally. Already-selected options are hidden in multi mode.
   const displayOptions = useMemo(() => {
-    const base = onSearch ? options : clientFilter(options, query);
+    const base = onSearch ? options : clientFilter(options, typed ? query : "");
     return multiple
       ? base.filter((option) => !selectedValues.includes(option.value))
       : base;
-  }, [onSearch, options, query, multiple, selectedValues]);
+  }, [onSearch, options, query, typed, multiple, selectedValues]);
 
   const commit = (value: string) => {
     if (readOnly || disabled) return;
@@ -105,6 +125,7 @@ export function SelectField(props: SelectFieldProps) {
         (props.onChange as (v: readonly string[]) => void)([...current, value]);
       }
       setQuery("");
+      setTyped(false);
       if (onSearch) onSearch("");
       if (displayOptions.filter((option) => !option.disabled).length <= 1) {
         combobox.close();
@@ -113,6 +134,9 @@ export function SelectField(props: SelectFieldProps) {
       (props.onChange as (v: string) => void)(value);
       const chosen = options.find((option) => option.value === value);
       setQuery(chosen?.label ?? value);
+      // The text is now a reflection of the new selection, not a query — so
+      // reopening offers every option rather than only the one just chosen.
+      setTyped(false);
       combobox.close();
     }
   };
@@ -134,6 +158,10 @@ export function SelectField(props: SelectFieldProps) {
       setQuery(
         selectedSingle?.label ?? (props.value ? String(props.value) : ""),
       );
+      // Closing without committing abandons the typed query, so the text is a
+      // reflection again. Leaving `typed` set here would make the NEXT opening
+      // filter by an abandoned search the user can no longer see.
+      setTyped(false);
     }
   }, [multiple, combobox.isOpen, selectedSingle?.label, props.value]);
 
@@ -244,11 +272,21 @@ export function SelectField(props: SelectFieldProps) {
             onChange={(event) => {
               const next = event.target.value;
               setQuery(next);
+              setTyped(true);
               combobox.open();
               if (onSearch) onSearch(next);
             }}
-            onFocus={() => {
-              if (!readOnly && !disabled) combobox.open();
+            onFocus={(event) => {
+              if (readOnly || disabled) return;
+              combobox.open();
+              // Select the reflected label so the first keystroke REPLACES the
+              // current choice instead of appending to it — and ask an async
+              // consumer for its unfiltered list, since its `options` are
+              // otherwise still narrowed by whatever was last searched.
+              if (!typed) {
+                event.target.select();
+                if (onSearch) onSearch("");
+              }
             }}
             onKeyDown={combobox.onInputKeyDown}
           />
@@ -262,6 +300,7 @@ export function SelectField(props: SelectFieldProps) {
               onClick={() => {
                 (props.onChange as (v: string) => void)("");
                 setQuery("");
+                setTyped(false);
                 if (onSearch) onSearch("");
               }}
             >

@@ -13,7 +13,13 @@
  * attributes.
  */
 
-import { history, historyKeymap, defaultKeymap } from "@codemirror/commands";
+import {
+  history,
+  historyKeymap,
+  defaultKeymap,
+  redoDepth,
+  undoDepth,
+} from "@codemirror/commands";
 import { markdownKeymap } from "@codemirror/lang-markdown";
 import { EditorState, type Extension } from "@codemirror/state";
 import {
@@ -27,9 +33,33 @@ import { createMarkdownLanguage } from "./editor-language";
 import { formattingKeymap } from "./editor-keymap";
 import { livePreview } from "./live-preview";
 
+/**
+ * EDIT-01 — everything the toolbar needs to describe itself, read off the live
+ * editor state in ONE place.
+ *
+ * The toolbar's pressed states are derived from the Markdown SOURCE and the
+ * selection (see `formatting-state.ts`), and its undo/redo enabled states from
+ * CodeMirror's history depths. Pushing all of it through a single callback keeps
+ * the component free of CodeMirror imports — it never learns what an
+ * `EditorState` is — and means one update produces one React render rather than
+ * three.
+ */
+export interface EditorSurfaceState {
+  readonly value: string;
+  readonly selectionStart: number;
+  readonly selectionEnd: number;
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+}
+
 export interface EditorSetupOptions {
   /** Called with the new Markdown source whenever the document changes. */
   readonly onChange: (value: string) => void;
+  /**
+   * Called whenever the document, the selection or the history depth changes —
+   * i.e. whenever the toolbar's own appearance could be stale.
+   */
+  readonly onSurfaceState?: (state: EditorSurfaceState) => void;
   /** Called when the editor loses focus (drives autosave-on-blur). */
   readonly onBlur?: () => void;
   /** Accessible name for the editing surface. */
@@ -44,6 +74,7 @@ export interface EditorSetupOptions {
 export function createEditorExtensions(options: EditorSetupOptions): Extension {
   const {
     onChange,
+    onSurfaceState,
     onBlur,
     ariaLabel,
     placeholder,
@@ -74,6 +105,25 @@ export function createEditorExtensions(options: EditorSetupOptions): Extension {
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         onChange(update.state.doc.toString());
+      }
+      // The toolbar's appearance depends on the document, the selection AND the
+      // history depth, so every one of those has to re-report. `transactions`
+      // covers a history change that moved neither (there is no such case today,
+      // but relying on that would be a subtle trap for the next change here).
+      if (
+        onSurfaceState &&
+        (update.docChanged ||
+          update.selectionSet ||
+          update.transactions.length > 0)
+      ) {
+        const main = update.state.selection.main;
+        onSurfaceState({
+          value: update.state.doc.toString(),
+          selectionStart: main.from,
+          selectionEnd: main.to,
+          canUndo: undoDepth(update.state) > 0,
+          canRedo: redoDepth(update.state) > 0,
+        });
       }
     }),
     EditorView.domEventHandlers({

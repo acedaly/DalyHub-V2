@@ -146,6 +146,23 @@
   word-break: break-word;
 }
 
+/*
+ * DS-16 — a heading that hosts the inline title editor.
+ *
+ * `overflow-wrap: anywhere` above makes the heading's min-content width ONE
+ * CHARACTER. That is harmless for a plain text heading — it simply permits a
+ * very long word to break — but it is not harmless for a flex item whose
+ * content is a control: the row was free to shrink the heading to a sliver, and
+ * the record's name then wrapped one character per line. Breaking only between
+ * words restores a real min-content width, so the heading keeps enough room for
+ * its longest word and the status chip still sits beside it rather than being
+ * pushed to the far edge of the row.
+ */
+.record-title:has(.dh-inline-edit) {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
 /* Status pill — tone sets the colour, the label always carries the meaning. */
 .record-status {
   display: inline-flex;

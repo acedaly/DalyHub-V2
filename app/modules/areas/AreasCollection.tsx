@@ -27,10 +27,10 @@
  * The component holds no server imports; loaders hand it JSON-safe summaries.
  */
 
-import { useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useMemo } from "react";
+import { useNavigate, useRevalidator } from "react-router";
 
-import { EntityCard, EntityCardGrid } from "~/shared/card";
+import { CardMetaFact, EntityCard, EntityCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -44,7 +44,10 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
+import { GoalIcon, HistoryIcon, ProjectIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { OverflowMenu } from "~/shared/overflow-menu";
+import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import { NewAreaForm } from "./NewAreaForm";
 import {
@@ -109,44 +112,118 @@ function NewAreaFormHost() {
  * The accessible name is the Area's name plus its work state, so a screen-reader
  * user hears what a sighted user sees in the container's colour and the
  * summary line — the identity accent is never the only carrier of meaning.
+ *
+ * DS-16 — the metadata region is now a compact GROUP of facts (glyph, number,
+ * noun) rather than the audit's `Goals: 2 · Projects: 4 · Tasks: 11` label
+ * ladder, and the card carries the shared DS-12 overflow so an Area can be
+ * archived from the gallery instead of only from inside its Settings tab. The
+ * overflow sits above the whole-card link (`.dh-ecard__overflow`), so opening
+ * the menu never navigates.
  */
-function AreaEntityCard({ card }: { readonly card: AreaCardData }) {
+function AreaEntityCard({
+  card,
+  onArchived,
+}: {
+  readonly card: AreaCardData;
+  readonly onArchived: () => void;
+}) {
+  const archive = useCallback(async () => {
+    const body = new FormData();
+    body.set("intent", "archive");
+    const response = await fetch(
+      `/areas/${encodeURIComponent(card.id)}/mutate`,
+      { method: "POST", body, headers: { accept: "application/json" } },
+    );
+    const result = (await response.json()) as {
+      readonly ok: boolean;
+      readonly formError?: string;
+    };
+    if (!result.ok) {
+      throw new Error(
+        result.formError ?? "That couldn’t be saved. Please try again.",
+      );
+    }
+    onArchived();
+  }, [card.id, onArchived]);
+
+  const lifecycle = useRecordLifecycle({
+    entityType: "area",
+    title: card.title,
+    onArchive: archive,
+  });
+
   return (
-    <EntityCard
-      data-testid="area-card"
-      icon={
-        <AccentIcon
-          entityType="area"
-          iconKey={card.iconKey}
-          colourRank={card.colourRank}
-        />
-      }
-      title={card.title}
-      headingLevel={2}
-      subtitle={card.workSummary}
-      /*
-       * The one figure that matters for a permanent domain of life is how much
-       * is waiting in it. Shown whenever the Area has ANY active work — a "0
-       * open tasks" on an Area with three Projects is genuinely "all clear",
-       * not noise, and it keeps every working Area's card the same shape.
-       */
-      metric={
-        card.hasActiveWork
-          ? {
-              value: String(card.openTasks),
-              label: card.openTasks === 1 ? "open task" : "open tasks",
-            }
-          : undefined
-      }
-      meta={
-        <>
-          {card.hasActiveWork ? null : <span>Ready for its first Project</span>}
-          {card.updatedLabel ? <span>{card.updatedLabel}</span> : null}
-        </>
-      }
-      href={`/areas/${encodeURIComponent(card.id)}`}
-      openAriaLabel={`Open ${card.title}`}
-    />
+    <>
+      <EntityCard
+        data-testid="area-card"
+        icon={
+          <AccentIcon
+            entityType="area"
+            iconKey={card.iconKey}
+            colourRank={card.colourRank}
+          />
+        }
+        title={card.title}
+        headingLevel={2}
+        subtitle={card.workSummary}
+        /*
+         * The one figure that matters for a permanent domain of life is how much
+         * is waiting in it. Shown whenever the Area has ANY active work — a "0
+         * open tasks" on an Area with three Projects is genuinely "all clear",
+         * not noise, and it keeps every working Area's card the same shape.
+         */
+        metric={
+          card.hasActiveWork
+            ? {
+                value: String(card.openTasks),
+                label: card.openTasks === 1 ? "open task" : "open tasks",
+              }
+            : undefined
+        }
+        meta={
+          <>
+            {/* A count of zero is omitted, not rendered as "0 Projects". An
+             * absent dimension is not a fact worth a row on every card — that
+             * is precisely the placeholder ladder this replaced. */}
+            {card.activeProjects > 0 ? (
+              <CardMetaFact
+                icon={ProjectIcon}
+                value={card.activeProjects}
+                label={card.activeProjects === 1 ? "Project" : "Projects"}
+              />
+            ) : null}
+            {card.openGoals > 0 ? (
+              <CardMetaFact
+                icon={GoalIcon}
+                value={card.openGoals}
+                label={card.openGoals === 1 ? "Goal" : "Goals"}
+              />
+            ) : null}
+            {card.hasActiveWork ? null : (
+              <span>Ready for its first Project</span>
+            )}
+            {card.updatedLabel ? (
+              <span className="dh-ecard__fact">
+                <HistoryIcon
+                  className="dh-ecard__fact-icon"
+                  aria-hidden="true"
+                />
+                {card.updatedLabel}
+              </span>
+            ) : null}
+          </>
+        }
+        overflow={
+          <OverflowMenu
+            items={lifecycle.overflowActions}
+            label={`More actions for ${card.title}`}
+          />
+        }
+        href={`/areas/${encodeURIComponent(card.id)}`}
+        openAriaLabel={`Open ${card.title}`}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }
 
@@ -206,6 +283,9 @@ function AreasCollection({
     areas,
     nextCursor,
   );
+  // An archived Area leaves the active collection, so the list is re-read rather
+  // than patched: the server decides what "active" means, not the browser.
+  const revalidator = useRevalidator();
   const cards = useMemo(
     () => items.map((area) => toAreaCardData(area)),
     [items],
@@ -262,7 +342,11 @@ function AreasCollection({
     >
       <EntityCardGrid label="Areas">
         {cards.map((card) => (
-          <AreaEntityCard key={card.id} card={card} />
+          <AreaEntityCard
+            key={card.id}
+            card={card}
+            onArchived={() => revalidator.revalidate()}
+          />
         ))}
       </EntityCardGrid>
       {!failed && hasMore ? (

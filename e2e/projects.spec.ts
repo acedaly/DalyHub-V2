@@ -375,7 +375,15 @@ test.describe("PROJ-01 — Projects", () => {
       "aria-valuenow",
       "100",
     );
-    await expect(full.getByText("6 of 6 tasks complete")).toBeVisible();
+    // DS-16 — the run-on sentence became a compact fact group. The COMPLETE
+    // phrasing survives where assistive tech reads it, and nothing outstanding
+    // means the "open tasks" fact is omitted rather than shown as zero.
+    await expect(full.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuetext",
+      "100% — 6 of 6 tasks complete",
+    );
+    await expect(full.getByText("open tasks")).toHaveCount(0);
+    await expect(full.getByText("done")).toBeVisible();
 
     await expectNoAxeViolations(page);
   });

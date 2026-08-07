@@ -450,6 +450,14 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await page.keyboard.press("ControlOrMeta+a");
     const toolbar = page.getByRole("toolbar", { name: "Formatting" });
     await toolbar.getByRole("button", { name: "Bold" }).click();
+    // EDIT-01 — the control REPORTS the state it just produced. Asserted here,
+    // BEFORE `readSource`, because reading the source selects the whole document
+    // (markers included), and a selection that spans the delimiters is by
+    // definition not inside the span.
+    await expect(toolbar.getByRole("button", { name: "Bold" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(await readSource(page)).toContain("**make me bold**");
 
     // Toolbar: Checklist over the current line makes a task item.
@@ -482,9 +490,26 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     expect(await readSource(page)).toContain("_slanted_");
 
     // Roving tabindex across the toolbar (one Tab stop; Arrow moves focus).
-    await toolbar.getByRole("button", { name: "Heading" }).focus();
+    // Bold is the first formatting control; Italic follows it.
+    await toolbar.getByRole("button", { name: "Bold" }).focus();
     await page.keyboard.press("ArrowRight");
-    await expect(toolbar.getByRole("button", { name: "Bold" })).toBeFocused();
+    await expect(toolbar.getByRole("button", { name: "Italic" })).toBeFocused();
+
+    // EDIT-01 — undo/redo are real controls with REAL enabled state, and the
+    // point of the pair below is that the state is genuinely read from the
+    // editor's history rather than hard-coded. The page was reloaded above, so
+    // this editor's history is empty and BOTH are correctly disabled…
+    await expect(toolbar.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await expect(toolbar.getByRole("button", { name: "Redo" })).toBeDisabled();
+
+    // …and one edit makes Undo — and only Undo — available.
+    await focusEditor(page);
+    await page.keyboard.type("!");
+    await expect(toolbar.getByRole("button", { name: "Undo" })).toBeEnabled();
+    await expect(toolbar.getByRole("button", { name: "Redo" })).toBeDisabled();
+    await toolbar.getByRole("button", { name: "Undo" }).click();
+    await expect(toolbar.getByRole("button", { name: "Redo" })).toBeEnabled();
+    expect(await readSource(page)).toContain("_slanted_");
 
     // Touch targets and axe on the authoring surface (light + dark).
     await expectMinTouchTarget(toolbar.getByRole("button", { name: "Bold" }));

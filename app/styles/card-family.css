@@ -491,9 +491,30 @@
  * to the two beside it. Starting them instead keeps each card content-driven,
  * which is what the reference does and what the audit asked for.
  */
+/* ------------------------------------------------------------------------- *
+ * DS-16 — the gallery grid.
+ *
+ * `auto-FILL`, not `auto-fit`. The difference only shows when the collection has
+ * fewer cards than the row can hold, and there it is the whole point: `auto-fit`
+ * collapses the empty tracks and stretches the survivors, so a workspace with
+ * two Areas renders two 700px cards on a wide monitor — a card whose icon,
+ * title and one metadata line float in half a metre of nothing. `auto-fill`
+ * keeps the tracks, so a card is the same size whether it has one neighbour or
+ * eleven, and the grid stays a grid.
+ *
+ * The column count is a CONSEQUENCE of the available width and one token
+ * (`--app-entity-card-min-width`), never a breakpoint table. At the collection's
+ * own measure that yields roughly four columns on an ordinary desktop and five
+ * on a wide one, degrading to three, two and one as the width falls. The
+ * `min(…, 100%)` guard is what keeps a 320px phone at exactly one column with no
+ * horizontal overflow.
+ * ------------------------------------------------------------------------- */
 .dh-ecard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(var(--app-entity-card-min-width), 100%), 1fr)
+  );
   gap: var(--app-dashboard-gap);
   align-items: start;
   margin: 0;
@@ -542,11 +563,29 @@
   outline-offset: -1px;
 }
 
+/*
+ * DS-16 — the header WRAPS.
+ *
+ * At the gallery's card width the icon, a title, a status chip and a ⋯ menu do
+ * not all fit on one line, and forcing them to produced the worst possible
+ * outcome: the title column collapsed to a few characters and `overflow-wrap`
+ * chopped words mid-syllable ("Paginated proje / ct 001"). Wrapping lets the
+ * status chip drop below the title when there is no room for both, which costs
+ * one line on a crowded card and nothing at all on a roomy one.
+ *
+ * `padding-inline-end` reserves the corner for the absolutely-positioned
+ * overflow, so the menu never sits on top of the chip.
+ */
 .dh-ecard__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
   min-inline-size: 0;
+}
+
+.dh-ecard:has(.dh-ecard__overflow--header) .dh-ecard__header {
+  padding-inline-end: var(--app-space-8);
 }
 
 /*
@@ -586,7 +625,9 @@
 
 .dh-ecard__titles {
   min-inline-size: 0;
-  flex: 1;
+  /* Grow to fill, but never shrink below a readable measure — that floor is
+   * what makes the status chip WRAP instead of squeezing the title. */
+  flex: 1 1 8rem;
 }
 
 .dh-ecard__title {
@@ -596,7 +637,10 @@
   font-weight: var(--md-sys-typescale-title-medium-weight);
   letter-spacing: var(--md-sys-typescale-title-medium-tracking);
   color: var(--md-sys-color-on-surface);
-  overflow-wrap: anywhere;
+  /* `break-word`, not `anywhere`: an unbreakable string (a URL, a long id) still
+   * breaks rather than overflowing the card, but an ordinary word is never
+   * chopped mid-syllable just because the column is narrow. */
+  overflow-wrap: break-word;
 }
 
 .dh-ecard .dh-ecard__open,
@@ -646,6 +690,19 @@
 
 .dh-ecard__status {
   flex: none;
+}
+
+/*
+ * The header-mounted overflow (DS-16). Absolutely positioned in the card's own
+ * top-right corner rather than laid out in the header row, so it consumes no
+ * inline space from the title — the header reserves the corner with padding
+ * instead. Previously this lived in a bordered footer band, which added ~56px of
+ * empty height to every card in the gallery for one button.
+ */
+.dh-ecard__overflow--header {
+  position: absolute;
+  inset-block-start: var(--app-space-2);
+  inset-inline-end: var(--app-space-2);
 }
 
 .dh-ecard__body {
@@ -719,6 +776,42 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   color: var(--md-sys-color-on-surface-variant);
+}
+
+/* DS-16 — one compact metadata fact: glyph, number, noun. The glyph is
+ * decorative and the noun is beside it, so nothing is carried by an icon alone. */
+.dh-ecard__fact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  white-space: nowrap;
+}
+
+.dh-ecard__fact-icon {
+  inline-size: var(--app-space-4);
+  block-size: var(--app-space-4);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-ecard__fact-value {
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* DS-16 — a description/summary line, clamped so one verbose record cannot make
+ * its card twice the height of its neighbours. Content-driven height is fine;
+ * one card three times taller than the row is not. */
+.dh-ecard__summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  overflow-wrap: anywhere;
 }
 
 .dh-ecard__footer {

@@ -1,0 +1,353 @@
+/**
+ * DS-16 — the shared inline-editing surfaces (`~/shared/inline-edit`).
+ *
+ * Composes ONLY DS-01 tokens for every colour/space/size/radius/duration (the
+ * token-discipline test scans this file); bare geometry (0, 100%, absolute
+ * offsets) is layout, not design values.
+ *
+ * The visual thesis: an editable value should look like TEXT until you point at
+ * it or focus it. No border, no input chrome, no pencil — a state layer on
+ * hover and focus is enough to say "this responds", and it costs the reading
+ * state nothing. That is what keeps a record page from looking like a form.
+ */
+
+.dh-inline-edit {
+  position: relative;
+  min-inline-size: 0;
+}
+
+/* ------------------------------------------------------------------------- *
+ * The read affordance.
+ * ------------------------------------------------------------------------- */
+/* The affordance is a real control, so it takes the product's 44px minimum on
+ * every pointer — the same bar every other control holds. */
+.dh-inline-edit__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  margin-inline: calc(-1 * var(--app-space-2));
+  padding: var(--app-space-1) var(--app-space-2);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
+}
+
+/* Hover AND focus-visible get the SAME treatment. Hover-only would leave every
+ * keyboard and touch user with no affordance at all (AGENTS.md §15).
+ *
+ * A state layer and nothing else: an outline as well made a hovered title read
+ * as an input box that was already open, which is the "every field looks like a
+ * form" impression this pattern exists to remove. The browser's own focus ring
+ * still draws on `:focus-visible`, so keyboard users get the stronger signal. */
+.dh-inline-edit__trigger:hover,
+.dh-inline-edit__trigger:focus-visible {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+}
+
+.dh-inline-edit__value {
+  min-inline-size: 0;
+  /*
+   * `break-word`, not `anywhere` — and `word-break: normal` alongside it,
+   * because BOTH are inherited from `.record-title` and the legacy
+   * `word-break: break-word` is itself an alias for `overflow-wrap: anywhere`.
+   * Overriding only one of the two left the other free to chop a record's name
+   * mid-syllable ("Paginatio / n").
+   *
+   * This is not only cosmetic: `anywhere` makes the element's min-content width
+   * ONE CHARACTER, so a flex row will happily shrink the title to a sliver.
+   * With `normal`, min-content is the longest word, and the heading keeps a
+   * width that can actually hold it.
+   */
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* An unset value states its invitation rather than presenting an invisible
+ * target — and states it quietly, because an empty optional field is not a
+ * problem to be solved. */
+.dh-inline-edit__empty {
+  color: var(--md-sys-color-on-surface-variant);
+  font-style: italic;
+}
+
+/* Read-only: text, and nothing else. No container, no hover, no tab stop. */
+.dh-inline-edit__static {
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.dh-inline-edit__empty-static {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The record-title treatment.
+ *
+ * The trigger inherits the heading's typography so an editable title looks like
+ * a title, not like a control — and it fills the heading rather than shrinking
+ * to fit. Shrink-to-fit inside a flex heading row resolved to a sliver and then
+ * wrapped the record's name one character per line; a heading is a block, and
+ * its editable presentation has to be one too.
+ */
+.dh-inline-edit[data-variant="heading"] .dh-inline-edit__trigger {
+  display: flex;
+  inline-size: 100%;
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------------- *
+ * The block (long-form) variant.
+ * ------------------------------------------------------------------------- */
+.dh-inline-edit__block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-inline-edit__block-content {
+  min-inline-size: 0;
+  max-inline-size: var(--app-width-prose);
+}
+
+.dh-inline-edit__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-2);
+  margin-inline-start: calc(-1 * var(--app-space-2));
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font: inherit;
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dh-inline-edit__edit:hover,
+.dh-inline-edit__edit:focus-visible {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+}
+
+.dh-inline-edit__raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dh-inline-edit__render-error {
+  color: var(--md-sys-color-error);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/* ------------------------------------------------------------------------- *
+ * The editing surfaces.
+ * ------------------------------------------------------------------------- */
+.dh-inline-edit__input {
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-page);
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+}
+
+.dh-inline-edit[data-variant="heading"] .dh-inline-edit__input {
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: 500;
+}
+
+.dh-inline-edit__input:focus-visible {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: var(--app-border-width-thin);
+}
+
+.dh-inline-edit__composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-inline-edit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-inline-edit__hint {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/* The hint is a pointer/keyboard convenience; on a phone there is no ⌘ and the
+ * Save button is right there. */
+@media (max-width: 47.99rem) {
+  .dh-inline-edit__hint {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Pending and failure.
+ *
+ * A failed save NEVER closes the editor and never clears the field — the
+ * message sits beside the still-editable draft. `role="alert"` announces it
+ * once; the pending region is polite so a fast save does not chatter.
+ * ------------------------------------------------------------------------- */
+.dh-inline-edit__status {
+  display: inline-flex;
+  margin-inline-start: var(--app-space-2);
+}
+
+.dh-inline-edit__pending {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-inline-edit__error {
+  margin: var(--app-space-1) 0 0;
+  color: var(--md-sys-color-error);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/* ------------------------------------------------------------------------- *
+ * The anchored select menu.
+ * ------------------------------------------------------------------------- */
+.dh-inline-select,
+.dh-inline-date {
+  position: relative;
+  display: inline-block;
+  min-inline-size: 0;
+}
+
+.dh-inline-select__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.dh-inline-select__caret {
+  flex: 0 0 auto;
+  inline-size: var(--app-space-4);
+  block-size: var(--app-space-4);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-inline-select__menu,
+.dh-inline-date__popover {
+  position: absolute;
+  inset-block-start: calc(100% + var(--app-space-1));
+  inset-inline-start: 0;
+  z-index: var(--app-z-dropdown);
+  min-inline-size: var(--app-space-16);
+  max-inline-size: min(20rem, 90vw);
+  padding: var(--app-space-1);
+  border: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.dh-inline-select__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--app-space-px);
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-small);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-inline-select__option:hover,
+.dh-inline-select__option:focus-visible {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+}
+
+/* The chosen option carries a check WORD-equivalent through `aria-checked`; the
+ * fill is reinforcement, never the only signal. */
+.dh-inline-select__option[aria-checked="true"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 500;
+}
+
+.dh-inline-select__option-description {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------------- *
+ * The anchored date popover.
+ * ------------------------------------------------------------------------- */
+.dh-inline-date__popover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+}
+
+.dh-inline-date__label {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+}
+
+.dh-inline-date__input {
+  min-block-size: var(--app-touch-target-min);
+}
+
+.dh-inline-date__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+@media (forced-colors: active) {
+  .dh-inline-edit__trigger:hover,
+  .dh-inline-edit__trigger:focus-visible {
+    border-color: Highlight;
+  }
+
+  .dh-inline-select__option[aria-checked="true"] {
+    border: var(--app-border-width-thin) solid Highlight;
+  }
+}
