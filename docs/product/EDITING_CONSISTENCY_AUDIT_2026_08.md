@@ -185,7 +185,34 @@ Four changes to the shared primitives came before any module moved:
 
 ---
 
-## 4. Explicitly not done
+## 4. The evidence
+
+- **`e2e/editing-consistency.spec.ts`** measures the contract in a real browser:
+  all seven canonical records' title fields (present, 44px, keyboard-activated,
+  Escape-cancels-and-restores-focus, no `Rename` control anywhere), a selected
+  value changing `current → new` in one action with `aria-checked` on the right
+  item, an unset value reading as empty with no clear command offered, clearing,
+  a date set/changed/cleared from the record, no horizontal page overflow with a
+  menu or popover open at 320/390/700/1024/1440, and axe in both appearances.
+- **`e2e/editing-consistency-screenshots.spec.ts`** is the opt-in approval
+  capture (`CAPTURE_SCREENSHOTS=1`). Every capture is a PAIR — the value at
+  rest and the same value while being edited — because a single tidy screenshot
+  of a record proves nothing about how it is edited. It covers the Note and
+  Project titles, the Task priority sequence (set → menu → different set →
+  unset → set), the Goal's date and definition editors, the Diary and Meeting
+  writing surfaces side by side, and the phone at 390px, each in both
+  appearances. It restores every fixture it touches.
+- **Unit and integration**: the shared multiline field (Enter is a paragraph,
+  ⌘/Ctrl+Enter saves, blur does not, a refusal keeps the paragraph), the
+  clearable select (empty reads empty, direct replacement, the clear command's
+  position in the roving order), `MarkdownEditorField`'s field anatomy and
+  disabled state, the Goal route's two focused intents (each writes ONE key and
+  leaves the other untouched), and the Task drawer's focused rename and bulk
+  field posts.
+
+---
+
+## 5. Explicitly not done
 
 Recorded so the next reader does not mistake absence for oversight:
 
