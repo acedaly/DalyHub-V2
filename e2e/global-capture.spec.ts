@@ -271,10 +271,16 @@ test.describe("larger windows — the floating button stays, and covers nothing"
   test("keyboard focus never parks a control underneath the button", async ({
     page,
   }) => {
-    // `scroll-padding-block-end` reserves the same band for the SCROLLER, so
-    // tabbing to a control near the end of a page scrolls it clear rather than
-    // parking it under the button — the case a pointer user can work around by
-    // scrolling and a keyboard user cannot.
+    // The keyboard case falls out of the INLINE reservation rather than needing
+    // a rule of its own: content never enters the button's column, so a control
+    // reached by Tab or by `scrollIntoView` cannot land underneath it wherever
+    // the scroller stops. That matters because a pointer user can work around
+    // an overlap by scrolling and a keyboard user cannot.
+    //
+    // It is asserted here rather than assumed because the first attempt at it
+    // used `scroll-padding-block-end`, which reserves a full-width band for a
+    // control that occupies a corner — over-reserving, and making every
+    // `scrollIntoView` overshoot by 104px into the sticky top app bar.
     await page.setViewportSize(LARGE);
     await gotoFixture(page, "/settings");
 

@@ -1200,11 +1200,11 @@
  * anything.
  *
  * `--app-fab-band` / `--app-fab-inline-band` (tokens.css) describe the space
- * this button spoke for, and are consumed by the three surfaces that must reason
- * about it: the pane's reserved corner (above), the document's `scroll-padding`
- * (`base.css`) so keyboard focus never parks a control beneath it, and the
- * notification region, which stacks ABOVE the FAB rather than over it
- * (`feedback.css`). Two fixed controls in one corner is not a stacking-order
+ * this button spoke for, and are consumed by the two surfaces that must reason
+ * about it: the pane's reserved corner (above), and the notification region,
+ * which stacks ABOVE the FAB rather than over it (`feedback.css`). Deliberately
+ * NOT the document's `scroll-padding` — see the note in `base.css` for why a
+ * corner must not be reserved as a full-width band. Two fixed controls in one corner is not a stacking-order
  * question — the notification layer is click-through, so a pointer reaches the
  * FAB either way, but an automated target-size audit sees a 56px control with
  * 8px of unobscured height and is right to fail it. They are given separate
@@ -1312,8 +1312,8 @@
    * is no floating action button at these widths, so the space it would have
    * spoken for is not reserved: the bottom bar is the only thing anchored to the
    * window, and the pane reclaims the whole inline measure. Every consumer of
-   * these tokens (the pane, `scroll-padding`, the notification region) therefore
-   * gets the phone answer without knowing anything about breakpoints. */
+   * these tokens (the pane, the notification region) therefore gets the phone
+   * answer without knowing anything about breakpoints. */
   :root {
     --app-bottomnav-height: calc(
       var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)

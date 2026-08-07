@@ -21,22 +21,32 @@ body {
   padding: 0;
 }
 
-/* MOBILE-01 / CAPTURE-02 — the document scroller must know what is anchored to
- * the bottom of the window.
+/* MOBILE-01 — the document scroller must know about the phone bottom bar.
  *
  * `scrollIntoView`, keyboard focus scrolling and anchor jumps all stop at the
- * viewport edge, which on a phone is UNDERNEATH the fixed bottom navigation, and
- * on a larger window is underneath the floating action button. A card or control
- * scrolled to the last row therefore lands beneath one of them and cannot be
- * clicked or seen — which is exactly what happened to the last cards in the
- * Notes collection. `scroll-padding` is the standard mechanism for telling the
- * scroller that a band at the end of the viewport is spoken for, and it is
- * stated with `--app-fab-band`, the ONE token that already describes that band
- * in both shells: the navigation bar's height on a phone (where there is no
- * floating button), and the button's inset + height + gap on a larger window
- * (where there is no bar). Nothing here is measured or guessed. */
+ * viewport edge, which on a phone is UNDERNEATH the fixed bottom navigation. A
+ * card or control scrolled to the last row therefore lands beneath the bar and
+ * cannot be clicked or seen — which is exactly what happened to the last cards in
+ * the Notes collection. `scroll-padding` is the standard mechanism for telling the
+ * scroller that a band at the end of the viewport is spoken for, and it is stated
+ * with the same token the bar's own height comes from, so nothing is measured or
+ * guessed. `0px` on desktop, where the bar does not exist.
+ *
+ * CAPTURE-02 — the floating action button is deliberately NOT folded in here,
+ * and the distinction is the point: the navigation bar spans the full width, so
+ * a band is exactly its shape; the button occupies a CORNER, and reserving a
+ * full-width band for it would be both an over-reservation and a real side
+ * effect. `scroll-padding-block-end` changes how far every `scrollIntoView`
+ * travels, so a 104px band pushed content that much further up — under the
+ * sticky top app bar, close enough to its Search control that axe's
+ * `target-size` rule failed a Goal record's breadcrumb link on the spacing
+ * between them. The button's corner is reserved where it belongs, by the pane
+ * (`--app-fab-inline-band` in `shell.css`): content never enters its column, so
+ * nothing scrolled to the end of a page can land underneath it. */
 html {
-  scroll-padding-block-end: calc(var(--app-fab-band, 0px) + var(--app-space-2));
+  scroll-padding-block-end: calc(
+    var(--app-bottomnav-height, 0px) + var(--app-space-2)
+  );
 }
 
 /*

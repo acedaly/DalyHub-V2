@@ -29,8 +29,8 @@
  * (`env(safe-area-inset-bottom)`). It moves out of the way with the navigation
  * bar while the on-screen keyboard is up, for the same reason the bar does. The
  * space it occupies is published as `--app-fab-band` / `--app-fab-inline-band`
- * and reserved by the content pane, so the button never sits on top of a
- * control.
+ * and reserved by the content pane in BOTH axes, so content never enters the
+ * button's column and nothing can sit underneath it.
  *
  * Accessibility: an icon-only control, so it carries an explicit `aria-label`
  * and meets the 56px target the specification sets — comfortably above WCAG

@@ -918,10 +918,9 @@
    * The specification's standard FAB: 56px, anchored 24px from the corner, with
    * a 16px gap between it and anything the page puts beside it. Stated here
    * rather than inline in `shell.css` because THREE other things have to reason
-   * about the space this button occupies — the pane's reserved corner, the
-   * document's `scroll-padding`, and the notification region that stacks above
-   * it — and a button whose size is a literal in one file cannot be reserved
-   * for correctly in the others. */
+   * about the space this button occupies — the pane's reserved corner and the
+   * notification region that stacks above it — and a button whose size is a
+   * literal in one file cannot be reserved for correctly in the others. */
   --app-fab-size: 3.5rem; /* 56 */
   --app-fab-inset: var(--app-space-6); /* 24 */
   --app-fab-gap: var(--app-space-4); /* 16 */
@@ -931,10 +930,10 @@
    *
    * `--app-fab-band` (BLOCK) also folds in the phone navigation bar beneath the
    * button, so one token describes "everything anchored to the bottom of the
-   * window". It is what every scroll container reserves at its end, what the
-   * document's `scroll-padding-block-end` uses so keyboard focus never parks a
-   * control underneath the button, and what the notification region stacks above
-   * (`feedback.css`).
+   * window". It is what every scroll container reserves at its end, and what the
+   * notification region stacks above (`feedback.css`). It is NOT what the
+   * document's `scroll-padding-block-end` uses: that reserves a full-width band,
+   * which is the navigation bar's shape and not the button's (`base.css`).
    *
    * `--app-fab-inline-band` (INLINE) is what the content pane reserves at its
    * trailing edge, which is the half the August 2026 audit's finding 1 was

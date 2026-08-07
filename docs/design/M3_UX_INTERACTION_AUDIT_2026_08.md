@@ -90,10 +90,18 @@ confirms that entry and adds the overlap, which is the more serious half.
 > was still under the button. It is now joined by `--app-fab-inline-band`, and
 > the pane reserves both: `padding-inline-end: max(0px, var(--app-fab-inline-band)
 > - var(--app-page-padding))`, so a page's own gutter counts towards the
-> reservation and no surface ends up with two stacked. The same band is what
-> `html { scroll-padding-block-end }` now uses, so keyboard focus and
-> `scrollIntoView` cannot park a control underneath the button either. Both
-> tokens collapse at phone widths, where there is no button.
+> reservation and no surface ends up with two stacked. Both tokens collapse at
+> phone widths, where there is no button.
+>
+> The keyboard case falls out of the same reservation rather than needing its
+> own rule: content never enters the button's column, so nothing reached by
+> `scrollIntoView` or by Tab can land underneath it. An earlier draft *did* add
+> the band to `html { scroll-padding-block-end }`, and that was wrong twice
+> over — the button is a corner, not a full-width band, and reserving 104px at
+> the bottom made every `scrollIntoView` travel that much further, pushing
+> content up under the sticky top app bar until axe's `target-size` rule failed
+> a Goal record's breadcrumb link on its spacing to the bar's Search control.
+> The navigation bar keeps that scroll-padding, because a band IS its shape.
 >
 > **The phone loses the button entirely** — see the DEBT-96 half below.
 >
