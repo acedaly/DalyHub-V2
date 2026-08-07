@@ -43,10 +43,7 @@ import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
 import { StatusPill } from "~/shared/pill";
-import {
-  SegmentedFilter,
-  type SegmentedFilterOption,
-} from "~/shared/segmented-filter";
+import { ViewSwitcher, type ViewSwitcherOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 
@@ -68,7 +65,7 @@ export type SerializedDeletedGoalItem = {
 /** The two lifecycle views of the Goals collection (`?state=`). */
 export type GoalCollectionState = "active" | "deleted";
 
-const STATE_OPTIONS: readonly SegmentedFilterOption[] = [
+const STATE_OPTIONS: readonly ViewSwitcherOption[] = [
   { value: "active", label: "Active" },
   { value: "deleted", label: "Deleted" },
 ];
@@ -365,12 +362,12 @@ function GoalsCollection({
         }
         entityType="goal"
         presentation="grid"
-        filterBar={
-          <SegmentedFilter
+        viewSwitcher={
+          <ViewSwitcher
             param="state"
             options={STATE_OPTIONS}
             value={state}
-            label="Filter Goals by state"
+            label="Goal views"
           />
         }
         error={
@@ -438,12 +435,15 @@ function GoalsCollection({
       subtitle={subtitle}
       entityType="goal"
       presentation="grid"
-      filterBar={
-        <SegmentedFilter
+      // UIQ-013 — Active/Deleted is the collection's principal mode (the two
+      // are different collections of Goals, not a narrowing of one), so it sits
+      // in the shared header view slot rather than in the filter row.
+      viewSwitcher={
+        <ViewSwitcher
           param="state"
           options={STATE_OPTIONS}
           value={state}
-          label="Filter Goals by state"
+          label="Goal views"
         />
       }
       error={

@@ -29,34 +29,9 @@
   max-inline-size: 100%;
 }
 
-/* Mode tabs (Day / Timeline), in the pane header's view-switcher slot. */
-.dh-diary-modes {
-  display: inline-flex;
-  gap: var(--app-space-1);
-  align-items: center;
-}
-
-.dh-diary-modes__tab {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  border-block-end: var(--app-border-width-thick) solid transparent;
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
-  text-decoration: none;
-}
-
-.dh-diary-modes__tab:hover {
-  color: var(--md-sys-color-on-surface);
-}
-
-.dh-diary-modes__tab[aria-current="true"] {
-  font-weight: 500;
-  color: var(--md-sys-color-on-surface);
-  border-block-end-color: var(--md-sys-color-primary);
-}
+/* UIQ-013 — Diary's own `.dh-diary-modes` underline tabs are retired: Day /
+   Timeline renders through the ONE shared view switcher
+   (`segmented-filter.css`) in the pane header's view slot. */
 
 /* -------------------------------------------------------------------------- */
 /* Day navigator                                                              */

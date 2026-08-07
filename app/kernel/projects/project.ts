@@ -119,6 +119,30 @@ export type ProjectListItem = {
    */
   readonly areaColourRank: number | null;
   /**
+   * The PROJECT's OWN stable colour rank — its 0-based position in the
+   * workspace's `(created_at, id)` ordering over every `project` row.
+   *
+   * ADR-068 decision 5's Area mechanism, generalised to a second entity rather
+   * than reimplemented for one: the same window, the same total ordering, the
+   * same lifecycle independence (ranked over EVERY row, so archiving or
+   * soft-deleting a Project never recolours another), the same absence of a
+   * column, a migration and an index. It replaces the INHERITED Area accent as
+   * the Project card's identity colour, so a Project is recognisable as itself
+   * rather than only as a member of its Area — and a Project with no Area gets
+   * a real identity instead of the neutral container.
+   *
+   * Because it is derived from immutable creation facts and never from the
+   * result order of the query that reads it, the colour survives refresh,
+   * navigation, restart, deployment, rename, description edits, task changes,
+   * re-sorting, filtering and the creation of other Projects. Consecutive
+   * Projects take consecutive ranks and therefore adjacent, distinct entries in
+   * the shared six-colour ramp.
+   *
+   * `areaColourRank` is retained beside it: it still says which Area a Project
+   * belongs to, which is a different fact from which Project this is.
+   */
+  readonly colourRank: number;
+  /**
    * The owner's chosen icon, as the semantic KEY and nothing else. Read from
    * the `project_details` row this projection already joins for status and
    * archival, so it costs no extra query. Normalised on the way OUT: an

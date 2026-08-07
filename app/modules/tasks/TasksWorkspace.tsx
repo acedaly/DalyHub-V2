@@ -48,7 +48,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
-import { SegmentedFilter } from "~/shared/segmented-filter";
+import { ViewSwitcher } from "~/shared/view-switcher";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
@@ -945,7 +945,13 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       subtitle={subtitle}
       entityType="task"
       density={density}
-      primaryAction={
+      // UIQ-014 — Review Inbox is a SECONDARY action, and now sits in the
+      // secondary slot rather than borrowing the primary one. Tasks
+      // deliberately has no page-level create (see below), and an empty primary
+      // slot is the honest expression of that: promoting the next-most-likely
+      // action into it would make "the primary action" mean something different
+      // here than everywhere else.
+      secondaryActions={
         // APPEARANCE-01/shell cleanup: the header's "New task" button is gone. It
         // opened the generic capture drawer with no context the global capture
         // control does not already supply, so it was a second door onto the same
@@ -966,14 +972,14 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // It writes the same `?view=` parameter the sheet's Layout group writes —
       // one control model, two affordances, never two states.
       viewSwitcher={
-        <SegmentedFilter
+        <ViewSwitcher
           param={TASKS_PARAMS.presentation}
           options={TASK_PRESENTATIONS.map((presentation) => ({
             value: presentation,
             label: PRESENTATION_LABELS[presentation],
           }))}
           value={config.presentation}
-          label="Choose a task layout"
+          label="Task layout"
         />
       }
       filterBar={

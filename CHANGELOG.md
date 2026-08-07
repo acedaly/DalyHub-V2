@@ -17,6 +17,71 @@ no version number to group them under.
 
 ---
 
+## Collection header, view switching, overflow-menu placement and Project identity colour (#130)
+
+Finishes the collection-level convergence the August 2026 UI quality audit
+deferred, and gives a Project the visual identity an Area already had.
+
+### One collection-header anatomy (UIQ-013 / UIQ-014)
+
+- **One documented shape** for the top of every collection, with fixed semantic
+  ownership of its slots — title/count, view switcher, secondary actions, one
+  primary action, then filters in the band beneath. A module shows only what it
+  needs; what is consistent is placement and hierarchy, not content.
+- **The title block now GROWS** and the controls do not, so a header stops
+  wrapping while hundreds of pixels of laptop width sit unused.
+- **The narrow composition changed on purpose**: below `md` the header is a
+  two-row grid (title + create on row one, switcher on row two) rather than a
+  desktop row collapsing by accident. The create action is never hidden to fit.
+
+### One view switcher (UIQ-013)
+
+- **`~/shared/view-switcher`** is the one M3 segmented control for "change what
+  this collection shows". Tasks, Projects, Goals, Notes, People, Meetings,
+  Assets, Reviews and Diary render it; People's pill tabs, its bordered icon
+  toggle, Assets' and Reviews' pill rows, Meetings' loose segment links and
+  Diary's underline tabs are gone.
+- **View and filter are documented as different things.** A view changes the
+  presentation or the principal mode and cannot be unset; a filter narrows which
+  records are included and can. `SegmentedFilter` stays for genuine in-content
+  filters and renders through the same one implementation.
+- **The selection glyph's box is reserved in every segment**, so choosing a view
+  no longer shifts every label in the control. Geometry is identical whichever
+  view is active.
+- **The control scrolls, it never wraps.** A `projects.css` rule that turned
+  every segmented control in the product into a two-column grid below 30rem —
+  a module stylesheet deciding how a shared primitive degrades — is removed.
+
+### The shared overflow menu fits the viewport (UIQ-021)
+
+- Flip above, clamp to the larger side, scroll internally, and keep an 8px
+  margin from every edge — the Tooltip's placement philosophy applied to a
+  surface with real height. A ~713px Tasks row menu opened low on an 800px
+  screen no longer runs past the bottom.
+- Flipping and clamping are presentation only: keyboard semantics, item order
+  and focus behaviour are unchanged, and the last item of a clamped menu is
+  still reachable with End.
+
+### Project identity colour
+
+- A Project now carries **its own** stable colour, on the same mechanism Areas
+  use rather than a parallel one: a rank over the workspace's
+  `(created_at, id)` ordering, folded into the shared six-colour ramp. Assigned
+  without asking, different for consecutive Projects, and unmovable by rename,
+  re-sort, filtering, lifecycle changes or unrelated creation. No column, no
+  migration, no index — and existing Projects are coloured deterministically.
+- It replaces the inherited Area accent, which left several Projects in one
+  Area indistinguishable and gave a Project with no Area no identity at all.
+  Icon and colour stay independent attributes.
+
+### Deliberately not here
+
+- **UIQ-011** (Person record actions) and the systemic record-detail hierarchy
+  it belongs to are owned by PR #131.
+- **UIQ-012** ("Open" as a Goal status) was investigated and retained: "open" is
+  also a Project repository filter value and a shareable URL parameter, so
+  renaming is a vocabulary migration needing an owner decision, not cleanup.
+
 ## Unreleased
 
 ### Fixed — the August 2026 UI quality audit

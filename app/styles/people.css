@@ -45,40 +45,6 @@
   align-items: center;
 }
 
-/* In-page view sub-navigation (All / Recent / Archived) — the People collection
-   owns these links, so generic labels like "Archived" never enter the global
-   sidebar (mirrors the Meetings module). */
-.dh-people-views {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-1);
-  flex-basis: 100%;
-}
-
-.dh-people-views a {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-control-height-md);
-  padding: var(--app-space-1) var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-small);
-  color: var(--md-sys-color-on-surface-variant);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.dh-people-views a[aria-current="page"] {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-primary);
-}
-
-.dh-people-views a:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
-
 .dh-people-filters__search {
   flex: 1 1 16rem;
   min-inline-size: 0;
@@ -100,31 +66,9 @@
   flex: 0 1 auto;
 }
 
-.dh-people-view-switch {
-  display: inline-flex;
-  gap: var(--app-space-1);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
-  padding: var(--app-space-1);
-}
-
-.dh-people-view-switch__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-inline-size: var(--app-control-height-md);
-  min-block-size: var(--app-control-height-md);
-  border: 0;
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
-  cursor: pointer;
-}
-
-.dh-people-view-switch__btn[aria-pressed="true"] {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-primary);
-}
+/* UIQ-013 — People's pill-tab view nav and its bordered icon toggle group are
+   both retired: the collection renders the ONE shared view switcher
+   (`segmented-filter.css`) in the pane header's view slot instead. */
 
 /* -------------------------------------------------------------------------- */
 /* Create page                                                                */
@@ -332,12 +276,6 @@
 .dh-meeting-new form {
   display: grid;
   gap: var(--space-4);
-}
-.dh-meetings-views {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-5);
 }
 .dh-meeting-list {
   list-style: none;

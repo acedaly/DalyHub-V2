@@ -29,6 +29,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { assetTypeIcon } from "./asset-icons";
 import { nextMeaningfulDate, type AssetDateStatus } from "./asset-dates";
@@ -191,24 +192,24 @@ export function AssetsCollectionView({
 
   const viewLabel = VIEWS.find((v) => v.view === data.view)?.label ?? "Assets";
 
+  // UIQ-013 — the five Asset scopes are the collection's principal mode, on the
+  // ONE shared switcher. Each view is its own route, so the option carries its
+  // own href (with the current filters preserved and the scope-bound cursor
+  // dropped) rather than deriving one from a search param.
   const viewSwitcher = (
-    <nav className="dh-assets-views" aria-label="Asset views">
-      {VIEWS.map((v) => {
+    <ViewSwitcher
+      options={VIEWS.map((v) => {
         const qs = new URLSearchParams(searchParams);
         qs.delete("cursor");
-        const href = qs.toString() ? `${v.path}?${qs.toString()}` : v.path;
-        return (
-          <Link
-            key={v.view}
-            to={href}
-            className="dh-assets-views__link"
-            aria-current={v.view === data.view ? "page" : undefined}
-          >
-            {v.label}
-          </Link>
-        );
+        return {
+          value: v.view,
+          label: v.label,
+          href: qs.toString() ? `${v.path}?${qs.toString()}` : v.path,
+        };
       })}
-    </nav>
+      value={data.view}
+      label="Asset views"
+    />
   );
 
   const filterBar = (

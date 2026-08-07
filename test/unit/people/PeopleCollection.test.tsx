@@ -94,9 +94,11 @@ describe("People collection", () => {
     expect(
       within(group).getByRole("button", { name: /List view/ }),
     ).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(within(group).getByRole("button", { name: /Grid view/ }));
+    fireEvent.click(
+      within(group).getByRole("button", { name: /Gallery view/ }),
+    );
     expect(
-      within(group).getByRole("button", { name: /Grid view/ }),
+      within(group).getByRole("button", { name: /Gallery view/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 

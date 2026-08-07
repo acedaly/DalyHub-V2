@@ -21,6 +21,29 @@
  * collection wants above a filter row and the taller identity band a record
  * wants; nothing else changes between them.
  *
+ * ── UIQ-013/014 — SEMANTIC OWNERSHIP IS THE CONTRACT ────────────────────────
+ * Which slot a control belongs in is fixed product-wide, and does not vary by
+ * module (DESIGN_SYSTEM.md → Collection header anatomy):
+ *
+ *   - `viewSwitcher` — the ONE `~/shared/view-switcher` control, changing the
+ *     collection's PRESENTATION or its PRINCIPAL MODE. Never a data filter.
+ *   - `secondaryActions` — at most one or two supporting actions (Tasks'
+ *     Review Inbox); everything past that belongs in an overflow menu.
+ *   - `primaryAction` — exactly one, and always the same conceptual place on
+ *     every collection: the trailing end of the control cluster. A module with
+ *     no page-level create passes nothing rather than promoting something else
+ *     into the slot.
+ *
+ * Filters — search, selects, tags — are NOT header slots. They live in the
+ * band beneath, `CollectionLayout`'s `filterBar` (or `mobileControls`), so
+ * "how is this shown" and "which records are included" stay legible as two
+ * different questions.
+ *
+ * The switcher is a SIBLING of the action cluster rather than a child of it,
+ * which is what lets the narrow composition put the title and the primary
+ * action on one row and give the switcher its own beneath — an intentional
+ * change of composition rather than a desktop row collapsing by accident.
+ *
  * It is still not a business-logic component: it takes nodes and strings, and
  * decides only where they go.
  *
@@ -144,11 +167,12 @@ export function PaneHeader({
         </div>
       </div>
 
-      {viewSwitcher || secondaryActions || primaryAction ? (
+      {viewSwitcher ? (
+        <div className="dh-pane-header__views">{viewSwitcher}</div>
+      ) : null}
+
+      {secondaryActions || primaryAction ? (
         <div className="dh-pane-header__actions">
-          {viewSwitcher ? (
-            <div className="dh-pane-header__views">{viewSwitcher}</div>
-          ) : null}
           {secondaryActions ? (
             <div className="dh-pane-header__secondary">{secondaryActions}</div>
           ) : null}

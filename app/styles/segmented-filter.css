@@ -1,25 +1,43 @@
 /**
- * M3-01 — the shared state filter, as M3 SEGMENTED BUTTONS.
+ * M3-01 / UIQ-013 — the ONE segmented control, as M3 SEGMENTED BUTTONS.
  *
- * One 40px outlined container with fully-rounded ends and 1px `outline`
+ * One 40px-plus outlined container with fully-rounded ends and 1px `outline`
  * dividers between the segments — not a row of separate pills in a tray. The
  * selected segment fills with `secondary-container`, which the contrast tests
  * hold at 4.5:1 against its own label.
  *
- * The component is shared (`~/shared/segmented-filter`) and was promoted here
- * unchanged from Projects when Notes needed the identical Active/Deleted
- * pattern — one shared component, one shared stylesheet, never forked per
- * module.
+ * Two components render it and there is exactly ONE implementation of each of
+ * its states: `~/shared/view-switcher` (the collection header's view slot —
+ * presentation or principal mode) and `~/shared/segmented-filter` (a bounded
+ * in-content state filter). UIQ-013 retired four module-local presentations
+ * onto these — People's pill tabs, Assets' and Reviews' pill rows, Meetings'
+ * loose segment options and People's bordered icon toggle group.
  */
 
 .dh-segmented {
   display: inline-flex;
-  flex-wrap: wrap;
+  /*
+   * UIQ-013 — segments never WRAP; the control scrolls inside its own box.
+   *
+   * A wrapped segmented control is a broken drawing: the outline's rounded
+   * ends land mid-row and the dividers stop lining up. The editor toolbar
+   * already solved the same problem the same way — a control row that is too
+   * wide scrolls horizontally within its own bounds, so it can never produce
+   * page-level overflow at 320px either.
+   */
+  flex-wrap: nowrap;
   max-inline-size: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
-  overflow: hidden;
+}
+
+.dh-segmented::-webkit-scrollbar {
+  display: none;
 }
 
 .dh-segmented__option {
@@ -28,8 +46,12 @@
   align-items: center;
   justify-content: center;
   gap: var(--app-space-2);
+  /* The 44px practical touch target DalyHub holds everywhere, on every
+   * pointer — stricter than WCAG 2.2 AA's 24px, and the bar three of the four
+   * retired module presentations sat below. */
   min-height: var(--app-touch-target-min);
   min-inline-size: 0;
+  flex: none;
   padding-inline: var(--app-space-3);
   color: var(--md-sys-color-on-surface);
   font-size: var(--md-sys-typescale-label-large-size);
@@ -38,7 +60,10 @@
   letter-spacing: var(--md-sys-typescale-label-large-tracking);
   text-align: center;
   text-decoration: none;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   transition: background-color var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
 }
@@ -55,37 +80,104 @@
  * change rather than an opacity — see the note beside the shared contract. */
 
 /*
- * The selected segment. M3 puts a leading CHECK glyph here as well as the fill,
- * so selection is a shape rather than only a tone — which is what keeps the
+ * The selection GLYPH — M3's leading check.
+ *
+ * Selection is therefore a SHAPE as well as a tone, which is what keeps the
  * control readable under forced colours and to a colour-blind owner
- * (AGENTS.md §15). The glyph is drawn in CSS because the segments are links and
- * their labels come from the shared component.
+ * (AGENTS.md §15).
+ *
+ * UIQ-013 — the box is reserved in EVERY segment and revealed by opacity,
+ * where it used to be inserted only on the selected one. Inserting it moved
+ * every label in the control each time the selection changed: the brief's "no
+ * layout movement when state changes", and a real one — at 1280 the Tasks
+ * switcher shifted ~26px as you moved between List and Board. Reserving costs
+ * one glyph width per segment and buys geometry that is identical whichever
+ * view is active.
  */
-.dh-segmented__option[aria-current="true"] {
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
-}
-
-.dh-segmented__option[aria-current="true"]::before {
+.dh-segmented__option::before {
   content: "";
   inline-size: 1.125rem;
   block-size: 1.125rem;
   flex: none;
+  opacity: 0;
   background: currentColor;
   /* The Material Symbols `check` glyph, as a mask so it takes `currentColor`. */
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z'/%3E%3C/svg%3E")
     center / contain no-repeat;
+  transition: opacity var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+/* Selected, whichever mode the switcher is in: a URL-backed segment marks
+ * itself with `aria-current`, a client-state one with `aria-pressed`. */
+.dh-segmented__option[aria-current="true"],
+.dh-segmented__option[aria-pressed="true"] {
+  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-secondary-container);
+}
+
+.dh-segmented__option[aria-current="true"]::before,
+.dh-segmented__option[aria-pressed="true"]::before {
+  opacity: 1;
+}
+
+/*
+ * An option's own leading glyph (opt-in, and only where it genuinely aids
+ * recognition — List/Gallery). It is decorative: the label beside it, or the
+ * visually-hidden label under `--icon-only`, carries the meaning.
+ */
+.dh-segmented__icon {
+  display: inline-flex;
+  flex: none;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: 1;
+}
+
+/*
+ * The ICON-ONLY switcher (People's List/Gallery). Per M3, the check REPLACES
+ * the icon on the selected segment rather than joining it — so the segment box
+ * is one glyph wide in both states and selection still moves nothing. Each
+ * option keeps a visually-hidden label as its accessible name and composes the
+ * shared tooltip for the pointer and the keyboard (M3-TIP).
+ */
+.dh-segmented--icon-only .dh-segmented__option {
+  min-inline-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-2);
+}
+
+.dh-segmented--icon-only .dh-segmented__option::before {
+  position: absolute;
+  opacity: 0;
+}
+
+.dh-segmented--icon-only
+  :is(
+    .dh-segmented__option[aria-current="true"],
+    .dh-segmented__option[aria-pressed="true"]
+  )
+  .dh-segmented__icon {
+  opacity: 0;
+}
+
+.dh-segmented--icon-only
+  :is(
+    .dh-segmented__option[aria-current="true"],
+    .dh-segmented__option[aria-pressed="true"]
+  )::before {
+  opacity: 1;
 }
 
 @media (forced-colors: active) {
-  .dh-segmented__option[aria-current="true"] {
+  .dh-segmented__option[aria-current="true"],
+  .dh-segmented__option[aria-pressed="true"] {
     background: Highlight;
     color: HighlightText;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dh-segmented__option {
+  .dh-segmented__option,
+  .dh-segmented__option::before {
     transition: none;
   }
 }

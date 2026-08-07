@@ -45,6 +45,7 @@ function project(
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
     areaColourRank: 0,
+    colourRank: 0,
     iconKey: null,
     taskTotal: 4,
     taskCompleted: 1,
@@ -111,7 +112,7 @@ describe("Projects collection", () => {
     expect(screen.getByText("2 projects")).toBeInTheDocument();
     // The state segment and the New Project affordance are present.
     expect(
-      screen.getByRole("group", { name: "Filter projects by state" }),
+      screen.getByRole("group", { name: "Project views" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("New Project").length).toBeGreaterThan(0);
   });
@@ -384,7 +385,10 @@ describe("Projects collection", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a chosen icon on the Area's accent, and the default without one", () => {
+  // #130 — the accent is the PROJECT's own stable rank, not its Area's. A
+  // Project is recognisable as itself, and one with no Area still has an
+  // identity where it previously fell back to the neutral container.
+  it("renders a chosen icon on the Project's own accent, and the default without one", () => {
     const { container } = renderCollection({
       projects: [
         project({
@@ -392,12 +396,14 @@ describe("Projects collection", () => {
           title: "Has icon",
           iconKey: "travel",
           areaColourRank: 2,
+          colourRank: 1,
         }),
         project({
           id: "no-icon",
           title: "No icon",
           iconKey: null,
           areaColourRank: null,
+          colourRank: 2,
         }),
       ],
       nextCursor: null,
@@ -406,15 +412,23 @@ describe("Projects collection", () => {
       failed: false,
     });
     expect(container.querySelector('[data-icon-key="travel"]')).not.toBeNull();
-    // Rank 2 -> accent 3 (0-based rank, 1-based accent).
+    // The Project's OWN rank drives the accent: rank 1 -> accent 2, rank 2 ->
+    // accent 3 (0-based rank, 1-based accent). The Area's rank (2) is
+    // deliberately NOT what the first card wears.
     expect(
-      container.querySelector('.dh-accent-icon[data-accent="3"]'),
-    ).not.toBeNull();
-    // No Area means the neutral container, never an invented colour.
-    const plain = screen
-      .getByRole("article", { name: "No icon" })
-      .querySelector(".dh-accent-icon");
-    expect(plain?.getAttribute("data-accent")).toBeNull();
+      screen
+        .getByRole("article", { name: "Has icon" })
+        .querySelector(".dh-accent-icon")
+        ?.getAttribute("data-accent"),
+    ).toBe("2");
+    // Two consecutively-created Projects take adjacent ranks and therefore
+    // different colours — the whole point of giving a Project its own identity.
+    expect(
+      screen
+        .getByRole("article", { name: "No icon" })
+        .querySelector(".dh-accent-icon")
+        ?.getAttribute("data-accent"),
+    ).toBe("3");
   });
 
   it("derives the muted treatment from the archived FACT, not the chip's word", () => {
@@ -587,7 +601,7 @@ describe("Projects collection", () => {
         failed: false,
       });
       const group = screen.getByRole("group", {
-        name: "Filter projects by state",
+        name: "Project views",
       });
       expect(
         within(group)
@@ -810,6 +824,7 @@ describe("Projects gallery grid (DS-16)", () => {
           area: null,
           goal: null,
           areaColourRank: null,
+          colourRank: 3,
           taskTotal: 0,
           taskCompleted: 0,
           healthVisible: false,

@@ -20,6 +20,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { ViewSwitcher } from "~/shared/view-switcher";
 
 import {
   formatMeetingInstant,
@@ -139,44 +140,53 @@ export function MeetingsCollection({
       // palette, from a link, and from the empty state below — which is where a
       // create action actually earns its place, because an owner with no meetings
       // has nothing else on the screen to act on.
-    >
-      <div className="dh-collection-toolbar" aria-label="Meeting controls">
-        <nav className="dh-meetings-views" aria-label="Meeting views">
-          {VIEW_LINKS.map((item) => (
-            <Link
-              key={item.id}
-              to={item.href}
-              className="dh-segmented__option"
-              aria-current={view === item.id ? "true" : undefined}
+      //
+      // UIQ-013 — Meetings was the one collection rendering its controls into
+      // the CONTENT slot: the three scope views (its principal mode) as loose
+      // `.dh-segmented__option` links with no container, and search and sort
+      // beside them in a toolbar above the first card. The views are now the
+      // shared switcher in the header's view slot, and search/sort are ordinary
+      // filters in the shared filter row — the same two bands, in the same
+      // order, as every other collection.
+      viewSwitcher={
+        <ViewSwitcher
+          options={VIEW_LINKS.map((item) => ({
+            value: item.id,
+            label: item.label,
+            href: item.href,
+          }))}
+          value={view}
+          label="Meeting views"
+        />
+      }
+      filterBar={
+        <div className="dh-meetings-filters">
+          <label className="dh-field dh-meetings-search">
+            <span className="dh-field__label-text">Search</span>
+            <input
+              className="dh-input"
+              type="search"
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+            />
+          </label>
+          <label className="dh-field dh-meetings-sort">
+            <span className="dh-field__label-text">Sort</span>
+            <select
+              className="dh-input"
+              value={sort}
+              onChange={(event) => updateParam("sort", event.target.value)}
             >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <label className="dh-field dh-meetings-search">
-          <span className="dh-field__label-text">Search</span>
-          <input
-            className="dh-input"
-            type="search"
-            value={draftQuery}
-            onChange={(event) => setDraftQuery(event.target.value)}
-          />
-        </label>
-        <label className="dh-field dh-meetings-sort">
-          <span className="dh-field__label-text">Sort</span>
-          <select
-            className="dh-input"
-            value={sort}
-            onChange={(event) => updateParam("sort", event.target.value)}
-          >
-            {Object.entries(SORT_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+              {Object.entries(SORT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      }
+    >
       {failed ? (
         <EmptyState
           icon={<EntityIcon type="meeting" />}

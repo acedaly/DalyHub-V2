@@ -17,7 +17,7 @@ function renderTabs(mode: DiaryMode, url: string) {
     { initialEntries: [url] },
   );
   render(<RouterProvider router={router} />);
-  return screen.getByRole("group", { name: "Diary view" });
+  return screen.getByRole("group", { name: "Diary views" });
 }
 
 describe("Diary mode tabs", () => {

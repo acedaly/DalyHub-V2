@@ -103,6 +103,37 @@ const PROJECT_RELATION_COLUMNS = `
  * It is a CTE joined ONCE for the whole page rather than a per-Project lookup —
  * the same no-N+1 discipline the task counts already follow.
  */
+/*
+ * The PROJECT's OWN colour rank — ADR-068 decision 5's Area mechanism applied
+ * to a second entity rather than reinvented for one.
+ *
+ * Identical window, identical reasoning: ranked over EVERY `project` row in the
+ * workspace, deliberately WITHOUT the `deleted_at` / `archived_at` filters the
+ * outer query applies, so archiving or soft-deleting one Project never
+ * recolours the ones created after it — only a permanent delete shifts a rank,
+ * and that is already a typed-confirmation destructive act. `(created_at, id)`
+ * is the canonical total ordering (ADR-065 decision 3), already served by
+ * `entities_workspace_type_created_idx` on `(workspace_id, type, created_at,
+ * id)`, so this adds a CTE but no column, no migration and no index. 0-based,
+ * to match `areaAccentForRank`.
+ *
+ * It is what makes the colour PERSISTENT without persisting anything: the rank
+ * is a function of immutable creation facts, so it cannot move with the result
+ * order of the query that reads it, with a rename, with a re-sort or with a
+ * filter — which is exactly the failure mode a "pick a colour at render time"
+ * scheme has.
+ */
+const PROJECT_RANKS_CTE = `project_ranks AS (
+           SELECT id,
+                  ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
+                    AS colour_rank
+           FROM entities
+           WHERE workspace_id = ? AND type = '${PROJECT}'
+         )`;
+
+const PROJECT_RANK_JOIN = `
+  LEFT JOIN project_ranks pr ON pr.id = e.id`;
+
 const AREA_RANKS_CTE = `area_ranks AS (
            SELECT id,
                   ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
@@ -128,6 +159,7 @@ const AREA_RANK_JOIN = `
  */
 const PROJECT_LIST_COLUMNS = `
   ar.colour_rank AS area_colour_rank,
+  pr.colour_rank AS project_colour_rank,
   pd.icon_key AS icon_key`;
 
 /**
@@ -175,6 +207,7 @@ interface ProjectListRow extends ProjectBaseRow {
   readonly task_total: number | null;
   readonly task_completed: number | null;
   readonly area_colour_rank: number | null;
+  readonly project_colour_rank: number | null;
   readonly icon_key: string | null;
 }
 
@@ -198,7 +231,8 @@ export class D1ProjectRepository implements ProjectRepository {
     const result = await this.#run(
       this.#db
         .prepare(
-          `WITH ${AREA_RANKS_CTE}
+          `WITH ${PROJECT_RANKS_CTE},
+           ${AREA_RANKS_CTE}
            SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},${PROJECT_LIST_COLUMNS},
                   COALESCE(tc.total, 0) AS task_total,
                   COALESCE(tc.completed, 0) AS task_completed
@@ -206,7 +240,7 @@ export class D1ProjectRepository implements ProjectRepository {
            JOIN spine_records sr
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
            LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
-           ${PROJECT_RELATION_JOINS}${AREA_RANK_JOIN}
+           ${PROJECT_RELATION_JOINS}${AREA_RANK_JOIN}${PROJECT_RANK_JOIN}
            LEFT JOIN (
              SELECT tl.target_entity_id AS project_id,
                     COUNT(*) AS total,
@@ -234,7 +268,9 @@ export class D1ProjectRepository implements ProjectRepository {
            LIMIT ?`,
         )
         .bind(
-          // `area_ranks` is the first CTE, so its workspace binds first.
+          // The CTEs bind in source order: `project_ranks`, then `area_ranks`,
+          // then the outer query's own workspace predicate.
+          this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
@@ -321,7 +357,8 @@ export class D1ProjectRepository implements ProjectRepository {
     // (non-deleted) tasks linked by an active `task.belongs_to_project` link.
     const statement = this.#db
       .prepare(
-        `WITH ${AREA_RANKS_CTE}
+        `WITH ${PROJECT_RANKS_CTE},
+           ${AREA_RANKS_CTE}
          SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},${PROJECT_LIST_COLUMNS},
                 COALESCE(tc.total, 0) AS task_total,
                 COALESCE(tc.completed, 0) AS task_completed
@@ -329,7 +366,7 @@ export class D1ProjectRepository implements ProjectRepository {
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
-         ${PROJECT_RELATION_JOINS}${AREA_RANK_JOIN}
+         ${PROJECT_RELATION_JOINS}${AREA_RANK_JOIN}${PROJECT_RANK_JOIN}
          LEFT JOIN (
            SELECT tl.target_entity_id AS project_id,
                   COUNT(*) AS total,
@@ -349,7 +386,9 @@ export class D1ProjectRepository implements ProjectRepository {
          LIMIT ?`,
       )
       .bind(
-        // `area_ranks` is the first CTE, so its workspace binds first.
+        // The CTEs bind in source order: `project_ranks`, then `area_ranks`,
+        // then the outer query's own workspace predicate.
+        this.#workspaceId,
         this.#workspaceId,
         this.#workspaceId,
         this.#workspaceId,
@@ -438,6 +477,12 @@ export class D1ProjectRepository implements ProjectRepository {
         relations.area === null || row.area_colour_rank === null
           ? null
           : Number(row.area_colour_rank),
+      // The Project's own identity colour. `0` is a legitimate rank (the
+      // workspace's first Project), so the fallback is only for a row the join
+      // could not rank at all — which cannot happen for a projected Project,
+      // and would otherwise silently become the neutral container.
+      colourRank:
+        row.project_colour_rank === null ? 0 : Number(row.project_colour_rank),
       // Normalised on the way OUT, not only on the way in: a key removed from
       // the vocabulary in a later release, or restored from an older export,
       // must degrade to the Project's default icon rather than reach a

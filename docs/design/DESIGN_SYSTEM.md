@@ -778,6 +778,18 @@ The [Overflow menu](#overflow-menu) pattern is realised by ONE reusable, entity-
 - ✅ Keep a blocked action visible and disabled with a `description` explaining the precondition.
 - ❌ Build a second menu/popover; put a destructive action only in a Settings sub-tab; convey "destructive" with colour alone; hide an action the user is allowed to learn about.
 
+**Viewport placement (UIQ-021).** The panel is placed WITHIN the viewport, using the same philosophy the shared [Tooltip](#tooltip-m3-tip) already uses — measure the trigger's viewport rect, flip, clamp against a small edge margin — applied to a surface that has real height. It used to be `top: 100%` and nothing else, so a long menu (a Tasks row carries about twelve items ≈ 713px) opened low on the screen simply ran off the bottom and the page had to be scrolled to reach its last item.
+
+The decision is a pure function ([`menu-placement.ts`](../../app/shared/overflow-menu/menu-placement.ts), no React, no DOM — the `swipe-model` precedent), so it is unit-testable as plain numbers:
+
+1. prefer the ordinary below-trigger placement when the whole menu fits;
+2. flip above when the whole menu fits there instead;
+3. when neither side can contain it, take the larger side and CLAMP the height to it — the panel then scrolls its own items, rather than the page scrolling around it;
+4. keep an 8px margin from every viewport edge, and shift inline so a menu near the leading or trailing edge stays fully readable;
+5. never clamp below a usable height — on a very short viewport the margin yields instead, because a menu clamped to nothing is a menu nobody can use.
+
+`data-side` and the clamp are **presentation only**. Flipping and clamping change no keyboard semantics, no item order and no focus behaviour: a menu that opens upward is navigated exactly like one that opens down, Home/End still reach the ends, and the scroll container brings the focused item into view. There is no positioning dependency — the panel stays absolutely positioned against its trigger and only switches which edge it anchors to. The measurement re-runs on scroll and resize, because the menu is deliberately non-modal and the page behind it still moves.
+
 **Extension rules.** Add an affordance to the one shared menu (and document it here) only when a real record needs it. Never fork per module.
 
 ---
@@ -1205,7 +1217,65 @@ Pane: --md-app-color-surface-page. Grid: var(--app-shell-nav-width) 1fr.
 
 **Purpose.** The header that belongs to the current screen, not the frame.
 **Anatomy.** Page title (a real heading, configurable level) · optional subtitle/count · optional view-switcher slot · one primary-action slot. Optionally an entity-identity glyph beside the title.
-**Rules.** It **never** contains an email address or logout (those live in the User Menu). Exactly one primary action per pane. It pins (sticky) when hosted by a [Collection Layout](#collection-layout-px-02).
+**Rules.** It **never** contains an email address or logout (those live in the User Menu). Exactly one primary action per pane. It pins (sticky) when hosted by a [Collection Layout](#collection-layout-px-02). Its collection use is governed by the [collection-header anatomy](#the-collection-header-anatomy-uiq-013uiq-014) below.
+
+### The collection-header anatomy (UIQ-013/UIQ-014)
+
+**Purpose.** One shape for the top of every collection, so "where do I change the view, and where do I create one?" has the same answer on Tasks, Projects, Areas, Goals, Notes, People, Meetings, Assets, Reviews and Diary. The August 2026 audit found four different view-switcher presentations and a create action that moved between modules; this is the contract that replaced them.
+
+**Anatomy.** Two bands, rendered by [`CollectionLayout`](#collection-layout-px-02) and pinned together:
+
+```
+Collection title                   [ view switcher ]  [ secondary ]  [ PRIMARY ]
+count / supporting context
+───────────────────────────────────────────────────────────────────────────────
+filters (search · selects · tags · chips)
+```
+
+**Semantic ownership is the contract, not the pixels.** Which slot a control lives in is fixed product-wide and does not vary by module:
+
+| Slot | Holds | Never holds |
+| --- | --- | --- |
+| title / subtitle | the collection's name and its count or one line of context | a status the filters already state |
+| `viewSwitcher` | the ONE [view switcher](#the-view-switcher-uiq-013) — presentation, or principal mode | anything that narrows the record set |
+| `secondaryActions` | one or two supporting actions (Tasks' Review Inbox) | a third and fourth — that is what the overflow is for |
+| `primaryAction` | exactly one create, at the trailing end, on every collection | a promoted secondary action when a module has no create |
+| `filterBar` | search, selects, tags, the DS-07 bar, the MOBILE-01 controls | the principal-mode switch |
+
+**A module shows only what it needs.** Consistency here is placement and hierarchy, not content: Meetings and Tasks deliberately have no page-level create and pass nothing rather than filling the slot, and Areas has no view switcher because it has one view.
+
+**Responsive composition changes on purpose.** Above `md` the header is one row whose title block GROWS (`flex: 1 1 auto` with `min-inline-size: 0`) and whose controls do not — the fix for headers that wrapped while hundreds of pixels of laptop width sat unused. Below `md` it becomes a two-row grid rather than a wrapping flex row, because wrapping lets whatever happens to fit decide the composition:
+
+```
+Title / count                                                            [ New ]
+[ View | Switcher ]
+```
+
+The primary action stays on the first line beside the title at 320px. It is never moved into an overflow menu to save space — a create action nobody can find is worse than a tight header.
+
+### The view switcher (UIQ-013)
+
+**Purpose.** ONE control for "change what this collection shows", in [`app/shared/view-switcher`](../../app/shared/view-switcher), rendered into the header's `viewSwitcher` slot.
+
+**A VIEW is not a FILTER, and this is the distinction to apply:**
+
+- A **view** changes the PRESENTATION (`List | Board | Matrix`, `List | Gallery`) or the PRINCIPAL MODE — mutually-exclusive scopes of which exactly one is always active (`Active | Deleted`, `Open | Completed | Archived`, `Upcoming | Recent | Archived`). It belongs in the header's view slot.
+- A **filter** changes WHICH RECORDS are included, composes with its siblings, and can be off entirely (a search string, a Type select, a tag). It belongs in the filter row.
+
+The test is whether the control can be *unset*. "Which Area?" can be Any — a filter. "Which view?" cannot be none — a view. A bounded state toggle inside a record tab (a Project's Open/All tasks) stays a filter and keeps the thin [`SegmentedFilter`](../../app/shared/segmented-filter) wrapper, which renders the same control through the same implementation.
+
+**Anatomy.** M3 segmented buttons: one outlined container, fully-rounded ends, hairline dividers, `label-large`, a `secondary-container` selected segment carrying the M3 check glyph. Two option modes — URL-backed `Link`s marked with `aria-current` (deep-linkable, shareable, Back/Forward-correct, working with no JavaScript), or client-state `button`s marked with `aria-pressed` where the state deliberately does not live in the URL.
+
+**Rules.**
+- **Selection is a shape, not only a tone.** The check glyph rides beside the fill, so the selected view survives forced colours and a colour-blind reading.
+- **The check's box is RESERVED in every segment.** It used to be inserted only on the selected one, which moved every label in the control each time the view changed. Reserving costs one glyph width per segment and buys geometry that is identical whichever view is active.
+- **44px, on every pointer.** Three of the four retired presentations sat below it.
+- **The control SCROLLS, it never wraps.** A wrapped segmented control is a broken drawing — rounded ends land mid-row and the dividers stop lining up. Too little width scrolls horizontally inside the control's own box (the editor toolbar's answer to the same problem), so it can never produce page-level overflow at 320px either.
+- **Hover, focus and pressed are the ONE shared state layer.** `.dh-segmented__option` is a named host in `base.css`; the segment states only its selected container for itself.
+- **Icons are opt-in and decorative.** Use one only where it genuinely aids recognition (List/Gallery); an `iconOnly` switcher keeps a visually-hidden label as its accessible NAME and composes the shared [Tooltip](#tooltip-m3-tip) to describe it on hover *and* keyboard focus. On a selected icon-only segment the check REPLACES the icon in the same box, per M3 — so selection stays a shape and geometry still does not move.
+- **Keyboard is the native one.** Links and buttons behave exactly as they announce themselves; no roving model is invented for a control that does not need one.
+
+**Adopted by** Tasks (layout), Projects, Goals, Notes (lifecycle mode), People (scope + an icon-only List/Gallery), Meetings, Assets, Reviews (scope) and Diary (Day/Timeline). Areas has one view and therefore no switcher.
 
 ### User Menu (PX-02)
 
@@ -1232,6 +1302,23 @@ Pane: --md-app-color-surface-page. Grid: var(--app-shell-nav-width) 1fr.
 | Review | `event_repeat` | `--md-sys-color-entity-review` |
 
 **Rules.** Every accent has a light **and** dark value (parity + ≥3:1 contrast, both tested). Accents are used at **identity sites only** (icon, card edge, chip) — never as text colour ([PRODUCT_EXPERIENCE Part III §5](PRODUCT_EXPERIENCE.md)). Icons are decorative (`aria-hidden`); a text label always names the entity. Cards, Record Headers, the sidebar, empty states and (later) Search/Command Palette all consume this one map — never a hand-picked icon at a call site.
+
+**Identity colour, shared by Areas and Projects (#130).** Two layers again, and they are separate attributes: the entity type's own accent (the table above, one colour per TYPE) and a per-RECORD identity colour, for the entity types whose records are things you recognise individually.
+
+The per-record colour is a **stable rank**, never a stored colour and never a render-order index: a record's 0-based position in its workspace's `(created_at, id)` ordering over every row of its type, folded into the six shared `area-accent-*` tokens by `areaAccentForRank` and painted by [`AccentIcon`](#entity-card-and-its-grid-ds-14-gate-d). Areas established it (ADR-068 decision 5); Projects joined it rather than growing a parallel system.
+
+| Property | How the rank delivers it |
+| --- | --- |
+| **Assigned automatically** | A new record's rank falls out of its creation; nothing to choose, no default to repeat. |
+| **Neighbours differ** | Consecutively-created records take consecutive ranks, so they take adjacent, distinct ramp entries. |
+| **Persistent** | It is a function of immutable creation facts, so refresh, navigation, restart, deployment, rename, description edits, task changes, re-sorting and filtering cannot move it. |
+| **Lifecycle-independent** | Ranked over EVERY row, not the active set, so archiving or soft-deleting one record never recolours the ones created after it. Only a permanent delete shifts a rank, and that is already a typed-confirmation destructive act. |
+| **Existing records** | Deterministic from data that already exists — no migration, no backfill, no column, no index. |
+| **Icon and colour are independent** | The glyph is `iconKey`, the colour is the rank. Changing either never changes the other. |
+
+**A Project wears its OWN colour, not its Area's (#130).** It used to inherit the Area's rank, which made a grid group visually by Area — but it also meant several Projects in one Area were indistinguishable, and a Project with no Area got the neutral container, which is no identity at all. The Area is still named in the card's context line, which is where it was always legible as text rather than as a colour the owner had to learn. `areaColourRank` is still carried beside `colourRank`, because "which Area" and "which Project" are two different facts.
+
+**It is an accent, never a fill.** The colour lives in the 40px identity container behind the glyph. A card is never a large saturated tile, and the colour never carries meaning on its own — the record's name is always beside it.
 
 **Subtype icons (PX-05).** A module whose entity has meaningful *sub-kinds* registers one stable icon **per subtype** with the SHARED subtype-icon registry ([`app/shared/entity/subtype-icons.tsx`](../../app/shared/entity/subtype-icons.tsx)) — `registerSubtypeIcons(entityType, map)` at module load, `getSubtypeIcon(entityType, subtype)` or the `<SubtypeIcon>` component to resolve, with a safe fallback to the entity glyph. Diary entry types and Asset types are its two consumers; each previously kept a private map, which is how a Diary "meeting" **subtype** ended up wearing the Meeting **entity** glyph.
 

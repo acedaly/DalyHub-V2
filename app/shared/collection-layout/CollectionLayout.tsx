@@ -10,7 +10,19 @@
  *
  * Responsibilities (and ONLY these — no business logic, no repositories, no entity
  * assumptions):
- *   - a Pane Header (title, subtitle/count, view-switcher slot, one primary action);
+ *   - a Pane Header, in the ONE documented collection-header anatomy (UIQ-013):
+ *
+ *         Collection title                [ view switcher ]  [ 2nd ]  [ PRIMARY ]
+ *         count / supporting context
+ *         ────────────────────────────────────────────────────────────────────
+ *         filters (search · selects · chips)
+ *
+ *     Semantic ownership is fixed product-wide and does not vary by module: the
+ *     view switcher changes HOW records are shown or WHICH principal collection
+ *     is shown; the filter row changes WHICH RECORDS are included; the primary
+ *     action is the collection's one create, always in the same place. A module
+ *     that needs none of a slot passes nothing rather than filling it with
+ *     something else.
  *   - a FilterBar slot;
  *   - a content slot (a DS-04 Card collection);
  *   - a selection/bulk-action slot;
@@ -79,7 +91,18 @@ export type CollectionLayoutProps = {
   readonly headingLevel?: 1 | 2 | 3;
   readonly entityType?: EntityType;
   readonly subtitle?: ReactNode;
+  /**
+   * UIQ-013 — the ONE `~/shared/view-switcher` control, changing the
+   * collection's presentation or its principal mode. Never a data filter: a
+   * control that narrows which records are included belongs in `filterBar`.
+   */
   readonly viewSwitcher?: ReactNode;
+  /**
+   * Supporting actions beside the primary one (Tasks' Review Inbox). One or
+   * two at most; past that the shared overflow menu is the answer.
+   */
+  readonly secondaryActions?: ReactNode;
+  /** UIQ-014 — exactly one, in the same conceptual place on every collection. */
   readonly primaryAction?: ReactNode;
 
   /* -- Filter bar slot -- */
@@ -141,6 +164,7 @@ export function CollectionLayout({
   entityType,
   subtitle,
   viewSwitcher,
+  secondaryActions,
   primaryAction,
   filterBar,
   mobileControls,
@@ -195,6 +219,7 @@ export function CollectionLayout({
           entityType={entityType}
           subtitle={subtitle}
           viewSwitcher={viewSwitcher}
+          secondaryActions={secondaryActions}
           primaryAction={primaryAction}
         />
         {filterBar ? (

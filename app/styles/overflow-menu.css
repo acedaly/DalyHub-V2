@@ -46,19 +46,47 @@
   line-height: 1;
 }
 
+/*
+ * UIQ-021 — the panel is placed WITHIN the viewport.
+ *
+ * It used to be `top: 100%` and nothing else: a long menu (a Tasks row carries
+ * about twelve items ≈ 600px) opened low on the screen simply ran off the
+ * bottom, and the page had to be scrolled to reach its last item. The
+ * component measures the trigger and publishes `data-side`; when neither side
+ * can hold the whole menu it also sets an inline `max-height`, and the item
+ * list scrolls inside the panel rather than the page scrolling around it.
+ */
 .dh-overflow-menu__panel {
   position: absolute;
-  top: calc(100% + var(--app-space-1));
   z-index: var(--app-z-dropdown);
   display: flex;
   flex-direction: column;
   min-inline-size: 13rem;
   max-inline-size: min(20rem, calc(100vw - var(--app-space-6)));
   padding-block: var(--app-space-2);
+  /* The clamped panel scrolls its own items. `auto` rather than `scroll` so an
+   * unclamped menu grows no gutter it does not need. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--md-sys-color-surface-container-high);
   border: none;
   border-radius: var(--md-sys-shape-corner-extra-small);
   box-shadow: var(--md-sys-elevation-2);
+}
+
+/* The default, and what the panel paints in the frame before it is measured. */
+.dh-overflow-menu__panel[data-side="below"] {
+  top: calc(100% + var(--app-space-1));
+}
+
+.dh-overflow-menu__panel[data-side="above"] {
+  bottom: calc(100% + var(--app-space-1));
+}
+
+/* A clamped item never compresses: it keeps its 48px M3 height and the panel
+ * scrolls past it, so a long menu stays as readable as a short one. */
+.dh-overflow-menu__panel .dh-overflow-menu__item {
+  flex: none;
 }
 
 .dh-overflow-menu__panel[data-align="end"] {

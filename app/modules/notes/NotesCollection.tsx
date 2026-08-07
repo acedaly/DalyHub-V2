@@ -38,13 +38,18 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
+import { ViewSwitcher } from "~/shared/view-switcher";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NewNoteForm } from "./NewNoteForm";
-import { NotesFilterBar, hasActiveFilters } from "./NotesFilterBar";
+import {
+  NOTE_STATE_OPTIONS,
+  NotesFilterBar,
+  hasActiveFilters,
+} from "./NotesFilterBar";
 import type {
   NoteCollectionState,
   NoteFilterOption,
@@ -380,6 +385,17 @@ function NotesCollection({
       title="Notes"
       subtitle={subtitle}
       entityType="note"
+      // UIQ-013 — Active / Archived / Deleted is Notes' principal mode, in the
+      // shared header view slot; the search, tag, Project, Area, link-state and
+      // ordering controls stay filters, in the band beneath.
+      viewSwitcher={
+        <ViewSwitcher
+          param="state"
+          options={NOTE_STATE_OPTIONS}
+          value={state}
+          label="Note views"
+        />
+      }
       filterBar={
         <NotesFilterBar
           state={state}
