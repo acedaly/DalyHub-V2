@@ -4,8 +4,8 @@
  * A focused, shared-primitive composition (NOT a new form framework) shown in the
  * DS-02 Record Layout Summary, beside completion and waiting. It presents the
  * task's plan — its Scheduled (committed) date and its Due date, kept clearly
- * distinct — and offers calm quick actions to plan the task: Today, Tomorrow and
- * Next week.
+ * distinct — and offers calm quick actions to plan the task: Today, Tomorrow,
+ * Next week and Clear.
  *
  * The control owns only local pending/error state; persistence goes through the
  * callbacks the Drawer supplies (which post `plan`/`clear_plan` to the trusted task
@@ -21,11 +21,21 @@
  * clear at rest, direct to change, clearable, and keyboard-operable through the
  * same anchored popover every other date in the product uses.
  *
- * The quick actions stay, because "Today / Tomorrow / Next week" is faster than
- * any date picker for the plan a task most often gets. The "Custom date…"
- * disclosure and its own Clear do NOT: the Scheduled value is now the picker and
- * carries its own Clear, so keeping them would be a second control for the
- * direct manipulation the value already offers (§7).
+ * ── What the de-duplication does and does NOT remove ────────────────────────
+ * "Custom date…" is gone. It was a disclosure that opened a SECOND date picker
+ * for a value that is now itself a date picker — the textbook duplicate §7 asks
+ * us to remove once direct manipulation lands.
+ *
+ * **Clear stays.** An earlier revision of this change removed it too, on the
+ * grounds that the inline field's popover carries its own Clear. That reasoning
+ * was wrong, and `command-palette.spec.ts` caught it. The quick actions are one
+ * family — Today / Tomorrow / Next week / Clear are four one-press answers to
+ * "what is the plan?", and Clear is the "no plan" member of that set, not a
+ * duplicate of the picker. Removing it turned a routine one-press action into
+ * open-popover-then-press, which is exactly the "do not make routine task
+ * editing slower" rule (§13) that Tasks are singled out for. The popover's Clear
+ * serves the arbitrary-date path; this one serves the fast path. They are the
+ * same relationship "Today" already has with the picker.
  */
 
 import { useMemo, useState } from "react";
@@ -184,6 +194,19 @@ export function TaskPlanningSection({
             >
               Next week
             </FormButton>
+            {/* The "no plan" member of the quick-action family. Shown only when
+                there IS a plan to clear, exactly as the inline field's own Clear
+                command is. */}
+            {scheduledDate !== null ? (
+              <FormButton
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => void run(() => onClear())}
+              >
+                Clear
+              </FormButton>
+            ) : null}
           </div>
 
           {error ? (

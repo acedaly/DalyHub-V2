@@ -106,7 +106,18 @@ describe("TaskPlanningSection", () => {
     await waitFor(() => expect(onPlan).toHaveBeenCalledWith(expected));
   });
 
-  it("clears the plan from the value's own Clear command", async () => {
+  it("clears the plan from the quick action — one press, as before", async () => {
+    const { onClear } = setup({ scheduledDate: "2026-07-21" });
+    // EDIT-02 removed "Custom date…" (a second date picker) but NOT Clear:
+    // Today / Tomorrow / Next week / Clear are one family of one-press answers
+    // to "what is the plan?", and routine task editing must not get slower
+    // (§13). An earlier revision removed it and command-palette.spec.ts caught
+    // the regression.
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
+  });
+
+  it("also clears from the value's own Clear command, for the picker path", async () => {
     const { onClear } = setup({ scheduledDate: "2026-07-21" });
     fireEvent.click(screen.getByRole("button", { name: /^Scheduled date: / }));
     fireEvent.click(
@@ -117,8 +128,13 @@ describe("TaskPlanningSection", () => {
     await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
   });
 
-  it("offers no Clear when the task is unplanned", () => {
+  it("offers no Clear at all when the task is unplanned", () => {
     setup();
+    // Neither the quick action…
+    expect(
+      screen.queryByRole("button", { name: "Clear" }),
+    ).not.toBeInTheDocument();
+    // …nor the picker's command, because there is nothing to clear.
     fireEvent.click(screen.getByRole("button", { name: /^Scheduled date: / }));
     expect(
       within(
