@@ -21,14 +21,13 @@ no version number to group them under.
 
 ### Fixed — the Capture button stops sitting on top of things
 
-- **It no longer covers what you were about to click.** The round **+** button
-  in the bottom-right corner used to land on whatever the page happened to put
-  there — on Settings it sat over a third of the "Default task destination"
-  box, so you simply could not click that part of it. Pages now keep that corner
-  clear, so nothing ever ends up underneath the button, wherever you have
-  scrolled to.
-- **Tabbing to a control near the bottom of a page scrolls it clear**, instead of
-  parking it under the button where you could not see what you had just focused.
+- **Nothing gets stuck underneath it any more.** The round **+** button in the
+  bottom-right corner floats above the page, and the last thing on a page — the
+  last card, the last row, the last control — used to end up trapped beneath it
+  with nowhere further to scroll. Every page now keeps that much room at its end,
+  so you can always reach the bottom of what you are looking at. The button still
+  floats over things as you scroll past, which is what a floating button does;
+  what it no longer does is put something out of reach.
 - **On a phone there is now one Capture, not two.** The floating **+** and the
   bottom bar's **Capture** did exactly the same thing, in the same corner, a
   thumb's width apart. The bar's Capture is the one that stays — it is labelled,

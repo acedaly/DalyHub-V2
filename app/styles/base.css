@@ -40,9 +40,9 @@ body {
  * travels, so a 104px band pushed content that much further up — under the
  * sticky top app bar, close enough to its Search control that axe's
  * `target-size` rule failed a Goal record's breadcrumb link on the spacing
- * between them. The button's corner is reserved where it belongs, by the pane
- * (`--app-fab-inline-band` in `shell.css`): content never enters its column, so
- * nothing scrolled to the end of a page can land underneath it. */
+ * between them. What the button DOES get is the end band the pane reserves
+ * (`--app-fab-band` in `shell.css`), which is the M3 contract for a FAB: nothing
+ * is trapped beneath it, because the end of every page clears it. */
 html {
   scroll-padding-block-end: calc(
     var(--app-bottomnav-height, 0px) + var(--app-space-2)

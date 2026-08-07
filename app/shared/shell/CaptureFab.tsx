@@ -28,9 +28,11 @@
  * height (`--app-bottomnav-height`) and above the home indicator
  * (`env(safe-area-inset-bottom)`). It moves out of the way with the navigation
  * bar while the on-screen keyboard is up, for the same reason the bar does. The
- * space it occupies is published as `--app-fab-band` / `--app-fab-inline-band`
- * and reserved by the content pane in BOTH axes, so content never enters the
- * button's column and nothing can sit underneath it.
+ * space it occupies is published as `--app-fab-band` and reserved at the END of
+ * every scroll container, so nothing is ever TRAPPED beneath it — it may float
+ * over content while scrolling, as a floating action button does, but the end of
+ * a page always clears. `shell.css` records the inline reservation that was
+ * tried instead and why it was reverted.
  *
  * Accessibility: an icon-only control, so it carries an explicit `aria-label`
  * and meets the 56px target the specification sets — comfortably above WCAG

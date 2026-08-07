@@ -31,7 +31,7 @@ answers the class correctly, using the product's own bands, would be circular.
 
 | # | Finding | Kind | Severity | Status |
 |---|---|---|---|---|
-| 1 | The floating action button covers content and form controls | defect | **High** | **Closed** — PR #126 |
+| 1 | The floating action button covers content and form controls | defect | **High** | **Closed** — PR #126 (narrowed; see the resolution) |
 | 2 | Icon-only controls rely on `title` for their tooltip — 91 instances, none keyboard-reachable | gap | **High** | **Closed for the agreed adoption set** — PR #126 |
 | 3 | The state layer is documented as one shared class and implemented ~5× by hand | divergence | Medium | Open |
 | 4 | No navigation rail: the medium window class gets the phone layout | gap | Medium | Open — needs its own ADR |
@@ -80,44 +80,63 @@ padding, or the FAB is scoped to the surfaces that want one.
 the FAB and the bottom bar both say "Capture", in the same corner. The audit
 confirms that entry and adds the overlap, which is the more serious half.
 
-> **Resolution — PR #126 (CAPTURE-02). Closed.**
+> **Resolution — PR #126 (CAPTURE-02). Closed, and narrower than first written.**
 >
-> Two changes, both at the shell rather than in a module.
+> **The phone loses the button entirely.** Below `md` the bottom bar's Capture
+> slot is the single global affordance and `.dh-fab` is `display: none`. That
+> closes the DEBT-96 half outright, and it also closes this finding's *second*
+> piece of evidence — the medium-700 frame where the button overlapped the
+> "My day" card — because at that width there is now no button.
 >
-> **The corner is reserved, in both axes.** `--app-fab-band` (block) already
-> existed and was already consumed by `.dh-pane`; on its own it only cleared the
-> *end* of a page, which is why the Settings combobox — nowhere near the end —
-> was still under the button. It is now joined by `--app-fab-inline-band`, and
-> the pane reserves both: `padding-inline-end: max(0px, var(--app-fab-inline-band)
-> - var(--app-page-padding))`, so a page's own gutter counts towards the
-> reservation and no surface ends up with two stacked. Both tokens collapse at
-> phone widths, where there is no button.
+> **Nothing is ever trapped under the button.** `.dh-pane` reserves
+> `--app-fab-band` at the END of its scroll, so the last card, task row or
+> control on any page clears it, and a page that does not scroll at all never
+> puts one under it.
 >
-> The keyboard case falls out of the same reservation rather than needing its
-> own rule: content never enters the button's column, so nothing reached by
-> `scrollIntoView` or by Tab can land underneath it. An earlier draft *did* add
-> the band to `html { scroll-padding-block-end }`, and that was wrong twice
-> over — the button is a corner, not a full-width band, and reserving 104px at
-> the bottom made every `scrollIntoView` travel that much further, pushing
-> content up under the sticky top app bar until axe's `target-size` rule failed
-> a Goal record's breadcrumb link on its spacing to the bar's Search control.
-> The navigation bar keeps that scroll-padding, because a band IS its shape.
+> **What was tried and reverted, twice.** The stronger reading — "no control
+> under the button at ANY scroll offset" — was implemented and then given up,
+> because both ways of buying it cost more than the defect did.
 >
-> **The phone loses the button entirely** — see the DEBT-96 half below.
+> *An inline reservation on the pane* (`padding-inline-end`) worked: content
+> stopped short of the button's column and nothing was ever underneath it. It was
+> reverted because the bill landed on the entity galleries. Measured across
+> 769/800/900/1024/1440px:
+>
+> | window | Areas/Projects/Goals | grid track | Projects page height |
+> |---|---|---|---|
+> | 900px | 1 column, was **2** | 540 → 296 | 7169px, was 4956 (+45%) |
+> | 1440px | 3 columns, was **4** | 344 → 269 | 3378px, was 3068 |
+>
+> At 900px the second column is lost by **eight pixels** of `minmax()` boundary.
+> There is no reservation small enough to be safe at every width, and making the
+> shared gallery narrower to make room for the shell's button is the card system
+> paying for the chrome. It also lands hardest at 840–1199dp — the window class
+> findings 4 and 5 below already call starved by the 240px drawer.
+>
+> *Folding the band into `html { scroll-padding-block-end }`* was worse: a corner
+> reserved as a full-width band changes how far every `scrollIntoView` travels,
+> so each scroll overshot by 104px and pushed content up under the sticky top app
+> bar — until axe's `target-size` rule failed a Goal record's breadcrumb link on
+> its spacing to that bar's Search control. The navigation bar keeps its
+> scroll-padding, because a band IS the bar's shape.
+>
+> **So the closed claim is the M3 one, stated exactly.** A floating action button
+> may float over content while scrolling; what it must never do is trap it. The
+> Settings combobox in this finding's own screenshot is still floated over where
+> the page opens, and it can be scrolled clear — which is asserted, along with
+> the fact that it is still on screen once cleared, so "scroll it clear" is a
+> real remedy and not a technicality.
 >
 > **Evidence.** [`e2e/global-capture.spec.ts`](../../e2e/global-capture.spec.ts)
 > measures rectangles rather than comparing screenshots: at 900px and 1400px, on
-> Settings (both the General and AI sections), Today, Tasks, Projects and Notes,
-> no interactive element's rect intersects the button's — at rest *and* scrolled
-> to the end of the document — with no horizontal overflow introduced. The
-> keyboard case is asserted directly against the combobox this finding names.
+> Settings (General and AI), Today, Tasks, Projects and Notes, no interactive
+> element's rect intersects the button's once the document is scrolled to its
+> end, in light and in dark, with no horizontal overflow; a page that does not
+> scroll must be clear where it opens. Three further tests pin the reversal
+> itself — `.dh-pane` must carry no inline padding, and the galleries must still
+> get 2/2/4 columns at 900/1024/1440px — so the trade cannot be quietly undone.
 > The bulk-selection suppression rule that PR #121 added is re-sited to a width
 > where the button exists and still holds.
->
-> **What it cost.** Roughly 64px of trailing gutter on a desktop page (96px of
-> reservation, less the 32px the page already padded). That is the price of the
-> guarantee being absolute rather than "unless you scroll to the wrong place",
-> and it was measured before it was accepted.
 
 ## 2 — `title` is the only tooltip mechanism · **gap, high**
 

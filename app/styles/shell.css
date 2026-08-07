@@ -674,34 +674,45 @@
 }
 
 /*
- * CAPTURE-02 — the pane reserves the CORNER the floating action button occupies,
- * in both axes. This is the shell-level answer to the August 2026 interaction
- * audit's finding 1, and it is stated once here rather than as bottom padding
- * sprinkled through the modules that happened to notice the problem.
+ * CAPTURE-02 — every page reserves the band the floating action button occupies
+ * at the END of its scroll, so the last card, the last task row or the last
+ * paragraph is never TRAPPED underneath it. Stated once here rather than as
+ * bottom padding sprinkled through the modules that happened to notice.
  *
- * The BLOCK reservation (which shipped with M3-01) keeps the last card, the last
- * task row or the last paragraph from being trapped under the button. On its own
- * it was not enough, and the audit's own screenshot says why: on Settings the
- * button sat on top of the "Default task destination" combobox, which is nowhere
- * near the end of the page. Bottom padding cannot reach content that is not at
- * the bottom.
+ * `--app-fab-band` describes exactly that space — the phone navigation bar, the
+ * button's inset, its height and a gap — and collapses to the bar alone at phone
+ * widths, where there is no floating button at all.
  *
- * The INLINE reservation is what closes that. Content stops short of the
- * button's column, so a control can no longer arrive underneath it at ANY scroll
- * position — the pane, not the page, owns the gap. The page's own gutter counts
- * towards it (`max(0px, …)`), so a surface that already pads generously pays
- * nothing extra and no page ends up with two gutters stacked.
+ * ── Why there is no INLINE reservation, having tried one ─────────────────────
+ * The obvious extension is to reserve the button's COLUMN as well, so nothing
+ * can arrive underneath it at any scroll position rather than only at the end.
+ * That was implemented and then removed, because it is paid for by the content
+ * and the bill is a whole gallery column:
  *
- * Both collapse at phone widths, where there is no floating button: the bottom
- * navigation bar's Capture slot is the single global affordance there, and the
- * band token then describes the bar alone.
+ *   | window | Areas/Projects/Goals | grid track | Projects page height |
+ *   |--------|----------------------|------------|----------------------|
+ *   | 900px  | 1 column, was 2      | 540 → 296  | 7169px, was 4956     |
+ *   | 1440px | 3 columns, was 4     | 344 → 269  | 3378px, was 3068     |
+ *
+ * At 900px the second column is lost by EIGHT pixels: the grid is
+ * `repeat(auto-fill, minmax(min(--app-entity-card-min-width, 100%), 1fr))`, so
+ * any width taken from the pane eventually crosses a `minmax()` boundary and
+ * drops a track. There is no reservation small enough to be safe at every width,
+ * and a shell rule that makes the galleries narrower to make room for a button
+ * is the shared card/grid geometry paying for the shell — the opposite of the
+ * direction DS-14 Gate D set. It also lands hardest at 840–1199dp, which is
+ * exactly the window class the August 2026 audit's findings 4 and 5 say is
+ * already starved by the 240px drawer.
+ *
+ * So the button keeps M3's own contract and no more: it may float OVER content
+ * while scrolling, as a floating action button does in every application that
+ * has one, and nothing is ever trapped beneath it — the end of the page always
+ * clears, and at phone widths the button does not exist. `global-capture.spec.ts`
+ * asserts both halves, and asserts this pane keeps its full inline measure so
+ * the trade cannot be silently reversed.
  */
 .dh-pane {
   padding-block-end: var(--app-fab-band);
-  padding-inline-end: max(
-    0px,
-    var(--app-fab-inline-band) - var(--app-page-padding)
-  );
 }
 
 /* A padded body for document-shaped pages (home, placeholders, Settings). */
@@ -1199,9 +1210,9 @@
  * keyboard. All three are already-published tokens, so nothing here measures
  * anything.
  *
- * `--app-fab-band` / `--app-fab-inline-band` (tokens.css) describe the space
- * this button spoke for, and are consumed by the two surfaces that must reason
- * about it: the pane's reserved corner (above), and the notification region,
+ * `--app-fab-band` (tokens.css) describes the space this button spoke for at the
+ * bottom of the window, and is consumed by the two surfaces that must reason
+ * about it: the pane's reserved end band (above), and the notification region,
  * which stacks ABOVE the FAB rather than over it (`feedback.css`). Deliberately
  * NOT the document's `scroll-padding` — see the note in `base.css` for why a
  * corner must not be reserved as a full-width band. Two fixed controls in one corner is not a stacking-order
@@ -1308,18 +1319,16 @@
    * `scrollIntoView` and keyboard focus never park an element beneath the bar.
    * Everything under `:root` — `.dh-app` included — still inherits it unchanged.
    *
-   * CAPTURE-02 — the two FAB bands are re-stated here for the same reason. There
-   * is no floating action button at these widths, so the space it would have
-   * spoken for is not reserved: the bottom bar is the only thing anchored to the
-   * window, and the pane reclaims the whole inline measure. Every consumer of
-   * these tokens (the pane, the notification region) therefore gets the phone
+   * CAPTURE-02 — the FAB band is re-stated here for the same reason. There is no
+   * floating action button at these widths, so the space it would have spoken
+   * for is not reserved and the band describes the bar alone. Every consumer of
+   * the token (the pane, the notification region) therefore gets the phone
    * answer without knowing anything about breakpoints. */
   :root {
     --app-bottomnav-height: calc(
       var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)
     );
     --app-fab-band: var(--app-bottomnav-height);
-    --app-fab-inline-band: 0px;
   }
 
   .dh-app {

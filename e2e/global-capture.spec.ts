@@ -7,13 +7,16 @@
  * the regression net for both:
  *
  *   1. **The floating button covered content** (finding 1, high). It is
- *      `position: fixed` in the bottom-right corner, and any page whose content
- *      reached that corner put a control underneath it — on Settings, a combobox
- *      a pointer user could not fully click. The fix is a shell-level corner
- *      reservation (`--app-fab-band` / `--app-fab-inline-band`, consumed by
- *      `.dh-pane`), so the assertions below are geometric: no interactive
- *      element's rectangle may intersect the button's, on any representative
- *      page, at any scroll position.
+ *      `position: fixed` in the bottom-right corner, and content that reached
+ *      that corner ended up underneath it. The contract this file pins is that
+ *      nothing is ever TRAPPED there: `.dh-pane` reserves `--app-fab-band` at
+ *      the end of its scroll, so the last interactive control on any page clears
+ *      the button, and a page that does not scroll at all never puts one under
+ *      it. A fixed button may still float OVER content mid-scroll — that is what
+ *      floating means, and M3 says so. Reserving the button's COLUMN as well was
+ *      implemented and reverted: it cost the entity galleries a whole grid track
+ *      (2→1 columns at 900px, 4→3 at 1440px), which is the shared card geometry
+ *      paying for the shell. The last test in this file pins that reversal.
  *   2. **A phone had the same global action twice** (DEBT-96) — the floating
  *      button and the bottom bar's Capture slot, in the same corner. The bar
  *      wins at those widths and the button is not rendered at all.
@@ -231,29 +234,37 @@ test.describe("larger windows — the floating button stays, and covers nothing"
 
   for (const viewport of [EXPANDED, LARGE]) {
     for (const path of SURFACES) {
-      test(`at ${viewport.width}px the button covers no control on ${path}`, async ({
+      test(`at ${viewport.width}px nothing is trapped under the button on ${path}`, async ({
         page,
       }) => {
         await page.setViewportSize(viewport);
         await gotoFixture(page, path);
         await expect(fab(page)).toBeVisible();
 
-        // At rest, where the page opens.
-        expect(await overlappedControls(page)).toEqual([]);
-
-        // ...and at the very end of the content, where the LAST interactive
-        // control of the page lives. This is the half the bottom band buys, and
-        // the half a short, barely-scrollable page (Settings) used to fail.
+        // Scrolled to the very end of the document, where the LAST interactive
+        // control of the page lives. This is the case the reserved band buys and
+        // the one that actually traps a user: a control they cannot reach by
+        // scrolling, because there is no further to scroll.
         await scrollToEnd(page);
         expect(await overlappedControls(page)).toEqual([]);
 
-        // Reserving the corner must not have bought it with a sideways scroll.
+        // A page that does not scroll at all has no "scroll it clear" escape
+        // hatch, so it must be clear where it opens.
+        const scrollable = await page.evaluate(
+          () =>
+            document.documentElement.scrollHeight >
+            document.documentElement.clientHeight + 1,
+        );
+        if (!scrollable) {
+          expect(await overlappedControls(page)).toEqual([]);
+        }
+
         await expectNoHorizontalOverflow(page);
       });
     }
   }
 
-  test("covers nothing in the DARK appearance either", async ({ page }) => {
+  test("traps nothing in the DARK appearance either", async ({ page }) => {
     // The reservation is layout, not colour, so this is a cheap proof that the
     // fix is not accidentally appearance-specific — and it exercises the same
     // page the audit's own screenshot came from.
@@ -261,37 +272,88 @@ test.describe("larger windows — the floating button stays, and covers nothing"
     await page.setViewportSize(LARGE);
     await gotoFixture(page, "/settings");
     await expect(fab(page)).toBeVisible();
-    expect(await overlappedControls(page)).toEqual([]);
     await scrollToEnd(page);
     expect(await overlappedControls(page)).toEqual([]);
     await expectNoHorizontalOverflow(page);
     await page.emulateMedia({ colorScheme: null });
   });
 
-  test("keyboard focus never parks a control underneath the button", async ({
+  test("a control the button floats over can always be scrolled clear", async ({
     page,
   }) => {
-    // The keyboard case falls out of the INLINE reservation rather than needing
-    // a rule of its own: content never enters the button's column, so a control
-    // reached by Tab or by `scrollIntoView` cannot land underneath it wherever
-    // the scroller stops. That matters because a pointer user can work around
-    // an overlap by scrolling and a keyboard user cannot.
-    //
-    // It is asserted here rather than assumed because the first attempt at it
-    // used `scroll-padding-block-end`, which reserves a full-width band for a
-    // control that occupies a corner — over-reserving, and making every
-    // `scrollIntoView` overshoot by 104px into the sticky top app bar.
+    // The Settings combobox in the audit's own screenshot. A fixed button floats
+    // over it where the page opens; what must be true is that the owner can get
+    // it out from under the button, and that the page HAS somewhere to scroll to
+    // do it. "Reachable by scrolling" is the honest contract for a floating
+    // control — "never overlapped at any offset" was the stronger one, and it
+    // cost the galleries a column to buy.
     await page.setViewportSize(LARGE);
     await gotoFixture(page, "/settings");
 
     const combobox = page.getByRole("combobox", {
       name: "Default task destination",
     });
-    await combobox.scrollIntoViewIfNeeded();
-    await combobox.focus();
-    await page.waitForTimeout(150);
+    await expect(combobox).toBeVisible();
+
+    await scrollToEnd(page);
     expect(await overlappedControls(page)).toEqual([]);
+    // ...and it is still on screen down there, rather than having been scrolled
+    // past — so "scroll it clear" is a real remedy and not a technicality.
+    await expect(combobox).toBeInViewport();
   });
+
+  /**
+   * The FAB never buys its clearance from the content's width.
+   *
+   * An earlier draft reserved the button's COLUMN on `.dh-pane` as well as its
+   * end band. It worked — nothing was under the button at any scroll offset —
+   * and it was reverted, because the bill landed on the entity galleries: at
+   * 900px Areas/Projects/Goals dropped from two columns to one (by EIGHT pixels
+   * of `minmax()` boundary) and at 1440px from four to three, making a Projects
+   * page 45% longer to scroll. That is the shared card/grid geometry paying for
+   * the shell, and it lands hardest on the window class the audit's findings 4
+   * and 5 already call starved.
+   *
+   * This asserts the reversal directly, at the widths where it cost the most, so
+   * nobody re-introduces it without meeting this test.
+   */
+  /** The gallery column count each window earns from its own measure. */
+  const GALLERY_COLUMNS: Readonly<Record<number, number>> = {
+    900: 2,
+    1024: 2,
+    1440: 4,
+  };
+
+  for (const width of [900, 1024, 1440]) {
+    test(`at ${width}px the button takes no inline width from the pane`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await gotoFixture(page, "/projects");
+      await expect(fab(page)).toBeVisible();
+
+      const pane = await page.evaluate(() => {
+        const node = document.querySelector(".dh-pane") as HTMLElement;
+        const style = getComputedStyle(node);
+        return {
+          inlineEnd: Math.round(parseFloat(style.paddingInlineEnd)),
+          inlineStart: Math.round(parseFloat(style.paddingInlineStart)),
+        };
+      });
+      expect(pane.inlineEnd).toBe(0);
+      expect(pane.inlineStart).toBe(0);
+
+      // ...and the gallery still gets every column its own measure affords.
+      const columns = await page.evaluate(() => {
+        const grid = document.querySelector(".dh-ecard-grid");
+        if (!grid) return null;
+        return getComputedStyle(grid)
+          .gridTemplateColumns.split(" ")
+          .filter(Boolean).length;
+      });
+      expect(columns).toBe(GALLERY_COLUMNS[width]);
+    });
+  }
 
   test("steps aside while a bulk selection is live, and comes back after", async ({
     page,
