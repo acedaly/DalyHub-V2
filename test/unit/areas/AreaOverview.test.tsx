@@ -126,7 +126,15 @@ describe("AreaOverview", () => {
     renderRecord();
     expect(screen.getByRole("heading", { name: "Career" })).toBeInTheDocument();
     expect(screen.getAllByText("Permanent").length).toBeGreaterThan(0);
-    expect(screen.getByText(/25% — 1 of 4 tasks complete/)).toBeInTheDocument();
+    /*
+     * RECORD-01 — the roll-up is the shared meter in the compact summary band.
+     * The percentage reaches assistive tech through the progressbar; the counts
+     * stay visible as text, so nothing depends on seeing the bar. The band
+     * replaced a sentence that stated the percentage and the counts inline.
+     */
+    const meter = screen.getByRole("progressbar", { name: "Tasks" });
+    expect(meter).toHaveAttribute("aria-valuenow", "25");
+    expect(screen.getByText("1 of 4 tasks complete")).toBeInTheDocument();
     expect(screen.getByText("Momentum visible")).toBeInTheDocument();
     expect(
       screen.getByText("1 active project contributing momentum."),
@@ -186,9 +194,20 @@ describe("AreaOverview", () => {
       goalsNextCursor: "g-next",
       projectsNextCursor: "p-next",
     });
-    expect(screen.getByText("No Goals in this Area")).toBeInTheDocument();
+    /*
+     * RECORD-01 — a record-level empty state is ONE calm line. The Goals tab's
+     * "New Goal" action now renders unconditionally in the tab toolbar, so the
+     * empty state no longer carries a duplicate copy of it and no longer needs
+     * a headline, an icon and a sentence to teach an action already on screen.
+     */
+    expect(screen.getByText("No Goals in this Area yet.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "New Goal" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
-    expect(screen.getByText("No Projects in this Area")).toBeInTheDocument();
+    expect(
+      screen.getByText("No Projects in this Area yet."),
+    ).toBeInTheDocument();
   });
 
   it("renames from the heading itself and exposes the Activity tab", async () => {

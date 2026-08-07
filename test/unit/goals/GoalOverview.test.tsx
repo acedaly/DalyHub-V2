@@ -314,15 +314,28 @@ describe("GoalOverview", () => {
     await waitFor(() => expect(onSetTargetDate).toHaveBeenCalledWith(null));
   });
 
-  it("shows a set, upcoming target date (in both the header and the summary)", () => {
+  /*
+   * RECORD-01 — the target date is stated ONCE, in the header's context line,
+   * and the thing shown IS the editable control. It used to render twice: as
+   * read-only text in the header metadata and again as the inline date field in
+   * the summary list, which is the metadata duplication this convergence
+   * removed.
+   */
+  it("shows a set, upcoming target date exactly once, as the editable control", () => {
     renderGoal({ details: details({ targetDate: "2026-08-01" }) });
-    expect(screen.getAllByText(/1 Aug 2026/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 Aug 2026/)).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: /^Target date: / }),
+    ).toBeInTheDocument();
   });
 
   it("shows an overdue target date with text, not colour alone", () => {
     renderGoal({ details: details({ targetDate: "2026-07-01" }) });
-    const overdueMentions = screen.getAllByText(/1 Jul 2026.*overdue/);
-    expect(overdueMentions.length).toBeGreaterThan(0);
+    // The date and the word are separate elements (the date is inside the
+    // editable control), so assert the CONTEXT LINE reads as both together.
+    const context = screen.getByRole("list", { name: "Record context" });
+    expect(context).toHaveTextContent(/1 Jul 2026/);
+    expect(context).toHaveTextContent(/overdue/);
   });
 
   it("shows the honest 'no Projects' empty state on the Projects tab", () => {

@@ -306,7 +306,7 @@ export function ProjectTasksTab({
   return (
     <div className="dh-project-tasks">
       <h2 className="dh-visually-hidden">Tasks</h2>
-      <div className="dh-project-tasks__toolbar">
+      <div className="dh-record-toolbar">
         <SegmentedFilter
           param="tasks"
           options={TASK_STATE_OPTIONS}

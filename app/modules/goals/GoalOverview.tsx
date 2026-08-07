@@ -43,7 +43,9 @@ import {
   type InlineSaveOutcome,
 } from "~/shared/inline-edit";
 import {
+  RecordDetails,
   RecordLayout,
+  recordTimestampItems,
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
@@ -99,10 +101,6 @@ interface GoalOverviewProps {
   readonly onTabChange?: (tabId: string) => void;
 }
 
-function dateLabel(iso: string): string | null {
-  return formatCalendarDate(iso.slice(0, 10));
-}
-
 export function GoalOverview({
   overview,
   details,
@@ -129,59 +127,64 @@ export function GoalOverview({
 }: GoalOverviewProps) {
   const completed = isGoalComplete(overview);
   const state = goalStateLabel(overview);
-  const created = dateLabel(overview.createdAt);
-  const updated = dateLabel(overview.updatedAt);
   const target = targetDatePresentation(details.targetDate, todayIso);
   const progress = goalContributionProgress(contribution);
   const alignmentHeadingId = useId();
 
-  const headerMetadata: RecordMetaItem[] = [];
-  if (target.state !== "unset") {
-    headerMetadata.push({
+  /*
+   * RECORD-01 — the target date is stated ONCE, in the context line, and it is
+   * the EDITABLE control rather than a read-only echo of it.
+   *
+   * It used to appear twice: as read-only text in the header metadata AND as
+   * the inline date field in the summary's key/value list. Two renderings of
+   * one fact, only one of which could be changed, is the metadata duplication
+   * this convergence removes — and a Goal's target date is precisely the kind
+   * of current-state fact the context line exists for.
+   *
+   * DS-16 — the value IS the control. An unset target renders the shell's quiet
+   * invitation rather than the sentence "No target date set", because a
+   * sentence cannot also be the thing you press to set one. Overdue stays a
+   * WORD beside the date, never a colour alone (AGENTS.md §15).
+   */
+  const contextItems: RecordMetaItem[] = [
+    {
       id: "target",
       label: "Target date",
-      value:
-        target.state === "overdue"
-          ? `${target.formatted} (overdue)`
-          : (target.formatted ?? ""),
-    });
-  }
+      value: (
+        <span className="dh-goal-overview__target">
+          <InlineDateField
+            label="Target date"
+            value={details.targetDate}
+            onSave={onSetTargetDate}
+            format={(iso) => formatCalendarDate(iso) ?? iso}
+            emptyLabel="Add a target date"
+            data-testid="goal-target-date-edit"
+          />
+          {target.state === "overdue" ? (
+            <span className="dh-goal-overview__target-note">— overdue</span>
+          ) : null}
+        </span>
+      ),
+    },
+  ];
 
-  const summaryMetadata: RecordMetaItem[] = [];
-  summaryMetadata.push({
-    id: "target",
-    label: "Target date",
-    // DS-16 — the value IS the control. An unset target renders the shell's
-    // quiet invitation rather than the sentence "No target date set", because a
-    // sentence cannot also be the thing you press to set one. Overdue stays a
-    // WORD beside the date, never a colour alone (AGENTS.md §15).
-    value: (
-      <span className="dh-goal-overview__target">
-        <InlineDateField
-          label="Target date"
-          value={details.targetDate}
-          onSave={onSetTargetDate}
-          format={(iso) => formatCalendarDate(iso) ?? iso}
-          emptyLabel="Add a target date"
-          data-testid="goal-target-date-edit"
-        />
-        {target.state === "overdue" ? (
-          <span className="dh-goal-overview__target-note">— overdue</span>
-        ) : null}
-      </span>
-    ),
-  });
-  if (created) {
-    summaryMetadata.push({ id: "created", label: "Created", value: created });
-  }
-  if (updated) {
-    summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
-  }
-  summaryMetadata.push({
-    id: "state",
-    label: "Explicit completion",
-    value: state.label,
-  });
+  /*
+   * RECORD-01 deviation — a Goal has no Settings tab, so its administrative
+   * timestamps are demoted to the FOOT of the summary rather than into one.
+   *
+   * The contract's home for Created/Updated is Settings → Record details, which
+   * is where every record that has a Settings tab now puts them. Giving Goals a
+   * Settings tab purely to host two dates would add a tab to a module's
+   * information architecture, which this PR is explicitly scoped out of. "Later
+   * in the record" is the contract's other permitted answer, and this is it.
+   *
+   * "Explicit completion" is gone rather than demoted: it restated the header's
+   * status pill in different words, and a duplicate is removed, not relocated.
+   */
+  const detailItems = recordTimestampItems(
+    overview.createdAt,
+    overview.updatedAt,
+  );
 
   const primaryAction: RecordAction = completed
     ? {
@@ -225,7 +228,8 @@ export function GoalOverview({
             data-testid="goal-title-edit"
           />
         }
-        typeLabel="Goal"
+        // RECORD-01 — no `typeLabel`: the breadcrumb already walks Areas → this
+        // Goal's Area, so "Goal" was a third line saying what two above it said.
         icon={<EntityIcon type="goal" />}
         breadcrumb={[
           { id: "areas", label: "Areas", href: "/areas" },
@@ -236,7 +240,7 @@ export function GoalOverview({
           },
         ]}
         status={{ label: state.label, tone: state.tone }}
-        metadata={headerMetadata}
+        metadata={contextItems}
         primaryAction={completed ? undefined : primaryAction}
         /*
          * EDIT-02 — the header now carries LIFECYCLE only.
@@ -302,9 +306,14 @@ export function GoalOverview({
                   onOpenTask={onOpenTask}
                 />
               </div>
+              {detailItems.length > 0 ? (
+                <RecordDetails
+                  items={detailItems}
+                  label="Goal record details"
+                />
+              ) : null}
             </div>
           ),
-          metadata: summaryMetadata,
         }}
         activeTabId={activeTabId}
         onTabChange={onTabChange}

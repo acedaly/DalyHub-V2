@@ -290,6 +290,10 @@ export function RecordTabs({
             role="tabpanel"
             id={panelId}
             className="record-tabs__panel"
+            // RECORD-01 — a tab whose content brings its own surface (the Note
+            // record's writing surface) suppresses the panel's, so the record
+            // never draws a frame inside a frame. See `RecordTab.surface`.
+            data-surface={tab.surface ?? "panel"}
             aria-labelledby={tabId}
             hidden={!selected}
             tabIndex={0}

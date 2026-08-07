@@ -649,6 +649,28 @@
   outline-offset: 2px;
 }
 
+/*
+ * RECORD-01 — a panel whose content already IS a surface does not draw a second.
+ *
+ * The Note record is the case this exists for. The shared editor deliberately
+ * draws ONE outline around its toolbar and its text (EDIT-01: "a note with a
+ * toolbar", not "a formatting palette sitting on a note"), and the panel drew
+ * another around that — a frame inside a frame with two left edges 21px apart,
+ * 40px of horizontal padding taken off the writing measure, and the doubled
+ * border DS-14's surface rules exist to prevent.
+ *
+ * Padding goes too: the inner surface owns its own, and the panel's would only
+ * inset the writing column further from the record's edge for no gain. The
+ * panel remains a real `tabpanel` with its focus ring and its label — only its
+ * paint is suppressed.
+ */
+.record-tabs__panel[data-surface="plain"] {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Content region                                                             */
 /* -------------------------------------------------------------------------- */
@@ -1036,4 +1058,50 @@
   color: var(--md-sys-color-on-surface);
   font-size: var(--md-sys-typescale-body-medium-size);
   overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record tab toolbar (RECORD-01)                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The row of controls at the top of a record tab panel: a subordinate filter on
+ * the leading edge, the tab's own local action on the trailing edge.
+ *
+ * Projects and Areas had grown identical private copies of this
+ * (`dh-project-tasks__toolbar`, `dh-area-tab-toolbar`) at the same measurements
+ * with two different alignment rules, and Assets was about to need a third. One
+ * class, so a record's toolbar sits at the same height and the same edges
+ * whichever record it is.
+ *
+ * `flex-end` plus `margin-inline-end: auto` on the filter means a toolbar with
+ * BOTH puts the filter left and the action right, and a toolbar with only an
+ * action still puts it right — rather than a lone button jumping to the other
+ * edge because its sibling is absent.
+ */
+.dh-record-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-3);
+  margin-block-end: var(--app-space-3);
+}
+
+.dh-record-toolbar > .dh-segmented {
+  margin-inline-end: auto;
+}
+
+/* On a phone the controls stack and fill the width, as both private copies did. */
+@container record (max-width: 30rem) {
+  .dh-record-toolbar {
+    align-items: stretch;
+  }
+
+  .dh-record-toolbar > .dh-segmented,
+  .dh-record-toolbar > .dh-btn {
+    inline-size: 100%;
+    margin-inline-end: 0;
+    justify-content: center;
+  }
 }

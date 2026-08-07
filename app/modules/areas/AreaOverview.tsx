@@ -19,7 +19,7 @@ import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, RecordIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
-import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
+import { RecordLayout } from "~/shared/record-layout";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
@@ -77,28 +77,21 @@ interface AreaOverviewViewProps {
   readonly onTabChange?: (tabId: string) => void;
 }
 
-function dateLabel(iso: string): string | null {
-  return formatCalendarDate(iso.slice(0, 10));
-}
-
-function MomentumPanel({ momentum }: { readonly momentum: AreaMomentum }) {
+/**
+ * RECORD-01 — the Area's momentum, as the summary band's state chip.
+ *
+ * The pill alone. It used to head an outlined card nested inside the summary
+ * card, above a duplicate of its own summary sentence and a bulleted list of
+ * its reasons — three statements of one thing inside two containers. The
+ * sentence and the reasons now reach the band directly, as its note and its
+ * signal line.
+ */
+function MomentumChip({ momentum }: { readonly momentum: AreaMomentum }) {
   return (
-    <section className="dh-area-momentum" data-state={momentum.state}>
-      <div className="dh-area-momentum__header">
-        <span className="dh-health__pill" data-tone={momentum.tone}>
-          <span className="dh-health__dot" aria-hidden="true" />
-          {momentum.label}
-        </span>
-        <p>{momentum.summary}</p>
-      </div>
-      <ul className="dh-area-momentum__reasons">
-        {momentum.reasons.map((reason) => (
-          <li key={`${reason.code}-${reason.count ?? "none"}`}>
-            {reason.summary}
-          </li>
-        ))}
-      </ul>
-    </section>
+    <span className="dh-health__pill" data-tone={momentum.tone}>
+      <span className="dh-health__dot" aria-hidden="true" />
+      {momentum.label}
+    </span>
   );
 }
 
@@ -270,44 +263,26 @@ export function AreaOverviewView({
   onTabChange,
 }: AreaOverviewViewProps) {
   const state = areaStateLabel(archived);
-  const goalsProgress = rollupProgress(rollup.goals, "goal");
-  const projectsProgress = rollupProgress(rollup.projects, "project");
   const tasksProgress = rollupProgress(rollup.tasks, "task");
-  const created = dateLabel(overview.createdAt);
-  const updated = dateLabel(overview.updatedAt);
-  const headerMetadata: RecordMetaItem[] = [
-    {
-      id: "goals",
-      label: "Goals",
-      value: goalsProgress.has ? goalsProgress.summary : "No goals yet",
-    },
-    {
-      id: "projects",
-      label: "Projects",
-      value: projectsProgress.has
-        ? projectsProgress.summary
-        : "No Projects yet",
-    },
-  ];
-  if (tasksProgress.has) {
-    headerMetadata.push({
-      id: "tasks",
-      label: "Tasks",
-      value: tasksProgress.summary,
-    });
-  }
-  const summaryMetadata: RecordMetaItem[] = [];
-  if (created) {
-    summaryMetadata.push({ id: "created", label: "Created", value: created });
-  }
-  if (updated) {
-    summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
-  }
-  summaryMetadata.push({
-    id: "state",
-    label: "State",
-    value: state.label,
-  });
+  /*
+   * RECORD-01 — an Area's header carries NO context line.
+   *
+   * It used to carry "Goals 1 of 3 · Projects 2 of 5 · Tasks 9 of 24" — every
+   * number of which the tab strip immediately below already shows as a badge,
+   * and the task roll-up of which the summary band states again as a meter. An
+   * Area sits at the top of the spine and has no parent to place it against, so
+   * with the duplication removed there is genuinely nothing left to say here,
+   * and the header simply ends after the title.
+   *
+   * Created, Updated and State moved to Settings → Record details.
+   */
+
+  /*
+   * The quiet Area. An Area with nothing active does not need a progress meter
+   * measuring nothing, a momentum chip, and a reason list — the audit found the
+   * same absence stated four times on one screen. It gets one sentence.
+   */
+  const dormant = momentum.state === "empty" && !tasksProgress.has;
 
   // AREA-05: an archived Area is read-only, so the heading renders as plain
   // text rather than as an editable control — a value that cannot be changed
@@ -344,37 +319,49 @@ export function AreaOverviewView({
             data-testid="area-title-edit"
           />
         }
-        typeLabel="Area"
+        // RECORD-01 — no `typeLabel`: the breadcrumb above already says "Areas".
+        //
         // The record's OWN icon, not merely its type's: `RecordIcon` renders
         // the chosen glyph and falls back to the Area default when there is
         // none (or when the stored key is one this build cannot resolve).
         icon={<RecordIcon entityType="area" iconKey={overview.iconKey} />}
         breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
         status={{ label: state.label, tone: state.tone }}
-        metadata={headerMetadata}
         overflowActions={lifecycle.overflowActions}
-        summary={{
-          description: (
-            <div className="dh-area-overview__summary">
-              {archived ? (
-                <p className="dh-area-archived-notice" role="note">
-                  <strong>This Area is archived.</strong> It’s hidden from your
-                  active Areas and creation pickers and is read-only. Restore it
-                  from the Settings tab to make changes.
-                </p>
-              ) : null}
-              <p className="dh-area-overview__progress">
-                <span className="dh-area-overview__progress-label">
-                  Roll-up progress:
-                </span>{" "}
-                {tasksProgress.has
-                  ? `${tasksProgress.percent}% — ${tasksProgress.summary} complete`
-                  : "No active tasks yet."}
-              </p>
-              <MomentumPanel momentum={momentum} />
-            </div>
-          ),
-          metadata: summaryMetadata,
+        /*
+         * RECORD-01 — the momentum card becomes the summary band, and a dormant
+         * Area gets a single line instead of a dashboard measuring nothing.
+         *
+         * Before: a "Roll-up progress: No active tasks yet." line, then an
+         * outlined card nested in the summary card carrying a "No active work"
+         * chip and the sentence "This Area has no active goals, projects or
+         * tasks yet.", then a bullet inside THAT repeating it a third way — with
+         * the header above having already said "Goals: No goals yet · Projects:
+         * No Projects yet". After: one sentence.
+         */
+        summaryBar={{
+          note: archived
+            ? "This Area is archived — hidden from your active Areas and creation pickers, and read-only. Restore it from Settings to make changes."
+            : dormant
+              ? momentum.summary
+              : undefined,
+          progress: dormant
+            ? undefined
+            : {
+                label: "Tasks",
+                percent: tasksProgress.percent,
+                summary: tasksProgress.has
+                  ? `${tasksProgress.summary} complete`
+                  : "No active tasks yet.",
+                available: tasksProgress.has,
+              },
+          state: dormant ? undefined : <MomentumChip momentum={momentum} />,
+          signals: dormant
+            ? undefined
+            : momentum.reasons.map((reason) => ({
+                id: `${reason.code}-${reason.count ?? "none"}`,
+                text: reason.summary,
+              })),
         }}
         activeTabId={activeTabId}
         onTabChange={onTabChange}
@@ -384,50 +371,54 @@ export function AreaOverviewView({
             label: "Goals",
             badge: rollup.goals.total,
             content:
-              goals.length === 0 ? (
-                <EmptyState
-                  icon={<EntityIcon type="goal" />}
-                  title="No Goals in this Area"
-                  description={
-                    archived
-                      ? "This Area is archived. Restore it to add Goals."
-                      : "Goals give this Area a direction and a definition of done."
-                  }
-                  primaryAction={
-                    archived ? undefined : (
-                      <DrawerTrigger
-                        drawerKey={NEW_GOAL_KEY}
-                        className="dh-btn dh-btn--primary"
-                      >
-                        New Goal
-                      </DrawerTrigger>
-                    )
-                  }
-                />
-              ) : (
+              (
+                /*
+                 * RECORD-01 — the toolbar is unconditional, so "New Goal" is in
+                 * the SAME place whether the Area has Goals or not, and the empty
+                 * state no longer has to carry its own copy of the action. That
+                 * removes the duplicate button and lets the absence be one line.
+                 *
+                 * The local action stays (rather than deferring to the global +)
+                 * because it passes the route-param test: the Drawer form already
+                 * receives this Area's id, so a Goal created here needs no picker.
+                 */
                 <>
                   <h2 className="dh-visually-hidden">Goals</h2>
                   {archived ? null : (
-                    <div className="dh-area-tab-toolbar">
+                    <div className="dh-record-toolbar">
                       <DrawerTrigger
                         drawerKey={NEW_GOAL_KEY}
-                        className="dh-btn dh-btn--secondary"
+                        className="dh-btn dh-btn--text"
                       >
                         New Goal
                       </DrawerTrigger>
                     </div>
                   )}
-                  <CardCollection
-                    items={goals}
-                    getItemId={(goal) => goal.id}
-                    ariaLabel="Area Goals"
-                    presentation="list"
-                    density="comfortable"
-                    renderCard={(goal) => (
-                      <Card {...goalCard(goal, onOpenGoal)} />
-                    )}
-                  />
-                  <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
+                  {goals.length === 0 ? (
+                    <EmptyState
+                      size="inline"
+                      headingLevel={3}
+                      title={
+                        archived
+                          ? "No Goals in this Area. Restore it to add one."
+                          : "No Goals in this Area yet."
+                      }
+                    />
+                  ) : (
+                    <>
+                      <CardCollection
+                        items={goals}
+                        getItemId={(goal) => goal.id}
+                        ariaLabel="Area Goals"
+                        presentation="list"
+                        density="comfortable"
+                        renderCard={(goal) => (
+                          <Card {...goalCard(goal, onOpenGoal)} />
+                        )}
+                      />
+                      <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
+                    </>
+                  )}
                 </>
               ),
           },
@@ -438,9 +429,10 @@ export function AreaOverviewView({
             content:
               projects.length === 0 ? (
                 <EmptyState
-                  icon={<EntityIcon type="project" />}
-                  title="No Projects in this Area"
-                  description="Direct Projects and Projects advancing this Area’s Goals will appear here."
+                  size="inline"
+                  headingLevel={3}
+                  title="No Projects in this Area yet."
+                  description="Direct Projects, and Projects advancing this Area’s Goals, appear here."
                 />
               ) : (
                 <>

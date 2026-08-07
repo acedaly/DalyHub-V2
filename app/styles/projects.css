@@ -15,15 +15,6 @@ a.dh-btn {
 }
 
 /* The project overview's Tasks tab toolbar: filter on the left, "Add task" trailing. */
-.dh-project-tasks__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
-  margin-bottom: var(--app-space-4);
-}
-
 /* The roll-up progress line in the record Summary. */
 .dh-project-overview__progress {
   margin: 0;
@@ -92,16 +83,6 @@ a.dh-btn {
    * (`segmented-filter.css`) — one answer, everywhere, instead of one module's
    * answer imposed on eight others.
    */
-  .dh-project-tasks__toolbar {
-    align-items: stretch;
-  }
-
-  .dh-project-tasks__toolbar .dh-segmented,
-  .dh-project-tasks__toolbar > .dh-btn {
-    inline-size: 100%;
-  }
-
-  .dh-project-tasks__toolbar > .dh-btn,
   .dh-project-empty-parents__actions .dh-btn {
     justify-content: center;
   }

@@ -87,6 +87,22 @@ export interface RecordTab {
   readonly hidden?: boolean;
   /** Optional trailing badge (e.g. a count). Decorative — not the accessible name. */
   readonly badge?: ReactNode;
+  /**
+   * RECORD-01 — whether this tab's panel draws the contained record surface.
+   *
+   * `panel` (the default) is the DS-14 contained surface every scannable tab
+   * uses. `plain` is for a tab whose content ALREADY brings its own single
+   * surface — the Note record's writing surface is the canonical case: the
+   * shared editor deliberately draws one outline around its toolbar and its
+   * text (EDIT-01), so a panel drawing a second one around that produced a
+   * frame inside a frame, two left edges 21px apart, and a narrower column to
+   * write in.
+   *
+   * It is a property of the CONTENT, not of the module, which is why it is
+   * declared per tab rather than per record: the same Note record's Backlinks,
+   * Links and Activity tabs are ordinary panels.
+   */
+  readonly surface?: "panel" | "plain";
 }
 
 /** Props for the record header region. */

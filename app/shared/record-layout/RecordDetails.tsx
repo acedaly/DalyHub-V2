@@ -13,7 +13,34 @@
  * which facts belong in it — the module decides that; this decides how they look.
  */
 
+import { formatCalendarDate } from "~/shared/task-record/task-view";
+
 import type { RecordMetaItem } from "./types";
+
+/**
+ * The two administrative timestamps every record has, formatted once.
+ *
+ * Every module that demotes its header metadata needs exactly this pair, and
+ * eight copies of `formatCalendarDate(iso.slice(0, 10))` is how "Created" ends
+ * up rendered two different ways in one product. A blank or unparseable
+ * timestamp yields no row rather than an em dash — an absent fact is not a fact
+ * whose value is unknown.
+ */
+export function recordTimestampItems(
+  createdAt: string | null | undefined,
+  updatedAt: string | null | undefined,
+): RecordMetaItem[] {
+  const items: RecordMetaItem[] = [];
+  const created = createdAt ? formatCalendarDate(createdAt.slice(0, 10)) : null;
+  const updated = updatedAt ? formatCalendarDate(updatedAt.slice(0, 10)) : null;
+  if (created) {
+    items.push({ id: "created", label: "Created", value: created });
+  }
+  if (updated) {
+    items.push({ id: "updated", label: "Updated", value: updated });
+  }
+  return items;
+}
 
 export interface RecordDetailsProps {
   readonly items: readonly RecordMetaItem[];
