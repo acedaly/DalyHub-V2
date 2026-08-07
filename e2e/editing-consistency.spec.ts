@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  postSameOrigin,
 } from "./helpers";
 
 /**
@@ -28,7 +29,21 @@ import {
  *
  * Nothing here leaves a shared fixture altered: the title tests cancel with
  * Escape rather than saving, and the value tests put the fixture back.
+ *
+ * The put-back is enforced rather than merely written down. Restoring inline, at
+ * the end of a test, is only correct while every assertion before it passes — a
+ * failure part-way through the priority sequence would otherwise leave
+ * `t-search-e2e` on P3 for whatever runs next. The `afterEach` below normalises
+ * the two mutable fields unconditionally, through the same trusted endpoint the
+ * tests use, so a red test cannot become a red *suite*.
  */
+
+/** The seeded state of the task these tests borrow (see `e2e/seed-tasks.sql`). */
+const SEEDED_TASK = {
+  id: "t-search-e2e",
+  priority: "p1",
+  dueDate: "2026-07-29",
+};
 
 /** Every canonical record, and the accessible name its title field carries. */
 const TITLE_SURFACES = [
@@ -86,9 +101,29 @@ test.describe("EDIT-02 §2 — one way to edit a record title", () => {
   }
 });
 
+/**
+ * Put the borrowed task back exactly as the seed left it, whatever happened.
+ * Idempotent and cheap: `/tasks/bulk` treats an unchanged field as `unchanged`,
+ * so this costs one request and writes nothing when the test already restored
+ * it itself.
+ */
+test.afterEach(async ({ request }) => {
+  for (const fields of [
+    { intent: "set_priority", priority: SEEDED_TASK.priority },
+    { intent: "set_due", dueDate: SEEDED_TASK.dueDate },
+  ]) {
+    await postSameOrigin(request, "/tasks/bulk", {
+      form: { id: SEEDED_TASK.id, ...fields },
+    }).catch(() => {
+      // Best-effort: a cleanup failure must never fail the assertion the test
+      // actually made.
+    });
+  }
+});
+
 test.describe("EDIT-02 §3 — a selected value changes directly", () => {
   /** The seeded search fixture task: priority p1, due 2026-07-29. */
-  const TASK_DRAWER = "/tasks?drawer=task:t-search-e2e";
+  const TASK_DRAWER = `/tasks?drawer=task:${SEEDED_TASK.id}`;
 
   test("current → new in one action, with the current one announced", async ({
     page,
@@ -173,7 +208,7 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
   test("set, change and clear a Task's due date from the record", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?drawer=task:t-search-e2e");
+    await gotoFixture(page, `/tasks?drawer=task:${SEEDED_TASK.id}`);
     await expect(page.getByRole("dialog")).toBeVisible();
 
     const due = page.getByRole("button", { name: /^Due date: / });
@@ -215,7 +250,7 @@ test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () =>
       page,
     }) => {
       await page.setViewportSize({ width, height: 800 });
-      await gotoFixture(page, "/tasks?drawer=task:t-search-e2e");
+      await gotoFixture(page, `/tasks?drawer=task:${SEEDED_TASK.id}`);
       await expect(page.getByRole("dialog")).toBeVisible();
       await expectNoHorizontalOverflow(page);
 
