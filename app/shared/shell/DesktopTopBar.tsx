@@ -47,6 +47,7 @@
 
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { CommandIcon, HelpIcon, SearchIcon } from "~/shared/icons";
+import { Tooltip } from "~/shared/tooltip";
 
 import { UserMenu } from "./UserMenu";
 
@@ -103,28 +104,49 @@ export function DesktopTopBar({
 
       <div className="dh-topbar__utilities">
         {/* The palette keeps a home in the chrome, but as a 40px icon control
-         * rather than as a second full-width pill competing with search. */}
-        <button
-          type="button"
-          className="dh-topbar__utility md-state-layer"
-          onClick={
-            onOpenCommand
-              ? (event) => onOpenCommand(event.currentTarget)
-              : undefined
-          }
-        >
-          <span className="dh-topbar__utility-icon" aria-hidden="true">
-            <CommandIcon />
-          </span>
-          <span className="dh-visually-hidden">Command palette</span>
-        </button>
+         * rather than as a second full-width pill competing with search.
+         *
+         * M3-TIP — both utilities are icon-only, and neither said what it was to
+         * a pointer OR a keyboard before. The shared tooltip names them on hover
+         * and on `:focus-visible`, and carries the palette's reserved shortcut —
+         * the one place in the chrome where `⌘K` is worth showing, since the
+         * search entry beside it already prints its own `/`. */}
+        <Tooltip label="Command palette" shortcut="Mod-k" placement="bottom">
+          {(tip) => (
+            <button
+              type="button"
+              ref={tip.ref}
+              className="dh-topbar__utility md-state-layer"
+              aria-describedby={tip.describedBy}
+              onClick={
+                onOpenCommand
+                  ? (event) => onOpenCommand(event.currentTarget)
+                  : undefined
+              }
+            >
+              <span className="dh-topbar__utility-icon" aria-hidden="true">
+                <CommandIcon />
+              </span>
+              <span className="dh-visually-hidden">Command palette</span>
+            </button>
+          )}
+        </Tooltip>
 
-        <a className="dh-topbar__utility md-state-layer" href="/help">
-          <span className="dh-topbar__utility-icon" aria-hidden="true">
-            <HelpIcon />
-          </span>
-          <span className="dh-visually-hidden">Help</span>
-        </a>
+        <Tooltip label="Help" placement="bottom">
+          {(tip) => (
+            <a
+              ref={tip.ref}
+              className="dh-topbar__utility md-state-layer"
+              href="/help"
+              aria-describedby={tip.describedBy}
+            >
+              <span className="dh-topbar__utility-icon" aria-hidden="true">
+                <HelpIcon />
+              </span>
+              <span className="dh-visually-hidden">Help</span>
+            </a>
+          )}
+        </Tooltip>
 
         <UserMenu
           email={email}

@@ -18,9 +18,20 @@
  *
  *   - `aria-label` on every button (the word is still the accessible name, so
  *     nothing is icon-only to assistive tech — AGENTS.md §15);
- *   - `title` as the pointer tooltip, carrying the keyboard shortcut too;
+ *   - the shared tooltip (`~/shared/tooltip`), carrying what the control does
+ *     and the keyboard shortcut where there is one;
  *   - `aria-pressed` from `formatting-state.ts`, so a control shows whether the
  *     formatting is ALREADY applied — the thing the word-buttons could never do.
+ *
+ * ── M3-TIP: this toolbar is the tooltip primitive's reference adoption ───────
+ * It used to carry `title` on all thirteen controls, which is why the August
+ * 2026 interaction audit named it: `title` never appears on keyboard focus, so
+ * the shortcut hint — the one thing a keyboard user actually wants — was
+ * visible only to a mouse. Every control here now composes the ONE shared
+ * tooltip instead, shown on hover AND on `:focus-visible`, with the shortcut
+ * rendered by the same formatter the Command Palette uses. The tooltip attaches
+ * through a ref and adds no wrapper element, so the roving-tabindex model, the
+ * disabled states and the 44px targets below are all untouched by it.
  *
  * Related controls are grouped and divided by a hairline separator instead of by
  * a border around every button, and the strip itself is attached to the writing
@@ -50,6 +61,7 @@ import {
 } from "react";
 
 import { MoreIcon, RedoIcon, UndoIcon } from "~/shared/icons";
+import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import {
   MARKDOWN_FORMATTING_ACTIONS,
@@ -200,27 +212,32 @@ export function EditorToolbar({
         key: action.id,
         enabled: !disabled,
         render: (index) => (
-          <button
-            ref={registerButton(index)}
-            type="button"
-            className="dh-md-toolbar__button"
-            data-action={action.id}
-            aria-label={action.label}
-            title={`${action.label} — ${action.hint}`}
-            aria-pressed={pressed}
-            disabled={disabled}
-            tabIndex={index === activeIndexRef.current ? 0 : -1}
-            onKeyDown={(event) => onKeyDownRef.current(event, index)}
-            onFocus={() => setActiveIndex(index)}
-            // Keep the editor focused and its selection intact when a button is
-            // clicked — the format applies to what the user had selected, the
-            // caret stays in the document, and (on a phone) the software
-            // keyboard is not dismissed and re-raised on every formatting tap.
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onAction(action)}
-          >
-            <Glyph />
-          </button>
+          <Tooltip label={action.hint} shortcut={action.shortcut}>
+            {(tip) => (
+              <button
+                ref={composeRefs(registerButton(index), tip.ref)}
+                type="button"
+                className="dh-md-toolbar__button"
+                data-action={action.id}
+                aria-label={action.label}
+                aria-describedby={tip.describedBy}
+                aria-pressed={pressed}
+                disabled={disabled}
+                tabIndex={index === activeIndexRef.current ? 0 : -1}
+                onKeyDown={(event) => onKeyDownRef.current(event, index)}
+                onFocus={() => setActiveIndex(index)}
+                // Keep the editor focused and its selection intact when a button
+                // is clicked — the format applies to what the user had selected,
+                // the caret stays in the document, and (on a phone) the software
+                // keyboard is not dismissed and re-raised on every formatting
+                // tap.
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onAction(action)}
+              >
+                <Glyph />
+              </button>
+            )}
+          </Tooltip>
         ),
       });
     };
@@ -231,22 +248,26 @@ export function EditorToolbar({
         key: "undo",
         enabled: !disabled && history.canUndo,
         render: (index) => (
-          <button
-            ref={registerButton(index)}
-            type="button"
-            className="dh-md-toolbar__button"
-            data-action="undo"
-            aria-label="Undo"
-            title="Undo (⌘Z / Ctrl+Z)"
-            disabled={disabled || !history.canUndo}
-            tabIndex={index === activeIndexRef.current ? 0 : -1}
-            onKeyDown={(event) => onKeyDownRef.current(event, index)}
-            onFocus={() => setActiveIndex(index)}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={history.onUndo}
-          >
-            <UndoIcon />
-          </button>
+          <Tooltip label="Undo" shortcut="Mod-z">
+            {(tip) => (
+              <button
+                ref={composeRefs(registerButton(index), tip.ref)}
+                type="button"
+                className="dh-md-toolbar__button"
+                data-action="undo"
+                aria-label="Undo"
+                aria-describedby={tip.describedBy}
+                disabled={disabled || !history.canUndo}
+                tabIndex={index === activeIndexRef.current ? 0 : -1}
+                onKeyDown={(event) => onKeyDownRef.current(event, index)}
+                onFocus={() => setActiveIndex(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={history.onUndo}
+              >
+                <UndoIcon />
+              </button>
+            )}
+          </Tooltip>
         ),
       });
       built.push({
@@ -254,22 +275,26 @@ export function EditorToolbar({
         key: "redo",
         enabled: !disabled && history.canRedo,
         render: (index) => (
-          <button
-            ref={registerButton(index)}
-            type="button"
-            className="dh-md-toolbar__button"
-            data-action="redo"
-            aria-label="Redo"
-            title="Redo (⌘⇧Z / Ctrl+Shift+Z)"
-            disabled={disabled || !history.canRedo}
-            tabIndex={index === activeIndexRef.current ? 0 : -1}
-            onKeyDown={(event) => onKeyDownRef.current(event, index)}
-            onFocus={() => setActiveIndex(index)}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={history.onRedo}
-          >
-            <RedoIcon />
-          </button>
+          <Tooltip label="Redo" shortcut="Mod-Shift-z">
+            {(tip) => (
+              <button
+                ref={composeRefs(registerButton(index), tip.ref)}
+                type="button"
+                className="dh-md-toolbar__button"
+                data-action="redo"
+                aria-label="Redo"
+                aria-describedby={tip.describedBy}
+                disabled={disabled || !history.canRedo}
+                tabIndex={index === activeIndexRef.current ? 0 : -1}
+                onKeyDown={(event) => onKeyDownRef.current(event, index)}
+                onFocus={() => setActiveIndex(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={history.onRedo}
+              >
+                <RedoIcon />
+              </button>
+            )}
+          </Tooltip>
         ),
       });
       built.push({ kind: "separator", key: "sep-history" });
@@ -292,23 +317,27 @@ export function EditorToolbar({
         key: command.id,
         enabled: !disabled,
         render: (index) => (
-          <button
-            ref={registerButton(index)}
-            type="button"
-            className="dh-md-toolbar__button"
-            data-action={command.id}
-            aria-label={command.label}
-            title={`${command.label} — ${command.hint}`}
-            aria-expanded={command.expanded}
-            disabled={disabled}
-            tabIndex={index === activeIndexRef.current ? 0 : -1}
-            onKeyDown={(event) => onKeyDownRef.current(event, index)}
-            onFocus={() => setActiveIndex(index)}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={command.onSelect}
-          >
-            {command.icon}
-          </button>
+          <Tooltip label={command.hint}>
+            {(tip) => (
+              <button
+                ref={composeRefs(registerButton(index), tip.ref)}
+                type="button"
+                className="dh-md-toolbar__button"
+                data-action={command.id}
+                aria-label={command.label}
+                aria-describedby={tip.describedBy}
+                aria-expanded={command.expanded}
+                disabled={disabled}
+                tabIndex={index === activeIndexRef.current ? 0 : -1}
+                onKeyDown={(event) => onKeyDownRef.current(event, index)}
+                onFocus={() => setActiveIndex(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={command.onSelect}
+              >
+                {command.icon}
+              </button>
+            )}
+          </Tooltip>
         ),
       });
     }
@@ -319,29 +348,37 @@ export function EditorToolbar({
       key: "more",
       enabled: !disabled,
       render: (index) => (
-        <button
-          ref={registerButton(index)}
-          type="button"
-          className="dh-md-toolbar__button dh-md-toolbar__more"
-          data-action="more"
-          aria-label={
-            moreOpen ? "Fewer formatting options" : "More formatting options"
-          }
-          title={
+        <Tooltip
+          label={
             moreOpen
               ? "Hide the less-used formatting commands"
               : "Show the less-used formatting commands"
           }
-          disabled={disabled}
-          aria-expanded={moreOpen}
-          tabIndex={index === activeIndexRef.current ? 0 : -1}
-          onKeyDown={(event) => onKeyDownRef.current(event, index)}
-          onFocus={() => setActiveIndex(index)}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => setMoreOpen((open) => !open)}
         >
-          <MoreIcon />
-        </button>
+          {(tip) => (
+            <button
+              ref={composeRefs(registerButton(index), tip.ref)}
+              type="button"
+              className="dh-md-toolbar__button dh-md-toolbar__more"
+              data-action="more"
+              aria-label={
+                moreOpen
+                  ? "Fewer formatting options"
+                  : "More formatting options"
+              }
+              aria-describedby={tip.describedBy}
+              disabled={disabled}
+              aria-expanded={moreOpen}
+              tabIndex={index === activeIndexRef.current ? 0 : -1}
+              onKeyDown={(event) => onKeyDownRef.current(event, index)}
+              onFocus={() => setActiveIndex(index)}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setMoreOpen((open) => !open)}
+            >
+              <MoreIcon />
+            </button>
+          )}
+        </Tooltip>
       ),
     });
 

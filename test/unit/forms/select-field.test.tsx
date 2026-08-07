@@ -200,3 +200,91 @@ describe("SelectField — replacing a selection without clearing it first", () =
     }
   });
 });
+
+/**
+ * SETTINGS-LABEL — one setting, one control, one label.
+ *
+ * A `SettingsRow` already renders the setting's name beside its control, so a
+ * field that ALSO renders its own label prints the same words twice in one row
+ * — which is exactly what "Default task destination" did, and what the August
+ * 2026 interaction audit recorded as finding 7. `labelledBy` lets the row own
+ * the visible name without the control losing a real, visible, associated one.
+ */
+describe("SelectField — a label owned from outside the field", () => {
+  function renderRowOwned() {
+    return render(
+      <>
+        <span id="row-label">Default task destination</span>
+        <span id="row-description">Inbox is the fast default.</span>
+        <SelectField
+          label="Default task destination"
+          labelledBy="row-label"
+          describedBy="row-description"
+          options={OPTIONS}
+          value=""
+          onChange={() => {}}
+        />
+      </>,
+    );
+  }
+
+  it("renders no second label of its own", () => {
+    const { container } = renderRowOwned();
+    expect(container.querySelectorAll(".dh-field__label-text")).toHaveLength(0);
+    // The name is still on screen — once, in the row that owns it.
+    expect(screen.getAllByText("Default task destination")).toHaveLength(1);
+  });
+
+  it("keeps exactly one accessible name, taken from the visible row label", () => {
+    renderRowOwned();
+    const input = screen.getByRole("combobox", {
+      name: "Default task destination",
+    });
+    expect(input).toHaveAccessibleName("Default task destination");
+  });
+
+  it("carries the row's supporting text as the control's description", () => {
+    renderRowOwned();
+    expect(
+      screen.getByRole("combobox", { name: "Default task destination" }),
+    ).toHaveAccessibleDescription("Inbox is the fast default.");
+  });
+
+  it("still composes its own help text with the row's description", () => {
+    render(
+      <>
+        <span id="row-label">Default task destination</span>
+        <span id="row-description">Inbox is the fast default.</span>
+        <SelectField
+          label="Default task destination"
+          labelledBy="row-label"
+          describedBy="row-description"
+          help="Search Projects and Areas."
+          options={OPTIONS}
+          value=""
+          onChange={() => {}}
+        />
+      </>,
+    );
+    const description = screen
+      .getByRole("combobox", { name: "Default task destination" })
+      .getAttribute("aria-describedby");
+    expect(description).toContain("row-description");
+    expect(description?.split(" ").length).toBe(2);
+  });
+
+  it("still renders its own label when nothing outside names it", () => {
+    const { container } = render(
+      <SelectField
+        label="Status"
+        options={OPTIONS}
+        value=""
+        onChange={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll(".dh-field__label-text")).toHaveLength(1);
+    expect(
+      screen.getByRole("combobox", { name: "Status" }),
+    ).toHaveAccessibleName("Status");
+  });
+});

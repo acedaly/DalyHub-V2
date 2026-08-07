@@ -13,7 +13,7 @@
  * DS-11 baseline for a command-button row).
  */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { EditorToolbar } from "~/shared/markdown-editor/EditorToolbar";
@@ -317,5 +317,124 @@ describe("EditorToolbar — the tab stop never rests on a disabled control", () 
     const tabbable = controls().filter((button) => button.tabIndex === 0);
     expect(tabbable).toHaveLength(1);
     expect(tabbable[0]).toBeEnabled();
+  });
+});
+
+/**
+ * M3-TIP — the toolbar is the shared tooltip's reference adoption.
+ *
+ * It is the surface the August 2026 audit named: thirteen icon controls whose
+ * only explanation was `title`, which never appears on keyboard focus — so the
+ * shortcut hint reached a mouse and not the keyboard user who wanted it. These
+ * assertions are the contract that replaced it, plus the guarantee that adopting
+ * the tooltip changed NOTHING about the roving model, the pressed state or the
+ * disabled state above.
+ */
+describe("EditorToolbar — tooltips", () => {
+  it("explains a control on keyboard focus, with its shortcut", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    const bold = screen.getByRole("button", { name: "Bold" });
+    act(() => {
+      bold.focus();
+    });
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Bold");
+    // `Mod` resolves to Ctrl off an Apple platform, through the ONE formatter.
+    expect(tooltip).toHaveTextContent("Ctrl+B");
+    expect(bold).toHaveAttribute("aria-describedby", tooltip.id);
+  });
+
+  it("keeps the accessible NAME on the control, not in the tooltip", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    const heading = screen.getByRole("button", { name: "Heading" });
+    act(() => {
+      heading.focus();
+    });
+    expect(heading).toHaveAccessibleName("Heading");
+    expect(heading).toHaveAccessibleDescription(
+      "Heading — press again to change level",
+    );
+  });
+
+  it("has retired `title` on every control", () => {
+    // Leaving it would give a hovering user two tooltips, one of them the
+    // browser's, in a font and a position DalyHub does not choose.
+    render(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{
+          canUndo: true,
+          canRedo: true,
+          onUndo: vi.fn(),
+          onRedo: vi.fn(),
+        }}
+      />,
+    );
+    for (const button of controls()) {
+      expect(button).not.toHaveAttribute("title");
+    }
+  });
+
+  it("adds no Tab stop of its own while a tooltip is showing", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    const bold = screen.getByRole("button", { name: "Bold" });
+    act(() => {
+      bold.focus();
+    });
+    expect(screen.getByRole("tooltip")).not.toHaveAttribute("tabindex");
+    // Still exactly one tab stop, and focus is still on the control.
+    expect(controls().filter((button) => button.tabIndex === 0)).toHaveLength(
+      1,
+    );
+    expect(bold).toHaveFocus();
+  });
+
+  it("dismisses on Escape without moving focus off the toolbar", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    const bold = screen.getByRole("button", { name: "Bold" });
+    act(() => {
+      bold.focus();
+    });
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    fireEvent.keyDown(bold, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(bold).toHaveFocus();
+  });
+
+  it("leaves arrow-key roving intact, tooltip and all", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    const first = controls()[0];
+    act(() => {
+      first.focus();
+    });
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(controls()[1]);
+    // The tooltip followed the focus rather than sticking to the old control.
+    expect(screen.getAllByRole("tooltip")).toHaveLength(1);
+  });
+
+  it("leaves a DISABLED history control disabled, and outside the roving stop", () => {
+    // Explaining a greyed-out control is a thing a tooltip is FOR, so hovering
+    // one is allowed to show it. What must not change is the control itself:
+    // PR #124 deliberately kept a disabled Undo out of the single tab stop, and
+    // the tooltip reads nothing and sets nothing on the button.
+    render(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{
+          canUndo: false,
+          canRedo: false,
+          onUndo: vi.fn(),
+          onRedo: vi.fn(),
+        }}
+      />,
+    );
+    const undo = screen.getByRole("button", { name: "Undo" });
+    fireEvent.pointerEnter(undo, { pointerType: "mouse" });
+    expect(undo).toBeDisabled();
+    expect(undo.tabIndex).toBe(-1);
+    expect(controls().filter((button) => button.tabIndex === 0)).toHaveLength(
+      1,
+    );
   });
 });

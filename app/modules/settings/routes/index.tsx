@@ -886,7 +886,19 @@ function TaskCaptureParentSetting({
       }
       statusLive
       align="start"
-      control={
+      /*
+       * SETTINGS-LABEL — the row owns the NAME, the field owns the control.
+       *
+       * This row used to render "Default task destination" twice: once as the
+       * row's label on the left, and again as the combobox's own field label
+       * above the input on the right (finding 7 of the August 2026 interaction
+       * audit). One setting, one control, one label: the field is now told which
+       * visible element names it, so the accessible name is still real, visible
+       * text and there is still exactly one of it. The row's description and
+       * status line become the control's description, which they always were in
+       * meaning and never were in markup.
+       */
+      control={(ids) => (
         <fetcher.Form
           ref={formRef}
           method="post"
@@ -899,7 +911,10 @@ function TaskCaptureParentSetting({
           />
           <input type="hidden" name="parentId" value={value} />
           <SelectField
+            id={ids.controlId}
             label="Default task destination"
+            labelledBy={ids.labelId}
+            describedBy={ids.describedById}
             showOptionalCue={false}
             value={value}
             onChange={setValue}
@@ -933,7 +948,7 @@ function TaskCaptureParentSetting({
             </button>
           </div>
         </fetcher.Form>
-      }
+      )}
     />
   );
 }

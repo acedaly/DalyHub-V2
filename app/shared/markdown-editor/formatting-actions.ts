@@ -84,16 +84,25 @@ export interface MarkdownFormattingAction {
   readonly id: string;
   /** The button's ACCESSIBLE NAME — a plain, unambiguous word. */
   readonly label: string;
-  /** Longer tooltip/help text describing what the action inserts. */
+  /**
+   * The TOOLTIP's text: what the action does, in a phrase.
+   *
+   * M3-TIP — it deliberately does NOT spell the keyboard shortcut. That used to
+   * be written in here ("Bold (⌘B / Ctrl+B)") because the browser `title`
+   * attribute is a single string with nowhere else to put it; the shared tooltip
+   * renders `shortcut` itself, through the one platform-correct formatter, so
+   * repeating it here would print it twice and on the wrong platform half the
+   * time.
+   */
   readonly hint: string;
   /** The glyph rendered inside the button. Decorative; `label` names it. */
   readonly icon: ComponentType<IconProps>;
   /** Which visual group the control belongs to. */
   readonly group: FormattingGroup;
   /**
-   * Optional keyboard shortcut, shown in the tooltip and bound in the editor
-   * keymap. Uses the `Mod` convention (⌘ on macOS, Ctrl elsewhere), e.g.
-   * `Mod-b`. Actions without one are toolbar-only.
+   * Optional keyboard shortcut, bound in the editor keymap and rendered as a
+   * chip by the shared tooltip. Uses the `Mod` convention (⌘ on macOS, Ctrl
+   * elsewhere), e.g. `Mod-b`. Actions without one are toolbar-only.
    */
   readonly shortcut?: string;
   /**
@@ -127,7 +136,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       stateful: true,
       group: "emphasis",
       label: "Bold",
-      hint: "Bold (⌘B / Ctrl+B)",
+      hint: "Bold",
       icon: BoldIcon,
       shortcut: "Mod-b",
       transform: boldTransform,
@@ -138,7 +147,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       stateful: true,
       group: "emphasis",
       label: "Italic",
-      hint: "Italic (⌘I / Ctrl+I)",
+      hint: "Italic",
       icon: ItalicIcon,
       shortcut: "Mod-i",
       transform: italicTransform,
@@ -149,7 +158,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       stateful: true,
       group: "emphasis",
       label: "Strikethrough",
-      hint: "Strikethrough (⌘⇧X / Ctrl+Shift+X)",
+      hint: "Strikethrough",
       icon: StrikethroughIcon,
       shortcut: "Mod-Shift-x",
       transform: strikethroughTransform,
@@ -190,7 +199,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       stateful: true,
       group: "block",
       label: "Checklist",
-      hint: "Checklist (⌘⇧9 / Ctrl+Shift+9)",
+      hint: "Checklist",
       icon: ChecklistIcon,
       shortcut: "Mod-Shift-9",
       transform: checklistTransform,
@@ -210,7 +219,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       primary: true,
       group: "insert",
       label: "Link",
-      hint: "Insert a link (⌘K / Ctrl+K)",
+      hint: "Insert a link",
       icon: LinkIcon,
       shortcut: "Mod-k",
       transform: linkTransform,
@@ -220,7 +229,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       stateful: true,
       group: "insert",
       label: "Code",
-      hint: "Format as inline code (⌘E / Ctrl+E)",
+      hint: "Format as inline code",
       icon: CodeIcon,
       shortcut: "Mod-e",
       transform: inlineCodeTransform,

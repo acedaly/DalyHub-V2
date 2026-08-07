@@ -18,11 +18,19 @@
  * It owns no product rule: it renders the plain {@link OverflowMenuItem} list it is
  * given and calls back. Confirmation, undo and persistence belong to the consumer
  * (the DS-10 Feedback platform and DS-10b `ConfirmationDialog`).
+ *
+ * M3-TIP — the ⋯ trigger is icon-only, and it is the same control on an
+ * EntityCard, a record header and a task row, so it is one of the highest-value
+ * adopters of the shared tooltip. It carried `title={label}` before, which meant
+ * the trigger explained itself to a mouse and to nothing else; the shared
+ * tooltip shows the same words on `:focus-visible` too. The trigger keeps its
+ * own `aria-label`, so the tooltip supplements the name rather than being it.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { MoreIcon } from "~/shared/icons";
+import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import type { OverflowMenuItem, OverflowMenuProps } from "./types";
 
@@ -189,33 +197,40 @@ export function OverflowMenu({
       data-open={open ? "true" : "false"}
       data-testid={rest["data-testid"]}
     >
-      <button
-        type="button"
-        id={triggerId}
-        ref={triggerRef}
-        className={["dh-overflow-menu__trigger", triggerClassName]
-          .filter(Boolean)
-          .join(" ")}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
-        aria-label={label}
-        title={label}
-        tabIndex={tabIndex}
-        onKeyDown={onTriggerKeyDown}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (open) {
-            close(false);
-          } else {
-            openAt(0);
-          }
-        }}
-      >
-        <span className="dh-overflow-menu__glyph" aria-hidden="true">
-          <MoreIcon />
-        </span>
-      </button>
+      {/* No tooltip while the menu is open: the panel it just opened says far
+          more than the trigger's own label, and a tooltip floating over it is
+          noise. */}
+      <Tooltip label={label} placement="top" disabled={open}>
+        {(tip) => (
+          <button
+            type="button"
+            id={triggerId}
+            ref={composeRefs(triggerRef, tip.ref)}
+            className={["dh-overflow-menu__trigger", triggerClassName]
+              .filter(Boolean)
+              .join(" ")}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-controls={open ? menuId : undefined}
+            aria-label={label}
+            aria-describedby={tip.describedBy}
+            tabIndex={tabIndex}
+            onKeyDown={onTriggerKeyDown}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (open) {
+                close(false);
+              } else {
+                openAt(0);
+              }
+            }}
+          >
+            <span className="dh-overflow-menu__glyph" aria-hidden="true">
+              <MoreIcon />
+            </span>
+          </button>
+        )}
+      </Tooltip>
 
       {open ? (
         <div

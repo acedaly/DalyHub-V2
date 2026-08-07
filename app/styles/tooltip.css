@@ -1,0 +1,101 @@
+/*
+ * M3-TIP — the shared tooltip (Material Design 3's PLAIN tooltip).
+ *
+ * One short line of supporting text for a control whose meaning is carried by a
+ * glyph, plus the keyboard shortcut where the control has one. It replaces the
+ * browser `title` attribute the August 2026 interaction audit found on 91
+ * controls — `title` never appears on keyboard focus, which is precisely where
+ * a shortcut hint is worth most.
+ *
+ * Painted with M3's own plain-tooltip pair, `inverse-surface` on
+ * `inverse-on-surface`: a container that reads as an overlay in BOTH appearances
+ * without either one needing its own rule. Positioning is computed in
+ * `Tooltip.tsx` (fixed, measured from the trigger, clamped to the viewport) —
+ * this file owns appearance only, so nothing here can put a tooltip off-screen
+ * or widen the document.
+ */
+
+.dh-tooltip {
+  position: fixed;
+  z-index: var(--app-z-tooltip);
+  /* It supplements a control; it must never intercept the click meant for it. */
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  /* Narrow enough to stay inside the narrowest supported viewport with room to
+   * spare. The generous subtraction is deliberate: `100vw` includes a classic
+   * scrollbar and the JS clamp measures `clientWidth`, which does not, so the
+   * slack is what keeps the two from disagreeing and giving the document a
+   * sideways scroll. */
+  max-inline-size: min(20rem, calc(100vw - 2 * var(--app-space-6)));
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  box-shadow: var(--md-sys-elevation-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  /* One line where it fits; wrapping only for genuinely long supporting text. */
+  text-wrap: pretty;
+  animation: dh-tooltip-in var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+/* Measured but not yet placed (the first layout pass). Hidden rather than moved
+ * off-screen, so it can still be measured at its natural size. */
+.dh-tooltip[data-positioned="false"] {
+  visibility: hidden;
+}
+
+.dh-tooltip__label {
+  min-inline-size: 0;
+}
+
+/*
+ * The shortcut. `kbd` because it IS a key, and a hairline container so the chip
+ * survives forced colours — the shortcut must not be distinguished from the text
+ * by colour alone (AGENTS.md §15).
+ */
+.dh-tooltip__shortcut {
+  flex: 0 0 auto;
+  padding-inline: var(--app-space-1);
+  border: var(--app-border-width-thin) solid
+    color-mix(in srgb, var(--md-sys-color-inverse-on-surface) 40%, transparent);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@keyframes dh-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Motion communicates causality here and nothing else, so under reduced motion
+ * the tooltip simply appears. */
+@media (prefers-reduced-motion: reduce) {
+  .dh-tooltip {
+    animation: none;
+  }
+}
+
+/* Forced colours: the fill is replaced by the system's, so the tooltip needs a
+ * real border to remain a distinct surface rather than floating text. */
+@media (forced-colors: active) {
+  .dh-tooltip {
+    border: var(--app-border-width-thin) solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .dh-tooltip__shortcut {
+    border-color: CanvasText;
+  }
+}

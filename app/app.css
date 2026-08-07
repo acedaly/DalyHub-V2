@@ -95,5 +95,8 @@
 @import "./styles/offline.css";
 /* AI-01 — the AI proposal, citation and Ask DalyHub surfaces. */
 @import "./styles/ai.css";
+/* M3-TIP — the ONE shared tooltip. Near the end of the cascade because it is an
+ * overlay every other surface can raise, and it must sit above them all. */
+@import "./styles/tooltip.css";
 /* Last: the print stylesheet hides all on-screen chrome, so it must win. */
 @import "./styles/print.css";

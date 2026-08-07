@@ -308,9 +308,11 @@ export function AppShell({
                   </main>
                 </div>
 
-                {/* M3-01: the one floating action button, wired to the SAME
-              shared capture surface every other entry point opens. It clears
-              the phone navigation bar and the home indicator. */}
+                {/* M3-01 / CAPTURE-02: the one floating action button, wired to
+              the SAME shared capture surface every other entry point opens. It
+              is the global capture affordance for windows the phone shell does
+              not claim: below `md` the navigation bar's Capture slot owns the
+              action and this button is not shown (see `CaptureFab`). */}
                 <CaptureFab />
 
                 {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the

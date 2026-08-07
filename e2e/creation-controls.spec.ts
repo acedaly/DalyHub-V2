@@ -103,20 +103,28 @@ test.describe("the global capture control", () => {
     await expect(fab).toBeFocused();
   });
 
-  test("does not obscure the phone navigation bar at 320px", async ({
+  /**
+   * CAPTURE-02 — at phone widths the button is not "above the bar", it is GONE.
+   *
+   * This assertion used to prove the floating button cleared the navigation bar
+   * beneath it, which was the best that could be said while both existed. The
+   * two were still the same global action twice, a thumb's width apart, in the
+   * same corner (DEBT-96). The bar's Capture slot now owns it outright, and the
+   * full compact-width contract — one affordance, still opening the same flow —
+   * lives in `global-capture.spec.ts`.
+   */
+  test("is not shown at 320px, where the bottom bar owns Capture", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await gotoFixture(page, "/today");
 
-    const fab = await captureControl(page).boundingBox();
-    const bar = await page.locator("[data-testid='bottom-nav']").boundingBox();
-    expect(fab).not.toBeNull();
-    expect(bar).not.toBeNull();
-    // The button sits ABOVE the bar rather than over it.
-    expect((fab?.y ?? 0) + (fab?.height ?? 0)).toBeLessThanOrEqual(
-      (bar?.y ?? 0) + 1,
-    );
+    await expect(captureControl(page)).toBeHidden();
+    await expect(
+      page.locator("[data-testid='bottom-nav']").getByRole("button", {
+        name: "Capture",
+      }),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 });

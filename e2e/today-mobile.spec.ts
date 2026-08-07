@@ -288,8 +288,14 @@ test.describe("TODAY-06 — mobile Today", () => {
     // REGRESSION: the capture FAB is `position: fixed` in the bottom-right
     // corner, and the bulk bar is in normal flow at the end of the collection.
     // On a short phone viewport the two occupied the same corner and the FAB
-    // ate the bar's trailing controls — Cancel could not be tapped at all. The
-    // FAB now steps aside for the whole time a selection is live.
+    // ate the bar's trailing controls — Cancel could not be tapped at all.
+    //
+    // CAPTURE-02 removed the floating button from phone widths entirely (the
+    // bottom bar's Capture slot owns the action here), so at THIS viewport the
+    // corner is unconditionally clear. The selection-suppression rule that
+    // originally fixed this still exists and still matters on a larger window,
+    // where the button does exist — it is asserted at desktop width in
+    // `global-capture.spec.ts`.
     // Located by class, not by accessible name: "Capture" is also the phone
     // bar's capture slot and the hero's "Capture a thought", and this assertion
     // is about the FLOATING button specifically — the only one that overlaps.
@@ -303,9 +309,14 @@ test.describe("TODAY-06 — mobile Today", () => {
       page.getByRole("group", { name: /Plan .* selected/ }),
     ).toHaveCount(0);
 
-    // ...and the FAB comes back once the selection ends, so stepping aside is
-    // not a one-way trip.
-    await expect(fab).toBeVisible();
+    // Capture is still available on the phone throughout — the bar's slot never
+    // went anywhere, before, during or after a selection.
+    await expect(fab).toBeHidden();
+    await expect(
+      page
+        .locator("[data-testid='bottom-nav']")
+        .getByRole("button", { name: "Capture" }),
+    ).toBeVisible();
   });
 
   test("reaches the Waiting view and navigates Back to Today", async ({

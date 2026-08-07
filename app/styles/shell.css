@@ -674,11 +674,42 @@
 }
 
 /*
- * Every page reserves the band the floating action button occupies, so the last
- * card, the last task row or the last paragraph is never trapped underneath it.
- * `--app-fab-band` already describes exactly that space — the phone navigation
- * bar, the button's inset, its height and a gap — and collapses to 96px on
- * desktop where there is no bottom bar.
+ * CAPTURE-02 — every page reserves the band the floating action button occupies
+ * at the END of its scroll, so the last card, the last task row or the last
+ * paragraph is never TRAPPED underneath it. Stated once here rather than as
+ * bottom padding sprinkled through the modules that happened to notice.
+ *
+ * `--app-fab-band` describes exactly that space — the phone navigation bar, the
+ * button's inset, its height and a gap — and collapses to the bar alone at phone
+ * widths, where there is no floating button at all.
+ *
+ * ── Why there is no INLINE reservation, having tried one ─────────────────────
+ * The obvious extension is to reserve the button's COLUMN as well, so nothing
+ * can arrive underneath it at any scroll position rather than only at the end.
+ * That was implemented and then removed, because it is paid for by the content
+ * and the bill is a whole gallery column:
+ *
+ *   | window | Areas/Projects/Goals | grid track | Projects page height |
+ *   |--------|----------------------|------------|----------------------|
+ *   | 900px  | 1 column, was 2      | 540 → 296  | 7169px, was 4956     |
+ *   | 1440px | 3 columns, was 4     | 344 → 269  | 3378px, was 3068     |
+ *
+ * At 900px the second column is lost by EIGHT pixels: the grid is
+ * `repeat(auto-fill, minmax(min(--app-entity-card-min-width, 100%), 1fr))`, so
+ * any width taken from the pane eventually crosses a `minmax()` boundary and
+ * drops a track. There is no reservation small enough to be safe at every width,
+ * and a shell rule that makes the galleries narrower to make room for a button
+ * is the shared card/grid geometry paying for the shell — the opposite of the
+ * direction DS-14 Gate D set. It also lands hardest at 840–1199dp, which is
+ * exactly the window class the August 2026 audit's findings 4 and 5 say is
+ * already starved by the 240px drawer.
+ *
+ * So the button keeps M3's own contract and no more: it may float OVER content
+ * while scrolling, as a floating action button does in every application that
+ * has one, and nothing is ever trapped beneath it — the end of the page always
+ * clears, and at phone widths the button does not exist. `global-capture.spec.ts`
+ * asserts both halves, and asserts this pane keeps its full inline measure so
+ * the trade cannot be silently reversed.
  */
 .dh-pane {
   padding-block-end: var(--app-fab-band);
@@ -1131,9 +1162,10 @@
   color: var(--md-sys-color-on-secondary-container);
 }
 
-/* Capture keeps its filled treatment on the bar: at phone widths it is the
- * thumb-reachable twin of the desktop FAB, and the two are painted with the
- * same `primary-container` pair so they read as one action in two places. */
+/* Capture keeps its filled treatment on the bar: at phone widths it is the ONLY
+ * global capture affordance (CAPTURE-02 hides the floating button here), and it
+ * is painted with the same `primary-container` pair the button uses on a larger
+ * window so the action reads the same wherever it appears. */
 .dh-bottomnav__control--capture .dh-bottomnav__indicator {
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
@@ -1161,17 +1193,29 @@
  * two choices — a `primary`-filled FAB shouts on a page whose primary action is
  * usually already visible).
  *
+ * CAPTURE-02 — it exists only where the bottom navigation bar does NOT. Below
+ * `md` the bar carries a Capture slot in the same corner, and shipping both gave
+ * a phone two global capture controls a thumb's width apart (recorded as
+ * DEBT-96, confirmed by the August 2026 audit). The bar's slot wins there: it is
+ * labelled, it is part of the navigation a phone user already reads, and it does
+ * not float over the page. The button is hidden with `display: none` rather than
+ * unmounted by a media-query hook, so there is no second responsive source of
+ * truth and no hydration mismatch — and `display: none` genuinely removes it
+ * from the Tab order and the accessibility tree, which visibility alone or a
+ * transparent control would not.
+ *
  * It is anchored 24px from the bottom-right and clears, in order: the home
  * indicator (`env(safe-area-inset-bottom)`, folded into
  * `--app-bottomnav-height`), the phone navigation bar, and the on-screen
  * keyboard. All three are already-published tokens, so nothing here measures
- * anything — on desktop `--app-bottomnav-height` is `0px` and the whole
- * expression collapses to 24px.
+ * anything.
  *
- * `--app-fab-band` (tokens.css) is this same expression plus the button's own
- * height and a gap, published for the one other surface anchored to this corner:
- * the notification region, which stacks ABOVE the FAB rather than over it
- * (`feedback.css`). Two fixed controls in one corner is not a stacking-order
+ * `--app-fab-band` (tokens.css) describes the space this button spoke for at the
+ * bottom of the window, and is consumed by the two surfaces that must reason
+ * about it: the pane's reserved end band (above), and the notification region,
+ * which stacks ABOVE the FAB rather than over it (`feedback.css`). Deliberately
+ * NOT the document's `scroll-padding` — see the note in `base.css` for why a
+ * corner must not be reserved as a full-width band. Two fixed controls in one corner is not a stacking-order
  * question — the notification layer is click-through, so a pointer reaches the
  * FAB either way, but an automated target-size audit sees a 56px control with
  * 8px of unobscured height and is right to fail it. They are given separate
@@ -1179,14 +1223,16 @@
  */
 .dh-fab {
   position: fixed;
-  inset-inline-end: max(var(--app-space-6), env(safe-area-inset-right));
-  inset-block-end: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
+  inset-inline-end: max(var(--app-fab-inset), env(safe-area-inset-right));
+  inset-block-end: calc(
+    var(--app-fab-inset) + var(--app-bottomnav-height, 0px)
+  );
   z-index: var(--app-z-sticky);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 3.5rem;
-  block-size: 3.5rem;
+  inline-size: var(--app-fab-size);
+  block-size: var(--app-fab-size);
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-sys-color-primary-container);
@@ -1271,11 +1317,18 @@
    * only, so a value set on `.dh-app` is invisible to `html` — and `html` is the
    * document scroll container, which needs it for `scroll-padding` (base.css) so
    * `scrollIntoView` and keyboard focus never park an element beneath the bar.
-   * Everything under `:root` — `.dh-app` included — still inherits it unchanged. */
+   * Everything under `:root` — `.dh-app` included — still inherits it unchanged.
+   *
+   * CAPTURE-02 — the FAB band is re-stated here for the same reason. There is no
+   * floating action button at these widths, so the space it would have spoken
+   * for is not reserved and the band describes the bar alone. Every consumer of
+   * the token (the pane, the notification region) therefore gets the phone
+   * answer without knowing anything about breakpoints. */
   :root {
     --app-bottomnav-height: calc(
       var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)
     );
+    --app-fab-band: var(--app-bottomnav-height);
   }
 
   .dh-app {
@@ -1294,10 +1347,10 @@
     display: block;
   }
 
-  /* While the keyboard is up the bar would sit on top of the field being typed
-   * into, so it is removed entirely and the pane reclaims its space. */
-  .dh-app:has(.dh-bottomnav) .dh-pane {
-    padding-bottom: var(--app-bottomnav-height);
+  /* CAPTURE-02 — the bar's Capture slot is the ONE global capture affordance at
+   * phone widths, so the floating twin of it goes. See the FAB block above. */
+  .dh-fab {
+    display: none;
   }
 }
 

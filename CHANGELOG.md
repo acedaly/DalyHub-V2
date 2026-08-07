@@ -19,6 +19,46 @@ no version number to group them under.
 
 ## Unreleased
 
+### Fixed — the Capture button stops sitting on top of things
+
+- **Nothing gets stuck underneath it any more.** The round **+** button in the
+  bottom-right corner floats above the page, and the last thing on a page — the
+  last card, the last row, the last control — used to end up trapped beneath it
+  with nowhere further to scroll. Every page now keeps that much room at its end,
+  so you can always reach the bottom of what you are looking at. The button still
+  floats over things as you scroll past, which is what a floating button does;
+  what it no longer does is put something out of reach.
+- **On a phone there is now one Capture, not two.** The floating **+** and the
+  bottom bar's **Capture** did exactly the same thing, in the same corner, a
+  thumb's width apart. The bar's Capture is the one that stays — it is labelled,
+  it is where you are already looking, and it does not float over the page. Every
+  capture type, the keyboard behaviour and what happens when you close it are all
+  unchanged. On a laptop the floating button stays exactly where it was.
+- **Nothing else about creating things changed.** "New Task" on a Project, "New
+  Note" on a Person and the create buttons on empty collections are all still
+  there — those carry context that Capture cannot.
+
+### Added — icon buttons explain themselves, to the keyboard as well as the mouse
+
+- **Hover or Tab to an icon-only button and it now tells you what it does** — the
+  formatting bar, the ⋯ menus on cards and records, the command palette and help
+  buttons in the top bar, your account button, Back and Search on a phone, and
+  Capture itself.
+- **Formatting buttons show their keyboard shortcut** — `Bold ⌘B` — and they show
+  it in the right form for the computer you are on. Previously that hint only
+  appeared for a mouse, which meant the people most likely to want the shortcut
+  were the ones who never saw it.
+- **Press Escape to dismiss one.** They never take keyboard focus, never get in
+  the way of clicking the button underneath, and never run off the edge of the
+  window. If you have asked your system to reduce motion, they simply appear.
+
+### Fixed — a Settings row that said the same thing twice
+
+- **"Default task destination" is now written once** in its Settings row, not
+  once on the left and again above the box on the right. A screen reader reads
+  the setting once, and the control is still properly labelled by the words you
+  can see.
+
 ### Changed — writing feels like writing, and small edits happen in place
 
 - **The editor got out of the way.** The formatting bar is now a compact row of

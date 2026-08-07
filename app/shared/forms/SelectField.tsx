@@ -43,6 +43,28 @@ interface SelectSharedProps {
   readonly placeholder?: string;
   /** Message when there are no options to show. */
   readonly emptyMessage?: string;
+  /**
+   * SETTINGS-LABEL — the id of a visible label that ALREADY names this setting, from
+   * outside the field.
+   *
+   * When present the field renders no label row of its own and points its ARIA
+   * at that element instead, so the control has exactly one visible label and
+   * exactly one programmatic name. It exists for `SettingsRow`'s documented
+   * "row-owned name" pattern (`~/shared/settings/SettingsRow`), where the row
+   * already renders the setting's name beside the control: composing the two
+   * without it printed "Default task destination" twice in one row — the
+   * duplicated label the August 2026 interaction audit recorded as finding 7.
+   *
+   * This is NOT a way to hide a label. The name still comes from real, visible
+   * text; it simply belongs to the row rather than to the field.
+   */
+  readonly labelledBy?: string;
+  /**
+   * Extra `aria-describedby` ids contributed from outside (a `SettingsRow`'s
+   * description and status line). Composed with the field's own help/error ids
+   * rather than replacing them.
+   */
+  readonly describedBy?: string;
 }
 
 export type SelectFieldProps =
@@ -81,12 +103,16 @@ export function SelectField(props: SelectFieldProps) {
     loading = false,
     placeholder = "Select…",
     emptyMessage = "No matches.",
+    labelledBy,
+    describedBy: externalDescribedBy,
   } = props;
   const multiple = props.multiple === true;
 
   const baseId = id ?? `dh-select-${label.replace(/\s+/g, "-").toLowerCase()}`;
   const { helpId, errorId } = deriveFieldIds(baseId);
-  const labelId = `${baseId}-label`;
+  // When an outside label already names this setting, that element IS the label:
+  // the field points every association at it and renders no second one.
+  const labelId = labelledBy ?? `${baseId}-label`;
   const invalid = Boolean(error);
 
   const selectedValues: readonly string[] = useMemo(
@@ -181,10 +207,16 @@ export function SelectField(props: SelectFieldProps) {
     );
   };
 
-  const describedBy = composeDescribedBy({
-    helpId: help ? helpId : null,
-    errorId: invalid ? errorId : null,
-  });
+  const describedBy =
+    [
+      composeDescribedBy({
+        helpId: help ? helpId : null,
+        errorId: invalid ? errorId : null,
+      }),
+      externalDescribedBy,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   const unavailableSingle =
     !multiple && props.value && !selectedSingle ? String(props.value) : null;
@@ -202,19 +234,21 @@ export function SelectField(props: SelectFieldProps) {
       data-disabled={disabled || undefined}
       data-readonly={readOnly || undefined}
     >
-      <div className="dh-field__label-row">
-        <span id={labelId} className="dh-field__label-text">
-          {label}
-        </span>
-        {required ? (
-          <span className="dh-field__required">
-            <span aria-hidden="true">*</span>
-            <span className="dh-visually-hidden"> (required)</span>
+      {labelledBy ? null : (
+        <div className="dh-field__label-row">
+          <span id={labelId} className="dh-field__label-text">
+            {label}
           </span>
-        ) : showOptionalCue ? (
-          <span className="dh-field__optional">Optional</span>
-        ) : null}
-      </div>
+          {required ? (
+            <span className="dh-field__required">
+              <span aria-hidden="true">*</span>
+              <span className="dh-visually-hidden"> (required)</span>
+            </span>
+          ) : showOptionalCue ? (
+            <span className="dh-field__optional">Optional</span>
+          ) : null}
+        </div>
+      )}
 
       <div
         className="dh-field__control dh-combobox"

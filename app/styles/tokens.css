@@ -913,18 +913,36 @@
   /* The M3 navigation bar's own height, before safe-area padding. */
   --app-bottomnav-bar-height: 5rem;
 
-  /* The vertical space the floating action button occupies at the bottom-right:
-   * the phone navigation bar beneath it, its 24px inset, its 56px height and a
-   * 16px gap above it — so this is exactly "the height of the FAB's top edge,
-   * plus breathing room". It collapses to 96px on desktop, where
-   * `--app-bottomnav-height` is `0px`.
+  /* CAPTURE-02 — the floating action button's anatomy, as tokens.
    *
-   * It exists because the notification region is the one other surface anchored
-   * to that corner, and it stacks above the FAB rather than over it (`shell.css`
-   * for the FAB itself, `feedback.css` for the region). */
+   * The specification's standard FAB: 56px, anchored 24px from the corner, with
+   * a 16px gap above it. Stated here rather than as literals in `shell.css`
+   * because two other things have to reason about the space this button
+   * occupies — the pane's reserved end band and the notification region that
+   * stacks above it — and a button whose size is a literal in one file cannot be
+   * reserved for correctly in the others. */
+  --app-fab-size: 3.5rem; /* 56 */
+  --app-fab-inset: var(--app-space-6); /* 24 */
+  --app-fab-gap: var(--app-space-4); /* 16 */
+
+  /* The space the FAB spoke for at the bottom of the window, folding in the
+   * phone navigation bar beneath it — so one token describes "everything
+   * anchored to the bottom". It is what every scroll container reserves at its
+   * END (`shell.css`), so nothing is ever trapped under either, and what the
+   * notification region stacks above (`feedback.css`).
+   *
+   * It is deliberately NOT used for two things it looks like it should be, and
+   * both were tried and reverted: the document's `scroll-padding-block-end`
+   * (a corner reserved as a full-width band changes how far every
+   * `scrollIntoView` travels — see `base.css`), and an INLINE twin reserving the
+   * button's column on the pane (paid for by the entity galleries, at the cost
+   * of a whole column — see `shell.css`).
+   *
+   * Overridden at phone widths (`shell.css`) to the navigation bar alone, where
+   * there is no FAB and the bar's Capture slot owns the action instead. */
   --app-fab-band: calc(
-    var(--app-bottomnav-height, 0px) + var(--app-space-6) + 3.5rem +
-      var(--app-space-4)
+    var(--app-bottomnav-height, 0px) + var(--app-fab-inset) +
+      var(--app-fab-size) + var(--app-fab-gap)
   );
 
   --app-border-width-thin: 1px;
