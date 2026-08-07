@@ -105,3 +105,35 @@
   justify-content: center;
   margin-top: var(--app-space-2);
 }
+
+/*
+ * RECORD-01 — the INLINE size: a record's absence, stated once.
+ *
+ * A record tab with nothing in it is not a collection with nothing in it. The
+ * default treatment is a teaching surface for a first-time owner; inside a
+ * record it restates an action already visible above it, in the tallest block
+ * on the panel. This is the same component and the same semantics — a heading
+ * so the outline and the screen-reader announcement survive — rendered as one
+ * quiet line of prose on the panel's own surface.
+ */
+.dh-empty-state[data-size="inline"] {
+  align-items: flex-start;
+  text-align: start;
+  gap: var(--app-space-1);
+  padding: var(--app-space-4) 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.dh-empty-state[data-size="inline"] .dh-empty-state__title {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-empty-state[data-size="inline"] .dh-empty-state__actions {
+  justify-content: flex-start;
+  margin-top: var(--app-space-1);
+}

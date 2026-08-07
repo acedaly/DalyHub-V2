@@ -17,7 +17,7 @@ import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import {
   HealthIndicator,
-  ProjectHealthPanel,
+  healthSignals,
   type ProjectHealth,
 } from "~/shared/project-health";
 import {
@@ -27,9 +27,7 @@ import {
 } from "~/shared/record-layout";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
-import { ProgressMeter } from "~/shared/progress";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
-import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import {
   isProjectArchived,
@@ -116,19 +114,18 @@ export function ProjectOverview({
     status: overview.status,
   });
 
-  const headerMetadata: RecordMetaItem[] = [];
-  // Shown ONLY for genuinely active work (PROJ-05 §8 / ADR-037) — see
-  // `isHealthVisible` in `project-view.ts`, the SAME rule the collection Card
-  // and Today use.
-  if (overview.healthVisible) {
-    headerMetadata.push({
-      id: "health",
-      label: "Health",
-      value: <HealthIndicator health={health} />,
-    });
-  }
+  /*
+   * RECORD-01 — the context line: the two facts that place this Project in the
+   * spine, and nothing else.
+   *
+   * Health used to sit here AND again inside the roll-up card; it now appears
+   * once, as the summary band's state chip, beside the progress it explains.
+   * Created, Updated and the raw State moved to the Settings tab's Record
+   * details — demoted, never deleted.
+   */
+  const contextItems: RecordMetaItem[] = [];
   if (overview.area) {
-    headerMetadata.push({
+    contextItems.push({
       id: "area",
       label: "Area",
       value: (
@@ -141,7 +138,7 @@ export function ProjectOverview({
     });
   }
   if (overview.goal) {
-    headerMetadata.push({
+    contextItems.push({
       id: "goal",
       label: "Goal",
       value: (
@@ -154,50 +151,13 @@ export function ProjectOverview({
     });
   }
 
-  const created = formatCalendarDate(overview.createdAt.slice(0, 10));
-  const updated = formatCalendarDate(overview.updatedAt.slice(0, 10));
-
-  const summaryMetadata: RecordMetaItem[] = [];
-  if (overview.area) {
-    summaryMetadata.push({
-      id: "s-area",
-      label: "Area",
-      value: (
-        <EntityLink
-          type={overview.area.kind}
-          id={overview.area.id}
-          title={overview.area.title}
-        />
-      ),
-    });
-  }
-  if (overview.goal) {
-    summaryMetadata.push({
-      id: "s-goal",
-      label: "Goal",
-      value: (
-        <EntityLink
-          type={overview.goal.kind}
-          id={overview.goal.id}
-          title={overview.goal.title}
-        />
-      ),
-    });
-  }
-  summaryMetadata.push({ id: "s-state", label: "State", value: state.label });
-  summaryMetadata.push({
-    id: "s-tasks",
-    label: "Tasks",
-    value: progress.has
-      ? `${progress.completed} of ${progress.total} complete`
-      : "No tasks yet",
-  });
-  if (created) {
-    summaryMetadata.push({ id: "s-created", label: "Created", value: created });
-  }
-  if (updated) {
-    summaryMetadata.push({ id: "s-updated", label: "Updated", value: updated });
-  }
+  /*
+   * PROJ-05 §5 — an archived project is read-only, and the summary band says so
+   * in one line where the summary card used to spend a bordered banner on it.
+   */
+  const archivedNote = archived
+    ? "This project is archived and read-only. Open Settings to restore it."
+    : undefined;
 
   const primaryAction: RecordAction | undefined = archived
     ? undefined
@@ -209,10 +169,21 @@ export function ProjectOverview({
           disabled: completionPending,
           onSelect: () => onToggleComplete(false),
         }
-      : {
+      : /*
+         * RECORD-01 — completing a project is a LIFECYCLE action, not the next
+         * thing the owner came here to do.
+         *
+         * It rendered as the filled primary button at the top right of every
+         * project, where M3 puts the surface's most likely next step — so the
+         * loudest control on a record whose purpose is a task list was the one
+         * that ends the project. It is now the header's low-emphasis secondary
+         * action (still one press, still in the same place); the tasks below it
+         * carry the record's real work.
+         */
+        {
           id: "complete",
           label: "Complete project",
-          variant: "primary",
+          variant: "secondary",
           disabled: completionPending,
           onSelect: () => onToggleComplete(true),
         };
@@ -228,19 +199,22 @@ export function ProjectOverview({
     onArchive,
     onRestore,
   });
+  /*
+   * RECORD-01 — the overflow creates the things this record has no local path
+   * for.
+   *
+   * "New task" was here too, opening the global capture sheet pre-seeded with
+   * this project — a second mechanism for what the Tasks tab's own "Add task"
+   * already does with the project fixed and no picker to answer. Two routes to
+   * one outcome is precisely the local-vs-global confusion this PR resolves, so
+   * the local one (faster, and the record it belongs to is not in question)
+   * stays and this one goes. Notes, Meetings and Diary entries have no local
+   * path on this record, so theirs remain — this is where the project context
+   * is worth carrying into the global sheet.
+   */
   const contextualCreateActions = archived
     ? []
     : [
-        {
-          id: "capture-task",
-          label: "New task",
-          description: "Create a Task in this Project.",
-          onSelect: () =>
-            capture?.openCapture("task", null, {
-              ...captureContext,
-              relationshipMeaning: "parent",
-            }),
-        },
         {
           id: "capture-note",
           label: "New note",
@@ -276,13 +250,16 @@ export function ProjectOverview({
             data-testid="project-title-edit"
           />
         }
-        typeLabel="Project"
+        // RECORD-01 — no `typeLabel`. The breadcrumb directly above the title
+        // already says "Projects"; a "Project" eyebrow under it was a line of
+        // header height spent repeating the line above.
+        //
         // The record's OWN icon — the chosen glyph, falling back to the
         // project default when there is none or the stored key is unresolvable.
         icon={<RecordIcon entityType="project" iconKey={overview.iconKey} />}
         breadcrumb={[{ id: "projects", label: "Projects", href: "/projects" }]}
         status={{ label: state.label, tone: state.tone }}
-        metadata={headerMetadata}
+        metadata={contextItems}
         primaryAction={primaryAction}
         overflowActions={[
           ...contextualCreateActions,
@@ -292,37 +269,34 @@ export function ProjectOverview({
               : item,
           ),
         ]}
-        summary={{
-          description: (
-            <div className="dh-project-overview__summary">
-              {archived ? (
-                <p
-                  className="dh-project-overview__archived-banner"
-                  role="status"
-                >
-                  This project is archived and read-only. Open{" "}
-                  <strong>Settings</strong> to restore it.
-                </p>
-              ) : null}
-              {/* THEME-01 — the derived roll-up, shown as the shared meter. An
-               * empty project has nothing to measure, so it states that instead
-               * of rendering a 0% bar. */}
-              <ProgressMeter
-                label="Roll-up progress"
-                percent={progress.percent}
-                summary={
-                  progress.has
-                    ? `${progress.summary} complete`
-                    : "No tasks yet."
-                }
-                available={progress.has}
-              />
-              {overview.healthVisible ? (
-                <ProjectHealthPanel health={health} />
-              ) : null}
-            </div>
-          ),
-          metadata: summaryMetadata,
+        /*
+         * RECORD-01 — the roll-up card becomes the compact summary band.
+         *
+         * Same three facts the card carried, said once each: the derived
+         * progress (THEME-01's shared meter — an empty project has nothing to
+         * measure, so it says so rather than drawing a 0% bar), the health
+         * state beside it, and health's reasons as the signal line. The card's
+         * key/value grid is gone because every row but one repeated a reason
+         * above it; that one row (last activity) is in Settings → Record
+         * details, together with Created, Updated and State.
+         */
+        summaryBar={{
+          note: archivedNote,
+          progress: {
+            label: "Tasks",
+            percent: progress.percent,
+            summary: progress.has
+              ? `${progress.summary} complete`
+              : "No tasks yet.",
+            available: progress.has,
+          },
+          // Shown ONLY for genuinely active work (PROJ-05 §8 / ADR-037) — see
+          // `isHealthVisible` in `project-view.ts`, the SAME rule the collection
+          // Card and Today use.
+          state: overview.healthVisible ? (
+            <HealthIndicator health={health} />
+          ) : undefined,
+          signals: overview.healthVisible ? healthSignals(health) : undefined,
         }}
         activeTabId={activeTabId}
         onTabChange={onTabChange}

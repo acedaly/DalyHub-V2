@@ -2,8 +2,13 @@
  * PROJ-02 Project Health — shared presentation public surface.
  *
  * Re-exports the kernel health model (so consumers import health from one place)
- * plus the React-free view-model and the two shared presentation components used by
- * the Projects collection, the project record and Today.
+ * plus the React-free view-model and the shared presentation used by the Projects
+ * collection, the project record and Today.
+ *
+ * RECORD-01 removed `ProjectHealthPanel`: its bulleted reasons became
+ * `healthSignals` in the compact record summary band, and the one fact it
+ * carried that no reason did (the last recorded activity) moved to the
+ * project's Settings details. See `health-view.ts` for the reasoning.
  */
 
 export {
@@ -29,6 +34,6 @@ export {
   healthReasonText,
   healthAccessibleSummary,
   healthNeedsAttention,
+  healthSignals,
 } from "./health-view";
 export { HealthIndicator } from "./HealthIndicator";
-export { ProjectHealthPanel } from "./ProjectHealthPanel";

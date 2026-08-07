@@ -181,3 +181,52 @@
     transition: none;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* The SUBTLE variant (RECORD-01) — a filter inside a record tab               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * `~/shared/segmented-filter` renders this on every in-content state filter.
+ *
+ * A record's tab strip is text plus a 2px indicator. The same segmented control
+ * the COLLECTION header uses — a hairline `outline` capsule, `label-large`, a
+ * `secondary-container` fill on the selected segment — outweighs that strip
+ * comfortably, so a filter sitting directly beneath the tabs read as a second
+ * and louder row of them. Tab = where am I; filter = which subset. The louder
+ * control has to be the one that answers the bigger question.
+ *
+ * Only WEIGHT changes: the anatomy, the reserved check glyph, the 44px target,
+ * the scroll-rather-than-wrap rule, the state layer and the keyboard behaviour
+ * are the shared control's, untouched. `outline-variant` for the capsule and
+ * dividers, `label-medium` for the labels, and the low surface for the selected
+ * segment — a pair the token layer already holds above 4.5:1 in both
+ * appearances, so subordinate never means illegible.
+ */
+.dh-segmented--subtle {
+  border-color: var(--md-sys-color-outline-variant);
+}
+
+.dh-segmented--subtle .dh-segmented__option {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-segmented--subtle .dh-segmented__option + .dh-segmented__option {
+  border-inline-start-color: var(--md-sys-color-outline-variant);
+}
+
+.dh-segmented--subtle .dh-segmented__option[aria-current="true"],
+.dh-segmented--subtle .dh-segmented__option[aria-pressed="true"] {
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-sunken);
+}
+
+/* The check reserves a smaller box here, in proportion with the smaller label. */
+.dh-segmented--subtle .dh-segmented__option::before {
+  inline-size: 1rem;
+  block-size: 1rem;
+}

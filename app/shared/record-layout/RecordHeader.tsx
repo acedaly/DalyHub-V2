@@ -1,12 +1,31 @@
 /**
  * DS-02 — the Record Header region.
  *
- * The consistent top of every record: an optional parent breadcrumb, an optional
- * entity icon + type label, the record title (the record's heading, at a
- * configurable level for a correct outline), an optional status pill, optional
- * metadata chips, and optional primary/secondary actions. Entity-agnostic — it
- * renders whatever plain data the caller passes and omits every region it isn't
- * given (DESIGN_SYSTEM.md → Record Header).
+ * The consistent top of every record: an optional parent breadcrumb, the record
+ * title (the record's heading, at a configurable level for a correct outline)
+ * with its entity glyph and status pill beside it, an optional context line, and
+ * optional primary/secondary actions. Entity-agnostic — it renders whatever
+ * plain data the caller passes and omits every region it isn't given
+ * (DESIGN_SYSTEM.md → Record Header).
+ *
+ * ── RECORD-01 (PR #131) — identity is ONE block ──────────────────────────────
+ *
+ * The header previously stacked three separate bands: a type line (glyph + "
+ * Project"), then the title row, then a detached metadata row separated from the
+ * tabs by the layout's own gap. On a Project at 1280×800 that cost 158px before
+ * the record had said anything, and the type line said what the breadcrumb
+ * directly above it already said.
+ *
+ * So identity is now one line — glyph, title, status — and the caller's
+ * `metadata` renders as a tight CONTEXT LINE underneath it rather than a band of
+ * its own. `typeLabel` still exists and still renders, but as the first entry in
+ * that context line, because the labels that survived the convergence are
+ * genuine SUBTYPES ("Vehicle" on an Asset) rather than the entity type the
+ * breadcrumb already carries.
+ *
+ * The glyph keeps its `record-type__icon` hook. #130 put the record's chosen
+ * identity colour there, and moving the element must not move the contract that
+ * addresses it.
  */
 
 import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
@@ -132,19 +151,12 @@ export function RecordHeader({
 
       <div className="record-header__bar">
         <div className="record-header__identity">
-          {(icon !== undefined || typeLabel !== undefined) && (
-            <span className="record-type">
-              {icon !== undefined && (
-                <span className="record-type__icon" aria-hidden="true">
-                  {icon}
-                </span>
-              )}
-              {typeLabel !== undefined && (
-                <span className="record-type__label">{typeLabel}</span>
-              )}
-            </span>
-          )}
           <div className="record-header__titlerow">
+            {icon !== undefined && (
+              <span className="record-type__icon" aria-hidden="true">
+                {icon}
+              </span>
+            )}
             <Heading id={titleId} className="record-title">
               {titleSlot ?? title}
             </Heading>
@@ -181,12 +193,18 @@ export function RecordHeader({
         )}
       </div>
 
-      {metadata !== undefined && metadata.length > 0 && (
-        <ul className="record-header__meta" aria-label="Record metadata">
-          {metadata.map((item) => (
-            <li key={item.id} className="record-meta-chip">
-              <span className="record-meta-chip__label">{item.label}</span>
-              <span className="record-meta-chip__value">{item.value}</span>
+      {(typeLabel !== undefined ||
+        (metadata !== undefined && metadata.length > 0)) && (
+        <ul className="record-header__context" aria-label="Record context">
+          {typeLabel !== undefined && (
+            <li className="record-context-item record-context-item--type">
+              <span className="record-type__label">{typeLabel}</span>
+            </li>
+          )}
+          {(metadata ?? []).map((item) => (
+            <li key={item.id} className="record-context-item">
+              <span className="record-context-item__label">{item.label}</span>
+              <span className="record-context-item__value">{item.value}</span>
             </li>
           ))}
         </ul>

@@ -313,10 +313,27 @@ export function ProjectTasksTab({
           value={taskState}
           label="Filter tasks by state"
         />
+        {/*
+         * RECORD-01 — the ONE local creation action on this record.
+         *
+         * The contract keeps a local create only where context materially
+         * matters and it beats the global +, and this one does: the form
+         * already receives `projectId`, so a task created here lands in this
+         * project with nothing for the owner to pick. It is low-emphasis
+         * because it sits beside a filter, not because it is unimportant — the
+         * loud tonal button it used to be competed with the tab strip and the
+         * task rows for the same attention.
+         *
+         * The duplicate route was the header overflow's "New task", which
+         * opened the GLOBAL capture sheet pre-seeded with this project: a
+         * second mechanism for the same outcome, which is exactly the
+         * local-vs-global confusion this PR set out to resolve. It is gone;
+         * this is the local path and the global + is the generic one.
+         */}
         {archived ? null : (
           <DrawerTrigger
             drawerKey={NEW_TASK_KEY}
-            className="dh-btn dh-btn--secondary"
+            className="dh-btn dh-btn--text"
           >
             Add task
           </DrawerTrigger>
@@ -324,8 +341,16 @@ export function ProjectTasksTab({
       </div>
 
       {items.length === 0 ? (
+        /*
+         * RECORD-01 — a record-level empty state is one calm line.
+         *
+         * An icon, a headline, a description and a primary button is the
+         * COLLECTION treatment, and it was being spent here to say "no open
+         * tasks" directly beneath an "Add task" control that was already
+         * visible. The compact variant states the absence and stops.
+         */
         <EmptyState
-          icon={<EntityIcon type="task" />}
+          size="inline"
           headingLevel={3}
           title={
             taskState === "completed"
@@ -337,17 +362,7 @@ export function ProjectTasksTab({
           description={
             archived
               ? "This archived project has no tasks matching this filter."
-              : "Add a task to start moving this project forward."
-          }
-          primaryAction={
-            archived ? undefined : (
-              <DrawerTrigger
-                drawerKey={NEW_TASK_KEY}
-                className="dh-btn dh-btn--primary"
-              >
-                Add task
-              </DrawerTrigger>
-            )
+              : undefined
           }
         />
       ) : (

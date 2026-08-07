@@ -677,6 +677,7 @@ function ProjectDetail({
         // tab (DESIGN_SYSTEM.md → Tabs).
         <ProjectSettingsTab
           overview={overview}
+          health={health}
           onSetStatus={onSetStatus}
           onMove={onMove}
           onArchive={onArchive}

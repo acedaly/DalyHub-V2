@@ -34,3 +34,4 @@ worker-configuration.d.ts
 # Claude Code local worktree/session state
 /.claude/
 rc-inspect.local.mjs
+rc-probe.local.mjs

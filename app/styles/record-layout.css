@@ -36,10 +36,19 @@
 /* Header                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * RECORD-01 — the header is TIGHT.
+ *
+ * `space-3` between three stacked bands (breadcrumb / type line / title row /
+ * metadata row) is what produced the empty band between a record's name and its
+ * tabs. The bands are now two — breadcrumb, then identity — with the context
+ * line hanging directly off the identity, so the gap can close without the
+ * header feeling cramped.
+ */
 .record-header {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
   min-width: 0;
 }
 
@@ -106,18 +115,20 @@
   flex: 1 1 20rem;
 }
 
-.record-type {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
+/*
+ * The entity glyph now sits INSIDE the title row, sized against the heading
+ * rather than against a label that no longer exists. `flex: none` keeps it a
+ * fixed leading mark so it never competes with the title for width, and
+ * `align-self: center` keeps it centred on a single-line title while a wrapped
+ * title grows past it.
+ */
 .record-type__icon {
   display: inline-flex;
   align-items: center;
+  flex: none;
+  align-self: center;
+  font-size: 1.375rem;
+  line-height: 1;
   color: var(--md-sys-color-primary);
 }
 
@@ -355,33 +366,60 @@
   cursor: not-allowed;
 }
 
-/* Header metadata chips. */
-.record-header__meta {
+/*
+ * RECORD-01 — the CONTEXT LINE.
+ *
+ * One quiet line of current-state facts, hanging directly off the identity
+ * block rather than floating as its own band. It carries a strict budget: the
+ * facts a reader needs to place the record (an Area, a health signal, a
+ * meeting's when/where), never administrative history — Created, Updated,
+ * State and owner fields belong in the record's Settings tab, where the
+ * shared `dh-record-details` list presents them.
+ *
+ * Items are separated by a mid-dot rather than by wide gaps: a separator reads
+ * as one line of context, where 16px of air reads as several small columns.
+ */
+.record-header__context {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--app-space-2) var(--app-space-4);
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-2);
   margin: 0;
   padding: 0;
   min-width: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.4;
 }
 
-.record-meta-chip {
+.record-context-item {
   display: inline-flex;
   align-items: baseline;
   gap: var(--app-space-1);
-  font-size: var(--md-sys-typescale-body-small-size);
   min-width: 0;
 }
 
-.record-meta-chip__label {
+.record-context-item + .record-context-item::before {
+  content: "·";
+  margin-inline-end: var(--app-space-2);
+  color: var(--md-sys-color-outline);
+}
+
+.record-context-item__label,
+.record-type__label {
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.record-meta-chip__value {
+.record-context-item__value {
   color: var(--md-sys-color-on-surface);
   font-weight: 500;
   overflow-wrap: anywhere;
+}
+
+/* A subtype ("Vehicle") is context, not a field: it needs no label beside it. */
+.record-context-item--type .record-type__label {
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -752,17 +790,21 @@
     overflow-wrap: anywhere;
   }
 
-  /* Metadata becomes one wrapped, comma-free summary row of chips rather than a
-   * fixed-width key/value table. */
-  .record-header__meta {
-    gap: var(--app-space-1) var(--app-space-3);
+  /* The context line tightens further on a phone but stays one wrapped line. */
+  .record-header__context {
+    gap: var(--app-space-1) var(--app-space-2);
     font-size: var(--md-sys-typescale-label-medium-size);
   }
 
-  /* An empty metadata row must not reserve vertical space on a phone. */
-  .record-header__meta:empty,
+  /* An empty context line must not reserve vertical space on a phone. */
+  .record-header__context:empty,
   .record-summary:empty {
     display: none;
+  }
+
+  /* The glyph steps down with the title rather than dwarfing it. */
+  .record-type__icon {
+    font-size: 1.125rem;
   }
 
   /* M3-INT — the strip and its panel stay joined on a phone too; the gap here
@@ -816,5 +858,182 @@
 .dh-record-muted {
   margin: 0;
   color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record summary band (RECORD-01)                                            */
+/*                                                                            */
+/* The compact replacement for the per-module roll-up dashboards. It is a      */
+/* BAND on the page canvas — no fill, no outline, no radius — because a card   */
+/* is what turned three modules' derived state into the tallest thing on their */
+/* record. Hierarchy here comes from spacing and typography, which is the      */
+/* order M3 asks for before another surface.                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-record-summary-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/* A single calm line: an archived banner, or "nothing active here" stated once. */
+.dh-record-summary-bar__note {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+/* Progress and state read as ONE statement, so they share a row and only wrap
+ * when the container genuinely cannot hold them. */
+.dh-record-summary-bar__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2) var(--app-space-4);
+  min-inline-size: 0;
+}
+
+.dh-record-summary-bar__progress {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+.dh-record-summary-bar__state {
+  flex: none;
+}
+
+/*
+ * Inside the band the meter's label is context, not a heading: the record's
+ * heading is the record's name, and a `title-small` "Roll-up progress" above a
+ * 4px track was competing with it.
+ */
+.dh-record-summary-bar__progress .dh-progress {
+  gap: var(--app-space-1);
+}
+
+.dh-record-summary-bar__progress .dh-progress__label {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: 500;
+  letter-spacing: normal;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-record-summary-bar__progress .dh-progress__summary {
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+}
+
+/* Signals: one wrapped line of short sentences, mid-dot separated. Tone tints
+ * the separator dot's sentence, never replaces the words. */
+.dh-record-summary-bar__signals {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.4;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-record-summary-bar__signal {
+  min-inline-size: 0;
+}
+
+.dh-record-summary-bar__signal + .dh-record-summary-bar__signal::before {
+  content: "·";
+  margin-inline-end: var(--app-space-2);
+  color: var(--md-sys-color-outline);
+}
+
+.dh-record-summary-bar__signal[data-tone="danger"] {
+  color: var(--md-sys-color-error);
+}
+
+.dh-record-summary-bar__signal[data-tone="warning"] {
+  color: var(--md-sys-color-warning);
+}
+
+.dh-record-summary-bar__signal[data-tone="success"] {
+  color: var(--md-sys-color-success);
+}
+
+/* Quiet secondary context, same visual weight as the header's context line so a
+ * fact reads the same wherever the record chose to put it. */
+.dh-record-summary-bar__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.4;
+}
+
+.dh-record-summary-bar__fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+.dh-record-summary-bar__fact + .dh-record-summary-bar__fact::before {
+  content: "·";
+  margin-inline-end: var(--app-space-2);
+  color: var(--md-sys-color-outline);
+}
+
+.dh-record-summary-bar__fact dt {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-record-summary-bar__fact dd {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record details (RECORD-01)                                                 */
+/*                                                                            */
+/* The Settings-tab home for administrative metadata demoted out of record     */
+/* headers and summaries — Created, Updated, State, ids. One list, so eight    */
+/* modules do not each invent a different way to say "this record was made on  */
+/* a Tuesday".                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-record-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--app-space-3) var(--app-space-5);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dh-record-details__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+  min-inline-size: 0;
+}
+
+.dh-record-details__item dt {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-record-details__item dd {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
   overflow-wrap: anywhere;
 }
