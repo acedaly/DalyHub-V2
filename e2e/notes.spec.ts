@@ -238,23 +238,27 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await expect(page.locator(".cm-dh-h1")).toBeVisible();
     expect(await readSource(page)).toContain("# Project kickoff");
 
-    // 9. Rename through the generic entity lifecycle; Back/Forward/Escape work.
-    const renameButton = page.getByRole("button", { name: "Rename" });
-    await renameButton.click();
-    const renameDialog = page.getByRole("dialog", { name: "Rename note" });
-    await expect(renameDialog).toBeVisible();
-    await expect(page).toHaveURL(/drawer=rename/);
-    await page.goBack();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.goForward();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    // 9. EDIT-02 — rename IN PLACE on the heading, exactly as an Area, a
+    // Project and a Goal are renamed. The dedicated Rename action and its
+    // Drawer are gone; Escape cancels and hands focus back to the value.
+    await expect(page.getByRole("button", { name: "Rename" })).toHaveCount(0);
+    const titleField = page.getByRole("button", { name: /^Note title: / });
+    await titleField.focus();
+    await titleField.click();
+    const titleInput = page.getByRole("textbox", { name: "Note title" });
+    await expect(titleInput).toBeFocused();
+    await titleInput.fill("Discarded title");
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(renameButton).toBeFocused();
-    await renameButton.click();
-    await renameDialog.getByLabel(/Title/).fill(renamedTitle);
-    await renameDialog.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Note title" })).toHaveCount(
+      0,
+    );
+    await expect(
+      page.getByRole("button", { name: /^Note title: / }),
+    ).toBeFocused();
+
+    await page.getByRole("button", { name: /^Note title: / }).click();
+    await page.getByRole("textbox", { name: "Note title" }).fill(renamedTitle);
+    await page.keyboard.press("Enter");
     await expect(
       page.getByRole("heading", { name: renamedTitle }),
     ).toBeVisible();

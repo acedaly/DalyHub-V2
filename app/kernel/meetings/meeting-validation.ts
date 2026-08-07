@@ -53,6 +53,16 @@ function url(value: string | null | undefined): string | null {
   return parsed.toString();
 }
 
+/**
+ * The longest a meeting title may be.
+ *
+ * Named (EDIT-02) because the record's inline heading field now needs the same
+ * ceiling the validator enforces: a `maxLength` that disagrees with the server
+ * either truncates silently or lets the user type past a refusal, and both are
+ * worse than one exported number.
+ */
+export const MEETING_TITLE_MAX_LENGTH = 240;
+
 function markdown(value: string, field: string): string {
   if (new TextEncoder().encode(value).length > MARKDOWN_SOURCE_MAX_BYTES)
     throw new MeetingValidationError(field, "This content is too large.");
@@ -63,10 +73,10 @@ export function validateCreateMeeting(input: CreateMeetingInput) {
   const title = input.title.trim();
   if (!title)
     throw new MeetingValidationError("title", "Enter a meeting title.");
-  if (title.length > 240)
+  if (title.length > MEETING_TITLE_MAX_LENGTH)
     throw new MeetingValidationError(
       "title",
-      "Keep the title under 240 characters.",
+      `Keep the title under ${MEETING_TITLE_MAX_LENGTH} characters.`,
     );
   const startsAt = instant(input.startsAt, "startsAt");
   const endsAt = input.endsAt ? instant(input.endsAt, "endsAt") : null;

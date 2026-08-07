@@ -3,7 +3,7 @@
  * Record Layout.
  *
  * Presentation + client-side mutation plumbing only: the header (type identity,
- * status, Rename, archive state) and the tabs — Overview / Obligations / History /
+ * status, archive state) and the tabs — Overview / Obligations / History /
  * Details / Linked / Activity / Settings. Data loading lives in the route; this
  * component renders it and posts lifecycle intents (`archive` / `restore` /
  * `delete`) to `/asset/:id/mutate`, revalidating on success. The Details form owns
@@ -18,14 +18,12 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
+import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { LinkedItemsTab } from "~/shared/linked-items";
-import {
-  RecordLayout,
-  type RecordAction,
-  type RecordMetaItem,
-} from "~/shared/record-layout";
+import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import {
   lifecycleBlockedByLinks,
   lifecycleSuccessMessage,
@@ -63,7 +61,11 @@ interface AssetRecordProps {
   readonly eventsCursor: string | null;
   readonly eventsHasMore: boolean;
   readonly onTabChange: (tabId: string) => void;
-  readonly onRename: () => void;
+  /**
+   * DS-16 — rename from the record heading (EDIT-02). Returns an outcome rather
+   * than throwing, so a refusal keeps the typed name in the field.
+   */
+  readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
   readonly onSaved: () => void;
   readonly onQuickEvent: (action: QuickEventAction) => void;
   readonly onEditEvent: (event: SerializedAssetEvent) => void;
@@ -169,13 +171,6 @@ export function AssetRecord({
     throw new Error("Couldn’t delete this asset.");
   }, [post, navigate]);
 
-  const renameAction: RecordAction = {
-    id: "rename",
-    label: "Rename",
-    variant: "secondary",
-    onSelect: onRename,
-  };
-
   const headerMetadata: RecordMetaItem[] = [
     { id: "type", label: "Type", value: asset.assetTypeLabel },
   ];
@@ -215,6 +210,20 @@ export function AssetRecord({
     <>
       <RecordLayout
         title={asset.title}
+        titleSlot={
+          <InlineTextField
+            label="Asset name"
+            value={asset.title}
+            onSave={onRename}
+            // An archived Asset is read-only until restored, so its name
+            // renders as plain text: a value that cannot be changed must not
+            // look like one that can (DS-16).
+            readOnly={asset.archived}
+            variant="heading"
+            maxLength={TITLE_MAX_LENGTH}
+            data-testid="asset-title-edit"
+          />
+        }
         typeLabel={asset.assetTypeLabel}
         icon={<EntityIcon type="asset" />}
         breadcrumb={[{ id: "assets", label: "Assets", href: "/assets" }]}
@@ -227,7 +236,6 @@ export function AssetRecord({
             : TONE_TO_RECORD[assetStatusTone(asset.status)],
         }}
         metadata={headerMetadata}
-        secondaryActions={[renameAction]}
         overflowActions={lifecycle.overflowActions}
         activeTabId={activeTabId}
         onTabChange={onTabChange}
@@ -322,7 +330,6 @@ export function AssetRecord({
             content: (
               <AssetSettingsTab
                 asset={asset}
-                onRename={onRename}
                 onArchive={onArchive}
                 onRestore={onRestore}
                 onDelete={onDelete}

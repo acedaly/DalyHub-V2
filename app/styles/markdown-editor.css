@@ -228,6 +228,18 @@
   max-block-size: 50vh;
 }
 
+/* EDIT-02 — the DISABLED state: reduced emphasis, same geometry.
+ *
+ * M3's disabled treatment is opacity on the content, not a different box: the
+ * surface must not move when a form starts and finishes saving. The toolbar's
+ * own controls carry `disabled` and are greyed by the shared button rules, so
+ * this only has to quieten the writing surface itself. */
+.dh-md-editor[data-disabled="true"] .dh-md-editor__fallback,
+.dh-md-editor[data-disabled="true"] .dh-md-editor__cm {
+  opacity: var(--md-sys-state-disabled-content-opacity);
+  cursor: not-allowed;
+}
+
 /* CodeMirror host. The library injects its own structural CSS; we override only
  * the design surface here, all through tokens. */
 .dh-md-editor__cm {

@@ -1,8 +1,11 @@
 /**
  * ASSET-01 — the Asset "Settings" tab.
  *
- * Rename / Archive / Restore / Delete, composed from the DS-10b Settings system,
- * mirroring the People/Projects lifecycle convention. Archive is a reversible
+ * LIFECYCLE only — Archive / Restore / Delete — composed from the DS-10b
+ * Settings system, mirroring the People/Projects lifecycle convention. EDIT-02
+ * removed the "Name" group: it held one button that opened a Drawer form to
+ * change the value at the top of the same record, and the heading now edits
+ * itself in place (DS-16). Archive is a reversible
  * put-away (a calm button + success toast — undo over confirmation, AGENTS.md §7)
  * and describes the RECORD lifecycle, distinct from the Asset's real-world status;
  * permanent Delete is destructive, guarded behind a confirmation dialog AND behind
@@ -21,7 +24,6 @@ import type { SerializedAsset } from "./asset-view";
 
 interface AssetSettingsTabProps {
   readonly asset: SerializedAsset;
-  readonly onRename: () => void;
   readonly onArchive: () => void;
   readonly onRestore: () => void;
   readonly onDelete: () => Promise<void>;
@@ -30,7 +32,6 @@ interface AssetSettingsTabProps {
 
 export function AssetSettingsTab({
   asset,
-  onRename,
   onArchive,
   onRestore,
   onDelete,
@@ -38,22 +39,6 @@ export function AssetSettingsTab({
 }: AssetSettingsTabProps) {
   return (
     <SettingsLayout aria-label="Asset settings">
-      <SettingsGroup title="Name" headingLevel={3}>
-        <SettingsRow
-          label="Display name"
-          description="The name shown everywhere this asset appears."
-          control={
-            <button
-              type="button"
-              className="dh-btn dh-btn--secondary"
-              onClick={onRename}
-            >
-              Rename
-            </button>
-          }
-        />
-      </SettingsGroup>
-
       <SettingsGroup
         title="Record lifecycle"
         headingLevel={3}

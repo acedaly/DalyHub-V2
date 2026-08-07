@@ -55,6 +55,52 @@ and deliberately deferred lives in
   filter row's fields share one height (and the Tag box says what it is for);
   a Review row no longer states its period twice.
 
+### Changed — every record's name is edited the same way
+
+- **Click a record's name to change it.** Notes, Goals, People, Assets, Meetings
+  and Tasks now edit their name exactly the way Areas and Projects already did:
+  the name looks like ordinary text until you point at it or Tab to it, clicking
+  (or pressing Enter) turns it into a field, Enter saves and Escape cancels. The
+  separate **Rename** button — and the panel it opened — is gone from all of
+  them, because it was a second way to do something the name itself now does.
+  Nothing about how a rename is checked or recorded changed; only where you do
+  it.
+- **If a save is refused, your words stay put.** Every one of these fields keeps
+  exactly what you typed when the server says no, and shows the reason beside it.
+  The old panels threw the text away when they closed.
+- **A Goal's target date and definition of done are edited on the Goal.** The
+  "Edit details" panel is gone. The target date opens a small date picker where
+  the date is shown; the definition of done opens where the text is shown, with
+  its own Save and Cancel. Each saves on its own, so changing one can no longer
+  quietly undo a change to the other.
+- **A Task's priority and dates are changed from the task itself.** Priority is a
+  short menu on the value; the scheduled and due dates each open a small picker
+  where they are shown. Setting a due date no longer means opening the Details
+  form and saving the whole task.
+
+### Changed — an empty field is empty
+
+- **"No priority" is no longer something you can choose.** A task nobody has
+  triaged now simply reads _No priority_ in the quiet style the product uses for
+  anything that has not been filled in — it is not presented as a setting someone
+  selected. The menu offers the real priorities only, and **Clear priority**
+  appears as a separate command at the bottom, and only when there is a priority
+  to clear.
+- **Changing a value takes one action.** Going from _P1 · Urgent_ to _P3 ·
+  Normal_ is: open, choose. There is no longer any field where you have to clear
+  the current value before you can pick a different one.
+
+### Changed — the same writing surface everywhere
+
+- **Diary entries are written in the same editor as Notes and Meetings.** The
+  Diary's details box was a plain text area with a "Show preview" link; it is now
+  the product's one writing surface, with the same formatting toolbar, the same
+  keyboard shortcuts and the same typography as a Note. A Task's description
+  moved to the same editor. How each of them saves is unchanged — the Diary still
+  has an explicit **Save changes**, a Note still saves as you write.
+- **The editor greys out while a form is saving,** instead of letting you type
+  into a document that is about to be replaced by the server's answer.
+
 ### Fixed — record titles and the writing area stop wasting your screen
 
 - **A short record title stays on one line.** A Project called `Opo 1 2026` was
@@ -88,8 +134,10 @@ and deliberately deferred lives in
   — keeps its panel.
 - **Fewer buttons competing with the record's name.** Each record shows at most
   one main action and one secondary one at the top; anything else moved into the
-  **⋯** menu that was already there. On a Goal that means Rename is now in the
-  menu, one press away, and "Edit details" is the button. Nothing was removed.
+  **⋯** menu that was already there. Nothing was removed by that change — though
+  Rename and "Edit details" have since gone from the Goal record entirely, now
+  that its name, target date and definition of done are all edited in place (see
+  above).
 - **"No tags" is no longer shouted.** Missing information used to be shown in the
   same little rounded chip the product uses for real statuses like _Active_ or
   _On hold_, which made an empty record look busier than a full one. It is quiet

@@ -93,6 +93,12 @@ export interface InlineEditShellProps {
   readonly readOnly?: boolean;
   /** Visual treatment. `heading` inherits the record title's typography. */
   readonly variant?: "text" | "heading" | "block";
+  /**
+   * The stored value keeps its line breaks, so the READ state must too. Without
+   * this a two-paragraph plain-text value collapses into one run-on line at
+   * rest and re-splits the moment the editor opens, which reads as data loss.
+   */
+  readonly multiline?: boolean;
   readonly className?: string;
   readonly "data-testid"?: string;
 }
@@ -113,6 +119,7 @@ export function InlineEditShell({
   errorId,
   readOnly = false,
   variant = "text",
+  multiline = false,
   className,
   "data-testid": testId,
 }: InlineEditShellProps) {
@@ -122,6 +129,7 @@ export function InlineEditShell({
     <div
       className={classes}
       data-variant={variant}
+      data-multiline={multiline ? "true" : undefined}
       data-editing={editing ? "true" : undefined}
       data-pending={pending ? "true" : undefined}
       data-invalid={error ? "true" : undefined}

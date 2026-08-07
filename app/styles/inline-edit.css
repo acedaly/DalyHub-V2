@@ -64,12 +64,39 @@
    * Overriding only one of the two left the other free to chop a record's name
    * mid-syllable ("Paginatio / n").
    *
-   * This is not only cosmetic: `anywhere` makes the element's min-content width
-   * ONE CHARACTER, so a flex row will happily shrink the title to a sliver.
-   * With `normal`, min-content is the longest word, and the heading keeps a
-   * width that can actually hold it.
+   * `word-break: normal` is the half of that pair which stops the mid-syllable
+   * chop, and it stays.
+   *
+   * ── EDIT-02: why `anywhere` came back, on this element only ─────────────────
+   * PR #127 chose `break-word` here for a second reason: `anywhere` makes the
+   * element's min-content width ONE CHARACTER, so a flex row is free to shrink
+   * the title to a sliver. That reasoning is sound and its evidence is
+   * `e2e/record-header-title.spec.ts`.
+   *
+   * It also produced a defect at the other end of the range, because
+   * `overflow-wrap: break-word` does NOT reduce an element's intrinsic
+   * min-content size — it only permits a break once the line box is already
+   * narrower than the word. So a record whose title contains one long unbroken
+   * token sized this element to that whole token and pushed the PAGE wider than
+   * the viewport. Measured on an Asset record at 320px:
+   *
+   *     baseline                    documentElement.scrollWidth 381, value 355px
+   *     value { overflow-wrap: anywhere }                   scrollWidth 320  ✔
+   *     value { max-inline-size: 100% }                     scrollWidth 381  ✘
+   *
+   * `max-inline-size: 100%` does not help (the percentage cannot resolve while
+   * the ancestor is being measured — the same trap PR #127 documents on the
+   * trigger), so `anywhere` is the one declaration that fixes it. The sliver
+   * risk it reintroduces is not left to reasoning: the 1440px line-box count
+   * was re-measured across this change and `record-header-title.spec.ts` is the
+   * standing guard.
+   *
+   * The defect predates EDIT-02 — it has applied to Areas and Projects since
+   * PR #127 — but only `assets.spec.ts` creates a title with a long unbroken
+   * word at 320px, which is why adopting the pattern on five more records is
+   * what surfaced it.
    */
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   word-break: normal;
 }
 
@@ -79,6 +106,21 @@
 .dh-inline-edit__empty {
   color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
+}
+
+/* A multi-line plain-text value keeps its line breaks AT REST. Without this the
+ * read state joins the paragraphs into one run-on line and the editor re-splits
+ * them the moment it opens, which reads as if the record had lost its
+ * formatting. */
+.dh-inline-edit[data-multiline="true"] .dh-inline-edit__trigger {
+  display: flex;
+  inline-size: auto;
+  align-items: flex-start;
+}
+
+.dh-inline-edit[data-multiline="true"] .dh-inline-edit__value {
+  white-space: pre-wrap;
+  max-inline-size: var(--app-width-prose);
 }
 
 /* Read-only: text, and nothing else. No container, no hover, no tab stop. */
@@ -197,6 +239,15 @@
   font: inherit;
 }
 
+/* The multiline editor keeps the same measure as the value it replaces, so
+ * opening the editor does not widen the column and shift the page. */
+.dh-inline-edit__textarea {
+  max-inline-size: var(--app-width-prose);
+  min-block-size: 0;
+  resize: vertical;
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
 .dh-inline-edit[data-variant="heading"] .dh-inline-edit__input {
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: var(--md-sys-typescale-headline-small-line-height);
@@ -287,6 +338,9 @@
   inset-block-start: calc(100% + var(--app-space-1));
   inset-inline-start: 0;
   z-index: var(--app-z-dropdown);
+  /* The surface measures itself on open and flips to the inline-END edge when a
+   * start-anchored box would run past the viewport (`useAnchoredAlignment`).
+   * Only the anchor changes — never the width — so nothing reflows. */
   min-inline-size: var(--app-space-16);
   max-inline-size: min(20rem, 90vw);
   padding: var(--app-space-1);
@@ -295,6 +349,12 @@
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
+}
+
+.dh-inline-select__menu[data-align="end"],
+.dh-inline-date__popover[data-align="end"] {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 
 .dh-inline-select__option {
@@ -322,6 +382,19 @@
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
   font-weight: 500;
+}
+
+/* The clear command is the "none of these" choice, separated from the real
+ * values by a hairline so it reads as a different KIND of item — and it is
+ * quieter than them, because unsetting a field is rarely the point of opening
+ * the menu. */
+.dh-inline-select__option[data-clear="true"] {
+  margin-block-start: var(--app-space-1);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-inline-select__option-description {

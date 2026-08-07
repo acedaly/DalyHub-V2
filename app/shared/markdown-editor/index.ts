@@ -13,6 +13,8 @@
 
 export { LiveMarkdownEditor } from "./LiveMarkdownEditor";
 export type { LiveMarkdownEditorProps } from "./LiveMarkdownEditor";
+export { MarkdownEditorField } from "./MarkdownEditorField";
+export type { MarkdownEditorFieldProps } from "./MarkdownEditorField";
 export { EditorToolbar } from "./EditorToolbar";
 export type {
   EditorToolbarProps,

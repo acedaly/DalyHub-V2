@@ -17,7 +17,7 @@
  */
 
 import { env } from "cloudflare:workers";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import {
   isRouteErrorResponse,
   useRevalidator,
@@ -33,21 +33,14 @@ import {
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { createOwnerRelationshipContext } from "~/shared/relationships";
-import {
-  DrawerProvider,
-  useDrawer,
-  type DrawerEntry,
-  type DrawerRenderResult,
-} from "~/shared/drawer";
+import { DrawerProvider } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 
 import { PersonRecord } from "../PersonRecord";
-import { RenamePersonForm } from "../RenamePersonForm";
 import { serializePerson } from "../person-view";
+import type { PersonMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
-
-const RENAME_KEY = "rename";
 
 export function meta() {
   return [{ title: "Person · DalyHub" }];
@@ -102,51 +95,14 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 export default function PersonDetailRoute({
   loaderData,
 }: Route.ComponentProps) {
-  const renderDrawer = useMemo(
-    () =>
-      createPersonDrawerRenderer(loaderData.person.id, loaderData.person.title),
-    [loaderData.person.id, loaderData.person.title],
-  );
-
+  // EDIT-02 — the Person record no longer opens any Drawer of its own (the
+  // rename form was the only one). The provider stays because the shared
+  // Linked Items surface and the command palette both open Drawers from within
+  // this route's tree.
   return (
-    <DrawerProvider renderDrawer={renderDrawer}>
+    <DrawerProvider renderDrawer={() => null}>
       <PersonDetail {...loaderData} />
     </DrawerProvider>
-  );
-}
-
-function createPersonDrawerRenderer(personId: string, title: string) {
-  return function render(entry: DrawerEntry): DrawerRenderResult | null {
-    if (entry.key === RENAME_KEY) {
-      return {
-        title: "Rename person",
-        description: "Update this person’s display name.",
-        children: <RenameDrawerHost personId={personId} currentTitle={title} />,
-      };
-    }
-    return null;
-  };
-}
-
-function RenameDrawerHost({
-  personId,
-  currentTitle,
-}: {
-  readonly personId: string;
-  readonly currentTitle: string;
-}) {
-  const { closeDrawer } = useDrawer();
-  const revalidator = useRevalidator();
-  return (
-    <RenamePersonForm
-      personId={personId}
-      currentTitle={currentTitle}
-      onDone={() => {
-        revalidator.revalidate();
-        closeDrawer();
-      }}
-      onCancel={closeDrawer}
-    />
   );
 }
 
@@ -170,7 +126,6 @@ function PersonDetail({
   person,
   relationship,
 }: Awaited<ReturnType<typeof loader>>) {
-  const { openDrawer } = useDrawer();
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTabId = parseTab(searchParams.get("tab"));
@@ -193,13 +148,55 @@ function PersonDetail({
     [setSearchParams],
   );
 
+  /**
+   * DS-16 — the Person rename, driven from the record heading.
+   *
+   * The SAME `rename` intent, the SAME trusted endpoint, the SAME server-side
+   * checks (an active Person in this workspace, `EntityValidationError` for a
+   * bad title). Only the surface — and the failure behaviour — changed.
+   */
+  const personId = person.id;
+  const onRename = useCallback(
+    async (title: string) => {
+      const body = new FormData();
+      body.set("intent", "rename");
+      body.set("title", title);
+      let result: PersonMutationResult;
+      try {
+        const response = await fetch(
+          `/person/${encodeURIComponent(personId)}/mutate`,
+          { method: "POST", body },
+        );
+        result = (await response.json()) as PersonMutationResult;
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Your text is safe — try again.",
+        } as const;
+      }
+      if (result.kind === "rename" && result.ok) {
+        revalidator.revalidate();
+        return { ok: true } as const;
+      }
+      return {
+        ok: false,
+        message:
+          (result.kind === "rename" && !result.ok
+            ? (result.fieldErrors?.title ?? result.formError)
+            : undefined) ??
+          "That couldn’t be saved. Your text is safe — try again.",
+      } as const;
+    },
+    [personId, revalidator],
+  );
+
   return (
     <PersonRecord
       person={person}
       relationship={relationship}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
-      onRename={() => openDrawer(RENAME_KEY)}
+      onRename={onRename}
       onSaved={() => revalidator.revalidate()}
     />
   );

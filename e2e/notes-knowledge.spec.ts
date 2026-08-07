@@ -539,10 +539,9 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     // Rename the target. The link is stored by id, so it must not break.
     ownNote(renamedTitle);
     await page.goto(targetUrl);
-    await page.getByRole("button", { name: "Rename" }).click();
-    const dialog = page.getByRole("dialog", { name: "Rename note" });
-    await dialog.getByLabel(/Title/).fill(renamedTitle);
-    await dialog.getByRole("button", { name: /Save|Rename/ }).click();
+    await page.getByRole("button", { name: /^Note title: / }).click();
+    await page.getByRole("textbox", { name: "Note title" }).fill(renamedTitle);
+    await page.keyboard.press("Enter");
     await expect(
       page.getByRole("heading", { level: 1, name: renamedTitle }),
     ).toBeVisible();

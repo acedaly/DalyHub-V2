@@ -255,12 +255,25 @@ async function handleUpdate(
             note: nullable(form.get("delegateNote")),
           }
       : undefined;
+    // EDIT-02 — every field here is now a PATCH key: a field the submission does
+    // not carry is left unchanged rather than coerced to a default. The Details
+    // form stopped carrying `title`, `priority` and the two dates when those
+    // moved onto the record itself, and a whole-record write would have let
+    // pressing "Save changes" revert an inline edit made while the form was
+    // open. `UpdateTaskInput` has always treated an omitted key as unchanged;
+    // only this handler was filling the gaps in.
     const result = await scope.tasks.updateTask(taskId, {
-      title: String(form.get("title") ?? ""),
-      status: String(form.get("status") ?? "todo") as TaskStatus,
-      priority: nullable(form.get("priority")) as TaskPriority | null,
-      dueDate: nullable(form.get("dueDate")),
-      scheduledDate: nullable(form.get("scheduledDate")),
+      title: form.has("title") ? String(form.get("title")) : undefined,
+      status: form.has("status")
+        ? (String(form.get("status")) as TaskStatus)
+        : undefined,
+      priority: form.has("priority")
+        ? (nullable(form.get("priority")) as TaskPriority | null)
+        : undefined,
+      dueDate: form.has("dueDate") ? nullable(form.get("dueDate")) : undefined,
+      scheduledDate: form.has("scheduledDate")
+        ? nullable(form.get("scheduledDate"))
+        : undefined,
       timeSector: form.has("timeSector")
         ? (nullable(form.get("timeSector")) as TimeSector | null)
         : undefined,

@@ -23,6 +23,8 @@ export {
 } from "./inline-edit-model";
 export { useInlineEdit } from "./use-inline-edit";
 export type { UseInlineEdit, UseInlineEditOptions } from "./use-inline-edit";
+export { useAnchoredAlignment } from "./use-anchored-alignment";
+export type { AnchoredAlignment } from "./use-anchored-alignment";
 export { InlineEditShell } from "./InlineEditShell";
 export type { InlineEditShellProps } from "./InlineEditShell";
 export { InlineTextField } from "./InlineTextField";

@@ -62,6 +62,8 @@ interface StubOptions {
   readonly detail?: unknown;
   readonly updateResult?: unknown;
   readonly onPost?: (intent: string, body: FormData) => void;
+  /** Every POST, with its URL — the bulk field endpoint is not the record's. */
+  readonly onPostUrl?: (url: string, body: FormData) => void;
 }
 
 function stubFetch(options: StubOptions = {}) {
@@ -78,7 +80,19 @@ function stubFetch(options: StubOptions = {}) {
       const body = init?.body as FormData;
       const intent = String(body.get("intent"));
       options.onPost?.(intent, body);
-      if (intent === "update") {
+      options.onPostUrl?.(url, body);
+      if (url.includes("/tasks/bulk")) {
+        return jsonResponse({
+          kind: "bulk",
+          ok: true,
+          changed: 1,
+          unchanged: 0,
+        });
+      }
+      // The real route answers BOTH `update` and the focused `rename` with a
+      // `kind: "update"` payload, so the stub does too — otherwise an inline
+      // rename would appear to succeed here while failing against the server.
+      if (intent === "update" || intent === "rename") {
         return jsonResponse(
           options.updateResult ?? {
             kind: "update",
@@ -150,33 +164,55 @@ describe("task record rendering", () => {
 });
 
 describe("editing", () => {
-  it("enters edit mode, validates, and saves", async () => {
-    const fetchMock = stubFetch();
+  it("edits the title on the RECORD, not through the details form (EDIT-02)", async () => {
+    const posts: Array<{ intent: string; body: FormData }> = [];
+    stubFetch({ onPost: (intent, body) => posts.push({ intent, body }) });
+    renderDrawer(<TaskDrawerContent taskId="t1" />);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Task title: Write the ADR",
+    });
+    fireEvent.click(trigger);
+    const input = screen.getByRole("textbox", { name: "Task title" });
+    fireEvent.change(input, { target: { value: "Write the persistence ADR" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(posts.some((post) => post.intent === "rename")).toBe(true),
+    );
+    // A FOCUSED intent, carrying only the field it edits.
+    const rename = posts.find((post) => post.intent === "rename")!;
+    expect(rename.body.get("title")).toBe("Write the persistence ADR");
+    expect(rename.body.get("status")).toBeNull();
+  });
+
+  it("saves the remaining details form, carrying only the fields it still owns", async () => {
+    const posts: Array<{ intent: string; body: FormData }> = [];
+    stubFetch({ onPost: (intent, body) => posts.push({ intent, body }) });
     renderDrawer(<TaskDrawerContent taskId="t1" />);
     fireEvent.click(
       await screen.findByRole("button", { name: "Edit details" }),
     );
 
-    const title = await screen.findByLabelText(/Title/);
-    expect(title).toHaveValue("Write the ADR");
+    // The title, the priority and the two dates have left this form — they are
+    // edited where they are shown, and a whole-record submit here would revert
+    // an inline change made while the form was open. Scoped to the form, since
+    // the record's own inline fields for those values are on screen too.
+    const form = within(screen.getByRole("form", { name: "Edit task" }));
+    expect(form.queryByLabelText(/^Title/)).not.toBeInTheDocument();
+    expect(form.queryByLabelText(/^Priority/)).not.toBeInTheDocument();
+    expect(form.queryByLabelText(/^Due date/)).not.toBeInTheDocument();
+    expect(form.queryByLabelText(/^Scheduled date/)).not.toBeInTheDocument();
 
-    // Emptying the required title blocks the save with a validation error.
-    fireEvent.change(title, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(
-      (await screen.findAllByText("A title is required")).length,
-    ).toBeGreaterThan(0);
-
-    // A valid title saves and posts an update intent.
-    fireEvent.change(title, { target: { value: "Write the persistence ADR" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
-    await waitFor(() => {
-      const posted = fetchMock.mock.calls.find(
-        ([, init]) => (init as RequestInit | undefined)?.method === "POST",
-      );
-      expect(posted).toBeDefined();
-    });
+    await waitFor(() =>
+      expect(posts.some((post) => post.intent === "update")).toBe(true),
+    );
+    const update = posts.find((post) => post.intent === "update")!;
+    expect(update.body.get("title")).toBeNull();
+    expect(update.body.get("priority")).toBeNull();
+    expect(update.body.get("dueDate")).toBeNull();
+    expect(update.body.get("status")).toBe("todo");
   });
 
   it("cancels edit mode without saving", async () => {
@@ -202,21 +238,122 @@ describe("editing", () => {
       updateResult: {
         kind: "update",
         status: "error",
-        fieldErrors: { dueDate: "That date is in the past." },
+        fieldErrors: { description: "That content is too large." },
       },
     });
     renderDrawer(<TaskDrawerContent taskId="t1" />);
     fireEvent.click(
       await screen.findByRole("button", { name: "Edit details" }),
     );
-    const title = await screen.findByLabelText(/Title/);
-    fireEvent.change(title, { target: { value: "Changed" } });
+    const description = await screen.findByRole("textbox", {
+      name: "Description",
+    });
+    fireEvent.change(description, { target: { value: "Changed" } });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(
-      (await screen.findAllByText("That date is in the past.")).length,
+      (await screen.findAllByText("That content is too large.")).length,
     ).toBeGreaterThan(0);
     // The entered value is preserved.
-    expect(screen.getByLabelText(/Title/)).toHaveValue("Changed");
+    expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue(
+      "Changed",
+    );
+  });
+
+  it("EDIT-02: keeps a refused inline rename in the field, with the server's message", async () => {
+    stubFetch({
+      updateResult: {
+        kind: "update",
+        status: "error",
+        fieldErrors: { title: "A title is required." },
+      },
+    });
+    renderDrawer(<TaskDrawerContent taskId="t1" />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Task title: Write the ADR" }),
+    );
+    const input = screen.getByRole("textbox", { name: "Task title" });
+    fireEvent.change(input, { target: { value: "  " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A title is required.",
+    );
+    // The editor is still open, still holding exactly what was typed.
+    expect(screen.getByRole("textbox", { name: "Task title" })).toHaveValue(
+      "  ",
+    );
+  });
+});
+
+describe("priority and dates, changed on the record (EDIT-02)", () => {
+  it("changes one priority directly to another, with no clearing step", async () => {
+    const posts: Array<{ url: string; body: FormData }> = [];
+    stubFetch({ onPostUrl: (url, body) => posts.push({ url, body }) });
+    renderDrawer(<TaskDrawerContent taskId="t1" />);
+
+    // The current value IS the control, and it names its field.
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Priority: P1 · Urgent" }),
+    );
+    expect(
+      screen.getByRole("menuitemradio", { name: "P1 · Urgent" }),
+    ).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "P3 · Normal" }));
+
+    await waitFor(() =>
+      expect(posts.some((post) => post.url.includes("/tasks/bulk"))).toBe(true),
+    );
+    const bulk = posts.find((post) => post.url.includes("/tasks/bulk"))!;
+    expect(bulk.body.get("intent")).toBe("set_priority");
+    expect(bulk.body.get("priority")).toBe("p3");
+    expect(bulk.body.get("id")).toBe("t1");
+  });
+
+  it("clears the priority through the one separated Clear command", async () => {
+    const posts: Array<{ url: string; body: FormData }> = [];
+    stubFetch({ onPostUrl: (url, body) => posts.push({ url, body }) });
+    renderDrawer(<TaskDrawerContent taskId="t1" />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Priority: P1 · Urgent" }),
+    );
+    fireEvent.click(
+      screen.getByRole("menuitemradio", { name: "Clear priority" }),
+    );
+    await waitFor(() =>
+      expect(posts.some((post) => post.url.includes("/tasks/bulk"))).toBe(true),
+    );
+    expect(
+      posts
+        .find((post) => post.url.includes("/tasks/bulk"))!
+        .body.get("priority"),
+    ).toBe("");
+  });
+
+  it("sets the due date without opening the details form", async () => {
+    const posts: Array<{ url: string; body: FormData }> = [];
+    stubFetch({ onPostUrl: (url, body) => posts.push({ url, body }) });
+    renderDrawer(<TaskDrawerContent taskId="t1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Due date: / }));
+    const dialog = within(
+      screen.getByRole("dialog", { name: "Edit due date" }),
+    );
+    fireEvent.change(screen.getByLabelText("Due date"), {
+      target: { value: "2026-09-30" },
+    });
+    fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(posts.some((post) => post.body.get("intent") === "set_due")).toBe(
+        true,
+      ),
+    );
+    expect(
+      posts
+        .find((post) => post.body.get("intent") === "set_due")!
+        .body.get("dueDate"),
+    ).toBe("2026-09-30");
   });
 });
 

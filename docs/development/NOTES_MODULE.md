@@ -1184,3 +1184,21 @@ dates and the parent for a Task — hashed, so record content never reaches the
 receipts table. An acceptance the owner EDITED first therefore hashes to a
 different key and creates the different record they asked for, rather than being
 handed the earlier one and told it succeeded.
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+The Note title is edited **on the record heading** through the shared
+`InlineTextField` (DS-16), posting the same `rename` intent to the same
+`/notes/:noteId/mutate` endpoint. The `Rename` header action, the `?drawer=rename`
+Drawer entry and `RenameNoteForm.tsx` are deleted. `Edit tags` stays in the shared
+overflow: tags are a multi-value control with their own parsing rules, which is a
+form.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

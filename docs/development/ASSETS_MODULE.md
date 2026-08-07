@@ -653,3 +653,21 @@ Asset entity glyph now live in shared code.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+---
+
+## EDIT-02 — editing moved onto the shared inline system (August 2026)
+
+An Asset's name is edited on the record heading through the shared
+`InlineTextField` (read-only while the Asset is archived), posting the same
+`rename` intent. The `Rename` header action, the Settings tab's `Name` group and
+`RenameAssetForm.tsx` are removed. Every other Asset form — details, events,
+obligations — is unchanged: they are multi-field with real validation
+dependencies.
+
+The full classification of every editable field in the product, and the reasons
+for what was **not** moved, is in
+[`EDITING_CONSISTENCY_AUDIT_2026_08.md`](../product/EDITING_CONSISTENCY_AUDIT_2026_08.md).
+Passages above that describe a `Rename` action, an `Edit details` panel or a
+per-module long-form control describe the surface as it was before that change;
+the mutation contracts they document are unchanged.

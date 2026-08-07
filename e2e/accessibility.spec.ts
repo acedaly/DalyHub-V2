@@ -204,10 +204,37 @@ test.describe("automated accessibility — open overlays", () => {
     await page.keyboard.press("Escape");
   });
 
-  test("Goal edit-details sheet has no violations", async ({ page }) => {
+  // EDIT-02 — the Drawer form is gone; the same two values are edited in place,
+  // so the surfaces to scan are the inline date popover and the inline
+  // multiline editor.
+  test("Goal inline target-date popover has no violations", async ({
+    page,
+  }) => {
     await gotoFixture(page, "/goals/g-launch");
-    await page.getByRole("button", { name: "Edit details" }).click();
-    await page.getByRole("dialog", { name: "Goal details" }).waitFor();
+    await page.getByRole("button", { name: /^Target date: / }).click();
+    await page.getByRole("dialog", { name: "Edit target date" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
+  test("Goal inline definition-of-done editor has no violations", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/goals/g-launch");
+    await page.getByRole("button", { name: /^Definition of done: / }).click();
+    await page.getByRole("textbox", { name: "Definition of done" }).waitFor();
+    await expectNoAxeViolations(page);
+  });
+
+  test("Task priority inline menu has no violations", async ({ page }) => {
+    await gotoFixture(page, "/projects/pr-website");
+    await page
+      .getByRole("link", { name: "Open Design the homepage" })
+      .first()
+      .click();
+    await page.getByRole("dialog").waitFor();
+    await page.getByRole("button", { name: /^Priority: / }).click();
+    await page.getByRole("menu").waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");
   });

@@ -143,24 +143,25 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     }
   });
 
-  test("the Goal record’s actions and the Alignment evidence control meet the minimum", async ({
+  test("the Goal record’s editable values and actions meet the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/goals/g-launch");
-    // M3-INT — the header keeps ONE secondary ("Edit details") and folds the
-    // rest into the shared overflow, so Rename is a MENU ITEM behind ⋯ now,
-    // not a header button. This spec still looked for the retired button and
-    // so could never pass (the same staleness the Notes test below already
-    // corrected for Delete) — measure the real controls the user touches.
+    // EDIT-02 retired the `Rename` and `Edit details` buttons: the title, the
+    // target date and the definition of done are edited where they are shown.
+    // Those three affordances are the controls a thumb now aims at, so they are
+    // what has to clear the 44px minimum — the same substitution this file
+    // already made for the Area heading above.
     await expectMinTouchTarget(
-      page.getByRole("button", { name: "Edit details" }),
+      page.getByRole("button", { name: /^Goal name:/ }),
+    );
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /^Target date:/ }),
+    );
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /^Definition of done:/ }),
     );
     await expectMinTouchTarget(page.getByRole("button", { name: "Complete" }));
-    const overflow = page.getByRole("button", { name: /^More actions for / });
-    await expectMinTouchTarget(overflow);
-    await overflow.click();
-    await expectMinTouchTarget(page.getByRole("menuitem", { name: "Rename" }));
-    await page.keyboard.press("Escape");
   });
 });
 
@@ -171,7 +172,7 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     hasTouch: true,
   });
 
-  test("the record’s Rename/Delete actions and the editor’s formatting toolbar meet the minimum", async ({
+  test("the record’s title, lifecycle actions and formatting toolbar meet the minimum", async ({
     page,
   }) => {
     // This is the only test in this shard that mounts the note-editor route, so
@@ -194,15 +195,20 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     await dialog.getByRole("button", { name: "Create note" }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
     // Gate measurement on the note record being fully laid out: the live editor
-    // signalling ready means the record's header (Rename/Delete) and toolbar have
-    // mounted and their DS-01 sizing has applied. Measuring before this settles
+    // signalling ready means the record's header (the inline title and the
+    // overflow) and toolbar have mounted and their DS-01 sizing has applied. Measuring before this settles
     // is what produced the transient 21px (unstyled) toolbar/action height in CI.
     // The wide timeout absorbs the one-time cold CodeMirror compile on this shard.
     await expect(page.locator('[data-editor-ready="true"]')).toBeVisible({
       timeout: 90_000,
     });
 
-    await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    // EDIT-02 retired the `Rename` header button: a Note's title is edited on
+    // the heading, so the heading's affordance is the target under test — it is
+    // the primary way to rename a Note on a phone.
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /^Note title:/ }),
+    );
     // PX-04/DS-12 moved every lifecycle action into the ONE shared overflow (⋯),
     // so Delete is a MENU ITEM behind that trigger, not a header button. This
     // spec still looked for the retired button and so could never pass — measure

@@ -214,6 +214,116 @@ describe("Goal routes", () => {
     );
   });
 
+  it("EDIT-02: sets the target date alone, leaving the definition of done untouched", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Goal", areaId: area.id });
+
+    await runMutate(
+      goal.id,
+      formData({
+        intent: "update_details",
+        targetDate: "2026-12-31",
+        definitionOfDone: "Cross the finish line.",
+      }),
+    );
+
+    // The record's inline date field posts ONLY its own key. Resubmitting the
+    // whole slice to change a date is exactly how an inline edit silently
+    // reverts the field beside it.
+    const response = await runMutate(
+      goal.id,
+      formData({ intent: "set_target_date", targetDate: "2027-01-15" }),
+    );
+    expect(await response.json()).toEqual({
+      kind: "set_target_date",
+      ok: true,
+    });
+
+    const detail = await runDetail(goal.id);
+    expect("details" in detail && detail.details.targetDate).toBe("2027-01-15");
+    expect("details" in detail && detail.details.definitionOfDone).toBe(
+      "Cross the finish line.",
+    );
+  });
+
+  it("EDIT-02: clears the target date with an empty value, and only that field", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Goal", areaId: area.id });
+    await runMutate(
+      goal.id,
+      formData({
+        intent: "update_details",
+        targetDate: "2026-12-31",
+        definitionOfDone: "Cross the finish line.",
+      }),
+    );
+
+    const response = await runMutate(
+      goal.id,
+      formData({ intent: "set_target_date", targetDate: "" }),
+    );
+    expect(await response.json()).toEqual({
+      kind: "set_target_date",
+      ok: true,
+    });
+
+    const detail = await runDetail(goal.id);
+    expect("details" in detail && detail.details.targetDate).toBeNull();
+    expect("details" in detail && detail.details.definitionOfDone).toBe(
+      "Cross the finish line.",
+    );
+  });
+
+  it("EDIT-02: sets the definition of done alone, leaving the target date untouched", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Goal", areaId: area.id });
+    await runMutate(
+      goal.id,
+      formData({ intent: "set_target_date", targetDate: "2026-12-31" }),
+    );
+
+    const response = await runMutate(
+      goal.id,
+      formData({
+        intent: "set_definition_of_done",
+        definitionOfDone: "Finish under two hours.",
+      }),
+    );
+    expect(await response.json()).toEqual({
+      kind: "set_definition_of_done",
+      ok: true,
+    });
+
+    const detail = await runDetail(goal.id);
+    expect("details" in detail && detail.details.definitionOfDone).toBe(
+      "Finish under two hours.",
+    );
+    expect("details" in detail && detail.details.targetDate).toBe("2026-12-31");
+  });
+
+  it("EDIT-02: refuses a malformed date on the focused intent, writing nothing", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Goal", areaId: area.id });
+
+    const response = await runMutate(
+      goal.id,
+      formData({ intent: "set_target_date", targetDate: "not-a-date" }),
+    );
+    const body = (await response.json()) as GoalMutationResult;
+    expect(body.kind).toBe("set_target_date");
+    expect(body.ok).toBe(false);
+    if (body.kind === "set_target_date" && !body.ok) {
+      expect(body.fieldErrors?.targetDate).toBeTruthy();
+    }
+
+    const detail = await runDetail(goal.id);
+    expect("details" in detail && detail.details.targetDate).toBeNull();
+  });
+
   it("returns a typed validation error for a malformed target date, writing nothing", async () => {
     const s = spine();
     const area = await s.createArea({ title: "Health" });

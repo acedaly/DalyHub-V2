@@ -234,7 +234,7 @@ describe("InlineDateField", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Due date: Add a date" }),
     );
-    const dialog = screen.getByRole("dialog", { name: "Due date" });
+    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
     const input = dialog.querySelector("input") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-09-03" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -354,7 +354,7 @@ describe("InlineDateField — Enter belongs to the input, not to the buttons", (
     fireEvent.click(
       screen.getByRole("button", { name: "Due date: 2026-09-03" }),
     );
-    const dialog = screen.getByRole("dialog", { name: "Due date" });
+    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
     const input = dialog.querySelector("input") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-12-25" } });
 
@@ -374,10 +374,263 @@ describe("InlineDateField — Enter belongs to the input, not to the buttons", (
     fireEvent.click(
       screen.getByRole("button", { name: "Due date: 2026-09-03" }),
     );
-    const dialog = screen.getByRole("dialog", { name: "Due date" });
+    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
     const input = dialog.querySelector("input") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-12-25" } });
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-12-25"));
+  });
+});
+
+describe("InlineTextField — the multiline plain-text form (EDIT-02)", () => {
+  it("treats Enter as a paragraph and ⌘/Ctrl+Enter as the save", async () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineTextField
+        label="Definition of done"
+        value="Cross the line."
+        multiline
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Definition of done: Cross the line.",
+      }),
+    );
+    const area = screen.getByRole("textbox", { name: "Definition of done" });
+    fireEvent.change(area, {
+      target: { value: "Cross the line.\nUnder 2 hours." },
+    });
+    // A multiline field that saved on Enter could not be used to write anything
+    // longer than a sentence.
+    fireEvent.keyDown(area, { key: "Enter" });
+    expect(onSave).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(area, { key: "Enter", metaKey: true });
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith("Cross the line.\nUnder 2 hours."),
+    );
+  });
+
+  it("ignores Escape once real words have been typed, and honours Cancel", () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineTextField
+        label="Definition of done"
+        value="Cross the line."
+        multiline
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Definition of done: Cross the line.",
+      }),
+    );
+    const area = screen.getByRole("textbox", { name: "Definition of done" });
+    fireEvent.change(area, { target: { value: "Cross the line. Under 2h." } });
+    // Escape is far too easy to hit by accident to be allowed to discard a
+    // paragraph with no undo.
+    fireEvent.keyDown(area, { key: "Escape" });
+    expect(
+      screen.getByRole("textbox", { name: "Definition of done" }),
+    ).toHaveValue("Cross the line. Under 2h.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("does NOT save on blur — a tall editor is somewhere you pause to think", () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineTextField
+        label="Definition of done"
+        value="Cross the line."
+        multiline
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Definition of done: Cross the line.",
+      }),
+    );
+    const area = screen.getByRole("textbox", { name: "Definition of done" });
+    fireEvent.change(area, { target: { value: "Half written" } });
+    fireEvent.blur(area);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("textbox", { name: "Definition of done" }),
+    ).toHaveValue("Half written");
+  });
+
+  it("keeps the typed paragraph when the server refuses it", async () => {
+    const onSave = vi.fn(async () => ({
+      ok: false as const,
+      message: "That’s too long.",
+    }));
+    render(
+      <InlineTextField
+        label="Definition of done"
+        value="Cross the line."
+        multiline
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Definition of done: Cross the line.",
+      }),
+    );
+    const area = screen.getByRole("textbox", { name: "Definition of done" });
+    fireEvent.change(area, { target: { value: "A whole paragraph." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("That’s too long."),
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Definition of done" }),
+    ).toHaveValue("A whole paragraph.");
+  });
+});
+
+describe("InlineSelectField — an optional value starts EMPTY (EDIT-02)", () => {
+  const PRIORITIES = [
+    { value: "p1", label: "P1 · Urgent" },
+    { value: "p2", label: "P2 · High" },
+    { value: "p3", label: "P3 · Normal" },
+  ];
+
+  it("reads as unset rather than as a chosen 'No priority'", () => {
+    render(
+      <InlineSelectField
+        label="Priority"
+        value=""
+        options={PRIORITIES}
+        emptyLabel="No priority"
+        clearable
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    // The absence is the field's EMPTY state, announced as such — not an option
+    // someone selected.
+    expect(
+      screen.getByRole("button", { name: "Priority: No priority" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Priority: No priority" }),
+    );
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(3);
+    // Nothing to clear, so no clear command.
+    expect(
+      screen.queryByRole("menuitemradio", { name: "Clear priority" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("goes from unset straight to a real value in one action", async () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineSelectField
+        label="Priority"
+        value=""
+        options={PRIORITIES}
+        emptyLabel="No priority"
+        clearable
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Priority: No priority" }),
+    );
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "P2 · High" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("p2"));
+  });
+
+  it("replaces one real value with another WITHOUT clearing first", async () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineSelectField
+        label="Priority"
+        value="p1"
+        options={PRIORITIES}
+        emptyLabel="No priority"
+        clearable
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Priority: P1 · Urgent" }),
+    );
+    // The current value announces itself as the chosen one…
+    expect(
+      screen.getByRole("menuitemradio", { name: "P1 · Urgent" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: "P3 · Normal" }),
+    ).toHaveAttribute("aria-checked", "false");
+    // …and every other one is a single press away.
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "P3 · Normal" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith("p3");
+  });
+
+  it("offers ONE separated clear command once a value is set", async () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineSelectField
+        label="Priority"
+        value="p1"
+        options={PRIORITIES}
+        emptyLabel="No priority"
+        clearable
+        clearLabel="Clear priority"
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Priority: P1 · Urgent" }),
+    );
+    const clear = screen.getByRole("menuitemradio", { name: "Clear priority" });
+    expect(clear).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(clear);
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(""));
+  });
+
+  it("reaches the clear command by keyboard, at the END of the roving order", () => {
+    render(
+      <InlineSelectField
+        label="Priority"
+        value="p1"
+        options={PRIORITIES}
+        clearable
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Priority: P1 · Urgent" }),
+    );
+    const menu = screen.getByRole("menu");
+    fireEvent.keyDown(menu, { key: "End" });
+    // Home/End and the arrow keys index ONE list, so a command bolted on
+    // outside it would be unreachable — this is that regression test.
+    expect(
+      screen.getByRole("menuitemradio", { name: "Clear priority" }),
+    ).toHaveFocus();
+  });
+
+  it("omits the clear command entirely for a required value", () => {
+    render(
+      <InlineSelectField
+        label="Status"
+        value="active"
+        options={STATUSES}
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Status: Active" }));
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(STATUSES.length);
   });
 });

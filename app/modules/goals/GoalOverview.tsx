@@ -3,12 +3,26 @@
  * Record Layout.
  *
  * Presentation only: the header (identity, explicit Open/Completed state, Area
- * breadcrumb, target date, Complete/Reopen + Rename + Edit details), the
- * Summary (definition of done, target date, exact Project-contribution
- * progress — always kept visually distinct from explicit completion), the
- * Projects tab (Projects directly advancing this Goal) and the Activity tab.
- * Data loading and mutations live in the route; this component only renders
- * them.
+ * breadcrumb, target date, Complete/Reopen), the Summary (definition of done,
+ * target date, exact Project-contribution progress — always kept visually
+ * distinct from explicit completion), the Projects tab (Projects directly
+ * advancing this Goal) and the Activity tab. Data loading and mutations live in
+ * the route; this component only renders them.
+ *
+ * ── EDIT-02: three values, edited where they are shown ───────────────────────
+ * A Goal had the product's two remaining "open a panel to change one value"
+ * actions: **Rename** (a Drawer form for a single line of text) and **Edit
+ * details** (a Drawer form for a date and a paragraph). Both are gone. The
+ * title uses the shared heading field, the target date the shared inline date
+ * popover, and the definition of done the shared multiline text field — the
+ * same three interactions an owner already knows from Areas, Projects and
+ * Tasks, each posting its OWN focused intent so changing one can never
+ * overwrite another.
+ *
+ * A COMPLETED Goal is not frozen — completion is an explicit, reversible state,
+ * not an archive — so the fields stay editable. Only an archived record renders
+ * its values as plain read-only text (Areas, Projects), and a Goal has no
+ * archived state.
  */
 
 import { useId } from "react";
@@ -21,6 +35,13 @@ import {
   type SerializedGoalAlignmentEvidence,
 } from "~/shared/alignment";
 import { EntityIcon } from "~/shared/entity";
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
+import { GOAL_DEFINITION_OF_DONE_MAX_LENGTH } from "~/kernel/goals";
+import {
+  InlineDateField,
+  InlineTextField,
+  type InlineSaveOutcome,
+} from "~/shared/inline-edit";
 import {
   RecordLayout,
   type RecordAction,
@@ -56,8 +77,16 @@ interface GoalOverviewProps {
   readonly alignmentEvidenceHasMore: boolean;
   readonly completionPending: boolean;
   readonly onToggleComplete: (complete: boolean) => void;
-  readonly onRename: () => void;
-  readonly onEditDetails: () => void;
+  /** DS-16 — rename from the heading (`rename`). */
+  readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
+  /** DS-16 — set or clear the target date (`set_target_date`). */
+  readonly onSetTargetDate: (
+    targetDate: string | null,
+  ) => Promise<InlineSaveOutcome>;
+  /** DS-16 — set or clear the definition of done (`set_definition_of_done`). */
+  readonly onSetDefinitionOfDone: (
+    definitionOfDone: string,
+  ) => Promise<InlineSaveOutcome>;
   /** PX-04: reversible removal (soft-delete + Undo), from the header overflow. */
   readonly onDelete?: () => Promise<void>;
   readonly deletePending?: boolean;
@@ -87,7 +116,8 @@ export function GoalOverview({
   completionPending,
   onToggleComplete,
   onRename,
-  onEditDetails,
+  onSetTargetDate,
+  onSetDefinitionOfDone,
   onDelete,
   deletePending = false,
   onOpenProject,
@@ -121,12 +151,25 @@ export function GoalOverview({
   summaryMetadata.push({
     id: "target",
     label: "Target date",
-    value:
-      target.state === "unset"
-        ? "No target date set"
-        : target.state === "overdue"
-          ? `${target.formatted} — overdue`
-          : `${target.formatted}`,
+    // DS-16 — the value IS the control. An unset target renders the shell's
+    // quiet invitation rather than the sentence "No target date set", because a
+    // sentence cannot also be the thing you press to set one. Overdue stays a
+    // WORD beside the date, never a colour alone (AGENTS.md §15).
+    value: (
+      <span className="dh-goal-overview__target">
+        <InlineDateField
+          label="Target date"
+          value={details.targetDate}
+          onSave={onSetTargetDate}
+          format={(iso) => formatCalendarDate(iso) ?? iso}
+          emptyLabel="Add a target date"
+          data-testid="goal-target-date-edit"
+        />
+        {target.state === "overdue" ? (
+          <span className="dh-goal-overview__target-note">— overdue</span>
+        ) : null}
+      </span>
+    ),
   });
   if (created) {
     summaryMetadata.push({ id: "created", label: "Created", value: created });
@@ -156,19 +199,6 @@ export function GoalOverview({
         onSelect: () => onToggleComplete(true),
       };
 
-  const renameAction: RecordAction = {
-    id: "rename",
-    label: "Rename",
-    variant: "secondary",
-    onSelect: onRename,
-  };
-  const editDetailsAction: RecordAction = {
-    id: "edit-details",
-    label: "Edit details",
-    variant: "secondary",
-    onSelect: onEditDetails,
-  };
-
   // PX-04: a Goal had NO removal path at all, despite the spine supporting
   // soft-delete since FND-07. It now uses the same reversible removal as Notes —
   // one click, an Undo toast, and a durable "Deleted" collection view — housed in
@@ -185,6 +215,16 @@ export function GoalOverview({
     <>
       <RecordLayout
         title={overview.title}
+        titleSlot={
+          <InlineTextField
+            label="Goal name"
+            value={overview.title}
+            onSave={onRename}
+            variant="heading"
+            maxLength={TITLE_MAX_LENGTH}
+            data-testid="goal-title-edit"
+          />
+        }
         typeLabel="Goal"
         icon={<EntityIcon type="goal" />}
         breadcrumb={[
@@ -199,21 +239,16 @@ export function GoalOverview({
         metadata={headerMetadata}
         primaryAction={completed ? undefined : primaryAction}
         /*
-         * M3-INT — declared in PRIORITY order, because the shared header shows
-         * the first one and folds the rest into the overflow.
+         * EDIT-02 — the header now carries LIFECYCLE only.
          *
-         * "Edit details" edits what the Goal actually IS — its definition of
-         * done and its target — and is the thing an owner returns to. Rename is
-         * a low-frequency management action, and the interaction review named it
-         * as an example of something that does not deserve permanent header
-         * width. It is still one press away, in the overflow every record
-         * already has.
+         * "Edit details" and "Rename" both existed to open a panel around a
+         * field that is right there on the record; with the title, the target
+         * date and the definition of done all editable in place, keeping either
+         * would be a second route to an interaction the value already offers
+         * (§7 — remove the duplicate once the direct manipulation lands).
+         * Reopening a completed Goal is a real lifecycle action, so it stays.
          */
-        secondaryActions={
-          completed
-            ? [primaryAction, editDetailsAction, renameAction]
-            : [editDetailsAction, renameAction]
-        }
+        secondaryActions={completed ? [primaryAction] : []}
         overflowActions={lifecycle.overflowActions}
         summary={{
           description: (
@@ -222,15 +257,25 @@ export function GoalOverview({
                 <h2 className="dh-goal-overview__definition-heading">
                   Definition of done
                 </h2>
-                {details.definitionOfDone ? (
-                  <p className="dh-goal-overview__definition-text">
-                    {details.definitionOfDone}
-                  </p>
-                ) : (
-                  <p className="dh-goal-overview__definition-empty">
-                    {NO_DEFINITION_OF_DONE_TEXT}
-                  </p>
-                )}
+                {/*
+                 * The stored value is PLAIN text whose line breaks are
+                 * significant — not Markdown — so this is the multiline text
+                 * field rather than the writing surface. Offering a formatting
+                 * toolbar for syntax the column does not store would be a
+                 * control that silently does nothing (EDIT-02 §9).
+                 */}
+                <InlineTextField
+                  label="Definition of done"
+                  value={details.definitionOfDone ?? ""}
+                  onSave={onSetDefinitionOfDone}
+                  emptyLabel={NO_DEFINITION_OF_DONE_TEXT}
+                  placeholder="What does “done” look like for this Goal?"
+                  multiline
+                  rows={5}
+                  maxLength={GOAL_DEFINITION_OF_DONE_MAX_LENGTH}
+                  className="dh-goal-overview__definition-field"
+                  data-testid="goal-definition-edit"
+                />
               </div>
               {/* THEME-01 — the same derived number, now shown as the shared
                * meter. `available` is false when no Project contributes yet, so
