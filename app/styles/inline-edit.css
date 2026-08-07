@@ -64,12 +64,39 @@
    * Overriding only one of the two left the other free to chop a record's name
    * mid-syllable ("Paginatio / n").
    *
-   * This is not only cosmetic: `anywhere` makes the element's min-content width
-   * ONE CHARACTER, so a flex row will happily shrink the title to a sliver.
-   * With `normal`, min-content is the longest word, and the heading keeps a
-   * width that can actually hold it.
+   * `word-break: normal` is the half of that pair which stops the mid-syllable
+   * chop, and it stays.
+   *
+   * ── EDIT-02: why `anywhere` came back, on this element only ─────────────────
+   * PR #127 chose `break-word` here for a second reason: `anywhere` makes the
+   * element's min-content width ONE CHARACTER, so a flex row is free to shrink
+   * the title to a sliver. That reasoning is sound and its evidence is
+   * `e2e/record-header-title.spec.ts`.
+   *
+   * It also produced a defect at the other end of the range, because
+   * `overflow-wrap: break-word` does NOT reduce an element's intrinsic
+   * min-content size — it only permits a break once the line box is already
+   * narrower than the word. So a record whose title contains one long unbroken
+   * token sized this element to that whole token and pushed the PAGE wider than
+   * the viewport. Measured on an Asset record at 320px:
+   *
+   *     baseline                    documentElement.scrollWidth 381, value 355px
+   *     value { overflow-wrap: anywhere }                   scrollWidth 320  ✔
+   *     value { max-inline-size: 100% }                     scrollWidth 381  ✘
+   *
+   * `max-inline-size: 100%` does not help (the percentage cannot resolve while
+   * the ancestor is being measured — the same trap PR #127 documents on the
+   * trigger), so `anywhere` is the one declaration that fixes it. The sliver
+   * risk it reintroduces is not left to reasoning: the 1440px line-box count
+   * was re-measured across this change and `record-header-title.spec.ts` is the
+   * standing guard.
+   *
+   * The defect predates EDIT-02 — it has applied to Areas and Projects since
+   * PR #127 — but only `assets.spec.ts` creates a title with a long unbroken
+   * word at 320px, which is why adopting the pattern on five more records is
+   * what surfaced it.
    */
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   word-break: normal;
 }
 

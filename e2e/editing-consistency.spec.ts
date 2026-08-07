@@ -237,6 +237,48 @@ test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () =>
   }
 });
 
+test.describe("EDIT-02 §12 — a title the inline field cannot break between words", () => {
+  /**
+   * The regression this exists for.
+   *
+   * The inline heading deliberately breaks between WORDS rather than anywhere,
+   * so a crowded flex row cannot squeeze a record's name to a sliver (PR #127).
+   * But `overflow-wrap: break-word` does not reduce an element's intrinsic
+   * min-content size, so a title containing one long unbroken token sized the
+   * heading to that whole token and pushed the PAGE wider than a phone.
+   *
+   * It went unnoticed because exactly one spec — `assets.spec.ts` — creates such
+   * a title, and only Areas and Projects carried the inline heading at the time.
+   * Adopting the pattern on five more records is what surfaced it. This walks
+   * every record that now has the heading, at the narrowest supported viewport,
+   * so the next adoption cannot reintroduce it.
+   */
+  for (const surface of TITLE_SURFACES) {
+    test(`${surface.label}: an unbreakable title does not widen the page at 320px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 320, height: 720 });
+      await gotoFixture(page, surface.path);
+      const trigger = page.getByRole("button", {
+        name: new RegExp(`^${surface.field}: `),
+      });
+      await expect(trigger).toBeVisible();
+
+      // A CSS question, so the token is swapped in the DOM only — no record is
+      // renamed, and the fixture is untouched.
+      await page.evaluate(() => {
+        const value = document.querySelector(".dh-inline-edit__value");
+        if (value) {
+          value.textContent =
+            "longunbrokenwordthatmustwrapsomehowratherthanwideningthewholepage";
+        }
+      });
+
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+});
+
 test.describe("EDIT-02 — light and dark behave the same", () => {
   for (const scheme of ["light", "dark"] as const) {
     test(`the inline title editor passes axe in ${scheme} mode`, async ({
