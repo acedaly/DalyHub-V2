@@ -373,11 +373,13 @@ describe("GoalOverview", () => {
   });
 
   /*
-   * M3-INT — the record header shows ONE secondary action and folds the rest
-   * into the shared overflow, so the top of a record stays the record's name
-   * rather than a toolbar. For a Goal the visible one is "Edit details" (what
-   * the Goal IS) and Rename — a low-frequency management action — moves into
-   * the menu. Both still work; only where they live changed.
+   * EDIT-02 — a Goal's header now carries LIFECYCLE only.
+   *
+   * M3-INT had already reduced it to one visible secondary action ("Edit
+   * details") with Rename folded into the overflow. Both are now gone entirely:
+   * the title, the target date and the definition of done are edited where they
+   * are shown, so a button that opens a panel around one of them is a second
+   * route to an interaction the value itself offers (§7).
    */
   it("renames from the heading, and offers no Rename or Edit details control", async () => {
     const onRename = vi.fn(accept);
