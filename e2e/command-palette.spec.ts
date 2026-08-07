@@ -242,6 +242,9 @@ test.describe("DS-09 Command Palette — desktop", () => {
     // mentions this task by title, TODAY-08), then complete it via its Card control.
     const myDay = page.getByRole("region", { name: "My day" });
     const card = myDay.locator(".dh-card", { hasText: COMPLETE_TITLE });
+    // UIQ-002 — on a fine pointer the row's action rail reveals on hover and is
+    // pointer-inert while concealed; pointing at the row precedes the click.
+    await card.hover();
     await card.getByRole("button", { name: "Complete" }).click();
 
     // Expand the "Completed today" planning section — a labelled landmark region,
@@ -440,6 +443,9 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
     const proof = page.getByRole("region", {
       name: "Quick Action adapter proof",
     });
+    // UIQ-002 — a card's action rail reveals on hover on a fine pointer and is
+    // pointer-inert while concealed; pointing at the card precedes the click.
+    await proof.locator(".dh-card").first().hover();
     await proof.getByRole("button", { name: "Star" }).first().click();
     await expect(proof.getByText(/Starred/)).toBeVisible();
   });

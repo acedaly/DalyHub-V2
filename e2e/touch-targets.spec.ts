@@ -147,11 +147,20 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     page,
   }) => {
     await gotoFixture(page, "/goals/g-launch");
-    await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    // M3-INT — the header keeps ONE secondary ("Edit details") and folds the
+    // rest into the shared overflow, so Rename is a MENU ITEM behind ⋯ now,
+    // not a header button. This spec still looked for the retired button and
+    // so could never pass (the same staleness the Notes test below already
+    // corrected for Delete) — measure the real controls the user touches.
     await expectMinTouchTarget(
       page.getByRole("button", { name: "Edit details" }),
     );
     await expectMinTouchTarget(page.getByRole("button", { name: "Complete" }));
+    const overflow = page.getByRole("button", { name: /^More actions for / });
+    await expectMinTouchTarget(overflow);
+    await overflow.click();
+    await expectMinTouchTarget(page.getByRole("menuitem", { name: "Rename" }));
+    await page.keyboard.press("Escape");
   });
 });
 

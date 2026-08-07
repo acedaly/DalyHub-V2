@@ -163,6 +163,26 @@
   word-break: normal;
 }
 
+/*
+ * UIQ-003 — while the title is being EDITED, the heading takes the row.
+ *
+ * The read state's width comes from the heading's own text (M3-INT: the title's
+ * max-content contribution is its full name, so a long name fills the row and a
+ * short one lets the status chip sit beside it). The edit state has no text to
+ * contribute: the flex item's base size becomes the editor frame's, which
+ * resolves to the browser's default `<input>` intrinsic width — ~20ch — so
+ * renaming a record collapsed a full-width heading to a ~300px box clipping the
+ * very name being edited, while the rest of the row stood empty.
+ *
+ * Growing is the correct tool here where a percentage was not (#127): `flex-
+ * grow` distributes FREE space after layout and never feeds back into the
+ * intrinsic measurement that caused the read-state fault. Bound to
+ * `data-editing` so the read state — chip beside a short title — is untouched.
+ */
+.record-title:has(> .dh-inline-edit[data-editing="true"]) {
+  flex: 1 1 auto;
+}
+
 /* Status pill — tone sets the colour, the label always carries the meaning. */
 .record-status {
   display: inline-flex;
