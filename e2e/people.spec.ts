@@ -126,6 +126,12 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     await gotoFixture(page, "/people/archived");
     const archivedCard = page.getByRole("article", { name: new RegExp(name) });
     await expect(archivedCard).toBeVisible();
+    // UIQ-002 — on a fine pointer a list row's quick actions are a hover-
+    // revealed OVERLAY and are `pointer-events: none` at rest, so the row must
+    // be hovered before its Restore is hit-testable. This mirrors what the
+    // owner actually does: the action is not visible until the row is pointed
+    // at either.
+    await archivedCard.hover();
     await archivedCard.getByRole("button", { name: "Restore" }).click();
     await expect(archivedCard).not.toBeVisible();
 

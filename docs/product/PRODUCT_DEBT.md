@@ -70,6 +70,13 @@ authority now.)
 
 ## Debt register
 
+### ☑ E2E-HOVER — two lifecycle journeys clicked a hover-revealed row action without hovering — **RESOLVED 2026-08-07**
+
+- **Current issue (was).** `people.spec.ts` ("create, edit, timeline, archive, restore, delete") and `notes.spec.ts` ("delete removes the Note … Restore recovers it") both clicked a list row's **Restore** quick action directly. Since [UIQ-002](../design/DALYHUB_UI_QUALITY_AUDIT_2026_08.md) those actions are a hover-revealed OVERLAY that is `pointer-events: none` at rest on a fine pointer, so the click was intercepted by the card body and both journeys timed out.
+- **Not a product defect, and confirmed as pre-existing.** Reproduced identically against the pre-#130 commit in a worktree, so #130 did not cause it — UIQ-002's fix landed in #129 and these two journeys were never re-run against it. The behaviour is also correct: on a fine pointer the action is not *visible* until the row is pointed at, so a real owner hovers before clicking. The tests were asserting an interaction no user performs.
+- **Fix.** Hover the row before clicking into it, in both journeys — the same thing #130's own screenshot and geometry specs already do.
+- **Lesson for the next audit.** A change that makes a control conditionally hit-testable needs the existing journeys that click it re-run, not only new tests written around it. The two that broke were in modules the audit PR did not otherwise touch.
+
 ### ☑ UIQ-013 / UIQ-014 / UIQ-021 — collection view switchers, the Reviews primary action, and overflow-menu viewport placement — **RESOLVED 2026-08-07 (#130)**
 
 - **Current issue (was).** Three findings the August 2026 UI quality audit recorded rather than fixed, because each needed a shared change too broad for an audit PR. **UIQ-013**: view switchers rendered four ways — the shared segmented control (Projects/Goals/Notes/Tasks), pill tabs under the header (People), pill rows inside the pane header (Assets/Reviews) and loose segment links in a content toolbar (Meetings) — three selected-state treatments, two corner radii, and three of the four below the 44px target. **UIQ-014**: "New Review" rendered beside the view pills instead of the shared primary slot. **UIQ-021**: the one shared menu always opened below its trigger with no max-height and no flip, so a ~713px Tasks row menu opened low on an 800px viewport ran past the bottom.

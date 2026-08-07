@@ -550,6 +550,9 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     const noteRow = deletedList
       .getByRole("listitem")
       .filter({ hasText: noteTitle });
+    // UIQ-002 — the row's quick actions are a hover-revealed overlay on a fine
+    // pointer, so hover the row before clicking into it.
+    await noteRow.hover();
     await noteRow.getByRole("button", { name: "Restore" }).click();
     await expect(
       page
