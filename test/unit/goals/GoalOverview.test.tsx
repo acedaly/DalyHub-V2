@@ -310,14 +310,28 @@ describe("GoalOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("triggers Rename and Edit details actions", () => {
+  /*
+   * M3-INT — the record header shows ONE secondary action and folds the rest
+   * into the shared overflow, so the top of a record stays the record's name
+   * rather than a toolbar. For a Goal the visible one is "Edit details" (what
+   * the Goal IS) and Rename — a low-frequency management action — moves into
+   * the menu. Both still work; only where they live changed.
+   */
+  it("triggers Edit details from the header and Rename from the overflow", () => {
     const onRename = vi.fn();
     const onEditDetails = vi.fn();
     renderGoal({ onRename, onEditDetails });
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    expect(onRename).toHaveBeenCalled();
+
     fireEvent.click(screen.getByRole("button", { name: "Edit details" }));
     expect(onEditDetails).toHaveBeenCalled();
+
+    // Rename is one press away, not gone.
+    expect(
+      screen.queryByRole("button", { name: "Rename" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /More actions/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    expect(onRename).toHaveBeenCalled();
   });
 
   it("triggers Complete then Reopen through the primary action", () => {

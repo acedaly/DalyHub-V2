@@ -113,16 +113,79 @@ body {
  * tonal button, a navigation row, a list row, a chip and a menu item alike —
  * `currentColor` is already the right colour on every one of them.
  *
- * Stated ONCE, here, and applied by adding `.md-state-layer` to a component.
- * Requirements on the host: it establishes a containing block (the class sets
- * `position: relative` unless the component already positions itself) and it
- * carries its own `border-radius`, which the layer inherits.
+ * ── M3-INT (PR #127) — one implementation, two ways to opt in ────────────────
+ * The August 2026 interaction audit's finding 3 was that this was documented as
+ * one shared class and implemented about five times by hand: `.dh-btn` carried a
+ * verbatim copy of the block below (under a comment claiming it used the shared
+ * one), and the overflow menu, the segmented control, the editor toolbar, the
+ * card actions, the record actions and the inline-edit trigger each grew their
+ * own `color-mix(… on-surface 8% …)` hover fill. They agreed today because
+ * their authors read the same rule; nothing made them agree tomorrow, and the
+ * pressed and focus states were missing almost everywhere as a result.
+ *
+ * The declarations now live here and nowhere else. A component becomes a host
+ * either by
+ *
+ *   (a) carrying `.md-state-layer` — for a component that renders its own class
+ *       list (the shell's navigation rows, the FAB, the icon picker); or
+ *   (b) being named in the HOST LIST below — for a class applied as a literal
+ *       string at dozens of call sites (`.dh-btn`) or owned by a shared
+ *       stylesheet rather than by one component.
+ *
+ * Both routes reach the SAME four declarations. Adding a sixth hand-rolled hover
+ * fill instead is what `test/unit/tokens/state-layer.test.ts` refuses.
+ *
+ * Requirements on a host: it establishes a containing block (the base rule sets
+ * `position: relative`) and it carries its own `border-radius`, which the layer
+ * inherits. A host that must clip the layer (a fully-rounded pill) sets its own
+ * `overflow: hidden`.
+ *
+ * The host list is spelled out on every rule rather than routed through a shared
+ * custom property. A property would read better and would be a lie: DalyHub's
+ * token-discipline test requires every `var(--md-*)`/`var(--app-*)` in `app/` to
+ * be a real, defined design token, and a plumbing variable for a pseudo-element's
+ * opacity is not one. Repetition that a test can see beats a fake token it
+ * cannot.
  */
-.md-state-layer {
+:is(
+  .md-state-layer,
+  .dh-btn,
+  .record-action,
+  .dh-card__action,
+  .dh-overflow-menu__trigger,
+  .dh-overflow-menu__item,
+  .dh-segmented__option,
+  .dh-md-toolbar__button,
+  .dh-md-editor__mode-toggle,
+  .dh-inline-edit__trigger,
+  .dh-inline-edit__edit,
+  .dh-inline-select__option,
+  .dh-user-menu__link,
+  .dh-mobilebar__back,
+  .dh-mobilebar__action,
+  .dh-command__close
+) {
   position: relative;
 }
 
-.md-state-layer::after {
+:is(
+  .md-state-layer,
+  .dh-btn,
+  .record-action,
+  .dh-card__action,
+  .dh-overflow-menu__trigger,
+  .dh-overflow-menu__item,
+  .dh-segmented__option,
+  .dh-md-toolbar__button,
+  .dh-md-editor__mode-toggle,
+  .dh-inline-edit__trigger,
+  .dh-inline-edit__edit,
+  .dh-inline-select__option,
+  .dh-user-menu__link,
+  .dh-mobilebar__back,
+  .dh-mobilebar__action,
+  .dh-command__close
+)::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -134,20 +197,115 @@ body {
     var(--md-sys-motion-easing-standard);
 }
 
-.md-state-layer:hover::after {
+:is(
+    .md-state-layer,
+    .dh-btn,
+    .record-action,
+    .dh-card__action,
+    .dh-overflow-menu__trigger,
+    .dh-overflow-menu__item,
+    .dh-segmented__option,
+    .dh-md-toolbar__button,
+    .dh-md-editor__mode-toggle,
+    .dh-inline-edit__trigger,
+    .dh-inline-edit__edit,
+    .dh-inline-select__option,
+    .dh-user-menu__link,
+    .dh-mobilebar__back,
+    .dh-mobilebar__action,
+    .dh-command__close
+  ):hover::after {
   opacity: var(--md-sys-state-hover-state-layer-opacity);
 }
 
-.md-state-layer:active::after {
+/*
+ * FOCUS. M3 gives keyboard focus a state layer of its own, and DalyHub needs it
+ * for a second reason: several of these controls (the inline-edit trigger, the
+ * editor toolbar) previously paired their hover fill with `:focus-visible`
+ * explicitly, precisely so the affordance was never hover-only (AGENTS.md §15).
+ * Making focus part of the shared contract keeps that guarantee for every host
+ * rather than for the two that remembered. The 2px `:focus-visible` outline is
+ * unaffected and still does the heavy lifting.
+ */
+:is(
+    .md-state-layer,
+    .dh-btn,
+    .record-action,
+    .dh-card__action,
+    .dh-overflow-menu__trigger,
+    .dh-overflow-menu__item,
+    .dh-segmented__option,
+    .dh-md-toolbar__button,
+    .dh-md-editor__mode-toggle,
+    .dh-inline-edit__trigger,
+    .dh-inline-edit__edit,
+    .dh-inline-select__option,
+    .dh-user-menu__link,
+    .dh-mobilebar__back,
+    .dh-mobilebar__action,
+    .dh-command__close
+  ):focus-visible::after {
+  opacity: var(--md-sys-state-focus-state-layer-opacity);
+}
+
+/* PRESSED. After hover and focus so it wins while the pointer is down — and the
+ * state the hand-rolled implementations almost universally lacked, because a
+ * copied `:hover` rule rarely grows an `:active` sibling. */
+:is(
+    .md-state-layer,
+    .dh-btn,
+    .record-action,
+    .dh-card__action,
+    .dh-overflow-menu__trigger,
+    .dh-overflow-menu__item,
+    .dh-segmented__option,
+    .dh-md-toolbar__button,
+    .dh-md-editor__mode-toggle,
+    .dh-inline-edit__trigger,
+    .dh-inline-edit__edit,
+    .dh-inline-select__option,
+    .dh-user-menu__link,
+    .dh-mobilebar__back,
+    .dh-mobilebar__action,
+    .dh-command__close
+  ):active::after {
   opacity: var(--md-sys-state-pressed-state-layer-opacity);
 }
 
 /* A disabled component has no states at all — the M3 disabled treatment (12%
- * container, 38% content) replaces them. */
-.md-state-layer:disabled::after,
-.md-state-layer[aria-disabled="true"]::after {
+ * container, 38% content) replaces them. Last, so it beats hover/focus/pressed
+ * whatever the pointer does. */
+:is(
+    .md-state-layer,
+    .dh-btn,
+    .record-action,
+    .dh-card__action,
+    .dh-overflow-menu__trigger,
+    .dh-overflow-menu__item,
+    .dh-segmented__option,
+    .dh-md-toolbar__button,
+    .dh-md-editor__mode-toggle,
+    .dh-inline-edit__trigger,
+    .dh-inline-edit__edit,
+    .dh-inline-select__option,
+    .dh-user-menu__link,
+    .dh-mobilebar__back,
+    .dh-mobilebar__action,
+    .dh-command__close
+  ):is(:disabled, [aria-disabled="true"])::after {
   opacity: 0;
 }
+
+/*
+ * SELECTED is not an opacity in this contract, and that is deliberate.
+ *
+ * M3 draws a selected navigation row, a selected segment, an active toolbar
+ * control and a checked menu item with `secondary-container` — a real container
+ * change that survives forced colours and is visible without a pointer. Those
+ * live with their components (`[aria-current]`, `[aria-pressed="true"]`,
+ * `[aria-checked="true"]`) and the state layer composes ON TOP of them, because
+ * `currentColor` on a selected control is already `on-secondary-container`.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* DS-14 — the CONTROL BASELINE                                                */

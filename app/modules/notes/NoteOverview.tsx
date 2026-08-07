@@ -24,7 +24,7 @@ import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { EntityIcon } from "~/shared/entity";
 import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
 import { MarkdownContent } from "~/shared/markdown";
-import { StatusPill } from "~/shared/pill";
+import { AbsenceText } from "~/shared/pill";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   RecordLayout,
@@ -103,8 +103,9 @@ export function NoteOverview({
     summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
   }
   // DS-14 §8 — absence is a DESIGNED rendering, in the owner's words, not an
-  // empty slot, a zeroed count or a hyphen. The neutral pill is the one shape
-  // that says "there is nothing here yet" across the whole product.
+  // empty slot, a zeroed count or a hyphen. M3-INT — that rendering is quiet
+  // supporting text, not a chip: "No tags" is the absence of a concept, and a
+  // chip is what the product spends on concepts that are actually there.
   summaryMetadata.push({
     id: "tags",
     label: "Tags",
@@ -112,7 +113,7 @@ export function NoteOverview({
       details.tags.length > 0 ? (
         details.tags.join(", ")
       ) : (
-        <StatusPill tone="neutral">No tags</StatusPill>
+        <AbsenceText>No tags</AbsenceText>
       ),
   });
   if (archived) {

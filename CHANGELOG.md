@@ -19,6 +19,60 @@ no version number to group them under.
 
 ## Unreleased
 
+### Fixed — record titles and the writing area stop wasting your screen
+
+- **A short record title stays on one line.** A Project called `Opo 1 2026` was
+  splitting across two lines on a laptop — as `Opo 1`, then `2026` — with a very
+  large amount of empty space sitting right next to it. It now takes the room it
+  needs. Genuinely long titles still wrap, as they should, and the status chip and
+  the buttons beside the title move out of the way before the record's own name is
+  squeezed. This is fixed for every record — Areas, Goals, Projects, Notes, Tasks,
+  People, Assets — not just for Projects.
+- **A Note starts where you would expect to start typing.** Opening an empty Note
+  put the cursor and the "Start writing…" prompt roughly halfway across the
+  editor, leaving a wide blank strip in front of every line you typed. Writing now
+  begins at the left edge of the editor, level with the first button on the
+  toolbar above it, and a line of text can use most of the width that is actually
+  there. Read mode still uses a comfortable, shorter reading width — but it starts
+  in the same place, so switching between writing and reading no longer shifts the
+  text sideways. The same fix applies everywhere the editor is used: Notes,
+  Meetings, Reviews and any record's long-form field.
+- **Turning a module back on in Navigation settings now works.** Hiding a module
+  from the sidebar worked; showing it again said "Saved" and left it hidden. The
+  only way back was the "Reset navigation" button. Both directions now do what
+  they say.
+
+### Changed — quieter records, and controls that behave the same way everywhere
+
+- **A record reads as one workspace instead of a stack of cards.** The tabs now
+  sit directly on top of the panel they control rather than floating above a
+  separate card, and a summary that is only a few small details (Created, Updated,
+  Tags) is shown as plain text rather than being boxed like a dashboard panel. A
+  summary with real content — a Goal's definition of done, a Project's description
+  — keeps its panel.
+- **Fewer buttons competing with the record's name.** Each record shows at most
+  one main action and one secondary one at the top; anything else moved into the
+  **⋯** menu that was already there. On a Goal that means Rename is now in the
+  menu, one press away, and "Edit details" is the button. Nothing was removed.
+- **"No tags" is no longer shouted.** Missing information used to be shown in the
+  same little rounded chip the product uses for real statuses like _Active_ or
+  _On hold_, which made an empty record look busier than a full one. It is quiet
+  supporting text now. Real statuses are unchanged.
+- **Every button, menu item and tab responds the same way.** Hover, keyboard
+  focus and press are now drawn by one shared treatment across the product, so
+  they look and feel identical wherever you are — and several controls that never
+  responded to being pressed at all now do. Nothing animates that did not animate
+  before, and reduced-motion settings are still respected.
+- **One kind of dropdown in Settings.** Settings mixed the operating system's own
+  dropdowns with DalyHub's, side by side in the same panel. They are all DalyHub's
+  now, and they behave the way the rest of the app's dropdowns do — including
+  showing you the whole list when you reopen one that already has a value. Filter
+  bars keep the simpler system dropdown on purpose, because it is more reliable on
+  a phone.
+- **Settings toggles are proper switches.** The on/off preferences that apply
+  immediately now use one consistent switch that states its position with a moving
+  knob and a tick, not just a colour.
+
 ### Fixed — the Capture button stops sitting on top of things
 
 - **Nothing gets stuck underneath it any more.** The round **+** button in the

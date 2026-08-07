@@ -40,9 +40,21 @@
   block-size: 1.125rem;
 }
 
-/* The ABSENCE state. Stated in the owner's words, on a neutral tint that reads as
- * "nothing here yet" rather than as a status — the one chip that keeps an
- * outline, because a neutral fill alone would not read as a chip. */
+/*
+ * M3-INT — ABSENCE is no longer a chip (`~/shared/pill/Absence`).
+ *
+ * The same truthful phrase, at `body-small` on the variant content colour, with
+ * no container of its own. It reads as the supporting text it always was, and a
+ * record with nothing in it stops looking busier than a record with everything
+ * in it. The neutral chip tone below survives for the genuine neutral STATUS
+ * (an archived record, a cancelled meeting) that legitimately needs one.
+ */
+.dh-absence {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
 .dh-pill[data-tone="neutral"] {
   background: var(--md-sys-color-surface-container-high);
   border-color: var(--md-sys-color-outline-variant);

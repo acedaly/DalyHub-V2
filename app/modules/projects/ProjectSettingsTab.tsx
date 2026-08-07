@@ -20,9 +20,10 @@
  *     Submits the existing `move` intent, which resolves to `SpineRepository.move`
  *     server-side — the client never asserts a parent's kind. `useImmediateSetting`
  *     gives optimistic apply + revert-on-failure for free.
- *   - **Workflow status** — an IMMEDIATE native `<select>` (Planned/Active/On
- *     hold), submitted via the existing `set_status` intent, with the SAME
- *     revert-on-failure coordinator.
+ *   - **Workflow status** — an IMMEDIATE `SelectField` (Planned/Active/On hold),
+ *     submitted via the existing `set_status` intent, with the SAME
+ *     revert-on-failure coordinator. (It was a native `<select>` until M3-INT
+ *     converged the product's application-style selects on one control.)
  *   - **Archive** — a `DangerousAction` in a `tone="danger"` group, submitted via
  *     the existing `archive` intent. A blocked archive (an unfinished direct
  *     Task) surfaces the typed `ProjectArchiveBlockedError` message INLINE in the
@@ -183,28 +184,32 @@ function WorkflowStatusRow({
       description="Where this project sits in your active work."
       status={setting.pending ? "Saving…" : undefined}
       statusLive
+      /* M3-INT — converged on the shared `SelectField` (audit finding 6). This
+       * row rendered a native `<select>` two rows below the Area/Goal picker's
+       * combobox, in the same panel, which is the same "two select
+       * presentations, adjacent" divergence the audit found in Settings. The
+       * change behaviour is untouched: still immediate, still the `set_status`
+       * intent, still revert-on-failure through `useImmediateSetting`. */
       control={(ids) => (
-        <select
+        <SelectField
           id={ids.controlId}
-          className="dh-settings-select"
-          aria-labelledby={ids.labelId}
-          aria-describedby={ids.describedById}
+          label="Workflow status"
+          labelledBy={ids.labelId}
+          describedBy={ids.describedById}
+          showOptionalCue={false}
           value={setting.value}
           disabled={setting.pending}
-          onChange={(event) => {
-            const next = event.target.value as ProjectWorkflowStatus;
-            if (next === setting.value) {
+          options={PROJECT_WORKFLOW_STATUSES.map((status) => ({
+            value: status,
+            label: projectWorkflowStatusLabel(status),
+          }))}
+          onChange={(next) => {
+            if (next === setting.value || next.length === 0) {
               return;
             }
-            setting.apply(next);
+            setting.apply(next as ProjectWorkflowStatus);
           }}
-        >
-          {PROJECT_WORKFLOW_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {projectWorkflowStatusLabel(status)}
-            </option>
-          ))}
-        </select>
+        />
       )}
     />
   );

@@ -18,25 +18,63 @@ import { expectNoHorizontalOverflow, gotoFixture } from "./helpers";
  */
 
 test.describe("Record Layout boundary (deliverable 3)", () => {
-  test("the active tab panel is a contained, bordered surface (light)", async ({
+  /*
+   * M3-INT — the panel is still a contained surface; its TOP edge is now the tab
+   * strip's rule rather than a second border of its own.
+   *
+   * This test used to measure `borderTopWidth` and `borderTopLeftRadius`, which
+   * was the right question with the wrong ruler once the strip and the panel
+   * became one surface. A gap plus a fully-rounded card underneath a bar reads
+   * as "a tab bar, and separately, a card" — the segmented look the review
+   * reported. What matters is unchanged and is asserted more strictly here: the
+   * panel is a real, bounded surface distinct from the page canvas, it has no
+   * doubled boundary, and the strip's rule and the panel's top edge COINCIDE.
+   */
+  test("the active tab panel is a contained surface, joined to its tab strip (light)", async ({
     page,
   }) => {
     await gotoFixture(page, "/areas/a-dh");
     const panel = page.locator(".record-tabs__panel").first();
+    const strip = page.locator(".record-tabs__strip").first();
     await expect(panel).toBeVisible();
+
     const box = await panel.evaluate((el) => {
       const s = getComputedStyle(el);
       return {
-        width: parseFloat(s.borderTopWidth),
-        style: s.borderTopStyle,
-        radius: parseFloat(s.borderTopLeftRadius),
+        topWidth: parseFloat(s.borderTopWidth),
+        sideWidth: parseFloat(s.borderLeftWidth),
+        bottomWidth: parseFloat(s.borderBottomWidth),
+        sideStyle: s.borderLeftStyle,
+        topRadius: parseFloat(s.borderTopLeftRadius),
+        bottomRadius: parseFloat(s.borderBottomLeftRadius),
         padding: parseFloat(s.paddingTop),
+        background: s.backgroundColor,
       };
     });
-    expect(box.width).toBeGreaterThan(0); // a visible boundary
-    expect(box.style).not.toBe("none");
-    expect(box.radius).toBeGreaterThan(0);
+
+    // Contained: sides, bottom, bottom corners, inset, and a surface of its own.
+    expect(box.sideWidth).toBeGreaterThan(0);
+    expect(box.bottomWidth).toBeGreaterThan(0);
+    expect(box.sideStyle).not.toBe("none");
+    expect(box.bottomRadius).toBeGreaterThan(0);
     expect(box.padding).toBeGreaterThan(0);
+    expect(box.background).not.toBe("rgba(0, 0, 0, 0)");
+
+    // Joined: no second top edge, no second set of top corners…
+    expect(box.topWidth).toBe(0);
+    expect(box.topRadius).toBe(0);
+
+    // …and no gap, so the strip's rule IS the panel's top edge.
+    const stripBox = (await strip.boundingBox())!;
+    const panelBox = (await panel.boundingBox())!;
+    expect(Math.abs(panelBox.y - (stripBox.y + stripBox.height))).toBeLessThan(
+      2,
+    );
+    const stripRule = await strip.evaluate((el) =>
+      parseFloat(getComputedStyle(el).borderBottomWidth),
+    );
+    expect(stripRule).toBeGreaterThan(0);
+
     // No doubled border: the summary card and the panel are siblings, not nested.
     const summaryInsidePanel = await panel.locator(".record-summary").count();
     expect(summaryInsidePanel).toBe(0);
@@ -49,11 +87,18 @@ test.describe("Record Layout boundary (deliverable 3)", () => {
     }) => {
       await gotoFixture(page, "/goals/g-launch");
       const panel = page.locator(".record-tabs__panel").first();
+      const strip = page.locator(".record-tabs__strip").first();
       await expect(panel).toBeVisible();
-      const width = await panel.evaluate((el) =>
-        parseFloat(getComputedStyle(el).borderTopWidth),
+      // The boundary is real in dark too — it is simply drawn by the strip on
+      // top and by the panel on the other three sides.
+      const sides = await panel.evaluate((el) =>
+        parseFloat(getComputedStyle(el).borderLeftWidth),
       );
-      expect(width).toBeGreaterThan(0);
+      const stripRule = await strip.evaluate((el) =>
+        parseFloat(getComputedStyle(el).borderBottomWidth),
+      );
+      expect(sides).toBeGreaterThan(0);
+      expect(stripRule).toBeGreaterThan(0);
     });
   });
 

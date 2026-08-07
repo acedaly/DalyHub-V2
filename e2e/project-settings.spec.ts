@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoHorizontalOverflow, gotoFixture } from "./helpers";
 
@@ -17,6 +17,33 @@ import { expectNoHorizontalOverflow, gotoFixture } from "./helpers";
  * reset in `seed-tasks.sql` before every run.
  */
 
+/**
+ * M3-INT — the workflow status is the shared `SelectField` combobox now, not a
+ * native `<select>`.
+ *
+ * Two consequences for this suite, and both are mechanical: a combobox reflects
+ * its chosen option's LABEL rather than the stored enum value, and it is driven
+ * by opening the listbox and choosing an option rather than by `selectOption`.
+ * The change behaviour it is testing — immediate save, revert on failure, the
+ * `set_status` intent — is untouched.
+ */
+const STATUS_LABEL = {
+  planned: "Planned",
+  active: "Active",
+  on_hold: "On hold",
+} as const;
+
+async function chooseWorkflowStatus(
+  page: Page,
+  status: keyof typeof STATUS_LABEL,
+): Promise<void> {
+  const combo = page.getByRole("combobox", { name: "Workflow status" });
+  await combo.click();
+  await page
+    .getByRole("option", { name: STATUS_LABEL[status], exact: true })
+    .click();
+}
+
 test.describe("PROJ-05 — Project Settings and Archived collection", () => {
   test("changes status, moves the parent, archives, restores via the Archived collection", async ({
     page,
@@ -31,14 +58,14 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     const statusSelect = page.getByRole("combobox", {
       name: "Workflow status",
     });
-    await expect(statusSelect).toHaveValue("planned");
+    await expect(statusSelect).toHaveValue("Planned");
 
     // Change the workflow status — an immediate setting, confirmed via a toast.
-    await statusSelect.selectOption("active");
+    await chooseWorkflowStatus(page, "active");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
-    await expect(statusSelect).toHaveValue("active");
+    await expect(statusSelect).toHaveValue("Active");
     // The header pill reflects the saved status after revalidation.
     await expect(
       page.getByText("Active", { exact: true }).first(),
@@ -145,7 +172,7 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Workflow status" }),
-    ).toHaveValue("active");
+    ).toHaveValue("Active");
   });
 
   test("has no horizontal overflow at 320px with the Settings tab and a confirmation open", async ({
@@ -203,8 +230,8 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // 2–3: open its final Settings tab (an in-page URL param, not a navigation
     // away), confirm it starts Planned, and change it to Active.
     await page.getByRole("tab", { name: "Settings" }).click();
-    await expect(statusSelect()).toHaveValue("planned");
-    await statusSelect().selectOption("active");
+    await expect(statusSelect()).toHaveValue("Planned");
+    await chooseWorkflowStatus(page, "active");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
@@ -222,8 +249,8 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await projectLink().click();
     await expect(page).toHaveURL(/\/projects\/pr-today/);
     await page.getByRole("tab", { name: "Settings" }).click();
-    await expect(statusSelect()).toHaveValue("active");
-    await statusSelect().selectOption("on_hold");
+    await expect(statusSelect()).toHaveValue("Active");
+    await chooseWorkflowStatus(page, "on_hold");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
@@ -242,8 +269,8 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // this restores the exact `?tab=settings` entry from step 5.
     await page.goBack();
     await expect(page).toHaveURL(/\/projects\/pr-today\?tab=settings/);
-    await expect(statusSelect()).toHaveValue("on_hold");
-    await statusSelect().selectOption("active");
+    await expect(statusSelect()).toHaveValue("On hold");
+    await chooseWorkflowStatus(page, "active");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
@@ -303,7 +330,7 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await expect(
       page.getByRole("group", { name: "Project restored" }),
     ).toBeVisible();
-    await expect(statusSelect()).toHaveValue("active");
+    await expect(statusSelect()).toHaveValue("Active");
 
     // 12: real navigation to Today (sidebar) — reappears.
     await goToToday();
@@ -333,7 +360,7 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await page.getByRole("tab", { name: "Settings" }).click();
     await expect(
       page.getByRole("combobox", { name: "Workflow status" }),
-    ).toHaveValue("planned");
+    ).toHaveValue("Planned");
 
     // Archive it directly (it never passes through Active) and restore it.
     await page.getByRole("button", { name: "Archive project…" }).click();
@@ -356,7 +383,7 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // Workflow status is preserved as Planned across the round trip.
     await expect(
       page.getByRole("combobox", { name: "Workflow status" }),
-    ).toHaveValue("planned");
+    ).toHaveValue("Planned");
 
     await page
       .getByRole("navigation", { name: "Primary" })

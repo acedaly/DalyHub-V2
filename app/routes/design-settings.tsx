@@ -29,6 +29,8 @@ import {
   FormActions,
   FormButton,
   FormErrorSummary,
+  SelectField,
+  Switch,
   TextField,
   composeValidators,
   maxLength,
@@ -87,16 +89,13 @@ function ImmediateToggleRow() {
       status={setting.pending ? "Saving…" : undefined}
       statusLive
       control={(ids) => (
-        <input
+        <Switch
           id={ids.controlId}
-          type="checkbox"
-          role="switch"
-          className="dh-settings-switch"
-          aria-labelledby={ids.labelId}
-          aria-describedby={ids.describedById}
+          labelledBy={ids.labelId}
+          describedBy={ids.describedById}
           checked={setting.value}
           disabled={setting.pending}
-          onChange={(event) => setting.apply(event.target.checked)}
+          onChange={(checked) => setting.apply(checked)}
           data-testid="toggle-compact"
         />
       )}
@@ -117,20 +116,21 @@ function ImmediateSelectRow() {
       label="Default view"
       description="The layout new collections open in. Applies immediately."
       control={(ids) => (
-        <select
+        <SelectField
           id={ids.controlId}
-          className="dh-settings-select"
-          aria-labelledby={ids.labelId}
-          aria-describedby={ids.describedById}
+          label="Default view"
+          labelledBy={ids.labelId}
+          describedBy={ids.describedById}
+          showOptionalCue={false}
           value={setting.value}
           disabled={setting.pending}
-          onChange={(event) => setting.apply(event.target.value)}
-          data-testid="select-view"
-        >
-          <option value="list">List</option>
-          <option value="board">Board</option>
-          <option value="grid">Grid</option>
-        </select>
+          options={[
+            { value: "list", label: "List" },
+            { value: "board", label: "Board" },
+            { value: "grid", label: "Grid" },
+          ]}
+          onChange={(next) => setting.apply(next)}
+        />
       )}
     />
   );
@@ -143,16 +143,13 @@ function DisabledControlsRow() {
       description="Managed by your organisation. This control is unavailable here."
       status="Disabled by policy"
       control={(ids) => (
-        <input
+        <Switch
           id={ids.controlId}
-          type="checkbox"
-          role="switch"
-          className="dh-settings-switch"
-          aria-labelledby={ids.labelId}
-          aria-describedby={ids.describedById}
+          labelledBy={ids.labelId}
+          describedBy={ids.describedById}
           checked
           disabled
-          readOnly
+          onChange={() => undefined}
         />
       )}
     />
@@ -303,15 +300,12 @@ function DesignSettingsPage() {
             label="Simulate a save failure"
             description="When on, the next Save is rejected by the (fake) server so you can retry."
             control={(ids) => (
-              <input
+              <Switch
                 id={ids.controlId}
-                type="checkbox"
-                role="switch"
-                className="dh-settings-switch"
-                aria-labelledby={ids.labelId}
-                aria-describedby={ids.describedById}
+                labelledBy={ids.labelId}
+                describedBy={ids.describedById}
                 checked={simulateFailure}
-                onChange={(event) => setSimulateFailure(event.target.checked)}
+                onChange={(checked) => setSimulateFailure(checked)}
                 data-testid="toggle-simulate-failure"
               />
             )}
@@ -326,13 +320,10 @@ function DesignSettingsPage() {
             label="Automatically archive completed projects after a long period of inactivity across every area of the workspace"
             description="When a project has had no activity for the configured retention window, it is moved out of the active list into the archive so the workspace stays focused on current work — this description is deliberately long to prove wrapping at every width."
             control={(ids) => (
-              <input
+              <Switch
                 id={ids.controlId}
-                type="checkbox"
-                role="switch"
-                className="dh-settings-switch"
-                aria-labelledby={ids.labelId}
-                aria-describedby={ids.describedById}
+                labelledBy={ids.labelId}
+                describedBy={ids.describedById}
                 defaultChecked={false}
               />
             )}
@@ -393,13 +384,10 @@ function DesignSettingsPage() {
                 label="Email digests"
                 description="A weekly summary of activity."
                 control={(ids) => (
-                  <input
+                  <Switch
                     id={ids.controlId}
-                    type="checkbox"
-                    role="switch"
-                    className="dh-settings-switch"
-                    aria-labelledby={ids.labelId}
-                    aria-describedby={ids.describedById}
+                    labelledBy={ids.labelId}
+                    describedBy={ids.describedById}
                     defaultChecked
                   />
                 )}

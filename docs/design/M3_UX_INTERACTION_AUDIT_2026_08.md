@@ -33,17 +33,27 @@ answers the class correctly, using the product's own bands, would be circular.
 |---|---|---|---|---|
 | 1 | The floating action button covers content and form controls | defect | **High** | **Closed** — PR #126 (narrowed; see the resolution) |
 | 2 | Icon-only controls rely on `title` for their tooltip — 91 instances, none keyboard-reachable | gap | **High** | **Closed for the agreed adoption set** — PR #126 |
-| 3 | The state layer is documented as one shared class and implemented ~5× by hand | divergence | Medium | Open |
+| 3 | The state layer is documented as one shared class and implemented ~5× by hand | divergence | Medium | **Closed for the reusable primitives** — PR #127 (remainder is a ratcheting baseline) |
 | 4 | No navigation rail: the medium window class gets the phone layout | gap | Medium | Open — needs its own ADR |
 | 5 | A 240px permanent drawer starves the expanded window class | divergence | Medium | Open — same decision as 4 |
-| 6 | Settings mixes native `<select>` with the shared combobox | divergence | Medium | Open |
+| 6 | Settings mixes native `<select>` with the shared combobox | divergence | Medium | **Closed** — PR #127 |
 | 7 | A settings row labels its own field twice | defect | Low | **Closed** — PR #126 |
-| 8 | No switch: every boolean in the product is a checkbox | gap | Low | Open |
-| 9 | No press ripple; the state layer stops at opacity | divergence | Low (accepted) | Open — owed a written decision |
+| 8 | No switch: every boolean in the product is a checkbox | gap | Low | **Closed** — PR #127 |
+| 9 | No press ripple; the state layer stops at opacity | divergence | Low (accepted) | **Closed** — PR #127 wrote the decision |
 
 Findings 1, 2 and 7 are defects a user meets. 3 and 6 are consistency debt that
 grows with every new surface. 4 and 5 are the one genuinely *structural*
 question. 8 and 9 are small and arguably fine as they are.
+
+**What PR #127 changed.** It took group B — the consistency group (3, 6, 8, 9) —
+and left group C exactly where this audit put it. It also fixed two LAYOUT faults
+that are not in this audit's numbered findings because this audit was about
+interaction rather than about geometry, and which the separate
+`MD3_UI_SPECIALIST_REVIEW_2026_08` review raised: a short record title wrapping
+with room to spare, and a Note's caret opening near the middle of its editor.
+Those two are recorded in
+[ADR-077](../decisions/ARCHITECTURE_DECISIONS.md#adr-077-interaction-consistency--one-state-layer-no-ripple-one-selection-control-one-switch-and-the-two-shared-layouts-that-were-wasting-the-laptop)
+decisions 6 and 7 rather than being retro-fitted into this document's numbering.
 
 **What PR #126 changed, and what it deliberately did not.** It took the three
 control-level defects (1, 2, 7) and left everything else exactly where this audit
@@ -222,10 +232,56 @@ inline-edit trigger and editor toolbar) to the shared class, then add a test tha
 fails when a new `:hover` rule sets `background` on an element that also carries
 an interactive role.
 
-> **Still open after PR #126.** Untouched, deliberately: it is a sweep across many
-> files with low per-file payoff, and folding it into a PR that also moved the FAB
-> and introduced a primitive would have made both unreviewable. The new tooltip is
-> not a counter-example — it has no hover fill of its own to convert.
+> **Resolution — PR #127 (M3-INT). Closed for the reusable primitives; the rest
+> is a ratcheting baseline.**
+>
+> **The declarations now exist once.** `base.css` holds the implementation and a
+> component becomes a host either by carrying `.md-state-layer` (a component that
+> renders its own class list) or by being named in the host list beside it (a
+> class applied as a literal string at dozens of call sites, like `.dh-btn`). Two
+> routes because the alternatives were worse in both directions: requiring the
+> class means editing every `className="dh-btn …"` literal; requiring the list
+> puts every component's class name in `base.css` even when it already renders
+> its own.
+>
+> **Converted:** `.dh-btn` (which carried a verbatim COPY of the shared block,
+> under a comment claiming to use it), `.record-action`, `.dh-card__action`, the
+> overflow menu's trigger and items, `.dh-segmented__option`, the editor
+> toolbar and its Read/Write toggle, the inline-edit trigger and its block Edit
+> control, the inline select's options, the account-menu links, the phone bar's
+> Back and Search, and the command palette's close. Those are the audit's own
+> shortlist — "buttons, list rows, menu items, nav items, chips, card
+> affordances, the new inline-edit trigger and editor toolbar".
+>
+> **What this bought beyond tidiness.** The *pressed* state, which the finding
+> predicted would be missing: `.record-action` had none at all (its variants
+> restated their own container colour under `:hover` and `:active` so that
+> nothing changed), and the editor toolbar's was **12%** where M3 and every other
+> control in the product use 10% — the silent divergence this finding said a
+> hand-rolled layer would eventually produce, already present. *Focus* joined the
+> contract too, so the "hover and focus-visible get the same treatment" promise
+> that DS-16 made for two components is now product-wide.
+>
+> **What deliberately did NOT happen.** The 107-rule sweep. Thirty-eight
+> module-level hand-rolled fills remain — a Diary date-stepper, a Today widget
+> control, a Search clear button — each a small local conversion with a small
+> local payoff. They are frozen in
+> [`test/unit/tokens/state-layer.test.ts`](../../test/unit/tokens/state-layer.test.ts)
+> as a baseline that may only SHRINK: the test fails if it grows and fails if an
+> entry goes stale. The number is left as measured; see `PRODUCT_DEBT.md`.
+>
+> **The test is deliberately narrow.** It does not ban `:hover`, `background` or
+> `color-mix()` — a hover rule that lifts a content colour, firms a border or
+> swaps a selected container is correct M3 and there are dozens of them. It bans
+> one shape: a translucent fill at one of M3's own state opacities, on a state
+> selector. Banning the primitives would produce a noisy test the next author
+> routes around, which is worse than no test.
+>
+> **Evidence.** `test/unit/tokens/state-layer.test.ts` and
+> [`e2e/interaction-consistency.spec.ts`](../../e2e/interaction-consistency.spec.ts),
+> which reads the `::after` pseudo-element's computed opacity in a real browser —
+> the one place the contract is observable, and a check a `background` assertion
+> would have passed against a hand-rolled fill.
 
 ## 4 — No navigation rail: the medium window class gets the phone layout · **gap, medium**
 
@@ -286,11 +342,34 @@ not. The 2026-08 selection-control audit
 found the shared combobox had a defect nobody noticed for months; a second,
 undocumented select surface is how that happens.
 
-> **Still open after PR #126.** The task-destination row that PR #126 *did* touch
-> is the shared combobox, and it stayed one: the fix was to stop it printing its
-> own label beside the row's (finding 7), not to convert the two native `<select>`
-> rows above it. Converging the two presentations is a separate decision about
-> which control wins product-wide, and it is unchanged by this PR.
+> **Resolution — PR #127 (M3-INT). Closed, with the exception named.**
+>
+> **The application-style select is the shared combobox.** Every `SelectSetting`
+> row in Settings (landing page, Tasks view, Diary mode, timezone, date display),
+> both AI rows (default provider, result retention) and the Project record's
+> Workflow status are now `SelectField`. Settings contains no native `<select>`
+> at all, which is asserted rather than described.
+>
+> **The retained native control is a stated exception, not an oversight.** A
+> **filter bar** keeps its native `<select>`: Notes, Diary, Reviews, Assets and
+> Tasks each render a dense strip of controls that must stay operable on a phone
+> with no JavaScript, and the native element is genuinely more robust there. That
+> is the entire list, and it is now written into `DESIGN_SYSTEM.md` → Forms so
+> the next surface has an answer rather than a precedent to copy.
+>
+> **PR #124's behaviour survived the migration, and is asserted.** An optional
+> field still starts genuinely empty; reopening a control that already has a value
+> still offers the whole list; another value can still be chosen directly with no
+> clearing step; the current value is still not a search filter; the placeholder
+> is still an attribute rather than an option. The rows still save IMMEDIATELY —
+> `SelectField` is a controlled combobox rather than a form control, so the chosen
+> value is carried by a hidden input and the form submitted on the next frame,
+> which is the mechanism the task-destination row's own "Use Inbox" control
+> already used.
+>
+> **Evidence.** `e2e/interaction-consistency.spec.ts` — no `select` element in
+> Settings, the full option list on reopen, direct replacement, Escape restoring
+> focus without changing the value, and an axe-clean panel in both appearances.
 
 ## 7 — A settings row labels its own field twice · **defect, low**
 
@@ -339,8 +418,40 @@ effect immediately. DalyHub's settings toggles are immediate, so they are
 switches wearing checkboxes. The component already exists, so this is adoption,
 not construction.
 
-> **Still open after PR #126.** No checkbox became a switch. PR #126 was in the
-> Settings panel for finding 7 and deliberately left the control choice alone.
+> **Resolution — PR #127 (M3-INT). Closed.**
+>
+> **There is now ONE switch**, [`~/shared/forms/Switch`](../../app/shared/forms/Switch.tsx),
+> and it is a real `<input type="checkbox">` with `role="switch"` on top — not a
+> `div` with `aria-checked`. That distinction is the whole point: the ARIA pattern
+> re-implements, badly, the checked state, Space, the label association, form
+> participation (`name`/`value`), `:disabled` and the whole of Windows High
+> Contrast. `role="switch"` adds the one thing the native element cannot say for
+> itself, which is that it is announced "on"/"off" rather than "ticked".
+>
+> **Adopted by** the Settings navigation toggles (immediate, no Save — M3's own
+> definition of a switch) and by `BooleanField`'s `variant="switch"`, which now
+> DELEGATES to the shared primitive rather than drawing a second switch out of
+> `.dh-boolean__control`. The Settings panel's own hand-rolled `.dh-settings-switch`
+> skin is gone.
+>
+> **Nothing else became a switch, deliberately.** Selection, bulk-action,
+> acknowledgement and multi-select checkboxes are checkboxes because a checkbox
+> selects an item within a set and usually needs a Save; making them switches
+> would claim an immediacy they do not have.
+>
+> **A real bug fell out of testing it.** Asserting that a toggle survives a reload
+> failed — and not because of the new control. The action read
+> `FormData.get("visible")`, which returns the FIRST entry, and the row posts a
+> hidden `visible=0` before the checkbox's `visible=1`. So it always read `0`: a
+> module could be hidden from navigation and never restored from its own toggle,
+> while the row reported "Saved". Pre-existing, unrelated to the switch, and fixed
+> here rather than worked around in the test.
+>
+> **Evidence.** [`test/unit/forms/Switch.test.tsx`](../../test/unit/forms/Switch.test.tsx)
+> (native semantics, both naming patterns, keyboard, form participation, the
+> checkbox variant staying a checkbox) and `e2e/interaction-consistency.spec.ts`
+> (≥44px target on the label, Space, persistence across a reload, thumb position
+> AND check glyph so the state is never colour alone, axe in both appearances).
 
 ## 9 — No press ripple · **divergence, low, arguably correct**
 
@@ -354,10 +465,24 @@ here, and it would need a `prefers-reduced-motion` path. **Recommendation: recor
 this as a deliberate deviation in `DESIGN_SYSTEM.md` and close it**, rather than
 leave it as an undocumented absence that every future audit re-raises.
 
-> **Still open after PR #126.** `ripple` is still 0 occurrences in `app/`, and the
-> written decision this finding asks for has still not been made. It is one
-> paragraph of owed documentation, not a code change, and it belongs with the
-> consistency group (findings 3, 6, 8) rather than with the control-level defects.
+> **Resolution — PR #127 (M3-INT). Closed as a deliberate deviation, exactly as
+> this finding recommended.**
+>
+> > **DalyHub uses Material Design state layers for hover, focus and pressed
+> > interaction, and does not implement animated ripple effects.**
+>
+> Written into `DESIGN_SYSTEM.md` → Shape, elevation, state and motion, and into
+> [ADR-077](../decisions/ARCHITECTURE_DECISIONS.md) decision 3. The reasoning is
+> the one this finding already assessed: a ripple is an *expression* of the state
+> layer rather than the state layer itself, it communicates nothing here that the
+> pressed layer does not communicate instantly, and it is decoration under a
+> motion principle that says motion communicates causality. It would also need
+> per-control JavaScript, a `prefers-reduced-motion` path and its own test
+> surface — machinery bought for decoration.
+>
+> No JavaScript ripple machinery was added. `ripple` is still 0 occurrences in
+> `app/`, and that is now the documented intent rather than an undocumented
+> absence for the next audit to re-raise.
 
 ---
 

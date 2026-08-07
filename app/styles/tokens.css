@@ -890,6 +890,19 @@
   /* Measures. There is now ONE prose measure: the Reading region and its serif
    * column are retired, so the 46ch serif cap has nothing left to cap. */
   --app-width-prose: 65ch;
+  /*
+   * EDIT-02 — the WRITING measure, which is deliberately not the reading one.
+   *
+   * Reading wants a short line because the eye returns to the left margin on
+   * every one of them. Writing Markdown source does not: the owner is looking
+   * at list markers, table pipes, link syntax and long URLs, and a 65ch column
+   * wraps those into an unreadable stack while three hundred pixels of the
+   * writing surface sit empty beside it. This is the wider cap the editable
+   * surface uses instead — still a cap, so an ultra-wide window does not
+   * produce an ultra-wide line, and always LEFT-ALIGNED so the slack falls
+   * after the text rather than in front of the caret.
+   */
+  --app-width-editor: 90ch;
   --app-width-narrow: 42rem; /* single-column pages */
   --app-width-content: 72rem; /* dense record content */
   --app-width-wide: 90rem; /* multi-pane shells */
