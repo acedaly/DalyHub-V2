@@ -946,7 +946,6 @@
  * wins (AGENTS.md §15). The visual height is M3's; the touch target is ours.
  */
 .dh-btn {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -964,27 +963,12 @@
   overflow: hidden;
 }
 
-/* The state layer, applied to every button without each call site opting in.
- * `overflow: hidden` above keeps it inside the pill. */
-.dh-btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: currentColor;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
-}
-
-.dh-btn:hover:not(:disabled)::after {
-  opacity: var(--md-sys-state-hover-state-layer-opacity);
-}
-
-.dh-btn:active:not(:disabled)::after {
-  opacity: var(--md-sys-state-pressed-state-layer-opacity);
-}
+/* The state layer is NOT re-declared here. `.dh-btn` is a host of the ONE
+ * implementation in `base.css` (M3-INT), which is where its hover, focus,
+ * pressed and disabled opacities come from; `overflow: hidden` above is the
+ * button's own contribution, keeping the layer inside the pill. This block used
+ * to be a verbatim copy of that implementation under a comment claiming to use
+ * it — audit finding 3, in one file. */
 
 /* A button with a leading glyph takes 16px of leading padding, so the glyph and
  * the label read as one object rather than as an icon floating in a pill. */

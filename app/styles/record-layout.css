@@ -291,12 +291,20 @@
       var(--md-sys-motion-easing-standard);
 }
 
+/*
+ * M3-INT — the container is the variant, the STATE is the shared layer.
+ *
+ * Each variant used to restate its own container colour under `:hover` and
+ * `:active` so that a hovered record action did not change colour. That is the
+ * right M3 instinct written the long way round: the reason an M3 button does
+ * not swap its container is that its state arrives as a layer on top, and
+ * `.record-action` is now a host of the one implementation in `base.css`. The
+ * no-op rules are gone and the control gains real hover, focus and pressed
+ * states in the bargain — it previously had none.
+ */
 .record-action--primary {
   background: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
-}
-.record-action--primary:hover {
-  background: var(--md-sys-color-primary);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -304,17 +312,11 @@
     min-height: var(--app-touch-target-min);
   }
 }
-.record-action--primary:active {
-  background: var(--md-sys-color-primary);
-}
 
 .record-action--secondary {
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-surface);
   border-color: var(--md-sys-color-outline-variant);
-}
-.record-action--secondary:hover {
-  background: var(--md-sys-color-secondary-container);
 }
 
 .record-action:disabled,
@@ -385,6 +387,24 @@
   min-width: 0;
 }
 
+/*
+ * M3-INT — the SPARSE summary (metadata only, no prose) loses the container.
+ *
+ * See the note in `RecordSummary.tsx`: three equally-weighted cards down one
+ * record is what made a single record read as several unrelated ones, and a row
+ * of short key/value pairs is the region least entitled to one. It keeps its
+ * landmark, its label and its grid — it simply stops drawing a box around four
+ * words. The metadata's own type hierarchy (quiet label, `on-surface` value) is
+ * what separates it from the header above, which is the M3 order: spacing and
+ * typography first, another surface only if they are not enough.
+ */
+.record-summary[data-density="sparse"] {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
 .record-summary__description {
   color: var(--md-sys-color-on-surface-variant);
   line-height: 1.65;
@@ -433,10 +453,21 @@
 /* Tabs                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * M3-INT — the tab strip and the panel it controls are ONE surface.
+ *
+ * They used to be two: a strip with its own rule, `--app-space-4` of canvas
+ * below it, and then a fully-bordered, fully-rounded card. The gap and the
+ * second top edge said "here is a tab bar, and separately, here is a card",
+ * which is the segmented look the review reported — and it is the same mistake
+ * the editor already fixed between its toolbar and its writing surface
+ * (`markdown-editor.css`, EDIT-01). The strip's bottom rule IS the panel's top
+ * edge, so the tabs visibly control what is underneath them.
+ */
 .record-tabs {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: 0;
   min-width: 0;
 }
 
@@ -540,6 +571,19 @@
   background: var(--md-app-color-surface-card);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
+}
+
+/*
+ * M3-INT — the TABBED panel joins its strip: no top edge of its own (the strip's
+ * rule is already there) and square top corners, so the two read as one working
+ * surface rather than as a bar sitting on a card. `.record-layout__content` —
+ * the no-tabs region — is untouched, because with nothing above it there is
+ * nothing to join and it stays a complete card.
+ */
+.record-tabs__panel {
+  border-block-start: none;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
 }
 
 .record-tabs__panel:focus-visible {
@@ -701,9 +745,8 @@
     display: none;
   }
 
-  .record-tabs {
-    gap: var(--app-space-3);
-  }
+  /* M3-INT — the strip and its panel stay joined on a phone too; the gap here
+   * would put the seam back. Only the tab metrics tighten. */
 
   /* Tabs stay ONE row: the strip scrolls (an intentional, contained overflow) and
    * the surplus lives in the More menu — a wrapped multi-row tab bar would eat

@@ -16,6 +16,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 
+import { InlineTextField } from "~/shared/inline-edit";
 import { RecordContent, RecordLayout } from "~/shared/record-layout";
 import type { RecordContentProps, RecordTab } from "~/shared/record-layout";
 
@@ -34,6 +35,9 @@ function EntityGlyph() {
   );
 }
 
+/** The production report's own title — see the fixture blocks below. */
+const SHORT_TITLE = "Opo 1 2026";
+
 const LONG_TITLE =
   "Q3 cross-functional platform reliability and incident-response readiness initiative (including on-call rotation redesign)";
 
@@ -41,6 +45,48 @@ const LONG_DESCRIPTION =
   "This record exercises long-content wrapping: a description with a very long unbroken token like " +
   "supercalifragilisticexpialidocious-antidisestablishmentarianism-pneumonoultramicroscopicsilicovolcanoconiosis " +
   "must wrap safely without forcing the page wider or introducing a horizontal scrollbar, at every viewport from a wide desktop down to a 320px phone.";
+
+/**
+ * The same short title, hosted by the shared inline heading editor — the exact
+ * composition the production defect appeared in.
+ */
+function ShortInlineTitleDemo() {
+  const [title, setTitle] = useState(SHORT_TITLE);
+  return (
+    <RecordLayout
+      typeLabel="Project"
+      icon={<EntityGlyph />}
+      title={title}
+      titleSlot={
+        <InlineTextField
+          label="Project name"
+          value={title}
+          variant="heading"
+          data-testid="short-title-edit"
+          onSave={async (next) => {
+            setTitle(next);
+            return { ok: true } as const;
+          }}
+        />
+      }
+      status={{ label: "Active", tone: "accent" }}
+      metadata={[{ id: "owner", label: "Owner", value: "Aidan" }]}
+      primaryAction={{
+        id: "complete",
+        label: "Complete project",
+        variant: "primary",
+      }}
+      secondaryActions={[{ id: "link", label: "Link", variant: "secondary" }]}
+      overflowActions={[{ id: "archive", label: "Archive" }]}
+    >
+      <RecordContent label="Overview">
+        <p className="demo-prose">
+          An editable heading must behave exactly like a static one.
+        </p>
+      </RecordContent>
+    </RecordLayout>
+  );
+}
 
 /** The Project-style demo: tabs wired to the URL to prove deep-linking. */
 function ProjectRecordDemo() {
@@ -207,6 +253,55 @@ export default function DesignRecordLayoutRoute() {
             </p>
           </RecordContent>
         </RecordLayout>
+      </section>
+
+      {/*
+       * M3-INT — the SHORT-TITLE width-priority case, as a fixture.
+       *
+       * `Opo 1 2026` is the exact title from the production report: it wrapped
+       * to `Opo 1` / `2026` on a laptop with hundreds of pixels of empty header
+       * beside it. Both variants are here because the defect only ever showed
+       * on the EDITABLE one — the static heading was always fine — and a
+       * regression test that only covers static headings would not have caught
+       * it. `e2e/record-header-title.spec.ts` measures both, at every width in
+       * the responsive matrix.
+       */}
+      <section className="demo-block" aria-label="Short title record">
+        <h2 className="demo-block__title">
+          Short title · width priority (static heading)
+        </h2>
+        <RecordLayout
+          typeLabel="Project"
+          icon={<EntityGlyph />}
+          title={SHORT_TITLE}
+          status={{ label: "Active", tone: "accent" }}
+          metadata={[{ id: "owner", label: "Owner", value: "Aidan" }]}
+          primaryAction={{
+            id: "complete",
+            label: "Complete project",
+            variant: "primary",
+          }}
+          secondaryActions={[
+            { id: "link", label: "Link", variant: "secondary" },
+          ]}
+          overflowActions={[{ id: "archive", label: "Archive" }]}
+        >
+          <RecordContent label="Overview">
+            <p className="demo-prose">
+              A short record title must take the width it needs before it wraps.
+            </p>
+          </RecordContent>
+        </RecordLayout>
+      </section>
+
+      <section
+        className="demo-block"
+        aria-label="Short title record with inline editing"
+      >
+        <h2 className="demo-block__title">
+          Short title · width priority (inline-editable heading)
+        </h2>
+        <ShortInlineTitleDemo />
       </section>
 
       <section className="demo-block" aria-label="Long content record">

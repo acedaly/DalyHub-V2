@@ -48,15 +48,12 @@
  * A state layer and nothing else: an outline as well made a hovered title read
  * as an input box that was already open, which is the "every field looks like a
  * form" impression this pattern exists to remove. The browser's own focus ring
- * still draws on `:focus-visible`, so keyboard users get the stronger signal. */
-.dh-inline-edit__trigger:hover,
-.dh-inline-edit__trigger:focus-visible {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
+ * still draws on `:focus-visible`, so keyboard users get the stronger signal.
+ *
+ * M3-INT — that state layer is now the SHARED one (`base.css`), which is what
+ * made "hover and focus-visible get the same treatment" a product-wide rule
+ * instead of a promise two stylesheets happened to keep. The trigger gains a
+ * pressed state it never had, at the same time and from the same place. */
 
 .dh-inline-edit__value {
   min-inline-size: 0;
@@ -104,10 +101,37 @@
  * to fit. Shrink-to-fit inside a flex heading row resolved to a sliver and then
  * wrapped the record's name one character per line; a heading is a block, and
  * its editable presentation has to be one too.
+ *
+ * ── M3-INT (PR #127) — why the width is `auto` and not `100%` ────────────────
+ * `display: flex` makes this a BLOCK-level flex container, so `inline-size:
+ * auto` already fills the heading: the "fills the heading rather than shrinking
+ * to fit" intent above is satisfied by the display type alone. The explicit
+ * `100%` that used to sit here did nothing extra for the used width — and it
+ * broke the heading's INTRINSIC width.
+ *
+ * A percentage inline-size cannot be resolved while the ancestor whose width it
+ * refers to is itself being measured, so the heading's max-content contribution
+ * collapsed to (roughly) its min-content — its longest word. `.record-title` is
+ * a flex item whose base size IS that contribution, so a record header with
+ * 917px of free space handed the title 127px and `Opo 1 2026` wrapped to
+ * `Opo 1` / `2026`. Measured on `/projects/pr-website` at 1440px before the
+ * change: titlerow 917px, title 127px, two line boxes.
+ *
+ * With `auto` the contribution is the title's real max-content, the flex item
+ * takes exactly the width its text needs, the status chip stays beside it, and
+ * the title wraps only when the row genuinely cannot hold it.
+ *
+ * There is deliberately no `max-inline-size: 100%` companion either: a
+ * PERCENTAGE maximum re-creates exactly the same unresolvable reference and
+ * measurably restores the defect (verified — the title went straight back to
+ * 127px and two line boxes). It buys nothing, because a block-level flex
+ * container with `inline-size: auto` already stops at its containing block; the
+ * only inline overflow is the deliberate ±8px optical bleed from the negative
+ * margins above, which a percentage cap would fight rather than allow.
  */
 .dh-inline-edit[data-variant="heading"] .dh-inline-edit__trigger {
   display: flex;
-  inline-size: 100%;
+  inline-size: auto;
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: var(--md-sys-typescale-headline-small-line-height);
   font-weight: 500;
@@ -146,10 +170,8 @@
   cursor: pointer;
 }
 
-.dh-inline-edit__edit:hover,
-.dh-inline-edit__edit:focus-visible {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
-}
+/* Same shared layer. `currentColor` here is `primary`, so the block field's
+ * Edit control keeps its primary-tinted fill without stating an opacity. */
 
 .dh-inline-edit__raw {
   white-space: pre-wrap;
@@ -292,14 +314,7 @@
   cursor: pointer;
 }
 
-.dh-inline-select__option:hover,
-.dh-inline-select__option:focus-visible {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
+/* Hover / focus / pressed: the shared state layer (M3-INT, `base.css`). */
 
 /* The chosen option carries a check WORD-equivalent through `aria-checked`; the
  * fill is reinforcement, never the only signal. */

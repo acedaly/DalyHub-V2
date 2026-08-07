@@ -26,6 +26,7 @@ import {
   type AiModelTier,
   type PrivacyCategory,
 } from "~/kernel/ai";
+import { SelectField } from "~/shared/forms";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 
 /** Everything the section renders. Assembled server-side; carries no secret. */
@@ -132,18 +133,22 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
         <SettingsRow
           label="Default provider"
           description="Used when more than one provider is configured."
+          /* M3-INT — the shared select, like every other application-style
+           * select in Settings (audit finding 6). */
           control={(ids) => (
-            <select
+            <SelectField
               id={ids.controlId}
-              className="dh-select"
-              aria-labelledby={ids.labelId}
-              aria-describedby={ids.describedById}
+              label="Default provider"
+              labelledBy={ids.labelId}
+              describedBy={ids.describedById}
+              showOptionalCue={false}
               value={data.defaultProvider}
-              onChange={(event) => set("defaultProvider", event.target.value)}
-            >
-              <option value="anthropic">Anthropic</option>
-              <option value="openai">OpenAI</option>
-            </select>
+              options={[
+                { value: "anthropic", label: "Anthropic" },
+                { value: "openai", label: "OpenAI" },
+              ]}
+              onChange={(next) => set("defaultProvider", next)}
+            />
           )}
         />
       </SettingsGroup>
@@ -391,19 +396,21 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
           label="Reuse generated results"
           description="How long DalyHub may return an earlier answer for an identical request whose source records have not changed."
           control={(ids) => (
-            <select
+            <SelectField
               id={ids.controlId}
-              className="dh-select"
-              aria-labelledby={ids.labelId}
-              aria-describedby={ids.describedById}
+              label="Reuse generated results"
+              labelledBy={ids.labelId}
+              describedBy={ids.describedById}
+              showOptionalCue={false}
               value={data.resultRetention}
-              onChange={(event) => set("resultRetention", event.target.value)}
-            >
-              <option value="none">Never reuse</option>
-              <option value="session">Only briefly</option>
-              <option value="7d">Up to 7 days</option>
-              <option value="30d">Up to 30 days</option>
-            </select>
+              options={[
+                { value: "none", label: "Never reuse" },
+                { value: "session", label: "Only briefly" },
+                { value: "7d", label: "Up to 7 days" },
+                { value: "30d", label: "Up to 30 days" },
+              ]}
+              onChange={(next) => set("resultRetention", next)}
+            />
           )}
           align="start"
         />

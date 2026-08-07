@@ -1,0 +1,211 @@
+/**
+ * M3-INT — the ONE Material Design 3 switch (`~/shared/forms/Switch`).
+ *
+ * Composes only DS-01 tokens for every colour/space/size/radius/duration (the
+ * token-discipline test scans this file); bare geometry (0, 100%, the track and
+ * thumb diameters, the travel distance) is layout, not design values.
+ *
+ * The anatomy is M3's: a 52×32 track, a thumb that is 16px unselected and 24px
+ * selected, and a check glyph inside the selected thumb. The unselected track is
+ * `surface-container-highest` inside an `outline` boundary; the selected track
+ * is `primary` with an `on-primary` thumb. The 44px pointer target is the LABEL
+ * around the track, so the touch area is bigger than the graphic without the
+ * graphic having to be.
+ */
+
+.dh-switch {
+  display: inline-flex;
+  min-inline-size: 0;
+}
+
+/*
+ * The real control, visually hidden but never `display: none` and never
+ * `visibility: hidden` — both of those would take it out of the accessibility
+ * tree and off the Tab order, which is the whole thing being preserved here. It
+ * keeps its own focus, its own checked state and its own form participation;
+ * everything below is painted from `:checked`, `:disabled` and `:focus-visible`
+ * on THIS element.
+ */
+.dh-switch__input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dh-switch__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  /* The target, not the track: 44px on every pointer (AGENTS.md §15). */
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  cursor: pointer;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+}
+
+.dh-switch__track {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  inline-size: 3.25rem; /* 52px — M3's track */
+  block-size: 2rem; /* 32px */
+  padding-inline: var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thick) solid var(--md-sys-color-outline);
+  background: var(--md-sys-color-surface-container-highest);
+  transition:
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
+}
+
+/*
+ * The thumb. Its POSITION is the state — which is why the control is still
+ * readable with no colour information at all — and its size grows on selection,
+ * exactly as M3 specifies, so the change is legible in peripheral vision.
+ */
+.dh-switch__thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1rem; /* 16px unselected */
+  block-size: 1rem;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-primary-container);
+  transition:
+    transform var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    inline-size var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    block-size var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
+}
+
+/* The check is the NON-COLOUR half of the selected state. It is scaled to
+ * nothing while unselected rather than hidden, so the thumb has no layout jump
+ * when it appears. */
+.dh-switch__check {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  opacity: 0;
+  transition: opacity var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
+}
+
+/* --- Selected ------------------------------------------------------------ */
+
+.dh-switch__input:checked + .dh-switch__label .dh-switch__track {
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+}
+
+.dh-switch__input:checked + .dh-switch__label .dh-switch__thumb {
+  inline-size: 1.5rem; /* 24px selected */
+  block-size: 1.5rem;
+  background: var(--md-sys-color-on-primary);
+  /* 52px track − 2×2px border − 2×4px padding − 24px thumb = 16px of travel. */
+  transform: translateX(1rem);
+}
+
+.dh-switch__input:checked + .dh-switch__label .dh-switch__check {
+  opacity: 1;
+  color: var(--md-sys-color-on-primary-container);
+}
+
+/* --- Focus --------------------------------------------------------------- */
+
+/* The input is visually hidden, so the ring is drawn on the track it controls —
+ * the product's own indicator, not a bespoke one. */
+.dh-switch__input:focus-visible + .dh-switch__label .dh-switch__track {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* --- Disabled ------------------------------------------------------------ */
+
+.dh-switch__input:disabled + .dh-switch__label {
+  color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+    transparent
+  );
+  cursor: not-allowed;
+}
+
+.dh-switch__input:disabled + .dh-switch__label .dh-switch__track {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface)
+      var(--md-sys-state-disabled-container-opacity),
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+    transparent
+  );
+}
+
+.dh-switch__input:disabled + .dh-switch__label .dh-switch__thumb {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+    transparent
+  );
+}
+
+/* --- Forced colours ------------------------------------------------------ */
+
+/*
+ * In forced-colors mode the OS replaces authored colours, so the state has to
+ * survive on SHAPE and on system keywords. The selected track takes `Highlight`
+ * and the thumb `HighlightText`; the thumb's position and its check glyph are
+ * untouched by the mode and carry the state on their own.
+ */
+@media (forced-colors: active) {
+  .dh-switch__track {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .dh-switch__thumb {
+    background: CanvasText;
+  }
+
+  .dh-switch__input:checked + .dh-switch__label .dh-switch__track {
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .dh-switch__input:checked + .dh-switch__label .dh-switch__thumb {
+    background: HighlightText;
+  }
+
+  .dh-switch__input:checked + .dh-switch__label .dh-switch__check {
+    color: Highlight;
+  }
+
+  .dh-switch__input:focus-visible + .dh-switch__label .dh-switch__track {
+    outline-color: Highlight;
+  }
+
+  .dh-switch__input:disabled + .dh-switch__label .dh-switch__track {
+    border-color: GrayText;
+  }
+
+  .dh-switch__input:disabled + .dh-switch__label .dh-switch__thumb {
+    background: GrayText;
+  }
+}

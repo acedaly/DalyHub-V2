@@ -7,8 +7,8 @@
  * component renders a Project and a Person with no entity-specific assumptions).
  */
 
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { RecordContent, RecordLayout } from "~/shared/record-layout";
 import type { RecordTab } from "~/shared/record-layout";
@@ -85,7 +85,7 @@ describe("RecordLayout — actions have accessible names", () => {
         primaryAction={{ id: "done", label: "Mark complete" }}
         secondaryActions={[
           { id: "link", label: "Link" },
-          { id: "more", label: "⋯", ariaLabel: "More actions" },
+          { id: "tag", label: "⋯", ariaLabel: "Edit tags" },
         ]}
       />,
     );
@@ -93,10 +93,62 @@ describe("RecordLayout — actions have accessible names", () => {
       screen.getByRole("button", { name: "Mark complete" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Link" })).toBeInTheDocument();
-    // The terse label is overridden by an explicit accessible name.
+
+    /*
+     * M3-INT — the SECOND secondary action is folded into the shared overflow
+     * (see `MAX_VISIBLE_SECONDARY_ACTIONS` in `RecordHeader`). It keeps its
+     * accessible name there, which is the thing this test is about: a terse
+     * visible label is still overridden by an explicit `ariaLabel`, wherever
+     * the action ends up.
+     */
+    fireEvent.click(screen.getByRole("button", { name: /More actions/ }));
     expect(
-      screen.getByRole("button", { name: "More actions" }),
+      screen.getByRole("menuitem", { name: "Edit tags" }),
     ).toBeInTheDocument();
+  });
+
+  /*
+   * M3-INT — the record header is identity first. A module declares its actions
+   * in priority order and the shared header decides how many compete with the
+   * title: one primary, one secondary, and the rest in the menu that already
+   * holds every record's lifecycle actions. Nothing is dropped.
+   */
+  it("shows one secondary action and folds the rest into the overflow", () => {
+    const onArchive = vi.fn();
+    render(
+      <RecordLayout
+        title="Record"
+        primaryAction={{ id: "done", label: "Mark complete" }}
+        secondaryActions={[
+          { id: "edit", label: "Edit details" },
+          { id: "rename", label: "Rename" },
+          { id: "export", label: "Export" },
+        ]}
+        overflowActions={[
+          { id: "archive", label: "Archive", onSelect: onArchive },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Edit details" }),
+    ).toBeInTheDocument();
+    for (const demoted of ["Rename", "Export"]) {
+      expect(
+        screen.queryByRole("button", { name: demoted }),
+      ).not.toBeInTheDocument();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: /More actions/ }));
+    // Demoted actions come first, then the lifecycle group they were separated
+    // from — declaration order preserved within each.
+    const items = screen
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent);
+    expect(items).toEqual(["Rename", "Export", "Archive"]);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    expect(onArchive).toHaveBeenCalled();
   });
 
   it("renders an action with an href as a link", () => {

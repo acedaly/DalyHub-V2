@@ -81,13 +81,10 @@
       var(--md-sys-motion-easing-standard);
 }
 
+/* The fill is the shared state layer (M3-INT, `base.css`); the colour lift is
+ * the toggle's own. */
 .dh-md-editor__mode-toggle:hover {
   color: var(--md-sys-color-on-surface);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
 }
 
 .dh-md-editor__mode-toggle[aria-pressed="true"] {
@@ -163,21 +160,13 @@
   block-size: var(--app-space-5);
 }
 
+/* Hover / focus / pressed fills are the shared state layer (M3-INT,
+ * `base.css`). The toolbar's own pressed fill used to be 12% where every other
+ * control in the product used M3's 10% — the exact silent divergence the audit
+ * predicted a hand-rolled layer would produce. Only the colour lift is the
+ * toolbar's. */
 .dh-md-toolbar__button:hover:not(:disabled) {
   color: var(--md-sys-color-on-surface);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
-
-.dh-md-toolbar__button:active:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
 }
 
 /* ACTIVE formatting. A filled container plus `aria-pressed` — a state layer
@@ -273,10 +262,30 @@
   line-height: 1.65;
 }
 
+/*
+ * EDIT-02 (PR #127) — the editor SURFACE and the writing MEASURE are two
+ * different things, and the defect was treating them as one.
+ *
+ * The surface is the full width of whatever hosts the editor, left-aligned and
+ * flush with the record's content edge. The measure is `--app-width-editor`
+ * (90ch) — still a readable cap, deliberately wider than the 65ch READING
+ * measure because Markdown source is not prose — applied so that the unused
+ * width falls AFTER the text. The only inline space before the first character
+ * is this padding, which is what lines it up with the toolbar's first icon.
+ *
+ * NEVER add `margin-inline: auto` here, and never let the cap be the only
+ * thing holding the column. `.cm-scroller` is a flex container and
+ * `.cm-content` is a flex item, so auto margins do not merely centre a capped
+ * column — they suppress `flex-grow` entirely and centre the item's own
+ * max-content box. On an EMPTY document that box is a few pixels wide, which is
+ * how the caret and the `Start writing…` placeholder ended up near the middle
+ * of a 1044px surface (measured on a Note at 1440px before the fix: content
+ * x=522 in a scroller at x=294).
+ */
 .dh-md-editor__cm .cm-content {
   padding: var(--app-space-4);
   caret-color: var(--md-sys-color-primary);
-  max-inline-size: var(--app-width-prose);
+  max-inline-size: var(--app-width-editor);
 }
 
 .dh-md-editor__cm .cm-cursor,
@@ -441,6 +450,12 @@
 /* ------------------------------------------------------------------------- *
  * Reading mode: the note rendered through the FND-08 pipeline, at a comfortable
  * prose measure.
+ *
+ * EDIT-02 — reading keeps `--app-width-prose`; writing does not. The two are
+ * different jobs and the design system says so in one place (DESIGN_SYSTEM.md →
+ * Writing surfaces). What they DO share is the left content edge: the same
+ * `--app-space-4` padding, started from the same place, so switching Read/Write
+ * changes where the line ENDS and never where it begins.
  * ------------------------------------------------------------------------- */
 .dh-md-editor__reading {
   max-inline-size: var(--app-width-prose);
@@ -629,23 +644,28 @@
  * (a project description field, a meeting summary field) until those modules are
  * classified and restyled by their own group.
  *
- * The COLUMN is the prose; the CHROME is not. `.cm-content` takes the serif, the
- * Reading preset's size and rhythm, and the 46ch cap. The toolbar, the save
- * status, the help text, the error and the remote-change banner all sit outside
- * it and keep the sans they already had — which is the whole point of the
- * reference implementation: prove the two families coexist on one surface
- * without either leaking into the other.
+ * The COLUMN is the prose; the CHROME is not. `.cm-content` takes the Reading
+ * preset's size and rhythm. The toolbar, the save status, the help text, the
+ * error and the remote-change banner all sit outside it and keep the chrome
+ * typescale they already had.
  *
- * `padding-inline` is what actually centres a capped column inside a wider
- * editor: `max-inline-size` alone would pin the text to the left edge of a
- * 1440px pane and leave the caret a very long way from the words.
+ * ── EDIT-02 (PR #127) — the centring is gone, and deliberately ──────────────
+ * This block used to add `max-inline-size: var(--app-width-prose)` and
+ * `margin-inline: auto` to the EDITABLE surface. That is the "narrow prose
+ * column centred inside a much wider editor" the writing-surface rule now
+ * forbids, and on an empty Note it was worse than centring a column: auto
+ * margins on a flex item cancel `flex-grow`, so the item collapsed to its own
+ * (near-zero) max-content and the caret opened near the horizontal middle of
+ * the surface.
+ *
+ * A Note's writing surface now takes the width it has, like every other
+ * consumer of the shared editor. Reading mode below keeps the prose measure —
+ * left-aligned, from the same content edge.
  * ------------------------------------------------------------------------- */
 
 .dh-note-body .dh-md-editor__cm .cm-content {
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
-  max-inline-size: var(--app-width-prose);
-  margin-inline: auto;
 }
 
 .dh-note-body .dh-md-editor__cm .cm-scroller {
@@ -653,13 +673,15 @@
 }
 
 /* Reading mode renders the same note through the FND-08 pipeline rather than
- * through CodeMirror. It is the same column and must read identically. */
+ * through CodeMirror. It keeps the prose measure — reading is the job that
+ * measure exists for — but it is LEFT-ALIGNED in its region (EDIT-02): a
+ * centred reading column and a left-aligned writing surface would move the
+ * first character sideways every time the Read toggle is pressed. */
 .dh-note-body .dh-md-editor__reading {
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
   max-inline-size: var(--app-width-prose);
-  margin-inline: auto;
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-app-color-surface-card);
 }

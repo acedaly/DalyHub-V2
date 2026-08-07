@@ -10,9 +10,18 @@
  * A boolean is never "empty", so `required` (presence) is not offered here; a
  * genuine "must be ticked" rule (e.g. accept terms) is a consumer validator on
  * the value.
+ *
+ * M3-INT — `variant="switch"` now DELEGATES to the shared `Switch` primitive
+ * rather than drawing a second switch out of `.dh-boolean__control`. There was
+ * only ever one call site for the old one (a design fixture), and a product
+ * that draws its switch in two places will eventually draw two different
+ * switches. `variant="checkbox"` is unchanged and stays a checkbox: the
+ * distinction is meaning, not decoration, and selection/bulk-action/
+ * acknowledgement checkboxes must not become switches.
  */
 
 import { composeDescribedBy, deriveFieldIds } from "./field-ids";
+import { Switch } from "./Switch";
 import type { BaseControlProps } from "./control-props";
 
 export interface BooleanFieldProps extends Omit<
@@ -62,31 +71,53 @@ export function BooleanField({
       data-readonly={readOnly || undefined}
     >
       <div className="dh-boolean">
-        <input
-          id={baseId}
-          className="dh-boolean__input"
-          type="checkbox"
-          role={variant === "switch" ? "switch" : undefined}
-          checked={value}
-          disabled={disabled}
-          aria-invalid={invalid || undefined}
-          aria-errormessage={invalid ? errorId : undefined}
-          aria-describedby={describedBy}
-          ref={(node) => controlRef?.(node)}
-          onChange={(event) => {
-            // Read-only has no native checkbox equivalent; guard the change.
-            if (readOnly) {
-              event.preventDefault();
-              return;
-            }
-            onChange(event.target.checked);
-          }}
-          onBlur={() => onBlur?.()}
-        />
-        <label className="dh-boolean__label" htmlFor={baseId}>
-          <span className="dh-boolean__control" aria-hidden="true" />
-          <span className="dh-boolean__text">{label}</span>
-        </label>
+        {variant === "switch" ? (
+          <Switch
+            id={baseId}
+            label={label}
+            describedBy={describedBy}
+            checked={value}
+            disabled={disabled}
+            invalid={invalid}
+            errorId={errorId}
+            controlRef={controlRef}
+            onBlur={onBlur}
+            onChange={(next, event) => {
+              // Read-only has no native checkbox equivalent; guard the change.
+              if (readOnly) {
+                event.preventDefault();
+                return;
+              }
+              onChange(next);
+            }}
+          />
+        ) : (
+          <>
+            <input
+              id={baseId}
+              className="dh-boolean__input"
+              type="checkbox"
+              checked={value}
+              disabled={disabled}
+              aria-invalid={invalid || undefined}
+              aria-errormessage={invalid ? errorId : undefined}
+              aria-describedby={describedBy}
+              ref={(node) => controlRef?.(node)}
+              onChange={(event) => {
+                if (readOnly) {
+                  event.preventDefault();
+                  return;
+                }
+                onChange(event.target.checked);
+              }}
+              onBlur={() => onBlur?.()}
+            />
+            <label className="dh-boolean__label" htmlFor={baseId}>
+              <span className="dh-boolean__control" aria-hidden="true" />
+              <span className="dh-boolean__text">{label}</span>
+            </label>
+          </>
+        )}
       </div>
 
       <div className="dh-field__messages">

@@ -494,13 +494,7 @@
   letter-spacing: var(--md-sys-typescale-body-large-tracking);
 }
 
-.dh-user-menu__link:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
+/* Hover / focus / pressed: the shared state layer (M3-INT, `base.css`). */
 
 .dh-user-menu__link-icon {
   display: inline-flex;
@@ -759,14 +753,7 @@
   cursor: pointer;
 }
 
-.dh-mobilebar__back:hover,
-.dh-mobilebar__action:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
+/* Hover / focus / pressed: the shared state layer (M3-INT, `base.css`). */
 
 /* The Back chevron is the shared right-chevron, mirrored — no one-off glyph. */
 .dh-mobilebar__back-icon {

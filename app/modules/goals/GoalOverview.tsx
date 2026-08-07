@@ -198,10 +198,21 @@ export function GoalOverview({
         status={{ label: state.label, tone: state.tone }}
         metadata={headerMetadata}
         primaryAction={completed ? undefined : primaryAction}
+        /*
+         * M3-INT — declared in PRIORITY order, because the shared header shows
+         * the first one and folds the rest into the overflow.
+         *
+         * "Edit details" edits what the Goal actually IS — its definition of
+         * done and its target — and is the thing an owner returns to. Rename is
+         * a low-frequency management action, and the interaction review named it
+         * as an example of something that does not deserve permanent header
+         * width. It is still one press away, in the overflow every record
+         * already has.
+         */
         secondaryActions={
           completed
-            ? [primaryAction, renameAction, editDetailsAction]
-            : [renameAction, editDetailsAction]
+            ? [primaryAction, editDetailsAction, renameAction]
+            : [editDetailsAction, renameAction]
         }
         overflowActions={lifecycle.overflowActions}
         summary={{

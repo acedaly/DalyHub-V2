@@ -50,13 +50,9 @@
     var(--md-sys-color-outline);
 }
 
-.dh-segmented__option:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
+/* Hover, focus and pressed are the shared state layer (M3-INT, `base.css`). The
+ * segment states only its SELECTED container below, which is a real colour
+ * change rather than an opacity — see the note beside the shared contract. */
 
 /*
  * The selected segment. M3 puts a leading CHECK glyph here as well as the fill,

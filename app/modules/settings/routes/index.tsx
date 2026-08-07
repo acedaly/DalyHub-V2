@@ -59,7 +59,7 @@ import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 // `AppShell`, and importing it here would pull the whole application frame into
 // the Settings route chunk for the sake of one control.
 import { AppearanceSelector } from "~/shared/shell/AppearanceSelector";
-import { SelectField } from "~/shared/forms";
+import { SelectField, Switch } from "~/shared/forms";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import { ExportDownloads } from "../ExportDownloads";
@@ -254,7 +254,25 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     if (intent === "toggle-navigation") {
       const moduleId = String(form.get("moduleId") ?? "");
-      const visible = String(form.get("visible") ?? "") === "1";
+      /*
+       * The LAST `visible` entry wins, and that is the whole contract of the
+       * hidden-default idiom this row uses.
+       *
+       * The row posts `visible=0` from a hidden input and `visible=1` from the
+       * checkbox, so an unchecked box sends only "0" and a checked box sends
+       * "0" then "1". `FormData.get` returns the FIRST entry, so it read "0"
+       * every time: a module could be hidden from navigation and then never
+       * restored from its own toggle — flipping it back posted a save, reported
+       * "Saved", and left the module hidden. The only way back was the "Reset
+       * navigation" button.
+       *
+       * A pre-existing defect, found by `e2e/interaction-consistency.spec.ts`
+       * when it asserted that toggling a switch and reloading keeps the new
+       * value. Fixed here rather than worked around in the test, because the
+       * test is asserting the right thing.
+       */
+      const visibleEntries = form.getAll("visible");
+      const visible = String(visibleEntries.at(-1) ?? "") === "1";
       const current = await scope.appPreferences.get(session.user.subject);
       const navigation = getPrimaryNavigation();
       const resolved = resolveNavigationPreferences(
@@ -807,6 +825,25 @@ function SelectSetting({
   }[];
 }) {
   const fetcher = useFetcher<ActionResult>();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [selected, setSelected] = useState(value);
+
+  /*
+   * M3-INT — one selection control, product-wide (audit finding 6).
+   *
+   * These rows were native `<select>` elements sitting directly above the
+   * shared `SelectField` combobox in the same panel: two select presentations,
+   * adjacent, in one Settings group. `DESIGN_SYSTEM.md` → Forms says one
+   * control per field type, so the application-style rows converge on the
+   * shared control and the native element is kept for the cases that have a
+   * genuine reason (see the Forms section of the design system).
+   *
+   * The row still saves IMMEDIATELY, which is what it always did. `SelectField`
+   * is a controlled combobox rather than a form control, so the chosen value is
+   * carried by a hidden input and the form is submitted on the frame after the
+   * state lands — the same mechanism the task-destination row's "Use Inbox"
+   * control already used.
+   */
   return (
     <SettingsRow
       label={label}
@@ -815,25 +852,30 @@ function SelectSetting({
       statusTone={statusToneFor(fetcher)}
       statusLive
       control={(ids) => (
-        <fetcher.Form method="post" className="dh-settings-page__inline-form">
+        <fetcher.Form
+          ref={formRef}
+          method="post"
+          className="dh-settings-page__inline-form"
+        >
           <input type="hidden" name="intent" value="update" />
           <input type="hidden" name="field" value={field} />
-          <select
+          <input type="hidden" name="value" value={selected} />
+          <SelectField
             id={ids.controlId}
-            name="value"
-            className="dh-settings-select"
-            aria-labelledby={ids.labelId}
-            aria-describedby={ids.describedById}
-            defaultValue={value}
+            label={label}
+            labelledBy={ids.labelId}
+            describedBy={ids.describedById}
+            showOptionalCue={false}
+            value={selected}
+            options={options}
             disabled={fetcher.state !== "idle"}
-            onChange={(event) => event.currentTarget.form?.requestSubmit()}
-          >
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => {
+              setSelected(next);
+              window.requestAnimationFrame(() => {
+                formRef.current?.requestSubmit();
+              });
+            }}
+          />
         </fetcher.Form>
       )}
     />
@@ -970,22 +1012,33 @@ function NavigationToggle({
       status={statusFor(fetcher)}
       statusTone={statusToneFor(fetcher)}
       statusLive
+      /*
+       * M3-INT — an immediate preference is a SWITCH (audit finding 8).
+       *
+       * Showing a module in navigation takes effect the moment it is toggled:
+       * there is no Save, and nothing is being selected from a set. That is M3's
+       * definition of a switch, and this row was a checkbox wearing a
+       * hand-rolled switch skin (`.dh-settings-switch`, drawn in
+       * `settings.css`). It now uses the ONE shared `Switch`, which is still a
+       * real `<input type="checkbox">` underneath — the row keeps posting the
+       * same `visible` field to the same action.
+       */
       control={(ids) => (
         <fetcher.Form method="post" className="dh-settings-page__inline-form">
           <input type="hidden" name="intent" value="toggle-navigation" />
           <input type="hidden" name="moduleId" value={item.moduleId} />
           <input type="hidden" name="visible" value="0" />
-          <input
+          <Switch
             id={ids.controlId}
-            type="checkbox"
             name="visible"
             value="1"
-            className="dh-settings-switch"
-            aria-labelledby={ids.labelId}
-            aria-describedby={ids.describedById}
+            labelledBy={ids.labelId}
+            describedBy={ids.describedById}
             defaultChecked={!item.hidden}
             disabled={item.mandatory || fetcher.state !== "idle"}
-            onChange={(event) => event.currentTarget.form?.requestSubmit()}
+            onChange={(_checked, event) =>
+              event.currentTarget.form?.requestSubmit()
+            }
           />
         </fetcher.Form>
       )}

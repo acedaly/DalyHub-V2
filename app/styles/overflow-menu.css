@@ -28,13 +28,11 @@
   cursor: pointer;
 }
 
+/* Hover, focus, pressed and disabled come from the ONE state-layer
+ * implementation in `base.css` (M3-INT); the only thing the trigger states for
+ * itself is the CONTENT colour lift, which is not a state layer. */
 .dh-overflow-menu__trigger:hover {
   color: var(--md-sys-color-on-surface);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
 }
 
 .dh-overflow-menu[data-open="true"] .dh-overflow-menu__trigger {
@@ -92,31 +90,18 @@
   cursor: pointer;
 }
 
-.dh-overflow-menu__item:hover,
-.dh-overflow-menu__item:focus-visible {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
-
+/* An item's hover / focus / pressed fill is the shared state layer (M3-INT) —
+ * `currentColor` at M3's own opacities, which is why the DESTRUCTIVE item needs
+ * no hover rule of its own: its content colour is already `error`, so its layer
+ * is already a red tint. It used to swap its container to `error-container`,
+ * which was a second, louder language for the same state. */
 .dh-overflow-menu__item[data-tone="danger"] {
   color: var(--md-sys-color-error);
-}
-
-.dh-overflow-menu__item[data-tone="danger"]:hover,
-.dh-overflow-menu__item[data-tone="danger"]:focus-visible {
-  background: var(--md-sys-color-error-container);
 }
 
 .dh-overflow-menu__item[aria-disabled="true"] {
   color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
-}
-
-.dh-overflow-menu__item[aria-disabled="true"]:hover {
-  background: transparent;
 }
 
 /* A decorative group break — the label wording always carries the grouping too. */

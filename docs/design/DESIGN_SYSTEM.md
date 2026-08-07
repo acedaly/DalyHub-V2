@@ -144,7 +144,18 @@ There are no density presets. Density is a typescale choice per surface, made wh
 
 **Elevation.** Five levels, each an M3 umbra/penumbra pair. Dark leans primarily on the container ramp rather than on shadow, so the *same* tokens are used in both appearances — they read faintly on a dark surface, which is correct rather than a defect.
 
-**State layers.** An interactive M3 component does not swap its container colour on hover; it grows a translucent layer of its own *content* colour on top. That is implemented **once**, as `.md-state-layer` in [`base.css`](../../app/styles/base.css), and applied by adding the class. Hover 8%, focus 10%, pressed 10%, dragged 16%.
+**State layers.** An interactive M3 component does not swap its container colour on hover; it grows a translucent layer of its own *content* colour on top. Hover 8%, focus 10%, pressed 10%, dragged 16%.
+
+It is implemented **once**, in [`base.css`](../../app/styles/base.css), and a component becomes a host in one of two ways:
+
+- it **carries `.md-state-layer`** — for a component that renders its own class list (the shell's navigation rows, the FAB, the entity icon picker); or
+- it is **named in the host list** beside the implementation — for a class applied as a literal string at dozens of call sites (`.dh-btn`) or owned by a shared stylesheet rather than by one component.
+
+Both routes reach the same declarations. This is deliberately stricter than it was: until M3-INT the class was documented as the one implementation and hand-rolled about five times beside it (`.dh-btn` carried a verbatim copy; the overflow menu, the segmented control, the editor toolbar, the card actions, the record actions and the inline-edit trigger each grew their own `color-mix(… 8% …)` fill). They agreed because their authors read the same rule, not because anything made them — and the *pressed* state was missing almost everywhere as a result, because a copied `:hover` rule rarely grows an `:active` sibling. [`test/unit/tokens/state-layer.test.ts`](../../test/unit/tokens/state-layer.test.ts) now refuses a **new** hand-rolled layer and holds the remaining module-level ones as a shrinking baseline.
+
+**Selected is not an opacity.** A selected navigation row, a selected segment, an active toolbar control and a checked menu item take `secondary-container` — a real container change that survives forced colours and is legible without a pointer. The state layer composes on top of it.
+
+**No ripple, deliberately.** M3's ripple is an *expression* of the state layer, not the state layer itself. DalyHub implements hover, focus and pressed as state layers and does **not** implement an animated, origin-anchored ripple. Two reasons, and neither is effort: the product's motion principle is "restrained; motion communicates causality, never decoration" ([AGENTS.md §6](../../AGENTS.md)), and a ripple here would communicate nothing the pressed layer does not already communicate instantly. It would also need JavaScript per control, a `prefers-reduced-motion` path and its own test surface — machinery bought for decoration. `ripple` is 0 occurrences in `app/` and that is the intended state, not an omission. Recorded so this stops being re-raised by every audit ([ADR-077](../decisions/ARCHITECTURE_DECISIONS.md#adr-077-interaction-consistency--one-state-layer-no-ripple-one-selection-control-one-switch-and-the-two-shared-layouts-that-were-wasting-the-laptop) decision 3).
 
 **Disabled.** One pattern everywhere: the container is the content colour at 12%, the content at 38%. A disabled filled button and a disabled text button therefore look like the same *state* rather than like faded versions of two different things.
 
@@ -230,11 +241,18 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Title edits inline and saves optimistically. Breadcrumb navigates up. Primary action is the single most likely next step for that entity.
 **Rules.** Every entity uses this header — no bespoke headers. Exactly one primary action; everything else lives in the overflow or [Quick Actions](#quick-actions).
 
+- **The title gets width before anything else does.** A short record title must not wrap while there is room beside it. `Opo 1 2026` rendering as `Opo 1` / `2026` on a laptop is the defect this rule exists to prevent, and the cause was an intrinsic-sizing one rather than a flex one: a percentage `inline-size` on the inline heading editor's trigger cannot be resolved while the ancestor it refers to is being measured, so the heading's max-content contribution collapsed to its longest word and the flex item took that as its base size. Never fix a wrapping title with `white-space: nowrap`, a smaller heading, truncation, or a per-module width. A **genuinely** long title still wraps, and never breaks ordinary words.
+- **Status chips and actions yield before the name does.** The chip may wrap below the title and the action cluster may wrap to its own row; the record's identity is not squeezed to keep either of them in place.
+- **One primary, one secondary, then the overflow.** `RecordHeader` shows the first secondary action a module declares and folds every later one into the shared overflow, above the lifecycle group. Modules declare actions in priority order; the header decides how many compete with the name. Nothing is removed and nothing becomes unreachable — a low-frequency action (Rename where inline editing exists, Archive, Delete, Export, Tags) is one press away rather than permanently occupying header width.
+
 ### Summary Panel
 **Purpose.** The at-a-glance essence of a record: the fields that matter most, shown without a click.
 **Anatomy.** A compact, scannable set of key fields (status, dates, links to parent Goal/Project, assignee/People, progress).
 **Behaviour.** Fields are inline-editable where sensible. Rolls up child state (e.g. a Project's summary shows task progress). Empty fields invite completion, they don't shout.
 **Rules.** Summary shows *essentials only*; depth belongs in [Tabs](#tabs) or the [Inspector](#inspector). Same field → same control everywhere.
+
+- **A container is earned, not automatic.** A summary carrying real prose (a Goal's definition of done, a Project's description) is a substantial region and takes the card surface. A summary that is only a few key/value pairs renders as a plain metadata row on the page canvas. Three equally-weighted cards down one record is what makes a single record read as several unrelated ones; M3's order is spacing and typography first, another surface only when they are not enough.
+- **Absence is quiet.** Missing data is stated in the owner's words as supporting text (`AbsenceText`), never as a chip. "No tags", "No tasks yet" and "No Projects contributing yet" are the absence of a concept; a chip is what the product spends on concepts that are there. Genuine lifecycle states — Planned, Waiting, Completed, On hold, Overdue — stay chips.
 
 ### Drawer
 **Purpose.** Open a record *without leaving your place*. The workhorse of DalyHub navigation — click a task in Today and it slides in over context.
@@ -248,6 +266,8 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Anatomy.** A consistent tab strip within a record (e.g. Overview · Tasks · Notes · Activity · Settings).
 **Behaviour.** Selected tab is preserved per record and deep-linkable. Lazy-loads tab content.
 **Rules.** Tab names are drawn from a shared vocabulary and ordered consistently across modules — "Activity" and "Settings" always sit last, in that order.
+
+- **The strip and the panel it controls are ONE surface.** The tab strip's rule *is* the working surface's top edge: no gap between them, no second top border, no second set of top corners. A gap plus a fully-rounded card underneath reads as "a tab bar, and separately, a card" — the same segmented look the editor's toolbar and writing surface already avoid by sharing one outline.
 
 ### Cards
 **Purpose.** The shared unit for representing an entity in a list, board, or grid.
@@ -285,6 +305,8 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 - **Icons carry the drawing; `aria-label` carries the word.** Nothing is icon-only to assistive tech, every control composes the [shared tooltip](#tooltip-m3-tip) — which names what it does and shows its shortcut on hover *and* on keyboard focus — and active state is `aria-pressed` **plus** a filled container, never a tint alone. This toolbar is the tooltip primitive's reference adoption; no control here carries a browser `title`.
 - **Undo/redo appear only where they can be both performed and reported.** The no-JS fallback has the browser's own unqueryable undo stack, so the buttons are omitted there rather than shown permanently enabled.
 - **Enter is never an unconditional save** in a multiline surface. Commit is an explicit control or ⌘/Ctrl+Enter.
+- **The editor SURFACE and the writing MEASURE are two different things.** The surface is the full width of whatever hosts it, left-aligned and flush with the record's content edge, with only modest internal padding before the first character — the same padding that lines it up with the toolbar's first icon. The measure is `--app-width-editor` (90ch), deliberately wider than the 65ch reading measure because Markdown source is not prose: lists, tables, link syntax and long URLs wrap into an unreadable stack at a reading measure. Any unused width falls **after** the text.
+- **Never centre the editable column.** `margin-inline: auto` on `.cm-content` does not merely centre a capped column: `.cm-scroller` is a flex container, so auto margins cancel `flex-grow` and centre the item's own max-content box — which on an *empty* document is a few pixels wide. That is how a Note's caret and `Start writing…` placeholder came to open near the middle of a 1044px surface. Reading mode keeps `--app-width-prose`, left-aligned from the same content edge, so toggling Read changes where a line ENDS and never where it begins.
 - **44px targets, on every pointer.** DalyHub holds that bar everywhere and it is stricter than WCAG 2.2 AA's 24px; an earlier draft of this work shrank the control to 36px on fine pointers for compactness, which traded an accessibility contract for a visual one. The compactness comes from the GLYPH instead: thirteen 44px squares are narrower than eleven word-buttons, and they do not wrap. The row scrolls horizontally inside its own box, so the toolbar never produces page-level overflow at 320px.
 
 ### Inline editing (DS-16)
@@ -401,12 +423,15 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Purpose.** Create and edit entities consistently and forgivingly.
 **Anatomy.** Shared field controls (text, markdown, date, select, entity-link picker, tags) · inline labels + help · inline validation · clear submit/cancel.
 **Behaviour.** Validate on blur and submit with specific, recoverable messages. Autosave where it fits; explicit save where commitment matters. Never lose entered data on error or navigation.
+**Boolean controls — checkbox or switch, chosen by MEANING.** A **switch** ([`~/shared/forms/Switch`](../../app/shared/forms/Switch.tsx)) turns a setting on or off and takes effect immediately; a **checkbox** selects an item within a set, and a set of them is usually committed by a Save or acted on by a bulk action. DalyHub's preference toggles are switches; its selection, bulk-action, acknowledgement and multi-select controls are checkboxes and stay checkboxes. There is ONE switch: it is a real `<input type="checkbox">` with `role="switch"` on top — never a `div` with `aria-checked`, which re-implements (badly) the checked state, Space, the label association, form participation, `:disabled` and forced colours. Its state is never colour alone: the thumb moves *and* the selected thumb carries a check.
+
 **Rules.** **One control per field type**, product-wide. The entity-link picker is the shared way to create [EntityLinks](../../AGENTS.md#95-entitylinks). Multiple save patterns are known [debt](../product/PRODUCT_DEBT.md) — converge on this.
 
 **Selection controls (DS-16).** Four rules, audited product-wide in [`SELECTION_CONTROL_AUDIT_2026_08.md`](../product/SELECTION_CONTROL_AUDIT_2026_08.md):
 - **An optional field defaults to genuinely empty** — the empty string, rendering as the placeholder and submitting as absent. Never a pre-selected first option, never a sentinel.
 - **A placeholder is an attribute, never an option.** `{ value: "", label: "Choose a type…" }` in an options list is arrowable, announced as an option, and "selects" a non-value that validation then has to reject. `SelectField` renders a real `placeholder`; put the prompt there, where it cannot be picked.
 - **An existing selection is replaceable directly.** A single-select reflects its chosen label into the input; that text is a *reflection*, not a query, until the user actually types. Reopening a field that has a value offers the WHOLE list — requiring a clear first is a step no user discovers.
+- **One select presentation, product-wide.** Every application-style select — a Settings row, a record's Settings tab, a create form — is the shared `SelectField` combobox. A **native `<select>` is retained only in FILTER BARS** (Notes, Diary, Reviews, Assets, Tasks), which is a deliberate exception with a real reason: a filter row is a dense strip of several controls that must stay operable on a phone with no JavaScript, and the native control is more robust and better on mobile there. That is the whole list of exceptions; anywhere else, a native select in an application surface is the divergence the August 2026 audit recorded as finding 6.
 - **"None" that is a domain STATE keeps its own words.** "No priority", "No sector", "Does not repeat" and "Not set" are decisions the system reasons about, not absences. They stay in the list, and they are never relabelled to a prompt or collapsed into the placeholder. The audit lists every one.
 
 ### Success Feedback

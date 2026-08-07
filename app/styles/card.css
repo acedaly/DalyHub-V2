@@ -428,12 +428,11 @@
   white-space: nowrap;
 }
 
+/* The fill is the shared state layer (M3-INT, `base.css`) — including the
+ * pressed and focus states this rule never had. What stays here is the pair a
+ * state layer cannot express: the content colour lift and the boundary firming
+ * from `outline-variant` to `outline`. */
 .dh-card__action:hover:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
   color: var(--md-sys-color-on-surface);
   border-color: var(--md-sys-color-outline);
 }

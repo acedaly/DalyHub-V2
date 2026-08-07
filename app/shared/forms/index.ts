@@ -68,6 +68,12 @@ export {
 export { SelectField, type SelectFieldProps } from "./SelectField";
 export { TagsField, type TagsFieldProps } from "./TagsField";
 export { BooleanField, type BooleanFieldProps } from "./BooleanField";
+/**
+ * M3-INT — the ONE M3 switch, for an immediate on/off preference. Exported
+ * beside `BooleanField` (which renders it for `variant="switch"`) because a
+ * settings row that owns its own label wants the bare control, not a field.
+ */
+export { Switch, type SwitchProps } from "./Switch";
 export {
   EntityLinkPicker,
   type EntityLinkPickerProps,

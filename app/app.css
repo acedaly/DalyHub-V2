@@ -55,6 +55,9 @@
 @import "./styles/filters.css";
 @import "./styles/activity-feed.css";
 @import "./styles/forms.css";
+/* M3-INT — the shared M3 switch. After forms.css because `BooleanField`'s
+ * switch variant renders it, and because a switch is a form control. */
+@import "./styles/switch.css";
 @import "./styles/today.css";
 @import "./styles/segmented-filter.css";
 @import "./styles/task-drawer.css";

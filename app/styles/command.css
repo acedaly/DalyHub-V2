@@ -80,13 +80,7 @@
   cursor: pointer;
 }
 
-.dh-command__close:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
+/* Hover / focus / pressed: the shared state layer (M3-INT, `base.css`). */
 
 .dh-command__inputrow {
   display: flex;

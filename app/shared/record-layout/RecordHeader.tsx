@@ -9,10 +9,41 @@
  * given (DESIGN_SYSTEM.md → Record Header).
  */
 
-import { OverflowMenu } from "~/shared/overflow-menu";
+import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
 
 import { RecordActionButton } from "./RecordAction";
-import type { RecordHeaderProps } from "./types";
+import type { RecordAction, RecordHeaderProps } from "./types";
+
+/**
+ * M3-INT — how many SECONDARY actions a record header shows before it starts
+ * competing with the record's own name.
+ *
+ * One. The header's job is identity first: the title is the largest thing on
+ * the page and the reason the page exists, and a row of four evenly-weighted
+ * buttons beside it turns the top of every record into a toolbar. M3's own
+ * guidance for a top app bar is the same shape — one prominent action, then the
+ * overflow — and DalyHub already HAS the overflow, holding lifecycle actions on
+ * every record in the product.
+ *
+ * So the rule is structural rather than editorial: modules keep declaring the
+ * actions they have, in priority order, and the shared header shows the first
+ * secondary one and folds the rest into the menu that already exists. Nothing
+ * is removed, nothing becomes unreachable, and no module can quietly reintroduce
+ * a five-button header by editing its own file.
+ */
+const MAX_VISIBLE_SECONDARY_ACTIONS = 1;
+
+/** Fold a demoted header action into the shared overflow's item model. */
+function toOverflowItem(action: RecordAction): OverflowMenuItem {
+  return {
+    id: action.id,
+    label: action.label,
+    ariaLabel: action.ariaLabel,
+    href: action.href,
+    onSelect: action.onSelect,
+    disabled: action.disabled,
+  };
+}
 
 function StatusPill({
   label,
@@ -46,10 +77,34 @@ export function RecordHeader({
   overflowLabel,
 }: RecordHeaderProps) {
   const Heading = `h${headingLevel}` as "h1" | "h2" | "h3";
-  const overflow = overflowActions ?? [];
+
+  /*
+   * M3-INT — the visible/overflowed split. The caller's ORDER is the priority:
+   * the first secondary action stays in the header, every later one joins the
+   * top of the overflow, above the lifecycle group, separated from it by the
+   * rule the menu already draws.
+   */
+  const declaredSecondary = secondaryActions ?? [];
+  const visibleSecondary = declaredSecondary.slice(
+    0,
+    MAX_VISIBLE_SECONDARY_ACTIONS,
+  );
+  const demotedSecondary = declaredSecondary.slice(
+    MAX_VISIBLE_SECONDARY_ACTIONS,
+  );
+  const lifecycleOverflow = overflowActions ?? [];
+  const overflow: readonly OverflowMenuItem[] = [
+    ...demotedSecondary.map(toOverflowItem),
+    ...lifecycleOverflow.map((item, index) =>
+      index === 0 && demotedSecondary.length > 0
+        ? { ...item, separatorBefore: true }
+        : item,
+    ),
+  ];
+
   const hasActions =
     primaryAction !== undefined ||
-    (secondaryActions !== undefined && secondaryActions.length > 0) ||
+    visibleSecondary.length > 0 ||
     overflow.length > 0;
 
   return (
@@ -101,7 +156,7 @@ export function RecordHeader({
 
         {hasActions && (
           <div className="record-header__actions">
-            {secondaryActions?.map((action) => (
+            {visibleSecondary.map((action) => (
               <RecordActionButton
                 key={action.id}
                 action={action}

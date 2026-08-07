@@ -69,10 +69,12 @@ describe("ProjectSettingsTab", () => {
     renderTab();
     const parentCombo = screen.getByRole("combobox", { name: /Area or Goal/ });
     expect(parentCombo).toHaveValue("Career");
-    const statusSelect = screen.getByRole("combobox", {
+    // M3-INT — the workflow status is the shared `SelectField` combobox now, so
+    // it reflects its option's LABEL rather than the stored enum value.
+    const statusCombo = screen.getByRole("combobox", {
       name: "Workflow status",
     });
-    expect(statusSelect).toHaveValue("planned");
+    expect(statusCombo).toHaveValue("Planned");
   });
 
   it("prefers the Goal as the current structural parent when both are present", () => {
@@ -96,12 +98,7 @@ describe("ProjectSettingsTab", () => {
         Promise.resolve(),
     );
     renderTab({ onSetStatus });
-    fireEvent.change(
-      screen.getByRole("combobox", { name: "Workflow status" }),
-      {
-        target: { value: "active" },
-      },
-    );
+    await chooseStatus("Active");
     await waitFor(() => expect(onSetStatus).toHaveBeenCalledTimes(1));
     expect(onSetStatus.mock.calls[0]?.[0]).toBe("active");
     expect(
@@ -109,33 +106,43 @@ describe("ProjectSettingsTab", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("does not apply when reselecting the same workflow status (no-op, no Activity churn)", () => {
+  it("does not apply when reselecting the same workflow status (no-op, no Activity churn)", async () => {
     const onSetStatus = vi.fn(() => Promise.resolve());
     renderTab({ onSetStatus, overview: overview({ status: "planned" }) });
-    fireEvent.change(
-      screen.getByRole("combobox", { name: "Workflow status" }),
-      {
-        target: { value: "planned" },
-      },
-    );
+    await chooseStatus("Planned");
     expect(onSetStatus).not.toHaveBeenCalled();
   });
 
   it("reverts the workflow-status control and reports failure", async () => {
     const onSetStatus = vi.fn(() => Promise.reject(new Error("nope")));
     renderTab({ onSetStatus, overview: overview({ status: "planned" }) });
-    const select = screen.getByRole("combobox", {
+    const combo = screen.getByRole("combobox", {
       name: "Workflow status",
-    }) as unknown as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "active" } });
+    }) as HTMLInputElement;
+    await chooseStatus("Active");
     await waitFor(() => expect(onSetStatus).toHaveBeenCalledTimes(1));
     // Revert-on-failure (DS-10b immediate-setting contract): the control
     // returns to the last committed value.
-    await waitFor(() => expect(select.value).toBe("planned"));
+    await waitFor(() => expect(combo.value).toBe("Planned"));
     expect(
       (await screen.findAllByText(/Couldn.t save/)).length,
     ).toBeGreaterThan(0);
   });
+
+  /**
+   * Choose a workflow status through the shared combobox: open it, then click
+   * the option. M3-INT converged this row on `SelectField`, so a status change
+   * is a listbox selection rather than a native `change` event.
+   */
+  async function chooseStatus(label: string) {
+    const combo = screen.getByRole("combobox", { name: "Workflow status" });
+    fireEvent.focus(combo);
+    fireEvent.click(combo);
+    const option = await screen.findByRole("option", {
+      name: new RegExp(label),
+    });
+    fireEvent.click(option);
+  }
 
   async function chooseParent(label: string) {
     const combo = screen.getByRole("combobox", { name: /Area or Goal/ });
