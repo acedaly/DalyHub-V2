@@ -72,7 +72,17 @@ async function setNotesModuleHidden(
   const toggle = page.getByRole("checkbox", { name: "Notes" });
   if (hidden) await toggle.uncheck();
   else await toggle.check();
-  await expect(page.getByText("Saved").first()).toBeVisible();
+  /*
+   * Wait on the EFFECT, not on the word "Saved": the section shows one status
+   * per row, so a "Saved" left over from an earlier toggle would satisfy a text
+   * wait before this write had landed. The navigation rail is what the
+   * preference actually changes, and it is revalidated by the same write.
+   */
+  await expect(
+    page
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: "Notes" }),
+  ).toHaveCount(hidden ? 0 : 1);
 }
 
 test.describe("cross-module views", () => {
