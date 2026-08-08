@@ -65,7 +65,12 @@ export {
   LocalDateTimeField,
   type LocalDateTimeFieldProps,
 } from "./LocalDateTimeField";
-export { SelectField, type SelectFieldProps } from "./SelectField";
+export {
+  SelectField,
+  type SelectFieldProps,
+  type SingleSelectFieldProps,
+} from "./SelectField";
+export { groupSelectOptions } from "./SelectSheetControl";
 export { TagsField, type TagsFieldProps } from "./TagsField";
 export { BooleanField, type BooleanFieldProps } from "./BooleanField";
 /**

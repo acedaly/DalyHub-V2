@@ -93,8 +93,13 @@ export const CAPTURE_CONTEXT_PARAM = "ctx";
  * Where each capture type's FULLER creation surface lives, as a URL the shared
  * sheet can navigate to. Each is the module's existing route-backed create surface
  * — no new page is introduced for the hand-off.
+ *
+ * A type is absent when the sheet ALREADY hosts the module's canonical creation
+ * form and there is therefore nothing fuller to offer. `asset` (ASSET-03) is the
+ * first such type: capture composes `NewAssetForm` itself, so a "More asset
+ * options" link would lead to the same fields the owner is already looking at.
  */
-const FULL_FORM_ROUTES: Record<CaptureType, string> = {
+const FULL_FORM_ROUTES: Partial<Record<CaptureType, string>> = {
   task: "/tasks?drawer=new-task",
   note: "/notes?drawer=new-note",
   meeting: "/new/meeting",
@@ -102,26 +107,29 @@ const FULL_FORM_ROUTES: Record<CaptureType, string> = {
 };
 
 /** The label the sheet uses for the hand-off control, per capture type. */
-const FULL_FORM_LABELS: Record<CaptureType, string> = {
+const FULL_FORM_LABELS: Partial<Record<CaptureType, string>> = {
   task: "More task options",
   note: "More note options",
   meeting: "More meeting options",
   diary: "More entry options",
 };
 
-export function fullFormLabel(captureType: CaptureType): string {
-  return FULL_FORM_LABELS[captureType];
+/** The hand-off label, or `null` for a type whose panel IS the full form. */
+export function fullFormLabel(captureType: CaptureType): string | null {
+  return FULL_FORM_LABELS[captureType] ?? null;
 }
 
 /**
  * The full-form destination for a capture type, carrying the context when there is
- * one whose relationship plan actually applies to that type.
+ * one whose relationship plan actually applies to that type. `null` when the
+ * capture panel is already the module's canonical creation surface.
  */
 export function fullFormRoute(
   captureType: CaptureType,
   context: CaptureContextContract | null | undefined,
-): string {
+): string | null {
   const base = FULL_FORM_ROUTES[captureType];
+  if (base === undefined) return null;
   const applicable = contextForCaptureType(captureType, context ?? null);
   if (!applicable) return base;
   const separator = base.includes("?") ? "&" : "?";

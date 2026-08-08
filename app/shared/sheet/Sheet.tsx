@@ -33,6 +33,13 @@ import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
 import { CloseIcon } from "~/shared/icons";
 
+/**
+ * The open sheets, oldest first. Module-scoped because "which sheet is on top"
+ * is a property of the SCREEN, not of any one sheet — the same reason there is
+ * one focus trap rather than one per surface.
+ */
+const OPEN_SHEETS: object[] = [];
+
 export type SheetProps = {
   /** The sheet's accessible name, rendered as its visible heading. */
   readonly title: string;
@@ -107,21 +114,42 @@ export function Sheet({
     opener,
   });
 
-  // Escape closes ONLY the topmost surface: propagation is stopped so a sheet
-  // opened above a Drawer does not also close the Drawer beneath it.
+  /*
+   * Escape closes ONLY the topmost surface.
+   *
+   * Stopping propagation is what protects a Drawer BENEATH a sheet, but it is
+   * not enough between two sheets: both listen on `document` in the capture
+   * phase, and `stopPropagation` does not stop other listeners on the SAME node
+   * — so a sheet opened from inside another sheet (ASSET-03's Asset-type picker
+   * inside Quick Capture) closed both at once, throwing away a half-written
+   * capture for one Escape. The open sheets are therefore kept in a small stack
+   * and only the last one registered acts; every sheet below returns without
+   * touching the event.
+   *
+   * Registered once on mount (the close callback is read through a ref) so the
+   * stack order stays the order the sheets actually opened in.
+   */
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
+    const token = {};
+    OPEN_SHEETS.push(token);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
+      if (event.key !== "Escape") return;
+      if (OPEN_SHEETS[OPEN_SHEETS.length - 1] !== token) return;
+      event.stopPropagation();
+      closeRef.current();
     };
     document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [onClose]);
+    return () => {
+      const index = OPEN_SHEETS.indexOf(token);
+      if (index >= 0) OPEN_SHEETS.splice(index, 1);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, []);
 
   return (
     <div

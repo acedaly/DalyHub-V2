@@ -17,6 +17,46 @@ no version number to group them under.
 
 ---
 
+## Add something you own from your phone, in seconds (ASSET-03)
+
+Recording an Asset used to mean getting to a laptop, or at least getting to the
+Assets screen and finding its own "New Asset" button. So the trailer, the policy
+and the licence renewal stayed in your head, which is exactly where DalyHub exists
+to stop things living.
+
+**Assets is now in the global `+`.** Tap capture from anywhere — the phone bar,
+Today, the command palette — and Asset sits beside Task, Diary entry, Meeting and
+Note. It opens the real New Asset form, not a stripped-down phone version of it,
+so what you create is an ordinary Asset record from the first second.
+
+**Choosing what kind of thing it is got much better on a phone.** The type field
+used to be a small dropdown that opened underneath the keyboard. On a phone it is
+now a full-width list of large, labelled choices, grouped so you can find the right
+one at a glance:
+
+- **Physical** — Vehicle · Trailer or camper · Equipment · Appliance · Electronics ·
+  Tool · Property item
+- **Documents and cover** — Document · Licence · Insurance
+- **Digital and recurring** — Subscription · Software
+- **Anything else** — Other
+
+The groups are only there to help you look; nothing about your Asset changes
+because of which heading it sat under. On a laptop the field is exactly as it was.
+
+**It still only asks for what it needs.** A name and a kind is a complete Asset.
+Choose the kind and it offers the few details that actually apply — a trailer asks
+for a manufacturer, model, serial number, where it lives and when the warranty
+ends; an insurance policy asks for the issuer, the reference, the renewal date and
+a link. Everything else waits for the record's Details tab, whenever you feel like
+it. Change your mind about the kind and it shows the right fields without throwing
+away what you have typed — and it never files a serial number against a policy that
+was never asked for one.
+
+**Two small things that were quietly getting in the way, fixed:** dismissing the
+type list no longer closes the whole capture and loses what you had written, and
+tapping straight to the type field no longer makes it jump out from under your
+finger.
+
 ## You can get your data back in (SET-02) — and your nightly production backup is no longer readable by anyone with repository access (AUDIT-11)
 
 DalyHub could give you everything you had ever written, in a file, on demand. It

@@ -25,16 +25,33 @@
  * a REFLECTION of the selection and the effective query is empty, so the whole
  * list is offered. Focusing also selects the reflected text, so the first
  * keystroke replaces it rather than appending to it.
+ *
+ * ── ASSET-03: the same select, presented for a phone ─────────────────────────
+ * An anchored listbox is the right desktop presentation and the wrong phone one
+ * for a LONG vocabulary: it is capped at 16rem, it opens underneath the software
+ * keyboard the focused text input just raised, and inside a scrolling sheet body
+ * it competes with that scroll. A single-select may therefore opt in to
+ * `sheetOnCompact`, which below the `md` breakpoint renders the field as a 44px
+ * trigger that opens the SHARED phone `Sheet` of large option rows. This is not
+ * a second select: it is one control with a responsive presentation (the same
+ * value, options, label, help, error and `controlRef` contract), exactly as the
+ * Inspector is one component that docks on desktop and becomes a sheet on a
+ * phone. Every other consumer is untouched by construction — the responsive path
+ * exists only where a call site asks for it.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+
+import { useCompactViewport } from "~/shared/viewport";
 
 import { composeDescribedBy, deriveFieldIds } from "./field-ids";
 import type { BaseControlProps } from "./control-props";
+import { SelectSheetControl } from "./SelectSheetControl";
 import type { SelectOption } from "./types";
 import { useCombobox } from "./use-combobox";
 
-interface SelectSharedProps {
+export interface SelectSharedProps {
   readonly options: readonly SelectOption[];
   /** Async search: when provided, the consumer owns filtering + `options`. */
   readonly onSearch?: (query: string) => void;
@@ -65,11 +82,31 @@ interface SelectSharedProps {
    * rather than replacing them.
    */
   readonly describedBy?: string;
+  /**
+   * ASSET-03 — present this select as the shared phone {@link Sheet} below `md`.
+   *
+   * Opt-in, and single-select only: a multi-select's chips and incremental
+   * add/remove are a different interaction that the option sheet does not model.
+   * Reach for it when the vocabulary is long enough that an anchored listbox is
+   * a poor phone experience, not by default.
+   */
+  readonly sheetOnCompact?: boolean;
+  /** The compact sheet's heading. Defaults to the field's label. */
+  readonly sheetTitle?: string;
+  /**
+   * A DECORATIVE glyph for an option row in the compact sheet. The label always
+   * carries the meaning; this is a callback so the shared control never needs to
+   * know a module's icon vocabulary.
+   */
+  readonly renderOptionIcon?: (option: SelectOption) => ReactNode;
 }
 
+/** A single-select field — the only shape the compact sheet presentation takes. */
+export type SingleSelectFieldProps = BaseControlProps<string> &
+  SelectSharedProps & { readonly multiple?: false };
+
 export type SelectFieldProps =
-  | (BaseControlProps<string> &
-      SelectSharedProps & { readonly multiple?: false })
+  | SingleSelectFieldProps
   | (BaseControlProps<readonly string[]> &
       SelectSharedProps & { readonly multiple: true });
 
@@ -86,7 +123,29 @@ function clientFilter(
   );
 }
 
+/**
+ * The ONE select control. A call site that asked for the compact presentation
+ * and can use it (single-select) goes through the responsive wrapper; everything
+ * else renders the combobox directly, so no existing consumer gains a media
+ * listener or a behaviour change.
+ */
 export function SelectField(props: SelectFieldProps) {
+  if (props.sheetOnCompact === true && props.multiple !== true) {
+    return <ResponsiveSelect {...props} />;
+  }
+  return <SelectCombobox {...props} />;
+}
+
+/** Below `md` the field is the phone option sheet; above it, the combobox. */
+function ResponsiveSelect(props: SelectFieldProps) {
+  const compact = useCompactViewport();
+  if (compact && props.multiple !== true) {
+    return <SelectSheetControl {...props} />;
+  }
+  return <SelectCombobox {...props} />;
+}
+
+function SelectCombobox(props: SelectFieldProps) {
   const {
     id,
     label,

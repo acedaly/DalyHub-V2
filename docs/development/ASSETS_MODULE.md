@@ -1,4 +1,4 @@
-# Assets module (ASSET-01 · ASSET-02)
+# Assets module (ASSET-01 · ASSET-02 · ASSET-03)
 
 Assets are **first-class DalyHub records** for the important things you own or are
 responsible for — vehicles and camper trailers, appliances, electronics, tools and
@@ -528,14 +528,15 @@ and never imports the Assets module's internals. See §2e.
 
 ## 6. Accessibility & mobile
 
-Verified at 320 / 375 / 390 / 768 / desktop / wide desktop: no horizontal overflow;
+Verified at 320 / 375 / 390 / 430 / 768 / desktop / wide desktop: no horizontal overflow;
 long serial numbers, URLs and titles wrap; coarse-pointer touch targets meet the
 44px minimum; the collection, forms, tabs and lifecycle are keyboard-operable with
 visible focus; status and date meaning is carried by text (never colour alone);
 sensitive values are never exposed through an accessible name; axe (WCAG 2.2 AA)
 passes in light and dark; Back/Forward and refresh preserve collection filters and
-the record tab. Covered by `e2e/assets.spec.ts` and the shared
-`e2e/accessibility.spec.ts` / `e2e/responsive.spec.ts` sweeps.
+the record tab. Covered by `e2e/assets.spec.ts`, `e2e/assets-mobile-capture.spec.ts`
+(ASSET-03) and the shared `e2e/accessibility.spec.ts` / `e2e/responsive.spec.ts`
+sweeps.
 
 **Corrected 2026-07-27.** `e2e/assets.spec.ts` asserted the saved manufacturer
 with an unscoped `getByText("Toyota")`, which resolves to **two** elements under
@@ -587,7 +588,7 @@ derived state is computed at read time rather than stored.
 
 **Current status.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ ·
 [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done) ☑ ·
-[ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ◐.
+[ASSET-03](../roadmap/ROADMAP_V2_1.md#-asset-03--mobile-assets) ☑ (2026-08-08).
 
 **Delivered by ASSET-01.** Assets as first-class entities with a STRICT
 `asset_details` slice (migration `0016`); an authoritative workspace-bound
@@ -630,10 +631,11 @@ actions, and a bounded obligation signal on every collection card.
 - **Correcting a canonical fact is a Details-tab edit, not a history edit.** The
   forward-only projection is deliberate; the consequence needs teaching, and Help
   now does.
-- Mobile completion — phone-first capture of a NEW asset and the type/subtype
-  picker at narrow widths — remains
-  [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile). ASSET-02 was its stated
-  prerequisite, and the history surface it was waiting for now exists.
+- ~~Mobile completion — phone-first capture of a NEW asset and the type/subtype
+  picker at narrow widths.~~ **Delivered 2026-08-08** by
+  [ASSET-03](../roadmap/ROADMAP_V2_1.md#-asset-03--mobile-assets); see
+  [ASSET-03 — phone-first capture](#asset-03--phone-first-capture-2026-08-08)
+  below, including why "subtype" was stale wording rather than a missing column.
 
 **Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) ·
 [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2) · [DEBT-58](../product/PRODUCT_DEBT.md#-debt-58--the-assets-obligation-state-filter-narrows-a-page-not-the-collection--p3) · [DEBT-59](../product/PRODUCT_DEBT.md#-debt-59--linked-task-open-state-on-the-asset-obligations-tab-is-resolved-for-at-most-50-tasks--p3).
@@ -693,3 +695,111 @@ five in the shared DS-12 overflow. Which one is primary comes from the asset's
 own `asset_type` — a serviceable thing leads with **Record service**, a
 document, licence, insurance policy, subscription or software with **Record
 renewal**. That rule is the pure, unit-tested `primaryHistoryAction`.
+
+---
+
+## ASSET-03 — phone-first capture (2026-08-08)
+
+Creating a NEW Asset is now something you do standing in front of the thing, on a
+phone, in seconds. Nothing about the Asset model changed: an Asset is still an
+`entity` of type `asset` plus its canonical `asset_details` row, related through
+EntityLinks, created only by `AssetRepository.create`.
+
+### "Type/subtype" was stale wording
+
+The roadmap asked for "the type/subtype picker". **DalyHub has no persisted Asset
+subtype and none was added.** The schema, `AssetRepository`, the validation layer
+and the ADRs carry exactly ONE controlled vocabulary — `asset_details.asset_type` —
+and "subtype" is the [PX-05 subtype-icon registry](../design/DESIGN_SYSTEM.md)'s
+word for it: an Asset's *type* is the record's subtype, which is why the Asset
+record is the one record that kept its `typeLabel` after RECORD-01. Inventing an
+`asset_subtype` column to satisfy a phrase would have added data semantics no
+product requirement asked for. The requirement the phrase was reaching for —
+**choosing the right Asset type on a phone must be easy** — is what was built.
+
+### Asset is a global capture type
+
+`CAPTURE_TYPES` now offers **Task · Diary entry · Meeting · Note · Asset**, so the
+global `+` reaches Assets from anywhere. Asset is last: it is the least routine of
+the five, and the four record types a life generates hourly keep the top of the
+list.
+
+The panel (`app/modules/assets/AssetCapturePanel.tsx`) is deliberately thin — it
+renders **the canonical `NewAssetForm`**, the same component `/new/asset` renders,
+posting to the same `/assets/create` action. Every other capture panel asks for the
+least that can work and offers a "more options" hand-off to the module's fuller
+form; Assets needs no such split, because the canonical form already asks only for a
+name and a type and reveals the rest progressively. So `fullFormRoute("asset")` is
+`null` and the sheet renders no hand-off link rather than one that leads to the same
+fields. The panel adds only what the form has no opinion about: the shared
+post-capture confirmation (Done · Open asset · Add another) and the remount that
+clears the form for the next capture.
+
+It lives in the module rather than in `app/shared/capture` because it *is* Assets'
+creation surface; the shared sheet reaches it through a **lazy import**, so the
+shell never statically depends on a module and no Asset form enters the initial
+bundle.
+
+### The type control: one control, two presentations
+
+`SelectField` gained `sheetOnCompact`. Above `md` the Type field is unchanged — the
+DS-16 combobox with type-to-filter, which is the right desktop control and is what
+`/new/asset` still uses. Below `md` the same field renders a 44px trigger that opens
+the **shared phone `Sheet`** of large option rows.
+
+The reason is specific rather than aesthetic: the anchored listbox is capped at
+`16rem`, and inside a capture sheet it opens underneath the software keyboard the
+focused text input has just raised, in a scroll container that is already scrolling.
+Thirteen options in that space is a poor way to answer "what kind of thing is this?".
+
+The compact presentation keeps every DS-16 rule: the field starts genuinely empty
+and shows the placeholder; the prompt is an attribute, never a pickable row; the
+whole list is offered every time, so a selection is replaced directly; selection is
+`aria-pressed` plus a check, never colour; `controlRef` points at the trigger, so
+"jump to the first invalid field" reaches it. No new modal primitive was created —
+the sheet is the MOBILE-01 `Sheet`, and the rows are `SheetOptionList`.
+
+**Grouping is presentation only.** `assetTypeOptions()` sorts the thirteen types
+under Physical · Documents and cover · Digital and recurring · Anything else,
+derived from the same sets that decide which fields a type reveals — so a type
+chosen under "Documents and cover" is exactly the one that then asks for an issuer
+and a renewal date. No group name is stored, submitted or validated, and a unit test
+asserts every kernel key and label survives exactly once.
+
+### What did not change
+
+`newAssetFieldsForType` is untouched: name + type, then the small relevant set,
+with the complete slice edited later on the record's Details tab. Switching type
+still keeps what was typed and still submits only the FINAL type's fields. The
+minimum viable Asset is still a name and a type.
+
+### Two shared defects found and fixed
+
+- **Escape closed two surfaces at once.** Both sheets listen on `document` in the
+  capture phase, and `stopPropagation` does not stop other listeners on the same
+  node — so dismissing the type picker also dismissed the capture beneath it,
+  losing a half-written Asset. `Sheet` now keeps a small open-sheet stack and only
+  the topmost sheet acts on Escape; everything below returns without touching the
+  event, so the Drawer protection that `stopPropagation` provided is unchanged.
+  Regression test: `test/unit/shell/Sheet.test.tsx`.
+- **The error summary was a moving target.** Blurring the untouched Name field to
+  reach Type rendered the form error summary above the fields, moving the Type
+  control ~118px down between finger-down and finger-up: the tap landed on nothing.
+  `FormErrorSummary` documents itself as a post-submit affordance, and the New Asset
+  form now renders it only when a submit has actually failed. The field's own inline
+  error still appears on blur, beside the field, where it moves nothing being aimed
+  at. Other forms still surface the summary on blur; converging them is a follow-up,
+  not something this item changed under cover of an Assets PR.
+
+### Proof
+
+[`e2e/assets-mobile-capture.spec.ts`](../../e2e/assets-mobile-capture.spec.ts):
+global `+` → Asset at 390px through to a canonical record; a documentary Asset
+(insurance) proving the progressive model across very different types; type
+switching that reveals the right fields and submits only those; validation that
+keeps the words and the surface; cancel with no mutation and focus returned to the
+opener; Escape scoped to the type sheet; keyboard-only operation; the type sheet's
+grouping, wording and touch targets; axe in light and dark; 320/375/390/430px; and a
+1280px desktop regression. Unit coverage sits in `test/unit/assets/` and
+`test/unit/forms/select-sheet.test.tsx`; the create boundary is exercised against
+real Workers/D1 in `test/kernel/asset-create-route.test.ts`.

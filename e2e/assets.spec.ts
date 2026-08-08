@@ -11,6 +11,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  chooseAssetType,
   cleanupAllAssetFixtures,
   cleanupAssetByTitle,
   uniqueAssetTitle,
@@ -34,12 +35,13 @@ test.afterEach(async () => {
   owned.clear();
 });
 
-/** Choose an Asset type in the DS-06 combobox by label. */
+/**
+ * Choose an Asset type. The shared helper handles BOTH presentations of the one
+ * control (combobox on desktop, option sheet below `md`), so a journey that runs
+ * at 320px picks a type the same way a laptop journey does.
+ */
 async function chooseType(page: Page, label: string): Promise<void> {
-  const combo = page.getByRole("combobox", { name: /Type/ });
-  await combo.click();
-  await combo.fill(label);
-  await page.getByRole("option", { name: label, exact: true }).first().click();
+  await chooseAssetType(page, label);
 }
 
 /** Create an Asset through the real /new/asset flow; returns its record URL. */
