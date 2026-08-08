@@ -347,6 +347,12 @@ describe("module discovery", () => {
         { id: "diary.index", moduleId: "diary", file: "routes/index.tsx" },
         { id: "diary.new", moduleId: "diary", file: "routes/new.tsx" },
         { id: "diary.entry", moduleId: "diary", file: "routes/entry.tsx" },
+        // DIARY-02 — the read-only day-context candidates for one entry.
+        {
+          id: "diary.day_context",
+          moduleId: "diary",
+          file: "routes/day-context.tsx",
+        },
         { id: "diary.mutate", moduleId: "diary", file: "routes/mutate.tsx" },
         {
           id: "meetings.index",

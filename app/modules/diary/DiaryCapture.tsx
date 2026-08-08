@@ -21,6 +21,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  CaptureContextChip,
+  encodeCaptureContext,
+  useUrlCaptureContext,
+} from "~/shared/capture";
+import {
   Form,
   FormActions,
   FormButton,
@@ -76,6 +81,15 @@ export interface DiaryCaptureProps {
 export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
   const options = entryTypeOptions();
   const [showDetails, setShowDetails] = useState(false);
+  /*
+   * DEBT-45 / DIARY-02 — an entry captured FROM a record (a Person, a Project, a
+   * Meeting) carries that record here in the URL, so "Coffee with Vaughn" started
+   * from Vaughn's record becomes a real relationship to Vaughn rather than a
+   * name in a title. It stays OPTIONAL in every sense the DIARY-01A principle
+   * requires: no context means no field, no prompt, and no change to the fast
+   * path — a type, a title and Capture.
+   */
+  const capture = useUrlCaptureContext("diary");
   // Which button submitted. A ref (not state) because it must be readable inside
   // the submit handler in the SAME tick the click starts, before any re-render.
   const addAnotherRef = useRef(false);
@@ -106,6 +120,9 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
       body.set("entryType", values.entryType);
       body.set("body", values.body);
       body.set("when", values.when);
+      if (capture.context) {
+        body.set("captureContext", encodeCaptureContext(capture.context));
+      }
       let data: CreateDiaryEntryResult;
       try {
         const response = await fetch("/diary/new", { method: "POST", body });
@@ -122,6 +139,10 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
           ? values.when.slice(0, 10)
           : todayKey;
         onCaptured(data.entryId, capturedDayKey, keepOpen);
+        // The hand-off parameter has done its job. Dropping it here is what stops
+        // the NEXT entry captured on this page — including through "Save and add
+        // another" — from silently inheriting a context the user has finished with.
+        capture.consume();
         if (keepOpen) {
           // Clear the form and return to the title so the next entry is
           // type-and-save with no navigation at all. Reached through refs
@@ -196,6 +217,14 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
           labels={FIELD_LABELS}
           onFocusField={form.focusField}
         />
+
+        {capture.context ? (
+          <CaptureContextChip
+            captureType="diary"
+            context={capture.context}
+            onRemove={capture.clear}
+          />
+        ) : null}
 
         <fieldset className="dh-diary-capture__types">
           <legend className="dh-diary-capture__legend">Type</legend>

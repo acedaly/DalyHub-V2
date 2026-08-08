@@ -139,6 +139,30 @@ export interface MeetingRepository {
     readonly text: string;
     readonly limit?: number;
   }): Promise<readonly MeetingSearchHit[]>;
+  /**
+   * DIARY-02 — the non-archived meetings that START inside an explicit instant
+   * window, soonest first, bounded.
+   *
+   * A day-context surface asks "what happened on this day?", which the collection
+   * views cannot answer: `upcoming`/`recent` are windows anchored to NOW, so
+   * reaching an arbitrary past day through them means paging an unbounded number
+   * of pages. This is ONE bounded statement over the existing
+   * `meeting_details_collection` index (`workspace_id, archived_at, starts_at,
+   * entity_id`), so no migration and no new index is involved.
+   *
+   * The window is supplied as UTC instants and the caller owns the conversion from
+   * an owner-calendar day, exactly as the Diary timeline already does — the
+   * repository never guesses a display zone. It is READ-ONLY and workspace-scoped
+   * like every other read here; soft-deleted and archived meetings are excluded.
+   */
+  listStartingBetween(input: {
+    /** Inclusive lower bound (UTC instant). */
+    readonly from: Date;
+    /** Exclusive upper bound (UTC instant). */
+    readonly to: Date;
+    /** Page size, clamped to a safe maximum. */
+    readonly limit?: number;
+  }): Promise<readonly MeetingSearchHit[]>;
   update(
     id: string,
     input: UpdateMeetingInput,

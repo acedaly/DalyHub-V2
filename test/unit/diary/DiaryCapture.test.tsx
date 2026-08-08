@@ -1,7 +1,22 @@
+import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
 
 import { DiaryCapture } from "~/modules/diary/DiaryCapture";
+
+/**
+ * DEBT-45 — capture is now route-aware: a hand-off from Quick Capture carries its
+ * source record in the `?ctx=` parameter, so the form reads the URL. It is
+ * rendered in a router here for that reason, exactly as every other route-backed
+ * create form in the suite is (`test/unit/notes/create-forms.test.tsx`).
+ */
+function renderCapture(node: ReactElement, entry = "/diary") {
+  const router = createMemoryRouter([{ path: "/diary", element: node }], {
+    initialEntries: [entry],
+  });
+  return render(<RouterProvider router={router} />);
+}
 
 /**
  * DIARY-01B — the compact capture flow as behaviour: the fast path (default type +
@@ -34,7 +49,9 @@ describe("Diary capture", () => {
   it("captures via the fast path and reports today’s local day", async () => {
     const fetchMock = mockCaptureOk("new-1");
     const onCaptured = vi.fn();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    renderCapture(
+      <DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />,
+    );
 
     fireEvent.change(screen.getByRole("textbox", { name: /Title/ }), {
       target: { value: "Kickoff" },
@@ -53,7 +70,9 @@ describe("Diary capture", () => {
   it("requires a title (fast-path validation)", async () => {
     mockCaptureOk();
     const onCaptured = vi.fn();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    renderCapture(
+      <DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Capture" }));
     expect(
       (await screen.findAllByText("A title is required")).length,
@@ -64,7 +83,9 @@ describe("Diary capture", () => {
   it("submits with Ctrl/Cmd+Enter from the title field", async () => {
     mockCaptureOk("kbd-1");
     const onCaptured = vi.fn();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    renderCapture(
+      <DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />,
+    );
     const title = screen.getByRole("textbox", { name: /Title/ });
     fireEvent.change(title, { target: { value: "Keyboard" } });
     fireEvent.keyDown(title, { key: "Enter", ctrlKey: true });
@@ -76,7 +97,9 @@ describe("Diary capture", () => {
   it("reports the backdated local day for an entry captured under a past 'when'", async () => {
     mockCaptureOk("memory-1");
     const onCaptured = vi.fn();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    renderCapture(
+      <DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />,
+    );
     fireEvent.change(screen.getByRole("textbox", { name: /Title/ }), {
       target: { value: "Memory" },
     });
@@ -93,7 +116,9 @@ describe("Diary capture", () => {
   it("keeps the panel open and clears the form for a repeated capture (MOBILE-01)", async () => {
     mockCaptureOk("burst-1");
     const onCaptured = vi.fn();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    renderCapture(
+      <DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />,
+    );
 
     const title = () => screen.getByRole("textbox", { name: /Title/ });
     fireEvent.change(title(), { target: { value: "First thought" } });
@@ -114,7 +139,9 @@ describe("Diary capture", () => {
   it("returns to the close-on-save path for the next ordinary capture", async () => {
     mockCaptureOk("burst-2");
     const onCaptured = vi.fn();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    renderCapture(
+      <DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />,
+    );
     const title = () => screen.getByRole("textbox", { name: /Title/ });
 
     fireEvent.change(title(), { target: { value: "One" } });
@@ -137,7 +164,7 @@ describe("Diary capture", () => {
 
   it("lets the chooser change the entry type", () => {
     mockCaptureOk();
-    render(<DiaryCapture todayKey="2026-07-20" onCaptured={vi.fn()} />);
+    renderCapture(<DiaryCapture todayKey="2026-07-20" onCaptured={vi.fn()} />);
     const meeting = screen.getByRole("radio", { name: /Meeting/ });
     fireEvent.click(meeting);
     expect(meeting).toBeChecked();

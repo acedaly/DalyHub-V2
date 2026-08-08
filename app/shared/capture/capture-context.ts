@@ -69,6 +69,79 @@ export function encodeCaptureContext(
   return context ? JSON.stringify(context) : "";
 }
 
+/* -------------------------------------------------------------------------- */
+/* Full-form hand-off (DEBT-45)                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The query parameter that carries a capture context ACROSS a route transition.
+ *
+ * DEBT-45's remaining gap was that context lived only in the capture sheet's React
+ * state, so leaving the sheet for a module's fuller creation surface silently threw
+ * it away. Context is therefore carried the same way every other piece of DalyHub
+ * state that must survive navigation is carried — in the URL — so the hand-off is
+ * refresh-stable, Back/Forward-honest and identical on desktop and mobile.
+ *
+ * The value is NOT authoritative in any sense: it is re-parsed by
+ * {@link parseCaptureContextContract} on arrival and the source id/type are
+ * revalidated in the authenticated workspace by every canonical create route
+ * before a relationship is written (ADR-060).
+ */
+export const CAPTURE_CONTEXT_PARAM = "ctx";
+
+/**
+ * Where each capture type's FULLER creation surface lives, as a URL the shared
+ * sheet can navigate to. Each is the module's existing route-backed create surface
+ * — no new page is introduced for the hand-off.
+ */
+const FULL_FORM_ROUTES: Record<CaptureType, string> = {
+  task: "/tasks?drawer=new-task",
+  note: "/notes?drawer=new-note",
+  meeting: "/new/meeting",
+  diary: "/diary?inspector=new",
+};
+
+/** The label the sheet uses for the hand-off control, per capture type. */
+const FULL_FORM_LABELS: Record<CaptureType, string> = {
+  task: "More task options",
+  note: "More note options",
+  meeting: "More meeting options",
+  diary: "More entry options",
+};
+
+export function fullFormLabel(captureType: CaptureType): string {
+  return FULL_FORM_LABELS[captureType];
+}
+
+/**
+ * The full-form destination for a capture type, carrying the context when there is
+ * one whose relationship plan actually applies to that type.
+ */
+export function fullFormRoute(
+  captureType: CaptureType,
+  context: CaptureContextContract | null | undefined,
+): string {
+  const base = FULL_FORM_ROUTES[captureType];
+  const applicable = contextForCaptureType(captureType, context ?? null);
+  if (!applicable) return base;
+  const separator = base.includes("?") ? "&" : "?";
+  return `${base}${separator}${CAPTURE_CONTEXT_PARAM}=${encodeURIComponent(
+    encodeCaptureContext(applicable),
+  )}`;
+}
+
+/**
+ * Read a capture context from a URL's search parameters, validated through the
+ * same parser the server uses. A malformed or absent parameter is simply no
+ * context — never an error page.
+ */
+export function readCaptureContextParam(
+  params: URLSearchParams | null | undefined,
+): CaptureContextContract | null {
+  if (!params) return null;
+  return parseCaptureContextContract(params.get(CAPTURE_CONTEXT_PARAM));
+}
+
 export function parseCaptureContextContract(
   value: unknown,
 ): CaptureContextContract | null {

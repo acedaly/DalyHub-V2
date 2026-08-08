@@ -35,6 +35,7 @@ import {
   type AutosaveStatus,
   type SubmitOutcome,
 } from "~/shared/forms";
+import { LinkedItemsSection } from "~/shared/linked-items";
 import { MarkdownEditorField } from "~/shared/markdown-editor";
 import { MarkdownContent } from "~/shared/markdown";
 import { OverflowMenu } from "~/shared/overflow-menu";
@@ -43,6 +44,7 @@ import {
   useReversibleDelete,
 } from "~/shared/record-lifecycle";
 
+import { DayContextSuggestions } from "./DayContextSuggestions";
 import { entryTypeOptions } from "./diary-view";
 import { WhenField } from "./WhenField";
 import type {
@@ -218,6 +220,9 @@ function DiaryReadView({
   readonly onDelete: () => Promise<void>;
   readonly deletePending: boolean;
 }) {
+  // Bumped when a day-context suggestion becomes a real relationship, so the
+  // Related section re-reads the server rather than guessing.
+  const [relatedVersion, setRelatedVersion] = useState(0);
   // The SAME shared overflow menu and the SAME lifecycle wording every record
   // uses — a Diary entry is removed exactly like a Note (PX-04/DS-12).
   const lifecycle = useRecordLifecycle({
@@ -261,6 +266,44 @@ function DiaryReadView({
           <p className="dh-diary-detail__empty-body">No details recorded.</p>
         )}
       </section>
+
+      {/*
+        DIARY-02 — the entry's relationships, through the ONE shared Universal
+        Relationship System surface every other record already mounts. There is no
+        Diary relationship model, no Diary picker and no Diary link table: this is
+        the same `link.related` EntityLink, the same `/links` endpoint and the same
+        add/remove/Undo behaviour a Note or a Person has.
+
+        It sits BELOW the entry's own content and ABOVE the administrative stamps
+        on purpose. The DIARY-01A principle is chronology first, structure
+        optional — an entry with four links must still read as a diary entry, so
+        relationships are supporting context, never the headline. An entry with no
+        relationships shows one quiet line and costs the reader nothing.
+      */}
+      <section
+        className="dh-diary-detail__section dh-diary-detail__related"
+        aria-labelledby={`dh-diary-related-${entry.id}`}
+      >
+        <h4
+          className="dh-diary-detail__section-heading"
+          id={`dh-diary-related-${entry.id}`}
+        >
+          Related
+        </h4>
+        <LinkedItemsSection
+          // Remounted when a day-context suggestion becomes a real link, so the
+          // record moves from "From this day" to "Related" in one step and the two
+          // lists can never disagree about what is actually persisted.
+          key={`${entry.id}:${relatedVersion}`}
+          anchorId={entry.id}
+          anchorType="diary"
+        />
+      </section>
+
+      <DayContextSuggestions
+        entryId={entry.id}
+        onLinked={() => setRelatedVersion((version) => version + 1)}
+      />
 
       <dl className="dh-diary-detail__stamps">
         <div className="dh-diary-detail__fact">

@@ -101,6 +101,56 @@ via generic soft-delete). If compensation also fails, the response includes the
 created record id and reports that the record exists but is not linked. Retrying is
 safe because EntityLink creation is idempotent.
 
+### The full-form hand-off (DEBT-45 closure)
+
+Context also survives leaving the Quick Capture sheet for a module's **fuller**
+creation surface. It travels as a search parameter, `?ctx=<encoded contract>`
+(`CAPTURE_CONTEXT_PARAM` in `~/shared/capture/capture-context`), because the sheet
+and the fuller form are different routes and different component trees — React
+state cannot cross that boundary, and the URL is how every other piece of DalyHub
+state that must survive navigation already crosses it.
+
+| Capture | Fuller surface the sheet hands off to |
+|---|---|
+| Task | `/tasks?drawer=new-task` |
+| Note | `/notes?drawer=new-note` |
+| Meeting | `/new/meeting` |
+| Diary entry | `/diary?inspector=new` |
+
+Rules that keep this from becoming a second contract:
+
+- the destination reads it with the shared `useUrlCaptureContext` hook and renders
+  the shared `CaptureContextChip` — same words, same removal affordance, desktop
+  and mobile alike;
+- the parameter is **not authoritative**: it is re-parsed with the same
+  `parseCaptureContextContract` the server uses, and the create route still
+  revalidates the anchor's id and type in the authenticated workspace;
+- a context whose plan does not apply to the destination's capture type is dropped
+  rather than displayed;
+- the parameter is **consumed** — removed from the URL in place — once submitted
+  or dismissed, so a later capture on the same page starts neutral.
+
+Proof: `test/unit/capture/full-form-handoff.test.ts`,
+`test/unit/capture/handoff-forms.test.tsx`,
+`test/kernel/capture-context-matrix.test.ts`, `e2e/people-diary-context.spec.ts`.
+
+### Diary as an adopter (DIARY-02)
+
+The Diary Inspector's read view mounts `LinkedItemsSection` under a **Related**
+heading, below the entry's content and above its stamps. A Diary entry links
+through ordinary `link.related` EntityLinks and the ordinary `/links` endpoint —
+there is no Diary relationship model and no `diary_people`/`diary_projects` join
+table.
+
+Beside it, Diary adds a **suggestion** surface that this document's rules do not
+otherwise cover, so the distinction is stated here once: records that merely share
+the entry's owner-calendar day are rendered in a **separate** section headed *From
+this day*, labelled `Suggested` in text, and are **never** written as links by the
+server. Only the explicit Link control creates a relationship, and it does so
+through `/links` like everything else. Date, title similarity, shared words and
+timing proximity are not evidence of a relationship in DalyHub, and no code path
+treats them as one. See [`DIARY_MODULE.md` §9](DIARY_MODULE.md#9-diary-02--related-records-and-day-context).
+
 ---
 
 ## Using it in a record
@@ -133,9 +183,10 @@ That is all — no per-module loader, route, or picker wiring. `LinkedItemsTab`:
   (a `navigate` action, never a focus-moving `run` — per [`COMMAND_PALETTE.md`](COMMAND_PALETTE.md)).
 
 Adopters today: Notes, People (upgraded from read-only), Meetings (upgraded),
-Areas, Goals. Projects and Tasks retain their existing interactive link tabs (built
-on the same shared `EntityLinkPicker`); migrating them to the shared section is a
-clean follow-up.
+Areas, Goals, **Diary** (DIARY-02 — mounted as a `Related` section in the shared
+Inspector rather than as a tab, because a Diary entry has no tab strip). Projects
+and Tasks retain their existing interactive link tabs (built on the same shared
+`EntityLinkPicker`); migrating them to the shared section is a clean follow-up.
 
 ---
 

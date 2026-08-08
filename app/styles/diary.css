@@ -550,6 +550,91 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/* -------------------------------------------------------------------------- */
+/* DIARY-02 — Related, and the suggestions that are NOT related (yet)          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Both sections are deliberately SUBORDINATE to the entry. The heading is a
+ * label-scale line, not a title; the rule above each one separates it from the
+ * writing without competing with it. An entry with four links must still read as
+ * a diary entry, which is the DIARY-01A principle expressed in type scale.
+ */
+.dh-diary-detail__section-heading {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-diary-detail__related,
+.dh-day-context {
+  padding-block-start: var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+}
+
+.dh-day-context__help {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-day-context__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Wraps rather than truncates: on a 320px phone the Link control must stay a
+ * full-size target, so it drops to its own line instead of being squeezed. */
+.dh-day-context__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-day-context__identity {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0 var(--app-space-2);
+  min-inline-size: 0;
+  flex: 1 1 12rem;
+}
+
+.dh-day-context__icon {
+  grid-row: span 2;
+  display: inline-flex;
+  line-height: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-day-context__title {
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+/* The state is carried by the WORD "Suggested", never by colour alone — a
+ * suggestion that only looked different would be indistinguishable from a real
+ * relationship to a screen reader or a monochrome display. */
+.dh-day-context__meta {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-day-context__link {
+  flex: 0 0 auto;
+  min-block-size: var(--app-touch-target-min);
+}
+
 .dh-diary-detail__render-error {
   margin: 0;
   color: var(--md-sys-color-on-error-container);
