@@ -743,7 +743,7 @@
 .dh-btn--danger-quiet:hover {
   background: color-mix(
     in srgb,
-    var(--md-sys-color-error) var(--md-sys-state-hover-opacity),
+    var(--md-sys-color-error) var(--md-sys-state-hover-state-layer-opacity),
     transparent
   );
 }

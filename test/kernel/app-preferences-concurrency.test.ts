@@ -95,7 +95,7 @@ describe("AUDIT-07 — two stale devices cannot clobber each other", () => {
       dateFormat: "iso",
       firstDayOfWeek: "sunday",
       defaultLandingDestination: "notes",
-      defaultTasksView: "matrix",
+      defaultTasksView: "sectors",
       defaultDiaryMode: "timeline",
       navigation: { version: 1, hiddenModuleIds: ["diary"] },
     });

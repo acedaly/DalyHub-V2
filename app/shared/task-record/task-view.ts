@@ -257,7 +257,7 @@ export function taskRecurrenceLabel(
         ? "Every weekday"
         : rule.frequency === "week"
           ? rule.weekdays.length > 0
-            ? `Every ${rule.weekdays.map((day) => WEEKDAY_NAMES[day] ?? "day").join(", ")}${rule.interval === 1 ? "" : `, every ${rule.interval} weeks`}`
+            ? `Every ${rule.weekdays.map((day) => TASK_WEEKDAY_NAMES[day] ?? "day").join(", ")}${rule.interval === 1 ? "" : `, every ${rule.interval} weeks`}`
             : every("week")
           : rule.frequency === "month"
             ? every("month")
@@ -265,8 +265,12 @@ export function taskRecurrenceLabel(
   return rule.dateKind === "due" ? `${base}, from the due date` : base;
 }
 
-/** Weekday names for a selected-weekday weekly rule (0 = Sunday). */
-const WEEKDAY_NAMES = [
+/**
+ * Weekday names for a selected-weekday weekly rule (0 = Sunday). Exported so the
+ * recurrence editor's toggles carry the FULL name as their accessible name — a
+ * three-letter abbreviation is a visual shorthand, not a label.
+ */
+export const TASK_WEEKDAY_NAMES = [
   "Sunday",
   "Monday",
   "Tuesday",

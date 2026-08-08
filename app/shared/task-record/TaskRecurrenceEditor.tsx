@@ -46,7 +46,11 @@ import {
   type RecurrencePreset,
   type RecurrenceUnit,
 } from "./recurrence-authoring";
-import { TASK_WEEKDAY_SHORT_NAMES, taskRecurrenceLabel } from "./task-view";
+import {
+  TASK_WEEKDAY_NAMES,
+  TASK_WEEKDAY_SHORT_NAMES,
+  taskRecurrenceLabel,
+} from "./task-view";
 import {
   TASK_RECURRENCE_MODES,
   type TaskRecurrenceDateKind,
@@ -301,11 +305,12 @@ export function TaskRecurrenceEditor({
                 On these days (optional)
               </legend>
               <div className="dh-recurrence-editor__weekday-row">
-                {TASK_WEEKDAY_SHORT_NAMES.map((name, weekday) => {
+                {TASK_WEEKDAY_SHORT_NAMES.map((short, weekday) => {
                   const selected = draft.weekdays.includes(weekday);
+                  const name = TASK_WEEKDAY_NAMES[weekday] ?? short;
                   return (
                     <label
-                      key={name}
+                      key={short}
                       className="dh-recurrence-editor__weekday"
                       data-selected={selected ? "true" : "false"}
                     >
@@ -328,7 +333,7 @@ export function TaskRecurrenceEditor({
                         className="dh-recurrence-editor__weekday-glyph"
                         aria-hidden="true"
                       >
-                        {name.slice(0, 1)}
+                        {short.slice(0, 1)}
                       </span>
                     </label>
                   );

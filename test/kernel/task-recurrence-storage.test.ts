@@ -221,6 +221,7 @@ describe("recurrence persistence, update and removal", () => {
     expect(view?.recurrenceSeries).toEqual({
       seriesId: task.id,
       sequence: 0,
+      scheduleAnchorDate: null,
     });
 
     // The collection projection carries it too, so a list row can show "Repeats".
@@ -249,6 +250,7 @@ describe("recurrence persistence, update and removal", () => {
     expect(updated.recurrenceSeries).toEqual({
       seriesId: task.id,
       sequence: 0,
+      scheduleAnchorDate: null,
     });
   });
 
@@ -330,6 +332,7 @@ describe("recurrence persistence, update and removal", () => {
     expect(created.recurrenceSeries).toEqual({
       seriesId: created.id,
       sequence: 0,
+      scheduleAnchorDate: null,
     });
   });
 
@@ -386,6 +389,7 @@ describe("completion creates exactly one successor", () => {
     expect(successor!.recurrenceSeries).toEqual({
       seriesId: task.id,
       sequence: 1,
+      scheduleAnchorDate: null,
     });
 
     // NOT copied: completion. The anchor advanced by exactly one week.
@@ -792,6 +796,7 @@ describe("re-completing a reopened recurring occurrence (AUDIT-FIX-01)", () => {
     expect(first.successor!.recurrenceSeries).toEqual({
       seriesId: task.id,
       sequence: 1,
+      scheduleAnchorDate: null,
     });
     expect(await seriesLedger(WS, task.id)).toEqual([
       { sequence: 0, entityId: task.id },
@@ -826,6 +831,7 @@ describe("re-completing a reopened recurring occurrence (AUDIT-FIX-01)", () => {
     expect(replacement.recurrenceSeries).toEqual({
       seriesId: task.id,
       sequence: 1,
+      scheduleAnchorDate: null,
     });
     expect(replacement.area?.id).toBe((await tasks.getTask(task.id))!.area?.id);
 
@@ -939,7 +945,13 @@ describe("re-completing a reopened recurring occurrence (AUDIT-FIX-01)", () => {
       { ownerTodayIso: "2026-07-27" },
     );
     const seq2 = two.successor!;
-    expect(seq2.recurrenceSeries).toEqual({ seriesId: task.id, sequence: 2 });
+    expect(seq2.recurrenceSeries).toEqual({
+      seriesId: task.id,
+      sequence: 2,
+      // TASKS-07: a successor is always back ON the series grid, so it carries no
+      // per-occurrence schedule override.
+      scheduleAnchorDate: null,
+    });
 
     // Undo sequence 1's completion, then redo it.
     const midCycle = taskRepo(WS, "2026-07-27T10:00:00.000Z");
@@ -964,7 +976,11 @@ describe("re-completing a reopened recurring occurrence (AUDIT-FIX-01)", () => {
       { ownerTodayIso: "2026-08-03" },
     );
     const seq3 = three.successor!;
-    expect(seq3.recurrenceSeries).toEqual({ seriesId: task.id, sequence: 3 });
+    expect(seq3.recurrenceSeries).toEqual({
+      seriesId: task.id,
+      sequence: 3,
+      scheduleAnchorDate: null,
+    });
     expect(seq3.scheduledDate).toBe("2026-08-10");
 
     // One row per sequence, no gaps, no duplicates, and the live occupants are the

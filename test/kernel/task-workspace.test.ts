@@ -739,7 +739,7 @@ describe("listWorkspaceTaskGroups", () => {
     return t;
   }
 
-  it("groups by quadrant with authoritative counts, excluding non-active work", async () => {
+  it("groups by priority with authoritative counts, excluding non-active work", async () => {
     const { project } = await seedProject(WS);
     const repo = taskRepo(WS);
     await mk(WS, project.id, "a1", { priority: "p1" });
@@ -757,10 +757,10 @@ describe("listWorkspaceTaskGroups", () => {
     await repo.setWaiting(waiting.id, { target: { kind: "text", note: "x" } });
 
     const grouping = await repo.listWorkspaceTaskGroups({
-      dimension: "quadrant",
+      dimension: "priority",
       todayIso: TODAY,
     });
-    expect(grouping.dimension).toBe("quadrant");
+    expect(grouping.dimension).toBe("priority");
     const byKey = new Map(grouping.groups.map((g) => [g.key, g]));
     expect(byKey.get("p1")?.count).toBe(2);
     expect(byKey.get("p2")?.count).toBe(1);
@@ -776,7 +776,7 @@ describe("listWorkspaceTaskGroups", () => {
       await mk(WS, project.id, `p1-${i}`, { priority: "p1" });
     }
     const grouping = await repo.listWorkspaceTaskGroups({
-      dimension: "quadrant",
+      dimension: "priority",
       bucketLimit: 1,
       todayIso: TODAY,
     });
@@ -813,7 +813,7 @@ describe("listWorkspaceTaskGroups", () => {
       dueDate: "2026-07-01",
     });
     const grouping = await repo.listWorkspaceTaskGroups({
-      dimension: "quadrant",
+      dimension: "priority",
       todayIso: TODAY,
     });
     const p1 = grouping.groups.find((g) => g.key === "p1");
@@ -825,7 +825,7 @@ describe("listWorkspaceTaskGroups", () => {
     await mk(WS, project.id, "x", { priority: "p1" });
     const other = taskRepo(OTHER);
     const grouping = await other.listWorkspaceTaskGroups({
-      dimension: "quadrant",
+      dimension: "priority",
       todayIso: TODAY,
     });
     expect(grouping.groups).toHaveLength(0);
