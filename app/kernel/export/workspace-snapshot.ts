@@ -184,6 +184,14 @@ export interface SnapshotOwnerPreferences {
 /** A saved Tasks view (TASKS-03) belonging to the exporting owner. */
 export interface SnapshotTaskSavedView {
   readonly id: string;
+  /**
+   * X-02 — which configuration vocabulary this row speaks (`tasks` | `cross`).
+   * Saved views of every kind share one table and one repository, so the export
+   * carries the discriminator rather than silently exporting a cross-module view
+   * as if it were a Tasks one. Absent in archives written before X-02, which
+   * read back as `tasks` — the value that was true when they were written.
+   */
+  readonly kind: string;
   readonly name: string;
   readonly configVersion: number;
   readonly config: JsonValue;

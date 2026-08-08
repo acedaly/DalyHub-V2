@@ -16,7 +16,13 @@ import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
-import type { TaskViewRepository } from "~/kernel/task-views";
+import { TASK_VIEW_CODEC, type TaskViewRepository } from "~/kernel/task-views";
+import {
+  CROSS_VIEW_CODEC,
+  type CrossViewConfig,
+  type CrossViewQueryRepository,
+  type SavedViewRepository,
+} from "~/kernel/views";
 import type { AssetHistoryRepository, AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -48,6 +54,7 @@ import type {
 
 import { D1ActivityRepository } from "./d1-activity-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
+import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
 import {
   D1AppPreferencesRepository,
@@ -55,9 +62,9 @@ import {
 } from "./d1-app-preferences-repository";
 import { D1AreaRepository } from "./d1-area-repository";
 import {
-  D1TaskViewRepository,
-  type D1TaskViewRepositoryOptions,
-} from "./d1-task-view-repository";
+  D1SavedViewRepository,
+  type D1SavedViewRepositoryOptions,
+} from "./d1-saved-view-repository";
 import {
   D1AssetHistoryRepository,
   type D1AssetHistoryRepositoryOptions,
@@ -479,18 +486,48 @@ export function createReviewInsightRepository(
 
 /**
  * Factory for the TASKS-03 saved-view repository, bound to a `WorkspaceContext`.
- * There is no unscoped construction path: workspace AND owner scoping are enforced
- * inside every statement.
+ * There is no unscoped construction path: workspace, owner AND kind scoping are
+ * enforced inside every statement.
  */
 export function createTaskViewRepository(
   db: D1Database,
   context: WorkspaceContext,
-  options?: D1TaskViewRepositoryOptions,
+  options?: D1SavedViewRepositoryOptions,
 ): TaskViewRepository {
-  return new D1TaskViewRepository(db, context, options);
+  return new D1SavedViewRepository(db, context, TASK_VIEW_CODEC, options);
 }
 
-export { D1TaskViewRepository, type D1TaskViewRepositoryOptions };
+/**
+ * X-02 — factory for the CROSS-MODULE saved-view repository. The same class and
+ * the same table as the Tasks one, bound to the cross-module codec: adding a kind
+ * never adds a persistence path.
+ */
+export function createCrossViewRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1SavedViewRepositoryOptions,
+): SavedViewRepository<CrossViewConfig> {
+  return new D1SavedViewRepository(db, context, CROSS_VIEW_CODEC, options);
+}
+
+/**
+ * X-02 — factory for the cross-module QUERY repository: the bounded, workspace-
+ * scoped read projection a saved view is executed through.
+ */
+export function createCrossViewQueryRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  derived?: {
+    readonly health?: ProjectHealthRepository;
+    readonly goals?: GoalRepository;
+    readonly alignment?: AlignmentRepository;
+  },
+): CrossViewQueryRepository {
+  return new D1CrossViewQueryRepository(db, context, derived);
+}
+
+export { D1SavedViewRepository, type D1SavedViewRepositoryOptions };
+export { D1CrossViewQueryRepository };
 
 export function createAppPreferencesRepository(
   db: D1Database,

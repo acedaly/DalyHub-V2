@@ -481,6 +481,16 @@ dynamic/third-party/remote module loading. Those arrive in later roadmap items.
 > The command-palette UI, its catalogue transport and its authenticated execution
 > boundary are built; only the registry contract lives in the kernel.
 
+> **Update (X-02).** [`views`](VIEWS_MODULE.md) is the second module that owns **no**
+> entity type — and, unlike Today, no link type and no Activity type either. It is a
+> way of ASKING about records other modules own, so it registers only its two routes
+> and its five navigation commands. That is deliberate and load-bearing: a saved view
+> describes a query, and a module that owned records would be a second source of
+> truth for them. Its scopes are checked against the owner's module-visibility
+> preference before any row is read, so a module hidden from navigation is also
+> hidden from every cross-module query
+> ([ADR-080](../decisions/ARCHITECTURE_DECISIONS.md#adr-080-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)).
+
 ---
 
 ## Related documents

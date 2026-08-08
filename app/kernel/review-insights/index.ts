@@ -61,6 +61,7 @@ export {
   trendDirection,
   seriesSummary,
   evaluateReviewInsights,
+  REVIEW_INSIGHT_VIEW_QUERIES,
 } from "./review-insights";
 export type {
   InsightTone,

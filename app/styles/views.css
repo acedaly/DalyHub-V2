@@ -1,0 +1,161 @@
+/* X-02 — the cross-module Views surface.
+ *
+ * No new visual language: every value here is an existing token, the switcher
+ * reuses `.dh-tasks-views` (the shared saved-view switcher's stylesheet), and the
+ * filter sheet, chips and empty states are the shared ones. What this file adds is
+ * the scope selector, the banded result list and the plain-language notices — the
+ * three things genuinely new to a collection that spans record types.
+ */
+
+.dh-views__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/* The scope selector: "Show — Tasks, Projects, …". A wrapping row of toggles, so
+ * a phone shows the same control the desktop does rather than a second one. */
+.dh-views__scopes {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.dh-views__scopes-legend {
+  padding: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+}
+
+.dh-views__scope-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.dh-views__scope {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-height: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
+  text-decoration: none;
+}
+
+/* Selection is carried by a filled surface AND by `aria-pressed`, so it is never
+ * conveyed by colour alone (AGENTS.md §15). */
+.dh-views__scope[data-selected="true"] {
+  border-color: var(--md-sys-color-secondary);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 500;
+}
+
+.dh-views__scope--hidden {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.dh-views__scope-note {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+}
+
+.dh-views__notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  margin-block-end: var(--app-space-3);
+}
+
+.dh-views__notice {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-views__notice::first-letter {
+  text-transform: uppercase;
+}
+
+.dh-views__group + .dh-views__group {
+  margin-block-start: var(--app-space-5);
+}
+
+.dh-views__group-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-views__group-count {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 400;
+}
+
+.dh-views__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-views__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-width: 0;
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+}
+
+.dh-views__row-link {
+  min-width: 0;
+  font-size: var(--md-sys-typescale-body-large-size);
+}
+
+/* A long title wraps rather than pushing the row wider: a cross-module list must
+ * never introduce horizontal page scrolling at 320px. */
+.dh-views__row-link .dh-entity-link__label {
+  overflow-wrap: anywhere;
+}
+
+.dh-views__row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-1) var(--app-space-3);
+  margin: 0;
+  min-width: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  overflow-wrap: anywhere;
+}
+
+.dh-views__row-date {
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
