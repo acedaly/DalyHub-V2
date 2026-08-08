@@ -157,14 +157,21 @@ test.describe("visual system — surface hierarchy", () => {
         };
       });
 
-    // ADR-074 replaced the bordered-card model this test used to pin. An M3
-    // card separates itself from the page by its own PLANE plus elevation, not
-    // by a hairline outline, so `border: none` here is the design, not a
-    // regression — the assertion is inverted rather than deleted so the border
-    // cannot quietly come back.
+    /*
+     * ADR-074 replaced the bordered-card model this test used to pin. What
+     * separates a card from the page is now its own PLANE and its shape — not a
+     * hairline outline, and not a shadow either: `card.css` states outright that
+     * a grid or board card "takes the group's surface and hairline treatment …
+     * and still takes no shadow", and reserves elevation for surfaces that
+     * genuinely float (the palette, a drawer — asserted in the next test).
+     *
+     * So the shadow assertion is inverted rather than deleted, exactly as the
+     * border one already was, and for the same reason: the point of pinning it
+     * is that neither treatment can quietly come back.
+     */
     expect(widgetStyle.borderStyle).toBe("none");
     expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(15);
-    expect(widgetStyle.boxShadow).not.toBe("none");
+    expect(widgetStyle.boxShadow).toBe("none");
 
     // The tokens resolve at all (a renamed token silently returns "").
     expect(widgetStyle.card).not.toBe("");
