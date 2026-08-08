@@ -59,6 +59,7 @@
  * switch variant renders it, and because a switch is a form control. */
 @import "./styles/switch.css";
 @import "./styles/today.css";
+@import "./styles/tasks.css";
 @import "./styles/segmented-filter.css";
 @import "./styles/task-drawer.css";
 @import "./styles/task-signals.css";

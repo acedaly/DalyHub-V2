@@ -37,7 +37,10 @@ test.describe("PX-03 — `/` redirects to `/today`", () => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/today$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Good (morning|afternoon|evening)/,
+      }),
     ).toBeVisible();
   });
 

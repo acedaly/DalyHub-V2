@@ -14,23 +14,29 @@ import type { Page } from "@playwright/test";
 
 const ACTOR = "Local Developer";
 
-/** Wait for Today's Recent activity widget to have loaded a page of events. */
-async function openRecentActivity(page: Page) {
-  await page.goto("/today");
-  const widget = page
-    .getByRole("region", { name: /Recent activity/ })
-    .or(
-      page
-        .getByRole("heading", { level: 2, name: /Recent activity/ })
-        .locator("xpath=ancestor::section[1]"),
-    )
-    .first();
-  await expect(widget).toBeVisible();
-  await expect(widget.getByRole("article").first()).toBeVisible({
+/**
+ * Open a record's Activity tab and wait for a page of events.
+ *
+ * This used to read Today's "Recent activity" widget. The Today redesign removed
+ * that widget — the day surface is the day, not a history of everything — so the
+ * journey now runs against a RECORD's Activity tab. That is a stronger place to
+ * assert from anyway: it is the shared DS-05 feed over the same FND-05 stream, on
+ * a surface the owner reaches every day, rather than the one dashboard panel that
+ * happened to render it.
+ */
+async function openRecordActivity(page: Page, record: string) {
+  await page.goto(record);
+  await page.getByRole("tab", { name: "Activity" }).click();
+  const feed = page.getByRole("feed").first();
+  await expect(feed).toBeVisible();
+  await expect(feed.getByRole("article").first()).toBeVisible({
     timeout: 15_000,
   });
-  return widget;
+  return feed;
 }
+
+/** The seeded project whose timeline carries SYSTEM-authored events. */
+const SEEDED_RECORD = "/projects/pr-activity";
 
 test.describe("IDENT-01 — the activity feed names the person who acted", () => {
   test("a newly captured record is attributed to the signed-in user", async ({
@@ -48,16 +54,18 @@ test.describe("IDENT-01 — the activity feed names the person who acted", () =>
     await dialog.getByRole("button", { name: "Create note" }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
 
-    const widget = await openRecentActivity(page);
+    // The note this session just created — its own timeline is authored by the
+    // signed-in identity and by nobody else.
+    const feed = await openRecordActivity(page, page.url());
 
     // The actor is the real signed-in identity…
-    await expect(widget.getByText(ACTOR).first()).toBeVisible();
+    await expect(feed.getByText(ACTOR).first()).toBeVisible();
     // …and never the anonymous placeholder, on any row.
-    await expect(widget.getByText("Someone", { exact: true })).toHaveCount(0);
+    await expect(feed.getByText("Someone", { exact: true })).toHaveCount(0);
   });
 
   test("no event renders as an unrecognised event", async ({ page }) => {
-    const widget = await openRecentActivity(page);
+    const widget = await openRecordActivity(page, SEEDED_RECORD);
 
     // The production build hides the raw-type diagnostic entirely; either way,
     // the words the owner used to see must not appear.
@@ -81,7 +89,7 @@ test.describe("IDENT-01 — the activity feed names the person who acted", () =>
       { width: 320, height: 720 },
     ]) {
       await page.setViewportSize(viewport);
-      const widget = await openRecentActivity(page);
+      const widget = await openRecordActivity(page, SEEDED_RECORD);
       // The one shared actor component is used at both sizes: a genuine system
       // event still reads "System", and nothing anywhere reads "Someone".
       await expect(widget.getByText("Someone", { exact: true })).toHaveCount(0);

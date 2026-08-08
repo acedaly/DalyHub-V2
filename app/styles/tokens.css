@@ -988,12 +988,6 @@
    * The drawer's own 12px inline padding is what leaves room for the pill. */
   --app-nav-row-height: 3rem; /* 48 */
 
-  /* The desktop search bar in the top app bar. It shrinks before any utility
-   * control disappears, so both ends are stated. */
-  --app-search-width: 34rem; /* 544 */
-  --app-search-width-min: 16rem; /* 256 */
-  --app-search-height: 3.25rem; /* 52 */
-
   /* ---------------------------------------------------------------------- */
   /* Page rhythm                                                            */
   /* ---------------------------------------------------------------------- */

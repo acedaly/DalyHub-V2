@@ -219,15 +219,148 @@ lives now — there is no preference to set.
 
 ---
 
-## Dashboard patterns (Today)
+## The Today screen
 
-The Today landing is the product's one dashboard surface. Its rules:
+Today is not a dashboard. It is the surface the owner **works from**, and every
+rule below serves one question: *what am I doing today?*
 
-- **Every figure is derived from a real read.** A metric with no data behind it is not shown, and it is never approximated by a related one. Where a card's title would overclaim what the number measures, the title is changed rather than the number.
-- **Every figure is stated in text beside its shape.** A ring carries its own generated `role="img"` sentence; a legend row states its bucket and its count in words; a chip's label says what it filters to.
-- **Every formula is written down.** A number on a dashboard that nobody can explain is a number nobody should trust. The productivity score's formula is stated at its definition in `insights.ts` and summarised on the card.
-- **No manufactured achievement.** No streaks, no percentiles, no comparisons — DalyHub has one user and nobody to be measured against. Scores saturate rather than punish: five overdue tasks and fifty score the same, because past five the number stops being information and starts being a rebuke.
-- **Every widget keeps the shared `EmptyState`** (compact) for its empty case, and personalisation (move, collapse, hide) applies to every widget uniformly.
+It used to be a metrics dashboard about work: a full-width search hero, six stat
+tiles mostly rendering zeros, a Task Summary donut restating three of those
+counts a third time, a customisation toolbar, fourteen collapsible widgets — and
+the day's actual tasks below the fold. Every number on it was real; that was the
+problem. The surface counted the same day three ways and pushed the day itself
+out of sight.
+
+### Layout contract
+
+Top to bottom, on the page canvas (`surface-page`):
+
+```
+Good morning, Aidan                                    3 of 8 done today
+Saturday 8 August 2026                                 ▓▓▓▓▓▓░░░░░░░░░░
+
+[ 8 tasks ] [ 3 meetings ] [ 1 overdue ]
+
+┌─ My day ──────────────────── Plan day ─┐  ┌─ Needs attention ─────────┐
+│ ▓ Send the quarterly summary   Due 2d  │  │ Inbox    2 unfiled tasks  │
+│ Meetings                               │  │ Waiting  oldest 9 days    │
+│ 09:30  ▣  Design review        Studio  │  │ Data migration  At risk   │
+│ Due today                              │  └───────────────────────────┘
+│ ☐ Draft the release notes    Project   │  ┌─ Continue working ────────┐
+│ ☑ Clear the inbox            Project   │  │ (T) Today screen redesign │
+└────────────────────────────────────────┘  │     3 open · At risk  ▓▓░ │
+                                            │ All projects              │
+                                            └───────────────────────────┘
+```
+
+1. **Header block** — page content, no card. Greeting (`headline-large`, and the
+   screen's `h1`) · date line (`body-medium` on `on-surface-variant`) ·
+   right-aligned daily progress. Morning until 12:00, afternoon until 17:00,
+   evening after, resolved from the OWNER's local hour server-side.
+2. **Chip row** — assist chips, each conditional. Absent entirely when none
+   qualifies, leaving no gap behind it. Chips are informational or navigate to
+   the obvious filtered view; they are never toggles.
+3. **Two columns** — the day (~62%) and the attention rail (~360px at 1440).
+   Each is ONE tonal surface with plain rows and hairlines inside it. Below the
+   ~56rem container width the rail stacks under the day, "Needs attention"
+   first, in DOM order.
+
+### Conditional rendering — zeros never paint
+
+Every element states its own condition. This is the rule the whole design rests
+on, so it is a table rather than prose.
+
+| Element | Renders when |
+|---|---|
+| Progress indicator | at least ONE task on today is complete (`N ≥ 1`). `M` = tasks on today, completions included, recomputed as rows are ticked |
+| `{n} tasks` chip | tasks on today > 0 |
+| `{n} meetings` chip | meetings today > 0 (singular/plural handled) |
+| `{n} overdue` chip | overdue > 0. The ONLY coloured chip: `error-container` / `on-error-container` |
+| Chip row | any chip qualifies |
+| Overdue block | any overdue task. No heading — the tint is the signal |
+| `+{n} more overdue` | more than 3 overdue |
+| Meetings section | any meeting today |
+| Due today section | any task on today |
+| Timeline empty line | no meetings, no tasks on today, nothing overdue |
+| Needs attention rows | per the rail rules below |
+| "All clear" | the rail has NO rows — never alongside one |
+| Continue working | at least one active project has open work |
+
+### What "on today" and "overdue" mean
+
+A task carries **dates, never times** — `dueDate` (the deadline) and
+`scheduledDate` (the owner's "I intend to work on this that day" commitment,
+ADR-030). A meeting carries an instant. So the timeline prints a time beside a
+meeting and never beside a task, and there is **no Morning/Afternoon grouping**:
+it would be honest only for the timed minority, and there are too few of those
+to justify it.
+
+- **Overdue** — open, and `dueDate < today` OR `scheduledDate < today`.
+- **On today** — open, not overdue, and `dueDate = today` OR `scheduledDate = today`.
+
+Both are deliberately the rule the canonical `/tasks` system views already use,
+so the "+n more overdue" row lands on a list of exactly the size it promised.
+An overdue row's trailing label names WHICH date slipped ("Due 3 days ago" /
+"Planned yesterday") because those are different facts about the same task.
+
+A task completed earlier today stays in the day's list, **dimmed and struck at
+the end** — not omitted. The progress denominator counts it, and a denominator
+whose parts you cannot see is a number the owner has to take on trust.
+
+### Rail inclusion rules
+
+The rail holds **what the timeline does not show**. That is its definition, and
+it is why overdue tasks are banned from it however loudly they would read there:
+they are already actionable rows a few hundred pixels to the left.
+
+| Row | Condition | What it states |
+|---|---|---|
+| Inbox | unfiled open tasks exist | `{n} unfiled tasks` (see PRODUCT_DEBT DEBT-102) |
+| Waiting | any waiting item | `{n} waiting items · oldest {age}` — the AGE is the point, a bare count is noise |
+| Project | the EXISTING derived health says it needs a look | its health label |
+| Goal | the EXISTING alignment evaluation flags it | its alignment label |
+
+Caps: 2 projects, 2 goals, **5 rows overall**. Priority order: inbox, waiting,
+projects, goals. Every row navigates to its subject. No new health or risk logic
+is introduced here — the rail consumes `evaluateProjectHealth` and
+`evaluateGoalAlignment`, so Today can never disagree with a Project record about
+whether that project is at risk.
+
+**Continue working** ranks by *real activity recency*
+(`ProjectHealthSummary.lastActivityIso`, derived from the shared Activity
+stream) — never `updated_at`, which a rename or a settings toggle moves without
+any work having happened.
+
+### Colour, and the rest of the visual contract
+
+- Page `surface-page`; each column ONE `surface-card` at `corner-large` with
+  **no outline** — separation is the DalyHub surface ramp, not a border.
+- Overdue rows sit on `error-container`; the due label takes
+  `on-error-container`; the task title stays `on-surface`. Nothing else on the
+  page is tinted.
+- "Plan day" is a tonal button (`secondary-container`); "All projects" is a text
+  button on `primary`. Both are real controls, not hyperlinks.
+- Times, counts and percentages are tabular figures; meeting times sit in a
+  fixed-width slot so the day lines up on one axis.
+- Progress uses the shared [`ProgressTrack`](../../app/shared/progress/ProgressTrack.tsx) —
+  one linear indicator implementation, `primary` on `secondary-container`.
+
+### What is deliberately absent
+
+No search field (search is an icon in the top app bar, with the `/` shortcut) ·
+no "Customise" or widget system · no collapsible sections · no Task Summary
+donut, Insights panel or productivity score · no second capture control — the
+global `+` is the only one · no charts, no analytics.
+
+The dashboard rules the old surface was built on still hold wherever a figure IS
+shown, and they are the reason most of them are not:
+
+- **Every figure is derived from a real read**, never approximated by a related one.
+- **Every figure is stated in text beside its shape** — a progress bar always has
+  its value in words next to it.
+- **No manufactured achievement.** No streaks, no percentiles, no comparisons.
+  DalyHub has one user and nobody to be measured against.
+- **A figure with nothing to say is not drawn.** `0` is not a fact worth a row.
 
 Charts are hand-rolled SVG in [`app/shared/charts`](../../app/shared/charts) — no charting dependency. They take typed data arrays, paint only with chart tokens, and carry `role="img"` plus a generated text summary.
 
@@ -473,17 +606,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Distinguishes *empty* (no data yet — teach + invite) from *filtered-empty* (no matches — offer to clear filters). Contextual to the module.
 **Rules.** No dead-end empty states. Every one teaches the next step (see [UX philosophy](../../AGENTS.md#6-ux-philosophy)).
 
-### Dashboard regions (POLISH-02)
-**Purpose.** Compose a landing surface out of many independent widgets without the arrangement becoming emergent.
-**Anatomy.** Three containers — a full-width **hero** band, a **primary** column (~66%) and a **secondary** column (~34%) — and a catalogue in which every widget *declares* the region it belongs to ([`landing/layout.ts`](../../app/modules/today/landing/layout.ts)). The columns are two real DOM containers, not grid cells.
-**Behaviour.** Each column flows independently, so a short card never leaves a hole beside a tall one and no widget is positioned by grid auto-placement. Below the container threshold the regions stack in DOM order — hero, primary, secondary — which is the same order the hierarchy asks for, so the phone layout is the desktop one unwrapped rather than a second arrangement. A region with nothing visible in it renders nothing at all, so hiding every widget in a column cannot leave an empty container holding a gap open. Personalisation (move / pin) is scoped to a widget's own region: a move never teleports a card across the page, and a widget alone in its region draws no move controls rather than two permanently disabled ones.
-**Rules.** Primary carries what the owner ACTS on; secondary carries what they REFER to. A widget's region is a property of the widget, never a rule in CSS keyed to its id. Never place cards with `grid-auto-flow` on a surface whose widget list is reorderable — the arrangement stops being designed the moment the third widget is added.
+### Two-column working surface (Today)
 
-### At-a-glance rail (POLISH-02)
-**Purpose.** State the shape of the surface once, at the top, where the eye lands first.
-**Anatomy.** A fixed-track grid of stat tiles: a tabular number, a word beneath it, an optional in-app destination and an optional tone.
-**Behaviour.** A tile with somewhere to go is a link; one without is plain text — a tile that looks clickable and is not is worse than one that does not look clickable. Tone is spent on two things only: work that has **slipped** (`attention`) and work that is **done** (`positive`); everything else is a fact in the plain colour. The tone is drawn as one loud edge on an otherwise neutral tile, the same treatment the Insights rows use, and the label always names the signal so nothing depends on seeing a colour. A count derived from data the surface did not read is **omitted**, never rendered as `0`. Use a fixed track count, not `auto-fit`: auto-fit packs as many tiles per row as happen to fit and strands the last one.
-**Rules.** The rail is the ONE place the surface is counted. Any panel that would restate one of its numbers drops that number instead (Today's Insights widget subtracts the rail's signals while the hero is on screen, and restores them when the owner hides it). A number stated twice is a number nobody reads.
+**Purpose.** Put the thing the owner acts on beside the thing they need to know about, without either becoming a widget system.
+**Anatomy.** Two containers — a PRIMARY column carrying the work (~62%) and a RAIL carrying what needs attention (~360px at 1440) — each ONE tonal surface holding plain rows. No cards inside them, no nesting, no per-widget chrome.
+**Behaviour.** The columns are a container-query grid, so they respond to the PANE's width rather than the viewport's. Below the threshold the rail stacks under the primary column in DOM order, so the narrow layout is the wide one unwrapped rather than a second arrangement to keep in step. A section with nothing to show renders nothing at all — never an empty container holding a gap open.
+**Rules.** The rail holds only what the primary column does NOT show; anything appearing in both is one fact painted twice. There is no personalisation, no reordering and no hide/show — an arrangement the owner has to maintain is a second product to keep coherent. This pattern replaced the POLISH-02 hero/primary/secondary REGION model and its fourteen-widget catalogue, together with the at-a-glance stat rail those regions carried: a fixed track of six tiles is a good component and was the wrong answer, because on an ordinary day four of the six read `0`. See [The Today screen](#the-today-screen).
 
 ### Bounded section preview (POLISH-02)
 **Purpose.** Let a landing surface show a band of a large collection without becoming that collection.

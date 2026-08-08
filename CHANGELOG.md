@@ -17,64 +17,55 @@ no version number to group them under.
 
 ---
 
-## Record screens: one anatomy, and the working content back above the fold (#131)
+## The Today screen is a place to work, not a dashboard about work (#132)
 
-Collection screens converged in #130. This does the same for the screens you
-actually work in — a Project, an Area, a Goal, a Note, a Meeting, a Person, an
-Asset, a Review and a Task — so they read as one product rather than nine.
+Today has been replaced. It had become a report: search took the top of the page,
+six stat tiles counted the day (mostly to zero), a donut counted it again, and the
+day's actual tasks started below the fold. Everything on it was true — that was
+the problem. The screen said the same few things three times and left no room for
+the day.
 
-### The thing you came for is now on screen
+### What you see now
 
-- **A Project's task list used to start 60px below the bottom of a 1280×800
-  laptop screen.** You opened a project and saw no tasks at all until you
-  scrolled. It now starts a third of the way down, with five tasks visible.
-- Every record type is held to the same rule: with the header and tabs drawn,
-  the first row of a record's working content is visible without scrolling.
-- A Note's editor starts higher, is wider, and no longer sits in a box inside a
-  box — the frame around the writing surface was being drawn twice.
+- **Your day, first.** A greeting, the date, and — the moment you finish
+  something — "3 of 8 done today" with a small progress bar. Then the day itself:
+  anything overdue, your meetings in time order, and everything due today, all in
+  one column you can tick straight from.
+- **A short row of chips** — "8 tasks", "3 meetings", "1 overdue" — each linking
+  to the list it counts. Overdue is the only coloured one on the page.
+- **A rail beside it** holding only what the day does not already show: your
+  inbox, what you are waiting on (with the age of the oldest — that is the part
+  that matters), any project or goal that needs a look, and the projects you were
+  most recently actually working on.
 
-### Each fact said once
+### What is gone
 
-- A Project record stated its task count three times, its health twice, its Area
-  twice, its state twice, and each of six health signals twice. It now states
-  each of them once.
-- An Area with nothing active said so **four times** — twice in the header, once
-  in a roll-up line, and again inside a card nested in another card. It now says
-  it in one sentence.
-- The same pass removed duplicated identity from the Asset overview, duplicated
-  status from the Meeting overview, and the word "Weekly" three times in the
-  first two lines of a weekly Review.
-- **Nothing was deleted.** Created, Updated and raw state moved to each record's
-  **Settings → Record details**, which is where you go for a record's paperwork.
+The search box (search is now an icon in the top bar, and `/` still opens it from
+anywhere) · the "Customise" control and the whole widget system · the "Brief"
+wrapper around the greeting · the Task Summary donut, its legend and its filter
+pills · the Insights and Productivity panels · the Notes, Diary, Areas, Goals and
+Assets widgets · the Recent activity feed · Today's own capture buttons. Nothing
+became unreachable: every one of those lives in its own place in the sidebar, and
+capture is the `+` it always was.
 
-### Clearer actions
+### The rules the new screen keeps
 
-- **Complete** is no longer the loudest button on a Project, a Goal or a Review.
-  Ending a record is a lifecycle action, not the next thing you came to do.
-- **A Person now offers Call and Email** (and Message where you have a mobile),
-  and only when you actually have that contact detail — no more greyed-out
-  buttons that can never do anything. Creating a task, meeting, note or diary
-  entry for that person, and copying their details, moved into the record's ⋯
-  menu, still linked to them.
-- **An Asset's history** led with six identical-looking links. It now leads with
-  the one that fits the asset — Record service for something serviceable, Record
-  renewal for a policy or licence — with the rest in the ⋯ menu.
-- Filters inside a record are now visibly quieter than the record's tabs, so
-  "where am I" and "which subset" stop competing.
-
-### A meeting you can still read
-
-- The capture strip at the bottom of a Meeting took nearly a fifth of a laptop
-  screen. It is now one row instead of two, quieter, and it no longer sits
-  underneath the global **+** button — which had been making its own Add button
-  unclickable.
-- On a phone it still stacks, because a thumb needs the targets.
-
-### Fixed along the way
-
-- Every editable record title in the product was carrying about 29px of invisible
-  space beneath it, which pushed the entity icon and the status pill below the
-  title they sit beside.
+- **A zero is never drawn.** Every chip, the progress bar, every section and every
+  rail row appears only when it has something to say. A quiet day is a short page.
+- **Nothing is counted twice.** Overdue work is a chip and a set of rows you can
+  act on — and it is deliberately absent from the rail, which holds only what the
+  day does not show.
+- **The screen finally reads your due dates.** A task due today used to land in
+  "Anytime", and a task a week past its deadline reported "0 overdue", because the
+  old surface only looked at the day you had planned it for. Both dates now count,
+  by the same rule the Tasks views use.
+- **No times on tasks.** A task is a date and a meeting is a time, so meetings
+  carry a clock and tasks do not — and there is no "Morning / Afternoon" split
+  that would only be honest for a handful of items.
+- **Ticking a task is instant** and writes to the same task the Tasks list and the
+  task record edit, with the progress figure moving with it. A task you finished
+  earlier today stays where it was, dimmed and struck through, so the "of 8" adds
+  up in front of you.
 
 ---
 

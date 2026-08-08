@@ -1,96 +1,111 @@
-# Today Dashboard (TODAY-01)
+# The Today module
 
-The first genuinely useful DalyHub screen: the calm place the owner lands
-every morning. It is **not** a reporting dashboard — it is Linear/Things/Craft
-calm, focused and minimal, and it is composed **entirely** from the shared
-design system (PX-02 frame + DS-01…04/07). There is no new visual language, no
-new shared pattern, no new dependency and no migration; TODAY-01 is the first
-product *consumer* of the frame the earlier items built.
+Today is the surface the owner lands on every morning, and the one they work
+from. Its whole job is to answer *what am I doing today?* and to let the owner
+act on the answer without leaving the page.
 
-Governed by [`AGENTS.md`](../../AGENTS.md), the pattern contracts in
-[`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) and the composition/feel contract
-in [`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md).
+Governed by [`AGENTS.md`](../../AGENTS.md), the layout and conditional-rendering
+contract in [`DESIGN_SYSTEM.md` → The Today screen](../design/DESIGN_SYSTEM.md#the-today-screen),
+and the composition/feel contract in
+[`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md). This document is the
+IMPLEMENTATION note; the design system owns the contract.
+
+> **2026-08 — the screen was replaced.** Today had grown into a metrics dashboard
+> *about* work: a full-width search hero, six stat tiles mostly rendering zeros, a
+> Task Summary donut restating three of those counts a third time, a "Customise"
+> toolbar over a fourteen-widget catalogue, and the day's actual tasks below the
+> fold. The widget system, the personalisation model, the hero stat rail, the
+> Insights/Productivity/Notes/Diary/Areas/Goals/Assets/Recent-activity panels and
+> the roving multi-select task collection are all gone. What replaced them is
+> below. The Task record, Waiting and the planning storage model are UNCHANGED and
+> are documented further down.
 
 ## Where it lives
 
 ```text
 app/modules/today/
-  module.ts            — the module manifest (id "today", order 5, routes,
-                         no entity type — Today is a view, not an entity)
-  routes.manifest.ts   — the declarative /today route + the TODAY-02 task
-                         resource routes (no nav entry)
-  routes/index.tsx      — the route: loader (real focus tasks + date) + DrawerProvider
-  routes/task-detail.tsx     — TODAY-02/03: the task loader + mutation action
-                               (update/complete/link + waiting intents)
-  routes/task-activity.tsx   — TODAY-02: the task's DS-05 Timeline page
-  routes/task-link-targets.tsx — TODAY-02: the "related records" target search
-  routes/task-waiting-targets.tsx — TODAY-03: the waiting-target entity search
+  module.ts                  — the module manifest (id "today", navOrder 5, routes;
+                               no entity type — Today is a view, not an entity)
+  routes.manifest.ts         — the declarative route descriptors
+  routes/index.tsx           — the /today route: loader → TodayDayData, plus the
+                               ONE DS-03 DrawerProvider the screen opens records in
   routes/waiting.tsx         — TODAY-03: the /today/waiting collection view
-  routes/plan.tsx            — TODAY-04: the bulk/quick planning endpoint (action)
-  TodayDashboard.tsx   — the pure composition of the sections (planning + Waiting +
-                         fixtures, the planning summary, multi-select bulk bar)
-  task/planning-view.ts      — TODAY-04: the pure planning view-model (buckets,
-                               summary, date arithmetic, target dates)
-  task/TaskPlanningSection.tsx — TODAY-04: the Task Drawer Planning section
-  TodayDrawer.tsx      — maps a drawer key → a panel. UX-01: exactly two kinds —
-                         the editable Task record and the keyboard reference. The
-                         fixture-backed upcoming/project/note branches are gone.
-  task/                — TODAY-02/03: the task record composition (view-model,
-                         TaskDrawerContent, Details/Links/Activity tabs,
-                         TaskWaitingSection, waiting-view)
-app/styles/today.css       — TODAY-01 layout/rhythm, every value a DS-01 token
-app/styles/task-drawer.css — TODAY-02 task-record layout, every value a DS-01 token
+  routes/plan.tsx            — TODAY-04: the bulk planning endpoint (see DEBT-104)
+  routes/activity.tsx        — the workspace-wide Activity feed endpoint (DEBT-103)
+  day/day-view.ts            — the PURE day model: what is overdue, what is on
+                               today, progress, chips, the greeting, the overdue cap
+  day/attention-view.ts      — the PURE rail model: inclusion rules, caps, priority,
+                               and the activity-recency ranking
+  day/load.ts                — the workspace reads, assembled into TodayDayData
+  day/TodayScreen.tsx        — the composition
+  TodayDrawer.tsx            — drawer key → panel (the Task record, and the
+                               keyboard reference)
+  task/                      — the task record composition (TaskDrawerContent, the
+                               per-task command builder, waiting-view, WaitingTaskCard)
+  keyboard/KeyboardHelp.tsx  — the shared shortcut reference, hosted in the Drawer
+app/styles/today.css         — the Today screen; every value a DS-01 token
+app/styles/tasks.css         — the /tasks workspace (extracted from today.css)
+app/styles/task-drawer.css   — the task record layout
 ```
 
-## Composition
+## The screen
 
-The surface is a pure function of typed data. The route's loader formats the
-current date and reads the in-memory fixtures; `TodayDashboard` receives them as
-props and owns only optimistic, in-memory UI state (which focus tasks are ticked,
-the quick-capture draft).
+Four things, in this order: a header block on the page canvas, a conditional chip
+row, and two tonal columns — the day, and the attention rail. The full layout
+contract, the conditional-rendering table and the rail inclusion rules are in
+[`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md#the-today-screen) and are not
+restated here. What this document adds is how it is built.
 
-- **Frame.** The PX-02 [`CollectionLayout`](../../app/shared/collection-layout)
-  owns the sticky **Pane Header** (title `Today`, subtitle = the date, one accent
-  primary action **Quick capture**) and the pane's scroll + state precedence.
-- **Date.** The subtitle and owner-calendar comparisons use the persisted
-  SET-01 owner timezone (`WorkspaceScope.appPreferences.timezone`, default
-  `Australia/Sydney`) through `ownerCalendarIso(...)` / `formatTodayDate(...)` —
-  never the UTC Worker runtime, which would show the previous day during the
-  Australian morning. Stored date-only values remain `YYYY-MM-DD` dates; the
-  timezone changes grouping and interpretation, not storage.
-- **Never blank.** This is a multi-section surface, not a single filtered
-  collection, so it does **not** gate itself behind the CollectionLayout empty
-  slot (that would unmount Quick Capture when every data section is empty and
-  strand a first-time owner). Each section renders its own gentle empty note, so
-  nothing is ever blank, and Quick Capture is always mounted and usable.
-- **Sections.** Six vertical `section`s, each a labelled region with a quiet
-  `xs`-muted section label:
+- **Pure model, thin component.** Everything decidable is decided in
+  [`day-view.ts`](../../app/modules/today/day/day-view.ts) and
+  [`attention-view.ts`](../../app/modules/today/day/attention-view.ts) — React-free,
+  clock-free, storage-free, and therefore unit-testable directly. `TodayScreen`
+  renders what they return; it makes no judgements of its own.
+- **The day is re-bucketed on the client, from the same pure function.** Ticking a
+  row writes an optimistic override, and the screen re-runs `bucketDay` over the
+  overridden state rather than patching arrays. That is what keeps a completed row
+  in place (dimmed, at the end), keeps the progress denominator stable while the
+  row moves, and makes it impossible for the bar and the rows to disagree.
+- **One completion path.** A checkbox posts `intent=complete|reopen` to
+  `/tasks/:id` — the SAME action the Tasks collection and the Task Drawer use.
+  Today owns no completion logic; the ensuing revalidation reconciles the override.
+- **Server-resolved time.** The owner's calendar date, the long date line and the
+  owner-local hour behind the greeting are all resolved in the owner's timezone in
+  the loader (SET-01 `appPreferences.timezone`, default `Australia/Sydney`), so the
+  first byte is correct and there is no hydration drift. Stored date-only values
+  stay `YYYY-MM-DD`; the timezone changes interpretation, never storage.
+- **Degrade, never blank.** Each section read in
+  [`load.ts`](../../app/modules/today/day/load.ts) is wrapped so a failing module
+  empties its own section only; a scope failure falls back to `emptyDay`, which
+  still renders the greeting and the date. Today is never a 500 and never blank.
+- **No new derivations.** The rail consumes `evaluateProjectHealth` and
+  `evaluateGoalAlignment` — the same evaluators `/projects` and `/goals` use — so
+  Today can never disagree with a Project record about whether it is at risk.
+  "Continue working" ranks on `ProjectHealthSummary.lastActivityIso`, which comes
+  from the shared Activity stream.
 
-  | # | Section | Shared parts | Notes |
-  |---|---|---|---|
-  | 1 | Today's focus | DS-04 Card (list, compact) | optimistic complete/reopen quick action |
-  | 2 | Upcoming | DS-04 Card (list) | meetings/reminders/deadlines, sorted by `sortKey` |
-  | 3 | Continue working | DS-04 Card (grid) | area badge · status badge · rolled-up progress · **PROJ-02 health cue (only when attention is needed)** |
-  | 4 | Recent notes | DS-04 Card (list) | title · snippet (subtitle) · last-edited (date) |
-  | 5 | Daily timeline | token-only list | a simple day schedule (see below) |
-  | 6 | Quick capture | native field + button | structure only — nothing is saved |
+### Why "on today" is the union of two dates
 
-- **Records open in place.** Every card provides both a shareable drawer deep
-  link (`href`) and an in-app open (`onOpen`), so activating a card opens the
-  **DS-03 Drawer** hosting a read-only **DS-02 Record Layout** — the canonical
-  `Card → drawer key → renderDrawer → RecordLayout` chain. The Card never owns
-  drawer state; `TodayDrawer.ts` maps `<kind>:<id>` keys to fixtures and returns
-  `null` for an unknown/stale key (the Drawer's graceful not-found panel).
+A DalyHub task carries `dueDate` (the deadline) and `scheduledDate` (the owner's
+commitment, ADR-030), and never a time. The old Today read the scheduled date
+ALONE, which is why a task due today but never planned was filed under "Anytime",
+and a task a week past its deadline made the surface report "0 overdue". The rule
+is now the union of both fields, and it is deliberately the same rule the
+canonical `/tasks` `today` and `overdue` system views apply — which is what makes
+the "+n more overdue" row land on a list of exactly the size it promised.
 
-### Project health on "Continue working" (PROJ-02)
+A row's trailing label names WHICH date slipped ("Due 3 days ago" / "Planned
+yesterday"), because those are different facts and printing one when the other is
+true would be an invented claim.
 
-Since PROJ-02, the "Continue working" cards carry the **same** derived project-health
-model as `/projects` (`app/shared/project-health`, [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity))
-— never a Today-only calculation. To keep the calm dashboard uncluttered, the health
-pill is shown **only when a project needs attention** (`at_risk`/`blocked`/`stale`);
-on-track projects show nothing extra. The loader gathers the facts for those bounded
-projects in the same N+1-free read and evaluates with the owner-calendar clock; no
-other Today section is changed.
+### Bounds
+
+The day is read through the existing `listPlanningTasks` query, whose three bands
+are bounded independently (200 scheduled / 100 backlog / 100 recent completions).
+The scheduled band is ordered scheduled-date ascending and the backlog due-date
+ascending, so the day's own tasks — today's and everything already slipped — are
+at the FRONT of both bands and can never be the rows a bound drops. Waiting is
+read to 50, meetings to 12 each side of now, projects to 12 before ranking.
 
 ### "Continue working" is Active-only (PROJ-05 Slice 4, ADR-037 §37.7)
 
@@ -184,13 +199,13 @@ shared DS-03 Drawer on `/today`, composed entirely from the shared layer (ADR-02
   (relationships + the DS-06 entity-link picker for `task.relates_to`) · **Activity**
   (the DS-05 `Timeline` over `activity.listForEntity`) — Activity last.
 - **Data flow.** `TodayDrawer.tsx` maps a `task:<id>` key to `TaskDrawerContent`,
-  which loads/mutates the task through three module-owned resource routes
-  (`/today/task/:id` loader+action, `/activity`, `/link-targets`) using the trusted
+  which loads and mutates the task through the task resource routes — re-homed to
+  the Tasks module by PROJ-01/ADR-033 (`/tasks/:taskId` loader+action, plus its
+  `/activity` and `/link-targets` children) — using the trusted
   `resolveAuthenticatedWorkspaceScope` boundary; a successful mutation revalidates
   the `/today` loader so Today and the Drawer stay consistent with no hard reload.
-- **Today focus is now real.** The `/today` loader reads open+completed tasks via
-  `tasks.listTasks`; a focus-card completion writes through the same task action.
-  The other five sections remain fixture-backed (the preserved seam).
+  Ticking a checkbox on the Today screen posts to that SAME action, so the timeline
+  and the Drawer can never disagree about whether a task is done.
 
 ## Waiting (TODAY-03)
 
@@ -237,17 +252,17 @@ or link system.
   a calm read-only state ("Waiting for X · Since 18 Jul 2026 · 3 days") and an
   explicit-save editor with two modes — a DS-06 async `SelectField` picker over the
   waiting-target search, or a free-text `TextField` — with server-authoritative
-  validation. It posts `set_waiting`/`clear_waiting` intents to the existing
-  `/today/task/:id` action.
+  validation. It posts `set_waiting`/`clear_waiting` intents to the re-homed
+  `/tasks/:taskId` action (PROJ-01 / ADR-033).
 - **The Waiting view.** [`/today/waiting`](../../app/modules/today/routes/waiting.tsx)
   is a real registry route under Today (no separate sidebar module). It composes the
   PX-02 CollectionLayout + DS-04 Cards and opens tasks in the SAME DS-03 Drawer, so
   opening a waiting task keeps the owner on `/today/waiting`. Ordering is
   deterministic: **overdue → longest-waiting → due date → id.** Bounded query.
-- **Today integration.** A quiet **Waiting summary** section (count + a small
-  preview + a link to `/today/waiting`) appears only when something is waiting;
-  waiting tasks are **excluded from the focus** list (blocked work is not ordinary
-  active focus). An "Open Waiting" navigation command is registered.
+- **Today integration.** The attention rail carries ONE waiting row when anything is
+  waiting — the count and the AGE of the oldest item, linking to `/today/waiting`.
+  Waiting tasks are **excluded from the day** (blocked work is not today's work).
+  An "Open Waiting" navigation command is registered.
 - **Activity.** Three new types (`task.waiting_started`, `task.waiting_changed`,
   `task.waiting_cleared`) are registered on the **tasks** module manifest with DS-05
   Timeline descriptors. Payloads are structured and safe; free-text content is never
@@ -271,30 +286,26 @@ migration, no second store and no second planning model.
   `task.plan_cleared`. No-ops append nothing. **Bulk is atomic:** every id is
   resolved first and any missing/cross-workspace id rejects the WHOLE operation, so
   nothing is partially applied; tasks already on the date count as `unchanged`.
-- **Sections.** A pure, tested view-model
-  ([`planning-view.ts`](../../app/modules/today/task/planning-view.ts)) buckets tasks
-  by their scheduled date relative to the owner's calendar day into **Overdue**
-  (slipped plans), **Today** (the day's commitment), **Upcoming**, **Anytime** (the
-  unscheduled backlog to plan from) and a collapsed **Completed today**. Waiting
-  tasks are excluded (blocked work is not planned work); a task completed on a prior
-  day appears in no section.
-- **Summary.** A calm planning summary (planned · overdue · waiting · completed
-  today) gives operational awareness — no charts, no analytics.
-- **Plan actions.** Each DS-04 card carries contextual plan quick actions (Plan
-  today / Tomorrow / Clear). Multi-select drives a **bulk action bar** in the PX-02
-  CollectionLayout selection slot (Plan today / Tomorrow / Next week / Clear plan /
-  inline custom date). The DS-02 Task Drawer gains a **Planning section**
-  ([`TaskPlanningSection.tsx`](../../app/shared/task-record/TaskPlanningSection.tsx))
-  showing Scheduled + Due and the full quick actions with an inline DS-06 date
-  control — no modal-in-modal.
-- **Routes.** Single-task planning posts `plan`/`clear_plan` intents to the existing
-  `/today/task/:taskId` action; bulk + per-card planning posts to the new action-only
-  [`/today/plan`](../../app/modules/today/routes/plan.tsx) resource route.
+- **Where the sections went (2026-08).** The Overdue / Today / Upcoming / Anytime /
+  Completed-today buckets and their pure view-model were a TODAY-SCREEN presentation
+  of this model, and the redesign replaced them: Today now shows the DAY (overdue,
+  meetings, on-today) from the union of the due and scheduled dates, and the full
+  planning bands live in the `/tasks` collection, which is what a planning workspace
+  should be. The STORAGE model, the atomicity rules and the Activity events below
+  are unchanged.
+- **Plan actions.** The DS-02 Task Drawer carries the **Planning section**
+  ([`TaskPlanningSection.tsx`](../../app/shared/task-record/TaskPlanningSection.tsx)),
+  showing Scheduled + Due with the quick actions and an inline DS-06 date control —
+  no modal-in-modal. Bulk planning lives in the Tasks module.
+- **Routes.** Single-task planning posts `plan`/`clear_plan` intents to the
+  `/tasks/:taskId` action. The action-only
+  [`/today/plan`](../../app/modules/today/routes/plan.tsx) bulk route still exists
+  and is still tested, but the redesign left it without a caller — recorded as
+  [DEBT-104](../product/PRODUCT_DEBT.md).
 - **Keyboard.** Planning is exposed as shared contextual commands while a task's
   Drawer is open — "Plan for Today" (`P`), "Move to Tomorrow" (`Shift+P`), "Clear
-  plan" — with shortcut metadata, driving the same mutation path as the cards and
-  bulk bar. The full palette + global dispatch remain TODAY-05's (architecturally
-  ready here).
+  plan" — with shortcut metadata, driving the same mutation path the visible
+  controls use.
 - **Activity.** Three new `task.planned`/`task.rescheduled`/`task.plan_cleared`
   types are registered on the **tasks** module with DS-05 Timeline descriptors.
   Payloads carry only the non-sensitive calendar dates; no free text, no second
@@ -303,554 +314,79 @@ migration, no second store and no second planning model.
   restores waiting; planning never affects completion; bulk planning is atomic;
   cross-workspace ids are rejected.
 
-## Keyboard workflow (TODAY-05)
+## Keyboard
 
-TODAY-05 makes Today fully operable without a mouse, composed entirely from the
-DS-09 command system, the shared Drawer/Feedback machinery and the TODAY-02/03/04
-task routes (ADR-031). It adds no second command registry, no second palette, no
-Today-only keyboard engine and no scattered document listeners.
+Today has no keyboard model of its own any more. The roving multi-select
+collection (arrow keys across planning sections, Space to select, a bulk bar) went
+with the widget system: the screen is now plain rows, so the native tab order and
+the browser's own checkbox and link semantics are the whole story.
 
-- **One dispatcher.** The single shared shortcut dispatcher (`useCommandShortcuts`,
-  installed once by `CommandShortcutLayer`) now also dispatches **contextual `run`**
-  shortcuts globally — the DS-09 deferral that DS-10's Feedback platform unblocked.
-  So `P` / `Shift+P` / `C` fire against the focused task and the palette advertises
-  those hints. The editable-control boundary (`input`/`textarea`/`select`/
-  `contenteditable`/form controls) and the modifier-exact matching are the
-  dispatcher's existing contracts, reused — TODAY-05 adds no key listeners of its own.
-- **Roving focus** ([`keyboard/roving-model.ts`](../../app/modules/today/keyboard/roving-model.ts),
-  [`useTodayRovingFocus.ts`](../../app/modules/today/keyboard/useTodayRovingFocus.ts)).
-  The open planning sections (Overdue/Today/Upcoming/Anytime) are wrapped in ONE plain
-  container that behaves as a single composite widget with **exactly one tab stop**:
-  Tab enters once and lands on the current task, Arrow keys move between tasks, and
-  Tab/Shift+Tab leave/re-enter — the owner never Tabs through every card's controls.
-  Arrow Up/Down cross section boundaries and clamp at the ends (no wrap), Home/End move
-  within the current section, Enter opens, Space selects. The DS-04 Card `rovingTabIndex`
-  prop is applied to **only each card's primary open control**; the card's secondary
-  controls (checkbox, quick/overflow actions) are taken out of the tab order and stay
-  operable by Space (select) and the shared shortcuts / Command Palette (every action
-  has a keyboard equivalent) — the accessible roving pattern RecordTabs/reorder use
-  (not a `listbox` over interactive cards). The collapsed "Completed today" section
-  keeps natural tabbing.
-- **Command ownership + shortcut scope.** A pure
-  [`keyboard/today-commands.ts`](../../app/modules/today/keyboard/today-commands.ts)
-  builds the per-task `AppAction`s (Open/Close · Complete/Reopen `C` · Plan today `P`
-  / tomorrow `Shift+P` / next week · Clear plan) and the global commands (Focus task
-  list · Go to <section> · Select all open tasks · Clear selection · Keyboard
-  shortcuts). **When a task's Drawer is open, `TaskDrawerContent` registers that
-  task's commands** — it has the live state AND the refresh path, so a keyboard plan
-  keeps the Drawer's Planning display consistent — plus a state-dependent **Clear
-  waiting**. **The dashboard registers the roving task's commands ONLY when no
-  Drawer/overlay is open AND focus is within the task collection.** The roving
-  controller tracks `focusWithin` (via `focusin`/`focusout`) and exposes `activeId`
-  (the focused task ONLY while focus is inside) distinct from the retained tab-stop
-  `focusedId` — so `C`/`P`/`Shift+P` can never complete or replan a stale task from
-  behind the keyboard-help / a project/note Drawer, or after Tab leaves the list to
-  Quick Capture. `focusedId` is still retained for focus restoration (Shift+Tab).
-  Availability is by omission (completed → only Reopen; unplanned → no Clear plan;
-  waiting → Clear waiting), while the server route stays the correctness boundary.
-  **A lower task drawer owns its shortcuts only while it is the interactive top:**
-  `TaskDrawerContent` takes `isTop` (from `DrawerEntry.isTop`) and registers its task
-  commands only when top — so stacking the keyboard-help (or another record) drawer
-  above a task drawer keeps the lower drawer's state but drops its `C`/`P`/`Shift+P`
-  ownership; they return when it becomes top again.
-- **Section navigation.** "Go to <section>" / "Focus task list" are NAVIGATE commands
-  whose target is built by [`keyboard/nav-target.ts`](../../app/modules/today/keyboard/nav-target.ts):
-  it starts from the current params with the **entire Drawer stack removed** (via the
-  shared `withAllDrawersRemoved` helper — never by hand-parsing `drawer` keys), preserves
-  every other param, and sets a bounded `today-nav` value (`/today?…&today-nav=<list|bucket>`).
-  Stripping the whole stack means a section command run from **inside an open drawer**
-  (or a stack of them) navigates the drawers away cleanly in one push, without touching
-  the Drawer provider's own history entry / push token — so the browser Back button
-  reopens the previous drawer and Forward returns to Today with it closed. Navigating
-  closes the palette AND the drawer stack naturally, and a post-navigation effect (fired
-  once per navigation, like the Focus-Quick-Capture effect) moves focus to the section's
-  first task after the modal surfaces have unmounted, scrolls its heading into view, then
-  cleans the param via a `replace`. The `today-nav` value is validated by a bounded type
-  guard (`isTodayNavValue`) so an arbitrary query value can never become a section
-  identifier. Because the effect runs after the palette closed and restored focus, the
-  target wins deterministically — no timing hacks — and Arrow/Home/End then continue from
-  that section.
-- **Global navigation commands** stay registered on the module manifest (Open Today,
-  Focus Quick Capture, Open Waiting) — nothing Today-specific is hard-coded in the
-  palette component.
-- **Keyboard help** ([`keyboard/KeyboardHelp.tsx`](../../app/modules/today/keyboard/KeyboardHelp.tsx)).
-  The `?` shortcut and the "Keyboard shortcuts" command open a reference hosted by the
-  SAME DS-03 Drawer (`help:shortcuts` key) — no bespoke modal, no second focus trap.
-  **UX-01** moved the CONTENT to the one shared catalogue
-  ([`~/shared/commands/shortcut-reference`](../../app/shared/commands/shortcut-reference.ts)),
-  because `?` now opens the same reference on every other surface too (through the
-  shell's fallback binding and the shared Sheet). Today deliberately keeps the Drawer
-  host: here the reference belongs inside the drawer STACK, which is what makes a task
-  drawer beneath it stop owning `C`/`P`/`Shift+P`. Today's host filters the catalogue
-  by scope, so it never advertises a shortcut that does not apply here.
-- **Multi-select.** Space selects the focused task; "Select all open tasks" fills the
-  selection; the existing TODAY-04 bulk action bar (atomic `/today/plan`) — which lives
-  in the CollectionLayout selection slot OUTSIDE the roving container, so it is reached
-  by an ordinary Tab — plans them, and bulk **commands** ("Plan selected for
-  Today/Tomorrow/Next Week", "Clear plan for selected") drive the same atomic path from
-  the palette; Escape (or "Clear selection") clears it. No partial application.
-- **Command coverage (explicit).** Navigate/open/close/complete/reopen/plan/clear-plan/
-  clear-waiting/select-all/clear-selection/bulk-plan/help/open-Waiting are commands or
-  shortcuts. Mark-waiting, change-waiting-subject, choose-custom-date and open-Task-Activity
-  are reachable through their keyboard-accessible visible controls (the waiting editor,
-  date fields, and the RecordTabs tablist) rather than a dedicated command — a documented
-  boundary, tracked in [`PRODUCT_DEBT` DEBT-18](../product/PRODUCT_DEBT.md); none is
-  missing from the keyboard, only from the palette.
-- **Quick Capture** reuses the existing focus command; it still does not persist
-  (TODAY-01's disclosed fixture boundary is unchanged).
+What survives, and where it lives:
 
-## Mobile (TODAY-06)
+- **The global shortcuts** — `⌘/Ctrl K` (palette), `/` (search), `?` (this
+  reference), `Esc` — are the shell's, dispatched once by `CommandShortcutLayer`.
+- **The per-task shortcuts** — `C` (complete/reopen), `P` (plan today),
+  `Shift+P` (tomorrow) — belong to an OPEN task record. `TaskDrawerContent`
+  registers them from
+  [`task/task-commands.ts`](../../app/modules/today/task/task-commands.ts) while its
+  record is the top drawer, and they reach the same `/tasks/:id` action the visible
+  controls use — one identity, one execution path (ADR-024 §24.14). The shared
+  reference lists them under "With a task open", scoped `global`, because that
+  Drawer opens from Today, Tasks, a Project and Search alike.
+- **The reference itself** is hosted in Today's Drawer
+  ([`keyboard/KeyboardHelp.tsx`](../../app/modules/today/keyboard/KeyboardHelp.tsx))
+  so a task drawer beneath it correctly stops owning the task shortcuts. Converging
+  that host with the shell's `?` sheet remains DEBT-18.
 
-Today is comfortable and dependable on a phone by touch, composed ENTIRELY from the
-shared layer (no mobile card, no parallel mobile tree) and accepted via
-[ADR-032](../decisions/ARCHITECTURE_DECISIONS.md#adr-032-mobile-today--touch-swipe-quick-actions-as-an-additive-shared-card-accelerator-and-the-touch-target-corrections).
+## What the redesign removed, and where the function went
 
-- **Swipe quick actions.** On a touch-first device a task Card is swiped horizontally
-  to reveal an action tray. It is an **accelerator** over the always-visible quick
-  actions: the tray renders the SAME `CardAction`s Today already builds
-  (`planQuickActions`) — Complete/Reopen, Plan today, Tomorrow, Clear/Remove — so a
-  tray action drives the SAME trusted routes (`/today/plan`, `/today/task/:id`) as the
-  visible buttons, the Drawer, the bulk bar and the keyboard commands. Availability is
-  state-dependent by omission (completed → only Reopen; unplanned → no Clear plan;
-  waiting is excluded from planning sections). The tray is `aria-hidden` (a visual
-  duplicate), so there is **no gesture-only functionality**. The shared capability is
-  the DS-04 Card `swipeActions` prop + a pure `swipe-model` + the `useCardSwipe` hook
-  (`app/shared/card/`). `touch-action: pan-y` + a clear-horizontal-intent threshold
-  keep vertical page scrolling natural; a minor drag never reveals the tray; a handled
-  swipe never opens the Card; one tray is open at a time and closes on outside
-  interaction, a Drawer opening, or a completed action; the snap honours reduced
-  motion. Desktop mouse/keyboard is untouched (the gate is `(hover: none) and (pointer:
-  coarse)`), so the TODAY-05 keyboard workflow is preserved.
-- **Adapted composition.** The task Cards, planning sections, planning summary,
-  selection + bulk bar and Waiting summary are the shared components at compact
-  density; long titles/metadata wrap; there is no horizontal page overflow from 320px
-  up. The sticky pane header clears a device notch via `env(safe-area-inset-top)`.
-- **Mobile Drawer.** The task Drawer is the unchanged DS-03 full-height sheet — safe
-  areas, tabs, and the Details/Planning/Waiting controls are reachable on a narrow
-  screen; deep-link + Back/Forward + focus restoration are preserved.
-- **Mobile selection + bulk planning.** TODAY-04 selection works on a phone: the Card
-  selection control is a 44px touch target (a `label` cell sized to the token), the
-  bulk bar shows the count and stays within the safe area, and Cancel exits selection;
-  planning stays the atomic `/today/plan` route.
-- **Touch-target + landmark corrections (shared layer).** The first real phone
-  axe-scan surfaced two latent DS-11 gaps, fixed at the source: the shared Card
-  selection meets 44px on touch, and the app-shell mobile bar is a `header` so its
-  brand + menu toggle are in the `banner` landmark on mobile.
-
-## Phone shell & Quick Capture (MOBILE-01, and TODAY-07 delivered)
-
-MOBILE-01 completes Today's phone story on top of TODAY-06's touch work. Nothing
-below replaces the swipe accelerator or the adapted composition described above.
-
-### Quick Capture is now real (this delivers TODAY-07)
-
-The Quick Capture widget was an honest fixture: a textarea that saved nothing and
-said so. It is now the **shared capture surface**
-([`app/shared/capture`](../../app/shared/capture)) — four typed entries (Task,
-Diary entry, Meeting, Note), each opening the one capture sheet that posts to the
-module's canonical creation route. Today therefore has **no capture path of its
-own** to keep in step with the modules, and the same flow is reached from the
-phone bottom bar, the Command Palette and this widget.
-
-The PX-03 keyboard route into capture is unchanged: the module's registered
-`today.focus_quick_capture` NAVIGATE command, the `c` shortcut and Morning
-Brief's capture link all still restore/expand the widget and land focus — now on
-the first capture entry rather than the retired textarea.
-
-### One capture affordance per viewport
-
-At phone width the pane-header **"Quick capture" button is hidden**, because the
-bottom bar's Capture control opens the same sheet. Two controls for one action is
-exactly the "button competing with a floating action" the mobile principles
-forbid. Nothing becomes unreachable: the bottom bar carries it, and the in-page
-widget with its four typed entries is untouched. Above `md`, where there is no
-bottom bar, the header button is the entry point exactly as before.
-
-### Phone scanning
-
-The first viewport is meant to answer *what must I do*, *what is due*, and *what
-am I waiting on*. On a phone the vertical rhythm tightens and section labels take
-real weight — on a long scroll they are the only orientation the user has. The
-planning sections, priority/urgency signals, one-tap completion and the Waiting
-summary (which names who or what each item waits on) are the TODAY-03/04/06
-components unchanged; the customise toolbar drops to the end of the page so a
-low-frequency control stops competing with the day's work.
-
-Collections and the pane reserve `--dh-bottomnav-height`, so the last card is
-never trapped under the bar, and the bulk-action bar sits above it.
-
-## Command centre (TODAY-08)
-
-TODAY-08 makes Today DalyHub's primary landing page and working **command centre** —
-the surface the owner spends most of their time on, where every important signal
-across the system surfaces without clutter. It is composed ENTIRELY from the shared
-layer (ADR-045) and preserves the TODAY-02…06 execution core bit-for-bit.
-
-- **Personalisable widgets.** The surface is a set of widgets the owner can
-  **collapse, hide, pin and reorder**, with the arrangement **remembered per
-  device**. A pure, React-free model ([`landing/layout.ts`](../../app/modules/today/landing/layout.ts))
-  owns the widget catalogue and the state transitions; `useTodayLayout` persists it
-  to `localStorage` (SSR-safe — server + first client render use the default, the
-  snapshot applies post-mount; it normalises stale snapshots and fails soft). The
-  arrangement is a cosmetic per-device UI preference, deliberately **not** workspace/
-  server state (ADR-045 §2). Since THEME-01 moved the theme onto the owner record,
-  this is the only personalisation surface that does not follow the owner between
-  devices — recorded as [DEBT-55](../product/PRODUCT_DEBT.md#-debt-55--today-widget-arrangement-is-still-device-local-while-the-theme-is-not--p3). A calm "Customise" toggle reveals each widget's
-  move/pin/hide controls ([`TodayWidget.tsx`](../../app/modules/today/landing/TodayWidget.tsx)).
-- **The widgets, and the region each declares (POLISH-02).** Every widget names the
-  dashboard region it belongs to, and the surface renders three real containers
-  rather than auto-flowing cards around a hand-placed grid. In canonical order:
-
-  - **hero** — **Brief** (greeted by name · date · a focus line · today's progress ·
-    the ONE at-a-glance rail · a capture entry). Labelled "Brief", not "Morning
-    brief": the greeting inside it is resolved from the owner-local hour, so a
-    fixed "Morning" would be wrong for most of the day. Its **id stays
-    `morning-brief`** — that is the persistence key for saved arrangements.
-  - **primary** (~66%, what the owner ACTS on) — **My day** (the planning bands +
-    Waiting + roving keyboard + swipe + bulk bar; the discretionary Upcoming and
-    Anytime bands preview eight rows with the true total and a link to `/tasks`),
-    **Meetings** (today's, as a timeline), **Continue working** (the real Active
-    projects), **Recent activity** (below).
-  - **secondary** (~34%, what the owner REFERS to) — **Insights** (minus whatever
-    the hero rail already states), **Capture** (the shared Quick Capture entries),
-    **Goals**, **Areas**, **Notes**, **Diary**, **Assets**.
-
-  A widget with no data source in demo/fixture rendering simply does not appear,
-  and a region with nothing visible in it renders nothing at all. The **Focus**
-  placeholder listed here before was removed by UX-01.
-- **Weather and calendar were REMOVED (POLISH-01, 2026-07-31).** The Morning Brief
-  used to reserve two panels labelled "Weather" and "Upcoming calendar", each saying
-  the data would appear "once connected". They were honest about having no data, but
-  they took permanent space on the most-used screen in the product, every day, to
-  advertise two integrations that do not exist and are not being built. A panel that
-  has never once shown information is not a placeholder — it is a promise the product
-  keeps failing to keep. With no weather data source, no provider, no configuration
-  and no key, the only alternatives were fake data or a permanently-empty box, and
-  both are worse than an honest absence. Recorded as
-  [DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3);
-  Help's "What is not here yet" topic states it to the owner directly. **If weather
-  returns it will be an OPTIONAL widget, disabled until configured** — a documented
-  source, an owner-supplied location and a graceful unavailable state — never
-  reserved space. The calendar panel is subsumed by X-03.
-- **Real cross-module data.** A bounded, independently-degrading loader
-  ([`landing/load.ts`](../../app/modules/today/landing/load.ts)) reads REAL Notes
-  (`entities.list({type:"note"})`), Diary (`DiaryRepository.list`), Areas
-  (`AreaRepository.listAreas`) and Goals-with-alignment (reusing the SHARED
-  `~/shared/alignment` evaluator — never a Today-only calculation), and derives the
-  Morning Brief + Insights from the planning facts. Each section catches
-  independently, so one module failing blanks only that widget. **The
-  calendar/recent-notes/daily-timeline fixtures are retired** (the 2026-07 audit
-  UXA-20): the calendar is an honest Morning-Brief placeholder, recent notes and the
-  daily timeline are the real Notes widget and the real Activity Feed. Today reads
-  other modules only through workspace-scoped repositories + the shared kernel — the
-  [module import boundary](MODULES.md) holds.
-- **Recent Activity = the workspace-wide DS-05 feed.** Today is the FIRST product
-  consumer of `activity.listForWorkspace(…)`. A resource route
-  [`/today/activity`](../../app/modules/today/routes/activity.tsx) maps the ONE FND-05
-  Activity stream through the shared `toActivityItems` (batched entity resolution, no
-  N+1) against a **Today-owned descriptor map**
-  ([`landing/activity.ts`](../../app/modules/today/landing/activity.ts)) that labels
-  cross-module event types by referencing only the KERNEL activity-type constants
-  (`~/kernel/*`, shared — not module code); unknown types fall through to the shared
-  safe generic fallback. The widget renders the shared `ActivityFeed` + the DS-07
-  `FilterBar` (event type / referenced entity / date, URL-bound), opening a
-  referenced task in the SAME Task Drawer and other records at their canonical route.
-- **Calm, enforced.** No charts, no streaks, no red badges. Insights omit every
-  zero-count signal (never "0 overdue"), frame accomplishments positively, and carry
-  a quiet accent edge with a text label (never colour-only). Placeholders state
-  honestly what will live there — they never fake data.
-- **Outline.** The pane's `h1` (CollectionLayout) → widget `h2` → the My-day planning
-  sub-sections `h3` → task card titles `h4`: a single, non-skipping outline. `/today`
-  is axe-clean (light + dark) and overflow-free from 320px to 2560px.
-- **Tests.** Pure `landing-layout`/`landing-insights` unit tests, the extended
-  `TodayDashboard` component tests, the real-D1 `today-route` integration test, and
-  Playwright coverage in [`e2e/today.spec.ts`](../../e2e/today.spec.ts) (widget
-  structure, the collapse/hide/remember personalisation journey), plus the unchanged
-  keyboard/mobile/accessibility/responsive suites.
-
-## Assets on Today (ASSET-02)
-
-Today gains one more widget: **Assets** — the maintenance and renewals that need
-the owner now.
-
-- **Bounded, and one query.** `AssetHistoryRepository.listAttention` returns open
-  obligations within a 30-day horizon, capped, with the Asset context and current
-  meter reading needed to evaluate them. Today never issues N reads for N assets,
-  and never loads an Asset's history.
-- **One evaluator, shared.** The urgency is resolved by the kernel's
-  `evaluateObligation`, the same function the Asset record and the collection card
-  call. Today does not re-derive it, so the three surfaces cannot disagree about
-  whether the rego is overdue.
-- **The module boundary holds.** Today imports the projection and the deduplication
-  rule from `~/kernel/assets`, never from `~/modules/assets`. That is why the rule
-  lives in `app/kernel/assets/asset-today.ts` rather than in the Assets module's
-  view-model.
-- **The deduplication rule: an OPEN linked Task wins.** An obligation whose Task is
-  still open is already in My day, so the obligation row is suppressed and the
-  count is STATED ("2 more are tracked as tasks in My day") rather than silently
-  dropped. When that Task is completed, cancelled or deleted, the obligation
-  reappears — which is exactly the "now record what actually happened" moment the
-  Task authority contract describes.
-- **Calm, and word-bearing.** At most five rows, ordered overdue → due → reading
-  needed, each stating its urgency as a WORD beside the sentence. Archived and
-  deleted Assets never appear.
-- **Nothing fake was restored.** The removed weather and calendar panels stay
-  removed ([DEBT-53](../product/PRODUCT_DEBT.md)).
-
-Full detail: [`ASSETS_MODULE.md` §2e](ASSETS_MODULE.md#2e-today-and-the-deduplication-rule).
-
----
-
-## Deliberately NOT built
-
-TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
-module (creation UI, board, planning), a richer workflow status,
-AI, or any second Drawer/Record
-Layout/form/Activity/EntityLinks system. The non-task Today sections remain
-fixture-only: no Notes, Meetings, reminders or Diary implementation. TODAY-03 adds
-Waiting (above) but no multi-target waiting, delegation workflow beyond the waiting
-subject, reminders or notifications.
-
-- **Quick capture** is not connected. Submitting a non-empty draft **keeps** the
-  text (nothing is stored, so clearing would silently discard it) and a polite
-  live region states plainly *"Quick Capture is not connected yet. Your draft has
-  not been saved."* — it never claims the content was captured, saved or stored.
-  Editing the field clears that notice. The header's Quick capture action focuses
-  and scrolls to the field. It does not persist, parse or call AI.
-- **Complete/reopen** is optimistic, in-memory only.
-- The **Daily timeline** is the day's fixture schedule rendered as a simple
-  chronological list. The shared Activity **Timeline** (rendering the FND-05
-  Activity model) is [DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed);
-  this section is not it and does not invent an event source.
-
-## Built for replacement *(historical — the replacement is complete)*
-
-TODAY-01 kept all demo data behind one clearly-labelled seam, `fixtures.ts`, with
-typed shapes and stable ids, so that connecting Tasks, Notes, Meetings and the
-Diary would swap only the data source and never the `TodayDashboard` composition.
-
-**That worked, and the seam is now gone.** Every section reads real
-workspace-scoped data, and UX-01 deleted `fixtures.ts` (see the UX-01 section at
-the end of this document) — so the file this paragraph used to link to no longer
-exists, by design rather than by omission. The composition it describes did not
-change once, which is the property the seam existed to protect.
-
-## Two disclosed deviations
-
-1. **Execution list.** The reorderable/inline-completable *task execution list*
-   in TODAY-01's original "Execution Workspace" outcome is folded into the later
-   TODAY items. TODAY-04 delivers the planning half — the real tasks are now bucketed
-   into planning sections with per-card plan/complete actions and multi-select bulk
-   planning — and TODAY-05 (Keyboard) will complete the full keyboard-driven
-   execution flow. (Reordering WITHIN a bucket is still deferred to TODAY-05.)
-2. **Search provider (retired by X-01).** Today is a derived dashboard, not an
-   entity collection, so it registers **no** Search provider. Global Search finds
-   the real records Today summarises through their owning modules (Tasks, Projects,
-   Notes, Diary, Meetings, People, Assets, Reviews, Areas and Goals), never through
-   invented Today fixture ids. See [`SHARED_SEARCH.md`](SHARED_SEARCH.md) and
-   [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
-3. **Commands (DS-09).** Today now registers two honest, registry-discovered
-   NAVIGATION commands ([`app/modules/today/commands.ts`](../../app/modules/today/commands.ts)):
-   **Go to Today** (opens `/today`) and **Focus Quick Capture** (opens
-   `/today?capture=1`; Today reads the bounded `capture` param, focuses the existing
-   textarea, and cleans the param without a Back-button trap, without clearing the
-   draft and without claiming a save). Because they are declarative navigations they
-   need no `run` handler and persist nothing. Today registers no EXECUTABLE
-   (server-mutating) command — it remains fixture-only. In addition, the Pane-Header
-   Quick Capture button and the palette command share ONE `AppAction`, and the
-   fixture-backed Complete/Reopen quick action is adapted through the shared action
-   so the Card action, the keyboard path and (while a task's Drawer is open) the
-   palette contextual action share one execution path — it stays an **in-memory**
-   demonstration and says so; nothing is persisted. See
-   [`COMMAND_PALETTE.md`](COMMAND_PALETTE.md) and
-   [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action).
+| Removed | Where the function lives now |
+|---|---|
+| Full-width search hero | An icon in the desktop top app bar, same accessible name, same `/` shortcut. Search itself is untouched. |
+| "Customise" + the widget catalogue (`landing/layout.ts`, `useTodayLayout`, `TodayWidget`) | Nowhere. An arrangement the owner must maintain is a second product to keep coherent. |
+| The "Brief" widget wrapper | The greeting is page content and the screen's `h1`. |
+| Task Summary donut, legend and filter pills | `/tasks` — the Tasks nav item is the route to task management. |
+| Insights + Productivity score panels | Nowhere. Both were derived from facts the day already states. |
+| Notes / Diary / Areas / Goals / Assets widgets | Their own modules, all in the sidebar. |
+| Recent activity widget | Nowhere yet — the endpoint is kept and the gap is logged as [DEBT-103](../product/PRODUCT_DEBT.md). |
+| Quick Capture widget + the "Focus Quick Capture" command | The global `+`. Every module still contributes its own "New …" command to the palette. |
+| Multi-select + the bulk planning bar | The Tasks module's bulk actions. `/today/plan` is left without a caller — [DEBT-104](../product/PRODUCT_DEBT.md). |
+| The roving keyboard collection | Native tab order over plain rows. |
 
 ## Tests
 
-- **Component** — [`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx):
-  the six sections, chronological ordering, optimistic completion, inert-but-structured
-  capture, and a card opening the Drawer. **PROJ-05 Slice 4:** "Continue working"'s
-  count reflects Active projects only; every card's status pill reads "Active" (never
-  Open/Planned/On hold/Completed/Archived); a card is a real link to the canonical
-  project route; and the empty state reads "No active projects to continue." with the
-  supporting sentence, never the stale "No recent projects to continue." copy.
-- **Route/Workers/D1** — [`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts)
-  (PROJ-05 Slice 4): the ACTUAL `/today` loader over real D1 — includes an Active
-  project; excludes Planned, On hold, a Completed project with a preserved Active
-  status, and an Archived project with a preserved Active status; preserves
-  workspace isolation; stays bounded by `RECENT_PROJECTS_COUNT`; orders by the
-  effective "recent" `updatedAt`; reflects every documented status/archive/restore
-  transition; and returns the calm empty shape when nothing is Active.
-- **Navigation** — [`test/unit/modules/today-navigation.test.ts`](../../test/unit/modules/today-navigation.test.ts):
-  the manifest → registry → navigation flow (Today first, generic glyph).
-- **End-to-end** — [`e2e/today.spec.ts`](../../e2e/today.spec.ts): sidebar
-  reachability, sections, completion, capture, drawer, and no horizontal overflow
-  at desktop and 320px. **Today integration closure (PROJ-05 Slice 4)** —
-  [`e2e/project-settings.spec.ts`](../../e2e/project-settings.spec.ts), `PROJ-05
-  Slice 4 — Today integration` describe block: the complete
-  Planned → Active → On hold → Active → Archive → Restore round trip proven live
-  against Today (appearance/disappearance at each transition, Back/Forward and a
-  copied URL, no hard reload), plus a restored Planned project staying absent.
-- **Swipe (unit + component)** — [`test/unit/card/swipe-model.test.ts`](../../test/unit/card/swipe-model.test.ts)
-  (pure intent/threshold/boundary/snap + the one-open-tray registry) and
-  [`test/unit/card/CardSwipe.test.tsx`](../../test/unit/card/CardSwipe.test.tsx)
-  (reveal/cancel, minor-drag no-op, vertical-not-captured, no-open-after-swipe, tray
-  close, disabled action, nested-control safety, non-touch inert). Today swipe wiring
-  (state-appropriate tray actions, same mutation path) in
-  [`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx).
-- **Mobile end-to-end (TODAY-06)** — [`e2e/today-mobile.spec.ts`](../../e2e/today-mobile.spec.ts):
-  a real-D1 phone journey (touch emulation) — touch-first precondition, no horizontal
-  overflow, swipe a task to reveal the tray → plan it → persisted after revalidation,
-  the task Drawer as a full-height sheet + Back/Forward, mobile selection + bulk bar,
-  the Waiting view, and axe-clean with the swipe tray open.
-
----
-
-## Status (2026-07-27 reconciliation)
-
-**Current status.** Today is the app's landing surface and is substantially complete: [TODAY-01](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard) through [TODAY-06](../roadmap/ROADMAP_V2.md#-today-06--mobile) and [TODAY-08](../roadmap/ROADMAP_V2.md#-today-08--today-as-the-command-centre) are ☑. **[TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) — Quick Capture wiring — remains ☐**, so the screen's most prominent action still creates nothing.
-
-**Delivered capabilities.** The personalisable command-centre landing over real cross-module reads; the planning workspace (scheduled date as commitment, kept distinct from due date) with single and bulk mutations; Waiting as a real persisted workflow; the canonical shared Task Drawer; full keyboard operation through the one shared command dispatcher; and touch swipe quick actions on a phone.
-
-**Known limitations.**
-
-- **Quick Capture does not create a Task.** `onCapture` shows *"Quick Capture is not connected yet. Your draft has not been saved."* and writes nothing. The copy is honest, but the action is inert — [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring). Its dependency is now unblocked: TASKS-01 ships the atomic creation path and the quick-capture parser to wire into.
-- **Today is the only surface not using the shared `EmptyState`.** Every other module adopted it; `TodayDashboard.tsx` and `landing/widgets.tsx` render bare inline paragraphs — [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2--presentation-half-resolved-2026-07-28).
-- **On-hold tasks appear in the planning buckets** with no label, though `/tasks` excludes them — [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2).
-- Widget arrangement is per-device `localStorage`, not synced — [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3). A deliberate first cut.
-- A "Continue working" Project card's parent Area is an inert label — [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3).
-
-**Deferred work.** Wiring Quick Capture; a Reviews entry point ("start or continue this week's Review", [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)); an Assets "expiring soon / service due" widget over the existing read seam ([ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done)); synced widget arrangement.
-
-**Relevant roadmap items.** [TODAY-01](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard)…[TODAY-06](../roadmap/ROADMAP_V2.md#-today-06--mobile) ☑ · [TODAY-08](../roadmap/ROADMAP_V2.md#-today-08--today-as-the-command-centre) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐ · [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) ☐.
-
-**Relevant product-debt items.** [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) ☑ · [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) ☑ · [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3) · [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2--presentation-half-resolved-2026-07-28) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3) · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3--the--half-resolved-2026-08-01).
-
----
-
-## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
-
-**Today adopted the shared `EmptyState` — it was the last surface in the product rendering its
-own.** Every quiet section and widget now shows the entity glyph, a heading, one calm sentence
-and (where one exists) the next action, through a new `size="compact"` variant sized for a
-widget rather than a full page. The bare `<p class="dh-today__section-empty">` paragraphs are
-gone.
-
-**Still open, by design:** Quick Capture remains inert pending
-[TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) — PX-06 covered the shared
-`EmptyState` adoption and the copy convention only, and deliberately did not make the capture
-field functional.
-
-See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
-[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
-[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
-
-## Today and the completed Tasks collection (TASKS-03, 2026-07-28)
-
-TASKS-03 completed the `/tasks` collection experience — filters, sorting, grouping
-and persistent saved views. **It changed nothing about Today**, and that is the
-point worth recording explicitly, because "saved views" is exactly the kind of
-feature that quietly grows a second definition of "today".
-
-**There is still ONE definition of Today.** Today's planning bands read
-`TaskRepository.listPlanningTasks` against the owner's server-derived calendar day
-(ADR-022, ADR-030); the Tasks workspace's `today` scope is the kernel `today`
-system view over the SAME `scheduled_date` field. A saved view can name that scope,
-but it cannot redefine it — a configuration names dimensions from closed sets and
-carries no query (ADR-059).
-
-Verified, not assumed:
-
-- **"Plan today" updates Today immediately.** The row's Today action posts to the
-  canonical `/tasks/bulk` `plan` intent — the same `planTasks` authority the Today
-  dashboard's own planning controls use — and the loader is revalidated after it.
-- **Completing a task updates Today and Tasks consistently.** List-level completion
-  posts `intent=complete` to `POST /tasks/:taskId`, the atomic task-domain
-  operation of ADR-029 that the Task Drawer's own button uses. There is no
-  list-only mutation.
-- **Quick Capture still uses the configured default parent.** The MOBILE-01
-  title-and-Enter path is untouched. The Tasks workspace's new quick-add row is an
-  ADDITIONAL affordance inside the workspace that posts to the same `/tasks/new`
-  route with the same resolved default parent.
-- **Changing the default Tasks view does not change Today.** `defaultTaskViewId` is
-  read by the `/tasks` loader alone. Covered by a browser test that captures
-  Today's rendered content, makes a narrow built-in view the Tasks default, and
-  asserts Today is byte-identical
-  ([`e2e/tasks-collection.spec.ts`](../../e2e/tasks-collection.spec.ts) →
-  "TASKS-03 — Today integration").
-
-**The complete Tasks workspace is deliberately NOT embedded in Today.** Today
-remains a focused execution dashboard; `/tasks` remains where work is *managed*.
-
-**[DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) was still open at TASKS-03.** TASKS-03 gave `/tasks` a first-class status filter
-and a status grouping, which made the inconsistency *easier to see* — an on-hold
-task was one click from being isolated in Tasks — but Today's `listPlanningTasks`
-still filtered only Someday and Cancelled.
-
----
-
-## What is active work on Today (TASKS-04, 2026-07-31)
-
-TASKS-04 closed DEBT-37 by deciding the intent ONCE and applying it in one place:
-`listPlanningTasks` now excludes `on_hold` alongside Someday/Maybe and cancelled, so
-a paused Task can never be "parked" on `/tasks` and "today's work" on `/today`. No
-third state vocabulary was introduced and the projection's shape is unchanged.
-
-Today's active planning bands therefore contain:
-
-| State | On Today? |
-|---|---|
-| Active (`todo`) | **Yes** |
-| In progress | **Yes** |
-| A recurring successor created by completing its predecessor | **Yes** — ordinary active work |
-| Waiting | No — the dedicated Waiting surface owns it |
-| On hold | No *(TASKS-04)* |
-| Someday / Maybe | No |
-| Cancelled | No |
-| Completed | Yes, in the completions band, so "completed today" still works |
-
-An **Unassigned** Task (TASKS-04's Inbox: an active Task with no structural parent)
-is ordinary active work here. Inbox is about PARENTAGE, not about being unplanned —
-a Task scheduled for today with no Project or Area appears on Today exactly as an
-assigned one does.
-
-This is asserted, not assumed:
-[`test/kernel/task-inbox-parent.test.ts`](../../test/kernel/task-inbox-parent.test.ts)
-seeds one Task per state, all scheduled for the same day, and asserts that the
-planning bands and the `/tasks` active view AGREE on every one of them.
-
----
-
-## UX-01 — the landing surface after the daily-driver audit (2026-08-01)
-
-Three changes, all to make Today answer its one question more honestly.
-
-**Meetings is now a section.** Today could say what to do, what had slipped, what
-was waiting and what the owner owns — but not what was already ON the day, even
-though Meetings shipped weeks earlier. `loadMeetings` in
-[`landing/load.ts`](../../app/modules/today/landing/load.ts) issues TWO bounded
-workspace-scoped reads (`recent` and `upcoming`, the repository's existing views,
-split at `now`), filters both to the owner's calendar day, and orders by start.
-Each row's time is formatted in the MEETING's own timezone — the same one its
-record shows — so the widget and the record can never disagree for a meeting
-booked in another zone. A meeting already under way is labelled **"Started" in
-words**, never by a colour or a dimmed row. Like every other widget it degrades to
-an empty section on failure, and its empty state teaches the next step.
-
-**The Focus widget is removed.** It listed three unbuilt capabilities under
-"coming soon" and had never once shown information, while taking a section of the
-most-used screen every day. That is the exact reasoning POLISH-01 recorded when it
-removed the Weather and Upcoming-calendar panels
-([DEBT-53](../product/PRODUCT_DEBT.md)); the rule had simply been applied to two
-panels and not the third. A persisted layout that still names `focus` is
-normalised on read (unknown ids are dropped), so no owner's arrangement breaks.
-
-**The last fixture seam is gone.** `fixtures.ts` was deleted. Its payload was
-still being serialised into every `/today` loader response although nothing
-rendered it, and its only consumer — the drawer resolver's `upcoming:`/`project:`/
-`note:` branches — rendered demonstration records whose copy ("The full Project
-overview arrives with PROJ-01", "Reading and editing notes arrives with NOTES-01")
-described modules that had long since shipped. Nothing produced those keys after
-X-01 retired the Today search provider, so the copy was unreachable — but a stale
-bookmark carrying one would have shown the owner a false statement about their own
-product. **Every section on `/today` now reads real workspace data.**
+- **Pure model** — [`test/unit/today/day-view.test.ts`](../../test/unit/today/day-view.test.ts):
+  what counts as overdue and as on-today (including that due-today is NOT overdue,
+  and that a completed task is never overdue), which date the overdue label names,
+  bucket ordering and the completed-at-the-end placement, progress suppression
+  before the first completion, every chip's condition and destination, the overdue
+  cap, and the greeting boundaries at 11:59/12:00 and 16:59/17:00.
+- **Rail model** — [`test/unit/today/attention-view.test.ts`](../../test/unit/today/attention-view.test.ts):
+  each item type's inclusion rule, the waiting row's age, the caps (2 projects, 2
+  goals, 5 overall) and the priority order, and that "Continue working" ranks by
+  activity recency with unknown-activity projects last and no-open-work projects
+  absent.
+- **Screen** — [`test/unit/today/TodayScreen.test.tsx`](../../test/unit/today/TodayScreen.test.tsx):
+  conditional rendering end to end (no chip row on a quiet day, no progress before
+  the first completion, no Meetings section without meetings), overdue appearing in
+  the timeline and NOT in the rail, the cap and the "+n more" link, completion from
+  a row updating both the task and the progress figure optimistically, the rail's
+  quiet "All clear" never appearing beside an item, and the absence of the search
+  field, the Customise control and any second capture affordance. A structural
+  guard asserts the day's first actionable row still sits directly under the
+  header block and the chip row.
+- **Per-task commands** — [`test/unit/today/task-commands.test.ts`](../../test/unit/today/task-commands.test.ts).
+- **Route/Workers/D1** — [`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts):
+  the ACTUAL `/today` loader over real D1 — "Continue working" is Active-only
+  through every documented status/archive/restore transition, is capped, ranks by
+  activity rather than by a settings-only touch, and excludes a project with no
+  open work; plus the day itself, proving a task due today lands on the day with no
+  plan set, a task past its due date lands in the timeline and never in the rail,
+  and an unfiled task is counted as the inbox.
+- **Navigation** — [`test/unit/modules/today-navigation.test.ts`](../../test/unit/modules/today-navigation.test.ts).
+- **End-to-end** — [`e2e/today.spec.ts`](../../e2e/today.spec.ts) and
+  [`e2e/today-mobile.spec.ts`](../../e2e/today-mobile.spec.ts).
+- **Day fixtures** — [`e2e/today-fixtures.mjs`](../../e2e/today-fixtures.mjs) seeds a
+  whole reproducible DAY (typical / morning / heavy / empty) into the local D1,
+  parking the shared dev seed reversibly so a scenario is exactly what it says it
+  is. [`e2e/today-shots.mjs`](../../e2e/today-shots.mjs) captures the evidence set.

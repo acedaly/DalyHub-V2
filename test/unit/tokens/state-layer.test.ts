@@ -78,11 +78,6 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   "sheet.css: .dh-sheet-option:hover",
   "sheet.css: .dh-sheet__close:hover",
   "summary-cards.css: .dh-summary-card--link:hover",
-  "today.css: .dh-insights__link:hover",
-  "today.css: .dh-today-widget__control:hover:not(:disabled)",
-  "today.css: .dh-today__capture-type:hover",
-  "today.css: .dh-today__secondary:hover",
-  "today.css: a.dh-hero__stat:hover",
 ];
 
 function stylesheets(): readonly { name: string; text: string }[] {

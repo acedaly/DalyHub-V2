@@ -28,8 +28,9 @@ import {
   type TaskRecordDrawerApi,
 } from "~/shared/task-record/TaskRecordDrawer";
 
-import { buildFocusedTaskCommands } from "../keyboard/today-commands";
-import { planTargets } from "./planning-view";
+import { planTargets } from "~/shared/task-record/plan-targets";
+
+import { buildFocusedTaskCommands } from "./task-commands";
 
 interface TaskDrawerContentProps {
   readonly taskId: string;
@@ -63,12 +64,7 @@ export function TaskDrawerContent({
         task: {
           id: activeTask.id,
           title: activeTask.title,
-          parent: null,
-          priority: activeTask.priority,
           scheduledDate: activeTask.scheduledDate,
-          dueDate: activeTask.dueDate,
-          completed: activeCompleted,
-          completedDate: null,
         },
         done: activeCompleted,
         targets,
