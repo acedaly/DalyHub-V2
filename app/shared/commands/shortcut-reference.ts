@@ -32,7 +32,9 @@ export interface ShortcutReferenceGroup {
   /**
    * `global` shortcuts work on every screen; `today` shortcuts work on the Today
    * execution surface. The scope is data, not prose, so a host can filter rather
-   * than a reader having to.
+   * than a reader having to. Today currently declares none of its own — the
+   * union is deliberately kept so a future surface-specific group cannot appear
+   * on Today by accident.
    */
   readonly scope: "global" | "today";
   readonly rows: readonly ShortcutReferenceRow[];
@@ -54,20 +56,22 @@ export const SHORTCUT_REFERENCE_GROUPS: readonly ShortcutReferenceGroup[] = [
     ],
   },
   {
-    title: "On Today — move through tasks",
-    scope: "today",
-    rows: [
-      { keys: ["↑"], description: "Focus the previous task" },
-      { keys: ["↓"], description: "Focus the next task" },
-      { keys: ["Home"], description: "First task in the section" },
-      { keys: ["End"], description: "Last task in the section" },
-      { keys: ["Enter"], description: "Open the focused task" },
-      { keys: ["Space"], description: "Select or deselect the focused task" },
-    ],
-  },
-  {
-    title: "On Today — act on the focused task",
-    scope: "today",
+    /*
+     * These belong to an OPEN task record, not to a list.
+     *
+     * They used to be two Today-only groups: one for arrowing through the
+     * dashboard’s roving task collection, one for acting on whichever row it had
+     * focused. The Today redesign replaced that collection with plain rows — a
+     * checkbox completes, a title opens — so the movement group documented keys
+     * that no longer exist and had to go rather than be re-scoped.
+     *
+     * The ACTION group survived the move because its real owner was always the
+     * task Drawer (`TaskDrawerContent` registers it while its record is on top),
+     * and that Drawer opens from Today, Tasks, a Project and Search alike. So it
+     * is `global`: the reference now claims these keys exactly where they work.
+     */
+    title: "With a task open",
+    scope: "global",
     rows: [
       { keys: ["C"], description: "Complete or reopen" },
       { keys: ["P"], description: "Plan for today" },

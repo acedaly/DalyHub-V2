@@ -7,7 +7,6 @@ describe("today search provider removal", () => {
   it("keeps Today navigable without registering a Search provider", () => {
     expect(todayModule.commands?.map((command) => command.id)).toEqual([
       "today.open",
-      "today.focus_quick_capture",
       "today.open_waiting",
     ]);
     expect(todayModule.searchProviders).toBeUndefined();

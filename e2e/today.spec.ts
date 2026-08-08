@@ -2,13 +2,17 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 /**
- * TODAY-01 / TODAY-04 — the Today dashboard, driven end to end against the
- * development-auth server. Role-based and non-brittle: it asserts the sidebar
- * entry, the pane header, the planning sections + summary, the preserved fixture
- * sections, inert quick capture, a card opening the Drawer, and the
- * no-horizontal-overflow invariant on desktop and at 320px. Planning MUTATIONS are
- * driven in `planning.spec.ts` against a dedicated task, so this structural spec
- * does not interfere with the shared dev database.
+ * The Today screen, driven end to end against the development-auth server.
+ *
+ * Today is now the surface the owner WORKS from — a header block, a conditional
+ * chip row, a day column and an attention rail. So this spec asserts the things
+ * that must be true of the screen regardless of what the shared dev workspace
+ * happens to contain that day: the structure, the conditional rules, the one
+ * completion path, and the absence of everything the redesign removed.
+ *
+ * It deliberately does NOT assert particular tasks. The dev database is shared
+ * with every other journey in this suite and mutated by several of them; a spec
+ * that names a row is a spec that fails for a reason it is not about.
  */
 
 async function hasNoHorizontalOverflow(page: Page) {
@@ -18,8 +22,16 @@ async function hasNoHorizontalOverflow(page: Page) {
   });
 }
 
-test.describe("TODAY-01 — desktop", () => {
-  test("is reachable from the sidebar and renders the pane header", async ({
+/** The screen's own heading — the greeting, not a repeat of the nav item. */
+function greeting(page: Page) {
+  return page.getByRole("heading", {
+    level: 1,
+    name: /^Good (morning|afternoon|evening)/,
+  });
+}
+
+test.describe("Today — the day surface", () => {
+  test("is reachable from the sidebar and leads with the greeting", async ({
     page,
   }) => {
     await page.goto("/");
@@ -27,200 +39,236 @@ test.describe("TODAY-01 — desktop", () => {
     await nav.getByRole("link", { name: "Today" }).click();
 
     await expect(page).toHaveURL(/\/today$/);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
-    ).toBeVisible();
+    await expect(greeting(page)).toBeVisible();
+    // The date is stated once, under the greeting, as page content.
+    await expect(page.locator(".dh-today__date")).toHaveCount(1);
   });
 
-  test("renders the command-centre widgets and the planning core", async ({
+  test("renders the day and the rail as two tonal regions", async ({
     page,
   }) => {
     await page.goto("/today");
-    // The planning summary (My day) is always present (operational awareness).
+
     await expect(
-      page.getByRole("group", { name: /Today at a glance/ }),
+      page.getByRole("heading", { level: 2, name: "My day" }),
     ).toBeVisible();
-    // The personalisable command-centre widgets are labelled h2 regions (TODAY-08).
-    for (const name of [
-      // "Brief", not "Morning brief" — the greeting adapts to the hour, so the
-      // label must not claim the morning at 9pm (POLISH-02).
-      /^Brief/,
-      /My day/,
-      /Recent activity/,
-      /Continue working/,
-      /Insights/,
-      /Capture/,
-    ]) {
-      // Each widget heading name is unique, so no ordinal locator is needed.
-      await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
-    }
-    // The planning sub-sections nest one level below the My day widget (h3); the
-    // seeded, unplanned tasks appear under Anytime.
     await expect(
-      page.getByRole("heading", { level: 3, name: /Anytime/ }),
+      page.getByRole("heading", { level: 2, name: "Needs attention" }),
     ).toBeVisible();
+
+    // "Plan day" is a navigation to the canonical Tasks view of today's work —
+    // Today does not own a planning flow.
+    await expect(page.getByRole("link", { name: "Plan day" })).toHaveAttribute(
+      "href",
+      "/tasks?system=today",
+    );
+
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
 
-  test("quick capture opens the shared capture sheet — it persists now (TODAY-07)", async ({
+  test("every chip states a real count and links to the view holding it", async ({
     page,
   }) => {
     await page.goto("/today");
-    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
 
-    // The honest fixture is retired: there is no textarea that discards what you
-    // type, and no notice apologising that nothing was saved. Asserting their
-    // ABSENCE keeps this test meaningful — it would fail again if the fixture
-    // ever came back.
-    await expect(page.locator(".dh-today__capture-notice")).toHaveCount(0);
+    const chips = page.locator(".dh-today__chip");
+    const count = await chips.count();
+    for (let index = 0; index < count; index += 1) {
+      const chip = chips.nth(index);
+      const label = (await chip.innerText()).trim();
+      // A chip never states a zero — that is the whole rule.
+      expect(label).not.toMatch(/^0\b/);
+      const href = await chip.getAttribute("href");
+      expect(href).toMatch(/^\/(tasks\?system=(today|overdue)|meetings)$/);
+    }
+
+    // The overdue chip is the ONLY coloured one on the page.
+    const errorChips = page.locator('.dh-today__chip[data-tone="error"]');
+    expect(await errorChips.count()).toBeLessThanOrEqual(1);
+    if ((await errorChips.count()) === 1) {
+      await expect(errorChips).toHaveText(/overdue$/);
+    }
+  });
+
+  test("overdue work is actionable in the day, and never in the rail", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+
+    const overdueRows = page.locator(".dh-day-list--overdue .dh-day-row");
+    const shown = await overdueRows.count();
+    if (shown === 0) {
+      test.skip(true, "the shared dev workspace has nothing overdue right now");
+    }
+
+    // At most three rows, plus an honest remainder row when there are more.
+    const taskRows = page.locator(
+      ".dh-day-list--overdue .dh-day-row:not(.dh-day-row--more)",
+    );
+    expect(await taskRows.count()).toBeLessThanOrEqual(3);
+    const more = page.getByRole("link", { name: /^\+\d+ more overdue$/ });
+    if ((await more.count()) === 1) {
+      await expect(more).toHaveAttribute("href", "/tasks?system=overdue");
+    }
+
+    // Each overdue row names WHICH date slipped and how long ago.
+    await expect(taskRows.first().locator(".dh-day-row__due")).toHaveText(
+      /^(Due|Planned) /,
+    );
+
+    // The rail holds only what the day does not show.
+    const rail = page
+      .getByRole("heading", { level: 2, name: "Needs attention" })
+      .locator("xpath=ancestor::section[1]");
+    await expect(rail.getByText(/overdue/i)).toHaveCount(0);
+  });
+
+  test("no task row carries a time, and there is no time-of-day grouping", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+
+    const dayColumn = page.locator(".dh-today__timeline");
+    await expect(dayColumn).toBeVisible();
     await expect(
-      page.getByPlaceholder("What needs your attention?"),
+      dayColumn.getByText(/^(Morning|Afternoon|Evening)$/),
     ).toHaveCount(0);
 
-    // Capture is now the ONE shared sheet over each module's canonical create
-    // route, entered by type. Its create paths are proven end to end in
-    // `mobile-capture-journeys.spec.ts`; here we prove Today reaches it.
-    await page.getByTestId("today-capture-task").click();
-    await expect(page.getByTestId("capture-sheet")).toBeVisible();
-    await expect(page.getByLabel("Title")).toBeFocused();
-
-    await page.keyboard.press("Escape");
-    await expect(page.getByTestId("capture-sheet")).toBeHidden();
+    // A time slot exists only on meeting rows.
+    const timed = dayColumn.locator(".dh-day-row:has(.dh-day-row__time)");
+    const timedCount = await timed.count();
+    for (let index = 0; index < timedCount; index += 1) {
+      await expect(timed.nth(index)).toHaveClass(/dh-day-row--meeting/);
+    }
   });
 
-  test("a widget can be collapsed and hidden, and the layout is remembered", async ({
+  test("ticking a task on Today completes it in Tasks too", async ({
+    page,
+  }) => {
+    // A dedicated task, due today, so this journey never disturbs the rows the
+    // other specs assert on. Created through the same URL-backed create drawer
+    // the Tasks journeys use.
+    const title = `Today completion round trip ${Date.now()}`;
+    const today = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: "Australia/Sydney",
+    }).format(new Date());
+
+    await page.goto("/tasks?drawer=new-task");
+    const dialog = page.getByRole("dialog", { name: "New task" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Title").fill(title);
+    await dialog.locator("summary", { hasText: "More details" }).click();
+    await dialog.getByLabel("Due date").fill(today);
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          new URL(r.url()).pathname === "/tasks/new" &&
+          r.request().method() === "POST",
+      ),
+      dialog.getByRole("button", { name: "Create task" }).click(),
+    ]);
+    expect((await response.json()).ok).toBe(true);
+
+    await page.goto("/today");
+    const row = page.locator(".dh-day-row", { hasText: title }).first();
+    await expect(row).toBeVisible();
+
+    await row.getByRole("checkbox", { name: `Complete ${title}` }).check();
+    // Optimistic in place, then reconciled by the loader revalidation.
+    await expect(
+      row.getByRole("checkbox", { name: `Reopen ${title}` }),
+    ).toBeChecked();
+
+    // The SAME task record reads as complete — one completion path, one truth.
+    await page.goto("/today");
+    await page.locator(".dh-day-row", { hasText: title }).first().click();
+    const record = page.getByRole("dialog");
+    await expect(
+      record.getByRole("heading", { name: title }).first(),
+    ).toBeVisible();
+    await expect(record.getByRole("checkbox").first()).toBeChecked();
+  });
+
+  test("a task row opens its record in the Drawer over the page", async ({
     page,
   }) => {
     await page.goto("/today");
-    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
-
-    // Take the widget under test from the RENDERED catalogue rather than naming
-    // one. This test is about the personalisation behaviour, not about any
-    // particular widget existing: it previously hard-coded the "focus" panel,
-    // which UX-01 removed along with the rest of the "coming soon" surfaces, and
-    // the assertion then failed on `main` for a widget the product had
-    // deliberately deleted. Reading the id and title from the DOM keeps the
-    // behaviour covered while the catalogue is free to change.
-    const widget = page.locator("[data-widget]").first();
-    await expect(widget).toBeVisible();
-    const widgetId = await widget.getAttribute("data-widget");
-    expect(widgetId).toBeTruthy();
-    const title = (
-      await widget.locator(".dh-today-widget__title").innerText()
-    ).trim();
-    const selector = `[data-widget="${widgetId}"]`;
-
-    // Collapse it: its body hides, the heading toggle flips.
-    const toggle = widget.locator(".dh-today-widget__toggle");
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
-
-    // Enter Customise, hide it, and confirm it leaves the surface.
-    await page.getByRole("button", { name: "Customise" }).click();
-    await widget.getByRole("button", { name: `Hide ${title}` }).click();
-    await expect(page.locator(selector)).toHaveCount(0);
-
-    // The arrangement survives a reload (per-device persistence).
-    await page.reload();
-    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
-    await expect(page.locator(selector)).toHaveCount(0);
-
-    // Restore it so the shared dev database's UI state is left clean.
-    await page.getByRole("button", { name: "Customise" }).click();
-    await page.getByRole("button", { name: `Show ${title}` }).click();
-    await expect(page.locator(selector)).toBeVisible();
-  });
-
-  test("opens a record in the Drawer over the pane", async ({ page }) => {
-    await page.goto("/today");
-    // Opening a record over the pane is a HYDRATED behaviour (the card's click
-    // handler pushes the Drawer). Wait for hydration rather than racing it — the
-    // test only passed before because the page was slow enough to render a
-    // sixty-row backlog first.
-    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
-    /*
-     * Take the task from the RENDERED list rather than naming a seeded one.
-     *
-     * This test is about the Drawer opening over the pane for whatever task the
-     * owner clicks — not about a particular task being on the page. It used to
-     * name "Finish PX-02", an unscheduled seed task, which worked only because
-     * Today rendered its entire backlog; POLISH-02 previews the discretionary
-     * bands (a seeded workspace has sixty-odd backlog rows, and a landing page is
-     * not a backlog), so a named task deep in Anytime is legitimately not there.
-     * Reading the title off the first card keeps the behaviour covered while the
-     * surface is free to bound what it shows.
-     */
-    const card = page.locator("[data-today-tasklist] .dh-card").first();
-    await expect(card).toBeVisible();
-    const title = (
-      await card.locator(".dh-card__title-text").innerText()
-    ).trim();
-    await card.getByRole("link", { name: title }).click();
+    const row = page.locator(".dh-today__timeline .dh-day-row__title").first();
+    if ((await row.count()) === 0) {
+      test.skip(true, "nothing on the day in the shared dev workspace");
+    }
+    const title = (await row.innerText()).trim();
+    await row.click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(
-      dialog.getByRole("heading", { level: 3, name: title }),
+      dialog.getByRole("heading", { name: title }).first(),
     ).toBeVisible();
   });
 
-  test("swipe-wrapped task rows hide their action tray at rest", async ({
+  test("the rail's rows navigate to their subjects", async ({ page }) => {
+    await page.goto("/today");
+    const rail = page
+      .getByRole("heading", { level: 2, name: "Needs attention" })
+      .locator("xpath=ancestor::section[1]");
+
+    const links = rail.getByRole("link");
+    const count = await links.count();
+    if (count === 0) {
+      // The quiet empty state: ONE line, never a card, and never beside items.
+      await expect(rail.getByText("All clear")).toBeVisible();
+      return;
+    }
+    await expect(rail.getByText("All clear")).toHaveCount(0);
+    for (let index = 0; index < count; index += 1) {
+      const href = await links.nth(index).getAttribute("href");
+      expect(href).toMatch(
+        /^\/(tasks\?system=inbox|today\/waiting|projects\/|goals\/)/,
+      );
+    }
+  });
+
+  test("the surface offers no search, no customisation and no second capture", async ({
     page,
   }) => {
-    /*
-     * TODAY-06's regression, restated for DS-14 — same defect, different
-     * mechanism, and the supersession is recorded in
-     * THEME_ACCEPTANCE_MATRIX.md §9.3 rather than quietly dropped.
-     *
-     * The original assertion was that the swipe WRAPPER carries a box-shadow,
-     * because the wrapper clips its surface with `overflow: hidden` and an
-     * element never clips its own shadow — so elevation had to live on the
-     * wrapper or every Today card would silently lose it.
-     *
-     * DS-14 constraint 8 reserves shadow for genuinely floating layers, and a
-     * task row in a collection is not one: the COLLECTION is the card and the
-     * row is a hairline-separated row inside it. So "the wrapper has a shadow"
-     * is now asserting the pre-DS-14 design, and asserting it would hold the
-     * restyle hostage to a treatment the direction removed on purpose.
-     *
-     * What the original test was really protecting is the thing that CAN still
-     * break, and it broke once during DS-14: the tray is a real element parked
-     * behind the card surface, so a row that stops painting an opaque
-     * background reveals the tray at rest, on every row, at every width. That
-     * is asserted here instead — it is the same class of silent visual defect,
-     * and it is the one that is still possible.
-     */
     await page.goto("/today");
-    const wrapper = page.locator(".dh-card-swipe").first();
-    await expect(wrapper).toBeVisible();
+    const surface = page.locator(".dh-today");
 
-    const surface = wrapper.locator(".dh-card").first();
-    const background = await surface.evaluate(
-      (el) => getComputedStyle(el).backgroundColor,
-    );
-    // Opaque: neither `transparent` nor any zero-alpha colour.
-    expect(background).not.toBe("transparent");
-    expect(background).not.toMatch(/rgba\([^)]*,\s*0\s*\)$/);
+    await expect(surface.getByRole("searchbox")).toHaveCount(0);
+    await expect(
+      surface.getByRole("button", { name: /customise/i }),
+    ).toHaveCount(0);
+    await expect(surface.locator("details")).toHaveCount(0);
+    await expect(surface.getByTestId("today-capture-task")).toHaveCount(0);
 
-    // At rest the surface is not translated, so the tray behind it is covered.
-    const reveal = await surface.evaluate(
-      (el) => getComputedStyle(el).transform,
-    );
-    expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(reveal);
+    // Search moved to the top app bar as an icon, keeping its name and `/`.
+    const topBar = page.getByRole("banner");
+    await expect(
+      topBar.getByRole("button", { name: /^Search DalyHub/ }),
+    ).toBeVisible();
   });
 });
 
-test.describe("TODAY-01 — mobile (320px)", () => {
-  test.use({ viewport: { width: 320, height: 720 } });
-
-  test("has no horizontal overflow", async ({ page }) => {
+test.describe("Today — narrow widths", () => {
+  test("stacks the rail under the day with no horizontal overflow", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
     await page.goto("/today");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
-    ).toBeVisible();
+    await expect(greeting(page)).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
+
+    // "Needs attention" comes first in the stack, ahead of "Continue working" —
+    // the same order the wide layout reads in, unwrapped.
+    const headings = await page
+      .locator(".dh-today__rail .dh-today__panel-title")
+      .allInnerTexts();
+    if (headings.length > 1) {
+      expect(headings[0]).toBe("Needs attention");
+    }
   });
 });

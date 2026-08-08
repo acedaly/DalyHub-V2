@@ -26,8 +26,13 @@ test.describe("PX-02 authenticated app frame (development auth)", () => {
     const banner = page.getByRole("banner");
     await expect(banner).toBeVisible();
     await expect(banner.getByText("DalyHub")).toBeVisible();
+    // Today's h1 IS the greeting — the screen's own content rather than a
+    // repeat of the navigation item that got you here.
     await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Good (morning|afternoon|evening)/,
+      }),
     ).toBeVisible();
 
     // Registry-driven sidebar navigation reaches every module placeholder.

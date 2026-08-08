@@ -1,0 +1,168 @@
+/**
+ * TODAY-DAY — the attention rail's inclusion rules, caps and ordering, and the
+ * activity-recency ranking behind "Continue working".
+ *
+ * The rail's whole definition is "what the timeline does not show", so the most
+ * important assertion here is a NEGATIVE one: overdue tasks never reach it.
+ */
+
+import { describe, expect, it } from "vitest";
+
+import {
+  buildAttention,
+  rankContinueProjects,
+  projectInitial,
+  type AttentionInput,
+  type ContinueProject,
+} from "~/modules/today/day/attention-view";
+
+function input(overrides: Partial<AttentionInput> = {}): AttentionInput {
+  return {
+    inboxCount: 0,
+    waiting: { count: 0, oldestDays: null },
+    projects: [],
+    goals: [],
+    ...overrides,
+  };
+}
+
+function project(overrides: Partial<ContinueProject> = {}): ContinueProject {
+  return {
+    id: "p1",
+    title: "Project one",
+    openCount: 3,
+    taskTotal: 6,
+    taskCompleted: 3,
+    statusLabel: "On track",
+    needsAttention: false,
+    lastActivityIso: "2026-08-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("inclusion — an item type appears only when its condition holds", () => {
+  it("renders nothing when nothing qualifies", () => {
+    expect(buildAttention(input())).toEqual([]);
+  });
+
+  it("includes the inbox only when something is unfiled", () => {
+    expect(buildAttention(input({ inboxCount: 0 }))).toHaveLength(0);
+    const rail = buildAttention(input({ inboxCount: 4 }));
+    expect(rail[0]?.kind).toBe("inbox");
+    expect(rail[0]?.detail).toBe("4 unfiled tasks");
+  });
+
+  it("ages the oldest waiting item, because a bare count is noise", () => {
+    const rail = buildAttention(
+      input({ waiting: { count: 2, oldestDays: 9 } }),
+    );
+    expect(rail[0]?.detail).toBe("2 waiting items · oldest 9 days");
+  });
+
+  it("falls back to the count alone when no age is known", () => {
+    const rail = buildAttention(
+      input({ waiting: { count: 1, oldestDays: null } }),
+    );
+    expect(rail[0]?.detail).toBe("1 waiting item");
+  });
+
+  it("navigates every row to its own subject", () => {
+    const rail = buildAttention(
+      input({
+        projects: [{ id: "p 1", title: "Migration", statusLabel: "At risk" }],
+        goals: [
+          { id: "g1", title: "Ship it", statusLabel: "No recent action" },
+        ],
+      }),
+    );
+    expect(rail.map((item) => item.href)).toEqual([
+      "/projects/p%201",
+      "/goals/g1",
+    ]);
+  });
+});
+
+describe("caps and priority", () => {
+  const crowded = input({
+    inboxCount: 2,
+    waiting: { count: 3, oldestDays: 4 },
+    projects: [
+      { id: "p1", title: "One", statusLabel: "At risk" },
+      { id: "p2", title: "Two", statusLabel: "Stale" },
+      { id: "p3", title: "Three", statusLabel: "Blocked" },
+    ],
+    goals: [
+      { id: "g1", title: "Alpha", statusLabel: "No recent action" },
+      { id: "g2", title: "Beta", statusLabel: "No recent action" },
+    ],
+  });
+
+  it("orders inbox, waiting, projects, goals", () => {
+    expect(buildAttention(crowded).map((item) => item.kind)).toEqual([
+      "inbox",
+      "waiting",
+      "project",
+      "project",
+      "goal",
+    ]);
+  });
+
+  it("caps projects at two and the whole rail at five", () => {
+    const rail = buildAttention(crowded);
+    expect(rail).toHaveLength(5);
+    expect(rail.filter((item) => item.kind === "project")).toHaveLength(2);
+  });
+});
+
+describe("Continue working", () => {
+  it("ranks by real activity recency, not by title or id", () => {
+    const ranked = rankContinueProjects([
+      project({
+        id: "old",
+        title: "Aardvark",
+        lastActivityIso: "2026-07-01T00:00:00.000Z",
+      }),
+      project({
+        id: "new",
+        title: "Zebra",
+        lastActivityIso: "2026-08-08T09:00:00.000Z",
+      }),
+      project({
+        id: "mid",
+        title: "Middle",
+        lastActivityIso: "2026-08-05T09:00:00.000Z",
+      }),
+    ]);
+    expect(ranked.map((item) => item.id)).toEqual(["new", "mid", "old"]);
+  });
+
+  it("sorts a project with no recorded activity LAST, never first", () => {
+    const ranked = rankContinueProjects([
+      project({ id: "unknown", lastActivityIso: null }),
+      project({ id: "known", lastActivityIso: "2026-01-01T00:00:00.000Z" }),
+    ]);
+    expect(ranked.map((item) => item.id)).toEqual(["known", "unknown"]);
+  });
+
+  it("excludes projects with no open work — the section can be empty", () => {
+    expect(rankContinueProjects([project({ openCount: 0 })])).toEqual([]);
+  });
+
+  it("shows at most three", () => {
+    const ranked = rankContinueProjects(
+      Array.from({ length: 6 }, (_, index) =>
+        project({
+          id: `p${index}`,
+          lastActivityIso: `2026-08-0${index + 1}T00:00:00.000Z`,
+        }),
+      ),
+    );
+    expect(ranked).toHaveLength(3);
+    expect(ranked[0]?.id).toBe("p5");
+  });
+
+  it("derives an identity initial without crashing on a blank title", () => {
+    expect(projectInitial("kitchen renovation")).toBe("K");
+    expect(projectInitial("   ")).toBe("?");
+  });
+});

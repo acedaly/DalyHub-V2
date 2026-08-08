@@ -17,6 +17,58 @@ no version number to group them under.
 
 ---
 
+## The Today screen is a place to work, not a dashboard about work (#132)
+
+Today has been replaced. It had become a report: search took the top of the page,
+six stat tiles counted the day (mostly to zero), a donut counted it again, and the
+day's actual tasks started below the fold. Everything on it was true — that was
+the problem. The screen said the same few things three times and left no room for
+the day.
+
+### What you see now
+
+- **Your day, first.** A greeting, the date, and — the moment you finish
+  something — "3 of 8 done today" with a small progress bar. Then the day itself:
+  anything overdue, your meetings in time order, and everything due today, all in
+  one column you can tick straight from.
+- **A short row of chips** — "8 tasks", "3 meetings", "1 overdue" — each linking
+  to the list it counts. Overdue is the only coloured one on the page.
+- **A rail beside it** holding only what the day does not already show: your
+  inbox, what you are waiting on (with the age of the oldest — that is the part
+  that matters), any project or goal that needs a look, and the projects you were
+  most recently actually working on.
+
+### What is gone
+
+The search box (search is now an icon in the top bar, and `/` still opens it from
+anywhere) · the "Customise" control and the whole widget system · the "Brief"
+wrapper around the greeting · the Task Summary donut, its legend and its filter
+pills · the Insights and Productivity panels · the Notes, Diary, Areas, Goals and
+Assets widgets · the Recent activity feed · Today's own capture buttons. Nothing
+became unreachable: every one of those lives in its own place in the sidebar, and
+capture is the `+` it always was.
+
+### The rules the new screen keeps
+
+- **A zero is never drawn.** Every chip, the progress bar, every section and every
+  rail row appears only when it has something to say. A quiet day is a short page.
+- **Nothing is counted twice.** Overdue work is a chip and a set of rows you can
+  act on — and it is deliberately absent from the rail, which holds only what the
+  day does not show.
+- **The screen finally reads your due dates.** A task due today used to land in
+  "Anytime", and a task a week past its deadline reported "0 overdue", because the
+  old surface only looked at the day you had planned it for. Both dates now count,
+  by the same rule the Tasks views use.
+- **No times on tasks.** A task is a date and a meeting is a time, so meetings
+  carry a clock and tasks do not — and there is no "Morning / Afternoon" split
+  that would only be honest for a handful of items.
+- **Ticking a task is instant** and writes to the same task the Tasks list and the
+  task record edit, with the progress figure moving with it. A task you finished
+  earlier today stays where it was, dimmed and struck through, so the "of 8" adds
+  up in front of you.
+
+---
+
 ## Collection header, view switching, overflow-menu placement and Project identity colour (#130)
 
 Finishes the collection-level convergence the August 2026 UI quality audit
