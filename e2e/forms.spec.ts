@@ -149,14 +149,32 @@ test.describe("DS-06 — desktop", () => {
     );
   });
 
-  test("markdown source has a safe preview", async ({ page }) => {
+  /*
+   * DOC-EDITOR-01 — the long-form field in this fixture is now the SHARED writing
+   * surface (`MarkdownEditorField`), which is what every product form uses. The
+   * control it replaced was a source textarea plus a "Show preview" disclosure,
+   * and it is deleted rather than kept beside the one the product uses.
+   *
+   * So what this asserts changed with it: the field edits Markdown SOURCE and
+   * carries the same formatting toolbar as a Note. Safe RENDERING is a property
+   * of the one FND-08 pipeline, proved where a reading surface exists — the
+   * editor's Read mode (`notes.spec.ts`, `editor-geometry.spec.ts`) — not by a
+   * second preview affordance inside a form.
+   */
+  test("the long-form field is the shared writing surface, editing Markdown source", async ({
+    page,
+  }) => {
     await gotoFixture(page);
     const form = explicit(page);
-    await form
-      .getByRole("textbox", { name: /Description/ })
-      .fill("# Heading\n\nSome **bold** text.");
-    await form.getByRole("button", { name: "Show preview" }).click();
-    await expect(form.getByRole("heading", { name: "Heading" })).toBeVisible();
+    const surface = form.getByRole("textbox", { name: /Description/ });
+    await surface.fill("# Heading\n\nSome **bold** text.");
+    // The source is preserved byte-for-byte — never turned into HTML.
+    await expect(surface).toHaveValue("# Heading\n\nSome **bold** text.");
+    // ...and it is the same toolbar a Note gets, not a bespoke one.
+    await expect(
+      form.getByRole("toolbar", { name: /Description formatting/ }),
+    ).toBeVisible();
+    await expect(form.getByRole("button", { name: "Bold" })).toBeVisible();
   });
 });
 
