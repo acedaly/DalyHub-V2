@@ -19,23 +19,21 @@ import {
 const DRAWER_URL = "/today?drawer=task%3At-drawer";
 
 /**
- * Put `t-drawer` on Today and return its My day opener.
+ * Put `t-drawer` on the day and return its opener row.
  *
- * The task is unscheduled in the seed, which places it in Today's Anytime band.
- * POLISH-02 previews that band — a real workspace's backlog runs to dozens of
- * rows, and the landing page is not a place to read one — so an unscheduled task
- * is not reliably rendered. These journeys are about opening a task FROM Today,
- * which is worth keeping exactly as written, so the task is first planned for
- * today through its own Drawer (using the product's own control, so the owner's
- * calendar day is never computed in the test).
+ * The task has no dates in the seed, so it is on neither the day nor the overdue
+ * block. These journeys are about opening a task FROM Today, which is worth
+ * keeping exactly as written, so the task is first planned for today through its
+ * own Drawer (using the product's own control, so the owner's calendar day is
+ * never computed in the test).
  *
- * The opener is scoped to the My day widget region because the Recent Activity
- * feed (TODAY-08) also links the same task by title.
+ * The opener is scoped to the day column, which is the only place on the screen
+ * that lists tasks.
  */
 async function openerOnToday(page: import("@playwright/test").Page) {
   await gotoFixture(page, "/today");
   const opener = page
-    .getByRole("region", { name: "My day" })
+    .locator(".dh-today__timeline")
     .getByRole("link", { name: "Draft the proposal" });
 
   // Plan it only if it is not already on the page. The dev database is shared and

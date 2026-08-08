@@ -589,14 +589,15 @@ copy, which was accurate only while the section was `state: "open"`-only.
   unmounts in the same commit as its trigger — proven wrong by a real Playwright
   assertion (`document.activeElement` after archive and after restore) that
   failed against that first attempt and passes against the corrected one.
-- **Unit — Today's "Continue working" is Active-only**
-  ([`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx)):
-  the section's count reflects only the Active projects the loader supplied; every
-  card's status pill reads "Active" (never the old generic "Open", and never
-  Planned/On hold/Completed/Archived); a card is a real link to the canonical
-  `/projects/:id` route; and the empty state reads "No active projects to
-  continue." with the quiet supporting sentence — never the stale "No recent
-  projects to continue." copy.
+- **Unit — Today's "Continue working"**
+  ([`test/unit/today/TodayScreen.test.tsx`](../../test/unit/today/TodayScreen.test.tsx)
+  and [`attention-view.test.ts`](../../test/unit/today/attention-view.test.ts)):
+  each row is a real link to the canonical `/projects/:id` route and states its open
+  count, its EXISTING status word and its roll-up progress; the section is absent
+  entirely when no project has open work, rather than rendering an empty state. The
+  Active-only filter itself is proven against real D1 below — the 2026-08 Today
+  redesign moved the section from a card grid to stacked rows and its ranking from
+  "recently updated" to real activity recency, but the loader's query is unchanged.
 - **Workers/D1 — the Today loader itself**
   ([`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts), new
   in Slice 4): drives the ACTUAL `/today` route loader (not just the repository

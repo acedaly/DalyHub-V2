@@ -108,31 +108,36 @@ test.describe("UX-01 — the keyboard reference is available everywhere", () => 
 });
 
 test.describe("UX-01 — Today answers what is on today", () => {
-  test("shows a Meetings section and no 'coming soon' Focus panel", async ({
+  test("carries the day itself, and none of the retired 'coming soon' panels", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
 
-    // The section exists whether or not the day has meetings: an empty day teaches
-    // the next step rather than hiding. (The heading's accessible name carries the
-    // count, so the section is addressed by its stable widget id.)
-    const meetings = page.locator('[data-widget="meetings"]');
-    await expect(meetings).toBeVisible();
+    // The day is the surface: a "My day" region with the owner's work in it.
     await expect(
-      meetings.getByRole("heading", { level: 2, name: /Meetings/ }),
+      page.getByRole("heading", { level: 2, name: "My day" }),
     ).toBeVisible();
 
-    // The Focus widget is gone from the catalogue, so no section claims that id.
-    await expect(page.locator('[data-widget="focus"]')).toHaveCount(0);
+    // The Meetings SECTION is conditional now — a day with no meetings renders
+    // no label rather than an empty section teaching nothing. When it is there,
+    // it is a real time-ordered list.
+    const meetings = page.getByRole("heading", { level: 3, name: "Meetings" });
+    if ((await meetings.count()) > 0) {
+      await expect(
+        page.locator(".dh-day-row--meeting .dh-day-row__time").first(),
+      ).toBeVisible();
+    }
 
     // The Focus placeholder is gone — the same rule POLISH-01 applied to Weather
-    // and the calendar (DEBT-53).
+    // and the calendar (DEBT-53), and the redesign applied again to the stat
+    // rail, the Task Summary donut and the Insights panel.
     await expect(
       page.getByText("A calm place to start a focus session"),
     ).toHaveCount(0);
     await expect(
       page.getByText("A Pomodoro timer for timeboxed work"),
     ).toHaveCount(0);
+    await expect(page.locator("[data-widget]")).toHaveCount(0);
   });
 });
 

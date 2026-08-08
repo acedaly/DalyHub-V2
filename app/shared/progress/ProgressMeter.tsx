@@ -26,9 +26,9 @@
  *     alone.
  */
 
-import { useId } from "react";
-
 import { AbsenceText } from "~/shared/pill";
+
+import { ProgressTrack, normaliseProgressPercent } from "./ProgressTrack";
 
 export interface ProgressMeterProps {
   /**
@@ -50,28 +50,19 @@ export interface ProgressMeterProps {
   readonly available?: boolean;
 }
 
-/** Clamp to 0–100 and round, so a bad caller can never overflow the track. */
-function normalisePercent(percent: number): number {
-  if (!Number.isFinite(percent)) return 0;
-  return Math.min(100, Math.max(0, Math.round(percent)));
-}
-
 export function ProgressMeter({
   label,
   percent,
   summary,
   available = true,
 }: ProgressMeterProps) {
-  const labelId = useId();
-  const value = normalisePercent(percent);
+  const value = normaliseProgressPercent(percent);
   const complete = available && value >= 100;
 
   return (
     <div className="dh-progress" data-available={available ? "true" : "false"}>
       <p className="dh-progress__header">
-        <span className="dh-progress__label" id={labelId}>
-          {label}
-        </span>
+        <span className="dh-progress__label">{label}</span>
         {/*
          * DS-14 §8 — when there is nothing to measure, the summary IS the
          * absence state, so it is a designed rendering rather than a sentence
@@ -91,22 +82,15 @@ export function ProgressMeter({
           <AbsenceText>{summary}</AbsenceText>
         )}
       </p>
+      {/* The bar is the shared `ProgressTrack` primitive — one implementation of
+          a linear progress indicator, packaged here with its header. */}
       {available ? (
-        <div
-          className="dh-progress__track"
-          role="progressbar"
-          aria-labelledby={labelId}
-          aria-valuenow={value}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuetext={`${value}% — ${summary}`}
-          data-complete={complete ? "true" : undefined}
-        >
-          <div
-            className="dh-progress__fill"
-            style={{ inlineSize: `${value}%` }}
-          />
-        </div>
+        <ProgressTrack
+          label={label}
+          percent={value}
+          valueText={summary}
+          complete={complete}
+        />
       ) : null}
     </div>
   );
