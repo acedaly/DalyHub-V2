@@ -166,10 +166,38 @@ test.describe("DS-06 — desktop", () => {
   }) => {
     await gotoFixture(page);
     const form = explicit(page);
+    /*
+     * Wait on the shared `data-editor-ready` contract before typing. Until
+     * enhancement lands, the live control is still the SSR `<textarea>`, and
+     * anything typed into it is discarded when CodeMirror replaces it.
+     */
+    await expect(
+      form.locator('.dh-md-editor[data-editor-ready="true"]'),
+    ).toBeVisible({ timeout: 15_000 });
+    /*
+     * The enhanced surface is CodeMirror's `contentDOM` — a `div` with
+     * `role="textbox"`, so it has no `.value` to assert against.
+     */
     const surface = form.getByRole("textbox", { name: /Description/ });
-    await surface.fill("# Heading\n\nSome **bold** text.");
-    // The source is preserved byte-for-byte — never turned into HTML.
-    await expect(surface).toHaveValue("# Heading\n\nSome **bold** text.");
+    await surface.click();
+    await page.keyboard.type("# Heading");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Some **bold** text.");
+    /*
+     * The SOURCE is what is held — the syntax is still there, not turned into
+     * HTML, so a heading is still `#` and bold is still `**`. Read it the way
+     * `notes.spec.ts` does: the live decoration conceals a marker unless the
+     * selection is inside it, so select all first and the joined visible line
+     * text IS the source.
+     */
+    await page.keyboard.press("ControlOrMeta+a");
+    const source = await form.locator(".cm-content").evaluate((el) =>
+      Array.from(el.querySelectorAll(".cm-line"))
+        .map((line) => line.textContent ?? "")
+        .join("\n"),
+    );
+    expect(source).toBe("# Heading\n\nSome **bold** text.");
     // ...and it is the same toolbar a Note gets, not a bespoke one.
     await expect(
       form.getByRole("toolbar", { name: /Description formatting/ }),

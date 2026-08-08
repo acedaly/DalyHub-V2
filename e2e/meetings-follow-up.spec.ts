@@ -43,7 +43,9 @@ async function addItem(
   body: string,
 ): Promise<void> {
   await page.getByRole("tab", { name: "Meeting" }).click();
-  await page.getByLabel(addLabel).fill(body);
+  // The field and its submit button share the accessible name, so ask for the
+  // textbox by role rather than by label alone.
+  await page.getByRole("textbox", { name: addLabel }).fill(body);
   await page.getByRole("button", { name: addLabel }).click();
   await expect(page.getByText(body, { exact: false })).toBeVisible();
 }
