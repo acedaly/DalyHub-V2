@@ -817,7 +817,20 @@ authority now.)
 - **Closing condition — met.** The wide-desktop failure mode was identified and fixed inside DS-14; the DS-14 acceptance section is written; `responsive.spec.ts`'s 320–2560 sweep passes over every restyled surface. The assumption was tested, which is what this entry was raised for.
 - **Related roadmap item.** [DS-14](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul).
 
-### ☐ DEBT-106 — `main`'s E2E suite is broadly red: 36 journeys across 19 spec files fail for reasons unrelated to the change that found them — P1
+### ☑ DEBT-106 — `main`'s E2E suite is broadly red: 36 journeys across 19 spec files fail for reasons unrelated to the change that found them — P1 — **RESOLVED 2026-08-09**
+
+- **Resolved (2026-08-09) by the [E2E regression audit](E2E_REGRESSION_AUDIT_2026_08_09.md).** A complete Playwright run was taken against `aa83b8a` before anything changed, every failure was classified, and the shared causes were fixed at the shared component. The audit document carries the numbers, the classification and the repair for each; what belongs here is the closing evidence and the three places this census sent the next reader the wrong way.
+- **Three diagnoses in the census below are WRONG, and the record says so rather than being quietly rewritten.** Each cost real time to re-derive:
+  - *"`projects.spec.ts` — the roll-up progress bar is missing, not merely wrong."* It is not missing. RECORD-01 folded it into the record's summary band and renamed it from "Roll-up progress" to **"Tasks"**; the failure snapshot shows `progressbar "Tasks"` on the page the assertion timed out against.
+  - *"`today.spec.ts:93` — the overdue day list renders four rows against a documented cap of three. It is the cap, not the fixture volume."* The cap is correct and shows three. The **"+n more overdue" row carried the same class as a task row**, so the test counted the link that says how many were left out. The row now carries the `dh-day-row--more` modifier the test was already filtering on — a modifier that had existed nowhere in the application.
+  - *"`people.spec.ts` — the card's `Archived` status `<span>` intercepts pointer events aimed at the card's own `Restore` button. A shared-Card layering problem."* It is the **cold action rail**: `opacity: 0` and `pointer-events: none` until the pointer arrives over the card, which is deliberate (UIQ-002). Playwright's visibility check ignores `opacity`, so the button reads as "visible, enabled and stable" and the hit test returns whatever happens to sit under the transparent rail — the status chip here, the card's `<h2>` title on the Notes Deleted view. The product is correct; the V2.2 programme had already diagnosed and fixed the same thing for `tasks-daily-driver.spec.ts`, and its helper is now shared as `clickCardAction`.
+- **Two rows of the table were already closed by the work that recorded them, and the audit's run confirms it on `main`:** all eight `meetings-follow-up.spec.ts` journeys and all five `tasks-daily-driver.spec.ts` journeys pass.
+- **One row is a product regression, and is NOT closed by this entry.** The four `assets-ownership.spec.ts` failures are Today having lost its Assets section — see [DEBT-111](#-debt-111--today-lost-its-assets-section-so-an-obligation-with-no-linked-task-reaches-the-owner-nowhere-outside-the-assets-module--p2). The journeys now assert the obligation where the product genuinely surfaces it; the missing surface is tracked there.
+- **What was actually wrong, in one line each:** one shared select field putting one accessible name on two nested elements · one meeting form doing the same · fifteen fixtures able to open the local D1 and only ten able to survive contention · one shared section hard-coding its heading levels into a real WCAG `heading-order` failure · one `count()` used as a branch condition before its panel had rendered · and a long tail of assertions describing surfaces the last ten merges deliberately replaced.
+- **Closing condition met.** A full Playwright run on `main` plus this change is green, with no spec excluded, no `.skip`/`.fixme` added, no browser dropped and no retry raised. The only skips are the opt-in screenshot-capture specs (`CAPTURE_SCREENSHOTS=1`), which were skipped before this change too.
+
+<details>
+<summary>The original census, kept as it was taken</summary>
 
 - **The heading counts what is red NOW (36); the census below counts what was red when it was taken (41).** V2.2 fixed five of them and the struck-through table row says which. The census is left as it was measured rather than quietly rewritten, because its value is that it was a real before/after run against a named CI job.
 - **Status: raised 2026-08-08 by [PEOPLE-04](../roadmap/ROADMAP_V2_1.md#-people-04--mobile-people) / [DIARY-02](../roadmap/ROADMAP_V2_1.md#-diary-02--day-context-links); widened 2026-08-08 by [AUDIT-FIX-07](../roadmap/ROADMAP_V2_1.md#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08) into a full census. Every failure below was reproduced at a clean `origin/main` with the branch checked out from under it.**
@@ -862,6 +875,8 @@ authority now.)
 - **Related.** [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) (closed, and re-opened in substance by this entry) and [DEBT-76](#-debt-76--a-chromium-renderer-segfault-fails-playwright-shards-non-deterministically-and-retries-0-turns-it-into-a-red-build--p2) — this entry is about *deterministic* failures, not the non-deterministic segfault DEBT-76 covers.
 - **Desired future state.** `main`'s E2E suite is green, or every remaining failure is diagnosed on its own module's terms and explained. Until then `main`'s E2E suite is not green, and no item should claim it is.
 - **Closing condition.** A full Playwright run on `main` is green, or each remaining entry in the table above carries a diagnosis and a decision.
+
+</details>
 
 ### ☐ DEBT-73 — Area colour is derived from rank, so the owner cannot choose it and a permanent deletion repaints later Areas — P3
 
