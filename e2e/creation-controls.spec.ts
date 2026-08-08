@@ -69,13 +69,13 @@ test.describe("the global capture control", () => {
       await changeType.click();
     }
 
-    // Exactly the four routine record types, once each.
-    for (const type of ["task", "note", "meeting", "diary"]) {
+    // Exactly the four routine record types plus Asset (ASSET-03), once each.
+    for (const type of ["task", "note", "meeting", "diary", "asset"]) {
       await expect(sheet.getByTestId(`capture-choose-${type}`)).toHaveCount(1);
     }
     await expect(
       sheet.getByRole("group", { name: "Capture type" }).getByRole("button"),
-    ).toHaveCount(4);
+    ).toHaveCount(5);
   });
 
   test("opens a creation flow, and returns focus to the trigger on Escape", async ({

@@ -190,7 +190,7 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     // label PLUS its description, so "Note" is legitimately a substring of both
     // the Note option and the Diary option's "A note about today". The visible
     // labels are asserted separately below.
-    for (const type of ["task", "diary", "meeting", "note"]) {
+    for (const type of ["task", "diary", "meeting", "note", "asset"]) {
       await expect(sheet.getByTestId(`capture-choose-${type}`)).toBeVisible();
     }
 
@@ -198,7 +198,7 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     const labels = await sheet
       .locator(".dh-sheet-option__label")
       .allTextContents();
-    expect(labels).toEqual(["Task", "Diary entry", "Meeting", "Note"]);
+    expect(labels).toEqual(["Task", "Diary entry", "Meeting", "Note", "Asset"]);
   });
 
   test("captures a Task from title plus Enter, then offers the next step", async ({

@@ -10,7 +10,8 @@
  * record's Details tab.
  */
 
-import type { AssetType } from "~/kernel/assets";
+import { ASSET_TYPES, type AssetType } from "~/kernel/assets";
+import type { SelectOption } from "~/shared/forms/model";
 
 /** A revealed create-form field descriptor. `name` matches the FormData key. */
 export type AssetFormField = {
@@ -106,4 +107,52 @@ export function newAssetFieldsForType(
   }
   // "other" and any future type: the calm common set.
   return [MANUFACTURER, MODEL, LOCATION];
+}
+
+/* -------------------------------------------------------------------------- */
+/* ASSET-03 — the type vocabulary, grouped for a phone                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The group headings the create form shows above the Asset types.
+ *
+ * PRESENTATION ONLY. There is no subtype concept in the Asset model and this
+ * does not invent one: nothing here is stored, submitted, validated or queried,
+ * and the type keys and labels are the kernel's own, untouched. The groups exist
+ * so thirteen types can be SCANNED — "is this a thing, a document, or a
+ * subscription?" is a faster first question than reading thirteen labels — and
+ * they are derived from the same sets that decide which fields a type reveals,
+ * so what you choose under "Documents and cover" is exactly what then asks for
+ * an issuer and a renewal date.
+ */
+export const ASSET_TYPE_GROUP_PHYSICAL = "Physical";
+export const ASSET_TYPE_GROUP_DOCUMENTARY = "Documents and cover";
+export const ASSET_TYPE_GROUP_RECURRING = "Digital and recurring";
+export const ASSET_TYPE_GROUP_OTHER = "Anything else";
+
+/** The presentation group for an Asset type. Total: a new type falls to "other". */
+export function assetTypeGroup(assetType: AssetType): string {
+  if (PHYSICAL.has(assetType)) return ASSET_TYPE_GROUP_PHYSICAL;
+  if (DOCUMENTARY.has(assetType)) return ASSET_TYPE_GROUP_DOCUMENTARY;
+  if (SUBSCRIPTIONLIKE.has(assetType)) return ASSET_TYPE_GROUP_RECURRING;
+  return ASSET_TYPE_GROUP_OTHER;
+}
+
+/**
+ * The New-Asset type options: the kernel vocabulary in the kernel's own order,
+ * each carrying its presentation group. Derived from `ASSET_TYPES`, so a type
+ * added to the kernel appears here automatically rather than being forgotten.
+ */
+export function assetTypeOptions(): readonly SelectOption[] {
+  const groups = [
+    ASSET_TYPE_GROUP_PHYSICAL,
+    ASSET_TYPE_GROUP_DOCUMENTARY,
+    ASSET_TYPE_GROUP_RECURRING,
+    ASSET_TYPE_GROUP_OTHER,
+  ];
+  return groups.flatMap((group) =>
+    ASSET_TYPES.filter((type) => assetTypeGroup(type.value) === group).map(
+      (type) => ({ value: type.value, label: type.label, group }),
+    ),
+  );
 }

@@ -51,7 +51,10 @@ const assetContext: CaptureContextContract = {
   returnTo: "/asset/asset-1",
 };
 
-function paramsOf(url: string): URLSearchParams {
+function paramsOf(url: string | null): URLSearchParams {
+  // Every caller here asks about a type that HAS a fuller surface; a null would
+  // be the test's own mistake, so it fails loudly rather than silently passing.
+  if (url === null) throw new Error("expected a hand-off route");
   return new URLSearchParams(url.slice(url.indexOf("?") + 1));
 }
 
@@ -66,7 +69,7 @@ describe("full-form hand-off destinations", () => {
   it("carries the context without disturbing the destination's own parameters", () => {
     const url = fullFormRoute("task", personContext);
     const params = paramsOf(url);
-    expect(url.startsWith("/tasks?")).toBe(true);
+    expect(url?.startsWith("/tasks?")).toBe(true);
     // The drawer key the destination needs is still there — the context is an
     // addition, never a replacement.
     expect(params.get("drawer")).toBe("new-task");
@@ -75,13 +78,13 @@ describe("full-form hand-off destinations", () => {
 
   it("carries the context on a destination that had no query string", () => {
     const url = fullFormRoute("meeting", personContext);
-    expect(url.startsWith("/new/meeting?")).toBe(true);
+    expect(url?.startsWith("/new/meeting?")).toBe(true);
     expect(readCaptureContextParam(paramsOf(url))).toEqual(personContext);
   });
 
   it("survives a round trip through real URL encoding", () => {
     const url = new URL(
-      fullFormRoute("diary", projectContext),
+      fullFormRoute("diary", projectContext) ?? "",
       "https://x.test",
     );
     expect(readCaptureContextParam(url.searchParams)).toEqual(projectContext);
@@ -96,6 +99,15 @@ describe("full-form hand-off destinations", () => {
   it("names the destination in the product's nouns", () => {
     expect(fullFormLabel("task")).toBe("More task options");
     expect(fullFormLabel("diary")).toBe("More entry options");
+  });
+
+  it("offers NO hand-off for a type whose panel is already the full form", () => {
+    // ASSET-03: Quick Capture composes the canonical `NewAssetForm` itself, so
+    // "More asset options" would lead to the same fields the owner can already
+    // see. The sheet renders no link at all rather than a circular one.
+    expect(fullFormRoute("asset", null)).toBeNull();
+    expect(fullFormRoute("asset", personContext)).toBeNull();
+    expect(fullFormLabel("asset")).toBeNull();
   });
 });
 

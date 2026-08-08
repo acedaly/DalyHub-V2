@@ -298,8 +298,10 @@ focus-trap implementation in DalyHub. A sheet:
 
 - traps focus, inerts the background, locks body scroll and restores focus to its
   opener, all through those hooks;
-- stops `Escape` propagation, so a sheet opened over a Drawer closes only itself —
-  never both;
+- responds to `Escape` only when it is the TOPMOST sheet, and stops the event there
+  — so a sheet over a Drawer closes only itself, and a sheet opened from inside
+  another sheet (the ASSET-03 Asset-type picker inside Quick Capture) does not take
+  the half-written capture beneath it down with it;
 - makes its BODY the only scroll container with `overscroll-behavior: contain`, so
   there is no nested scroll trap and scrolling never chains to the page behind it;
 - caps its height by `--dh-keyboard-inset`, so its sticky footer is above the
@@ -341,6 +343,18 @@ touches: a swipe may accelerate an action, but the action must also exist as an
 ordinary, visible, keyboard-accessible control. The Tasks list's swipe tray
 reveals exactly the `quickActions` already rendered on the card.
 
+### Choosing from a long vocabulary on a phone (ASSET-03)
+
+A single-select whose vocabulary is long enough that an anchored listbox is the
+wrong phone control opts in to `SelectField sheetOnCompact`: below `md` the field
+is a 44px trigger that opens the shared option `Sheet`, and above it the DS-16
+combobox is untouched. It is the same field either way — same value, label,
+required state, help, error association and `controlRef` — and the sheet's rows are
+`SheetOptionList`, so they arrive with 44px targets and `aria-pressed` selection
+that never relies on colour. Presentation groups may head the rows; they carry no
+data. The trigger names itself with the field label and its own value
+("Type, Vehicle"), so it is never announced as a value with no field.
+
 ### Extra verification MOBILE-01 adds
 
 - `e2e/mobile-shell.spec.ts` — the phone shell driven end to end at 390px, 320px
@@ -349,6 +363,9 @@ reveals exactly the `quickActions` already rendered on the card.
   restoration, Search within two taps, the full Quick Capture flow (including
   title-plus-Enter and repeated capture), Escape with no nested trap, axe in light
   and dark with the sheet open, and 200% zoom.
+- `e2e/assets-mobile-capture.spec.ts` (ASSET-03) — phone-first creation of a new
+  Asset from the global `+`, including the option-sheet type picker by keyboard,
+  Escape scoped to the topmost sheet, axe in light and dark, and 320/375/390/430px.
 - `RESPONSIVE_VIEWPORTS` gains **phone landscape (844×390)**, which the matrix
   previously had no coverage for — a real orientation with a genuinely different
   constraint (a very short viewport with sticky top and bottom chrome).

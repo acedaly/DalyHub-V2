@@ -22,7 +22,14 @@
  * is lazy-loaded by `CaptureProvider`.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 
 import { EntityIcon } from "~/shared/entity";
@@ -49,6 +56,16 @@ import { MeetingCapturePanel } from "./MeetingCapturePanel";
 import { NoteCapturePanel } from "./NoteCapturePanel";
 import { TaskCapturePanel } from "./TaskCapturePanel";
 import type { CapturePanelProps } from "./types";
+
+/**
+ * ASSET-03 — Assets' capture panel is the module's OWN canonical New Asset form,
+ * not a capture-only copy of it, so it lives with the module. The edge is a lazy
+ * import: the shell never statically depends on a module, and the Asset form
+ * loads only when someone chooses to capture an Asset.
+ */
+const AssetCapturePanel = lazy(
+  () => import("~/modules/assets/AssetCapturePanel"),
+);
 
 export type CaptureSheetProps = {
   /** Open straight into this type; omitted opens the chooser (or the remembered type). */
@@ -135,6 +152,8 @@ export default function CaptureSheet({
   }
 
   const descriptor = captureDescriptor(active);
+  const handoffRoute = fullFormRoute(active, activeContext);
+  const handoffLabel = fullFormLabel(active);
   const panelProps: CapturePanelProps = {
     firstFieldRef,
     onClose,
@@ -179,37 +198,46 @@ export default function CaptureSheet({
         contract in the URL and the destination form shows the SAME chip. It is a
         real link (not a scripted button) so it is middle-clickable, focusable and
         announced as navigation.
+
+        A type whose panel IS the module's canonical form (Asset) has no fuller
+        surface to offer, so it gets no link rather than one that goes nowhere new.
       */}
-      <div className="dh-capture-context-actions">
-        <a
-          className="dh-capture-handoff"
-          href={fullFormRoute(active, activeContext)}
-          onClick={(event) => {
-            if (
-              event.defaultPrevented ||
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey ||
-              event.button !== 0
-            ) {
-              return;
-            }
-            event.preventDefault();
-            onClose();
-            navigate(fullFormRoute(active, activeContext));
-          }}
-          data-testid="capture-full-form"
-        >
-          {fullFormLabel(active)}
-        </a>
-      </div>
+      {handoffRoute && handoffLabel ? (
+        <div className="dh-capture-context-actions">
+          <a
+            className="dh-capture-handoff"
+            href={handoffRoute}
+            onClick={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                event.button !== 0
+              ) {
+                return;
+              }
+              event.preventDefault();
+              onClose();
+              navigate(handoffRoute);
+            }}
+            data-testid="capture-full-form"
+          >
+            {handoffLabel}
+          </a>
+        </div>
+      ) : null}
       {active === "task" ? (
         <TaskCapturePanel {...panelProps} />
       ) : active === "diary" ? (
         <DiaryCapturePanel {...panelProps} />
       ) : active === "meeting" ? (
         <MeetingCapturePanel {...panelProps} />
+      ) : active === "asset" ? (
+        <Suspense fallback={null}>
+          <AssetCapturePanel {...panelProps} />
+        </Suspense>
       ) : (
         <NoteCapturePanel {...panelProps} />
       )}
