@@ -138,8 +138,14 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
    * fields in the product, so a page-wide locator was unambiguous. TASKS-05 put
    * the same shared fields on every task ROW, and the Tasks collection is what
    * is behind this Drawer — so a page-wide `/^Priority: /` now matches the
-   * Drawer's control and one per row behind it. The subject of these tests is
-   * the Drawer's field; scoping says so.
+   * Drawer's control and one per row behind it, and fails strict mode before it
+   * touches anything.
+   *
+   * This is a test defect, not an accessibility one: the background genuinely IS
+   * `inert` while a drawer is open (`use-inert-background.ts`), so no keyboard or
+   * screen-reader user can reach those rows. Playwright's role engine simply does
+   * not honour `inert`. The subject of these tests is the Drawer's own field, and
+   * scoping is how the test says so.
    */
   const drawerOf = (page: Page) => page.getByRole("dialog");
 
