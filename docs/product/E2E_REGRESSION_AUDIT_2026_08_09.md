@@ -31,13 +31,39 @@
    real defect was never hidden by rewriting its test. Where the two disagreed,
    the audit decided which was wrong and said so.
 
-<!-- FINAL-NUMBERS -->
+**The baseline.** `1402 passed · 47 failed · 87 skipped`, in one process over 2.2
+hours. Every one of the 87 skips is an opt-in screenshot-capture test
+(`CAPTURE_SCREENSHOTS=1`); they were skipped before this change too.
 
 ---
 
 ## 2. What the baseline found
 
-<!-- BASELINE-TABLE -->
+47 failures across 25 spec files. They are not 47 problems — they are **eight
+causes**, and the largest single one accounts for nine of them.
+
+| Cause | Failures | Class |
+|---|---|---|
+| Page-scoped inline-field locators (TASKS-05 put the same shared fields on every task row, and the Tasks collection is what sits behind the Drawer these specs open) | 9 | Test defect |
+| Today has no Assets section, and `asset-today.ts` has no consumer | 4 | **Product regression** → [DEBT-111](PRODUCT_DEBT.md) |
+| A select field putting one accessible name on two nested elements | 3 | **Product a11y defect** |
+| Surfaces the Today redesign replaced (greeting `h1`, no pane header, no capture widget, rows not cards) | 7 | Stale test |
+| A shared section hard-coding its heading levels into an axe `heading-order` failure | 2 | **Product a11y defect** |
+| RECORD-01 renames and re-homings (roll-up meter, health panel, stay-in-touch pill, collection filter group) | 7 | Stale test |
+| A concealed action rail driven cold | 2 | Test defect |
+| Fixtures: no `SQLITE_BUSY` retry, a `count()` raced against its own panel, an Inbox assumed empty, a seed that aged out of a bounded read, records left behind | 7 | Fixture / timing |
+| Everything else (bulk selection now mode-gated, `role="switch"`, a `display:none` second brand mark, a template id the product never prints, a grid card's elevation) | 6 | Stale test |
+
+**Three of the census's own diagnoses in [DEBT-106](PRODUCT_DEBT.md) were wrong**,
+and each would have sent the next reader down the wrong path. They are corrected
+in that entry rather than quietly rewritten: the roll-up progress bar was renamed,
+not missing; Today's overdue cap works and the *"+n more"* link was being counted
+as a task; and the "shared-Card layering problem" is the deliberately
+`pointer-events: none` action rail.
+
+**Two rows of that census are closed by the work that recorded them**, confirmed
+by this run on `main`: all eight `meetings-follow-up` journeys and all five
+`tasks-daily-driver` journeys pass.
 
 ---
 
