@@ -2282,3 +2282,104 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 - **Alternatives considered.** *Inlining a Task's status, sector and commitment too* — deferred, not rejected: they sit beside delegation and recurrence in the same form, and moving three of five controls out of a form is less coherent than moving none. *Adding an inline status select to the Project record* — rejected under decision 6. *Converting Meetings, Reviews and the Diary body to the read→activate inline transition* — deliberately not attempted here; it is a decision about which surfaces are editor-first, recorded as [DEBT-97](../product/PRODUCT_DEBT.md). *Deleting `MarkdownField` in this PR* — rejected as scope: it now has exactly one consumer, the design fixture that documents it, and that is [DEBT-101](../product/PRODUCT_DEBT.md). *One `update` intent per record with client-side merging* — rejected: merging on the client is how a concurrent change gets overwritten with confidence.
 
+---
+
+## ADR-079: One owner day, and one shape for a stale write
+
+**Status.** Accepted (AUDIT-FIX-06). Resolves [AUDIT-07], [AUDIT-08], [AUDIT-14] and [AUDIT-15] from
+[`END_TO_END_AUDIT_2026_08_05.md`](../product/END_TO_END_AUDIT_2026_08_05.md); the
+debt entries are DEBT-82, DEBT-83 and DEBT-88.
+
+**Context.** Four findings that look unrelated turned out to be two questions the
+product answered twice. *What day is it for the owner?* — Task paths resolved the
+stored timezone while Asset history, obligations and the obligation→task gateway
+resolved a hard-coded `Australia/Sydney`, because `~/shared/datetime` DEFAULTED
+the parameter. *Whose write wins when two devices disagree?* — preference and
+Note-content writes both read, merged and overwrote, and the `version` column
+that existed for exactly this purpose was incremented and never compared.
+
+- **Decision 1 — the owner's timezone is resolved, never defaulted.** The shared
+  date helpers now REQUIRE an explicit `timeZone`. That is the whole mechanism:
+  a call site can no longer answer "what day is it for the owner?" without
+  consulting the owner, and the compiler finds every one that tries. The shared
+  module's `OWNER_TIME_ZONE` export (ADR-033 §33.4) is REMOVED rather than
+  re-pointed, because a constant importable as "the timezone" is precisely how a
+  default becomes an answer. One fallback survives, named for what it is:
+  `DEFAULT_OWNER_TIME_ZONE` in `~/kernel/preferences`, applied where the
+  preference is READ and nowhere else.
+
+- **Decision 2 — the authority is the workspace scope, resolved once per
+  request.** `WorkspaceScope.ownerTimeZone()` / `.ownerTodayIso()` read the
+  owner's stored preference once and memoise the promise, so one request has
+  exactly one "today" however many modules ask — consistency by construction
+  rather than by convention. The owner is the trusted actor established in
+  composition, never a request value, so it cannot be pointed at another owner's
+  preferences. The read is deferred because most requests never ask, and a
+  failure degrades to the fallback rather than 500-ing a page over a preference
+  row. It is deliberately **not** a clock: instants stay UTC everywhere; only
+  their calendar reading is zoned.
+
+- **Decision 3 — a precondition belongs INSIDE the write, and its refusal is a
+  typed domain outcome.** Both concurrency fixes take the same shape, and it is
+  the one `ReviewRepository.updateSection` already established: the caller quotes
+  the version it edited, the repository appends that as a predicate on the SAME
+  statement, and a zero-row result is reconciled — not assumed — into either an
+  idempotent success or a typed conflict (`AppPreferencesConflictError`,
+  `NoteDetailsConflictError`). A `SELECT`, an application comparison and then an
+  unconditional `UPDATE` is not a precondition; it is a race with better manners.
+  Conflicts answer `409`, never `500`: nothing failed.
+
+- **Decision 4 — merge where the values are independent; refuse where they are
+  not.** Preferences and Note content have the same low-level mechanism and
+  deliberately different consequences. Preference fields are independent, so the
+  write became a per-COLUMN patch and two devices changing two settings simply
+  merge — manufacturing a conflict there would ask the owner to resolve a
+  disagreement that does not exist. Only the navigation hidden-set, whose new
+  value is DERIVED from the old one, quotes a version; its route re-derives and
+  retries, so the owner never sees a conflict either. Note content is one
+  indivisible document, so it refuses: there is no deterministic safe merge for
+  prose, and a wrong merge produces text neither person wrote.
+
+- **Decision 5 — a refused save is a third outcome, not a failure.** The shared
+  DS-06 coordinator gained `{ outcome: "conflict" }` alongside resolve and
+  reject. Reporting success would lie about where the owner's text is; reporting
+  an error would send them to retry a save that will be refused again for the
+  same good reason. The draft stays, the status returns to `unsaved`, and the
+  newer server text is offered through the EXISTING `RemoteChangeBanner` from
+  [ADR-064](#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave)
+  — one reconciliation UI in the product, not a second one for Notes. The
+  quoted base version is held until the owner answers, so a stray blur cannot
+  quietly win in the meantime.
+
+- **Decision 6 — a Task is the one spine kind whose parentage is optional, so it
+  is the one exception `restore` makes.** TASKS-04 made an Inbox Task a valid
+  spine record with no structural link; `spine.restore` predated that and
+  required an active parent for every non-Area kind, so the same record was legal
+  to create and illegal to restore. The exception is narrow and evaluated in the
+  restoring `UPDATE` itself: a Task also satisfies the requirement when it holds
+  no live structural link at all. No Project is invented, no default parent is
+  assigned, and every other kind — including a Task that genuinely retains a
+  parent link — keeps the original rule.
+
+- **Consequences.** *Easy:* a non-Sydney owner gets one calendar day across the
+  whole product, and eight copies of "read preferences, take `.timezone`, catch,
+  fall back" collapse into one call. *Hard:* every owner-calendar call site had to
+  be touched, because that is what removing a default means; the alternative was
+  to leave the trap in place. *Accepted:* two devices changing the SAME scalar
+  preference still resolve to the later write — the only honest answer for one
+  field with two intentions — and the parentless-restore fix stays latent until a
+  Task delete/restore UI exists. **No migration:** every column the preconditions
+  use already existed and was already written; the change is that they are now
+  compared.
+
+- **Alternatives considered.** *Re-pointing `OWNER_TIME_ZONE` at the kernel
+  constant* — rejected: it keeps a default, and a default is how the two
+  definitions arose. *Inferring the timezone from the Worker or the browser* —
+  rejected: DalyHub stores the owner's timezone, and guessing would be a third
+  definition. *Giving preferences the same refuse-and-ask treatment as Notes* —
+  rejected under decision 4. *Automatic Markdown merging, a revision history, or
+  CRDT/real-time collaboration for Notes* — rejected as both unsafe and far
+  outside the finding. *Assigning a restored parentless Task to a default
+  Project* — rejected: it invents structure the owner did not create, to satisfy
+  a rule that should never have applied to it.
+

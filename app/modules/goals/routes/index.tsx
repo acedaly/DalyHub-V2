@@ -88,8 +88,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
+    // AUDIT-14 — the owner's day, from the one scope-level authority.
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-      createOwnerAlignmentContext(new Date());
+      createOwnerAlignmentContext(new Date(), await scope.ownerTimeZone());
 
     // DEBT-23: the collection is ordered by the deterministic workspace-wide
     // Alignment precedence in the repository (BEFORE pagination), so the Goals

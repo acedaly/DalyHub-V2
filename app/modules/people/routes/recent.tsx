@@ -38,8 +38,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     return {
       people: await serializePeoplePage(
         scope.relationships,
-        scope.appPreferences,
-        session.user.subject,
+        scope.ownerTimeZone,
         page.items,
       ),
       nextCursor: null as string | null,

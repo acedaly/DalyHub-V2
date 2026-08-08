@@ -30,10 +30,14 @@ import type {
  * "overdue", "due soon" and "days since" match the owner's calendar day, not the UTC
  * runtime's. The loader passes a single `now` so the SQL facts and the pure evaluator
  * agree on the same day; tests inject a fixed instant.
+ *
+ * AUDIT-14 — the timezone is REQUIRED. It used to be optional, and three
+ * loaders omitted it, so a Project's "overdue" could be computed against a
+ * different day from the Task record that Project contained.
  */
 export function createOwnerHealthContext(
   now: Date,
-  timeZone?: string,
+  timeZone: string,
 ): HealthEvaluationContext {
   return {
     now,

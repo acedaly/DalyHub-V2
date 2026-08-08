@@ -13,6 +13,7 @@
 import type {
   NoteDetailsChangeResult,
   NoteDetailsRecord,
+  UpdateNoteContentOptions,
 } from "./note-details";
 
 export interface NoteDetailsRepository {
@@ -34,8 +35,21 @@ export interface NoteDetailsRepository {
    * atomically upserts `note_details` and appends `note.content_updated` in
    * the SAME transaction — an Activity-insert failure rolls the content
    * write back too.
+   *
+   * AUDIT-08 — supply `options.expectedContentUpdatedAt` (the
+   * {@link NoteDetailsRecord.contentUpdatedAt} the editor loaded) to make the
+   * write a compare-and-set: it commits only while the stored content is still
+   * the content this edit was based on, and raises
+   * {@link NoteDetailsConflictError} once another tab or device has written
+   * since. The precondition is evaluated INSIDE the write statement, so nothing
+   * can slip between a check and the update. Callers that quote no base version
+   * keep the previous last-write-wins behaviour unchanged.
    */
-  update(id: string, content: string): Promise<NoteDetailsChangeResult>;
+  update(
+    id: string,
+    content: string,
+    options?: UpdateNoteContentOptions,
+  ): Promise<NoteDetailsChangeResult>;
 
   /**
    * Replace the Note's tag set with the validated, normalised set (trimmed,

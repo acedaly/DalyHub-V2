@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -96,7 +96,11 @@ describe("healthSignals", () => {
   });
 
   it("states each reason in the same words the shared formatter uses", () => {
-    const health = stubHealth({ taskTotal: 6, taskCompleted: 1, overdueOpen: 1 });
+    const health = stubHealth({
+      taskTotal: 6,
+      taskCompleted: 1,
+      overdueOpen: 1,
+    });
     const signals = healthSignals(health);
     expect(signals.map((signal) => signal.text)).toEqual(
       health.reasons.map((reason) => healthReasonText(reason)),
@@ -104,7 +108,11 @@ describe("healthSignals", () => {
   });
 
   it("carries the reason's own tone, never colour alone", () => {
-    const health = stubHealth({ taskTotal: 6, taskCompleted: 1, overdueOpen: 1 });
+    const health = stubHealth({
+      taskTotal: 6,
+      taskCompleted: 1,
+      overdueOpen: 1,
+    });
     for (const signal of healthSignals(health)) {
       // Every signal has real text; the tone only tints it.
       expect(String(signal.text).length).toBeGreaterThan(0);
@@ -115,7 +123,9 @@ describe("healthSignals", () => {
   });
 
   it("presents an empty project calmly (no tasks, never 0% of something real)", () => {
-    const signals = healthSignals(stubHealth({ taskTotal: 0, taskCompleted: 0 }));
+    const signals = healthSignals(
+      stubHealth({ taskTotal: 0, taskCompleted: 0 }),
+    );
     const text = signals.map((signal) => String(signal.text)).join(" ");
     expect(text).not.toMatch(/0%/);
   });

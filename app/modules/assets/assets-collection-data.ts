@@ -19,6 +19,7 @@ import {
 } from "~/kernel/assets";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
@@ -109,9 +110,19 @@ export async function loadAssetsCollection(
   const obligations = (
     OBLIGATION_FILTERS.has(rawObligations) ? rawObligations : "any"
   ) as AssetObligationFilter;
-  const today = ownerCalendarIso(new Date());
-
-  const empty: AssetsCollectionData = {
+  /*
+   * AUDIT-14 — the OWNER's calendar day, from the one scope-level authority.
+   *
+   * This drives which obligations read as overdue and which as due soon, and it
+   * used to be resolved in a hard-coded `Australia/Sydney` while the Task record
+   * an obligation generates resolved the owner's stored zone. For an owner
+   * outside Sydney the two disagreed by a day for part of every day.
+   *
+   * The degraded page still needs A day to render its date-relative labels, so
+   * the fallback is the documented no-preference default and is only reached
+   * when the workspace itself could not be resolved.
+   */
+  const emptyPage = (today: string): AssetsCollectionData => ({
     assets: [],
     obligationSignals: {},
     obligations,
@@ -124,10 +135,12 @@ export async function loadAssetsCollection(
     people: [],
     areas: [],
     failed: true,
-  };
+  });
 
+  let today = ownerCalendarIso(new Date(), DEFAULT_OWNER_TIME_ZONE);
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    today = await scope.ownerTodayIso();
     const page = await scope.assets.list({
       view,
       sort,
@@ -196,6 +209,6 @@ export async function loadAssetsCollection(
       failed: false,
     };
   } catch {
-    return empty;
+    return emptyPage(today);
   }
 }

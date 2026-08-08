@@ -649,7 +649,7 @@ async function readAlignment(
 ): Promise<ReviewAlignmentContext> {
   try {
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-      createOwnerAlignmentContext(input.now);
+      createOwnerAlignmentContext(input.now, input.timezone);
 
     let goalPage;
     try {

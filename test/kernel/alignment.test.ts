@@ -40,6 +40,9 @@ import {
  * last-contribution instant behave independently.
  */
 
+// AUDIT-14 — every owner-calendar conversion in this suite names its zone, so
+// the fixture never depends on a default the product no longer has.
+const SYDNEY = "Australia/Sydney";
 const WS = "test-default-workspace";
 const OTHER = "ws_alignment_other";
 
@@ -542,14 +545,14 @@ describe("GoalRepository.listGoalsByAlignment — global Alignment order (DEBT-2
     countWindow: string;
   } {
     const now = new Date(nowIso);
-    const todayIso = ownerCalendarIso(now);
+    const todayIso = ownerCalendarIso(now, SYDNEY);
     return {
       ctx: {
         now,
         todayIso,
-        calendarIsoOf: (instant: Date) => ownerCalendarIso(instant),
+        calendarIsoOf: (instant: Date) => ownerCalendarIso(instant, SYDNEY),
       },
-      activeBoundary: recentBoundaryStartIso(todayIso),
+      activeBoundary: recentBoundaryStartIso(todayIso, SYDNEY),
       countWindow: recentWindowStartIso(todayIso),
     };
   }

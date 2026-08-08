@@ -106,7 +106,12 @@ describe("NoteContentForm", () => {
     vi.useFakeTimers();
     try {
       renderInRouter(
-        <NoteContentForm noteId="n1" initialContent="" onSaved={onSaved} />,
+        <NoteContentForm
+          contentUpdatedAt={null}
+          noteId="n1"
+          initialContent=""
+          onSaved={onSaved}
+        />,
       );
       expect(
         screen.queryByRole("button", { name: "Save" }),
@@ -142,7 +147,12 @@ describe("NoteContentForm", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderInRouter(
-      <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+      <NoteContentForm
+        contentUpdatedAt={null}
+        noteId="n1"
+        initialContent=""
+        onSaved={() => {}}
+      />,
     );
     const textbox = screen.getByRole("textbox", { name: "Note" });
     fireEvent.change(textbox, { target: { value: "Blurred save" } });
@@ -159,7 +169,12 @@ describe("NoteContentForm", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderInRouter(
-      <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+      <NoteContentForm
+        contentUpdatedAt={null}
+        noteId="n1"
+        initialContent=""
+        onSaved={() => {}}
+      />,
     );
     const textbox = screen.getByRole("textbox", { name: "Note" });
     const source = "line one\r\nline two\r\n\r\n   \t  \r\n";
@@ -187,7 +202,12 @@ describe("NoteContentForm", () => {
     vi.useFakeTimers();
     try {
       renderInRouter(
-        <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+        <NoteContentForm
+          contentUpdatedAt={null}
+          noteId="n1"
+          initialContent=""
+          onSaved={() => {}}
+        />,
       );
       const textbox = screen.getByRole("textbox", { name: "Note" });
 
@@ -240,7 +260,12 @@ describe("NoteContentForm", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderInRouter(
-      <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+      <NoteContentForm
+        contentUpdatedAt={null}
+        noteId="n1"
+        initialContent=""
+        onSaved={() => {}}
+      />,
     );
     const textbox = screen.getByRole("textbox", { name: "Note" });
     fireEvent.change(textbox, {
@@ -273,7 +298,12 @@ describe("NoteContentForm", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     renderInRouter(
-      <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+      <NoteContentForm
+        contentUpdatedAt={null}
+        noteId="n1"
+        initialContent=""
+        onSaved={() => {}}
+      />,
     );
     const textbox = screen.getByRole("textbox", { name: "Note" });
     fireEvent.change(textbox, { target: { value: "Offline edit" } });
@@ -293,7 +323,12 @@ describe("NoteContentForm", () => {
 
   it("refuses to even attempt a save of oversized content — no fetch call, an inline validation error instead", () => {
     renderInRouter(
-      <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+      <NoteContentForm
+        contentUpdatedAt={null}
+        noteId="n1"
+        initialContent=""
+        onSaved={() => {}}
+      />,
     );
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -314,7 +349,12 @@ describe("NoteContentForm", () => {
       renderInRouter(
         <>
           <Link to="/elsewhere">Go elsewhere</Link>
-          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />
+          <NoteContentForm
+            contentUpdatedAt={null}
+            noteId="n1"
+            initialContent=""
+            onSaved={() => {}}
+          />
         </>,
       );
       fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
@@ -336,7 +376,12 @@ describe("NoteContentForm", () => {
       renderInRouter(
         <>
           <Link to="/elsewhere">Go elsewhere</Link>
-          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />
+          <NoteContentForm
+            contentUpdatedAt={null}
+            noteId="n1"
+            initialContent=""
+            onSaved={() => {}}
+          />
         </>,
       );
       const textbox = screen.getByRole("textbox", { name: "Note" });
@@ -360,7 +405,12 @@ describe("NoteContentForm", () => {
       renderInRouter(
         <>
           <Link to="/elsewhere">Go elsewhere</Link>
-          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />
+          <NoteContentForm
+            contentUpdatedAt={null}
+            noteId="n1"
+            initialContent=""
+            onSaved={() => {}}
+          />
         </>,
       );
       const textbox = screen.getByRole("textbox", { name: "Note" });
@@ -386,6 +436,7 @@ describe("NoteContentForm", () => {
         <>
           <Link to="/elsewhere">Go elsewhere</Link>
           <NoteContentForm
+            contentUpdatedAt={null}
             noteId="n1"
             initialContent=""
             onSaved={() => {}}
@@ -411,7 +462,12 @@ describe("NoteContentForm", () => {
   describe("reading mode (NOTES-05)", () => {
     it("writes by default: the formatting toolbar and editable surface are present, no Source/Split/Preview", () => {
       renderInRouter(
-        <NoteContentForm noteId="n1" initialContent="Hi" onSaved={() => {}} />,
+        <NoteContentForm
+          contentUpdatedAt={null}
+          noteId="n1"
+          initialContent="Hi"
+          onSaved={() => {}}
+        />,
       );
       expect(
         screen.getByRole("toolbar", { name: "Formatting" }),
@@ -426,6 +482,7 @@ describe("NoteContentForm", () => {
     it("toggles to Read (rendering through the shared pipeline, hiding the editor) and back to Write", async () => {
       renderInRouter(
         <NoteContentForm
+          contentUpdatedAt={null}
           noteId="n1"
           initialContent="# Heading"
           onSaved={() => {}}
@@ -474,6 +531,7 @@ describe("NoteContentForm", () => {
       try {
         renderInRouter(
           <NoteContentForm
+            contentUpdatedAt={null}
             noteId="n1"
             initialContent="draft"
             onSaved={() => {}}
@@ -516,7 +574,12 @@ describe("NoteContentForm", () => {
       vi.useFakeTimers();
       try {
         renderInRouter(
-          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+          <NoteContentForm
+            contentUpdatedAt={null}
+            noteId="n1"
+            initialContent=""
+            onSaved={() => {}}
+          />,
         );
         const textarea = screen.getByRole("textbox", {
           name: "Note",
@@ -565,6 +628,7 @@ describe("NoteContentForm", () => {
 
       renderInRouter(
         <NoteContentForm
+          contentUpdatedAt={null}
           noteId="n1"
           initialContent="draft"
           onSaved={() => {}}
@@ -594,6 +658,7 @@ describe("NoteContentForm", () => {
 
       renderInRouter(
         <NoteContentForm
+          contentUpdatedAt={null}
           noteId="n1"
           initialContent="draft"
           onSaved={() => {}}
@@ -618,7 +683,12 @@ describe("NoteContentForm", () => {
       renderInRouter(
         <>
           <Link to="/elsewhere">Go elsewhere</Link>
-          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />
+          <NoteContentForm
+            contentUpdatedAt={null}
+            noteId="n1"
+            initialContent=""
+            onSaved={() => {}}
+          />
         </>,
       );
       const textarea = screen.getByRole("textbox", {
@@ -649,7 +719,12 @@ describe("NoteContentForm — server-side change while editing", () => {
     onSaved: () => void = () => {},
   ) {
     return (
-      <NoteContentForm noteId="n1" initialContent={content} onSaved={onSaved} />
+      <NoteContentForm
+        contentUpdatedAt={null}
+        noteId="n1"
+        initialContent={content}
+        onSaved={onSaved}
+      />
     );
   }
 
@@ -816,5 +891,296 @@ describe("NoteContentForm — server-side change while editing", () => {
       screen.queryByText(/changed somewhere else/),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("mine");
+  });
+});
+
+/**
+ * AUDIT-08 — a save the SERVER refuses because the note changed elsewhere.
+ *
+ * This is the case the [DEBT-47] banner above cannot reach on its own: nothing
+ * revalidated between load and save, so the editor had no way to know. The
+ * server is the backstop, and its refusal must land on the same two safe
+ * answers rather than on a generic "couldn't save" the owner can only retry
+ * into the same refusal.
+ *
+ * What must be true after a refusal, and is asserted here: the draft is still
+ * in the editor, the newer server text is offered rather than applied, and
+ * whichever the owner chooses, the NEXT save succeeds instead of conflicting
+ * again over the same change.
+ */
+describe("NoteContentForm — a save refused by the server (AUDIT-08)", () => {
+  function conflictResponse(serverContent: string, version: string): Response {
+    return new Response(
+      JSON.stringify({
+        kind: "update_content",
+        ok: false,
+        conflict: true,
+        formError: "This note changed somewhere else.",
+        serverContent,
+        contentUpdatedAt: version,
+      }),
+      { status: 409, headers: { "content-type": "application/json" } },
+    );
+  }
+
+  function saved(version: string): Response {
+    return jsonResponse({
+      kind: "update_content",
+      ok: true,
+      contentUpdatedAt: version,
+    });
+  }
+
+  it("quotes the version it loaded on every save", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(saved("2026-08-08T02:00:00.000Z"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent="loaded"
+        contentUpdatedAt="2026-08-08T01:00:00.000Z"
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "edited" } });
+    fireEvent.blur(textarea);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = fetchMock.mock.calls[0]![1].body as FormData;
+    expect(body.get("expectedContentUpdatedAt")).toBe(
+      "2026-08-08T01:00:00.000Z",
+    );
+  });
+
+  it("sends an empty base version for a note whose content was never saved", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(saved("2026-08-08T02:00:00.000Z"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent=""
+        contentUpdatedAt={null}
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "first words" } });
+    fireEvent.blur(textarea);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = fetchMock.mock.calls[0]![1].body as FormData;
+    expect(body.get("expectedContentUpdatedAt")).toBe("");
+  });
+
+  it("keeps the draft, offers the newer text, and does not report a failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        conflictResponse("written on my phone", "2026-08-08T03:00:00.000Z"),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent="loaded"
+        contentUpdatedAt="2026-08-08T01:00:00.000Z"
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "written on my laptop" } });
+    fireEvent.blur(textarea);
+
+    const banner = await screen.findByRole("status", {
+      name: "Changed elsewhere",
+    });
+    expect(banner).toHaveTextContent("nothing has been overwritten");
+
+    // The owner's words are exactly where they left them.
+    expect(textarea).toHaveValue("written on my laptop");
+    // And this is NOT presented as a broken save: there is nothing to retry.
+    expect(screen.queryByText("Couldn’t save")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Retry" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+  });
+
+  it("loads the newer version on request, and the next save is accepted", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        conflictResponse("written on my phone", "2026-08-08T03:00:00.000Z"),
+      )
+      .mockResolvedValue(saved("2026-08-08T04:00:00.000Z"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent="loaded"
+        contentUpdatedAt="2026-08-08T01:00:00.000Z"
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "written on my laptop" } });
+    fireEvent.blur(textarea);
+    await screen.findByRole("status", { name: "Changed elsewhere" });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load the newer version" }),
+    );
+    await waitFor(() => expect(textarea).toHaveValue("written on my phone"));
+
+    // Editing on top of the adopted text saves against the version it came
+    // from, so the recovery does not conflict all over again.
+    fireEvent.change(textarea, {
+      target: { value: "written on my phone, then edited" },
+    });
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    const body = fetchMock.mock.calls.at(-1)![1].body as FormData;
+    expect(body.get("expectedContentUpdatedAt")).toBe(
+      "2026-08-08T03:00:00.000Z",
+    );
+  });
+
+  it("keeps the draft on 'Keep mine', and its next save deliberately wins", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        conflictResponse("written on my phone", "2026-08-08T03:00:00.000Z"),
+      )
+      .mockResolvedValue(saved("2026-08-08T04:00:00.000Z"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent="loaded"
+        contentUpdatedAt="2026-08-08T01:00:00.000Z"
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "written on my laptop" } });
+    fireEvent.blur(textarea);
+    await screen.findByRole("status", { name: "Changed elsewhere" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep mine" }));
+    expect(textarea).toHaveValue("written on my laptop");
+
+    // Saving now quotes the version the owner was SHOWN and chose against, so
+    // it is accepted — a deliberate last-write-wins, never a silent one.
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    const body = fetchMock.mock.calls.at(-1)![1].body as FormData;
+    expect(body.get("expectedContentUpdatedAt")).toBe(
+      "2026-08-08T03:00:00.000Z",
+    );
+    expect(body.get("content")).toBe("written on my laptop");
+  });
+
+  it("advances the quoted version after each accepted save", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(saved("2026-08-08T02:00:00.000Z"))
+      .mockResolvedValueOnce(saved("2026-08-08T03:00:00.000Z"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent="loaded"
+        contentUpdatedAt="2026-08-08T01:00:00.000Z"
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "one" } });
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(textarea, { target: { value: "one two" } });
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    // A long writing session must not conflict with its OWN previous save.
+    const second = fetchMock.mock.calls[1]![1].body as FormData;
+    expect(second.get("expectedContentUpdatedAt")).toBe(
+      "2026-08-08T02:00:00.000Z",
+    );
+  });
+});
+
+/**
+ * AUDIT-08 — while a change is parked, a blur does not fire a doomed save.
+ *
+ * The base version is held until the owner answers the banner, so any save
+ * attempted first is certain to be refused. Attempting it anyway would disable
+ * the banner's own buttons for the duration of the round trip — exactly as the
+ * owner reaches for them.
+ */
+describe("NoteContentForm — no save attempts while a conflict is unresolved", () => {
+  it("suppresses the blur-save while the banner is showing, and resumes after", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            kind: "update_content",
+            ok: false,
+            conflict: true,
+            formError: "This note changed somewhere else.",
+            serverContent: "theirs",
+            contentUpdatedAt: "2026-08-08T03:00:00.000Z",
+          }),
+          { status: 409, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValue(
+        jsonResponse({
+          kind: "update_content",
+          ok: true,
+          contentUpdatedAt: "2026-08-08T04:00:00.000Z",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInRouter(
+      <NoteContentForm
+        noteId="n1"
+        initialContent="loaded"
+        contentUpdatedAt="2026-08-08T01:00:00.000Z"
+        onSaved={() => {}}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(textarea, { target: { value: "mine" } });
+    fireEvent.blur(textarea);
+    await screen.findByRole("status", { name: "Changed elsewhere" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Blurring again while the banner is up must not post anything.
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(
+      screen.getByRole("button", { name: "Load the newer version" }),
+    ).toBeEnabled();
+
+    // Once the owner answers, saving resumes normally.
+    fireEvent.click(screen.getByRole("button", { name: "Keep mine" }));
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -1276,10 +1276,21 @@ export class D1SpineRepository implements SpineRepository {
 
     // A non-Area record can only be restored when its retained parent is active.
     // The requirement is folded into the UPDATE.
-    const parentRequirement =
-      record.kind === AREA
-        ? ""
-        : ` AND EXISTS (
+    //
+    // AUDIT-15 — a Task is the ONE spine kind whose parentage is optional
+    // (TASKS-04: an Inbox Task is a valid spine record with no structural
+    // EntityLink, not a damaged child of a hidden parent). Requiring an active
+    // parent unconditionally made such a Task valid when created and invalid
+    // when restored — a domain contradiction that surfaced as
+    // `SpineParentUnavailableError`. So a Task additionally satisfies the
+    // requirement when it holds NO live structural link at all: it was
+    // parentless before the delete and returns to the Inbox, with no fabricated
+    // Project and no default parent. The alternative is evaluated IN THE SAME
+    // statement as the update, so a parent linked between the read above and
+    // this write still gates the restore rather than slipping through a stale
+    // application-side decision. Every OTHER kind — and a Task that genuinely
+    // has a retained parent link — keeps the original requirement exactly.
+    const activeParentExists = `EXISTS (
               SELECT 1 FROM entity_links pl
               JOIN entities pe
                 ON pe.workspace_id = pl.workspace_id AND pe.id = pl.target_entity_id
@@ -1289,6 +1300,19 @@ export class D1SpineRepository implements SpineRepository {
                 AND pl.deleted_at IS NULL
                 AND pl.type IN (${STRUCTURAL_LINK_LIST})
             )`;
+    const noStructuralParentLink = `NOT EXISTS (
+              SELECT 1 FROM entity_links pl
+              WHERE pl.workspace_id = entities.workspace_id
+                AND pl.source_entity_id = entities.id
+                AND pl.deleted_at IS NULL
+                AND pl.type IN (${STRUCTURAL_LINK_LIST})
+            )`;
+    const parentRequirement =
+      record.kind === AREA
+        ? ""
+        : record.kind === TASK
+          ? ` AND (${activeParentExists} OR ${noStructuralParentLink})`
+          : ` AND ${activeParentExists}`;
 
     const domainStmt = this.#db
       .prepare(

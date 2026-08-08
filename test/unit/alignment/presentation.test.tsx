@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -102,6 +102,7 @@ describe("GoalAlignmentPanel", () => {
         evidence={[]}
         evidenceHasMore={false}
         todayIso="2026-07-24"
+        timeZone="Australia/Sydney"
         onOpenTask={() => {}}
       />,
     );
@@ -117,6 +118,7 @@ describe("GoalAlignmentPanel", () => {
         evidence={[evidence()]}
         evidenceHasMore={false}
         todayIso="2026-07-24"
+        timeZone="Australia/Sydney"
         onOpenTask={onOpenTask}
       />,
     );
@@ -136,6 +138,7 @@ describe("GoalAlignmentPanel", () => {
         evidence={[evidence()]}
         evidenceHasMore
         todayIso="2026-07-24"
+        timeZone="Australia/Sydney"
         onOpenTask={() => {}}
       />,
     );
@@ -151,6 +154,7 @@ describe("GoalAlignmentPanel", () => {
         evidence={[]}
         evidenceHasMore={false}
         todayIso="2026-07-24"
+        timeZone="Australia/Sydney"
         onOpenTask={() => {}}
       />,
     );

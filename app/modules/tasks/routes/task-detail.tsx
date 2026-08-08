@@ -23,7 +23,6 @@
 
 import { env } from "cloudflare:workers";
 
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
   TASK_RECURRENCE_DATE_KINDS,
@@ -102,12 +101,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const taskId = params.taskId;
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
-  } catch {
-    // Keep the record reachable with the deterministic default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority,
+  // resolved once per request and shared with every other module that
+  // asks what day it is. Degrades to the documented default on a read
+  // failure, so a missing preference never takes the page down.
+  const timezone = await scope.ownerTimeZone();
   const task = await scope.tasks.getTask(taskId);
   if (!task) {
     // A missing, soft-deleted, non-task or cross-workspace id — the calm 404 the
@@ -163,7 +161,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
           scope,
           taskId,
           intent,
-          await ownerTodayIsoFor(scope, session.user.subject),
+          await ownerTodayIsoFor(scope),
         ),
       );
     case "link":
@@ -385,17 +383,11 @@ async function handleCompletion(
  * schedules the next occurrence relative to the day the owner actually completed the
  * task, never the server's UTC day or a browser guess.
  */
-async function ownerTodayIsoFor(
-  scope: WorkspaceScope,
-  subject: string,
-): Promise<string> {
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(subject)).timezone;
-  } catch {
-    // Keep the mutation working on the deterministic default.
-  }
-  return ownerCalendarIso(new Date(), timezone);
+async function ownerTodayIsoFor(scope: WorkspaceScope): Promise<string> {
+  // AUDIT-14 — one authority for the owner's day, resolved once per request
+  // and shared with every other module that asks. Degrades to the documented
+  // default on a read failure, so a missing preference never blocks a mutation.
+  return scope.ownerTodayIso();
 }
 
 /**

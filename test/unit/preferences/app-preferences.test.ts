@@ -65,6 +65,29 @@ describe("app preferences", () => {
     expect(() => parseTimezone("Not/A_Zone")).toThrow();
   });
 
+  it("accepts every timezone the Settings list actually offers", () => {
+    // AUDIT-14 — the owner's stored timezone is the ONE definition of their
+    // calendar day, so every value the picker offers must be storable.
+    // `Intl.supportedValuesOf('timeZone')` lists canonical zones only and omits
+    // links, so `UTC` used to be offered and then rejected on save.
+    for (const zone of [
+      "Australia/Sydney",
+      "Australia/Melbourne",
+      "Australia/Brisbane",
+      "Australia/Perth",
+      "Pacific/Auckland",
+      "Europe/London",
+      "Europe/Dublin",
+      "America/New_York",
+      "America/Chicago",
+      "America/Denver",
+      "America/Los_Angeles",
+      "UTC",
+    ]) {
+      expect(parseTimezone(zone)).toBe(zone);
+    }
+  });
+
   it("reconciles navigation against the module registry model", () => {
     const canonical = [
       { moduleId: "today", label: "Today" },

@@ -4,6 +4,20 @@ import { DEFAULT_APPEARANCE, type AppearancePreference } from "./appearance";
 
 export const APP_PREFERENCES_CHANGED = "settings.preferences_changed";
 
+/**
+ * AUDIT-14 — the ONE fallback owner timezone, and the only place this product
+ * names a specific zone as a default.
+ *
+ * DalyHub stores the owner's timezone (SET-01), and that stored value is the
+ * authority for every "what calendar day is it for the owner?" question. This
+ * constant answers only the narrow case where there is no stored value yet: a
+ * workspace with no preferences row, or a system-actor scope with no owner. It
+ * is deliberately NOT importable as "the application's timezone" — the owner's
+ * day comes from the resolved preference, never from a constant, which is
+ * exactly the confusion that let Asset and Task paths disagree about today.
+ */
+export const DEFAULT_OWNER_TIME_ZONE = "Australia/Sydney";
+
 export const DATE_FORMATS = ["dmy_slash", "d_mmm_yyyy", "iso"] as const;
 export type DateFormat = (typeof DATE_FORMATS)[number];
 
@@ -79,7 +93,7 @@ export interface AppPreferenceRecord extends AppPreferences {
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   appearance: DEFAULT_APPEARANCE,
-  timezone: "Australia/Sydney",
+  timezone: DEFAULT_OWNER_TIME_ZONE,
   dateFormat: "d_mmm_yyyy",
   firstDayOfWeek: "monday",
   defaultLandingDestination: "today",
@@ -115,11 +129,32 @@ export interface AppPreferencesChangeResult {
   readonly changed: boolean;
 }
 
+/**
+ * AUDIT-07 — optional optimistic-concurrency options for a preference write.
+ *
+ * `expectedVersion` is the {@link AppPreferenceRecord.version} the caller read
+ * and based its patch on. Supplying it turns the write into a compare-and-set:
+ * it commits only against that exact version, and raises
+ * `AppPreferencesConflictError` when the stored record has moved on. Omit it —
+ * as every independent single-field patch does — and the write merges safely
+ * instead, because a patch writes only the columns it names and therefore
+ * cannot carry a stale value for a field it did not touch.
+ *
+ * Quote it whenever the new value is DERIVED from the old one (a set being
+ * added to, a counter, a toggle over a composite field), because that is the
+ * only case where two writers can both be "right" about their own field and
+ * still lose one another's work.
+ */
+export interface UpdateAppPreferencesOptions {
+  readonly expectedVersion?: number;
+}
+
 export interface AppPreferencesRepository {
   readonly get: (ownerId: string) => Promise<AppPreferenceRecord>;
   readonly update: (
     ownerId: string,
     patch: AppPreferencePatch,
+    options?: UpdateAppPreferencesOptions,
   ) => Promise<AppPreferencesChangeResult>;
 }
 

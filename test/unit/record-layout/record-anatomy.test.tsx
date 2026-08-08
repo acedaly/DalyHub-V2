@@ -49,7 +49,9 @@ describe("RecordHeader — identity is one block", () => {
     const { container } = render(
       <RecordHeader title="Kitchen fit-out" icon={<span id="chosen" />} />,
     );
-    expect(container.querySelector(".record-type__icon #chosen")).not.toBeNull();
+    expect(
+      container.querySelector(".record-type__icon #chosen"),
+    ).not.toBeNull();
   });
 
   it("renders metadata as ONE context line, not a detached band", () => {
@@ -120,7 +122,11 @@ describe("RecordSummaryBar — the compact derived-state band", () => {
         }}
         state={<span>At risk</span>}
         signals={[
-          { id: "overdue", text: "3 tasks past their due date", tone: "danger" },
+          {
+            id: "overdue",
+            text: "3 tasks past their due date",
+            tone: "danger",
+          },
           { id: "waiting", text: "2 of 15 open tasks waiting" },
         ]}
       />,
@@ -130,9 +136,7 @@ describe("RecordSummaryBar — the compact derived-state band", () => {
     expect(meter).toHaveAttribute("aria-valuenow", "38");
     expect(screen.getAllByText("9 of 24 tasks complete")).toHaveLength(1);
     expect(screen.getAllByText("At risk")).toHaveLength(1);
-    expect(
-      screen.getAllByText("3 tasks past their due date"),
-    ).toHaveLength(1);
+    expect(screen.getAllByText("3 tasks past their due date")).toHaveLength(1);
   });
 
   it("stays on the page canvas for derived state, and takes a card for prose", () => {
@@ -141,9 +145,10 @@ describe("RecordSummaryBar — the compact derived-state band", () => {
     const { container: sparse } = render(
       <RecordSummaryBar state={<span>On track</span>} />,
     );
-    expect(
-      sparse.querySelector(".dh-record-summary-bar"),
-    ).toHaveAttribute("data-density", "sparse");
+    expect(sparse.querySelector(".dh-record-summary-bar")).toHaveAttribute(
+      "data-density",
+      "sparse",
+    );
 
     const { container: full } = render(
       <RecordSummaryBar

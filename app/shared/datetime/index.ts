@@ -9,23 +9,34 @@
  * Today, Tasks (the re-homed Task record surface) and Projects all resolve the
  * owner's day — so the calendar logic must live in one place, not one module.
  *
- * SET-01 persists the owner/workspace timezone and passes it into these helpers
- * from server loaders. The constant below remains the deterministic application
- * default (`Australia/Sydney`) for no-row/fallback paths.
+ * ## AUDIT-14 — the timezone is always an argument, never a default
+ *
+ * SET-01 persists the owner's timezone, and that stored value is the ONE
+ * authority for "which calendar day is it for the owner?". These helpers used to
+ * default it to a hard-coded `Australia/Sydney`, which meant a call site could
+ * silently answer the question WITHOUT consulting the owner — and several did:
+ * Task paths resolved the stored timezone while Asset history, obligations and
+ * the obligation→task gateway resolved Sydney, so one instant became two
+ * different calendar dates in one product for any owner living elsewhere.
+ *
+ * The parameter is therefore required. There is nothing to forget: a caller that
+ * cannot name a timezone does not compile, and the timezone comes from
+ * `WorkspaceScope.ownerTimeZone()` on the server or from a value the server
+ * resolved on the client. The sole fallback for "no stored preference at all"
+ * is `DEFAULT_OWNER_TIME_ZONE` in `~/kernel/preferences`, applied where the
+ * preference is READ — not here.
+ *
+ * These functions remain pure and clock-free: every one takes the instant it is
+ * asked about. UTC timestamps stay UTC timestamps; only the CALENDAR reading of
+ * an instant is zoned.
  */
-
-/** The default owner-calendar timezone when no persisted preference exists. */
-export const OWNER_TIME_ZONE = "Australia/Sydney";
 
 /**
  * Format an instant as the owner's calendar date (e.g. "Sunday 19 July 2026"),
  * resolved in the provided timezone so it is correct across the UTC/AEST/AEDT day
  * boundary regardless of the runtime timezone.
  */
-export function formatTodayDate(
-  now: Date,
-  timeZone: string = OWNER_TIME_ZONE,
-): string {
+export function formatTodayDate(now: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-AU", {
     weekday: "long",
     day: "numeric",
@@ -41,10 +52,7 @@ export function formatTodayDate(
  * "overdue" matches the owner's day, not the UTC runtime's. Uses the `en-CA` locale
  * (which formats as `YYYY-MM-DD`), assembled from parts to stay locale-stable.
  */
-export function ownerCalendarIso(
-  now: Date,
-  timeZone: string = OWNER_TIME_ZONE,
-): string {
+export function ownerCalendarIso(now: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
@@ -75,7 +83,7 @@ export function ownerCalendarIso(
  * preference value.
  */
 export function ownerCalendarDateResolver(
-  timeZone: string = OWNER_TIME_ZONE,
+  timeZone: string,
 ): (value: Date | string | null | undefined) => string | null {
   let formatter: Intl.DateTimeFormat | null;
   try {
