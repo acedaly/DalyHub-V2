@@ -111,10 +111,25 @@ export interface CardProgress {
   readonly valueText?: string;
 }
 
+/** Modifier keys that were held when a selection was toggled. */
+export interface CardSelectionModifiers {
+  /**
+   * TASKS-06 — Shift was held, so a collection that supports RANGE selection should
+   * extend from its last toggled row rather than toggling this one alone. It is
+   * reported rather than interpreted: the Card has no idea what order its siblings are
+   * in, and only the collection does. A consumer that ignores it behaves exactly as
+   * before, which is why this is optional.
+   */
+  readonly shift: boolean;
+}
+
 /** Controlled selection. Native checkbox semantics; selection never opens a card. */
 export interface CardSelection {
   readonly selected: boolean;
-  readonly onSelectedChange: (selected: boolean) => void;
+  readonly onSelectedChange: (
+    selected: boolean,
+    modifiers?: CardSelectionModifiers,
+  ) => void;
   readonly disabled?: boolean;
   /** Accessible name for the control; defaults to `Select <title>`. */
   readonly label?: string;
@@ -228,6 +243,22 @@ export interface CardProps {
    * unchanged.
    */
   readonly swipeActions?: readonly CardAction[];
+
+  /**
+   * TASKS-08 — a touch LONG PRESS on the card surface (hold ~500ms without moving).
+   *
+   * The phone-native way to begin a multi-selection, which needs its own gesture
+   * because a tap already means "open this record". It is inert on a non-touch device
+   * and inert unless supplied, so no existing consumer changes.
+   *
+   * It is an ACCELERATOR: a consumer that wires it MUST also expose an ordinary,
+   * labelled selection control (this Card's `selection` checkbox, plus a visible
+   * selection toggle on the collection), because a gesture-only capability has no
+   * keyboard or assistive-technology equivalent (AGENTS.md §15). The hold never fires
+   * on a nested control and never competes with the swipe tray or page scrolling —
+   * any drift cancels it.
+   */
+  readonly onLongPress?: () => void;
 
   /**
    * Primary open action. Provide `href` (a shareable link — e.g. a DS-03 drawer

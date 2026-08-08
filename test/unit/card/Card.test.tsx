@@ -152,8 +152,18 @@ describe("Card — selection", () => {
       name: "Select Website relaunch",
     });
     fireEvent.click(checkbox);
-    expect(onSelectedChange).toHaveBeenCalledWith(true);
+    // TASKS-06 — the modifier state travels with the toggle so a collection can
+    // extend a RANGE. A plain click reports `shift: false`; the Card never decides
+    // what a range means.
+    expect(onSelectedChange).toHaveBeenCalledWith(true, { shift: false });
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("reports a Shift-click so the collection can extend a range", () => {
+    const onSelectedChange = vi.fn();
+    renderCard({ selection: { selected: false, onSelectedChange } });
+    fireEvent.click(screen.getByRole("checkbox"), { shiftKey: true });
+    expect(onSelectedChange).toHaveBeenCalledWith(true, { shift: true });
   });
 
   it("communicates selected state via the native checked checkbox (not colour alone)", () => {

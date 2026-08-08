@@ -58,6 +58,8 @@ colour alone.
   view; waiting tasks are shown in a separate section.
 - **Matrix**: a true 2×2 Eisenhower matrix on desktop, four stacked labelled
   sections on mobile; moving a task between quadrants updates its priority.
+  **Removed in V2.2 — see [The Matrix was removed](#the-matrix-was-removed).** The
+  passage is kept because it describes what TASKS-01 shipped.
 - **Time Sectors**: a planning board/list (Inbox · This Week · Next Week · This
   Month · Next Month · Long Term · Routines); moving a task changes only planning
   intent.
@@ -157,7 +159,10 @@ priority, due/scheduled dates and completion/workflow fields in one query, so
 global Search can render the shared `PriorityIndicator` and `UrgencyChip` without
 per-result `getTask()` calls. The fixture-backed Today task search was retired so
 there is ONE trustworthy task search. Navigation commands: New Task ·
-Open Tasks · Open This Week · Open Matrix · Open Time Sectors · Open Someday/Maybe.
+Open Tasks · Open This Week · Open Tasks by priority · Open Time Sectors ·
+Open Someday/Maybe. (V2.2 replaced *Open Matrix* with *Open Tasks by priority* — the
+grouped list — keeping the `matrix`/`eisenhower` keywords so an owner who learned that
+word still finds something.)
 
 ## Shared signal presentation (TASKS-02)
 
@@ -954,3 +959,466 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+---
+
+## The daily driver (V2.2) — TASKS-05/06/07/08
+
+V2.2 is the programme that made Tasks the fastest surface in DalyHub. Its target
+interaction is **see Task → act on Task**, not *see Task → open record → find Edit →
+modify field → save → close record*. It is accepted as
+[ADR-085](../decisions/ARCHITECTURE_DECISIONS.md#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode)
+and recorded in [`ROADMAP_V2_2.md`](../roadmap/ROADMAP_V2_2.md).
+
+**No Task authority changed.** The spine still owns identity, completion and
+parentage; `task_details` the additive fields; the shared Task Drawer the canonical
+record; EntityLinks the one relationship model; Activity the one audit stream. Today
+and Projects remain projections of the same Tasks. Every mutation reachable from a row
+or a bulk bar posts to a canonical route.
+
+### The Matrix was removed
+
+The Eisenhower Matrix was **intentionally removed in V2.2**. It was not deprecated by
+accident, and it is not hidden behind a menu.
+
+The reasoning: the Matrix was a 2×2 over the single stored `task_details.priority`
+field. It carried its own grouping dimension (`quadrant`), its own label vocabulary
+(Do / Defer / Delegate / Delete), its own empty-bucket rule and its own CSS grid — and
+everything it showed was also available as an ordinary grouped list. Priority already
+captures the signal; saved views and filters organise work more flexibly than four
+fixed cells.
+
+What was removed:
+
+| Removed | Note |
+| --- | --- |
+| The `matrix` presentation | `TASK_PRESENTATIONS` is now `list · board · sectors` |
+| The `quadrant` server grouping dimension | It bucketed by `td.priority`, exactly as `priority` does |
+| `priorityQuadrant`, `quadrantActionLabel`, `EisenhowerQuadrant` | The Eisenhower ACTION vocabulary |
+| The quadrant headings and subtitles | `QUADRANT_LABELS`, `matrixSubtitle` |
+| The `Do`/`Delegate` half of the priority filter labels | The filter now reads `P1 · Urgent`, one vocabulary |
+| `dh-tasks-matrix*` CSS | Including the 2×2 grid and the untriaged spanning cell |
+| The `Open Matrix` palette command | Replaced by **Open Tasks by priority** (grouped list), which keeps the `matrix`/`eisenhower` keywords so the word still finds something |
+| `matrix` as a `defaultTasksView` value | `TASK_DEFAULT_VIEWS` is now `focus · sectors · all` |
+
+**What was NOT removed.** The priority DATA. P1–P4 are unchanged in storage, and they
+remain a filter dimension, a sort, a grouping dimension and a row signal
+(`PriorityIndicator`). The shared server grouping INFRASTRUCTURE is untouched — the one
+window-function query, the authoritative `COUNT(*) OVER` per bucket and
+`resolveGroupedSections` still serve Time Sectors and every grouped List or Board.
+
+**Compatibility.** `/tasks?view=matrix` **redirects once** to
+`/tasks?view=list&group=priority`: the same records, banded by the same signal, in the
+primary workspace. It is a redirect rather than a silent reinterpretation, so the
+address bar states what is applied; an explicit `group=` already in the URL is the
+owner's and wins. A saved view or a hand-typed URL carrying `presentation: "matrix"`
+degrades to `list` through the config parser's ordinary lenient rule.
+
+**The preference needs no migration.** `defaultTasksView` is validated against
+`TASK_DEFAULT_VIEWS` on read and falls back to the documented default, so a stored
+`"matrix"` resolves to the primary list on the next read and the row is rewritten the
+next time the owner chooses a default. Nobody lands on a broken route.
+
+**Time Sectors was assessed, not removed as collateral.** Unlike the Matrix it is a
+DISTINCT stored field (`task_details.time_sector`) with its own filter, grouping,
+quick-capture grammar, quick-edit control and bulk action, and it answers a question no
+date answers: *which window do I intend this in*, as distinct from *which day*
+(scheduled) and *by when* (due). It stays a secondary planning presentation.
+
+### Editing happens on the row
+
+Priority, due date, planned date and the structural parent are now DS-16 inline fields
+in the Card's metadata slot
+([`TaskRowFields.tsx`](../../app/shared/task-record/TaskRowFields.tsx)). The READ state
+is the value the row already showed — a `PriorityIndicator`, a formatted date, the
+parent's name — and the EDIT state is the shared anchored menu or date popover. Nothing
+new appears on the row: an untriaged task reads a quiet "No priority", and that quiet
+word is the target (see `InlineEditShell`'s discoverability rule).
+
+They are SHARED components rather than Tasks-only ones, for the same reason
+`TaskQuickEditPanel` is: `/tasks`, a Project's task list and Today all show task rows,
+and "change the priority here" must not mean three different things.
+
+**Nine entries left the row's overflow menu** — `Set P1`…`Set P4`, `Due today`,
+`Clear due date`, `Clear planned date` and `Move to Inbox` — because a menu item six
+pixels from the control it duplicates is not a second affordance, it is a second place
+to keep in step. What remains is what genuinely does not fit on a row:
+
+| Overflow entry | Why it is still there |
+| --- | --- |
+| Rename | Replaces the title in place; needs the row's own slot |
+| Move to Project or Area… | The SEARCHABLE picker over the whole collection (the inline menu offers the bounded option set) |
+| Move to Someday / Maybe | A commitment change, not a field edit |
+| Skip this occurrence · Stop repeating | Recurrence-series operations, shown only on a repeating Task |
+| Repeat, sector and dates… | The composed quick-edit panel |
+| Open task record | Delegation, waiting and removal |
+
+**One seam, one authority.** `task-inline-edit.ts` is the ONE place a DS-16 field meets
+a canonical Task route (DS-16 wants a promise-returning `onSave`; a fetcher is
+fire-and-forget). It is not an authority: it POSTs to `/tasks/:id` and `/tasks/bulk`,
+returns the SERVER's answer, and never applies anything optimistically. A single-id
+`/tasks/bulk` call is the canonical path for a field edit *anywhere* — the row, the
+quick-edit panel, the Drawer and the bulk bar — so one task and fourteen tasks travel
+one code path.
+
+**Row density.** The row leads with the completion control, the title, the priority,
+the urgency chip and the recurrence signal; the two dates, the parent, the sector, the
+delegate and the waiting subject are `low` metadata. The urgency chip is rendered only
+for **Overdue**, **Due today** and **Scheduled today** — the three states a raw date
+cannot express — because the inline date field beside it already says "Due 12 Aug", and
+showing both would be the same fact twice.
+
+### Bulk management
+
+Selection is a pure reducer
+([`task-selection.ts`](../../app/modules/tasks/task-selection.ts)) with four rules:
+
+1. a **range** extends from the last toggled row in DISPLAY order. Only the collection
+   knows that order, so the shared Card REPORTS the Shift modifier
+   (`CardSelection.onSelectedChange(selected, { shift })`) rather than interpreting it;
+2. selection **resets** on any configuration change — a filter, a saved view, a sort, a
+   grouping — because the rows the owner was pointing at are gone;
+3. selection is **pruned** to what is still on screen after every re-query, so a task
+   whose own mutation moved it out of the view stops counting;
+4. selection **MODE** is distinct from having a selection, so a long press or the
+   "Select tasks" toggle can open it with nothing chosen yet.
+
+The bulk bar shows Complete · Reopen · Date · Priority · Move · More. Each field
+control states the MIXED state rather than inventing a current value — with P1s, P2s
+and untriaged tasks selected, Priority reads *Mixed*, and choosing P2 sets all of them
+to P2. An agreed ABSENCE is a real shared value ("No priority"), not a mixture.
+**Reopen appears only when the selection actually contains completed work**, because a
+control that cannot apply to anything selected is worse than a missing one.
+
+`/tasks/bulk` gained four intents, all on the existing contract — validate the id list
+and the destination, resolve EVERY id, then ONE `D1Database.batch()`:
+
+| Intent | Repository | Notes |
+| --- | --- | --- |
+| `reopen` | `reopenTasks` | The SAME safe successor withdrawal per task: untouched → withdrawn and its series slot released; edited → retained |
+| `set_parent` | `setParentMany` | The bulk form of `setTaskParent`: one active link, a previously-used link row RESTORED not duplicated, same `entity_link.*` Activity. An empty id is Inbox |
+| `delete` | `deleteTasks` | REVERSIBLE soft delete |
+| `restore` | `restoreTasks` | Re-checks the retained parent |
+
+**Bulk delete is reversible, and nothing is destroyed.** `deleteTasks` sets
+`entities.deleted_at` — the same transition the spine's `softDelete` performs — keeping
+the record, its details, its links, its Activity and its recurrence row. The
+confirmation names the count and states the consequence:
+
+> **Delete 18 tasks?** They move to the **Deleted** view, keeping their dates, links and
+> history, and can be restored from there. Nothing is permanently destroyed.
+
+A new built-in **Deleted** system view (`?system=deleted`) is where they are found and
+restored from — a real view rather than a hidden route, because *"where did those 18
+tasks go?"* must have an answer the owner can reach without being told about it in
+advance. Permanent destruction is not reachable from a bulk toolbar at all.
+
+That required ONE lifecycle predicate in the workspace read
+(`#taskLifecycleWhere`), so the flat list and the grouped query can never disagree about
+which Tasks exist. **`all` still means all LIVE tasks** — "all" has never meant
+"including the trash".
+
+Restore re-checks the retained structural parent, so deleted work is never silently
+re-filed into a Project that has since been archived; the whole operation is refused
+instead. A Task that never had a parent returns to the Inbox it came from (AUDIT-15).
+
+### Recurrence 2.0
+
+**Two scheduling modes**, stored as structured data and never inferred from title text:
+
+| Mode | Means | Example |
+| --- | --- | --- |
+| `fixed` (default) | A SCHEDULE. The next date follows the series grid, so finishing late does not move the routine. | Weekly planning, due Monday, finished Wednesday → next Monday |
+| `after_completion` | An INTERVAL that restarts on the completion day. | Clean CPAP equipment, due 1 Aug, finished the 6th, every 14 days → 20 Aug |
+
+`fixed` is byte-for-byte what `nextTaskOccurrenceDate` did before V2.2, which is why
+migration `0037`'s `DEFAULT 'fixed'` reproduces every existing series exactly.
+`test/kernel/task-recurrence-modes.test.ts` writes a recurrence row the OLD way (no
+`mode` column in the insert) and completes it five days late to prove the equivalence
+rather than trusting the default.
+
+`after_completion` applies the same arithmetic with the completion day as both the
+anchor and the threshold, and takes a monthly/yearly rule's day-of-month FROM that day
+— "three months after I did it" is the point, so clamping back to a date the owner has
+moved on from would be wrong. It is **refused** for `weekday` and for weekday-pinned
+weekly rules at the boundary: "every weekday, three days after I finish it" is not a
+thing anyone means.
+
+**Custom rules are authorable** through the shared
+[`TaskRecurrenceEditor`](../../app/shared/task-record/TaskRecurrenceEditor.tsx), which
+replaces the seven-option `Repeat` select in `TaskQuickEditPanel` (so `/tasks` rows,
+Review Inbox and the guided Review all get it). This closes
+[DEBT-66](../product/PRODUCT_DEBT.md).
+
+- Presets: **Does not repeat · Daily · Every weekday · Weekly · Monthly · Yearly**,
+  each one choice, saved immediately;
+- **Custom…** opens the composition: a number (1–99), a unit (days/weeks/months/years),
+  the weekdays for a weekly schedule, the scheduling mode, and — only when the Task has
+  both dates — which date the rule advances;
+- no implementation vocabulary reaches the owner: no frequency enum, no field labelled
+  "interval", no `anchor_day`, no "date kind";
+- the **result is stated as a sentence before it is saved**, through the SAME
+  `taskRecurrenceLabel` every read-only surface uses — *"Every 2 weeks on Monday and
+  Thursday"*, *"14 days after completion"*.
+
+`recurrence-authoring.ts` holds the pure translation. `presetOf` is the STRICT inverse
+of `ruleForPreset`: a custom interval, a weekday-pinned rule and an after-completion
+rule are all reported as **Custom**, never coerced to the nearest preset — which is
+exactly how a pinned Monday used to get dropped (V2.0.1).
+
+Monthly and yearly clamping is unchanged: `anchor_day` is why a rule anchored on the
+31st that had to clamp to 28 February returns to the 31st in March.
+
+### The series-edit contract
+
+DalyHub materialises recurrence incrementally (ADR-062): exactly one occurrence is ever
+open, and the next is COPIED from it at completion. That has a direct consequence which
+is stated here rather than left implied.
+
+| Change | Scope | Why |
+| --- | --- | --- |
+| Title, priority, parent, Time Sector, commitment, description | **This and future, by construction** | The successor is copied from this occurrence, so the change carries forward. Past occurrences are never touched. |
+| The recurrence RULE | **This and future** | `setTaskRecurrence` edits the current occurrence's rule; the successor inherits it. Completed occurrences keep the rule they had. |
+| The recurrence ANCHOR DATE | **Explicitly scoped** | The one genuinely ambiguous case — see below. |
+| Completed occurrences | **Never** | History is not rewritten because the future changed. |
+
+`moveTaskOccurrence(id, { date, scope })` implements the scoped case with one additive
+nullable column, `task_recurrence_rules.series_anchor_date`:
+
+- **`scope: "occurrence"`** — move THIS occurrence and REMEMBER the routine's grid, so
+  the next occurrence returns to schedule. ("Weekly on Mondays; this week only, do it
+  Wednesday.")
+- **`scope: "series"`** — move this occurrence AND re-anchor the schedule here, so every
+  future occurrence follows from the new date.
+
+The scope is REQUIRED, never defaulted: guessing between "this one" and "the whole
+routine" is the mistake the scope exists to prevent. `series_anchor_date` is `NULL` for
+every row written before V2.2 and for every ordinary occurrence, in which case the
+occurrence's own date IS the grid — the original behaviour. A successor always returns
+to the grid and stores `NULL`.
+
+**Deferred, honestly:** ordinal monthly patterns ("first Monday of every month") are
+NOT implemented. They need a second monthly representation beside the anchor-day one,
+and every consumer — validator, successor planner, label, editor and parser — would
+have to carry both. Recorded as [DEBT-109](../product/PRODUCT_DEBT.md) rather than
+half-built.
+
+### Skip, and stopping a repeat
+
+**Skip this occurrence** (`skipTaskOccurrence`) advances the occurrence one step along
+the series and leaves it **OPEN**. No successor is created, no sequence is consumed, no
+completion is written. It appends `task.recurrence_occurrence_skipped` — deliberately
+its own event type, because marking work "done" that was not done corrupts the one
+record the owner relies on, and a bare reschedule would not say the series advanced.
+The non-anchor date travels with it, so a Monday/Friday window stays four days wide.
+
+**Stop repeating** is `setTaskRecurrence(id, null)` on the current occurrence: the
+future ends and every completed occurrence keeps its record and its rule. Historical
+occurrences are never deleted because a recurrence was stopped.
+
+### Bulk completion and recurrence
+
+Unchanged and still asserted: a bulk selection containing ordinary Tasks and several
+recurring series completes all of them and generates **exactly one** successor per
+series, each following its OWN scheduling mode. Bulk completion runs the same successor
+logic per task — there is no bulk special case that bypasses recurrence.
+
+### The phone (TASKS-08)
+
+- **Long press → selection mode**, with the held row selected, via the shared
+  `useCardLongPress`. It is gated on the same touch-first media query the swipe layer
+  uses, armed only on the card surface (never a nested control), cancelled by any
+  drift, and it suppresses the click that would otherwise ALSO open the record.
+  It is an **accelerator**: the Card checkbox and the "Select tasks" toggle are the
+  ordinary, labelled, keyboard-and-screen-reader path.
+- The bulk bar collapses to the M3 bottom action row the shell already uses — Complete ·
+  Date · Priority · Move · More — scrolling horizontally rather than stacking, and
+  clearing the bottom navigation. No new overlay primitive was created.
+- The **delete confirmation** stacks rather than scrolling sideways, so the consequence
+  is read before either button is reachable.
+- The **recurrence editor is phone-first**: single-column at every width, seven 44px
+  weekday targets that WRAP rather than shrink (so 320px becomes two lines rather than
+  seven unhittable squares), `inputMode="numeric"` on the interval so a phone offers the
+  number pad, and the plain-language result immediately above Save.
+- The existing swipe tray is unchanged and still mirrors the row's visible actions.
+
+### Accessibility
+
+- Selection state is a native checkbox plus the bar's "N selected" count — never colour
+  alone. The "Select tasks" toggle carries `aria-pressed`.
+- Every inline field is the DS-16 shared control: a real `<button>` whose accessible
+  name is `"<field>: <value>"`, keyboard-activatable, with focus restored to it on
+  Escape.
+- The recurrence editor's mode choices are a real radio group with a legend; the weekday
+  toggles are real checkboxes whose accessible name is the FULL weekday name (the single
+  visible letter is `aria-hidden` reinforcement); the composed result is a polite live
+  region so a screen-reader user hears it change.
+- The long press has no keyboard equivalent BY DESIGN and therefore is never the only
+  way to do anything.
+
+### Storage and migration
+
+Migration `0037_task_recurrence_modes.sql` is purely additive: two columns on
+`task_recurrence_rules` (`mode TEXT NOT NULL DEFAULT 'fixed'`, `series_anchor_date TEXT`)
+and one index. No existing row is rewritten and no rule is reinterpreted.
+
+- **Matrix removal, bulk selection, list grouping and filter presentation have NO
+  migration**, deliberately — they are presentation concerns.
+- **Bulk delete needs no schema.** It uses `entities.deleted_at`, which every entity
+  already has.
+- SQLite cannot add a CHECK to an existing table, and rebuilding `task_recurrence_rules`
+  would rewrite every stored rule for a presentation-neutral addition. The closed sets
+  are enforced where every other cross-field task invariant is — in the workspace-bound
+  `TaskRepository` and `validateTaskRecurrenceRule` — exactly as migration 0007 did for
+  waiting.
+- **Rollback** is by application deployment (D1 migrations are forward-only). The
+  previous application ignores both columns: `mode` has a default and nothing older
+  selects either name.
+
+### Status (2026-08-08, V2.2 reconciliation)
+
+**Current status.**
+[TASKS-05](../roadmap/ROADMAP_V2_2.md#-tasks-05--daily-driver-workspace--delivered-2026-08-08) ·
+[TASKS-06](../roadmap/ROADMAP_V2_2.md#-tasks-06--bulk-management--delivered-2026-08-08) ·
+[TASKS-07](../roadmap/ROADMAP_V2_2.md#-tasks-07--recurrence-20--delivered-2026-08-08) ·
+[TASKS-08](../roadmap/ROADMAP_V2_2.md#-tasks-08--mobile-daily-driver--delivered-2026-08-08)
+are **☑ Done**, on top of TASKS-01…04.
+
+**The before-state audit that started the programme**, kept so the reasoning is
+reviewable rather than re-derived:
+
+| Capability | State on `main` before V2.2 | Outcome |
+| --- | --- | --- |
+| Inbox | First-class, derived (active + no parent), built-in view + `/tasks/review` | **Keep** — unchanged |
+| Quick add | In-workspace row, deterministic parser, session defaults | **Keep** — unchanged |
+| Inline title editing | Present, via the row's overflow → Rename | **Keep** |
+| Priority editing | Four overflow menu items | **Improve** → inline on the row |
+| Due date | Overflow: *Due today* / *Clear due date* | **Improve** → inline date field |
+| Scheduled date | Row quick action *Today*; overflow clear | **Improve** → inline date field (quick action kept) |
+| Project / Area | Overflow → Drawer → picker; `setTaskParent` canonical | **Improve** → inline, one selection replaces |
+| Status | Drawer form + `set_status` bulk | **Keep** (moved behind bulk **More**) |
+| Saved views | Complete, shared with `/views` since X-02 | **Keep** — unchanged |
+| Bulk backend | Atomic field mutations on `/tasks/bulk` | **Extend** → reopen, move, delete, restore |
+| Bulk UI | Ten buttons + two selects; no select-all, no range, no mixed state, no delete | **Rebuild** |
+| Recurrence model | Structured, five frequencies, interval 1–99, weekday-pinned, series identity | **Extend** → scheduling `mode` |
+| Recurrence UI | Seven-option select; custom rules unauthorable (DEBT-66) | **Build** → shared custom editor |
+| Matrix | A presentation + its own grouping dimension + its own vocabulary | **Remove** |
+| Time Sectors | A distinct stored field with filter, grouping, grammar and bulk action | **Keep** (assessed) |
+| Mobile selection | Card checkbox only; bulk bar not phone-shaped | **Improve** → long press + M3 bottom bar |
+
+**Known limitations, stated rather than implied.**
+
+- **Ordinal monthly recurrence** ("first Monday of every month") is not expressible —
+  [DEBT-109](../product/PRODUCT_DEBT.md). Deferred deliberately; the reasoning is in
+  ADR-085 decision 11.
+- **The bulk bound is 100 tasks and no surface says so** —
+  [DEBT-110](../product/PRODUCT_DEBT.md). Not reachable in ordinary use, because
+  "Select all" only ever selects the loaded page.
+- **Series scope applies to the DATE only.** Every other field is "this and future" by
+  construction, because the successor is copied from the current occurrence. That is
+  the contract, documented above and tested — not an oversight.
+- **`task.recurrence_occurrence_skipped` has no dedicated Timeline treatment beyond its
+  label and tone.** It reads correctly in the Task Timeline and the workspace feed.
+
+**Relevant product-debt items.**
+[DEBT-66](../product/PRODUCT_DEBT.md) ☑ (closed by TASKS-07) ·
+[DEBT-109](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-07) ·
+[DEBT-110](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-06) ·
+[DEBT-56](../product/PRODUCT_DEBT.md) ☐ (unchanged: an axe `label-title-only`
+false positive on one shared SelectField in the Tasks Drawer).
+
+**Test coverage added by V2.2.**
+
+| Layer | File | Covers |
+| --- | --- | --- |
+| Unit | `test/unit/tasks/recurrence-authoring.test.ts` | The preset ⇄ rule round trip, custom intervals, weekday sets, mode validation, the wire form, and that the pre-save sentence is the shared formatter's |
+| Unit | `test/unit/tasks/task-recurrence.test.ts` | The two modes' arithmetic: fixed keeps the grid, after-completion re-anchors, monthly/yearly clamping under both, and the two agree when the work is on time |
+| Unit | `test/unit/tasks/task-selection.test.ts` | Range in display order, reset, prune, mode-vs-selection, and the mixed-value summaries |
+| Unit | `test/unit/tasks/tasks-view-model.test.ts` | The `?view=matrix` compatibility redirect, and the grouped-list presentation after the Matrix |
+| Unit | `test/unit/tasks/TaskQuickEditPanel.test.tsx` | The preset path, the custom composition, and that opening Custom posts nothing |
+| Kernel/D1 | `test/kernel/task-recurrence-modes.test.ts` | A pre-TASKS-07 row (no `mode` in the insert) completed late; both modes; bulk completion honouring each series' own mode; skip; the two series scopes; stopping a repeat |
+| Kernel/D1 | `test/kernel/task-bulk-operations.test.ts` | Bulk move (including link restore and Inbox), bulk reopen with successor withdrawal/retention, reversible delete + restore, the archived-parent refusal, workspace isolation and the batch bound |
+| E2E | `e2e/tasks-v22-daily-driver.spec.ts` | Scenarios B–F: direct edit, bulk cleanup with a reversible delete, custom recurrence in both modes, skip/stop, the phone at 390px, and the width matrix including the Deleted view |
+
+### Keyboard, and Today, after V2.2
+
+**No new global shortcut was introduced, and that is a decision rather than an
+omission.** The reserved cross-app vocabulary was audited first (DS-09: `⌘K` for the
+palette, `/` for search, `c` for capture, `j`/`k` and the arrows inside a queue, `Esc`
+to dismiss), and every V2.2 capability already had a keyboard path through it:
+
+| Action | Keyboard path |
+| --- | --- |
+| Create a task | `c` (global capture), or Tab to the quick-add row and press Enter |
+| Open the selected task | Tab to the row's title control and press Enter |
+| Complete a task | Tab to the row's Complete action, or the palette |
+| Edit priority / a date / the parent | Tab to the inline field and press Enter or Space — it is a real control, not a hover affordance |
+| Enter and leave selection | The header's **Select tasks** toggle; Space on a row's checkbox; **Done** to leave |
+| Extend a range | Shift-click, with the checkbox reachable by keyboard for individual selection |
+| Every bulk action | The bulk bar is an ordinary labelled control group in the tab order |
+
+Adding, say, `p` for priority or `x` for select would collide with typing in the
+quick-add field — which is always on screen — and would need a modal "task focus" mode
+the collection does not have. The one genuine gap remains discoverability rather than
+reachability, which is [DEBT-18](../product/PRODUCT_DEBT.md)'s existing subject.
+
+**Today was re-audited after the recurrence changes and needed no change.** It cannot
+show a phantom future occurrence, because the model materialises exactly one successor
+and only on completion (ADR-062); it cannot duplicate a series for the same reason; it
+already excludes `on_hold` alongside Someday/Maybe and cancelled (TASKS-04 closed
+DEBT-37); and it reads the canonical scheduled date, so due and scheduled cannot be
+confused. A skipped occurrence simply moves to its next date and Today follows, because
+Today reads the same field. The existing kernel suite asserting that a recurring
+successor appears on Today as ordinary active work still passes unchanged.
+
+### Concurrency and performance (V2.2, measured)
+
+**Concurrency.** Every V2.2 mutation reuses the existing guarded-write contract rather
+than inventing one:
+
+- the **series operations** (`moveTaskOccurrence`, `skipTaskOccurrence`) anchor on the
+  guarded OPEN-task bump, so a completion, a delete or a Project archived between the
+  read and the write causes the whole group to no-op and the caller is told;
+- **bulk reopen** gates each spine clear on the exact `completed_at` it observed, so a
+  concurrent reopen loses cleanly rather than double-writing;
+- **bulk delete and restore** gate on the current lifecycle state (`deleted_at IS NULL`
+  / `IS NOT NULL`), and restore additionally re-checks the retained parent INSIDE the
+  UPDATE — so a Project archived mid-flight cannot receive restored work;
+- **two tabs editing one recurrence rule** cannot produce an incoherent series: the rule
+  lives on the occurrence, `setTaskRecurrence` writes it in one batch behind the guarded
+  bump, and the series identity is never re-parented by an edit.
+
+**A committed bulk outcome is announced from the WORKSPACE's live region, not the
+bulk bar's.** This is not a stylistic choice about where a `role="status"` lives. A
+successful bulk action clears the selection, and clearing the selection unmounts the
+bar — in the same React commit that would have written the message. A live region
+inside the bar is therefore destroyed before any assistive technology can read it, so
+an action on eighteen records confirms itself with silence. `BulkActionBar` takes an
+`onAnnounce` callback and reports success through the same announce-and-revalidate
+channel the row's inline fields use; the region outlives the selection. A REFUSAL is
+the opposite case and stays in the bar: a refusal keeps the selection, so the bar is
+still mounted and the message belongs beside the controls the owner will retry with.
+The message also names the action — the four lifecycle intents report "deleted",
+"restored", "completed" and "reopened" rather than the generic "updated", which is
+true of a priority change and misleading of a deletion.
+
+**Reads are unchanged in shape.** No V2.2 surface added a query. The row's inline
+parent menu is drawn from the loader's EXISTING bounded parent option set, so opening it
+costs nothing and there is no per-row Project lookup. The bulk bar's summaries are
+computed from the already-loaded rows. Bulk mutations do a bounded validation read per
+selected id (the established pattern for `setPriorityMany` and friends, capped at 100)
+and then exactly ONE `D1Database.batch()` — never one request per task.
+
+**Bundle, measured against `main` at `808a9b6`** (`pnpm run build`, byte sizes of
+`build/client/assets`):
+
+| | Baseline | V2.2 | Δ |
+|---|---|---|---|
+| **`entry.client` (the initial bundle)** | 182,542 | 182,542 | **0** |
+| All client assets | 2,534,255 | 2,555,588 | +21,333 (+0.84%) |
+
+The **initial bundle is byte-identical**: everything V2.2 adds lands in the lazily
+loaded `/tasks` route chunk, the shared task-record chunk and token-only CSS. Nothing
+was added to the app shell. (The shared `useCardLongPress` hook does reach the Card,
+which the shell does load — its cost is a media-query listener and a timer, and it is
+inert unless a consumer supplies `onLongPress`.)

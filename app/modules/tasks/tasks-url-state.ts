@@ -249,7 +249,6 @@ export function toWorkspaceFilters(
 export function groupDimensionFor(
   config: TaskViewConfig,
 ): WorkspaceTaskGroupDimension | null {
-  if (config.presentation === "matrix") return "quadrant";
   if (config.presentation === "sectors") return "sector";
   if (config.groupBy !== "none") {
     return config.groupBy as WorkspaceTaskGroupDimension;

@@ -5,6 +5,13 @@
  * behavioural: every control posts to a CANONICAL route (never a panel-only write
  * path), the parent picker can file a task or return it to Inbox, and a repeat is
  * anchored to whichever date the task actually has.
+ *
+ * TASKS-07 replaced the panel's seven-option `Repeat` select with the shared
+ * recurrence editor, so the repeat assertions here now cover the PRESET path (one
+ * choice, saved immediately) and the panel's job of posting it. The custom
+ * composition — intervals, weekdays, the two scheduling modes and the plain-language
+ * summary — is covered by `recurrence-authoring.test.ts` and
+ * `TaskRecurrenceEditor.test.tsx`.
  */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -91,6 +98,27 @@ function renderPanel(
   );
   render(<RouterProvider router={router} />);
   return { taskRoute, bulkRoute, onChanged };
+}
+
+/** A task carrying a stored recurrence rule, spread over the shared fixture. */
+function withRepeat(rule: {
+  readonly frequency: "day" | "weekday" | "week" | "month" | "year";
+  readonly interval: number;
+  readonly weekdays: readonly number[];
+  readonly mode?: "fixed" | "after_completion";
+}): SerializedTaskListItem {
+  return {
+    ...TASK,
+    recurrence: {
+      frequency: rule.frequency,
+      interval: rule.interval,
+      dateKind: "scheduled",
+      mode: rule.mode ?? "fixed",
+      weekdays: rule.weekdays,
+      anchorDay: null,
+      anchorMonth: null,
+    },
+  };
 }
 
 /** Choose an option from one of the shared combobox controls by its label. */
@@ -203,13 +231,16 @@ describe("TaskQuickEditPanel", () => {
 
   it("anchors a repeat to the SCHEDULED date when the task has one", async () => {
     const { taskRoute } = renderPanel();
-    await choose(/Repeat/, "Every month");
+    await choose(/Repeat/, "Monthly");
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
     const body = taskRoute.mock.calls[0]![0];
     expect(body.get("intent")).toBe("set_recurrence");
     expect(body.get("frequency")).toBe("month");
     expect(body.get("dateKind")).toBe("scheduled");
+    // TASKS-07: a preset is always a fixed SCHEDULE. Choosing "Monthly" must never
+    // quietly produce an after-completion interval.
+    expect(body.get("mode")).toBe("fixed");
   });
 
   it("anchors a repeat to the DUE date when that is the only date", async () => {
@@ -218,127 +249,122 @@ describe("TaskQuickEditPanel", () => {
       scheduledDate: null,
       dueDate: "2026-08-31",
     });
-    await choose(/Repeat/, "Every year");
+    await choose(/Repeat/, "Yearly");
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
     const body = taskRoute.mock.calls[0]![0];
     expect(body.get("dateKind")).toBe("due");
   });
 
-  it("shows the task's stored repeat as the current value", () => {
-    renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 2,
-        dateKind: "scheduled",
-        weekdays: [],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
+  it("shows a stored PRESET rule as that preset", () => {
+    renderPanel(withRepeat({ frequency: "week", interval: 1, weekdays: [] }));
     expect(screen.getByRole("combobox", { name: /Repeat/ })).toHaveValue(
-      "Every 2 weeks",
+      "Weekly",
     );
   });
 
-  it("displays a custom interval TRUTHFULLY rather than as the nearest listed rule", () => {
-    // Quick capture accepts "every 3 weeks"; the predefined list stops at 2. The
-    // rule must appear as itself — never coerced, never leaked as a raw token.
-    renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 3,
-        dateKind: "scheduled",
-        weekdays: [],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
+  it("shows a stored CUSTOM rule as Custom, and states it in plain language", () => {
+    // Quick capture accepts "every 3 weeks"; no preset represents it. The editor must
+    // open on Custom and SAY what the rule is — never coerce it to the nearest preset,
+    // and never leak a raw `week:3` token (the V2.0.1 defect).
+    renderPanel(withRepeat({ frequency: "week", interval: 3, weekdays: [] }));
     expect(screen.getByRole("combobox", { name: /Repeat/ })).toHaveValue(
+      "Custom…",
+    );
+    expect(screen.getByTestId("task-recurrence-summary")).toHaveTextContent(
       "Every 3 weeks",
     );
-    expect(screen.queryByText(/no longer available/)).not.toBeInTheDocument();
   });
 
-  it("displays a weekday-pinned weekly rule as its own rule, not 'Every week'", () => {
-    // "Every Monday" is stored as week:1 + weekdays [1]. Mapping it onto the
-    // plain "Every week" option would silently misstate the stored rule.
-    renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 1,
-        dateKind: "scheduled",
-        weekdays: [1],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
+  it("shows a weekday-pinned weekly rule as Custom, naming the weekdays", () => {
+    // "Every Monday" is stored as week:1 + weekdays [1]. Reporting it as the plain
+    // "Weekly" preset would let the next interaction silently drop the Monday.
+    renderPanel(withRepeat({ frequency: "week", interval: 1, weekdays: [1] }));
     expect(screen.getByRole("combobox", { name: /Repeat/ })).toHaveValue(
+      "Custom…",
+    );
+    expect(screen.getByTestId("task-recurrence-summary")).toHaveTextContent(
       "Every Monday",
     );
   });
 
-  it("re-committing the current custom rule posts NOTHING, preserving the rule", async () => {
-    const { taskRoute, bulkRoute } = renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 3,
-        dateKind: "scheduled",
-        weekdays: [],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
-    // A regex makes the helper clear the filter first: the input already shows
-    // the custom label, and re-typing the identical text would never re-open
-    // the popup.
-    await choose(/Repeat/, /^Every 3 weeks$/);
-
-    // The panel cannot round-trip a custom rule through the predefined
-    // vocabulary, so confirming the current selection must be a no-op — not a
-    // write that flattens the interval.
+  it("opening the CUSTOM editor posts nothing until the rule is saved", async () => {
+    const { taskRoute, bulkRoute } = renderPanel(
+      withRepeat({ frequency: "week", interval: 3, weekdays: [] }),
+    );
+    // A half-built rule is not a rule. Choosing Custom… reveals the composition and
+    // waits, so opening the editor can never flatten the interval it is showing. A
+    // regex makes the helper clear the filter first: the combobox already SHOWS
+    // "Custom…", and re-typing the identical text would never reopen the popup.
+    await choose(/Repeat/, /^Custom/);
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(taskRoute).not.toHaveBeenCalled();
     expect(bulkRoute).not.toHaveBeenCalled();
   });
 
-  it("replaces a custom rule when a predefined option is deliberately chosen", async () => {
-    const { taskRoute } = renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 3,
-        dateKind: "scheduled",
-        weekdays: [],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
-    await choose(/Repeat/, "Every month");
+  it("saves an AFTER-COMPLETION interval built in the custom editor", async () => {
+    const { taskRoute } = renderPanel();
+    await choose(/Repeat/, "Custom…");
+    fireEvent.change(screen.getByLabelText(/Repeat every/), {
+      target: { value: "14" },
+    });
+    await choose(/Unit/, /days/);
+    fireEvent.click(
+      screen.getByRole("radio", { name: /Repeat after completion/ }),
+    );
+    // The result is stated BEFORE saving, in the words the row will show afterwards.
+    expect(screen.getByTestId("task-recurrence-summary")).toHaveTextContent(
+      "14 days after completion",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Save repeat/ }));
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
     const body = taskRoute.mock.calls[0]![0];
     expect(body.get("intent")).toBe("set_recurrence");
-    expect(body.get("frequency")).toBe("month");
-    expect(body.get("interval")).toBe("1");
+    expect(body.get("frequency")).toBe("day");
+    expect(body.get("interval")).toBe("14");
+    expect(body.get("mode")).toBe("after_completion");
+    expect(body.get("weekdays")).toBe("");
+  });
+
+  it("saves selected WEEKDAYS for a fixed weekly schedule", async () => {
+    const { taskRoute } = renderPanel();
+    await choose(/Repeat/, "Custom…");
+    fireEvent.change(screen.getByLabelText(/Repeat every/), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Monday/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Thursday/ }));
+    expect(screen.getByTestId("task-recurrence-summary")).toHaveTextContent(
+      "Every Monday, Thursday, every 2 weeks",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Save repeat/ }));
+
+    await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
+    const body = taskRoute.mock.calls[0]![0];
+    expect(body.get("frequency")).toBe("week");
+    expect(body.get("interval")).toBe("2");
+    expect(body.get("weekdays")).toBe("1,4");
+    expect(body.get("mode")).toBe("fixed");
+  });
+
+  it("refuses to save an interval outside 1–99, and says why", async () => {
+    const { taskRoute } = renderPanel();
+    await choose(/Repeat/, "Custom…");
+    fireEvent.change(screen.getByLabelText(/Repeat every/), {
+      target: { value: "" },
+    });
+    expect(screen.getByTestId("task-recurrence-summary")).toHaveTextContent(
+      /from 1 to 99/,
+    );
+    expect(screen.getByRole("button", { name: /Save repeat/ })).toBeDisabled();
+    expect(taskRoute).not.toHaveBeenCalled();
   });
 
   it("removes a CUSTOM rule by choosing 'Does not repeat'", async () => {
-    const { taskRoute } = renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 3,
-        dateKind: "scheduled",
-        weekdays: [],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
+    const { taskRoute } = renderPanel(
+      withRepeat({ frequency: "week", interval: 3, weekdays: [] }),
+    );
     await choose(/Repeat/, "Does not repeat");
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
@@ -348,17 +374,9 @@ describe("TaskQuickEditPanel", () => {
   });
 
   it("removes a repeat by choosing 'Does not repeat'", async () => {
-    const { taskRoute } = renderPanel({
-      ...TASK,
-      recurrence: {
-        frequency: "week",
-        interval: 1,
-        dateKind: "scheduled",
-        weekdays: [],
-        anchorDay: null,
-        anchorMonth: null,
-      },
-    } as SerializedTaskListItem);
+    const { taskRoute } = renderPanel(
+      withRepeat({ frequency: "week", interval: 1, weekdays: [] }),
+    );
     await choose(/Repeat/, "Does not repeat");
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
@@ -366,6 +384,7 @@ describe("TaskQuickEditPanel", () => {
     expect(body.get("intent")).toBe("set_recurrence");
     expect(body.get("frequency")).toBeNull();
   });
+
   it("announces only what the SERVER accepted, never the optimistic guess", async () => {
     const { onChanged } = renderPanel(TASK, { reject: true });
     await choose(/Priority/, "P1 · Urgent");
@@ -385,7 +404,7 @@ describe("TaskQuickEditPanel", () => {
       { ...TASK, scheduledDate: null, dueDate: null },
       { reject: true },
     );
-    await choose(/Repeat/, "Every week");
+    await choose(/Repeat/, "Weekly");
 
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(

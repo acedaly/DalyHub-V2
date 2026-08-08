@@ -48,15 +48,15 @@ describe("the declared filter dimensions", () => {
     }
   });
 
-  it("presents priority AND the Eisenhower quadrant as ONE axis", () => {
-    // They are the same stored field (ADR-043 §2). Offering both as separate
-    // filters would imply two fields and let a user build a contradiction.
+  it("offers priority as ONE axis, in ONE vocabulary", () => {
+    // Priority is one stored field (ADR-043 §2), and since V2.2 removed the Matrix it
+    // also has one NAME: the everyday urgency wording. The Eisenhower action words the
+    // filter used to carry alongside them had no surface left to serve.
     expect(byId("quadrant")).toBeUndefined();
     const labels = byId("priority")?.options.map((o) => o.label) ?? [];
-    // …so the one filter carries BOTH vocabularies.
-    expect(labels.join(" ")).toContain("P1");
-    expect(labels.join(" ")).toContain("Do");
-    expect(labels.join(" ")).toContain("Delegate");
+    expect(labels.join(" ")).toContain("P1 · Urgent");
+    expect(labels.join(" ")).toContain("P3 · Normal");
+    expect(labels.join(" ")).not.toContain("Delegate");
   });
 
   it("offers an explicit empty-field option where absence is meaningful", () => {

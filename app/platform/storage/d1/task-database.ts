@@ -16,6 +16,7 @@
 import {
   COMMITMENT_STATES,
   DEFAULT_TASK_DETAILS,
+  DEFAULT_TASK_RECURRENCE_MODE,
   isTaskStatus,
   TASK_PRIORITIES,
   TIME_SECTORS,
@@ -62,6 +63,8 @@ export interface TaskDetailsRow {
   readonly recurrence_anchor_month: number | null;
   readonly recurrence_series_id: string | null;
   readonly recurrence_sequence: number | null;
+  readonly recurrence_mode: string | null;
+  readonly recurrence_series_anchor_date: string | null;
   readonly updated_at: string;
 }
 
@@ -100,6 +103,8 @@ export interface TaskJoinedRow {
   readonly recurrence_anchor_month: number | null;
   readonly recurrence_series_id: string | null;
   readonly recurrence_sequence: number | null;
+  readonly recurrence_mode: string | null;
+  readonly recurrence_series_anchor_date: string | null;
   readonly parent_id: string | null;
   readonly parent_link_type: string | null;
 }
@@ -145,7 +150,9 @@ export const TASK_DETAIL_COLUMNS = `
   rr.anchor_day AS recurrence_anchor_day,
   rr.anchor_month AS recurrence_anchor_month,
   rr.series_id AS recurrence_series_id,
-  rr.sequence AS recurrence_sequence`;
+  rr.sequence AS recurrence_sequence,
+  rr.mode AS recurrence_mode,
+  rr.series_anchor_date AS recurrence_series_anchor_date`;
 
 /**
  * The `task_recurrence_rules` join every task read uses. Declared HERE, next to the
@@ -246,6 +253,7 @@ function toRecurrence(row: {
   readonly recurrence_date_kind?: string | null;
   readonly recurrence_anchor_day?: number | null;
   readonly recurrence_anchor_month?: number | null;
+  readonly recurrence_mode?: string | null;
 }): TaskRecurrenceRule | null {
   if (
     row.recurrence_frequency === null ||
@@ -266,6 +274,8 @@ function toRecurrence(row: {
       interval: row.recurrence_interval ?? 1,
       dateKind: row.recurrence_date_kind as TaskRecurrenceRule["dateKind"],
       weekdays,
+      mode: (row.recurrence_mode ??
+        DEFAULT_TASK_RECURRENCE_MODE) as TaskRecurrenceRule["mode"],
       anchorDay: row.recurrence_anchor_day ?? null,
       anchorMonth: row.recurrence_anchor_month ?? null,
     });
@@ -281,6 +291,8 @@ function toRecurrence(row: {
 function toRecurrenceSeries(row: {
   readonly recurrence_series_id?: string | null;
   readonly recurrence_sequence?: number | null;
+  readonly recurrence_mode?: string | null;
+  readonly recurrence_series_anchor_date?: string | null;
 }): TaskRecurrenceSeries | null {
   const seriesId = row.recurrence_series_id;
   if (seriesId === null || seriesId === undefined || seriesId.length === 0) {
@@ -295,7 +307,15 @@ function toRecurrenceSeries(row: {
   ) {
     throw new CorruptTaskRecordError();
   }
-  return { seriesId, sequence };
+  return {
+    seriesId,
+    sequence,
+    // TASKS-07: the grid this SERIES is stepped from, when the current occurrence was
+    // deliberately moved off it ("change this occurrence"). NULL — the ordinary case,
+    // and every row written before TASKS-07 — means the occurrence's own date IS the
+    // grid, which is the behaviour the series always had.
+    scheduleAnchorDate: row.recurrence_series_anchor_date ?? null,
+  };
 }
 
 /**
@@ -323,6 +343,8 @@ export function rowToTaskDetails(row: {
   readonly recurrence_anchor_month?: number | null;
   readonly recurrence_series_id?: string | null;
   readonly recurrence_sequence?: number | null;
+  readonly recurrence_mode?: string | null;
+  readonly recurrence_series_anchor_date?: string | null;
   readonly description: string | null;
 }): TaskDetails {
   return {

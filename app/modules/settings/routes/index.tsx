@@ -142,10 +142,9 @@ const LANDING_LABELS: Record<LandingDestination, string> = {
 };
 
 const TASK_VIEW_LABELS: Record<TaskDefaultView, string> = {
-  focus: "Focus",
-  matrix: "Matrix",
-  sectors: "Sectors",
-  all: "All tasks",
+  focus: "List — this week",
+  sectors: "Time Sectors",
+  all: "List — all tasks",
 };
 
 const DIARY_MODE_LABELS: Record<DiaryDefaultMode, string> = {

@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  priorityQuadrant,
-  quadrantActionLabel,
   taskDisplayState,
   taskPriorityLabel,
   taskPriorityTag,
@@ -20,16 +18,8 @@ const base: TaskDisplayStateInput = {
   waiting: null,
 };
 
-describe("priorityQuadrant / labels", () => {
-  it("maps P1–P4 to Do/Defer/Delegate/Delete", () => {
-    expect(priorityQuadrant("p1")).toBe("do");
-    expect(priorityQuadrant("p2")).toBe("defer");
-    expect(priorityQuadrant("p3")).toBe("delegate");
-    expect(priorityQuadrant("p4")).toBe("delete");
-    expect(priorityQuadrant(null)).toBeNull();
-  });
-
-  it("labels priority concisely outside methodology-specific views", () => {
+describe("priority labels", () => {
+  it("labels priority concisely — ONE vocabulary since the Matrix was removed", () => {
     expect(taskPriorityLabel("p1")).toBe("P1 · Urgent");
     expect(taskPriorityLabel("p2")).toBe("P2 · High");
     expect(taskPriorityLabel("p3")).toBe("P3 · Normal");
@@ -37,10 +27,9 @@ describe("priorityQuadrant / labels", () => {
     expect(taskPriorityLabel(null)).toBe("No priority");
   });
 
-  it("tags and quadrant action words", () => {
+  it("tags priority shortly, and an untriaged task as an em dash", () => {
     expect(taskPriorityTag("p1")).toBe("P1");
     expect(taskPriorityTag(null)).toBe("—");
-    expect(quadrantActionLabel("delete")).toBe("Delete / Review");
   });
 
   it("labels sectors and treats null as No sector", () => {

@@ -56,6 +56,12 @@ export {
   type CompleteTaskOptions,
   type SetTaskRecurrenceInput,
   type SetTaskRecurrenceResult,
+  TASK_SERIES_EDIT_SCOPES,
+  type TaskSeriesEditScope,
+  type MoveTaskOccurrenceInput,
+  type MoveTaskOccurrenceResult,
+  type SkipTaskOccurrenceOptions,
+  type SkipTaskOccurrenceResult,
   type ListTasksInput,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
@@ -102,6 +108,7 @@ export {
   TASK_PLAN_CLEARED,
   TASK_RECURRENCE_OCCURRENCE_CREATED,
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
+  TASK_RECURRENCE_OCCURRENCE_SKIPPED,
   DELEGATE_TO_MAX_LENGTH,
   DELEGATION_NOTE_MAX_LENGTH,
   MAX_PLAN_BATCH_SIZE,
@@ -113,8 +120,11 @@ export {
 export type { TaskRepository } from "./task-repository";
 
 export {
+  AFTER_COMPLETION_FREQUENCIES,
+  DEFAULT_TASK_RECURRENCE_MODE,
   TASK_RECURRENCE_DATE_KINDS,
   TASK_RECURRENCE_FREQUENCIES,
+  TASK_RECURRENCE_MODES,
   TASK_RECURRENCE_SERIES_ID_MAX_LENGTH,
   addCalendarDays,
   calendarDaysBetween,
@@ -126,6 +136,7 @@ export {
   type TaskRecurrenceDateKind,
   type TaskRecurrenceFrequency,
   type TaskRecurrenceInput,
+  type TaskRecurrenceMode,
   type TaskRecurrenceRule,
   type TaskRecurrenceSeries,
 } from "./task-recurrence";
@@ -190,6 +201,7 @@ export {
   validateTaskRecencyWindow,
   validateTaskCompletedVisibility,
   validateTaskGroupDimension,
+  validateTaskSeriesEditScope,
   shiftCalendarDate,
   weekWindowEnd,
   recencyWindowStart,

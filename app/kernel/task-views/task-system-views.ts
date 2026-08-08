@@ -78,6 +78,13 @@ export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] =
       systemView: "completed",
       sort: "updated",
     }),
+    // TASKS-06 — the durable second path back from a bulk delete. It is a real view
+    // rather than a hidden route because "where did those 18 tasks go?" must have an
+    // answer the owner can reach without being told about it in advance.
+    derived("deleted", "Deleted", "Removed, and restorable from here.", {
+      systemView: "deleted",
+      sort: "updated",
+    }),
   ];
 
 /** Look up a built-in view by id. */

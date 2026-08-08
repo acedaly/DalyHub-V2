@@ -30,10 +30,48 @@ export const TASK_RECURRENCE_DATE_KINDS = ["scheduled", "due"] as const;
 export type TaskRecurrenceDateKind =
   (typeof TASK_RECURRENCE_DATE_KINDS)[number];
 
+/**
+ * TASKS-07 — the two scheduling MODES a repeat can mean. They are genuinely
+ * different intentions, and inferring one from the other is what makes a recurring
+ * task manager annoying:
+ *
+ *   - **`fixed`** — a SCHEDULE. "Every Monday" means Monday, whether or not last
+ *     Monday's occurrence was finished on time. The next date is computed from the
+ *     series grid, so completing late does not permanently move the routine. This
+ *     is exactly the behaviour every rule stored before TASKS-07 had, which is why
+ *     it is the migration default (ADR-085).
+ *   - **`after_completion`** — an INTERVAL that restarts when the work is actually
+ *     done. "Every 14 days after completion" on a task due 1 August, completed on
+ *     the 6th, next falls on the 20th, not the 15th. For cleaning, maintenance and
+ *     chores, restarting the clock is the whole point.
+ *
+ * The mode is stored structured data, never inferred from the title.
+ */
+export const TASK_RECURRENCE_MODES = ["fixed", "after_completion"] as const;
+export type TaskRecurrenceMode = (typeof TASK_RECURRENCE_MODES)[number];
+
+/** The documented default mode: the semantics every pre-TASKS-07 rule already had. */
+export const DEFAULT_TASK_RECURRENCE_MODE: TaskRecurrenceMode = "fixed";
+
+/**
+ * The frequencies an `after_completion` rule may use. "Every weekday" and a
+ * weekday-pinned weekly rule are SCHEDULE concepts — "every weekday, 3 days after I
+ * finish it" is not a thing anyone means — so they are refused at the boundary
+ * rather than stored and given a surprising interpretation later.
+ */
+export const AFTER_COMPLETION_FREQUENCIES = [
+  "day",
+  "week",
+  "month",
+  "year",
+] as const;
+
 export type TaskRecurrenceRule = {
   readonly frequency: TaskRecurrenceFrequency;
   readonly interval: number;
   readonly dateKind: TaskRecurrenceDateKind;
+  /** Fixed schedule, or an interval measured from the completion day (TASKS-07). */
+  readonly mode: TaskRecurrenceMode;
   /** 0 = Sunday, 6 = Saturday. Used by selected-weekday weekly rules. */
   readonly weekdays: readonly number[];
   /** Original requested day-of-month for monthly/yearly clamping. */
@@ -57,6 +95,18 @@ export type TaskRecurrenceInput = Partial<TaskRecurrenceRule> & {
 export type TaskRecurrenceSeries = {
   readonly seriesId: string;
   readonly sequence: number;
+  /**
+   * TASKS-07 — the date the SERIES grid is stepped from, when it is deliberately
+   * different from THIS occurrence's own anchor date.
+   *
+   * `null` (every rule written before TASKS-07, and every ordinary occurrence) means
+   * the occurrence's own anchor date IS the grid — the original behaviour. It is set
+   * only by the "change this occurrence" series-edit scope, which moves one
+   * occurrence without re-anchoring the routine; the successor returns to the grid
+   * and stores `null` again. An `after_completion` rule never reads it, because that
+   * mode's grid is the completion day.
+   */
+  readonly scheduleAnchorDate: string | null;
 };
 
 /** Maximum length of a recurrence series id (matches the storage CHECK). */
@@ -182,7 +232,28 @@ export function validateTaskRecurrenceRule(
   if (!Number.isInteger(interval) || interval < 1 || interval > 99) {
     throw new TaskValidationError("recurrence", "interval must be 1-99");
   }
+  const mode = input.mode ?? DEFAULT_TASK_RECURRENCE_MODE;
+  if (!(TASK_RECURRENCE_MODES as readonly string[]).includes(mode)) {
+    throw new TaskValidationError("recurrence", "repeat mode is invalid");
+  }
+  if (
+    mode === "after_completion" &&
+    !(AFTER_COMPLETION_FREQUENCIES as readonly string[]).includes(
+      input.frequency,
+    )
+  ) {
+    throw new TaskValidationError(
+      "recurrence",
+      "an after-completion repeat must be measured in days, weeks, months or years",
+    );
+  }
   const weekdays = normaliseWeekdays(input.weekdays);
+  if (mode === "after_completion" && weekdays.length > 0) {
+    throw new TaskValidationError(
+      "recurrence",
+      "an after-completion repeat cannot be pinned to particular weekdays",
+    );
+  }
   if (input.frequency === "weekday" && weekdays.length > 0) {
     throw new TaskValidationError(
       "recurrence",
@@ -228,6 +299,7 @@ export function validateTaskRecurrenceRule(
     frequency: input.frequency,
     interval,
     dateKind: input.dateKind,
+    mode,
     weekdays,
     anchorDay,
     anchorMonth,
@@ -312,16 +384,64 @@ function nextYearly(
   throw new TaskValidationError("recurrence", "could not advance recurrence");
 }
 
+/**
+ * The next occurrence's anchor date, for a rule, the current occurrence's anchor and
+ * the OWNER's completion day (ADR-022 — never a browser or UTC date).
+ *
+ * The two scheduling modes differ in exactly one thing: what the interval is measured
+ * from.
+ *
+ *   - **`fixed`** keeps the SERIES GRID. The next date is the first date on the
+ *     rule's own grid (stepped from `currentAnchorIso`) that falls strictly after the
+ *     later of the current anchor and the completion day — so a routine completed
+ *     three days late lands back on schedule, and a long-missed daily task resumes
+ *     tomorrow rather than replaying every skipped day.
+ *   - **`after_completion`** RE-ANCHORS to the completion day: the same arithmetic is
+ *     applied with the completion day as both the anchor and the threshold, and a
+ *     monthly/yearly rule takes its day (and month) from that day rather than from
+ *     the original request — "three months after I did it" is the whole point, so
+ *     clamping back to a date the owner has moved on from would be wrong.
+ *
+ * Pure and calendar-only. `fixed` behaviour is byte-for-byte what this function did
+ * before TASKS-07, which is what lets the migration default reproduce every existing
+ * series exactly.
+ */
 export function nextTaskOccurrenceDate(
-  ruleInput: TaskRecurrenceRule,
+  ruleInput: TaskRecurrenceInput,
   currentAnchorIso: string,
   ownerCompletionIso: string,
 ): string {
-  const rule = validateTaskRecurrenceRule(ruleInput);
+  const validated = validateTaskRecurrenceRule(ruleInput);
   assertIsoDate(currentAnchorIso, "scheduledDate");
   assertIsoDate(ownerCompletionIso, "scheduledDate");
-  const threshold = maxIso(currentAnchorIso, ownerCompletionIso);
+  if (validated.mode === "after_completion") {
+    const completion = isoParts(ownerCompletionIso);
+    const needsDay =
+      validated.frequency === "month" || validated.frequency === "year";
+    const needsMonth = validated.frequency === "year";
+    return nextFixedOccurrenceDate(
+      {
+        ...validated,
+        anchorDay: needsDay ? completion.day : validated.anchorDay,
+        anchorMonth: needsMonth ? completion.month : validated.anchorMonth,
+      },
+      ownerCompletionIso,
+      ownerCompletionIso,
+    );
+  }
+  return nextFixedOccurrenceDate(
+    validated,
+    currentAnchorIso,
+    maxIso(currentAnchorIso, ownerCompletionIso),
+  );
+}
 
+/** The grid step: the first date on the rule's grid strictly after `threshold`. */
+function nextFixedOccurrenceDate(
+  rule: TaskRecurrenceRule,
+  currentAnchorIso: string,
+  threshold: string,
+): string {
   switch (rule.frequency) {
     case "day": {
       const missed = Math.floor(

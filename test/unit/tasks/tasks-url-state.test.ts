@@ -86,18 +86,18 @@ describe("round trip", () => {
 
 describe("decoding untrusted URLs", () => {
   it("falls back to the SUPPLIED default for an invalid scalar", () => {
-    const preferred = config({ presentation: "matrix", sort: "title" });
+    const preferred = config({ presentation: "sectors", sort: "title" });
     const decoded = configFromParams(
       new URLSearchParams("view=nonsense&sort=DROP+TABLE"),
       preferred,
     );
     // A typo in a shared link must not silently discard the owner's preference.
-    expect(decoded.presentation).toBe("matrix");
+    expect(decoded.presentation).toBe("sectors");
     expect(decoded.sort).toBe("title");
   });
 
   it("lets an EXPLICIT parameter win over the default view", () => {
-    const preferred = config({ presentation: "matrix" });
+    const preferred = config({ presentation: "sectors" });
     expect(
       configFromParams(new URLSearchParams("view=list"), preferred)
         .presentation,
@@ -194,13 +194,21 @@ describe("toWorkspaceFilters", () => {
 });
 
 describe("grouping resolution", () => {
-  it("gives the specialist views their own dimension", () => {
-    expect(groupDimensionFor(config({ presentation: "matrix" }))).toBe(
-      "quadrant",
-    );
+  it("gives Time Sectors its own dimension", () => {
     expect(groupDimensionFor(config({ presentation: "sectors" }))).toBe(
       "sector",
     );
+  });
+
+  it("no longer knows about a Matrix presentation (V2.2 removed it)", () => {
+    // The value is not in the closed set any more, so the config parser has already
+    // dropped it; a stored or hand-typed `matrix` reaches the grouping resolver as the
+    // default LIST and is therefore flat, never an unknown dimension.
+    expect(
+      groupDimensionFor(
+        config({ presentation: "matrix" as unknown as "list" }),
+      ),
+    ).toBeNull();
   });
 
   it("leaves an ungrouped LIST flat", () => {

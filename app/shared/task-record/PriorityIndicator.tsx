@@ -1,11 +1,12 @@
 /**
  * TASKS-02 — the shared task Priority indicator.
  *
- * ONE component renders a task's Eisenhower priority (P1–P4) as a compact, coloured
+ * ONE component renders a task's priority (P1–P4) as a compact, coloured
  * indicator on every task-bearing surface (Today, Projects, Tasks, the Drawer). It
- * is driven entirely by the canonical `taskPriorityTag` / `taskPriorityLabel` /
- * `priorityQuadrant` derivations in `task-view.ts`, so priority reads identically
- * everywhere and there is no second, drifting vocabulary.
+ * is driven entirely by the canonical `taskPriorityTag` / `taskPriorityLabel`
+ * derivations in `task-view.ts`, so priority reads identically everywhere and there
+ * is no second, drifting vocabulary. Since V2.2 removed the Matrix there is exactly
+ * one priority vocabulary to render (TASKS-05).
  *
  * Accessibility (AGENTS.md §15, DEBT-28): the meaning is carried by TEXT, never by
  * colour alone. The short tag ("P1") is visible; the concise priority language is
@@ -17,11 +18,7 @@
 
 import type { TaskPriority } from "~/kernel/tasks";
 
-import {
-  priorityQuadrant,
-  taskPriorityLabel,
-  taskPriorityTag,
-} from "./task-view";
+import { taskPriorityLabel, taskPriorityTag } from "./task-view";
 
 export interface PriorityIndicatorProps {
   /** The task's priority, or null for an untriaged task. */
@@ -43,9 +40,7 @@ export function PriorityIndicator({
   className,
   "data-testid": testId,
 }: PriorityIndicatorProps) {
-  const quadrant = priorityQuadrant(priority);
-
-  if (priority === null || quadrant === null) {
+  if (priority === null) {
     if (!showEmpty) {
       return null;
     }

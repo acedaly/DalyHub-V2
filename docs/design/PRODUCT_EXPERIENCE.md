@@ -579,15 +579,19 @@ an ordinary, visible, keyboard-reachable control.
 The reference shape for a collection whose control surface is genuinely rich.
 
 ```
-Pane header:  Tasks                      142 tasks     [List|Board|Matrix|Sectors] [+ New task]
+Pane header:  Tasks                      142 tasks     [List|Board|Sectors]  [Select tasks]
 View row:     [View  Deep work · Modified] [⋯]
 Control row:  [Filter & sort  3]  List · Grouped by parent · 3 filters
 Chips:        [Priority: P1 · Urgent ×] [Due: Overdue ×] [Delegated to: Sam ×]  Reset filters
 ──────────────────────────────────────────────────────────────────────────────
 Quick add:    [ Add a task to Inbox — press Enter ]  [Add]  [More options]
 ──────────────────────────────────────────────────────────────────────────────
- list / grouped sections of Task cards: ✓ · title · parent context ·
- P1 · Overdue · sector · delegated · [Complete] [Today] [⋯]
+ list / grouped sections of Task cards: ✓ · title ·
+ [P1] [Overdue] [Every Mon, Thu] · [Due …] [Planned …] [Filed under …] ·
+ sector · delegated · [Complete] [Today] [⋯]
+
+ (V2.2: the bracketed values are DS-16 inline fields — the value IS the control,
+  so priority, both dates and the parent are changed where they are shown.)
 ```
 
 Four principles this screen exists to demonstrate, all of which generalise:
@@ -599,9 +603,15 @@ Project" — because a scope, a filter and a grouping were being made to share o
 choice. Scope, filter, grouping and layout are now four independent choices, and
 the switcher offers only the fourth.
 
-**A method is available, not compulsory.** The Eisenhower Matrix and the Time
-Sectors are retained in full, and neither is the landing surface. A triage method
-that a user must pass through to reach their work is a tax on the work.
+**A method is available, not compulsory — and a method that is not used is
+removed.** TASKS-03 retained the Eisenhower Matrix and the Time Sectors as optional
+presentations, on the principle that a triage method a user must pass through to reach
+their work is a tax on the work. V2.2 applied the other half of the same principle:
+the **Matrix was removed** (TASKS-05), because it was a second reading of the one
+stored priority field and everything it showed is available as an ordinary grouped
+list. Time Sectors was ASSESSED and kept — it is a distinct stored field answering a
+question no date answers. "Optional" is not a place to park a surface that has stopped
+earning its keep.
 
 **A filtered collection must explain itself where the records would be.** Not
 behind a control the user has to reopen. Every applied filter is a chip carrying

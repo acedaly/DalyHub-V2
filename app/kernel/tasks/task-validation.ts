@@ -30,6 +30,7 @@ import {
   TASK_PRIORITIES,
   TASK_RECENCY_WINDOWS,
   TASK_RECENCY_WINDOW_DAYS,
+  TASK_SERIES_EDIT_SCOPES,
   TASK_SORTS,
   TASK_SORT_DIRECTIONS,
   TASK_STATUSES,
@@ -45,6 +46,7 @@ import {
   type TaskPlannedState,
   type TaskPriority,
   type TaskRecencyWindow,
+  type TaskSeriesEditScope,
   type TaskSort,
   type TaskSortDirection,
   type TaskStatus,
@@ -443,6 +445,30 @@ export function validateTaskGroupDimension(
     throw new TaskValidationError("dimension", "is not a known grouping");
   }
   return dimension;
+}
+
+/**
+ * TASKS-07 — validate the SCOPE a recurrence-sensitive date change applies at. A
+ * missing or unrecognised scope is refused rather than defaulted: guessing between
+ * "this occurrence" and "the whole routine" is exactly the mistake the scope exists
+ * to prevent.
+ */
+export function validateTaskSeriesEditScope(
+  value: unknown,
+): TaskSeriesEditScope {
+  const scope = validateClosedSet(
+    value,
+    TASK_SERIES_EDIT_SCOPES,
+    "recurrence",
+    "must say whether the change applies to this occurrence or to this and future occurrences",
+  );
+  if (scope === undefined) {
+    throw new TaskValidationError(
+      "recurrence",
+      "must say whether the change applies to this occurrence or to this and future occurrences",
+    );
+  }
+  return scope;
 }
 
 /** A strict date-only `YYYY-MM-DD` shape, validated further for calendar validity. */

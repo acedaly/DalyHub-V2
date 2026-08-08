@@ -17,6 +17,92 @@ no version number to group them under.
 
 ---
 
+## Tasks, as a daily driver (V2.2 — TASKS-05 · TASKS-06 · TASKS-07 · TASKS-08)
+
+The programme that makes Tasks the fastest thing in DalyHub. The whole point is one
+change of shape: **see a task → act on the task**, instead of _see a task → open it →
+find Edit → change a field → save → close_.
+
+### Change a task where you can see it
+
+Priority, the due date, the planned date and the Project or Area are now editable
+**on the row**. Click the value, choose, done. Nothing new appears on a row to make
+this work — a task with no priority simply reads a quiet "No priority", and that word
+is the button.
+
+Because those four moved onto the row, nine entries left the row's ⋯ menu. What is
+left there is what genuinely does not fit on a row: renaming, the searchable
+Project/Area picker, Someday/Maybe, the repeat editor and the full task record.
+
+Filing is still optional and still one step. One choice replaces the Project — you
+never clear it first — and **Move to Inbox** sits in the same menu.
+
+### The Eisenhower Matrix is gone
+
+Deliberately, not by accident. The 2×2 was a second way of reading the one thing it
+showed: your P1–P4 priority. Everything it did is available as an ordinary list
+**grouped by priority**, which also sorts, filters and pages properly.
+
+**Your priorities are untouched.** P1–P4 are exactly as they were, and they are still
+a filter, a sort, a grouping and the badge on every row. If you have an old Matrix
+bookmark it takes you to the priority-grouped list rather than an error, and if the
+Matrix was your default Tasks view you now land on the task list. Time Sectors stays —
+it is a real planning field, not a second reading of priority.
+
+### Select many, do one thing
+
+Choose **Select tasks** (or press and hold a row on a phone), tick what you want —
+Shift-click to take a run of them, or **Select all** — and act on the lot:
+
+- complete or reopen them;
+- give them all a priority, a due date or a planned date;
+- move them all to a Project, an Area or the Inbox;
+- park them as Someday/Maybe, change their status, or delete them.
+
+Where the selection disagrees, the control says **Mixed** rather than pretending they
+all share one value — and choosing a value sets it on all of them.
+
+**Deleting is reversible.** "Delete 18 tasks?" tells you exactly what happens: they
+move to a new **Deleted** view keeping their dates, links and history, and you restore
+them from there. Nothing is destroyed by a toolbar button.
+
+Every bulk action says what it did — "18 tasks deleted", not "18 tasks updated" — and
+says it somewhere a screen reader will still be listening after the selection clears.
+
+### Repeats that mean what you meant
+
+A repeat is now one of two things, and DalyHub asks which:
+
+- **Keep a fixed schedule** — "every Monday" is still Monday next week, even if you
+  finished this one on Wednesday. For weekly reviews, bins and regular admin.
+- **Repeat after completion** — "every 14 days after completion", counted from the day
+  you actually finished. For cleaning, maintenance and anything where the clock should
+  restart when the work is done.
+
+Every repeat you already have keeps behaving exactly as it did — they are all fixed
+schedules, which is what they already meant.
+
+**Custom repeats are now buildable.** Choose _Custom…_ under Repeat for every 3 weeks,
+every 3 months, or a weekly routine pinned to particular days. Whatever you build, the
+panel states it in plain English — _"Every 2 weeks on Monday and Thursday"_, _"14 days
+after completion"_ — before you save it.
+
+Two more things a repeating task needed:
+
+- **Skip this occurrence.** Not mowing the lawn this week is not the same as mowing it.
+  Skipping moves it to the next date and leaves it open, and your history says it was
+  skipped — never that it was done.
+- **Stop repeating.** Ends the future occurrences and keeps every past one.
+
+### On a phone
+
+Press and hold a row to start selecting. The action bar becomes the bottom row of
+buttons the rest of DalyHub uses — Complete, Date, Priority, Move, More. The custom
+repeat editor is built for a thumb: full-width controls, seven day buttons big enough
+to hit, a number pad for the interval, and the plain-English result right above Save.
+
+---
+
 ## Turning a meeting item into a task now happens all at once, and writing has one keyboard save (AUDIT-13 / AUDIT-16 / DOC-EDITOR-01)
 
 Three things, all of them about not being surprised.

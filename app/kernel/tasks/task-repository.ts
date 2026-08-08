@@ -30,6 +30,8 @@ import type {
   ListWaitingTasksInput,
   ListWorkspaceTaskGroupsInput,
   ListWorkspaceTasksInput,
+  MoveTaskOccurrenceInput,
+  MoveTaskOccurrenceResult,
   NewTaskInput,
   PlanTaskInput,
   PlanTaskResult,
@@ -43,6 +45,8 @@ import type {
   SetTaskRecurrenceResult,
   SetWaitingInput,
   SetWaitingResult,
+  SkipTaskOccurrenceOptions,
+  SkipTaskOccurrenceResult,
   TaskListPage,
   TaskParentCandidate,
   TaskPriority,
@@ -189,13 +193,14 @@ export interface TaskRepository {
   ): Promise<WorkspaceTaskListPage>;
 
   /**
-   * Group the ACTIVE planning collection server-side for the Matrix (`quadrant`) and
-   * Sectors (`sector`) views (ADR-043 §11 / decision 12). In ONE bounded, N+1-free,
+   * Group the ACTIVE planning collection server-side for the Time Sectors view
+   * (`sector`) and every grouped List or Board (ADR-043 §11 / decision 12). In ONE
+   * bounded, N+1-free,
    * workspace-scoped query it returns, per bucket, the AUTHORITATIVE total `count`
    * (over the whole active scope — never "how many were loaded") AND a bounded,
    * deterministically-sorted (`sort`, default `smart`) top slice of that bucket's
    * tasks, with `hasMore` when the bucket holds more than the returned slice. This
-   * makes quadrant/sector counts and empty states correct independent of record
+   * makes bucket counts and empty states correct independent of record
    * paging: a bucket is never shown empty because its first task fell beyond a global
    * page. The remainder of an overflowing bucket is reached through the equivalent
    * filtered `all` view (priority/sector filter), which paginates that one bucket on
@@ -391,6 +396,114 @@ export interface TaskRepository {
     id: string,
     options?: CompleteTaskOptions,
   ): Promise<CompleteTaskResult>;
+
+  /**
+   * TASKS-07 — move a recurring occurrence's ANCHOR date at an explicit series scope
+   * (ADR-085). The anchor is whichever date the rule advances (`dateKind`): a
+   * `scheduled` rule moves the scheduled date, a `due` rule the due date. The other
+   * date keeps its distance from it, so a Monday/Friday window stays four days wide.
+   *
+   *   - `scope: "occurrence"` moves THIS occurrence only and REMEMBERS the series'
+   *     grid, so the next occurrence returns to the routine's schedule;
+   *   - `scope: "series"` moves this occurrence AND re-anchors the schedule here, so
+   *     every future occurrence follows from the new date.
+   *
+   * Completed occurrences are never touched under either scope — the series' history
+   * is not rewritten because its future changed. One atomic batch; one guarded
+   * `task.planned`/`task.rescheduled` (or `entity.updated` for a due-date rule)
+   * Activity event, so a series edit is as legible as any other date change. An
+   * unchanged date under an unchanged scope is an idempotent no-op.
+   *
+   * Throws `TaskValidationError` when the Task does not repeat, is completed, or the
+   * date is invalid; `TaskNotFoundError` for a missing/cross-workspace id; and
+   * `TaskProjectArchivedError` inside an archived Project.
+   */
+  moveTaskOccurrence(
+    id: string,
+    input: MoveTaskOccurrenceInput,
+  ): Promise<MoveTaskOccurrenceResult>;
+
+  /**
+   * TASKS-07 — SKIP one occurrence of a series (ADR-085): advance this occurrence to
+   * the series' next date without completing it, so "I am not mowing the lawn this
+   * week" needs neither a false completion nor a deleted routine.
+   *
+   * It is deliberately NOT completion and NOT an ordinary reschedule. The occurrence
+   * stays open, its dates move exactly one step along the rule (respecting the
+   * scheduling mode — an after-completion rule steps from the owner's day), no
+   * successor is created, no sequence is consumed and the series identity is
+   * untouched. ONE atomic batch appends exactly one
+   * `task.recurrence_occurrence_skipped` event carrying the date skipped from, the
+   * date skipped to and the series identity, so the history says what happened
+   * instead of claiming the work was done.
+   *
+   * Throws `TaskValidationError` when the Task does not repeat, has no anchor date or
+   * is already completed; `TaskNotFoundError` for a missing/cross-workspace id; and
+   * `TaskProjectArchivedError` inside an archived Project.
+   */
+  skipTaskOccurrence(
+    id: string,
+    options: SkipTaskOccurrenceOptions,
+  ): Promise<SkipTaskOccurrenceResult>;
+
+  /**
+   * TASKS-06 — move MANY Tasks to the same structural parent (or to Inbox with
+   * `null`) as ONE ATOMIC operation. It is the bulk form of `setTaskParent` and
+   * shares its authority: the destination is validated once inside this workspace
+   * (rejecting missing, deleted, archived, wrong-kind and cross-workspace parents),
+   * every id is resolved before a single write, and then ONE `D1Database.batch()`
+   * unlinks each Task's current parent, links the new one — RESTORING a previously
+   * used link row rather than duplicating it — and appends the same
+   * `entity_link.unlinked` / `entity_link.created` / `entity_link.restored` Activity a
+   * single move appends. Either all commit or none do, so a selection is never left
+   * half-filed. Tasks already under the destination are counted `unchanged`.
+   *
+   * Throws `TaskValidationError` for an empty/oversized/invalid id list,
+   * `TaskNotFoundError` for a missing id or destination, `SpineInvalidParentKindError`
+   * for a wrong-kind destination and `TaskProjectArchivedError` for an archived one.
+   */
+  setParentMany(
+    ids: readonly string[],
+    parent: SetTaskParentInput,
+  ): Promise<BulkFieldResult>;
+
+  /**
+   * TASKS-06 — reopen MANY completed Tasks as ONE ATOMIC operation, with the SAME
+   * safe recurrence-successor withdrawal `reopenTask` performs for each of them
+   * (ADR-062): a successor still exactly as completion made it is withdrawn and its
+   * series slot released; one the owner has since edited, planned, linked or
+   * completed is RETAINED. Every id is resolved first, so a missing or archived id
+   * rejects the whole operation; already-open Tasks are counted `unchanged`.
+   */
+  reopenTasks(ids: readonly string[]): Promise<BulkFieldResult>;
+
+  /**
+   * TASKS-06 — REVERSIBLY delete MANY Tasks as ONE ATOMIC operation: a soft delete
+   * (`entities.deleted_at`), exactly the same lifecycle transition the spine's own
+   * `softDelete` performs, with one `entity.deleted` event per Task that actually
+   * changed. Nothing is destroyed: a deleted Task keeps its title, details,
+   * relationships, Activity and recurrence row, stays out of every ordinary view, and
+   * is reachable and restorable through the built-in **Deleted** view.
+   *
+   * Permanent destruction is NOT reachable from here, deliberately: a bulk toolbar
+   * button must never be able to erase records irrecoverably (AGENTS.md §7).
+   *
+   * Already-deleted Tasks are counted `unchanged`. Throws `TaskValidationError` for an
+   * empty/oversized/invalid id list and `TaskNotFoundError` for an id that is not a
+   * Task in this workspace.
+   */
+  deleteTasks(ids: readonly string[]): Promise<BulkFieldResult>;
+
+  /**
+   * TASKS-06 — restore MANY soft-deleted Tasks as ONE ATOMIC operation, mirroring
+   * `deleteTasks` and the spine's `restore`: `deleted_at` is cleared and one
+   * `entity.restored` event appended per Task that actually changed. A Task whose
+   * retained structural parent is gone or archived cannot be restored into it, so the
+   * whole operation is rejected rather than silently re-filing work somewhere the
+   * owner did not choose — except for a Task that never had a parent, which returns
+   * to the Inbox it came from (AUDIT-15). Already-active Tasks count `unchanged`.
+   */
+  restoreTasks(ids: readonly string[]): Promise<BulkFieldResult>;
 
   /**
    * TASKS-04 — reopen a completed Task, and safely undo the recurrence successor the

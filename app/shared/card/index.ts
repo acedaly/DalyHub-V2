@@ -57,6 +57,7 @@ export type {
   CardProgress,
   CardProps,
   CardSelection,
+  CardSelectionModifiers,
   CardStatus,
   CardTone,
   NormalisedProgress,

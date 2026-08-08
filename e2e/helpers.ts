@@ -69,6 +69,32 @@ export const RESPONSIVE_VIEWPORTS = [
 export const TOUCH_TARGET_MIN = 44;
 
 /**
+ * The seeded owner's calendar timezone — the same value as
+ * `DEFAULT_APP_PREFERENCES.timezone`, and the same constant `today-fixtures.mjs`
+ * pins for the Today dataset.
+ */
+export const OWNER_TIMEZONE = "Australia/Sydney";
+
+/**
+ * TODAY (`YYYY-MM-DD`) on the OWNER's calendar, which is the only "today" the
+ * product has (ADR-022).
+ *
+ * A spec that fills a date field with `new Date().toISOString().slice(0, 10)` is
+ * writing the UTC day, and for a third of every 24 hours that is the owner's
+ * YESTERDAY — so "set it to today" quietly becomes "set it overdue" depending on
+ * what time the suite happens to run. That failure is invisible in the morning and
+ * certain in the evening, which is the worst shape a test can have.
+ */
+export function ownerToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: OWNER_TIMEZONE,
+  }).format(new Date());
+}
+
+/**
  * The axe rule tags DS-11 enforces: WCAG 2.0/2.1/2.2 Level A and AA plus axe's
  * "best-practice" heuristics (landmark uniqueness, list structure, etc.). This is
  * the established, non-brittle way to scope an axe run to a standard rather than

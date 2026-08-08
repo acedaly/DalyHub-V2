@@ -57,13 +57,29 @@ describe("legacy view migration", () => {
     expect(next?.get("system")).toBe("waiting");
   });
 
-  it("leaves the retained specialist presentations alone", () => {
-    expect(
-      migrateLegacyViewParams(new URLSearchParams("view=matrix")),
-    ).toBeNull();
+  it("leaves the retained Time Sectors presentation alone", () => {
     expect(
       migrateLegacyViewParams(new URLSearchParams("view=sectors")),
     ).toBeNull();
+  });
+
+  it("resolves a legacy ?view=matrix to the priority-grouped LIST", () => {
+    // V2.2 removed the Matrix (TASKS-05). An old bookmark must land calmly on the
+    // primary workspace with the same records banded by the same signal — never an
+    // error, and never a silent loss of the grouping the 2x2 provided.
+    const migrated = migrateLegacyViewParams(
+      new URLSearchParams("view=matrix"),
+    );
+    expect(migrated?.get("view")).toBe("list");
+    expect(migrated?.get("system")).toBe("active");
+    expect(migrated?.get("group")).toBe("priority");
+  });
+
+  it("keeps an explicit grouping already in a legacy Matrix link", () => {
+    const migrated = migrateLegacyViewParams(
+      new URLSearchParams("view=matrix&group=due_state"),
+    );
+    expect(migrated?.get("group")).toBe("due_state");
   });
 
   it("leaves a TASKS-03 URL untouched", () => {
@@ -75,7 +91,7 @@ describe("legacy view migration", () => {
 });
 
 describe("toTaskCardData", () => {
-  it("derives quadrant, sector and state", () => {
+  it("derives the priority tag, sector and state", () => {
     const card = toTaskCardData(
       item({
         id: "a",
@@ -84,7 +100,6 @@ describe("toTaskCardData", () => {
         status: "in_progress",
       }),
     );
-    expect(card.quadrant).toBe("do");
     expect(card.priorityTag).toBe("P1");
     expect(card.sectorLabel).toBe("This Week");
     expect(card.stateLabel).toBe("In progress");
@@ -110,9 +125,9 @@ describe("toTaskCardData", () => {
   });
 });
 
-describe("resolveGroupedSections — the Matrix (a specialist view)", () => {
+describe("resolveGroupedSections — grouped by priority", () => {
   const grouping: TasksGrouping = {
-    dimension: "quadrant",
+    dimension: "priority",
     groups: [
       group({
         key: "p1",
@@ -129,34 +144,27 @@ describe("resolveGroupedSections — the Matrix (a specialist view)", () => {
     ],
   };
 
-  it("returns all five buckets in reading order with authoritative counts", () => {
+  it("renders the OCCUPIED buckets in declared order with authoritative counts", () => {
     const sections = resolveGroupedSections(grouping);
-    expect(sections.map((s) => s.key)).toEqual([
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-      "untriaged",
-    ]);
+    // Declared order (P1 → P4 → untriaged), and EMPTY buckets are hidden: an ordinary
+    // grouped list is not a matrix, so a priority with no work in it is noise rather
+    // than a missing cell. Time Sectors is the one dimension that keeps its empties.
+    expect(sections.map((s) => s.key)).toEqual(["p1", "p2", "untriaged"]);
     const byKey = new Map(sections.map((s) => [s.key, s]));
     // The count comes from the SERVER, not the loaded slice length.
     expect(byKey.get("p1")?.count).toBe(5);
     expect(byKey.get("p1")?.cards).toHaveLength(1);
     expect(byKey.get("p1")?.hasMore).toBe(true);
     expect(byKey.get("p1")?.filterKey).toBe("p1");
-    // A quadrant the server omitted is still rendered — a matrix missing a
-    // quadrant is not a matrix.
-    expect(byKey.get("p3")?.count).toBe(0);
-    expect(byKey.get("p3")?.cards).toEqual([]);
     // Untriaged maps to the explicit no-priority filter.
     expect(byKey.get("untriaged")?.filterParam).toBe("priority");
     expect(byKey.get("untriaged")?.filterKey).toBe("__none");
   });
 
-  it("carries the Eisenhower action word as the section subtitle", () => {
+  it("labels a bucket in the ONE priority vocabulary", () => {
     const sections = resolveGroupedSections(grouping);
-    expect(sections[0]?.subtitle).toContain("do it");
-    expect(sections[2]?.subtitle).toContain("delegate it");
+    expect(sections[0]?.title).toBe("P1 · Urgent");
+    expect(sections.at(-1)?.title).toBe("No priority");
   });
 
   it("returns nothing for a null grouping", () => {
@@ -164,7 +172,7 @@ describe("resolveGroupedSections — the Matrix (a specialist view)", () => {
   });
 });
 
-describe("resolveGroupedSections — Time Sectors (a specialist view)", () => {
+describe("resolveGroupedSections — Time Sectors (the planning view)", () => {
   it("returns No sector + the six sectors, mapping null sector to the __none filter", () => {
     const sections = resolveGroupedSections({
       dimension: "sector",
