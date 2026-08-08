@@ -342,7 +342,7 @@ describe("GoalOverview", () => {
     renderGoal();
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
     expect(
-      screen.getByText("No Projects advancing this Goal"),
+      screen.getByText("No Projects advancing this Goal yet."),
     ).toBeInTheDocument();
   });
 

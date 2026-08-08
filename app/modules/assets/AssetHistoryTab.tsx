@@ -22,6 +22,7 @@ import { ASSET_EVENT_CATEGORY_OPTIONS } from "~/kernel/assets";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
+import { OverflowMenu } from "~/shared/overflow-menu";
 
 import type { SerializedAssetEvent } from "./asset-history-view";
 import type { AssetHistoryPage, AssetHistoryResult } from "./routes/history";
@@ -30,8 +31,38 @@ import type { AssetHistoryPage, AssetHistoryResult } from "./routes/history";
 export type QuickEventAction =
   "service" | "repair" | "meter" | "renewal" | "valuation" | "history";
 
+/**
+ * RECORD-01 — which capture is this asset's PRIMARY one.
+ *
+ * The six captures rendered as six ghost buttons at one weight, floating in a
+ * row above the filter. That is a list of options, not a hierarchy: nothing
+ * told the owner which one they were most likely to want, and six equal
+ * controls read as chrome rather than as actions.
+ *
+ * The asset's own TYPE already answers it, so no context engine is needed and
+ * nothing is guessed: a thing that is serviced leads with "Record service"; a
+ * document, licence, policy or subscription is never serviced and leads with
+ * "Record renewal". Everything else moves into the shared overflow, one press
+ * away, in the same menu affordance every record in the product uses.
+ *
+ * Exported and pure so the rule is unit-tested without a DOM.
+ */
+const RENEWABLE_ASSET_TYPES = new Set([
+  "document",
+  "licence",
+  "insurance",
+  "subscription",
+  "software",
+]);
+
+export function primaryHistoryAction(assetType: string): QuickEventAction {
+  return RENEWABLE_ASSET_TYPES.has(assetType) ? "renewal" : "service";
+}
+
 interface AssetHistoryTabProps {
   readonly assetId: string;
+  /** The asset's type — decides which capture is this asset's primary one. */
+  readonly assetType: string;
   readonly initialEvents: readonly SerializedAssetEvent[];
   readonly initialCursor: string | null;
   readonly initialHasMore: boolean;
@@ -65,6 +96,7 @@ const QUICK_ACTIONS: readonly {
 
 export function AssetHistoryTab({
   assetId,
+  assetType,
   initialEvents,
   initialCursor,
   initialHasMore,
@@ -75,6 +107,10 @@ export function AssetHistoryTab({
   reloadKey,
 }: AssetHistoryTabProps) {
   const feedback = useFeedback();
+  const primaryId = primaryHistoryAction(assetType);
+  const primary =
+    QUICK_ACTIONS.find((action) => action.id === primaryId) ?? QUICK_ACTIONS[0];
+  const secondary = QUICK_ACTIONS.filter((action) => action.id !== primary.id);
   const [category, setCategory] = useState("");
   const [events, setEvents] =
     useState<readonly SerializedAssetEvent[]>(initialEvents);
@@ -171,26 +207,13 @@ export function AssetHistoryTab({
     <div className="dh-asset-history">
       <h2 className="dh-visually-hidden">History</h2>
 
-      {readOnly ? null : (
-        <div
-          className="dh-asset-history__actions"
-          role="group"
-          aria-label="Record an entry"
-        >
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              className="dh-btn dh-btn--ghost dh-btn--sm"
-              onClick={() => onQuickAction(action.id)}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="dh-asset-history__bar">
+      {/*
+        RECORD-01 — the shared record toolbar: the filter on the leading edge,
+        this asset's primary capture and the overflow on the trailing edge. Same
+        row, same measurements and same edges as the Project's task toolbar and
+        the Area's Goals toolbar.
+      */}
+      <div className="dh-record-toolbar">
         <label className="dh-asset-history__filter">
           <span>Show</span>
           <select
@@ -204,6 +227,26 @@ export function AssetHistoryTab({
             ))}
           </select>
         </label>
+
+        {readOnly ? null : (
+          <>
+            <button
+              type="button"
+              className="dh-btn dh-btn--text"
+              onClick={() => onQuickAction(primary.id)}
+            >
+              {primary.label}
+            </button>
+            <OverflowMenu
+              items={secondary.map((action) => ({
+                id: action.id,
+                label: action.label,
+                onSelect: () => onQuickAction(action.id),
+              }))}
+              label="More ways to record an entry"
+            />
+          </>
+        )}
       </div>
 
       {events.length === 0 ? (

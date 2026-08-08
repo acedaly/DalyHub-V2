@@ -5,14 +5,16 @@
  * Person record exists to answer: who is this, when did we last interact, how often
  * do we interact, and what have we shared. It renders, in order:
  *
- *   1. identity — avatar, name/pronouns, organisation and role, relationship;
- *   2. quick actions — Call / Email / Copy act on real contact data through
- *      standard `tel:`/`mailto:` URIs (never a fake integration), and, since
- *      MOBILE-01, New Task / Diary entry / New Meeting / New Note open the SHARED
- *      capture sheet so each creates a real record through its module's canonical
- *      route instead of dead-ending in a toast. Pre-linking the created record to
- *      this Person is deliberately still outstanding — the labels name the record,
- *      not the person, so nothing is implied that does not happen;
+ *   1. identity — the person's face, their preferred name and the relationship
+ *      word. RECORD-01 removed the name, pronouns, organisation and role from
+ *      here: the record header states each of them once, directly above;
+ *   2. contact actions — Call / Email (and Message where a mobile exists) act on
+ *      real contact data through standard `tel:`/`mailto:`/`sms:` URIs, never a
+ *      fake integration. UIQ-011 reduced this from eight equally-weighted pills
+ *      to these: a control is rendered only where the data behind it exists, and
+ *      creating a Task, Meeting, Note or Diary entry moved to the record
+ *      header's overflow, which passes this Person's context to the ONE shared
+ *      capture sheet;
  *   3. the PEOPLE-03 **relationship summary** — DS-13 shared summary cards over the
  *      derived aggregate, every card leading to the surface that opens the records
  *      behind it;
@@ -23,12 +25,9 @@
  * server-side and this component only lays it out.
  */
 
-import { useCallback } from "react";
+import type { ReactNode } from "react";
 
 import type { PersonRelationship } from "~/kernel/relationships";
-import { useCapture } from "~/shared/capture";
-import type { CaptureContextContract } from "~/shared/capture/capture-context";
-import { useFeedback } from "~/shared/feedback";
 import { StayInTouchPanel } from "~/shared/relationships";
 import { SummaryCards } from "~/shared/summary-cards";
 
@@ -55,30 +54,7 @@ export function PersonSummary({
   relationship,
   onEditContact,
 }: PersonSummaryProps) {
-  const feedback = useFeedback();
-  // The ONE shared capture surface. Null outside the AppShell (an isolated render),
-  // where the entries simply do nothing rather than throwing.
-  const capture = useCapture();
   const phone = person.mobile ?? person.workPhone;
-
-  const copy = useCallback(
-    async (value: string, label: string) => {
-      try {
-        await navigator.clipboard.writeText(value);
-        feedback.notifySuccess(`${label} copied`);
-      } catch {
-        feedback.notifyError(`Couldn’t copy the ${label.toLowerCase()}.`);
-      }
-    },
-    [feedback],
-  );
-
-  const placeholder = useCallback(
-    (what: string) => {
-      feedback.notifyInfo(`${what} will be available in an upcoming release.`);
-    },
-    [feedback],
-  );
 
   const facts: { id: string; label: string; value: string }[] = [];
   // PEOPLE-03 — the hand-entered `lastInteraction` field is now a FALLBACK, shown
@@ -112,44 +88,87 @@ export function PersonSummary({
     });
   }
 
-  const contextLine = [person.role, person.organisation]
-    .filter(Boolean)
-    .join(" · ");
-  const captureContext: CaptureContextContract = {
-    sourceEntityId: person.id,
-    sourceEntityType: "person",
-    sourceEntityTitle: person.title,
-    sourceModule: "people",
-    originatingRoute: `/person/${person.id}`,
-    mode: "removable",
-    relationshipMeaning: "related",
-    returnTo: `/person/${person.id}`,
-  };
+  /*
+   * UIQ-011 — the Person's PRIMARY actions are Call and Email, and only when
+   * the contact data supports them.
+   *
+   * The record used to carry eight tonal pills at one weight: Call, Email, New
+   * Task, Diary entry, New Meeting, New Note, Copy email and Copy phone. Two of
+   * those act on this person; four create some OTHER record and are the global
+   * capture sheet's job; two were clipboard conveniences that sat greyed out on
+   * every person with no email or phone. A greyed-out Call on someone with no
+   * number is a control that can never do anything, so it is not rendered at
+   * all rather than rendered disabled — the Contact tab is where a missing
+   * number gets added.
+   *
+   * A message action appears only where the data supports it: `sms:` needs a
+   * MOBILE, not any phone, so a person with only a work number gets Call and
+   * Email and no third button that would dial a landline by SMS.
+   *
+   * Everything demoted is reachable: the four capture actions are in the record
+   * header's overflow (with this Person's context attached), and copying is
+   * there too. Nothing was removed from the product — see `PersonRecord`.
+   */
+  const preferredName =
+    person.preferredName && person.preferredName !== person.title
+      ? person.preferredName
+      : null;
+
+  const primaryActions: ReactNode[] = [];
+  if (phone) {
+    primaryActions.push(
+      <a key="call" className="dh-btn dh-btn--secondary" href={`tel:${phone}`}>
+        Call
+      </a>,
+    );
+  }
+  if (person.email) {
+    primaryActions.push(
+      <a
+        key="email"
+        className="dh-btn dh-btn--secondary"
+        href={`mailto:${person.email}`}
+      >
+        Email
+      </a>,
+    );
+  }
+  if (person.mobile) {
+    primaryActions.push(
+      <a
+        key="message"
+        className="dh-btn dh-btn--secondary"
+        href={`sms:${person.mobile}`}
+      >
+        Message
+      </a>,
+    );
+  }
 
   return (
     <div className="dh-person-summary">
       <h2 className="dh-visually-hidden">Summary</h2>
+      {/*
+        RECORD-01 / UIQ-011 — the identity block, and the two actions that are
+        genuinely primary.
+
+        This block used to restate the record's own header: the name (which is
+        the h1 directly above it), the pronouns, and "Site foreman · Whitfield
+        Building Co." — all of which the header's context line now carries once.
+        What is left is what the header genuinely cannot show: the person's
+        face, their preferred name, and the relationship word that makes this a
+        relationship record rather than a contact row.
+      */}
       <div className="dh-person-summary__head">
         <PersonAvatar
           name={person.title}
           initials={person.initials}
           photoUrl={person.photoUrl}
-          size={96}
+          size={72}
         />
         <div className="dh-person-summary__identity">
-          <p className="dh-person-summary__name">
-            {person.preferredName && person.preferredName !== person.title
-              ? `${person.title} (${person.preferredName})`
-              : person.title}
-            {person.pronouns ? (
-              <span className="dh-person-summary__pronouns">
-                {" "}
-                · {person.pronouns}
-              </span>
-            ) : null}
-          </p>
-          {contextLine ? (
-            <p className="dh-person-summary__context">{contextLine}</p>
+          {preferredName ? (
+            <p className="dh-person-summary__name">{preferredName}</p>
           ) : null}
           {person.relationshipLabel ? (
             <p className="dh-person-summary__relationship">
@@ -159,101 +178,15 @@ export function PersonSummary({
             </p>
           ) : null}
         </div>
-      </div>
-
-      <div
-        className="dh-person-summary__actions"
-        role="group"
-        aria-label="Quick actions"
-      >
-        <a
-          className="dh-btn dh-btn--secondary"
-          href={phone ? `tel:${phone}` : undefined}
-          aria-disabled={phone ? undefined : "true"}
-          onClick={(e) => {
-            if (!phone) {
-              e.preventDefault();
-              placeholder("Calling from here");
-            }
-          }}
-        >
-          Call
-        </a>
-        <a
-          className="dh-btn dh-btn--secondary"
-          href={person.email ? `mailto:${person.email}` : undefined}
-          aria-disabled={person.email ? undefined : "true"}
-          onClick={(e) => {
-            if (!person.email) {
-              e.preventDefault();
-              placeholder("Emailing from here");
-            }
-          }}
-        >
-          Email
-        </a>
-        {/* MOBILE-01 made these real shared capture actions. ADR-060 now passes
-            Person context through the same sheet: Tasks are related unless the
-            user explicitly delegates, Meetings receive an attendee link, and
-            Notes/Diary entries use canonical EntityLinks. */}
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
-          onClick={(event) =>
-            capture?.openCapture("task", event.currentTarget, {
-              ...captureContext,
-              relationshipMeaning: "related",
-            })
-          }
-        >
-          New Task
-        </button>
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
-          onClick={(event) =>
-            capture?.openCapture("diary", event.currentTarget, captureContext)
-          }
-        >
-          Diary entry
-        </button>
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
-          onClick={(event) =>
-            capture?.openCapture("meeting", event.currentTarget, {
-              ...captureContext,
-              relationshipMeaning: "attendee",
-            })
-          }
-        >
-          New Meeting
-        </button>
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
-          onClick={(event) =>
-            capture?.openCapture("note", event.currentTarget, captureContext)
-          }
-        >
-          New Note
-        </button>
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
-          onClick={() => person.email && copy(person.email, "Email")}
-          disabled={!person.email}
-        >
-          Copy email
-        </button>
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
-          onClick={() => phone && copy(phone, "Phone")}
-          disabled={!phone}
-        >
-          Copy phone
-        </button>
+        {primaryActions.length > 0 ? (
+          <div
+            className="dh-person-summary__actions"
+            role="group"
+            aria-label="Contact actions"
+          >
+            {primaryActions}
+          </div>
+        ) : null}
       </div>
 
       {/* Each region is labelled EXACTLY once: the heading labels the shared

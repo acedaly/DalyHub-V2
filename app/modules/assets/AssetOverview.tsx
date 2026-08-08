@@ -19,7 +19,6 @@
 
 import { AssetDatesTab } from "./AssetDatesTab";
 import { AssetValueHistory } from "./AssetValueHistory";
-import { assetTypeIcon } from "./asset-icons";
 import { nextMeaningfulDate } from "./asset-dates";
 import {
   obligationStateTone,
@@ -28,7 +27,7 @@ import {
   type SerializedCostSummary,
   type SerializedValueHistory,
 } from "./asset-history-view";
-import { assetStatusTone, type SerializedAsset } from "./asset-view";
+import type { SerializedAsset } from "./asset-view";
 
 /** The resolved canonical names the loader supplies for the id-reference fields. */
 export interface AssetSummaryContext {
@@ -68,9 +67,6 @@ export function AssetOverview({
   onOpenObligations,
   onOpenHistory,
 }: AssetOverviewProps) {
-  const Icon = assetTypeIcon(asset.assetType);
-  const modelLine = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
-
   const open = data.obligations.filter((o) => o.status === "open");
   const overdue = open.filter((o) => o.state === "overdue");
   // The obligations arrive due-date ascending, so the first open one is next.
@@ -147,25 +143,19 @@ export function AssetOverview({
     <div className="dh-asset-summary">
       <h2 className="dh-visually-hidden">Overview</h2>
 
-      <div className="dh-asset-summary__head">
-        <span className="dh-asset-summary__icon" aria-hidden="true">
-          <Icon size={40} />
-        </span>
-        <div className="dh-asset-summary__identity">
-          <p className="dh-asset-summary__type">{asset.assetTypeLabel}</p>
-          {modelLine ? (
-            <p className="dh-asset-summary__model">{modelLine}</p>
-          ) : null}
-          <p className="dh-asset-summary__status">
-            <span
-              className={`dh-asset-badge dh-asset-badge--${assetStatusTone(asset.status)}`}
-            >
-              {asset.statusLabel}
-            </span>
-          </p>
-        </div>
-      </div>
+      {/*
+        RECORD-01 — the Overview no longer re-introduces the asset.
 
+        It opened with a 40px glyph beside "Vehicle", "Toyota Hilux SR5 (2021)"
+        and an "Active" badge — every one of which the record header states
+        directly above it: the type as the header's subtype label, the make and
+        model in its context line, and the status as its pill. Three facts, each
+        twice, in the first 120px of the record.
+
+        So the Overview now opens with what the header CANNOT say and what the
+        contract asks it to lead with: the maintenance and renewal situation,
+        starting with the next thing that might need the owner today.
+      */}
       {/* The one thing that might need the owner today. */}
       {next ? (
         <div className="dh-asset-next" data-testid="asset-next-obligation">

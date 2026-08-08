@@ -203,7 +203,14 @@ export function RecordHeader({
           )}
           {(metadata ?? []).map((item) => (
             <li key={item.id} className="record-context-item">
-              <span className="record-context-item__label">{item.label}</span>
+              {/* An EMPTY label is a deliberate caller choice, not missing data:
+               * some context reads as a phrase rather than a field ("Site
+               * foreman · Whitfield Building Co."), and "Role and organisation:"
+               * in front of it would be the label saying less than the value.
+               * The empty span is skipped so it cannot leave a stray gap. */}
+              {item.label !== "" && (
+                <span className="record-context-item__label">{item.label}</span>
+              )}
               <span className="record-context-item__value">{item.value}</span>
             </li>
           ))}

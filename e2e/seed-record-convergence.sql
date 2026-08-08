@@ -76,17 +76,26 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-rc-kitchen';
 UPDATE project_details SET status = 'planned', archived_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-rc-long';
 
--- Structural spine links: both projects live in Home & Property; the kitchen
--- fit-out also advances the renovation Goal.
+-- Structural spine links. A Project has ONE structural parent: the kitchen
+-- fit-out advances the Goal (and reaches the Area through it), while the
+-- renewals project sits directly in the Area. Giving a Project both links would
+-- make it a child of two parents, and the Goal's contribution roll-up would not
+-- count it.
+-- Remove the second parent an earlier revision of this fixture created. This
+-- runs BEFORE the insert below: the spine allows a Project exactly one
+-- structural parent, so while the Area link exists the Goal link is refused and
+-- `INSERT OR IGNORE` swallows the refusal — leaving the Project with no parent
+-- at all once the Area link is later removed.
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace' AND id = 'l-rc-kitchen-area';
 INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
 VALUES
   ('l-rc-goal-area', 'local-dev-workspace', 'g-rc-move', 'a-rc-home', 'goal.belongs_to_area', '2026-02-10T00:00:00.000Z', '2026-02-10T00:00:00.000Z', NULL),
-  ('l-rc-kitchen-area', 'local-dev-workspace', 'pr-rc-kitchen', 'a-rc-home', 'project.belongs_to_area', '2026-03-02T00:00:00.000Z', '2026-03-02T00:00:00.000Z', NULL),
   ('l-rc-kitchen-goal', 'local-dev-workspace', 'pr-rc-kitchen', 'g-rc-move', 'project.advances_goal', '2026-03-02T00:00:01.000Z', '2026-03-02T00:00:01.000Z', NULL),
   ('l-rc-long-area', 'local-dev-workspace', 'pr-rc-long', 'a-rc-home', 'project.belongs_to_area', '2026-03-02T00:00:02.000Z', '2026-03-02T00:00:02.000Z', NULL);
 UPDATE entity_links SET deleted_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
-  AND id IN ('l-rc-goal-area', 'l-rc-kitchen-area', 'l-rc-kitchen-goal', 'l-rc-long-area');
+  AND id IN ('l-rc-goal-area', 'l-rc-kitchen-goal', 'l-rc-long-area');
 
 -- ---------------------------------------------------------------------------
 -- The reference Project's task body: 24 tasks across every state the list can

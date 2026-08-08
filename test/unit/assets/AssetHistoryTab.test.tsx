@@ -68,6 +68,7 @@ function renderTab(
     <FeedbackProvider>
       <AssetHistoryTab
         assetId={ASSET_ID}
+        assetType="vehicle"
         initialEvents={events}
         initialCursor={null}
         initialHasMore={false}
@@ -90,29 +91,56 @@ afterEach(() => {
 });
 
 describe("fast capture", () => {
-  it("offers named actions, not one generic form", () => {
+  /*
+   * RECORD-01 — the six captures still exist and are still named, but they now
+   * have a HIERARCHY: this asset's primary capture is exposed and the rest live
+   * one press away in the shared overflow, instead of six ghost buttons at one
+   * weight floating above the filter.
+   */
+  it("exposes this asset's primary capture and offers the rest in the overflow", async () => {
     renderTab([event()]);
-    const group = screen.getByRole("group", { name: "Record an entry" });
+
+    // A serviceable asset leads with Record service.
+    expect(
+      screen.getByRole("button", { name: "Record service" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "More ways to record an entry" }),
+    );
+    const menu = await screen.findByRole("menu");
     for (const label of [
-      "Record service",
       "Record repair",
       "Update meter",
       "Record renewal",
       "Record valuation",
       "Add history entry",
     ]) {
-      expect(
-        within(group).getByRole("button", { name: label }),
-      ).toBeInTheDocument();
+      expect(within(menu).getByRole("menuitem", { name: label })).toBeVisible();
     }
   });
 
-  it("hands each action back to the record, which owns the drawer", () => {
+  it("leads a document-like asset with Record renewal instead", () => {
+    renderTab([event()], { assetType: "insurance" });
+    expect(
+      screen.getByRole("button", { name: "Record renewal" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Record service" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hands each action back to the record, which owns the drawer", async () => {
     const handlers = renderTab([event()]);
-    fireEvent.click(screen.getByRole("button", { name: "Update meter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record service" }));
+    expect(handlers.onQuickAction).toHaveBeenCalledWith("service");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "More ways to record an entry" }),
+    );
+    const menu = await screen.findByRole("menu");
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Update meter" }));
     expect(handlers.onQuickAction).toHaveBeenCalledWith("meter");
-    fireEvent.click(screen.getByRole("button", { name: "Record repair" }));
-    expect(handlers.onQuickAction).toHaveBeenCalledWith("repair");
   });
 });
 
@@ -179,15 +207,12 @@ describe("empty states", () => {
   it("teaches the first entry with ONE set of controls, not two", () => {
     const handlers = renderTab([]);
     expect(screen.getByText("No history recorded yet")).toBeInTheDocument();
-    // The empty state teaches; the quick-action row is the only place with
-    // controls, so a first-run screen never shows the same button twice.
-    const group = screen.getByRole("group", { name: "Record an entry" });
+    // The empty state teaches; the toolbar is the only place with controls, so
+    // a first-run screen never shows the same button twice.
     expect(
       screen.getAllByRole("button", { name: "Record service" }),
     ).toHaveLength(1);
-    fireEvent.click(
-      within(group).getByRole("button", { name: "Record service" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Record service" }));
     expect(handlers.onQuickAction).toHaveBeenCalledWith("service");
   });
 

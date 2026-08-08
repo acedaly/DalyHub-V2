@@ -1,8 +1,8 @@
 /**
  * PEOPLE-03 — the relationship-health region for the Person record's Summary.
  *
- * It EXPLAINS a relationship's rhythm rather than repeating a coloured badge: the
- * state, every current reason (primary first), and the cadence facts those reasons
+ * It EXPLAINS a relationship's rhythm rather than repeating a coloured badge:
+ * every current reason (primary first), and the cadence facts those reasons
  * stand on — days since the last shared moment, how often you usually connect,
  * the longest gap so far, and the interval the follow-up signal was measured
  * against.
@@ -21,7 +21,6 @@ import {
   cadencePhrase,
   formatRelationshipDate,
   relationshipReasonText,
-  relativeDayPhrase,
 } from "./relationship-view";
 
 interface StayInTouchPanelProps {
@@ -40,17 +39,15 @@ function factItems(
   const { cadence, summary } = relationship;
   const items: { label: string; value: string }[] = [];
 
-  items.push({
-    label: "Last interaction",
-    value:
-      cadence.daysSinceLastInteraction === null
-        ? "None recorded yet"
-        : `${relativeDayPhrase(cadence.daysSinceLastInteraction)}${
-            summary.lastInteractionDate
-              ? ` · ${formatRelationshipDate(summary.lastInteractionDate) ?? summary.lastInteractionDate}`
-              : ""
-          }`,
-  });
+  /*
+   * RECORD-01 — "Last interaction" is NOT repeated here.
+   *
+   * The DS-13 relationship summary card directly above this panel states it
+   * prominently, which is the right tier for it; restating it as a quiet fact
+   * a few pixels below was the same value twice in one view, and the two are
+   * derived from the same `summary.lastInteractionDate` so they can only ever
+   * agree. The cadence facts below are what the card cannot say.
+   */
 
   const rhythm = cadencePhrase(cadence);
   items.push({
@@ -104,13 +101,16 @@ export function StayInTouchPanel({
       aria-labelledby={headingId}
       data-state={relationship.state}
     >
-      <div className="dh-stay-in-touch-panel__header">
-        <span className="dh-stay-in-touch__pill" data-tone={relationship.tone}>
-          <span className="dh-stay-in-touch__dot" aria-hidden="true" />
-          {relationship.label}
-        </span>
-      </div>
+      {/*
+        RECORD-01 — no pill here.
 
+        The Person record's header context line already carries the derived
+        state as a `StayInTouchIndicator`, on every tab. Repeating it as this
+        panel's own header stated one fact twice within a single view. The
+        panel's job is the half the chip cannot do — WHY the state is what it
+        is, and the cadence facts it stands on — so that is all it renders.
+        `data-state` stays, so the section's own styling is unaffected.
+      */}
       <ul className="dh-stay-in-touch-panel__reasons">
         {relationship.reasons.map((reason) => (
           <li

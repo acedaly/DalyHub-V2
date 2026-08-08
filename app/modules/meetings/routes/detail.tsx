@@ -573,7 +573,7 @@ function MeetingRecord({
             data-testid="meeting-title-edit"
           />
         }
-        typeLabel="Meeting"
+        // RECORD-01 — no `typeLabel`: the breadcrumb above says "Meetings".
         icon={<EntityIcon type="meeting" />}
         breadcrumb={[{ id: "meetings", label: "Meetings", href: "/meetings" }]}
         status={{
@@ -606,10 +606,9 @@ function MeetingRecord({
                  * browser-default `<dl>`: the label-over-value presentation
                  * every other record's metadata already uses. */}
                 <dl className="record-summary__meta">
-                  <div className="record-summary__meta-item">
-                    <dt>Status</dt>
-                    <dd>{meetingStatusLabel(m.status)}</dd>
-                  </div>
+                  {/* RECORD-01 — Status is NOT repeated here: the record header's
+                   * status pill, a few pixels above, already states it, and this
+                   * row was the same word again under a "Status" label. */}
                   <div className="record-summary__meta-item">
                     <dt>Duration</dt>
                     <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>

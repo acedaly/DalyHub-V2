@@ -12,7 +12,9 @@ import { useFeedback } from "~/shared/feedback";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { LiveMarkdownEditor } from "~/shared/markdown-editor";
 import {
+  RecordDetails,
   RecordLayout,
+  recordTimestampItems,
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
@@ -282,10 +284,20 @@ export function ReviewRecord({
     );
   };
 
+  /*
+   * RECORD-01 — the context line, deduplicated.
+   *
+   * It carried "Type: Weekly" beside a "Weekly Review" eyebrow beside a title
+   * that already begins "Weekly review" — the same word three times in the
+   * first two lines of the record — plus "Template: weekly", which is the
+   * template's raw id and is administrative rather than current state.
+   *
+   * What survives is what the title cannot say precisely (the exact period) and
+   * what changes as the owner works (how much of the reflection is authored).
+   * Type and Template moved to Settings → Record details.
+   */
   const metadata: RecordMetaItem[] = [
-    { id: "type", label: "Type", value: review.typeLabel },
     { id: "period", label: "Period", value: review.periodLabel },
-    { id: "template", label: "Template", value: review.templateId },
     { id: "authored", label: "Reflection", value: review.completionLabel },
   ];
   if (review.completedAt) {
@@ -295,6 +307,13 @@ export function ReviewRecord({
       value: review.completedLabel,
     });
   }
+
+  /** Demoted out of the header — see above. */
+  const detailItems: RecordMetaItem[] = [
+    { id: "d-type", label: "Type", value: review.typeLabel },
+    { id: "d-template", label: "Template", value: review.templateId },
+    ...recordTimestampItems(review.createdAt, review.updatedAt),
+  ];
 
   // REVIEW-02 — the entry point into the guided flow. It is an ordinary link to
   // the SAME Review at its guide sub-path: no second record is created, and the
@@ -328,9 +347,11 @@ export function ReviewRecord({
           onSelect: () => void runLifecycle("reopen", "Review reopened"),
         }
       : {
+          // RECORD-01 — completing a Review is a lifecycle action, and takes
+          // the same low-emphasis treatment as a Project's and a Goal's.
           id: "complete",
           label: "Complete",
-          variant: "primary",
+          variant: "secondary",
           onSelect: () => void runLifecycle("complete", "Review completed"),
         };
 
@@ -366,7 +387,8 @@ export function ReviewRecord({
     <>
       <RecordLayout
         title={review.title}
-        typeLabel={`${review.typeLabel} Review`}
+        // RECORD-01 — no `typeLabel`: "Weekly Review" repeated both the
+        // breadcrumb ("Reviews") and the title ("Weekly review — …").
         icon={<EntityIcon type="review" />}
         breadcrumb={[{ id: "reviews", label: "Reviews", href: "/reviews" }]}
         status={{
@@ -520,6 +542,7 @@ export function ReviewRecord({
             content: (
               <ReviewSettings
                 review={review}
+                detailItems={detailItems}
                 pending={pending}
                 onRename={onRename}
                 onStatus={(status) =>
@@ -559,6 +582,7 @@ export function ReviewRecord({
 
 function ReviewSettings({
   review,
+  detailItems,
   pending,
   onRename,
   onComplete,
@@ -570,6 +594,8 @@ function ReviewSettings({
   onSaved,
 }: {
   readonly review: SerializedReview;
+  /** RECORD-01 — the administrative facts demoted out of the record header. */
+  readonly detailItems: readonly RecordMetaItem[];
   readonly pending: boolean;
   readonly onRename: (title: string) => Promise<void>;
   readonly onStatus: (status: ReviewStatus) => void;
@@ -726,6 +752,10 @@ function ReviewSettings({
           }}
           onConfirm={onDelete}
         />
+      </SettingsGroup>
+      {/* RECORD-01 — the Review's paperwork, demoted here from its header. */}
+      <SettingsGroup title="Record details" headingLevel={2}>
+        <RecordDetails items={detailItems} label="Review record details" />
       </SettingsGroup>
     </SettingsLayout>
   );

@@ -194,10 +194,17 @@ export function GoalOverview({
         disabled: completionPending,
         onSelect: () => onToggleComplete(false),
       }
-    : {
+    : /*
+       * RECORD-01 — completing a Goal is a LIFECYCLE action, not the next thing
+       * the owner came here to do, so it takes the low-emphasis treatment the
+       * Project's "Complete project" now takes. The record's actual work is the
+       * definition of done and the Projects advancing it; the filled primary
+       * button at the top right was the control that ENDS the Goal.
+       */
+      {
         id: "complete",
         label: "Complete",
-        variant: "primary",
+        variant: "secondary",
         disabled: completionPending,
         onSelect: () => onToggleComplete(true),
       };

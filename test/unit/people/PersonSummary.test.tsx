@@ -180,11 +180,25 @@ describe("PersonSummary — the relationship summary", () => {
 });
 
 describe("PersonSummary — stay-in-touch", () => {
-  it("states the derived state as text, never as colour alone", () => {
+  /*
+   * RECORD-01 — the derived STATE LABEL now lives once, in the record header's
+   * context line (`StayInTouchIndicator`, asserted in `PersonRecord.test.tsx`),
+   * and this panel explains it rather than repeating the pill. So these tests
+   * assert what the panel is now responsible for: the REASONS and the cadence
+   * facts, still as text and still without guilt language.
+   */
+  it("explains the state in words, never by colour alone", () => {
     renderSummary(relationship({}, ["2026-07-25"]));
 
     const region = screen.getByRole("region", { name: "Staying in touch" });
-    expect(within(region).getByText("Recently connected")).toBeInTheDocument();
+    // A reason is present and is real prose — meaning never rides on the tone.
+    const reasons = within(region).getAllByRole("listitem");
+    expect(reasons.length).toBeGreaterThan(0);
+    expect(reasons[0].textContent ?? "").not.toHaveLength(0);
+    // And the pill is NOT repeated here: the header already states it.
+    expect(
+      within(region).queryByText("Recently connected"),
+    ).not.toBeInTheDocument();
   });
 
   it("explains the state and shows the cadence facts behind it", () => {
@@ -213,7 +227,6 @@ describe("PersonSummary — stay-in-touch", () => {
     );
 
     const region = screen.getByRole("region", { name: "Staying in touch" });
-    expect(within(region).getByText("Due for follow-up")).toBeInTheDocument();
     expect(
       within(region).getByText(/You chose about every 30 days/),
     ).toBeInTheDocument();
@@ -223,7 +236,7 @@ describe("PersonSummary — stay-in-touch", () => {
     renderSummary(relationship({}, ["2024-01-05"]));
 
     const region = screen.getByRole("region", { name: "Staying in touch" });
-    expect(within(region).getByText("It’s been a while")).toBeInTheDocument();
+    expect(region.textContent ?? "").not.toHaveLength(0);
     expect(region.textContent ?? "").not.toMatch(
       /overdue|neglect|lapsed|you should/i,
     );

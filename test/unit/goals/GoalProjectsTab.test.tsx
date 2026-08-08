@@ -127,7 +127,7 @@ describe("Goal Projects tab pagination (DEBT-22)", () => {
   it("shows the honest empty state (complete result empty, not just this page)", () => {
     renderTab({ projects: [], nextCursor: null });
     expect(
-      screen.getByText("No Projects advancing this Goal"),
+      screen.getByText("No Projects advancing this Goal yet."),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Load more Projects" }),
