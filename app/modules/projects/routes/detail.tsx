@@ -29,7 +29,6 @@ import {
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -92,12 +91,11 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     new URL(request.url).searchParams.get("tasks"),
   );
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
-  } catch {
-    // Keep the project reachable with the deterministic owner-calendar default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority,
+  // resolved once per request and shared with every other module that
+  // asks what day it is. Degrades to the documented default on a read
+  // failure, so a missing preference never takes the page down.
+  const timezone = await scope.ownerTimeZone();
   const todayIso = ownerCalendarIso(new Date(), timezone);
 
   const overview = await scope.projects.getProjectOverview(projectId);

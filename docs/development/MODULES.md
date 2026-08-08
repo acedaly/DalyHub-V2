@@ -489,7 +489,7 @@ dynamic/third-party/remote module loading. Those arrive in later roadmap items.
 > truth for them. Its scopes are checked against the owner's module-visibility
 > preference before any row is read, so a module hidden from navigation is also
 > hidden from every cross-module query
-> ([ADR-080](../decisions/ARCHITECTURE_DECISIONS.md#adr-080-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)).
+> ([ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)).
 
 ---
 

@@ -13,7 +13,7 @@
 -- exactly what we chose not to do, because a rename makes a rollback to the
 -- previous Worker fatal (the old code would query a table that no longer exists),
 -- and an operational hazard is a bad trade for a nicer identifier. The name is
--- historical. The kind column is the truth. Recorded in ADR-080.
+-- historical. The kind column is the truth. Recorded in ADR-082.
 --
 -- What a kind means:
 --   'tasks'  the TASKS-03 TaskViewConfig   (app/kernel/task-views)

@@ -25,3 +25,16 @@ export {
 } from "./capture-model";
 export type { CaptureType, CaptureTypeDescriptor } from "./capture-model";
 export type { CaptureContextPayload } from "~/routes/capture-context";
+export { CaptureContextChip } from "./CaptureContextChip";
+export {
+  CAPTURE_CONTEXT_PARAM,
+  contextForCaptureType,
+  contextPresentation,
+  encodeCaptureContext,
+  fullFormLabel,
+  fullFormRoute,
+  parseCaptureContextContract,
+  readCaptureContextParam,
+} from "./capture-context";
+export type { CaptureContextContract } from "./capture-context";
+export { useUrlCaptureContext } from "./use-url-capture-context";

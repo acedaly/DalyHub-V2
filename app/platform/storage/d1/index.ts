@@ -658,3 +658,15 @@ export {
   D1WorkspaceSnapshotRepository,
   createWorkspaceSnapshotRepository,
 } from "./d1-workspace-snapshot-repository";
+
+/**
+ * SET-02 — the workspace RESTORE write port: staging, the atomic cutover and the
+ * post-restore verification. Bound to a `WorkspaceContext` exactly like every
+ * other repository, so no method accepts a workspace id and no uploaded archive
+ * can name a destination.
+ */
+export {
+  D1WorkspaceRestoreRepository,
+  RESTORE_OPERATION_TTL_MS,
+  createWorkspaceRestoreRepository,
+} from "./d1-workspace-restore-repository";

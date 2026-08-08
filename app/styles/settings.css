@@ -786,3 +786,91 @@
     padding-bottom: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* SET-02 — restore from a backup                                             */
+/* -------------------------------------------------------------------------- */
+
+/* The restore surface deliberately adds no new visual language: it is the
+ * Settings row, the shared buttons and the shared confirmation dialog. These
+ * rules only lay out the preview's counts and hide the native file input behind
+ * its own <label>, which is the accessible way to give a file picker the same
+ * button treatment as every other control on the page. */
+
+.dh-restore__control {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Visually hidden, NOT display:none — the input must stay focusable and
+ * announced, so the label behaves as a real button for keyboard and screen
+ * reader users alike. */
+.dh-restore__file-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The visually hidden input keeps the focus; the label wearing the button
+ * treatment has to SHOW it, or a keyboard user sees nothing move. Same ring the
+ * destructive button uses, so the page has one focus treatment. */
+.dh-restore__control:has(.dh-restore__file-input:focus-visible) .dh-btn {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
+}
+
+.dh-restore__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  margin-block-start: var(--app-space-2);
+}
+
+.dh-restore__preview-summary,
+.dh-restore__preview-consequence,
+.dh-restore__counts-caption,
+.dh-restore__counts-empty {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-restore__preview-consequence {
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+}
+
+.dh-restore__counts-caption {
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-restore__counts-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--app-space-1) var(--app-space-4);
+  margin: var(--app-space-1) 0 0;
+}
+
+.dh-restore__counts-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-restore__counts-item dd {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}

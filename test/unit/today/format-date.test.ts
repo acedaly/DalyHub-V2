@@ -11,24 +11,26 @@ import { describe, expect, it } from "vitest";
 
 import { formatTodayDate } from "~/modules/today/date";
 
+const SYDNEY = "Australia/Sydney";
+
 describe("TODAY-01 formatTodayDate (owner timezone)", () => {
   it("renders the Sydney day when it is already tomorrow in Sydney (AEST/UTC+10)", () => {
     // 2026-07-19T20:00Z → 2026-07-20 06:00 in Sydney: the Sydney day, not the UTC day.
-    expect(formatTodayDate(new Date("2026-07-19T20:00:00Z"))).toBe(
+    expect(formatTodayDate(new Date("2026-07-19T20:00:00Z"), SYDNEY)).toBe(
       "Monday 20 July 2026",
     );
   });
 
   it("keeps the same day before the boundary", () => {
     // 2026-07-19T13:00Z → 2026-07-19 23:00 in Sydney.
-    expect(formatTodayDate(new Date("2026-07-19T13:00:00Z"))).toBe(
+    expect(formatTodayDate(new Date("2026-07-19T13:00:00Z"), SYDNEY)).toBe(
       "Sunday 19 July 2026",
     );
   });
 
   it("honours daylight saving (AEDT/UTC+11) across a month/year-ish boundary", () => {
     // 2026-01-31T13:30Z → 2026-02-01 00:30 in Sydney (summer time).
-    expect(formatTodayDate(new Date("2026-01-31T13:30:00Z"))).toBe(
+    expect(formatTodayDate(new Date("2026-01-31T13:30:00Z"), SYDNEY)).toBe(
       "Sunday 1 February 2026",
     );
   });

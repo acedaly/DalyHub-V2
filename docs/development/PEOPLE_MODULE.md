@@ -659,9 +659,110 @@ sending or SMS. This PR is the DalyHub foundation only.
 
 ---
 
+## 8. PEOPLE-04 — contextual-capture closure (DEBT-45)
+
+PEOPLE-04's mobile layout half shipped with MOBILE-01: the phone record chrome,
+the compact card, the tab overflow, real quick actions. What it was held open for
+was the other half — the promise that **creating something from a Person's record
+remembers why**, proven end to end rather than asserted. This section records the
+closure.
+
+### 8.1 The capture-context contract is unchanged
+
+ADR-060's `CaptureContextContract` is still the one shape, and every canonical
+create route still revalidates the source id **and** type in the authenticated
+workspace before writing anything. Nothing here introduces a People-specific or
+Diary-specific context object.
+
+The relationship matrix a Person source produces:
+
+| Capture | Canonical relationship |
+|---|---|
+| Task | `task.relates_to` Task → Person — **related work, never delegation**, and no structural parent is invented |
+| Note | `link.related` Note → Person |
+| Meeting | `meeting.attendee` Meeting → Person — Meetings own attendee semantics, so contextual capture uses them rather than a generic link |
+| Diary entry | `link.related` Diary → Person |
+
+### 8.2 The full-form hand-off
+
+This was the named gap. The context used to live only in the Quick Capture sheet's
+React state, so choosing a module's fuller creation surface silently discarded it.
+
+Context now travels **in the URL**, as `?ctx=<encoded CaptureContextContract>`
+(`CAPTURE_CONTEXT_PARAM`), which is how every other piece of DalyHub state that
+must survive navigation travels. Each capture panel offers a *More … options* link
+to its module's existing creation surface, carrying the parameter:
+
+| Capture | Destination |
+|---|---|
+| Task | `/tasks?drawer=new-task` |
+| Note | `/notes?drawer=new-note` |
+| Meeting | `/new/meeting` |
+| Diary entry | `/diary?inspector=new` |
+
+The destination reads it with `useUrlCaptureContext`, renders the **same**
+`CaptureContextChip`, and submits it to the same canonical create route. Three
+properties follow, and each is deliberate:
+
+- **Refresh-stable.** Reloading the fuller form does not lose the hand-off.
+- **Consumed, not sticky.** The parameter is removed (in place, `replace`) once the
+  form has used it or the user has removed the chip, so re-opening the same create
+  form on the same page starts neutral instead of silently re-offering a finished
+  context.
+- **Never authoritative.** A tampered or truncated parameter is simply *no
+  context*; the server still resolves and re-types the anchor before linking.
+
+A context whose relationship plan does not apply to the destination's capture type
+(an Asset source handed to Diary capture, say) is dropped rather than shown — the
+form never displays a promise the server would decline to keep.
+
+### 8.3 Failure, isolation and retries
+
+- **Partial failure is honest.** ADR-060's compensation is preserved unchanged: if
+  the record is created and the relationship then fails, the route rolls the record
+  back, and if the rollback also fails it returns the created id and says the
+  record exists but is not linked. No phantom relationship event, no silent success.
+- **Cross-workspace anchors fail closed.** A Person id from another workspace
+  produces **no link at all** and discloses nothing about whether it exists — the
+  create succeeds (the record is the owner's own; refusing it would lose their
+  words and confirm a foreign id), the relationship does not.
+- **Deleted between opening and submitting** behaves the same way: the source no
+  longer resolves, so no relationship is written.
+- **Retries are safe.** EntityLink creation is idempotent, so a client retry — or
+  a Person named both by the attendee picker and by the context — yields exactly
+  one relationship.
+
+### 8.4 The action hierarchy is unchanged
+
+The capture actions stay in the shared record overflow, where UIQ-011 put them.
+The Person summary is still restrained, contact actions are still the primary
+ones, and this item deliberately did **not** return them to a button row.
+
+### 8.5 Proof
+
+- **Route/D1** — `test/kernel/capture-context-matrix.test.ts`: all four capture
+  types from a Person source, the canonical relationship each produces,
+  idempotency, cross-workspace refusal, deleted-source refusal and a claimed-type
+  mismatch.
+- **Unit** — `test/unit/capture/full-form-handoff.test.ts` (destinations, encoding,
+  tamper-safety) and `test/unit/capture/handoff-forms.test.tsx` (the chip renders,
+  the context is submitted, removal is honoured).
+- **E2E** — `e2e/people-diary-context.spec.ts`: Person → Diary on a 390px phone and
+  back, an existing entry gaining and losing a Person, the full-form hand-off, and
+  the same flow at 1280px, plus axe at 320px and 390px.
+- **Evidence** — `docs/product/assets/people-diary-context/`.
+
+**Found and fixed along the way.** The shared `Sheet` header did not wrap, so its
+`leading` control (`inline-size: 100%`) collapsed the title beside it and *"New
+diary entry"* rendered one character per line at 390px. Fixed in `sheet.css`,
+because a capture sheet whose title is unreadable is this item's mobile proof
+failing rather than an unrelated tidy-up.
+
+---
+
 ## Status (2026-07-28 reconciliation)
 
-**Current status.** The foundation, the relationship history, Meetings' contribution to it and the relationship intelligence over it are complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record), [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline), [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) and [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) are ☑. [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) remains ☐.
+**Current status.** The foundation, the relationship history, Meetings' contribution to it, the relationship intelligence over it and mobile People are complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record), [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline), [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration), [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) and [PEOPLE-04](../roadmap/ROADMAP_V2_1.md#-people-04--mobile-people) are ☑. PEOPLE-04's remaining half — the [DEBT-45](../product/PRODUCT_DEBT.md) contextual-capture closure matrix — is described in [§8](#8-people-04--contextual-capture-closure-debt-45).
 
 **Delivered capabilities (PEOPLE-03).** Opening a Person now answers the relationship questions directly: a DS-13 **relationship summary** (last interaction, total interactions, meetings, diary mentions, notes, open tasks, active projects, reviews, first interaction — each card navigating to the surface that opens the records behind it) and a **stay-in-touch** panel (days since the last shared moment, how often you connect, the longest recorded gap, the interval the signal was measured against). It is a DERIVED, never-cached projection over the SAME two primitives PEOPLE-02 reads, in a new `relationships` kernel pairing a read-only workspace-bound facts repository with a pure evaluator — no table, no migration, no cached score, no `last_interaction_at` column, no backfill, no second history surface. An interaction is a substantive event on a *linked record*, never an edit to the contact card, and cadence counts distinct owner-calendar days. PEOPLE-01's `follow_up_frequency` is finally read, and is the only source of a follow-up signal apart from an explicit `next_follow_up` date or a rhythm the relationship demonstrably has. The tone set excludes `warning` and `danger` outright. The facts read is batched by contract (three grouped statements per chunk for a whole page), so the collection carries the same shared pill for no extra round trips; archived People are deliberately left unsignalled. See [§4b](#4b-relationship-intelligence-people-03) and [ADR-056](../decisions/ARCHITECTURE_DECISIONS.md#adr-056-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).
 
@@ -677,13 +778,12 @@ sending or SMS. This PR is the DalyHub foundation only.
 - **Cadence is read from a bounded sample.** Exact totals (`totalInteractions`, first and last interaction) are exact and unbounded; only the interval arithmetic reads the most recent `RELATIONSHIP_INTERACTION_SAMPLE_LIMIT` moments, and the panel discloses when it did.
 - **Stay-in-touch exposes state, not reminders.** [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) deliberately ships the calculated state only. Notifications, digests and reminders are a later item that consumes it.
 - **The DS-13 summary cards are shared but not yet adopted elsewhere.** Projects, Assets and Today still render their own stat grids ([DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p2)); converging them is follow-on debt work, not part of PEOPLE-03.
-- Some record quick actions (Diary / Meeting / New note) are honest placeholders rather than wired flows.
 
 **Deferred work.** Per-attendee meeting substance (blocked on the Meetings item model); follow-up reminders and notifications over the PEOPLE-03 derived state; mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.
 
 **Build order — still binding.** There is exactly **one** Person history surface and **one** endpoint behind it, and exactly **one** derivation over it. PEOPLE-02 widened `/person/:personId/activity` into the unified relationship history; [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ contributed meeting participation to that same stream, through the documented seam and with no change to this module ([§4a](#how-meetings-contribute-meet-03)); PEOPLE-03 ☑ derives its summary and signal from the same graph (never a second read model, never a stored aggregate); mobile comes last. A separate "Meetings" or "Interactions" tab on the Person record would fork the model and re-create [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) inside V2.
 
-**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☑ · [DS-13](../roadmap/ROADMAP_V2.md#-ds-13--shared-summary-cards) ☑ · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐.
+**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☑ · [DS-13](../roadmap/ROADMAP_V2.md#-ds-13--shared-summary-cards) ☑ · [PEOPLE-04](../roadmap/ROADMAP_V2_1.md#-people-04--mobile-people) ☑.
 
 **Relevant product-debt items.** [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) · [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3) (this module owns one of the two `0013` migrations — always cite it by full filename).
 

@@ -2283,6 +2283,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 - **Alternatives considered.** *Inlining a Task's status, sector and commitment too* — deferred, not rejected: they sit beside delegation and recurrence in the same form, and moving three of five controls out of a form is less coherent than moving none. *Adding an inline status select to the Project record* — rejected under decision 6. *Converting Meetings, Reviews and the Diary body to the read→activate inline transition* — deliberately not attempted here; it is a decision about which surfaces are editor-first, recorded as [DEBT-97](../product/PRODUCT_DEBT.md). *Deleting `MarkdownField` in this PR* — rejected as scope: it now has exactly one consumer, the design fixture that documents it, and that is [DEBT-101](../product/PRODUCT_DEBT.md). *One `update` intent per record with client-side merging* — rejected: merging on the client is how a concurrent change gets overwritten with confidence.
 
 
+
 ---
 
 ## ADR-079: Review insights — three kinds of truth, one persisted snapshot, and no score
@@ -2328,7 +2329,150 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 ---
 
-## ADR-080: One saved-view system, two kinds — the Tasks declarative configuration generalised into a cross-module query contract
+## ADR-080: One owner day, and one shape for a stale write
+
+**Status.** Accepted (AUDIT-FIX-06). Resolves [AUDIT-07], [AUDIT-08], [AUDIT-14] and [AUDIT-15] from
+[`END_TO_END_AUDIT_2026_08_05.md`](../product/END_TO_END_AUDIT_2026_08_05.md); the
+debt entries are DEBT-82, DEBT-83 and DEBT-88.
+
+**Context.** Four findings that look unrelated turned out to be two questions the
+product answered twice. *What day is it for the owner?* — Task paths resolved the
+stored timezone while Asset history, obligations and the obligation→task gateway
+resolved a hard-coded `Australia/Sydney`, because `~/shared/datetime` DEFAULTED
+the parameter. *Whose write wins when two devices disagree?* — preference and
+Note-content writes both read, merged and overwrote, and the `version` column
+that existed for exactly this purpose was incremented and never compared.
+
+- **Decision 1 — the owner's timezone is resolved, never defaulted.** The shared
+  date helpers now REQUIRE an explicit `timeZone`. That is the whole mechanism:
+  a call site can no longer answer "what day is it for the owner?" without
+  consulting the owner, and the compiler finds every one that tries. The shared
+  module's `OWNER_TIME_ZONE` export (ADR-033 §33.4) is REMOVED rather than
+  re-pointed, because a constant importable as "the timezone" is precisely how a
+  default becomes an answer. One fallback survives, named for what it is:
+  `DEFAULT_OWNER_TIME_ZONE` in `~/kernel/preferences`, applied where the
+  preference is READ and nowhere else.
+
+- **Decision 2 — the authority is the workspace scope, resolved once per
+  request.** `WorkspaceScope.ownerTimeZone()` / `.ownerTodayIso()` read the
+  owner's stored preference once and memoise the promise, so one request has
+  exactly one "today" however many modules ask — consistency by construction
+  rather than by convention. The owner is the trusted actor established in
+  composition, never a request value, so it cannot be pointed at another owner's
+  preferences. The read is deferred because most requests never ask, and a
+  failure degrades to the fallback rather than 500-ing a page over a preference
+  row. It is deliberately **not** a clock: instants stay UTC everywhere; only
+  their calendar reading is zoned.
+
+- **Decision 3 — a precondition belongs INSIDE the write, and its refusal is a
+  typed domain outcome.** Both concurrency fixes take the same shape, and it is
+  the one `ReviewRepository.updateSection` already established: the caller quotes
+  the version it edited, the repository appends that as a predicate on the SAME
+  statement, and a zero-row result is reconciled — not assumed — into either an
+  idempotent success or a typed conflict (`AppPreferencesConflictError`,
+  `NoteDetailsConflictError`). A `SELECT`, an application comparison and then an
+  unconditional `UPDATE` is not a precondition; it is a race with better manners.
+  Conflicts answer `409`, never `500`: nothing failed.
+
+- **Decision 4 — merge where the values are independent; refuse where they are
+  not.** Preferences and Note content have the same low-level mechanism and
+  deliberately different consequences. Preference fields are independent, so the
+  write became a per-COLUMN patch and two devices changing two settings simply
+  merge — manufacturing a conflict there would ask the owner to resolve a
+  disagreement that does not exist. Only the navigation hidden-set, whose new
+  value is DERIVED from the old one, quotes a version; its route re-derives and
+  retries, so the owner never sees a conflict either. Note content is one
+  indivisible document, so it refuses: there is no deterministic safe merge for
+  prose, and a wrong merge produces text neither person wrote.
+
+- **Decision 5 — a refused save is a third outcome, not a failure.** The shared
+  DS-06 coordinator gained `{ outcome: "conflict" }` alongside resolve and
+  reject. Reporting success would lie about where the owner's text is; reporting
+  an error would send them to retry a save that will be refused again for the
+  same good reason. The draft stays, the status returns to `unsaved`, and the
+  newer server text is offered through the EXISTING `RemoteChangeBanner` from
+  [ADR-064](#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave)
+  — one reconciliation UI in the product, not a second one for Notes. The
+  quoted base version is held until the owner answers, so a stray blur cannot
+  quietly win in the meantime.
+
+- **Decision 6 — a Task is the one spine kind whose parentage is optional, so it
+  is the one exception `restore` makes.** TASKS-04 made an Inbox Task a valid
+  spine record with no structural link; `spine.restore` predated that and
+  required an active parent for every non-Area kind, so the same record was legal
+  to create and illegal to restore. The exception is narrow and evaluated in the
+  restoring `UPDATE` itself: a Task also satisfies the requirement when it holds
+  no live structural link at all. No Project is invented, no default parent is
+  assigned, and every other kind — including a Task that genuinely retains a
+  parent link — keeps the original rule.
+
+- **Consequences.** *Easy:* a non-Sydney owner gets one calendar day across the
+  whole product, and eight copies of "read preferences, take `.timezone`, catch,
+  fall back" collapse into one call. *Hard:* every owner-calendar call site had to
+  be touched, because that is what removing a default means; the alternative was
+  to leave the trap in place. *Accepted:* two devices changing the SAME scalar
+  preference still resolve to the later write — the only honest answer for one
+  field with two intentions — and the parentless-restore fix stays latent until a
+  Task delete/restore UI exists. **No migration:** every column the preconditions
+  use already existed and was already written; the change is that they are now
+  compared.
+
+- **Alternatives considered.** *Re-pointing `OWNER_TIME_ZONE` at the kernel
+  constant* — rejected: it keeps a default, and a default is how the two
+  definitions arose. *Inferring the timezone from the Worker or the browser* —
+  rejected: DalyHub stores the owner's timezone, and guessing would be a third
+  definition. *Giving preferences the same refuse-and-ask treatment as Notes* —
+  rejected under decision 4. *Automatic Markdown merging, a revision history, or
+  CRDT/real-time collaboration for Notes* — rejected as both unsafe and far
+  outside the finding. *Assigning a restored parentless Task to a default
+  Project* — rejected: it invents structure the owner did not create, to satisfy
+  a rule that should never have applied to it.
+
+---
+
+## ADR-081: Restore — one canonical format, a staged atomic cutover, and a verified way back
+
+- **Status.** Accepted (2026-08-08, SET-02 / AUDIT-11).
+
+- **Context.** [ADR-065](#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it) gave DalyHub one canonical `DalyHubWorkspaceSnapshotV1` and two serialisers derived from it, and said in as many words that it was the input contract a future restore would read. V2 shipped with the write side missing, and the roadmap was explicit that this was the one gap it knowingly left: *an untested restore is not a backup*. Separately, the 5 August 2026 audit found that the scheduled production job uploaded the entire production database to a GitHub Actions artifact as plain text (AUDIT-11). The two are one piece of work — recoverability, and the security consequence of how recovery copies are stored.
+
+- **Decision 1 — restore reads the canonical snapshot, and only that.** There is no backup format, no restore format and no import format: there is *the workspace snapshot*, and export, backup and restore are three consumers of it. The alternative — a format per direction — guarantees drift, and drift in a recovery feature is discovered on the day the original is gone. The consequence is that the restore's input contract is already versioned, already documented, already checksummed and already the file the owner has.
+
+- **Decision 2 — the version gate runs before anything is interpreted.** `readBackupCompatibility` reads `meta.schema` and `meta.schemaVersion` and refuses everything it does not recognise: a newer version, an older version with no reader, a malformed version (`"2"` is not `2`), a missing version, another application's JSON. There is deliberately no "supported with warnings" and no coercion. Running the ordinary validator against a future archive would produce a hundred confusing field errors instead of the one true statement, so the gate is separate and first.
+
+- **Decision 3 — a corrupt backup fails BEFORE restoration begins, not during it.** X-04's validator proves shape, format, ordering and referential integrity, and that is necessary and insufficient: a snapshot can satisfy every one of those rules and still be impossible to persist, because the schema carries composite primary keys, uniqueness indexes, `CHECK`s and the `entity_type` discriminators that make a detail row structurally belong to its record. `validateRestoreSafety` checks what the DATABASE will refuse, as a pure function, before a single staged row is written. Discovering a duplicate primary key on row 4,000 of 9,000 is exactly the half-restored workspace this item exists to prevent.
+
+- **Decision 4 — failure safety comes from staging plus a fixed-size atomic cutover.** D1 gives one `batch()` transactional atomicity, and a whole workspace does not fit in one batch: the per-statement bound-parameter ceiling forces the rows across many statements and many batches. So the write is split. Staging writes every row into `workspace_restore_staged_rows` as an inert JSON object whose keys are exactly the destination table's columns — many bounded batches, none of them canonical, interruptible with no effect. The cutover is ONE batch: per table, a `DELETE … WHERE workspace_id = ?` followed by an `INSERT … SELECT json_extract(row_json, '$.<column>') …`. That is a **fixed ~55 statements regardless of workspace size**, so the atomic step never grows with the data and the invariant holds for any workspace: *at every instant the workspace is either entirely the old one or entirely the restored one*. Deletes run children-before-parents and inserts parents-before-children, which satisfies every `ON DELETE RESTRICT` foreign key without deferring constraint checks.
+
+- **Decision 5 — one generic staging table, not twenty-five mirror tables.** A staging table per canonical table would double the schema against D1's 100-table ceiling and would have to be migrated in lockstep forever. One JSON table plus `json_extract` in the cutover projection keeps the atomic step fixed-size and keeps the column list in exactly one place — the TypeScript descriptor that also builds the JSON — so the two cannot disagree.
+
+- **Decision 6 — merge is not implemented, and that is the answer, not a deferral.** Restoring into an empty workspace is the canonical recovery path and is proven end to end. Restoring over a populated workspace is an explicit **replace**. Merging means deciding per record which side wins, and DalyHub has no defined conflict semantics for that — a Task edited on both sides, a link deleted on one, an Activity stream that must stay chronological. A smaller restore whose behaviour is predictable is worth more than a clever one capable of corrupting the owner's memory.
+
+- **Decision 7a — the cutover's state transition is enforced INSIDE the transaction.** Checking the operation's status before building the batch is a read-then-write gap: two concurrent `apply` requests can both observe an acceptable state. So the first statement of the cutover claims the operation with `UPDATE … SET status = 'applied', apply_token = ? WHERE status = <the exact expected state> AND apply_token IS NULL`, and every DELETE and INSERT that follows is conditioned on that exact token. Exactly one concurrent apply can win; the loser's statements match zero rows and it commits a complete no-op, then reports a clean refusal — and, critically, does NOT discard or fail the operation, which belongs to the winner. For a destructive replace the required state is the acknowledged `safety_backed_up`, so the concurrency guard and the safety-backup gate are the same check.
+
+- **Decision 7 — a destructive restore is gated by a VERIFIED safety backup, not by a confirmation alone.** Before replacing a populated workspace DalyHub builds a full canonical archive of the current state through the same export machinery, and then **reads it back through the restore reader** — the only check that means anything, because a file that cannot be restored is not a recovery point. If it cannot be produced or cannot be read back, the restore is abandoned rather than attempted on the assumption that it would probably have worked. The receipt is recorded server-side on the operation row, so the gate is the database's own record and not a flag the client sends.
+
+  And "the server made a file" is not the gate, because it is not the claim that matters: the response can still fail in transit, and a durable state that said *safety backed up* at that moment would let a later apply satisfy its own gate while the owner has nothing to go back to. So there are two states. `safety_backup_ready` records that the server produced and verified an archive; `safety_backed_up` records that the CLIENT returned the SHA-256 it computed over the bytes it actually received, matching the digest the server recorded. The digest is deliberately never sent to the browser, so the acknowledgement is evidence rather than an echo — a truncated download cannot acknowledge itself. Only the second state permits a destructive apply. On top of that sits the existing typed-confirmation pattern (`REPLACE`) — no new dialog system.
+
+- **Decision 8 — ids are preserved, never regenerated.** EntityLinks, meeting follow-ups, asset events and obligations, recurrence series and Activity subjects are all keyed by entity id. Regenerating and remapping would mean rewriting every reference with no way to prove the pass was complete. The round-trip test asserts id equality across the whole workspace.
+
+- **Decision 9 — a restore reconstructs history; it does not re-enact it.** Activity events are restored as they were, with their original instants, actors and subjects. No `created`/`updated` event is emitted per reconstructed record, and no `workspace.restored` event is invented: the Activity stream records what the owner did, and manufacturing thousands of events dated today would destroy the one thing a restore is for. The restore's own audit trail is the `workspace_restore_operations` row, which is where an operational fact belongs.
+
+- **Decision 10 — the snapshot gains the minimum identity needed to interpret history.** `activities.actorId` was already exported; the row that maps a subject to a name was not, so a restored workspace held a history whose every actor resolved to `Unknown user`. `workspaceMembers` is added as an optional-on-read collection carrying the subject, the display names and the linked Person — and deliberately **not** the member's email (an authentication-adjacent identifier the request boundary refreshes on the next sign-in) or their sign-in telemetry. Nothing in a backup authenticates anybody. `owner.preferences.appearance` is added for the same reason: a restore that silently reset it would be an unfaithful reconstruction of configuration the snapshot already claims to carry.
+
+- **Decision 11 — the target workspace is the server's, always.** The restore route has no workspace parameter, header or body field, and every write binds `workspace_id` from the trusted context. A backup's own `workspace.id` is provenance the preview displays and the write path never reads. A crafted archive naming another workspace restores into the authenticated one; the other workspace is untouched, and post-restore verification asserts it.
+
+- **Decision 12 — AUDIT-11 is closed by encrypting before upload, and proving recovery every night.** The nightly artifact is GnuPG symmetric AES-256 with explicitly stated S2K parameters, passphrase from the protected `production` environment, read from a file rather than `argv`. GnuPG rather than a `node:crypto` container for one reason that matters in a disaster: its output decrypts with a single standard command on any machine, years from now, with no DalyHub code present. Every run decrypts its own artifact back, compares SHA-256 with the original, and asserts the plaintext does not appear in the ciphertext — so recoverability is demonstrated rather than inferred from a file extension. The plaintext lives only in a scratch directory removed by a trap, and a guard step refuses the upload if anything unencrypted, or any credential-shaped metadata field, is present.
+
+- **Decision 13 — the automated backup stays the RAW D1 dump, and says so.** Producing the canonical DalyHub archive requires the application runtime and an authenticated owner session, and DalyHub has no unauthenticated export path; adding one so a nightly job could call it would open a larger hole than AUDIT-11 closes, and re-implementing the snapshot builder outside the application would create the second serialiser ADR-065 exists to prevent. So the two backups are named and their purposes separated: the **canonical DalyHub backup** (owner-initiated, in-app restorable, the normal recovery path) and the **encrypted D1 disaster-recovery dump** (automated, for when there is no database to restore into). The recovery order — dump → database → application → take a canonical backup — is documented rather than left to be worked out on the day.
+
+- **Consequences.** *Easy:* the owner can now recover a workspace from a file, see exactly what will happen first, and get back from a mistaken restore. Ordinary Actions access no longer yields a readable copy of the production database. *Hard:* the restore path is the one place in DalyHub that replaces data wholesale, so it carries a disproportionate share of the test surface, and it must be kept in step with every new table — the staging descriptor is a second place a new collection has to be added, and the round-trip test fails loudly if it is not. *Accepted:* `entities.id` is globally unique, so a backup cannot be restored into a second workspace while the first still holds those ids in the same database; the cutover fails atomically and says so, which is the correct behaviour for a single-owner product and is tested as such. *Accepted:* AI preferences and the usage ledger are not restored, so a restored workspace starts with AI off — a deliberate refusal to re-enable spending and consent decisions by restoring a file.
+
+- **Alternatives considered.** *A staging WORKSPACE and an id swap* — rejected: `entities.id` is a global primary key, so staging under the real ids is impossible and staging under remapped ones would defeat decision 8. *One giant `batch()` of per-row inserts* — rejected: it would be atomic but its size would grow with the workspace, running into the statement-count and 30-second query ceilings exactly when the workspace being recovered is large, which is precisely when recovery matters. *A restore-marker row plus application-level "this workspace is mid-restore" gating* — rejected: it converts a data guarantee into a rule every future read path has to remember. *Executing the raw D1 SQL through the application* — rejected outright: a user-facing interface that runs owner-supplied SQL is a different product with a different threat model. *`openssl enc`* — rejected: no authenticated-encryption mode is comfortably reachable from the CLI, so a tampered artifact would decrypt to garbage rather than fail. *`age`* — good, and not pre-installed on the runner, so it would add a pinned third-party binary to the recovery path for no gain over GnuPG. *Encrypting into R2 or S3* — rejected under the scope rule: the existing GitHub artifact meets the requirement once it is encrypted, and a second cloud provider is a permanent operational surface for a personal system.
+
+---
+
+## ADR-082: One saved-view system, two kinds — the Tasks declarative configuration generalised into a cross-module query contract
 
 - **Status.** Accepted (2026-08-08, X-02).
 
@@ -2344,7 +2488,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   3. **There is ONE saved-view system with a `kind`, not one per module.** `SavedView<TConfig>` and `SavedViewRepository<TConfig>` are generic; the D1 adapter is codec-driven (`SavedViewCodec`), so a kind contributes a parser, a canonical serialiser and a write validator — never a table, a repository or an SQL path. `~/kernel/task-views` became a thin façade over it, so every Tasks caller is unchanged and the error family is literally the same classes.
 
-  4. **The table keeps its name, and that is deliberate.** Migration `0035` adds one `kind TEXT NOT NULL DEFAULT 'tasks'` column and swaps two indexes for kind-aware ones. Nothing is rewritten and no row is touched: existing Tasks saved views are classified correctly by the column DEFAULT alone. Renaming `task_saved_views` to `saved_views` would be tidier and makes a rollback to the previous Worker fatal — the old code would query a table that no longer exists. An operational hazard is a bad trade for a nicer identifier; the name is historical, `kind` is the truth.
+  4. **The table keeps its name, and that is deliberate.** Migration `0036` adds one `kind TEXT NOT NULL DEFAULT 'tasks'` column and swaps two indexes for kind-aware ones. Nothing is rewritten and no row is touched: existing Tasks saved views are classified correctly by the column DEFAULT alone. Renaming `task_saved_views` to `saved_views` would be tidier and makes a rollback to the previous Worker fatal — the old code would query a table that no longer exists. An operational hazard is a bad trade for a nicer identifier; the name is historical, `kind` is the truth.
 
   5. **Execution is several small bounded queries, not one enormous UNION.** Each scope has different predicates and different indexes, and a UNION over six differently-shaped scopes produces a plan that depends on which filters happened to be applied. The engine runs one capped, deterministically ordered read per included scope (`CROSS_VIEW_SCOPE_CANDIDATE_LIMIT`), merges in memory against a comparator that MATCHES each scope's `ORDER BY`, and slices one page. Spine anchors are resolved for the whole merged page in a fixed number of grouped reads — a five-module view costs **an asserted 8 executed statements**, flat with respect to how many records come back.
 

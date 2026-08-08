@@ -28,7 +28,12 @@
 import { env } from "cloudflare:workers";
 
 import { EntityValidationError } from "~/kernel/entities";
-import { NoteDetailsValidationError, parseNoteTagInput } from "~/kernel/notes";
+import {
+  NoteDetailsConflictError,
+  NoteDetailsValidationError,
+  parseNoteTagInput,
+  type UpdateNoteContentOptions,
+} from "~/kernel/notes";
 import { reconcileNoteReferences } from "~/platform/entity-links/note-references";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -44,12 +49,30 @@ export type NoteMutationResult =
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
     }
-  | { readonly kind: "update_content"; readonly ok: true }
+  | {
+      readonly kind: "update_content";
+      readonly ok: true;
+      /**
+       * The stored content version AFTER this save, so a long editing session
+       * keeps quoting a current base rather than the one it first loaded.
+       */
+      readonly contentUpdatedAt: string | null;
+    }
   | {
       readonly kind: "update_content";
       readonly ok: false;
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
+      /**
+       * AUDIT-08 — true when the save was refused because the Note changed
+       * somewhere else. Distinct from every other failure: nothing is wrong
+       * with the request or the storage, the text simply moved on. The newer
+       * stored content travels with it so the editor can OFFER it without a
+       * second round trip, and the caller's own draft is untouched.
+       */
+      readonly conflict?: true;
+      readonly serverContent?: string;
+      readonly contentUpdatedAt?: string | null;
     }
   | { readonly kind: "delete"; readonly ok: true }
   | { readonly kind: "delete"; readonly ok: false; readonly formError: string }
@@ -166,8 +189,22 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
   if (intent === "update_content") {
     const content = String(form.get("content") ?? "");
+    /*
+     * AUDIT-08 — the content version this edit was written against.
+     *
+     * The FIELD's presence is what opts a caller in, so the key being absent
+     * keeps the previous behaviour exactly (the capture panel writes the first
+     * body of a note it just created, and has nothing to be stale about). An
+     * EMPTY value is a real, distinct answer: "the note had no saved content
+     * when I opened it". A malformed value is treated as no precondition rather
+     * than as a conflict — refusing a save over a bad timestamp would cost the
+     * owner their writing for a client bug.
+     */
+    const options = readContentPrecondition(
+      form.get("expectedContentUpdatedAt"),
+    );
     try {
-      await scope.noteDetails.update(noteId, content);
+      const saved = await scope.noteDetails.update(noteId, content, options);
       // NOTES-02: the note's `[[Wiki Link]]` references become REAL, typed
       // EntityLinks, reconciled against the saved body. This runs AFTER the
       // content write and never fails the save: the Markdown source is the
@@ -179,7 +216,11 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       } catch {
         // Intentionally swallowed — see above.
       }
-      return json({ kind: "update_content", ok: true });
+      return json({
+        kind: "update_content",
+        ok: true,
+        contentUpdatedAt: saved.details.contentUpdatedAt?.toISOString() ?? null,
+      });
     } catch (cause) {
       if (cause instanceof NoteDetailsValidationError) {
         return json({
@@ -187,6 +228,27 @@ export async function action({ request, params, context }: Route.ActionArgs) {
           ok: false,
           fieldErrors: { content: cause.message },
         });
+      }
+      /*
+       * AUDIT-08 — an expected concurrency outcome, answered as `409` with the
+       * newer stored text. NOT a 500: nothing failed. The response deliberately
+       * does not carry the submitted draft anywhere — that text never left the
+       * editor, and the stored content was never touched, so both versions still
+       * exist and the owner chooses between them.
+       */
+      if (cause instanceof NoteDetailsConflictError) {
+        const stored = await scope.noteDetails.get(noteId);
+        return json(
+          {
+            kind: "update_content",
+            ok: false,
+            conflict: true,
+            formError: cause.message,
+            serverContent: stored?.content ?? "",
+            contentUpdatedAt: stored?.contentUpdatedAt?.toISOString() ?? null,
+          },
+          409,
+        );
       }
       return json({
         kind: "update_content",
@@ -236,4 +298,25 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     { kind: "unknown", ok: false, formError: "Unknown action." },
     400,
   );
+}
+
+/**
+ * AUDIT-08 — read the optional base-content version from the submitted form.
+ *
+ * Three answers, deliberately distinct:
+ *   - the key is ABSENT → no precondition (the previous behaviour, unchanged);
+ *   - the key is present and EMPTY → the note had no saved content when the
+ *     editor loaded it;
+ *   - the key is a timestamp → that exact stored content version.
+ *
+ * An unparseable timestamp degrades to "no precondition" rather than to a
+ * conflict: a client bug must not cost the owner what they just wrote.
+ */
+function readContentPrecondition(
+  raw: FormDataEntryValue | null,
+): UpdateNoteContentOptions {
+  if (typeof raw !== "string") return {};
+  if (raw.length === 0) return { expectedContentUpdatedAt: null };
+  const at = new Date(raw);
+  return Number.isNaN(at.getTime()) ? {} : { expectedContentUpdatedAt: at };
 }

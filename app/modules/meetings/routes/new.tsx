@@ -5,6 +5,11 @@ import { useNavigate } from "react-router";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
+  CaptureContextChip,
+  encodeCaptureContext,
+  useUrlCaptureContext,
+} from "~/shared/capture";
+import {
   Form,
   FormActions,
   FormButton,
@@ -58,6 +63,15 @@ export default function NewMeeting({ loaderData }: Route.ComponentProps) {
   const attendeeSearch = useAttendeeSearch();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
+  /*
+   * DEBT-45 — the full-form hand-off. A Person context arrives here from Quick
+   * Capture in the URL and becomes the canonical `meeting.attendee` link the
+   * create route writes (never a generic link — Meetings own attendee semantics,
+   * ADR-060). Attendees chosen in the picker below are additive: the route
+   * creates each attendee link idempotently, so the same Person named twice
+   * yields ONE relationship.
+   */
+  const capture = useUrlCaptureContext("meeting");
 
   const form = useForm<Values>({
     initialValues: {
@@ -94,6 +108,9 @@ export default function NewMeeting({ loaderData }: Route.ComponentProps) {
       if (values.meetingUrl) body.set("meetingUrl", values.meetingUrl);
       for (const attendeeId of values.attendeeIds) {
         body.append("attendeeIds", attendeeId);
+      }
+      if (capture.context) {
+        body.set("captureContext", encodeCaptureContext(capture.context));
       }
 
       try {
@@ -166,6 +183,14 @@ export default function NewMeeting({ loaderData }: Route.ComponentProps) {
           labels={FIELD_LABELS}
           onFocusField={form.focusField}
         />
+
+        {capture.context ? (
+          <CaptureContextChip
+            captureType="meeting"
+            context={capture.context}
+            onRemove={capture.clear}
+          />
+        ) : null}
 
         <TextField
           label="Title"

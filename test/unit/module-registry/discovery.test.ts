@@ -354,6 +354,12 @@ describe("module discovery", () => {
         { id: "diary.index", moduleId: "diary", file: "routes/index.tsx" },
         { id: "diary.new", moduleId: "diary", file: "routes/new.tsx" },
         { id: "diary.entry", moduleId: "diary", file: "routes/entry.tsx" },
+        // DIARY-02 — the read-only day-context candidates for one entry.
+        {
+          id: "diary.day_context",
+          moduleId: "diary",
+          file: "routes/day-context.tsx",
+        },
         { id: "diary.mutate", moduleId: "diary", file: "routes/mutate.tsx" },
         {
           id: "meetings.index",
@@ -522,6 +528,14 @@ describe("module discovery", () => {
           id: "settings.export",
           moduleId: "settings",
           file: "routes/export.tsx",
+        },
+        // SET-02 adds the restore steps as one POST-only resource route
+        // (`settings/restore/:step`). Also no nav entry: nothing about a restore
+        // should be reachable by following a link.
+        {
+          id: "settings.restore",
+          moduleId: "settings",
+          file: "routes/restore.tsx",
         },
         { id: "help.index", moduleId: "help", file: "routes/index.tsx" },
         { id: "about.index", moduleId: "about", file: "routes/index.tsx" },

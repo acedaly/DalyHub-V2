@@ -26,7 +26,10 @@ import {
   type LandingDestination,
   type TaskDefaultView,
 } from "~/kernel/preferences";
-import { AppPreferencesValidationError } from "~/kernel/preferences";
+import {
+  AppPreferencesConflictError,
+  AppPreferencesValidationError,
+} from "~/kernel/preferences";
 import { buildInfo } from "~/lib/version";
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -63,6 +66,7 @@ import { SelectField, Switch } from "~/shared/forms";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import { ExportDownloads } from "../ExportDownloads";
+import { RestoreFromBackup } from "../RestoreFromBackup";
 
 import type { Route } from "./+types/index";
 
@@ -273,22 +277,51 @@ export async function action({ request, context }: Route.ActionArgs) {
        */
       const visibleEntries = form.getAll("visible");
       const visible = String(visibleEntries.at(-1) ?? "") === "1";
-      const current = await scope.appPreferences.get(session.user.subject);
-      const navigation = getPrimaryNavigation();
-      const resolved = resolveNavigationPreferences(
-        current.navigation,
-        navigation.map((item) => ({
-          moduleId: item.moduleId,
-          label: item.label,
-        })),
-      );
       if (isMandatoryNavigationModule(moduleId)) return json({ ok: true });
-      const hidden = new Set(resolved.preferences.hiddenModuleIds);
-      if (visible) hidden.delete(moduleId);
-      else hidden.add(moduleId);
-      await scope.appPreferences.update(session.user.subject, {
-        navigation: { version: 1, hiddenModuleIds: [...hidden] },
+      /*
+       * AUDIT-07 — the ONE preference write whose new value is DERIVED from the
+       * old one, so it is the one that needs the version precondition.
+       *
+       * Every other setting is an independent field patch: the repository writes
+       * only the column it names, so two devices changing two different settings
+       * merge. The hidden-module SET does not merge that way — read it, add one
+       * id, write the whole set, and a toggle made on another device between the
+       * read and the write is simply gone. So this quotes the version it read;
+       * the repository refuses to commit against any other, and we re-derive
+       * from the newer set and try again. The owner's own toggle is never lost
+       * and never overwrites someone else's, and neither device is asked to
+       * resolve anything.
+       */
+      const navigation = getPrimaryNavigation();
+      const items = navigation.map((item) => ({
+        moduleId: item.moduleId,
+        label: item.label,
+      }));
+      const applied = await withPreferenceRetry(async () => {
+        const current = await scope.appPreferences.get(session.user.subject);
+        const resolved = resolveNavigationPreferences(
+          current.navigation,
+          items,
+        );
+        const hidden = new Set(resolved.preferences.hiddenModuleIds);
+        if (visible) hidden.delete(moduleId);
+        else hidden.add(moduleId);
+        await scope.appPreferences.update(
+          session.user.subject,
+          { navigation: { version: 1, hiddenModuleIds: [...hidden] } },
+          { expectedVersion: current.version },
+        );
       });
+      if (!applied) {
+        return json(
+          {
+            ok: false,
+            message:
+              "Navigation changed on another device. Reload and try again.",
+          },
+          409,
+        );
+      }
       return json({ ok: true });
     }
     if (intent === "ai-update") {
@@ -316,6 +349,17 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (cause instanceof AppPreferencesValidationError) {
       return json({ ok: false, message: cause.message }, 400);
     }
+    // A concurrency conflict is an EXPECTED outcome, not an infrastructure
+    // failure: it says the data moved, and the answer is to reload — never a 500.
+    if (cause instanceof AppPreferencesConflictError) {
+      return json(
+        {
+          ok: false,
+          message: "That setting changed on another device. Reload to see it.",
+        },
+        409,
+      );
+    }
     return json(
       {
         ok: false,
@@ -325,6 +369,32 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
   return json({ ok: false, message: "Unknown settings action." }, 400);
+}
+
+/** How many times a derived preference write re-derives before giving up. */
+const PREFERENCE_RETRY_ATTEMPTS = 3;
+
+/**
+ * AUDIT-07 — run a read-derive-write preference update, re-deriving from the
+ * newer stored value when the compare-and-set is refused.
+ *
+ * Bounded on purpose: a handful of attempts absorbs the realistic two-device
+ * race, and anything beyond that is a signal to tell the owner rather than to
+ * keep spinning. Only `AppPreferencesConflictError` is retried — a validation or
+ * storage failure is re-thrown for the caller's own handling.
+ */
+async function withPreferenceRetry(
+  apply: () => Promise<void>,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < PREFERENCE_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      await apply();
+      return true;
+    } catch (cause) {
+      if (!(cause instanceof AppPreferencesConflictError)) throw cause;
+    }
+  }
+  return false;
 }
 
 /**
@@ -714,15 +784,28 @@ function PrivacyDataSection() {
         can never describe different data.
       */}
       <SettingsGroup
-        title="Export your data"
-        description="Your data is yours. Both downloads are generated on demand from one workspace snapshot and are never stored by DalyHub."
+        title="Back up your data"
+        description="Your data is yours. Both downloads are generated on demand from one workspace snapshot and are never stored by DalyHub. The full DalyHub export IS the backup format — it is what Restore below reads."
       >
         <ExportDownloads />
+      </SettingsGroup>
+      {/*
+        SET-02 — restore, in its own group with a `danger` tone because the
+        populated-workspace path replaces data. The group tone is how DalyHub
+        already separates consequential settings; the restore surface adds no new
+        pattern of its own.
+      */}
+      <SettingsGroup
+        title="Restore"
+        tone="danger"
+        description="Bring a DalyHub backup back in. Choosing a file only checks it — nothing in this workspace changes until you confirm, and replacing a workspace that already holds records requires a verified safety backup first."
+      >
+        <RestoreFromBackup />
       </SettingsGroup>
       <SettingsGroup title="Not available yet">
         <SettingsRow
           label="Deferred data tools"
-          description="Backup and restore, import, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are not built yet. Export is the format a future restore will read; restore itself is a separate piece of work and is not implemented."
+          description="Import from other products, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are not built yet."
           control={
             <span className="dh-settings-page__text-value">Deferred</span>
           }

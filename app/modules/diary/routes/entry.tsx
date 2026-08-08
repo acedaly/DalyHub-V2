@@ -19,7 +19,6 @@
 import { env } from "cloudflare:workers";
 
 import { createDiaryEntryTypeRegistry, toLocalDayKey } from "~/kernel/diary";
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -63,12 +62,11 @@ export type DiaryEntryEditResponse = { readonly entry: DiaryEntryEditData };
 export async function loader({ params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-  let tz = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    tz = (await scope.appPreferences.get(session.user.subject)).timezone;
-  } catch {
-    // Read view remains available with the deterministic default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority,
+  // resolved once per request and shared with every other module that
+  // asks what day it is. Degrades to the documented default on a read
+  // failure, so a missing preference never takes the page down.
+  const tz = await scope.ownerTimeZone();
 
   const entry = await scope.diary.get(params.entryId);
   if (!entry) {

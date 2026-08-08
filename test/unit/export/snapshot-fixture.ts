@@ -704,6 +704,19 @@ export function makeSnapshot(
       { activityId: "a-03", entityId: IDS.person, role: "attendee" },
       { activityId: "a-04", entityId: IDS.task, role: "primary" },
     ],
+    // SET-02 — the membership row that makes the exported actor ids
+    // interpretable after a restore. `subject` matches the `actorId` the
+    // Activity fixtures above carry.
+    workspaceMembers: [
+      {
+        subject: "owner-subject",
+        displayName: "Fixture Owner",
+        authDisplayName: null,
+        personEntityId: IDS.person,
+        createdAt: T(1),
+        updatedAt: T(2),
+      },
+    ],
   });
 
   return {
@@ -737,6 +750,7 @@ export function makeSnapshot(
         defaultTaskCaptureParentId: null,
         defaultTaskCaptureParentKind: null,
         defaultDiaryMode: "day",
+        appearance: "system",
         navigationConfig: { version: 1, hiddenModuleIds: [] },
         version: 3,
         createdAt: T(0),

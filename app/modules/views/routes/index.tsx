@@ -192,7 +192,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const now = new Date();
   const todayIso = ownerCalendarIso(now, preferences.timezone);
   const week = weeklyPeriod(todayIso, preferences.firstDayOfWeek);
-  const alignment = createOwnerAlignmentContext(now);
+  // AUDIT-FIX-06: there is ONE owner day, and the timezone is always passed
+  // explicitly — this surface never falls back to a default zone.
+  const alignment = createOwnerAlignmentContext(now, preferences.timezone);
 
   const page = await scope.crossViewQuery.runCrossView(config, {
     now,

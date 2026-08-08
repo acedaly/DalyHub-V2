@@ -135,7 +135,10 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const healthContext = createOwnerHealthContext(new Date());
+  const healthContext = createOwnerHealthContext(
+    new Date(),
+    await scope.ownerTimeZone(),
+  );
 
   // The DISPLAYED (bounded) card page — a separate concern from momentum.
   const displayedFactsById = await collectProjectHealthFacts(

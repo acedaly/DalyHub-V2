@@ -187,7 +187,12 @@ describe("Notes routes", () => {
       formData({ intent: "update_content", content: source }),
     );
     const body = (await response.json()) as NoteMutationResult;
-    expect(body).toEqual({ kind: "update_content", ok: true });
+    expect(body.kind).toBe("update_content");
+    expect(body.ok).toBe(true);
+    // AUDIT-08 — the answer carries the version the next save must quote.
+    if (body.kind === "update_content" && body.ok) {
+      expect(body.contentUpdatedAt).toEqual(expect.any(String));
+    }
 
     const detail = await runDetail(note.id);
     expect(detail.details.content).toBe(source);

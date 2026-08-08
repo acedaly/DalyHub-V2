@@ -72,6 +72,9 @@ interface GoalOverviewProps {
   readonly projects: readonly SerializedGoalProjectItem[];
   readonly projectsNextCursor: string | null;
   readonly todayIso: string;
+  /** AUDIT-14 — the owner timezone `todayIso` was resolved in, so the alignment
+   * evidence labels read the same calendar the alignment state did. */
+  readonly timeZone: string;
   /** AREA-03: the derived Goal alignment (ADR-040) — whether recent Task
    * activity has contributed to this Goal, with explained reasons. */
   readonly alignment: GoalAlignment;
@@ -108,6 +111,7 @@ export function GoalOverview({
   projects,
   projectsNextCursor,
   todayIso,
+  timeZone,
   alignment,
   alignmentEvidence,
   alignmentEvidenceHasMore,
@@ -333,6 +337,7 @@ export function GoalOverview({
                     evidence={alignmentEvidence}
                     evidenceHasMore={alignmentEvidenceHasMore}
                     todayIso={todayIso}
+                    timeZone={timeZone}
                     headingId={alignmentHeadingId}
                     onOpenTask={onOpenTask}
                   />

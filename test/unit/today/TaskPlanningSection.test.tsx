@@ -19,8 +19,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TaskPlanningSection } from "~/shared/task-record/TaskPlanningSection";
 
-// 02:00 UTC on 19 Jul 2026 is midday in Australia/Sydney → owner day 2026-07-19.
-const NOW = new Date("2026-07-19T02:00:00.000Z");
+// AUDIT-14 — the owner day now arrives from the server, already resolved in the
+// owner's stored timezone; this control never derives one from the browser.
+const TODAY_ISO = "2026-07-19";
 
 function setup(
   props: Partial<React.ComponentProps<typeof TaskPlanningSection>> = {},
@@ -36,7 +37,7 @@ function setup(
       onPlan={onPlan}
       onClear={onClear}
       onSetDue={props.onSetDue ?? onSetDue}
-      now={NOW}
+      todayIso={TODAY_ISO}
     />,
   );
   return { onPlan, onClear, onSetDue };

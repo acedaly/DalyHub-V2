@@ -66,15 +66,14 @@ test.describe("HELP-01 Help", () => {
     expect(text).toContain("Weather");
     expect(text).toContain("AI");
     expect(text).toContain("Import");
-    // X-04 shipped EXPORT, so it left this list. RESTORE did not, and the two
-    // must never be conflated: being able to download a copy is not being able
-    // to put it back. This assertion is what stops the shipped half quietly
-    // closing the whole bullet.
-    expect(text).toContain("Backup and restore");
-    expect(text).toContain("cannot read one back in");
+    // X-04 shipped EXPORT and SET-02 shipped RESTORE, so both left this list.
+    // What remains missing is DalyHub taking copies on the owner's behalf, and
+    // this assertion is what stops that being quietly rounded up to "backed up".
+    expect(text).not.toContain("cannot read one back in");
+    expect(text).toContain("Automatic backups on your behalf");
   });
 
-  test("documents the export that now exists, without calling it a restore", async ({
+  test("documents the export, and now the restore that reads it back", async ({
     page,
   }) => {
     await gotoFixture(page, "/help?topic=export");
@@ -86,7 +85,8 @@ test.describe("HELP-01 Help", () => {
     expect(text).toContain("Download Obsidian vault");
     expect(text).toContain("archived or deleted");
     expect(text).toContain("never sends it anywhere");
-    expect(text).toContain("an export is not a restore");
+    expect(text).toContain("also your backup");
+    expect(text).toContain("changes nothing until you confirm");
   });
 
   test("tells the owner about the three appearance choices, and names no theme", async ({

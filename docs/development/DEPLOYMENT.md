@@ -203,36 +203,57 @@ with `pnpm run deploy:production:verify`. Covered by
 request injected — no real git remote, GitHub API, database or Worker is
 touched by tests.
 
-### Automated production backups (V2.0.1)
+### Automated production backups (V2.0.1, encrypted in V2.1 — AUDIT-11)
 
 `.github/workflows/production-backup.yml` exports the production D1 database on
 a schedule, through the SAME audited wrapper the manual release steps use
-(`pnpm run db:production:export` → `scripts/production-d1.mjs`).
+(`pnpm run db:production:export` → `scripts/production-d1.mjs`), and **encrypts
+it on the runner before it becomes an artifact**.
 
+> **Which backup is which.** This artifact is the **infrastructure
+> disaster-recovery copy** — a raw D1 SQL dump that rebuilds the DATABASE. The
+> **canonical DalyHub backup** is the owner-initiated archive from Settings →
+> Privacy & data, and that is the one SET-02 restores in-app and the one to reach
+> for in ordinary recovery. Full recovery procedures, including the recovery-key
+> model and rotation, are in
+> [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
+
+- **What the artifact contains.** `dalyhub-v2-production-<UTC stamp>.sql.gpg`
+  (GnuPG symmetric AES-256) and `metadata.json` (sizes, SHA-256 of both the
+  ciphertext and the plaintext, run identity, and the decrypt command). **No
+  plaintext dump, and no key.**
 - **Where backups appear.** GitHub → Actions → *Production D1 backup* → the
   run's artifact, named
-  `dalyhub-v2-production-d1-<UTC timestamp>-<short commit>`. Each artifact
-  contains the SQL dump plus a `metadata.json` recording the database name,
-  environment, export timestamp, repository commit and workflow-run identity.
+  `dalyhub-v2-production-d1-<UTC timestamp>-<short commit>`.
 - **Schedule.** Daily at 16:30 UTC (02:30 Australia/Sydney — a quiet hour so
   the export is coherent). **Manual runs** any time via *Run workflow*
-  (`workflow_dispatch`).
-- **Retention.** Artifacts are kept **30 days** (`retention-days: 30`). Anything
-  the owner wants longer-term must be downloaded and stored elsewhere.
-- **Downloading.** Open the workflow run → Artifacts → download the ZIP; the
-  `.sql` file inside is a plain-text dump readable anywhere.
-- **Failure is visible.** The job fails if the export file is missing, empty or
-  contains no schema, and `if-no-files-found: error` refuses to upload an empty
-  artifact. Credentials come from repository/environment secrets
-  (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`
-  in the `production` GitHub environment), are never printed, and the dump goes
-  to a file — never to the log. No export is ever committed to the repository.
-- **What this is NOT.** Restore. **Automated restore remains V2.1 SET-02**
-  ([`ROADMAP_V2_1.md`](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21))
-  and nothing here claims a tested restore capability. Recovery today is a
-  **manual** process — importing the SQL dump into a D1 database by hand — and
-  it has not been exercised end to end. Until SET-02 ships, a backup artifact
-  is a readable copy, not an undo button.
+  (`workflow_dispatch`), through the identical pipeline: there is no separate,
+  weaker manual path.
+- **Retention.** **30 days**, deliberately unchanged by the move to encryption —
+  the reasoning is recorded beside the value in the workflow and in
+  [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md#7-retention). Anything the
+  owner wants longer-term is a DalyHub backup they download and keep themselves.
+- **The recovery key.** `BACKUP_ENCRYPTION_PASSPHRASE`, in the protected
+  `production` GitHub environment. **The owner must also hold a copy off
+  GitHub** — without it these artifacts are unreadable by anyone, including the
+  owner. Rotation keeps the previous key until the last artifact encrypted with
+  it has expired. See
+  [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md#6-the-recovery-key).
+- **Failure is visible, and recovery is proved every night.** The job fails
+  before the database is read if no encryption key is configured; it fails if the
+  dump is empty, missing kernel tables or truncated mid-statement; it decrypts
+  its own artifact back and compares SHA-256 with the original; and a final guard
+  refuses to upload if the artifact directory holds anything unencrypted or the
+  metadata names a credential field. The plaintext lives only in a scratch
+  directory removed by a trap that runs even on failure, and no log line ever
+  carries backup contents.
+- **Credentials** come from the `production` environment
+  (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+  `CLOUDFLARE_D1_DATABASE_ID`, `BACKUP_ENCRYPTION_PASSPHRASE`), are never
+  printed, and never reach a command line. No export is ever committed.
+- **Restoring from it** is a deliberate, documented, owner-initiated procedure —
+  see [`BACKUP_AND_RESTORE.md` §5](BACKUP_AND_RESTORE.md#5-catastrophic-d1-recovery).
+  CI never performs a destructive production restore.
 
 ### ASSET-02 (migration `0025`) — deployment notes
 
@@ -433,15 +454,17 @@ each migration individually; this one proves the deployment.
 
 1. **Back up** the production D1 database before touching it:
    `pnpm run db:production:export -- --output <file>` (or the dashboard backup).
-   This is the step that makes every later step reversible, and V2 has no in-app
-   restore — see
-   [`ROADMAP_V2_1.md → SET-02`](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21).
+   This is the step that makes every later step reversible. Take a **DalyHub
+   backup** too (Settings → Privacy & data → *Download full DalyHub export*):
+   that is the copy DalyHub can restore in-app, and the SQL dump is the
+   lower-level fallback. Both are covered by
+   [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 2. **Preflight**: `pnpm run deploy:production:preflight` — credential-free
    validation, no upload.
 3. **Migrate**: `pnpm run db:production:apply` (applies every pending migration in
-   order — `0028_create_workspace_members.sql` is the latest; it is additive and
-   forward-only, creating one new table and one index and touching no existing
-   row).
+   order — `0035_create_workspace_restore.sql` is the latest; it is additive and
+   forward-only, creating the two SET-02 restore tables and one index and
+   touching no existing table, row or index).
 4. **Verify**: `pnpm run db:production:list` reports **no pending migrations**.
 5. **Deploy**: `pnpm run deploy:production` — only after step 4 passes.
 6. **Smoke test**: `/health` returns `ok` with version `2.0.0`; the authenticated

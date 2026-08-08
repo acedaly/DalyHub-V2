@@ -21,6 +21,13 @@ interface GoalAlignmentPanelProps {
   readonly evidence: readonly SerializedGoalAlignmentEvidence[];
   readonly evidenceHasMore: boolean;
   readonly todayIso: string;
+  /**
+   * AUDIT-14 — the owner's timezone, exactly as the loader that produced
+   * `todayIso` resolved it. Both are needed: the labels below convert each
+   * evidence INSTANT to a calendar date, and doing that in any other zone would
+   * disagree with the alignment state's own reasoning by a day.
+   */
+  readonly timeZone: string;
   /** Heading id, so the Summary region can label the panel. */
   readonly headingId?: string;
   readonly onOpenTask: (taskId: string) => void;
@@ -31,6 +38,7 @@ export function GoalAlignmentPanel({
   evidence,
   evidenceHasMore,
   todayIso,
+  timeZone,
   headingId,
   onOpenTask,
 }: GoalAlignmentPanelProps) {
@@ -79,7 +87,7 @@ export function GoalAlignmentPanel({
                   </a>
                   {" · "}
                   <span className="dh-alignment-panel__evidence-date">
-                    {evidenceDateLabel(item.occurredAt, todayIso)}
+                    {evidenceDateLabel(item.occurredAt, todayIso, timeZone)}
                   </span>
                 </span>
               </li>

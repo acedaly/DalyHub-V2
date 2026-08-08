@@ -123,6 +123,36 @@ describe("Diary details panel", () => {
     expect(screen.queryByText(/Attachments/i)).toBeNull();
   });
 
+  /*
+   * DIARY-02 — the entry is a Linked Items consumer.
+   *
+   * The assertions are about HIERARCHY as much as presence: the entry's own title
+   * remains the h3, "Related" is a subordinate h4 below the content, and the
+   * shared relationship surface (not a Diary-only one) is what renders inside it.
+   */
+  it("exposes Related through the shared Linked Items surface, below the entry", async () => {
+    renderHost(fixture());
+
+    const related = await screen.findByRole("heading", {
+      level: 4,
+      name: "Related",
+    });
+    expect(related).toBeInTheDocument();
+    // The entry itself still owns the strongest heading on the panel.
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Team stand-up" }),
+    ).toBeInTheDocument();
+    // The shared section, identified by its own landmark heading — proof this is
+    // the Universal Relationship System and not a bespoke Diary component.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Linked items" }),
+    ).toBeInTheDocument();
+    // Content comes before context in the DOM, which is the reading order too.
+    expect(
+      related.compareDocumentPosition(screen.getByText("No details recorded.")),
+    ).toBe(Node.DOCUMENT_POSITION_PRECEDING);
+  });
+
   it("shows a Backdated badge and an Updated stamp only when real", async () => {
     renderHost(
       fixture({

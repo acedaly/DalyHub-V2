@@ -1,7 +1,7 @@
 # Views — cross-module saved views (X-02)
 
 > **Roadmap:** [X-02 — Saved views & cross-module filters](../roadmap/ROADMAP_V2_1.md#-x-02--saved-views--cross-module-filters)
-> **Decision record:** [ADR-080](../decisions/ARCHITECTURE_DECISIONS.md#adr-080-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)
+> **Decision record:** [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)
 > **Builds on:** [ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration) (the Tasks contract this generalises) · [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score) (the Review evidence it reads)
 
 Views is the answer to a question DalyHub could not previously hold open:
@@ -147,7 +147,7 @@ definition of "today".**
 ## Persistence
 
 One table, two kinds. Migration
-[`0035_generalise_saved_views.sql`](../../migrations/0035_generalise_saved_views.sql)
+[`0036_generalise_saved_views.sql`](../../migrations/0036_generalise_saved_views.sql)
 adds `kind TEXT NOT NULL DEFAULT 'tasks'` to `task_saved_views` and swaps the two
 owner indexes for kind-aware ones. Nothing is rewritten; existing Tasks saved views
 are classified by the column default alone, and names are unique per owner **per

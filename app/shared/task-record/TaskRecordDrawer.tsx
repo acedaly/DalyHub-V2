@@ -94,6 +94,14 @@ const PRIORITY_OPTIONS = TASK_PRIORITIES.map((priority) => ({
  */
 export interface TaskRecordDrawerApi {
   readonly task: SerializedTaskView | null;
+  /**
+   * AUDIT-14 — the OWNER's calendar day, exactly as the record route resolved it
+   * from their stored timezone. Published so a host composing behaviour around
+   * this drawer (the Today module's keyboard plan commands) plans against the
+   * same day the drawer shows, instead of re-deriving one in the browser.
+   * `null` until the record has loaded.
+   */
+  readonly todayIso: string | null;
   /** The effective completed state (optimistic override applied). */
   readonly completed: boolean;
   /** Whether the task is actively waiting (and not completed). */
@@ -509,6 +517,8 @@ export function TaskRecordDrawer({
   }, [postAction, notifySuccess, refresh]);
 
   const activeTask = data !== null && !("error" in data) ? data.task : null;
+  const activeTodayIso =
+    data !== null && !("error" in data) ? data.todayIso : null;
   const activeCompleted = activeTask
     ? optimisticComplete !== null
       ? optimisticComplete
@@ -523,6 +533,7 @@ export function TaskRecordDrawer({
   const api = useMemo<TaskRecordDrawerApi>(
     () => ({
       task: activeTask,
+      todayIso: activeTodayIso,
       completed: activeCompleted,
       waitingActive: activeWaiting,
       toggleCompletion: (complete) => void toggleCompletion(complete),
@@ -533,6 +544,7 @@ export function TaskRecordDrawer({
     }),
     [
       activeTask,
+      activeTodayIso,
       activeCompleted,
       activeWaiting,
       toggleCompletion,
@@ -742,6 +754,7 @@ export function TaskRecordDrawer({
             <TaskPlanningSection
               scheduledDate={task.scheduledDate}
               dueDate={task.dueDate}
+              todayIso={data.todayIso}
               completed={completed}
               onPlan={planTask}
               onClear={clearPlan}

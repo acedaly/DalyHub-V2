@@ -23,7 +23,7 @@
 | Date & time | owner timezone, date display, first day of week |
 | Appearance | a group inside **General**: System / Light / Dark over the one generated light/dark pair. The same control the account menu renders (ADR-075). |
 | Navigation | optional module visibility and reset |
-| Privacy & data | current handling, the two **workspace exports** (X-04), and explicitly deferred data tools |
+| Privacy & data | current handling, the two **workspace exports** (X-04), **restore from a backup** (SET-02), and explicitly deferred data tools |
 | About | stable app information already available to the app |
 
 The route is responsive from 320px upward. Section navigation is URL-backed with
@@ -170,10 +170,11 @@ shared Activity model is entity-subject based. A workspace/owner-scoped audit
 event shape should be added deliberately before recording non-entity preference
 changes.
 
-## Export (X-04)
+## Backup (X-04)
 
-`Settings → Privacy & data` now carries the product's only bulk data-export
-surface. Full detail lives in
+`Settings → Privacy & data` carries the product's only bulk data-export surface,
+and the group is titled **"Back up your data"**: the full DalyHub export is not
+merely a copy, it is the file [Restore](#restore-set-02) reads. Full detail lives in
 [`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md); what matters for
 Settings is:
 
@@ -208,13 +209,50 @@ parameter, sets `no-store` + `private` + `nosniff` and an ASCII-safe filename,
 persists nothing, and never exposes SQL, a binding name or a stack trace on
 failure.
 
+## Restore (SET-02)
+
+Beside the backup group, in its own `tone="danger"` group because the populated
+path replaces data. Full detail — the format, the validation stages, the failure
+guarantee and the operational procedures — lives in
+[`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md); what matters for Settings is:
+
+| Step | Route | What happens |
+|---|---|---|
+| Choose backup… | `POST /settings/restore/preview` | the archive is verified, validated and staged. **Nothing canonical is written.** |
+| Create safety backup | `POST /settings/restore/safety-backup` | a full DalyHub archive of the CURRENT workspace, verified by being read back, then downloaded to the owner |
+| Replace workspace… | `POST /settings/restore/apply` | the atomic cutover, then post-restore verification |
+| (cancel) | `POST /settings/restore/discard` | the staged rows are removed |
+
+**Four decisions worth not re-litigating.**
+
+1. **Choosing a file does not restore it.** Upload-and-write on file selection
+   would make the most destructive action in the product a side effect of
+   picking a file. The four steps are four requests for that reason.
+2. **The preview speaks in the product's nouns**, not in collection names, and
+   the one sentence that matters — what happens to the current data — is
+   rendered on the row AND repeated in the confirmation.
+3. **No new dialog system, no recovery design language.** This is `SettingsRow`,
+   `SettingsGroup tone="danger"` and the shared `ConfirmationDialog` with its
+   existing typed confirmation (`REPLACE`). The only new CSS lays out the
+   preview's counts and gives the visually-hidden file input's label the same
+   focus ring the destructive button already uses.
+4. **Every refusal gets its own sentence.** Corrupt, unsupported version,
+   incompatible, too large and "the restore did not complete" are five different
+   situations with five different next actions; one generic error would collapse
+   them into a shrug. The structural detail behind a refusal is logged
+   server-side and deliberately does not travel to the browser.
+
+The routes resolve the owner and workspace server-side, take **no** workspace
+parameter, refuse a GET, and never expose snapshot paths, SQL or a stack trace.
+
 ## Deferred scope
 
-No dead controls are shipped for: import, backup/restore, file attachments/R2,
-AI-provider credentials, integrations, notifications, reminders, workspace
-deletion, multi-user roles/permissions, billing or advanced themes. **Export is
-no longer in that list** — see above. Restore in particular is still absent, and
-Privacy & data says so plainly rather than letting the new export imply it.
+No dead controls are shipped for: import from other products, file
+attachments/R2, AI-provider credentials, integrations, notifications, reminders,
+workspace deletion, multi-user roles/permissions or billing. **Export and restore
+are no longer in that list** — see above. What DalyHub still does not do is keep
+copies on the owner's behalf, and Privacy & data and Help both say so rather than
+letting a working restore imply a backup service.
 
 ## Verification
 
@@ -234,23 +272,23 @@ Coverage added for SET-01:
 
 ## Status (2026-07-27 reconciliation)
 
-**Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ (2026-08-01) and added the export controls to Privacy & data. [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) and [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) are ☐.
+**Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ (2026-08-01) and added the export controls to Privacy & data. [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) is ☑ (2026-08-08) and added the Restore group beside them. [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) is ☐.
 
 **Delivered capabilities.** `/settings` as a first-class authenticated route on the shared Settings layout, with General, Date & time, Appearance, Navigation, Privacy & data and About sections. (Appearance now hosts the THEME-01 five-theme picker, and About reads the RELEASE-01 version authority and links to the full `/about` screen.) Owner/workspace behavioural preferences persist through the storage-independent `app/kernel/preferences` contract and its D1 adapter (`owner_app_preferences`, migration `0017`): timezone, date format, first day of week, default landing page, default Tasks view, default Diary mode and validated navigation visibility. Timezone is the shared owner-calendar authority for Today, date-derived loaders, Tasks urgency and Diary grouping. Appearance stays device-local through the existing theme cookie; Today widget arrangement stays device-local in `localStorage`. Navigation visibility resolves against the module registry, always keeps Today and Settings reachable, discards unknown module ids and shows new modules by default.
 
-**No dead controls.** Every control on `/settings` maps to real behaviour. Privacy & data now ships two REAL export actions and still states plainly that import, backup, restore, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles, billing and advanced themes are deferred. That honesty was preserved as export landed — the deferred list shrank by exactly one entry, and restore is named separately so the new export cannot be mistaken for it.
+**No dead controls.** Every control on `/settings` maps to real behaviour. Privacy & data ships two REAL export actions and, since SET-02, a REAL restore; it still states plainly that import from other products, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are deferred. That honesty has been preserved at each step — the deferred list has only ever shrunk by exactly what shipped, and when restore shipped the "restore is not implemented" sentence was removed in the same change rather than left saying something untrue.
 
 **Known limitations.**
 
 - **Export shipped (2026-08-01); import did not.** [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ — both a structured archive and an Obsidian vault, from one canonical snapshot. Import from external tools remains [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) and is unstarted.
-- **No backup or restore.** [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) is unstarted, now **unblocked rather than blocked**: X-04's versioned snapshot is its documented input contract. **Cloudflare or D1 infrastructure still does not satisfy it**, and neither does export — the item requires a restore that has actually been exercised end to end. An untested restore is not a backup, and being able to download a copy is not being able to put it back.
+- **Backup and restore shipped (2026-08-08).** [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) is ☑. The full DalyHub export IS the backup format, and Privacy & data reads it back in: inspect, validate, preview, confirm, restore, verify, report. A populated workspace is an explicit REPLACE, gated by a verified pre-restore safety backup and the shared typed confirmation. The item's own rule was satisfied on its own terms — the end-to-end restoration proof exists and passes (`test/kernel/workspace-restore.test.ts`). What DalyHub still does NOT do is keep copies on the owner's behalf, and Privacy & data and Help both say so. See [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 - **No Account or Security section.** The identity layer is done and accepted (FND-09 / [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing): Cloudflare Access with in-Worker JWT validation and independent `OWNER_EMAIL` enforcement), so the product is authenticated — but there is no owner-facing session/identity surface, sign-out-everywhere, or security audit view. [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security).
 - **Preference changes append no Activity**, so a settings change leaves no audit trail — [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3). A future Security section would want exactly this.
 - Today widget arrangement was deliberately **not** migrated into the new preference store; it remains per-device — [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
 
 **Deferred work.** Import; backup and restore; account and security; file attachments and R2; AI-provider credentials ([AI-01](../roadmap/ROADMAP_V2.md#-ai-01--proposal-architecture--review-ui)/[AI-04](../roadmap/ROADMAP_V2.md#-ai-04--privacy-controls)); integrations ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)); notifications and reminders; workspace deletion, roles and billing; synced Today arrangement; saved views ([X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters)), for which this preference store is the natural home.
 
-**Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ (unblocks SET-02) · [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) ☐ · [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) ☐ · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
+**Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ (the format SET-02 restores) · [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) ☑ · [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) ☐ · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
 
 **Relevant product-debt items.** [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
 

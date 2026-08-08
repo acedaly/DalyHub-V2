@@ -2,13 +2,16 @@
 
 > How the owner gets **everything** out of DalyHub, and what the exported files
 > mean. This implements [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability)
-> and establishes the canonical snapshot contract [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore)
-> will later restore from.
+> and establishes the canonical snapshot contract
+> [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) restores
+> from. **The structured export IS the backup format** — how it is read back in
+> is [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 >
 > Decision & rationale: [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it).
 > Related: [`SETTINGS_MODULE.md`](SETTINGS_MODULE.md) · [`MARKDOWN_PIPELINE.md`](MARKDOWN_PIPELINE.md) ·
 > [`RELATIONSHIPS.md`](RELATIONSHIPS.md) · [`DATA_KERNEL.md`](DATA_KERNEL.md) ·
-> [`DEPLOYMENT.md`](DEPLOYMENT.md).
+> [`DEPLOYMENT.md`](DEPLOYMENT.md) ·
+> [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 
 ---
 
@@ -61,18 +64,18 @@ exported.
   meta:        { schema, schemaVersion, application, exportedAt, consistency },
   workspace:   { id, createdAt, updatedAt },
   owner:       { preferences, taskSavedViews },
-  records:     { …23 collections, in a fixed order… },
+  records:     { …24 collections, in a fixed order… },
   limitations: [ { code, subject, detail } ]
 }
 ```
 
-The 23 collections, in serialisation order, are: `entities`, `spineRecords`,
+The 24 collections, in serialisation order, are: `entities`, `spineRecords`,
 `areaDetails`, `goalDetails`, `projectDetails`, `taskDetails`,
 `taskRecurrenceRules`, `noteDetails`, `diaryEntryDetails`, `personDetails`,
 `meetingDetails`, `meetingItems`, `meetingItemTasks`, `assetDetails`,
 `assetEvents`, `assetObligations`, `reviewDetails`, `reviewSections`,
-`reviewWorkflowState`, `reviewStepAcknowledgements`, `entityLinks`,
-`activities`, `activitySubjects`.
+`reviewWorkflowState`, `reviewStepAcknowledgements`, `reviewInsightSnapshots`,
+`entityLinks`, `activities`, `activitySubjects`, `workspaceMembers`.
 
 The order is meaningful: entities first, then spine membership, then per-module
 detail rows, then module child records, then relationships, then history — so a
@@ -118,6 +121,30 @@ in the archive or derived from the exported Activity stream, and is deliberately
 not stored here. Dropping this row would silently erase the owner's ability to
 see what changed between Reviews, with nothing able to reconstruct it
 ([ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)).
+
+### What SET-02 added to the contract
+
+Two additions, both made in the canonical contract rather than as restore-only
+hidden fields, because the alternative is a format whose restore knows something
+its export does not.
+
+`workspaceMembers` (optional-on-read) carries the **subject, display names and
+linked Person** of each workspace member. `activities[].actorId` was already
+exported; the row that maps that subject to a NAME was not, so a restored
+workspace held a history whose every actor resolved to `Unknown user` — a loss of
+historical truth a restore is supposed to prevent. It deliberately excludes the
+member's **email** (an authentication-adjacent identifier the request boundary
+refreshes on every sign-in, so nothing durable is lost) and their `last_seen_at`
+telemetry. Nothing here authenticates anybody: sign-in still goes through
+Cloudflare Access and the `OWNER_EMAIL` gate, and a restored membership row
+grants no access to anything.
+
+`owner.preferences.appearance` carries the APPEARANCE-01 System/Light/Dark
+choice. It is owner configuration of exactly the kind the snapshot already
+carries (`timezone`, `dateFormat`, the landing destination), and a restore that
+silently reset it would be an unfaithful reconstruction. Additive: an archive
+written before it existed simply has no key, and a reader defaults it to
+`"system"`.
 
 ### Conventions
 
@@ -216,8 +243,10 @@ collections.
 | `README.md` | What this archive is, for a person opening it in five years. |
 | `CHECKSUMS.txt` | `sha256sum` format, so `sha256sum -c CHECKSUMS.txt` verifies an extracted archive with no DalyHub involved. |
 
-This is the input contract SET-02 will read. **Restore is not implemented in this
-change** — see §8.
+This is the input contract SET-02 reads. **It is the backup format**: Settings →
+Privacy & data → Restore takes this ZIP, verifies its checksums, checks its
+snapshot version, previews it and restores it. See
+[`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 
 ---
 
@@ -384,7 +413,7 @@ the honesty SET-01 established is preserved.
 
 ---
 
-## 8. Compatibility policy
+## 8. Compatibility policy, and what reads it
 
 - `meta.schemaVersion` changes **only** for a breaking change: a field removed, a
   field's meaning changed, or an ordering rule changed.
@@ -396,15 +425,26 @@ the honesty SET-01 established is preserved.
 - The archive's own `formatVersion` (in `manifest.json`) versions the *file set*
   independently of the snapshot schema.
 
+**The reader that enforces this is `readBackupCompatibility`** (SET-02,
+`app/kernel/restore/backup-compatibility.ts`). It runs before anything else
+interprets the file, and it refuses a newer version, an older version with no
+reader, a malformed version, a missing version and another application's JSON.
+There is deliberately no best-effort import: data recovery is the wrong place
+for guesswork. `RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS` is the list of versions this
+build can actually read, and it is a list rather than a comparison because "can
+restore" is a statement about code that exists.
+
 ---
 
 ## 9. Known limitations
 
 These are real and recorded rather than hidden.
 
-- **No restore.** DalyHub cannot import this archive. That is [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore),
-  which this change **unblocks but does not start**. Until it ships, the archive
-  is a complete readable copy — not a one-click undo.
+- **Restore exists (SET-02).** DalyHub reads this archive back in through
+  Settings → Privacy & data → Restore, with validation, a preview, a typed
+  confirmation and a verified pre-restore safety backup. See
+  [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md). The archive is both a
+  readable copy AND a recovery point.
 - **Not an atomic point-in-time snapshot** (§3). Exporting while actively editing
   can produce a file where one collection is a few seconds newer than another.
 - **Bounded at 50,000 rows per collection and 64 MiB per archive.** Reaching

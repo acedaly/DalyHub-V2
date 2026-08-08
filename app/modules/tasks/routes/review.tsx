@@ -40,15 +40,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor");
 
+  // AUDIT-14 — the degraded page still needs a day to render its date-relative
+  // labels; that is the ONLY use of the documented no-preference default here.
   let timezone = DEFAULT_APP_PREFERENCES.timezone;
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-    try {
-      timezone = (await scope.appPreferences.get(session.user.subject))
-        .timezone;
-    } catch {
-      // Keep the surface reachable on the deterministic default.
-    }
+    timezone = await scope.ownerTimeZone();
     const todayIso = ownerCalendarIso(new Date(), timezone);
     const page = await scope.tasks.listWorkspaceTasks({
       view: "inbox",

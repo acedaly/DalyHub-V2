@@ -35,6 +35,14 @@ const routes: readonly RouteContribution[] = [
     file: "routes/entry.tsx",
   },
   {
+    // DIARY-02 — the day-context candidates for one entry (read-only; it never
+    // creates a relationship). Declared after the entry route; the segment is
+    // static so it cannot be read as an entry id.
+    id: "diary.day_context",
+    path: "diary/:entryId/day-context",
+    file: "routes/day-context.tsx",
+  },
+  {
     id: "diary.mutate",
     path: "diary/:entryId/mutate",
     file: "routes/mutate.tsx",

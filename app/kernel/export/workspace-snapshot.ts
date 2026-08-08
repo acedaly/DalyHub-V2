@@ -174,6 +174,16 @@ export interface SnapshotOwnerPreferences {
   readonly defaultTaskCaptureParentId: string | null;
   readonly defaultTaskCaptureParentKind: string | null;
   readonly defaultDiaryMode: string;
+  /**
+   * APPEARANCE-01 — the owner's System/Light/Dark choice.
+   *
+   * Added by SET-02 because a restore that silently reset it would be an
+   * unfaithful reconstruction of owner configuration the snapshot already claims
+   * to carry (`timezone`, `dateFormat`, the landing destination …). It is
+   * additive: an archive written before this field existed simply omits the key,
+   * and a reader defaults it to `"system"`.
+   */
+  readonly appearance: string;
   readonly navigationConfig: JsonValue;
   /** The preference record's optimistic version; `0` when no row exists yet. */
   readonly version: number;
@@ -611,6 +621,52 @@ export interface SnapshotReviewInsightSnapshot {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Identity                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * SET-02 — one workspace MEMBERSHIP row: the minimum needed to interpret the
+ * actor ids the exported Activity stream already carries.
+ *
+ * ## Why this is in the snapshot at all
+ *
+ * `activities.actorId` is exported verbatim (it is the owner's own copy of their
+ * own ids). Until this collection existed, a restored workspace held a history
+ * whose every actor resolved to `Unknown user`, because the row that maps a
+ * subject to a name lived only in the database being replaced. That is a loss of
+ * historical truth a restore is supposed to prevent, so the membership row
+ * travels with the workspace.
+ *
+ * ## What it deliberately does NOT carry
+ *
+ * - **No credential.** `subject` is a stable Cloudflare Access identifier, not a
+ *   secret, and it is already present on every exported Activity row. Nothing
+ *   here authenticates anybody: signing in still goes through Cloudflare Access
+ *   and the `OWNER_EMAIL` gate, and a restored membership row grants no access.
+ * - **No email.** `workspace_members.email` is a *display fallback* that the
+ *   request boundary refreshes on every sign-in
+ *   (`provisionAuthenticatedMember`), so excluding it loses nothing durable —
+ *   and it keeps the one authentication-adjacent identifier out of the file.
+ * - **No `last_seen_at`.** Operational telemetry, never displayed. A restore
+ *   writes `updatedAt` into that column rather than inventing a sign-in.
+ *
+ * Additive and optional-on-read, so archives written before it existed still
+ * validate and still restore.
+ */
+export interface SnapshotWorkspaceMember {
+  /** The stable authenticated subject — equals `activities[].actorId`. */
+  readonly subject: string;
+  /** The owner-curated display name, or `null`. */
+  readonly displayName: string | null;
+  /** The display name the identity provider supplied, or `null`. */
+  readonly authDisplayName: string | null;
+  /** The linked Person record in THIS workspace, or `null`. */
+  readonly personEntityId: string | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The collection map                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -647,6 +703,7 @@ export interface SnapshotCollectionRowMap {
   readonly entityLinks: SnapshotEntityLink;
   readonly activities: SnapshotActivity;
   readonly activitySubjects: SnapshotActivitySubject;
+  readonly workspaceMembers: SnapshotWorkspaceMember;
 }
 
 /** The name of one paginated snapshot collection. */
@@ -680,6 +737,7 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     "reviewWorkflowState",
     "reviewStepAcknowledgements",
     "reviewInsightSnapshots",
+    "workspaceMembers",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -707,6 +765,10 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "entityLinks",
   "activities",
   "activitySubjects",
+  // SET-02 — last, because it is the only collection that references an entity
+  // AND is referenced by nothing: a restore can write it after everything else
+  // without a dependency edge pointing back into the earlier collections.
+  "workspaceMembers",
 ] as const;
 
 /** The collections, as a JSON object of ordered rows. */

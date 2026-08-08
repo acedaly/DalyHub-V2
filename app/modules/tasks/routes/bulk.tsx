@@ -8,7 +8,6 @@
 
 import { env } from "cloudflare:workers";
 
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   resolveAuthenticatedWorkspaceScope,
@@ -25,8 +24,6 @@ import {
   type TaskStatus,
   type TimeSector,
 } from "~/kernel/tasks";
-
-import { ownerCalendarIso } from "~/shared/datetime";
 
 import type { TasksBulkResult } from "../tasks-contract";
 import type { Route } from "./+types/bulk";
@@ -66,13 +63,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   try {
     return json(
-      await dispatch(
-        scope,
-        intent,
-        ids,
-        form,
-        await ownerTodayIsoFor(scope, session.user.subject),
-      ),
+      await dispatch(scope, intent, ids, form, await ownerTodayIsoFor(scope)),
     );
   } catch (cause) {
     if (cause instanceof TaskValidationError) {
@@ -100,17 +91,11 @@ export async function action({ request, context }: Route.ActionArgs) {
  * The OWNER's calendar day (ADR-022) — recurrence schedules a successor relative to
  * the day the owner completed the task, never the server's UTC day.
  */
-async function ownerTodayIsoFor(
-  scope: WorkspaceScope,
-  subject: string,
-): Promise<string> {
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(subject)).timezone;
-  } catch {
-    // Keep the mutation working on the deterministic default.
-  }
-  return ownerCalendarIso(new Date(), timezone);
+async function ownerTodayIsoFor(scope: WorkspaceScope): Promise<string> {
+  // AUDIT-14 — one authority for the owner's day, resolved once per request
+  // and shared with every other module that asks. Degrades to the documented
+  // default on a read failure, so a missing preference never blocks a mutation.
+  return scope.ownerTodayIso();
 }
 
 async function dispatch(

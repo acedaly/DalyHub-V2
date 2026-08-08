@@ -75,6 +75,21 @@
   gap: var(--app-space-2);
 }
 
+/* DEBT-45 — the hand-off to the module's fuller creation surface. Restrained by
+ * design: the sheet's own Create action stays the primary path, and this is the
+ * quiet "there is more here" beside it. Sized to the shared touch target so it is
+ * a real phone control, not a dense text link. */
+.dh-capture-handoff {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
+  color: var(--md-sys-color-primary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 /* -------------------------------------------------------------------------- */
 /* One-tap classification chips                                                */
 /* -------------------------------------------------------------------------- */
