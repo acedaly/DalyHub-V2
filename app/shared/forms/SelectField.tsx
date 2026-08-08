@@ -287,8 +287,19 @@ function SelectCombobox(props: SelectFieldProps) {
   return (
     <div
       className={rootClassName}
-      role="group"
-      aria-labelledby={labelId}
+      /*
+       * The wrapper is a labelled GROUP only for a MULTI select, where it
+       * genuinely contains more than one named thing: the removable chips and
+       * the combobox that adds to them.
+       *
+       * A single select contains exactly one control, and naming the wrapper as
+       * well gave the field TWO elements with the same accessible name — the
+       * group and the combobox inside it. A screen reader announced "Owner
+       * timezone group, Owner timezone combobox", and every by-name query for
+       * the control matched both. The name belongs to the thing you operate.
+       */
+      role={multiple ? "group" : undefined}
+      aria-labelledby={multiple ? labelId : undefined}
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
       data-readonly={readOnly || undefined}

@@ -377,8 +377,14 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
                       onOpen={() => openTask(task.id)}
                     />
                   ))}
+                  {/* The remainder row is NOT a task row: it carries no
+                      completion control and opens a collection rather than a
+                      record. It says so in its class, so anything counting the
+                      day's overdue tasks — CSS, a screen reader's list, a
+                      regression test — is not counting the link that says how
+                      many were left out. */}
                   {overdue.hidden > 0 ? (
-                    <li className="dh-day-row">
+                    <li className="dh-day-row dh-day-row--more">
                       <Link
                         className="dh-day-row__more-link"
                         to="/tasks?system=overdue"

@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  expectOnToday,
   gotoFixture,
 } from "./helpers";
 
@@ -57,8 +58,26 @@ function forceInvalidLandingDestination(): void {
   );
 }
 
-async function choose(page: Page, label: string, value: string): Promise<void> {
-  await page.getByLabel(label).selectOption(value);
+/**
+ * Choose an option in a Settings select, and wait for the autosave to report.
+ *
+ * Every Settings select is the shared DS-06 combobox, not a native `<select>`:
+ * open it, pick the option by its VISIBLE label, and the field writes through
+ * the same focused intent the rest of the product uses. This used to call
+ * `selectOption`, which only works on a native `<select>` and had been failing
+ * before it reached the field it meant to change.
+ */
+async function choose(
+  page: Page,
+  label: string,
+  optionLabel: string,
+): Promise<void> {
+  const combobox = page.getByRole("combobox", { name: label });
+  await combobox.click();
+  await page
+    .getByRole("listbox", { name: label })
+    .getByRole("option", { name: optionLabel, exact: true })
+    .click();
   await expect(page.getByText("Saved").first()).toBeVisible();
 }
 
@@ -90,16 +109,16 @@ test.describe("SETTINGS-01A — application settings", () => {
       page.getByText(/Timezone affects date grouping, Today, due-date/),
     ).toBeVisible();
 
-    await choose(page, "Date display", "dmy_slash");
+    await choose(page, "Date display", "DD/MM/YYYY");
     await page.reload();
     await expect(page.getByText("Example: 27/07/2026")).toBeVisible();
 
-    await choose(page, "First day of week", "sunday");
+    await choose(page, "First day of week", "Sunday");
     await page.reload();
     await expect(page.getByText("Week views start on Sunday.")).toBeVisible();
 
     await page.getByRole("link", { name: "General" }).click();
-    await choose(page, "Default landing page", "tasks");
+    await choose(page, "Default landing page", "Tasks");
     await page.goto("/");
     await expect(page).toHaveURL(/\/tasks$/);
     await expect(
@@ -108,10 +127,7 @@ test.describe("SETTINGS-01A — application settings", () => {
 
     forceInvalidLandingDestination();
     await page.goto("/");
-    await expect(page).toHaveURL(/\/today$/);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
-    ).toBeVisible();
+    await expectOnToday(page);
 
     await gotoFixture(page, "/settings");
     await choose(page, "Default Tasks view", "Time Sectors");
@@ -121,7 +137,7 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toBeVisible();
 
     await gotoFixture(page, "/settings");
-    await choose(page, "Default Diary mode", "timeline");
+    await choose(page, "Default Diary mode", "Timeline");
     await gotoFixture(page, "/diary");
     await expect(page.getByRole("link", { name: "Timeline" })).toHaveAttribute(
       "aria-current",

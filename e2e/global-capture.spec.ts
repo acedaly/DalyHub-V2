@@ -374,16 +374,25 @@ test.describe("larger windows — the floating button stays, and covers nothing"
     await gotoFixture(page, "/tasks?system=all");
     await expect(fab(page)).toBeVisible();
 
-    const checkbox = page.getByRole("checkbox", { name: /^Select / }).first();
-    await checkbox.check();
+    // TASKS-06 made multi-selection an explicit MODE, so the row checkboxes only
+    // exist once it is entered. The toggle is the labelled, keyboard-reachable
+    // way in — the same one a person uses.
+    await page.getByRole("button", { name: "Select tasks" }).click();
+    await page
+      .getByRole("checkbox", { name: /^Select / })
+      .first()
+      .check();
 
-    const bulkBar = page.getByRole("group", { name: /1 selected/ });
+    const bulkBar = page.getByRole("group", { name: "Bulk task actions" });
     await expect(bulkBar).toBeVisible();
     await expect(fab(page)).toBeHidden();
 
-    // The click the button used to intercept.
-    await bulkBar.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("group", { name: /selected/ })).toHaveCount(0);
+    // The click the button used to intercept — the bar's trailing control, which
+    // TASKS-06 named "Done".
+    await bulkBar.getByRole("button", { name: "Done" }).click();
+    await expect(
+      page.getByRole("group", { name: "Bulk task actions" }),
+    ).toHaveCount(0);
     await expect(fab(page)).toBeVisible();
   });
 });

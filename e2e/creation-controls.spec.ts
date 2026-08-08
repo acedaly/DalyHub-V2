@@ -20,6 +20,7 @@ import {
   expectMinTouchTarget,
   expectNoHorizontalOverflow,
   gotoFixture,
+  todayDayPanel,
 } from "./helpers";
 
 /** The global capture control — the floating action button in the app shell. */
@@ -135,8 +136,14 @@ test.describe("removed duplicates — the page header no longer repeats capture"
     await expect(
       page.getByRole("button", { name: "Quick capture", exact: true }),
     ).toHaveCount(0);
-    // The widget it used to focus is untouched, and still offers all four types.
-    await expect(page.getByTestId("today-capture-task")).toBeVisible();
+    // The Today redesign went further than removing the header duplicate: the
+    // screen's own capture WIDGET is gone too, so the global control is the only
+    // way to capture from here. That is the same rule this file exists to hold —
+    // one authority for routine creation — reaching its conclusion, so the
+    // assertion is that nothing capture-shaped survives on the page rather than
+    // that the widget the button used to focus is still there.
+    await expect(page.getByTestId("today-capture-task")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Capture" })).toBeVisible();
   });
 
   test("Tasks has no header New task, and keeps Review Inbox", async ({
@@ -185,11 +192,17 @@ test.describe("removed duplicates — the page header no longer repeats capture"
 
   test("the removed headers stay balanced at 320px", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    for (const path of ["/today", "/tasks", "/notes", "/meetings"]) {
+    for (const path of ["/tasks", "/notes", "/meetings"]) {
       await gotoFixture(page, path);
       await expect(paneHeader(page)).toBeVisible();
       await expectNoHorizontalOverflow(page);
     }
+    // Today is not in that list because it has no pane header at all any more:
+    // the redesign made the greeting block the page's own header. Its equivalent
+    // is asserted on its own terms, so the width check still covers the screen.
+    await gotoFixture(page, "/today");
+    await expect(todayDayPanel(page)).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
 });
 

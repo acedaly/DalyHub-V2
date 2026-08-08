@@ -354,3 +354,26 @@ export function postSameOrigin(
     headers: { ...SAME_ORIGIN_MUTATION_HEADERS, ...headers },
   } as Parameters<APIRequestContext["post"]>[1]);
 }
+
+/**
+ * The Today screen's day panel — the stable landmark that says "this is Today".
+ *
+ * The Today redesign made the screen's `h1` the owner's GREETING ("Good evening,
+ * Sam"), which is page content rather than a page name: it changes with the hour
+ * and with who is signed in, and there is no pane header behind it. Several specs
+ * were still waiting for `heading level 1 "Today"` and timing out on a page that
+ * had rendered perfectly.
+ *
+ * "My day" is the screen's own labelled region and is the same at every hour, so
+ * it is what the suite asks for now. Asserting a landmark rather than a class also
+ * keeps the check on the accessibility tree, where the product's contract lives.
+ */
+export function todayDayPanel(page: Page): Locator {
+  return page.getByRole("region", { name: "My day" });
+}
+
+/** Assert the browser is on the Today screen, by URL and by that landmark. */
+export async function expectOnToday(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/today(?:[?#]|$)/);
+  await expect(todayDayPanel(page)).toBeVisible();
+}
