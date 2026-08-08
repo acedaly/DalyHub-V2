@@ -53,8 +53,15 @@ CREATE TABLE workspace_restore_operations (
   -- (preferences, saved views) are rebound to THIS subject, never to any
   -- identifier inside the uploaded backup.
   owner_id               TEXT NOT NULL,
-  -- staged, then safety_backed_up, then applied, then completed. Or failed at
-  -- any point.
+  -- staged, then (for a destructive replace) safety_backup_ready, then
+  -- safety_backed_up, then applied, then completed. Or failed at any point.
+  --
+  -- The two safety-backup states are deliberately distinct. A server that has
+  -- GENERATED and verified a recovery archive has not yet established that the
+  -- owner HOLDS one: the response can still fail in transit. safety_backup_ready
+  -- means "generated and verified here", safety_backed_up means "the complete
+  -- archive demonstrably reached the client", and only the second one permits a
+  -- destructive apply.
   status                 TEXT NOT NULL,
   -- 'into-empty' (nothing can be lost) or 'replace' (destructive).
   mode                   TEXT NOT NULL,
@@ -70,6 +77,15 @@ CREATE TABLE workspace_restore_operations (
   safety_backup_sha256   TEXT,
   safety_backup_bytes    INTEGER,
   safety_backup_records  INTEGER,
+  -- The winner's claim on the cutover.
+  --
+  -- Set by the SAME transaction that replaces the data, by an UPDATE whose WHERE
+  -- clause requires the exact expected status AND apply_token IS NULL. Every
+  -- DELETE and INSERT in that transaction is then conditioned on this exact
+  -- token, so a second concurrent apply cannot win the claim and its statements
+  -- all match zero rows: a clean no-op rather than a second wholesale
+  -- delete/insert cycle over the same workspace.
+  apply_token            TEXT,
   -- A short structural reason, never record content.
   failure_reason         TEXT,
   created_at             TEXT NOT NULL,
@@ -82,7 +98,7 @@ CREATE TABLE workspace_restore_operations (
   CONSTRAINT workspace_restore_operations_owner_not_empty
     CHECK (length(owner_id) > 0 AND length(owner_id) <= 256),
   CONSTRAINT workspace_restore_operations_status_valid
-    CHECK (status IN ('staged', 'safety_backed_up', 'applied', 'completed', 'failed')),
+    CHECK (status IN ('staged', 'safety_backup_ready', 'safety_backed_up', 'applied', 'completed', 'failed')),
   CONSTRAINT workspace_restore_operations_mode_valid
     CHECK (mode IN ('into-empty', 'replace')),
   CONSTRAINT workspace_restore_operations_counts_nonneg
@@ -99,6 +115,8 @@ CREATE TABLE workspace_restore_operations (
       AND safety_backup_bytes IS NOT NULL
       AND safety_backup_records IS NOT NULL)
   ),
+  CONSTRAINT workspace_restore_operations_apply_token_not_empty
+    CHECK (apply_token IS NULL OR length(apply_token) > 0),
   CONSTRAINT workspace_restore_operations_created_at_not_empty
     CHECK (length(created_at) > 0),
   CONSTRAINT workspace_restore_operations_updated_at_not_empty

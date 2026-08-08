@@ -73,8 +73,8 @@ Settings → **Privacy & data** → **Restore**.
    Reviews, links, Activity), what this workspace holds now, and what will
    happen.
 4. If this workspace already holds records, DalyHub requires a **safety backup**
-   first — it builds one, verifies it can be read back, and downloads it to you.
-   Save it.
+   first — it builds one, verifies it can be read back, downloads it to you, and
+   waits for your browser to confirm it arrived intact. Save it.
 5. **Confirm.** A replacement asks you to type `REPLACE`.
 6. DalyHub restores, verifies the result, and reports.
 
@@ -92,6 +92,24 @@ default budgets, whatever the source workspace had.
 ---
 
 ## 3. The restore contract, precisely
+
+### The safety backup must reach YOU, not merely exist
+
+A server that has generated and verified a recovery archive has not established
+that the owner **holds** one: the response can still fail in transit. So the
+operation has two distinct states, and only the second unlocks a destructive
+restore:
+
+| State | Means | Destructive restore |
+| --- | --- | --- |
+| `safety_backup_ready` | DalyHub built the archive and read it back through the restore reader | **refused** |
+| `safety_backed_up` | Your browser returned the SHA-256 it computed over the bytes it actually received, and it matched | permitted |
+
+The digest is never sent to the browser — it is computed there, from the response
+body — so the acknowledgement is evidence rather than an echo. A truncated
+download cannot acknowledge itself, and a client that never received a response
+cannot acknowledge at all. If the confirmation does not complete, the restore
+stays locked and says so.
 
 ### Modes
 
@@ -199,7 +217,26 @@ fit in one batch. So the write is split (migration `0035`):
 ```
 
 The atomic step never grows with the data, which is what makes the guarantee hold
-for a workspace of any size. After the cutover commits, DalyHub verifies the
+for a workspace of any size.
+
+**The state transition is enforced inside that transaction, not by a read before
+it.** The first statement of the cutover claims the operation:
+
+```sql
+UPDATE workspace_restore_operations
+   SET status = 'applied', apply_token = ?
+ WHERE workspace_id = ? AND id = ?
+   AND status = ?              -- the exact expected state, and no other
+   AND apply_token IS NULL     -- nobody has claimed it
+```
+
+and every DELETE and INSERT that follows carries `AND EXISTS (… WHERE apply_token
+= <this attempt's token>)`. Two `apply` requests that both observed an acceptable
+state therefore cannot both replace the workspace: one wins the claim, and the
+other's statements match zero rows, so its transaction commits a complete no-op
+and it reports a clean refusal. For a destructive replace the required state is
+the ACKNOWLEDGED `safety_backed_up`, so the concurrency guard and the safety-
+backup gate are the same check. After the cutover commits, DalyHub verifies the
 result against the staged rows — row counts per table, exact id-set membership
 for entities/links/activities, referential integrity, and that nothing landed in
 another workspace. **A failed verification is reported as a failure**, never as
@@ -407,9 +444,9 @@ does not expose.
 
 | Layer | Coverage |
 | --- | --- |
-| Unit | `test/unit/restore/*` — the version gate (future, older, malformed, missing, another application's JSON, and totality); the safety validator (duplicate ids, wrong-type detail rows, spine disagreement, completed Area, self-link, duplicate relationship, blank title, self-declared truncation, and that messages never carry record content); the untrusted ZIP reader (round trip, not-a-ZIP, truncation, tampering, over-size, declared bomb, unsafe path, entry-count, encrypted entry, unsupported method); the flow model; and the Settings controls (inspect-without-writing, the consequence sentence, the safety-backup gate, the typed confirmation, each distinct refusal, failure, success). |
+| Unit | `test/unit/restore/*` — the version gate (future, older, malformed, missing, another application's JSON, and totality); the safety validator (duplicate ids, wrong-type detail rows, spine disagreement, completed Area, self-link, duplicate relationship, blank title, self-declared truncation, and that messages never carry record content); the untrusted ZIP reader (round trip, not-a-ZIP, truncation, tampering, over-size, declared bomb, unsafe path, entry-count, encrypted entry, unsupported method); the flow model; and the Settings controls (inspect-without-writing, the consequence sentence, the safety-backup gate including a generated-but-unconfirmed backup keeping the restore locked, the acknowledgement digest, the typed confirmation, each distinct refusal, failure, success). |
 | Unit (ops) | `test/unit/deploy/production-backup-encryption.test.ts` — a real dump, a real key, real `gpg`: encrypt → prove the plaintext is absent → decrypt → byte-identical → still validates; wrong key fails; a tampered ciphertext fails; metadata refuses a credential field. `test/unit/deploy/production-backup-workflow.test.ts` — the workflow contract. |
-| Kernel / D1 | `test/kernel/workspace-restore.test.ts` — the round trip and semantic equivalence, no manufactured Activity, actor attribution, replace-not-merge, isolation against a crafted archive, every refusal, a failed cutover leaving the workspace untouched, a failed safety backup aborting the restore, a failed verification reported as failure, and staged rows staying inert. `test/kernel/workspace-restore-route.test.ts` — fail closed, no GET, no client-supplied workspace, the safety-backup gate, no internals in a failure. |
+| Kernel / D1 | `test/kernel/workspace-restore.test.ts` — the round trip and semantic equivalence, no manufactured Activity, actor attribution, replace-not-merge, isolation against a crafted archive, every refusal, a failed cutover leaving the workspace untouched, a failed safety backup aborting the restore, a safety backup that is generated but never acknowledged (and one acknowledged with the wrong digest) leaving the restore refused, two concurrent applies where exactly one wins and the other is a clean no-op, a failed verification reported as failure, and staged rows staying inert. `test/kernel/workspace-restore-route.test.ts` — fail closed, no GET, no client-supplied workspace, the safety-backup gate, no internals in a failure. |
 | End-to-end | `e2e/restore.spec.ts` — the Settings surface: choosing a backup, the preview, a corrupt backup, the destructive confirmation, and the restore result. |
 
 ---

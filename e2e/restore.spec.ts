@@ -126,7 +126,8 @@ test.describe("Settings → Privacy & data → restore", () => {
     expect(consequence).toContain("REPLACES");
     expect(consequence).toContain("will be gone");
 
-    // 3. Nothing can start until a safety backup has been saved.
+    // 3. Nothing can start until a safety backup has been saved AND confirmed
+    //    as received by this browser.
     await expect(page.getByTestId("restore-apply")).toBeDisabled();
     await expect(
       page.getByText("Required before restoring over this workspace."),
@@ -146,12 +147,21 @@ test.describe("Settings → Privacy & data → restore", () => {
     await chooseBackup(page, backup);
     await expect(page.getByTestId("restore-preview")).toBeVisible();
 
-    // The safety backup is a real download, and it is verified server-side
-    // before the receipt is recorded.
+    // The safety backup is a real download, verified server-side before the
+    // receipt is recorded — and then ACKNOWLEDGED by the browser, which returns
+    // the SHA-256 it computed over the bytes it actually received. Until that
+    // round trip completes the server has proved it can MAKE a recovery archive,
+    // not that the owner has one, and the restore stays locked.
     const safetyDownload = page.waitForEvent("download");
+    const acknowledged = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/settings/restore/safety-backup-ack") &&
+        response.status() === 200,
+    );
     await page.getByTestId("restore-safety-backup").click();
     const safety = await safetyDownload;
     expect(await safety.path()).toBeTruthy();
+    await acknowledged;
     await expect(page.getByText(/^Saved dalyhub-export-/)).toBeVisible();
 
     // Only now does the destructive action become available.

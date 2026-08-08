@@ -1,7 +1,7 @@
 /**
  * SET-02 — the authenticated restore endpoints
  * (`POST /settings/restore/:step`, where `step` is `preview`, `safety-backup`,
- * `apply` or `discard`).
+ * `safety-backup-ack`, `apply` or `discard`).
  *
  * A resource route: it renders no UI. The whole authorisation story lives here,
  * server-side, and nothing about it is negotiable by the client — the same
@@ -20,11 +20,21 @@
  *     saved views). A backup carries no owner identifier and could not supply
  *     one if it did.
  *
- * The four steps exist as four requests deliberately. Uploading and writing in
+ * The steps exist as separate requests deliberately. Uploading and writing in
  * one call would mean a restore begins the moment a file is chosen, which is
  * exactly what SET-02 forbids: `preview` validates and stages without touching a
  * single canonical row, `safety-backup` produces and VERIFIES a recovery point,
- * `apply` performs the atomic cutover, and `discard` abandons the whole thing.
+ * `safety-backup-ack` records that the COMPLETE archive reached the owner's
+ * browser, `apply` performs the atomic cutover, and `discard` abandons the whole
+ * thing.
+ *
+ * The acknowledgement is its own step for a reason worth stating. A server that
+ * has generated and verified a recovery archive has not established that the
+ * owner HOLDS one — the response can still fail in transit — and a durable state
+ * that said "safety backed up" at that moment would let a later `apply` satisfy
+ * its own gate while the owner has no file. So the client returns the SHA-256 it
+ * computed over the bytes it actually received, the server compares it with the
+ * digest it recorded, and only then is a destructive restore unlocked.
  *
  * Failures never leak internals. The owner gets a short, honest sentence; the
  * structural detail — paths and rule names, never record content — is logged
@@ -41,6 +51,7 @@ import {
 } from "~/kernel/restore";
 import { buildInfo } from "~/lib/version";
 import {
+  acknowledgeSafetyBackup,
   applyRestore,
   createSafetyBackup,
   discardRestore,
@@ -53,10 +64,11 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/restore";
 
-/** The four steps of a restore, in the order they must happen. */
+/** The steps of a restore, in the order they must happen. */
 export const RESTORE_STEPS = [
   "preview",
   "safety-backup",
+  "safety-backup-ack",
   "apply",
   "discard",
 ] as const;
@@ -66,6 +78,15 @@ export type RestoreStep = (typeof RESTORE_STEPS)[number];
 export const RESTORE_FILE_FIELD = "backup";
 /** The form field a prepared restore is referenced by. */
 export const RESTORE_OPERATION_FIELD = "operationId";
+/**
+ * The form field the client returns the safety archive's digest in.
+ *
+ * The client computes it over the bytes it actually received, which is what
+ * makes the acknowledgement evidence rather than an echo: the server never sends
+ * this value, so a client that did not receive the complete file cannot produce
+ * it.
+ */
+export const RESTORE_DIGEST_FIELD = "sha256";
 
 function isStep(value: unknown): value is RestoreStep {
   return (
@@ -264,6 +285,24 @@ export async function action({ params, request, context }: Route.ActionArgs) {
           "x-dalyhub-safety-backup-records": String(backup.receipt.recordCount),
         },
       });
+    }
+
+    if (step === "safety-backup-ack") {
+      const digest = form.get(RESTORE_DIGEST_FIELD);
+      if (typeof digest !== "string" || !/^[0-9a-fA-F]{64}$/.test(digest)) {
+        return json(
+          {
+            ok: false,
+            kind: "restore_failed",
+            message:
+              "The safety backup could not be confirmed. Download it again before replacing this workspace.",
+            workspaceReplaced: false,
+          },
+          400,
+        );
+      }
+      await acknowledgeSafetyBackup(deps, operationId, digest);
+      return json({ ok: true });
     }
 
     if (step === "apply") {

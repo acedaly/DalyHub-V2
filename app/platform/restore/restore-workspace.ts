@@ -177,7 +177,7 @@ export async function createSafetyBackup(
   // Re-read: the update is conditional on the operation still being `staged`,
   // so this is how we learn it actually applied rather than assuming it did.
   const advanced = await deps.restore.readOperation(operationId);
-  if (advanced?.status !== "safety_backed_up") {
+  if (advanced?.status !== "safety_backup_ready") {
     throw new RestoreFailedError(
       "The safety backup could not be recorded, so the restore was abandoned. Nothing has changed.",
       { workspaceReplaced: false },
@@ -187,11 +187,40 @@ export async function createSafetyBackup(
 }
 
 /**
+ * Acknowledge that the owner's browser received the COMPLETE safety archive.
+ *
+ * This, not the act of generating the file, is what unlocks a destructive
+ * restore. The digest the client sends is the one IT computed over the bytes it
+ * actually received, and the server compares it with the digest it recorded when
+ * it produced the file — so a truncated download, a dropped response or a client
+ * that never got one cannot satisfy the gate.
+ */
+export async function acknowledgeSafetyBackup(
+  deps: RestoreDependencies,
+  operationId: string,
+  sha256: string,
+): Promise<void> {
+  await requireOperation(deps, operationId, ["safety_backup_ready"]);
+  const acknowledged = await deps.restore.acknowledgeSafetyBackup(
+    operationId,
+    sha256.trim().toLowerCase(),
+  );
+  if (!acknowledged) {
+    throw new RestoreFailedError(
+      "The safety backup did not arrive intact, so the restore was not unlocked. Download it again before replacing this workspace.",
+      { workspaceReplaced: false },
+    );
+  }
+}
+
+/**
  * Apply a prepared restore.
  *
  * The gate is the OPERATION'S OWN recorded status, read from the database — not
- * a flag the client sends. A destructive replace is refused unless a verified
- * safety backup receipt is already attached to it.
+ * a flag the client sends — and the transition is then enforced again INSIDE the
+ * cutover transaction, so this read is a fast refusal rather than the guarantee.
+ * A destructive replace is refused unless the safety backup has been produced,
+ * verified AND acknowledged as received.
  */
 export async function applyRestore(
   deps: RestoreDependencies,
@@ -199,18 +228,28 @@ export async function applyRestore(
 ): Promise<RestoreResult> {
   const operation = await requireOperation(deps, operationId, [
     "staged",
+    "safety_backup_ready",
     "safety_backed_up",
   ]);
 
-  if (operation.mode === "replace" && operation.safetyBackup === null) {
+  /*
+   * A destructive replace requires the ACKNOWLEDGED state, not merely a receipt.
+   * `safety_backup_ready` means the server made a recovery archive and cannot
+   * show that the owner received it — which is precisely the situation in which
+   * replacing their workspace would leave them with nothing to go back to.
+   */
+  if (operation.mode === "replace" && operation.status !== "safety_backed_up") {
     throw new RestoreFailedError(
-      "This restore would replace your current workspace, and no verified safety backup has been taken yet. Nothing has changed.",
+      operation.status === "safety_backup_ready"
+        ? "The safety backup has not been confirmed as saved to your device, so this workspace will not be replaced. Create it again and let the download finish."
+        : "This restore would replace your current workspace, and no verified safety backup has been taken yet. Nothing has changed.",
       { workspaceReplaced: false },
     );
   }
 
+  let claimed: boolean;
   try {
-    await deps.restore.applyStagedSnapshot(operationId);
+    claimed = await deps.restore.applyStagedSnapshot(operationId);
   } catch (error) {
     // The cutover is one transaction: if it threw, it rolled back and the
     // workspace is exactly as it was. Say so, precisely.
@@ -219,6 +258,23 @@ export async function applyRestore(
       "The restore did not complete, and your workspace was left exactly as it was. No records were changed.",
       { workspaceReplaced: false, cause: error },
     );
+  }
+
+  if (!claimed) {
+    /*
+     * Another request won the claim inside the transaction, so this call wrote
+     * nothing at all. It must NOT discard or fail the operation: that operation
+     * is the winner's, and marking it failed here would delete the staged rows
+     * the winner is still verifying against. A clean refusal is the whole
+     * correct outcome.
+     */
+    throw new RestoreRejectedError({
+      kind: "incompatible",
+      message:
+        "This restore was already being applied, so nothing was done a second time.",
+      issues: [],
+      compatibility: null,
+    });
   }
 
   const verification = await deps.restore.verifyRestored(operationId);

@@ -227,7 +227,22 @@ export interface SafetyBackupReceipt {
 export type RestoreOperationStatus =
   /** Validated and staged; nothing canonical written. */
   | "staged"
-  /** A safety backup was produced and verified. Ready to apply. */
+  /**
+   * A safety backup was produced and verified BY THE SERVER — and not yet
+   * proven to have reached the owner.
+   *
+   * The distinction is the whole point. Generating a valid recovery archive is
+   * not the same as the owner holding one: the response can still fail in
+   * transit, and a durable state that said "safety backed up" at that moment
+   * would let a later apply satisfy its own gate while the owner has no file.
+   * A destructive restore is NOT permitted from this state.
+   */
+  | "safety_backup_ready"
+  /**
+   * The complete safety archive demonstrably reached the client, which
+   * acknowledged it by returning the SHA-256 it computed over the bytes it
+   * actually received. Only this state permits a destructive apply.
+   */
   | "safety_backed_up"
   /**
    * The cutover transaction COMMITTED. Set inside the same batch that replaces
@@ -294,11 +309,31 @@ export interface WorkspaceRestoreRepository {
 
   readOperation(operationId: string): Promise<RestoreOperationRecord | null>;
 
-  /** Attach a verified safety backup receipt and advance the operation. */
+  /**
+   * Attach a verified safety-backup receipt and advance the operation to
+   * `safety_backup_ready`. This records that the SERVER produced and verified
+   * an archive; it does not yet permit a destructive restore.
+   */
   recordSafetyBackup(
     operationId: string,
     receipt: SafetyBackupReceipt,
   ): Promise<void>;
+
+  /**
+   * Record that the client received the COMPLETE safety archive, advancing the
+   * operation to `safety_backed_up`.
+   *
+   * `sha256` is the digest the client computed over the bytes it actually
+   * received, and it is compared against the digest the server recorded when it
+   * produced the file. A truncated or corrupted delivery therefore cannot
+   * acknowledge itself, and neither can a client that never received a
+   * response. Returns `false` when the digest does not match or the operation is
+   * not awaiting acknowledgement.
+   */
+  acknowledgeSafetyBackup(
+    operationId: string,
+    sha256: string,
+  ): Promise<boolean>;
 
   /**
    * Replace the workspace's records with the staged rows in ONE transaction.
@@ -306,8 +341,21 @@ export interface WorkspaceRestoreRepository {
    * This is the only method that touches canonical data. It either commits
    * entirely or not at all: there is no state in which some collections are the
    * backup's and others are the old workspace's.
+   *
+   * The valid state transition is enforced INSIDE that transaction, not by a
+   * read before it. The first statement claims the operation with an `UPDATE …
+   * WHERE status = <the exact expected state> AND apply_token IS NULL`, and
+   * every DELETE and INSERT that follows is conditioned on that exact claim
+   * token. Two concurrent applies therefore cannot both replace the workspace:
+   * one wins the claim, and the other's statements match zero rows and commit a
+   * complete no-op.
+   *
+   * Returns `true` when THIS call performed the cutover, and `false` when it
+   * lost the claim. A `false` return means the workspace was not touched by this
+   * call, and the caller must not treat the operation as its own to fail or
+   * discard — it belongs to the winner.
    */
-  applyStagedSnapshot(operationId: string): Promise<void>;
+  applyStagedSnapshot(operationId: string): Promise<boolean>;
 
   /**
    * Read back the restored workspace and check it against the STAGED rows.

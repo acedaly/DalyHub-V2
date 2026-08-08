@@ -28,6 +28,7 @@ export {
 } from "./zip-reader";
 
 export {
+  acknowledgeSafetyBackup,
   applyRestore,
   createSafetyBackup,
   discardRestore,

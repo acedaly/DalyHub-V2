@@ -1051,7 +1051,7 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
           `UPDATE workspace_restore_operations
            SET status = 'failed', failure_reason = 'expired', updated_at = ?
            WHERE workspace_id = ?
-             AND status IN ('staged', 'safety_backed_up', 'applied')
+             AND status IN ('staged', 'safety_backup_ready', 'safety_backed_up', 'applied')
              AND created_at < ?`,
         )
         .bind(this.#now().toISOString(), this.#workspaceId, cutoff),
@@ -1062,7 +1062,7 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
              AND operation_id NOT IN (
                SELECT id FROM workspace_restore_operations
                WHERE workspace_id = ?
-                 AND status IN ('staged', 'safety_backed_up', 'applied')
+                 AND status IN ('staged', 'safety_backup_ready', 'safety_backed_up', 'applied')
              )`,
         )
         .bind(this.#workspaceId, this.#workspaceId),
@@ -1160,6 +1160,15 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
       .run();
   }
 
+  /**
+   * Record that the SERVER produced and verified a safety archive.
+   *
+   * This advances to `safety_backup_ready`, NOT to `safety_backed_up`. The
+   * difference is the reviewer's point and it is load-bearing: at this instant
+   * the file exists on the server and the owner may still never receive it, so a
+   * state that permitted a destructive apply here would let the gate be
+   * satisfied by a backup nobody holds.
+   */
   async recordSafetyBackup(
     operationId: string,
     receipt: SafetyBackupReceipt,
@@ -1167,7 +1176,7 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
     await this.#db
       .prepare(
         `UPDATE workspace_restore_operations
-         SET status = 'safety_backed_up',
+         SET status = 'safety_backup_ready',
              safety_backup_filename = ?, safety_backup_sha256 = ?,
              safety_backup_bytes = ?, safety_backup_records = ?, updated_at = ?
          WHERE workspace_id = ? AND id = ? AND status = 'staged'`,
@@ -1184,47 +1193,126 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
       .run();
   }
 
+  /**
+   * Record that the CLIENT received the complete safety archive.
+   *
+   * The digest is compared inside the `UPDATE`'s own `WHERE` clause against the
+   * one the server recorded when it produced the file, so a truncated or
+   * corrupted delivery cannot acknowledge itself and a client that never got a
+   * response cannot either. Returns whether the transition actually happened —
+   * never whether it was merely requested.
+   */
+  async acknowledgeSafetyBackup(
+    operationId: string,
+    sha256: string,
+  ): Promise<boolean> {
+    const result = await this.#db
+      .prepare(
+        `UPDATE workspace_restore_operations
+         SET status = 'safety_backed_up', updated_at = ?
+         WHERE workspace_id = ? AND id = ?
+           AND status = 'safety_backup_ready'
+           AND safety_backup_sha256 = ?`,
+      )
+      .bind(this.#now().toISOString(), this.#workspaceId, operationId, sha256)
+      .run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
   /* -- cutover ----------------------------------------------------------- */
 
   /**
    * Replace the workspace's records with the staged rows, atomically.
    *
-   * The whole method is ONE `db.batch()`, therefore ONE transaction. The status
-   * update rides inside it, so "the workspace is now the backup's" is committed
-   * together with the data rather than inferred afterwards.
+   * The whole method is ONE `db.batch()`, therefore ONE transaction — and the
+   * valid STATE TRANSITION is enforced inside it rather than by a read before
+   * it. The first statement claims the operation:
+   *
+   * ```sql
+   * UPDATE workspace_restore_operations
+   *    SET status = 'applied', apply_token = ?
+   *  WHERE workspace_id = ? AND id = ?
+   *    AND status = ?              -- the exact expected state, no other
+   *    AND apply_token IS NULL     -- nobody has claimed it
+   * ```
+   *
+   * and every DELETE and INSERT that follows carries
+   * `AND EXISTS (… WHERE apply_token = <this call's token>)`. Two concurrent
+   * applies therefore cannot both replace the workspace: one wins the claim, and
+   * the loser's statements all match zero rows, so its transaction commits a
+   * complete no-op rather than a second wholesale delete/insert cycle.
+   *
+   * Returns whether THIS call performed the cutover.
    */
-  async applyStagedSnapshot(operationId: string): Promise<void> {
+  async applyStagedSnapshot(operationId: string): Promise<boolean> {
     const operation = await this.#db
       .prepare(
-        `SELECT owner_id, status FROM workspace_restore_operations
+        `SELECT owner_id, mode, status FROM workspace_restore_operations
          WHERE workspace_id = ? AND id = ? LIMIT 1`,
       )
       .bind(this.#workspaceId, operationId)
-      .first<{ owner_id: string; status: string }>();
+      .first<{ owner_id: string; mode: string; status: string }>();
     if (operation === null) {
       throw new Error("The restore operation no longer exists.");
     }
     const ownerId = operation.owner_id;
+    /*
+     * The precondition the transaction will require. A destructive replace
+     * demands the ACKNOWLEDGED safety-backup state — not `safety_backup_ready`,
+     * which only says the server made a file. This value is derived from `mode`,
+     * which never changes after the operation is created, so reading it here
+     * introduces no race: the status itself is only ever compared inside the
+     * `UPDATE` below.
+     */
+    const requiredStatus =
+      operation.mode === "replace" ? "safety_backed_up" : "staged";
+    const token = `${operationId}:${crypto.randomUUID()}`;
     const now = this.#now().toISOString();
     const statements: D1PreparedStatement[] = [];
 
-    // 1. Clear the workspace, children strictly before parents.
+    // 1. Claim the cutover. Exactly one concurrent call can win this.
+    statements.push(
+      this.#db
+        .prepare(
+          `UPDATE workspace_restore_operations
+           SET status = 'applied', apply_token = ?, updated_at = ?
+           WHERE workspace_id = ? AND id = ?
+             AND status = ? AND apply_token IS NULL`,
+        )
+        .bind(token, now, this.#workspaceId, operationId, requiredStatus),
+    );
+
+    // Every write below is conditioned on THIS call holding the claim.
+    const claimed = `EXISTS (SELECT 1 FROM workspace_restore_operations o
+             WHERE o.workspace_id = ? AND o.id = ? AND o.apply_token = ?)`;
+
+    // 2. Clear the workspace, children strictly before parents.
     for (const collection of [...STAGED_COLLECTIONS].reverse()) {
       const descriptor = TABLES[collection]!;
       statements.push(
         descriptor.ownerScoped === true
           ? this.#db
               .prepare(
-                `DELETE FROM ${descriptor.table} WHERE workspace_id = ? AND owner_id = ?`,
+                `DELETE FROM ${descriptor.table}
+                 WHERE workspace_id = ? AND owner_id = ? AND ${claimed}`,
               )
-              .bind(this.#workspaceId, ownerId)
+              .bind(
+                this.#workspaceId,
+                ownerId,
+                this.#workspaceId,
+                operationId,
+                token,
+              )
           : this.#db
-              .prepare(`DELETE FROM ${descriptor.table} WHERE workspace_id = ?`)
-              .bind(this.#workspaceId),
+              .prepare(
+                `DELETE FROM ${descriptor.table}
+                 WHERE workspace_id = ? AND ${claimed}`,
+              )
+              .bind(this.#workspaceId, this.#workspaceId, operationId, token),
       );
     }
 
-    // 2. Insert the backup, parents strictly before children. `workspace_id` is
+    // 3. Insert the backup, parents strictly before children. `workspace_id` is
     //    a bound literal from the server's context — never a value from the
     //    staged row — so a crafted archive cannot name a destination.
     for (const collection of STAGED_COLLECTIONS) {
@@ -1236,31 +1324,46 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
              SELECT ?, ${projection(descriptor)}
              FROM workspace_restore_staged_rows
              WHERE workspace_id = ? AND operation_id = ? AND collection = ?
+               AND ${claimed}
              ORDER BY sequence`,
           )
-          .bind(this.#workspaceId, this.#workspaceId, operationId, collection),
+          .bind(
+            this.#workspaceId,
+            this.#workspaceId,
+            operationId,
+            collection,
+            this.#workspaceId,
+            operationId,
+            token,
+          ),
       );
     }
 
-    // 3. The workspace's own `updated_at` reflects the restore. Its `id` and
+    // 4. The workspace's own `updated_at` reflects the restore. Its `id` and
     //    `created_at` stay the TARGET's: the backup's workspace identity is
     //    provenance, and adopting it would be exactly the cross-workspace write
     //    this design forbids.
     statements.push(
       this.#db
-        .prepare("UPDATE workspaces SET updated_at = ? WHERE id = ?")
-        .bind(now, this.#workspaceId),
-    );
-    statements.push(
-      this.#db
         .prepare(
-          `UPDATE workspace_restore_operations SET status = 'applied', updated_at = ?
-           WHERE workspace_id = ? AND id = ?`,
+          `UPDATE workspaces SET updated_at = ?
+           WHERE id = ? AND ${claimed}`,
         )
-        .bind(now, this.#workspaceId, operationId),
+        .bind(now, this.#workspaceId, this.#workspaceId, operationId, token),
     );
 
     await this.#db.batch(statements);
+
+    // Whether this call won is a fact about the committed row, not about what
+    // was attempted — so it is read back rather than inferred.
+    const after = await this.#db
+      .prepare(
+        `SELECT apply_token FROM workspace_restore_operations
+         WHERE workspace_id = ? AND id = ? LIMIT 1`,
+      )
+      .bind(this.#workspaceId, operationId)
+      .first<{ apply_token: string | null }>();
+    return after?.apply_token === token;
   }
 
   /* -- verification ------------------------------------------------------ */

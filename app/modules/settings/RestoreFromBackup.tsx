@@ -49,6 +49,20 @@ function filenameFromDisposition(
   return match?.[1] ?? fallback;
 }
 
+/**
+ * The SHA-256 of the bytes this browser actually received, as lowercase hex.
+ *
+ * This is what turns the safety-backup acknowledgement into evidence rather than
+ * an echo: the server never sends the digest, so a client that received a
+ * truncated response — or no response — cannot produce it.
+ */
+async function digestHex(bytes: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -202,7 +216,39 @@ export function RestoreFromBackup() {
         response.headers.get("content-disposition"),
         "dalyhub-safety-backup.zip",
       );
-      saveBlob(await response.blob(), saved);
+      /*
+       * Read the WHOLE response before anything is claimed. A partial body
+       * throws here, which is exactly the case that must not unlock a
+       * destructive restore.
+       */
+      const received = await response.arrayBuffer();
+      saveBlob(new Blob([received], { type: "application/zip" }), saved);
+
+      /*
+       * Tell the server what actually arrived. Until this succeeds the restore
+       * stays locked, because up to this point only the SERVER knows a valid
+       * recovery archive exists — and the owner's copy is the whole point.
+       */
+      const ack = new FormData();
+      ack.append("operationId", preview.operationId);
+      ack.append("sha256", await digestHex(received));
+      const acknowledged = await fetch("/settings/restore/safety-backup-ack", {
+        method: "POST",
+        body: ack,
+      });
+      if (!acknowledged.ok) {
+        const failure = (await acknowledged
+          .json()
+          .catch(() => ({}))) as FailureBody;
+        setState({
+          kind: "failed",
+          message:
+            failure.message ??
+            "The safety backup did not arrive intact, so the restore was not unlocked. Try again.",
+          workspaceReplaced: false,
+        });
+        return;
+      }
       setState({
         kind: "ready",
         filename,

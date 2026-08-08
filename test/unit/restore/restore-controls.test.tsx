@@ -79,6 +79,53 @@ function zipResponse(filename: string): Response {
   });
 }
 
+/**
+ * The safety-backup route sequence: the archive, then the acknowledgement.
+ *
+ * `ackOk: false` models the case that matters most — the server made a valid
+ * recovery archive and the client's confirmation did NOT complete. The restore
+ * must stay locked.
+ */
+function safetyBackupFetch(
+  options: { readonly destructive: boolean; readonly ackOk?: boolean } = {
+    destructive: true,
+  },
+) {
+  return vi.fn((url: string, init?: RequestInit) => {
+    void init;
+    if (url === "/settings/restore/preview") {
+      return Promise.resolve(
+        jsonResponse({
+          ok: true,
+          preview: preview({ destructive: options.destructive }),
+        }),
+      );
+    }
+    if (url === "/settings/restore/safety-backup") {
+      return Promise.resolve(zipResponse("dalyhub-export-safety.zip"));
+    }
+    if (url === "/settings/restore/safety-backup-ack") {
+      return Promise.resolve(
+        (options.ackOk ?? true)
+          ? jsonResponse({ ok: true })
+          : jsonResponse(
+              {
+                ok: false,
+                kind: "restore_failed",
+                message:
+                  "The safety backup did not arrive intact, so the restore was not unlocked. Download it again before replacing this workspace.",
+                workspaceReplaced: false,
+              },
+              500,
+            ),
+      );
+    }
+    return Promise.resolve(
+      jsonResponse({ ok: true, result: { restored: counts(42) } }),
+    );
+  });
+}
+
 function chooseFile() {
   const input = screen.getByTestId("restore-file");
   const file = new File([new Uint8Array([1, 2, 3])], "dalyhub-export.zip", {
@@ -164,14 +211,8 @@ describe("RestoreFromBackup", () => {
     expect(sentence).toMatch(/will be gone/);
   });
 
-  it("will not start a destructive restore until a safety backup is saved", async () => {
-    const fetchMock = vi.fn((url: string) =>
-      Promise.resolve(
-        url === "/settings/restore/preview"
-          ? jsonResponse({ ok: true, preview: preview({ destructive: true }) })
-          : zipResponse("dalyhub-export-safety.zip"),
-      ),
-    );
+  it("will not start a destructive restore until a safety backup is saved AND confirmed", async () => {
+    const fetchMock = safetyBackupFetch({ destructive: true });
     vi.stubGlobal("fetch", fetchMock);
     renderControls();
     chooseFile();
@@ -187,17 +228,40 @@ describe("RestoreFromBackup", () => {
     await waitFor(() => {
       expect(screen.getByTestId("restore-apply")).toBeEnabled();
     });
+
+    // The confirmation is a SEPARATE request carrying a digest the client
+    // computed over the bytes it received — the server never sent it, so it
+    // cannot be an echo.
+    const ack = fetchMock.mock.calls.find(
+      (call) => call[0] === "/settings/restore/safety-backup-ack",
+    );
+    expect(ack, "no acknowledgement was sent").toBeDefined();
+    const body = ack![1]!.body as FormData;
+    expect(String(body.get("sha256"))).toMatch(/^[0-9a-f]{64}$/);
+    expect(body.get("operationId")).toBe("op-1");
+  });
+
+  it("keeps the restore locked when the safety backup is generated but never confirmed", async () => {
+    // The server made a valid archive; the delivery/acknowledgement did not
+    // complete. This is the exact case that must not unlock a replacement.
+    vi.stubGlobal(
+      "fetch",
+      safetyBackupFetch({ destructive: true, ackOk: false }),
+    );
+    renderControls();
+    chooseFile();
+    await waitFor(() => screen.getByTestId("restore-safety-backup"));
+    fireEvent.click(screen.getByTestId("restore-safety-backup"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/did not arrive intact/i)).toBeInTheDocument();
+    });
+    // No restore action at all — not a disabled one the owner can wonder about.
+    expect(screen.queryByTestId("restore-apply")).not.toBeInTheDocument();
   });
 
   it("requires the typed confirmation before a replacement can be confirmed", async () => {
-    const fetchMock = vi.fn((url: string) =>
-      Promise.resolve(
-        url === "/settings/restore/preview"
-          ? jsonResponse({ ok: true, preview: preview({ destructive: true }) })
-          : zipResponse("safety.zip"),
-      ),
-    );
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", safetyBackupFetch({ destructive: true }));
     renderControls();
     chooseFile();
     await waitFor(() => screen.getByTestId("restore-safety-backup"));

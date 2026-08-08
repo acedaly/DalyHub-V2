@@ -46,6 +46,7 @@ import {
   buildWorkspaceSnapshot,
 } from "~/platform/export";
 import {
+  acknowledgeSafetyBackup,
   applyRestore,
   createSafetyBackup,
   prepareRestore,
@@ -366,6 +367,22 @@ describe("workspace backup and restore (D1)", () => {
     // The receipt is only meaningful because the file is itself restorable.
     await expect(readBackupArchive(safety.bytes)).resolves.toBeDefined();
 
+    // Generating the archive is not the same as the owner holding it, so the
+    // gate is still closed until delivery is acknowledged.
+    expect(
+      (await deps.restore.readOperation(preview.operationId))?.status,
+    ).toBe("safety_backup_ready");
+    await expect(applyRestore(deps, preview.operationId)).rejects.toMatchObject(
+      {
+        workspaceReplaced: false,
+      },
+    );
+    await acknowledgeSafetyBackup(
+      deps,
+      preview.operationId,
+      safety.receipt.sha256,
+    );
+
     const result = await applyRestore(deps, preview.operationId);
     expect(result.mode).toBe("replace");
     expect(result.verification.passed).toBe(true);
@@ -391,7 +408,12 @@ describe("workspace backup and restore (D1)", () => {
       .run();
 
     const preview = await prepareRestore(deps, archive);
-    await createSafetyBackup(deps, preview.operationId);
+    const safety = await createSafetyBackup(deps, preview.operationId);
+    await acknowledgeSafetyBackup(
+      deps,
+      preview.operationId,
+      safety.receipt.sha256,
+    );
     await applyRestore(deps, preview.operationId);
 
     const survivor = await env.DB.prepare(
@@ -598,6 +620,8 @@ describe("workspace backup and restore (D1)", () => {
       readOperation: (id) => base.restore.readOperation(id),
       recordSafetyBackup: (id, receipt) =>
         base.restore.recordSafetyBackup(id, receipt),
+      acknowledgeSafetyBackup: (id, sha256) =>
+        base.restore.acknowledgeSafetyBackup(id, sha256),
       applyStagedSnapshot: (id) => base.restore.applyStagedSnapshot(id),
       verifyRestored: () => Promise.resolve(failing),
       discardOperation: (id, reason) =>
@@ -639,5 +663,122 @@ describe("workspace backup and restore (D1)", () => {
     expect(afterwards?.n).toBe(0);
     const operation = await deps.restore.readOperation(preview.operationId);
     expect(operation?.status).toBe("completed");
+  });
+  /* ------------------------------------------------------------------ */
+  /* The safety backup must reach the OWNER, not merely exist            */
+  /* ------------------------------------------------------------------ */
+
+  it("does not unlock a destructive restore until the owner's copy is acknowledged", async () => {
+    const deps = dependencies(SOURCE);
+    const preview = await prepareRestore(deps, archive);
+    expect(preview.destructive).toBe(true);
+
+    const safety = await createSafetyBackup(deps, preview.operationId);
+
+    // The server has produced AND verified a recovery archive. That is not the
+    // same claim as "the owner has one", and the state machine says so.
+    const ready = await deps.restore.readOperation(preview.operationId);
+    expect(ready?.status).toBe("safety_backup_ready");
+    expect(ready?.safetyBackup?.sha256).toBe(safety.receipt.sha256);
+
+    // A delivery that never completed cannot unlock the restore…
+    await expect(applyRestore(deps, preview.operationId)).rejects.toMatchObject(
+      {
+        workspaceReplaced: false,
+      },
+    );
+    expect(await countRecords(SOURCE)).toBe(source.records.entities.length);
+
+    // …and neither can an acknowledgement of DIFFERENT bytes: a truncated or
+    // corrupted download cannot acknowledge itself.
+    const truncated = safety.bytes.slice(0, safety.bytes.length - 512);
+    const wrongDigest = [
+      ...new Uint8Array(
+        await crypto.subtle.digest(
+          "SHA-256",
+          truncated as unknown as ArrayBuffer,
+        ),
+      ),
+    ]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    await expect(
+      acknowledgeSafetyBackup(deps, preview.operationId, wrongDigest),
+    ).rejects.toMatchObject({ workspaceReplaced: false });
+    expect(
+      (await deps.restore.readOperation(preview.operationId))?.status,
+    ).toBe("safety_backup_ready");
+    await expect(applyRestore(deps, preview.operationId)).rejects.toThrow(
+      RestoreFailedError,
+    );
+    expect(await countRecords(SOURCE)).toBe(source.records.entities.length);
+
+    // Only the digest of what actually arrived opens the gate.
+    await acknowledgeSafetyBackup(
+      deps,
+      preview.operationId,
+      safety.receipt.sha256,
+    );
+    expect(
+      (await deps.restore.readOperation(preview.operationId))?.status,
+    ).toBe("safety_backed_up");
+    const result = await applyRestore(deps, preview.operationId);
+    expect(result.verification.passed).toBe(true);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Exactly one apply can win                                           */
+  /* ------------------------------------------------------------------ */
+
+  it("lets exactly one of two concurrent applies win, and the other is a clean no-op", async () => {
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, archive);
+
+    // Both requests observe an acceptable state before either writes — the
+    // read-then-write gap the transactional claim exists to close.
+    const outcomes = await Promise.allSettled([
+      applyRestore(deps, preview.operationId),
+      applyRestore(deps, preview.operationId),
+    ]);
+    const won = outcomes.filter((outcome) => outcome.status === "fulfilled");
+    const lost = outcomes.filter((outcome) => outcome.status === "rejected");
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(1);
+
+    // The loser is a refusal, not a second wholesale delete/insert cycle…
+    const rejection = (lost[0] as PromiseRejectedResult).reason;
+    expect(rejection).toBeInstanceOf(RestoreRejectedError);
+
+    // …and the workspace holds the backup exactly once, not twice and not
+    // partially. If the loser had re-run the cutover it would have deleted the
+    // winner's rows between the winner's write and this read.
+    expect(await countRecords(TARGET)).toBe(source.records.entities.length);
+    const restored = await exportSnapshot(TARGET);
+    expect(restored.records).toEqual(source.records);
+
+    // Exactly one claim token is recorded, and the operation moved once.
+    const claims = await env.DB.prepare(
+      "SELECT apply_token, status FROM workspace_restore_operations WHERE workspace_id = ? AND id = ?",
+    )
+      .bind(TARGET, preview.operationId)
+      .first<{ apply_token: string | null; status: string }>();
+    expect(claims?.apply_token).toBeTruthy();
+    expect(["applied", "completed"]).toContain(claims?.status);
+  });
+
+  it("refuses a second apply after the first has completed, without touching the workspace", async () => {
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, archive);
+    await applyRestore(deps, preview.operationId);
+    const after = await countRecords(TARGET);
+
+    await expect(applyRestore(deps, preview.operationId)).rejects.toThrow(
+      RestoreRejectedError,
+    );
+    expect(await countRecords(TARGET)).toBe(after);
   });
 });

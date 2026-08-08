@@ -178,7 +178,7 @@ describe("restore route (D1)", () => {
     expect(body.preview.target.workspaceId).toBe(WS);
   });
 
-  it("refuses a destructive apply until a safety backup has been recorded", async () => {
+  it("refuses a destructive apply until the safety backup is confirmed as received", async () => {
     const preview = (await (
       await post("preview", fileForm(archive))
     ).json()) as {
@@ -193,14 +193,47 @@ describe("restore route (D1)", () => {
     expect(body.ok).toBe(false);
     expect(body.message).toContain("no verified safety backup");
 
-    // The safety backup is produced by the route itself, and only then does
-    // apply succeed.
+    // The safety backup is produced by the route itself…
     const safety = await post("safety-backup", form);
     expect(safety.status).toBe(200);
     expect(safety.headers.get("content-type")).toBe("application/zip");
     expect(safety.headers.get("content-disposition")).toContain("attachment");
     expect(safety.headers.get("cache-control")).toContain("no-store");
-    expect((await safety.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    // …and the digest is deliberately NOT handed to the client, so an
+    // acknowledgement cannot be an echo of something the server said.
+    expect(safety.headers.get("x-dalyhub-safety-backup-sha256")).toBeNull();
+    const bytes = await safety.arrayBuffer();
+    expect(bytes.byteLength).toBeGreaterThan(0);
+
+    // Generating it is not enough: the owner has to have received it.
+    const stillRefused = await post("apply", form);
+    expect(stillRefused.status).toBe(500);
+    expect(
+      ((await stillRefused.json()) as { message: string }).message,
+    ).toContain("not been confirmed as saved");
+
+    // A malformed or wrong digest is refused…
+    const bogus = new FormData();
+    bogus.append("operationId", preview.preview.operationId);
+    bogus.append("sha256", "not-a-digest");
+    expect((await post("safety-backup-ack", bogus)).status).toBe(400);
+
+    const mismatched = new FormData();
+    mismatched.append("operationId", preview.preview.operationId);
+    mismatched.append("sha256", "0".repeat(64));
+    expect((await post("safety-backup-ack", mismatched)).status).toBe(500);
+    expect((await post("apply", form)).status).toBe(500);
+
+    // …and only the digest of what actually arrived unlocks the restore.
+    const ack = new FormData();
+    ack.append("operationId", preview.preview.operationId);
+    ack.append(
+      "sha256",
+      [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join(""),
+    );
+    expect((await post("safety-backup-ack", ack)).status).toBe(200);
 
     const applied = await post("apply", form);
     expect(applied.status).toBe(200);
