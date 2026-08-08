@@ -1339,3 +1339,72 @@ false positive on one shared SelectField in the Tasks Drawer).
 | Kernel/D1 | `test/kernel/task-recurrence-modes.test.ts` | A pre-TASKS-07 row (no `mode` in the insert) completed late; both modes; bulk completion honouring each series' own mode; skip; the two series scopes; stopping a repeat |
 | Kernel/D1 | `test/kernel/task-bulk-operations.test.ts` | Bulk move (including link restore and Inbox), bulk reopen with successor withdrawal/retention, reversible delete + restore, the archived-parent refusal, workspace isolation and the batch bound |
 | E2E | `e2e/tasks-v22-daily-driver.spec.ts` | Scenarios B–F: direct edit, bulk cleanup with a reversible delete, custom recurrence in both modes, skip/stop, the phone at 390px, and the width matrix including the Deleted view |
+
+### Keyboard, and Today, after V2.2
+
+**No new global shortcut was introduced, and that is a decision rather than an
+omission.** The reserved cross-app vocabulary was audited first (DS-09: `⌘K` for the
+palette, `/` for search, `c` for capture, `j`/`k` and the arrows inside a queue, `Esc`
+to dismiss), and every V2.2 capability already had a keyboard path through it:
+
+| Action | Keyboard path |
+| --- | --- |
+| Create a task | `c` (global capture), or Tab to the quick-add row and press Enter |
+| Open the selected task | Tab to the row's title control and press Enter |
+| Complete a task | Tab to the row's Complete action, or the palette |
+| Edit priority / a date / the parent | Tab to the inline field and press Enter or Space — it is a real control, not a hover affordance |
+| Enter and leave selection | The header's **Select tasks** toggle; Space on a row's checkbox; **Done** to leave |
+| Extend a range | Shift-click, with the checkbox reachable by keyboard for individual selection |
+| Every bulk action | The bulk bar is an ordinary labelled control group in the tab order |
+
+Adding, say, `p` for priority or `x` for select would collide with typing in the
+quick-add field — which is always on screen — and would need a modal "task focus" mode
+the collection does not have. The one genuine gap remains discoverability rather than
+reachability, which is [DEBT-18](../product/PRODUCT_DEBT.md)'s existing subject.
+
+**Today was re-audited after the recurrence changes and needed no change.** It cannot
+show a phantom future occurrence, because the model materialises exactly one successor
+and only on completion (ADR-062); it cannot duplicate a series for the same reason; it
+already excludes `on_hold` alongside Someday/Maybe and cancelled (TASKS-04 closed
+DEBT-37); and it reads the canonical scheduled date, so due and scheduled cannot be
+confused. A skipped occurrence simply moves to its next date and Today follows, because
+Today reads the same field. The existing kernel suite asserting that a recurring
+successor appears on Today as ordinary active work still passes unchanged.
+
+### Concurrency and performance (V2.2, measured)
+
+**Concurrency.** Every V2.2 mutation reuses the existing guarded-write contract rather
+than inventing one:
+
+- the **series operations** (`moveTaskOccurrence`, `skipTaskOccurrence`) anchor on the
+  guarded OPEN-task bump, so a completion, a delete or a Project archived between the
+  read and the write causes the whole group to no-op and the caller is told;
+- **bulk reopen** gates each spine clear on the exact `completed_at` it observed, so a
+  concurrent reopen loses cleanly rather than double-writing;
+- **bulk delete and restore** gate on the current lifecycle state (`deleted_at IS NULL`
+  / `IS NOT NULL`), and restore additionally re-checks the retained parent INSIDE the
+  UPDATE — so a Project archived mid-flight cannot receive restored work;
+- **two tabs editing one recurrence rule** cannot produce an incoherent series: the rule
+  lives on the occurrence, `setTaskRecurrence` writes it in one batch behind the guarded
+  bump, and the series identity is never re-parented by an edit.
+
+**Reads are unchanged in shape.** No V2.2 surface added a query. The row's inline
+parent menu is drawn from the loader's EXISTING bounded parent option set, so opening it
+costs nothing and there is no per-row Project lookup. The bulk bar's summaries are
+computed from the already-loaded rows. Bulk mutations do a bounded validation read per
+selected id (the established pattern for `setPriorityMany` and friends, capped at 100)
+and then exactly ONE `D1Database.batch()` — never one request per task.
+
+**Bundle, measured against `main` at `808a9b6`** (`pnpm run build`, byte sizes of
+`build/client/assets`):
+
+| | Baseline | V2.2 | Δ |
+|---|---|---|---|
+| **`entry.client` (the initial bundle)** | 182,542 | 182,542 | **0** |
+| All client assets | 2,534,255 | 2,555,588 | +21,333 (+0.84%) |
+
+The **initial bundle is byte-identical**: everything V2.2 adds lands in the lazily
+loaded `/tasks` route chunk, the shared task-record chunk and token-only CSS. Nothing
+was added to the app shell. (The shared `useCardLongPress` hook does reach the Card,
+which the shell does load — its cost is a media-query listener and a timer, and it is
+inert unless a consumer supplies `onLongPress`.)
