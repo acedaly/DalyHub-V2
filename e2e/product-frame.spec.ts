@@ -75,9 +75,18 @@ test.describe("PX-02 frame — desktop", () => {
     // The tagline belongs on About, not in a navigation rail.
     await expect(brand.getByText("Your life. Connected.")).toHaveCount(0);
 
-    // The frame carries exactly one brand mark: the banner must not grow a
-    // second copy now that it is a separate landmark from the brand block.
-    await expect(page.locator(".dh-brand-mark")).toHaveCount(1);
+    // The frame carries exactly one VISIBLE brand mark: the banner must not grow
+    // a second copy now that it is a separate landmark from the brand block.
+    //
+    // Visible, not present. The shell server-renders both top bars and hides the
+    // phone one with `display: none` (`.dh-mobilebar`, shell.css) — one source of
+    // truth, no hydration mismatch — so the phone bar's decorative mark is in the
+    // document at every width and in the accessibility tree at none of them.
+    // Counting DOM nodes made this assertion fail on a second mark no desktop
+    // user can see, which is not what "the frame carries one brand mark" means.
+    await expect(
+      page.locator(".dh-brand-mark").filter({ visible: true }),
+    ).toHaveCount(1);
   });
 
   test("user menu holds identity + sign out, and Escape restores focus", async ({

@@ -131,8 +131,17 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
       summaryCards(page).getByText("Last interaction"),
     ).toBeVisible();
     await expect(summaryCards(page).getByText("None yet")).toBeVisible();
+    /*
+     * The derived STATE is on the record's header context line, not inside the
+     * panel: RECORD-01 removed the panel's own pill because the header already
+     * carried the same `StayInTouchIndicator` on every tab, and one fact stated
+     * twice in one view is what that convergence removed. The panel keeps the
+     * half the chip cannot do — WHY — so both halves are asserted, each where
+     * the product actually puts it.
+     */
+    await expect(page.getByText("No shared history yet").first()).toBeVisible();
     await expect(
-      stayInTouch(page).getByText("No shared history yet"),
+      stayInTouch(page).getByText("Not enough history yet"),
     ).toBeVisible();
     await expect(summaryCards(page).getByText("Notes")).toHaveCount(0);
 

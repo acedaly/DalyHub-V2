@@ -131,9 +131,22 @@ async function createAsset(
  * route the record offers rather than each test encoding the hierarchy.
  */
 async function startCapture(page: Page, label: string): Promise<void> {
-  const exposed = page
-    .locator(".dh-record-toolbar")
-    .getByRole("button", { name: label });
+  /*
+   * Which capture is EXPOSED depends on the asset's type — a thing that is
+   * serviced leads with "Record service", everything else is behind the
+   * overflow — so this asks the toolbar which one it is.
+   *
+   * The toolbar is waited for before the question is asked. `count()` does not
+   * auto-wait, so calling it straight after a tab click reads the panel before
+   * it has rendered: the answer is always 0, the helper takes the overflow
+   * branch, and then waits out the whole test budget for a menu item that is
+   * not in the menu BECAUSE it is the exposed button. That is what made this
+   * spec's theme sweep burn six minutes on a locator that was on screen the
+   * whole time.
+   */
+  const toolbar = page.locator(".dh-record-toolbar");
+  await expect(toolbar).toBeVisible();
+  const exposed = toolbar.getByRole("button", { name: label });
   if ((await exposed.count()) > 0) {
     await exposed.click();
     return;
