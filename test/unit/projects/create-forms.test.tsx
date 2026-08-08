@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
 import { NewProjectForm } from "~/modules/projects/NewProjectForm";
-import { NewTaskForm } from "~/modules/projects/NewTaskForm";
+import { NewProjectTaskForm } from "~/modules/projects/NewProjectTaskForm";
 
 /**
  * PROJ-01 — the DS-06 create forms as behaviour: required-field validation,
@@ -196,7 +196,7 @@ describe("NewProjectForm", () => {
   });
 });
 
-describe("NewTaskForm", () => {
+describe("NewProjectTaskForm", () => {
   it("requires a title and posts create_task to the project mutate route", async () => {
     const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) =>
       jsonResponse({ kind: "create_task", ok: true, taskId: "t-new" }),
@@ -204,7 +204,11 @@ describe("NewTaskForm", () => {
     vi.stubGlobal("fetch", fetchMock);
     const onCreated = vi.fn();
     renderInRouter(
-      <NewTaskForm projectId="p1" onCreated={onCreated} onCancel={() => {}} />,
+      <NewProjectTaskForm
+        projectId="p1"
+        onCreated={onCreated}
+        onCancel={() => {}}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Add task" }));

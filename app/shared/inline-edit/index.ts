@@ -29,8 +29,6 @@ export { InlineEditShell } from "./InlineEditShell";
 export type { InlineEditShellProps } from "./InlineEditShell";
 export { InlineTextField } from "./InlineTextField";
 export type { InlineTextFieldProps } from "./InlineTextField";
-export { InlineMarkdownField } from "./InlineMarkdownField";
-export type { InlineMarkdownFieldProps } from "./InlineMarkdownField";
 export { InlineSelectField } from "./InlineSelectField";
 export type {
   InlineSelectFieldProps,

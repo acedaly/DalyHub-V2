@@ -50,7 +50,6 @@ export {
   initialsFromName,
 } from "./identity-display";
 export { MobileNav, MOBILE_NAV_ID } from "./MobileNav";
-export { ModulePlaceholder } from "./ModulePlaceholder";
 export {
   ModuleComingSoon,
   type ModuleComingSoonProps,

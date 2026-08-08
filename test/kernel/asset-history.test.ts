@@ -53,24 +53,15 @@ function assets(ws = WS, prefix = "a") {
   });
 }
 
-/** A recording gateway, so the Task authority contract is asserted, not assumed. */
+/** A recording gateway, so the Task RESCHEDULE contract is asserted, not assumed. */
 function recordingGateway(
   behaviour: Partial<ObligationTaskGateway> = {},
 ): ObligationTaskGateway & {
-  readonly completed: string[];
   readonly rescheduled: [string, string | null][];
 } {
-  const completed: string[] = [];
   const rescheduled: [string, string | null][] = [];
   return {
-    completed,
     rescheduled,
-    async completeTask(taskId) {
-      completed.push(taskId);
-      return behaviour.completeTask
-        ? behaviour.completeTask(taskId)
-        : "completed";
-    },
     async rescheduleTask(taskId, dueDate) {
       rescheduled.push([taskId, dueDate]);
       return behaviour.rescheduleTask
@@ -968,8 +959,11 @@ describe("linked Task authority", () => {
 
   it("completes the open linked Task when the obligation is completed", async () => {
     const asset = await ute();
-    const gateway = recordingGateway();
-    const repo = history(WS, "h", { taskGateway: gateway });
+    const tasks = makeTaskRepository(makeContext(WS));
+    // AUDIT-13 — the REAL Task adapter plans the completion, and the obligation's
+    // own batch runs it. Asserting the Task row itself, not a spy, is the point:
+    // the two writes now share one transaction.
+    const repo = history(WS, "h", { taskCompletionPlanner: tasks });
     const obligation = await repo.createObligation(asset.id, {
       category: "service",
       title: "Service",
@@ -979,8 +973,8 @@ describe("linked Task authority", () => {
     await repo.linkObligationTask(obligation.id, taskId);
 
     const result = await repo.completeObligation(obligation.id);
-    expect(gateway.completed).toEqual([taskId]);
     expect(result.taskOutcome).toBe("completed");
+    expect((await tasks.getTask(taskId))?.completedAt).not.toBeNull();
   });
 
   it("moves the linked Task's due date when the obligation is rescheduled", async () => {

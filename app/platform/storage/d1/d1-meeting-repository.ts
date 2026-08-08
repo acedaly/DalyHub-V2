@@ -23,7 +23,6 @@ import {
   MEETING_RESTORED,
   MEETING_UPDATED,
   MeetingArchivedError,
-  MeetingFollowUpConflictError,
   MeetingItemConflictError,
   MeetingStorageError,
   MeetingValidationError,
@@ -1009,11 +1008,34 @@ export class D1MeetingRepository implements MeetingRepository {
     };
   }
 
-  async linkFollowUpTask(
+  /**
+   * AUDIT-13 — the mapping row + its structural Activity, as STATEMENTS.
+   *
+   * This used to be `linkFollowUpTask`, a public repository method that executed
+   * its own batch. That is exactly the API that let a caller create a Task in one
+   * transaction and record the conversion in another, and lose the pair in
+   * between. It is now an internal seam of this adapter package: the
+   * `D1MeetingTaskConversionRepository` appends these statements to the batch that
+   * also creates the Task, so the whole conversion is one transaction. It performs
+   * no write, so the two-transaction sequence cannot be reassembled from it.
+   *
+   * The mapping insert is **gated on the Task's entity row existing**, which is
+   * load-bearing in two ways rather than defensive. It means the mapping cannot
+   * outlive a create that declined (a parent that went away, or the conversion's
+   * own lifecycle guard refusing) — and because the event that follows is guarded
+   * on this insert's `changes()`, a declined mapping writes no event, so the
+   * event's Task SUBJECT never attempts an `activity_subjects → entities` foreign
+   * key against a Task that was never inserted. Without the gate that FK failure
+   * replaced the create's own typed error with an opaque storage fault.
+   *
+   * A UNIQUE-index violation on `(workspace_id, item_id)` is deliberately NOT
+   * guarded away: it is the concurrency answer the caller wants.
+   */
+  buildFollowUpLinkStatements(
     input: LinkFollowUpTaskInput,
-  ): Promise<MeetingFollowUpLink> {
-    const now = this.#clock(),
-      ts = toStorageTimestamp(now);
+    now: Date,
+  ): readonly D1PreparedStatement[] {
+    const ts = toStorageTimestamp(now);
     const type =
       input.itemId === null
         ? MEETING_FOLLOW_UP_CREATED
@@ -1021,43 +1043,93 @@ export class D1MeetingRepository implements MeetingRepository {
     // Structural metadata ONLY — never item body/agenda/notes content (§17).
     const payload: Record<string, string> = {};
     if (input.itemKind) payload.itemKind = input.itemKind;
-    try {
-      await this.#db.batch([
-        this.#db
-          .prepare(
-            "INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at) VALUES (?,?,?,?,?)",
-          )
-          .bind(
-            this.#workspaceId,
-            input.meetingId,
-            input.itemId,
-            input.taskId,
-            ts,
-          ),
-        ...this.#eventWith(
-          type,
-          [
-            { entityId: input.meetingId, role: "subject" },
-            { entityId: input.taskId, role: "target" },
-          ],
-          payload,
-          now,
+    return [
+      this.#db
+        .prepare(
+          `INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at)
+           SELECT ?,?,?,?,?
+            WHERE EXISTS (
+                    SELECT 1 FROM entities
+                    WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+                  )`,
+        )
+        .bind(
+          this.#workspaceId,
+          input.meetingId,
+          input.itemId,
+          input.taskId,
+          ts,
+          this.#workspaceId,
+          input.taskId,
         ),
-      ]);
-    } catch (cause) {
-      // A UNIQUE-index violation means a concurrent conversion already claimed this
-      // source item; surface it as the typed conflict the orchestration recovers from.
-      if (input.itemId !== null && /unique|constraint/i.test(String(cause))) {
-        throw new MeetingFollowUpConflictError(input.itemId);
-      }
-      throw cause;
-    }
+      ...this.#eventWith(
+        type,
+        [
+          { entityId: input.meetingId, role: "subject" },
+          { entityId: input.taskId, role: "target" },
+        ],
+        payload,
+        now,
+      ),
+    ];
+  }
+
+  /**
+   * AUDIT-13 — the conversion's lifecycle precondition, as SQL for the batch.
+   *
+   * A conversion reads a live, unarchived Meeting and (for an item conversion) a
+   * live source item, and either can change in the gap before the batch runs.
+   * This is the same protection `addItem`, `removeItem` and `markHeld` already
+   * apply — re-assert the lifecycle in the mutation instead of trusting the
+   * pre-read — expressed as a predicate the conversion AND-s into the Task's own
+   * create gate, so a Meeting archived (or an item removed) in that gap declines
+   * the WHOLE batch rather than committing a Task against a read-only record or a
+   * mapping pointing at an item that no longer exists.
+   *
+   * `meeting_item_tasks.item_id` carries no foreign key to `meeting_items`, so
+   * nothing in the schema would otherwise stop that second case.
+   */
+  buildConversionLifecycleGuard(
+    meetingId: string,
+    itemId: string | null,
+  ): { readonly sql: string; readonly params: readonly unknown[] } {
+    const liveMeeting = `EXISTS (
+      SELECT 1 FROM meeting_details d
+        JOIN entities e
+          ON e.workspace_id = d.workspace_id AND e.id = d.entity_id
+       WHERE d.workspace_id = ? AND d.entity_id = ?
+         AND d.archived_at IS NULL
+         AND e.type = ? AND e.deleted_at IS NULL
+    )`;
+    const params: unknown[] = [
+      this.#workspaceId,
+      meetingId,
+      MEETING_ENTITY_TYPE,
+    ];
+    if (itemId === null) return { sql: liveMeeting, params };
+    params.push(this.#workspaceId, meetingId, itemId);
     return {
-      meetingId: input.meetingId,
-      itemId: input.itemId,
-      taskId: input.taskId,
-      createdAt: now,
+      sql: `${liveMeeting} AND EXISTS (
+      SELECT 1 FROM meeting_items
+       WHERE workspace_id = ? AND meeting_id = ? AND id = ?
+    )`,
+      params,
     };
+  }
+
+  /**
+   * AUDIT-13 — drop a STALE mapping (its Task was permanently gone) as part of the
+   * re-conversion's own transaction, rather than in a delete that could commit and
+   * then be followed by a failed re-conversion. Scoped to this workspace and this
+   * task id; writes no Activity, because removing a pointer to a record that no
+   * longer exists is bookkeeping, not a domain change.
+   */
+  buildRemoveFollowUpStatement(taskId: string): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        "DELETE FROM meeting_item_tasks WHERE workspace_id=? AND task_id=?",
+      )
+      .bind(this.#workspaceId, taskId);
   }
   async listFollowUps(
     meetingId: string,

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { AppShell } from "~/shared/shell/AppShell";
 import { ACCESS_LOGOUT_PATH } from "~/shared/shell/UserMenu";
-import { ModulePlaceholder } from "~/shared/shell/ModulePlaceholder";
+import { PaneHeader } from "~/shared/shell/PaneHeader";
 
 const NAVIGATION: readonly NavigationItem[] = [
   {
@@ -60,12 +60,18 @@ afterEach(() => {
 });
 
 function renderShell(initialPath = "/") {
+  // A minimal pane body. AUDIT-16 deleted `ModulePlaceholder`, which this test
+  // used only as "something with a Pane Header to render inside the shell"; the
+  // shell contract under test is unchanged.
   const Placeholder = () => (
-    <ModulePlaceholder
-      name="Areas"
-      entityType="area"
-      summary="Permanent domains of life."
-    />
+    <div>
+      <PaneHeader
+        title="Areas"
+        entityType="area"
+        subtitle="Permanent domains of life."
+      />
+      <div className="dh-pane-body" />
+    </div>
   );
   const Stub = createRoutesStub([
     {
@@ -228,7 +234,9 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     expect(
       within(main).getByRole("heading", { level: 1, name: "Areas" }),
     ).toBeInTheDocument();
-    expect(within(main).getByText(/routing placeholder/i)).toBeInTheDocument();
+    expect(
+      within(main).getByText("Permanent domains of life."),
+    ).toBeInTheDocument();
   });
 
   it("has no icon-only (unlabelled) buttons or links", () => {

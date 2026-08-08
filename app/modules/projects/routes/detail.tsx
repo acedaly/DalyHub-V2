@@ -51,7 +51,7 @@ import type {
 } from "~/shared/forms/model";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
-import { NewTaskForm } from "../NewTaskForm";
+import { NewProjectTaskForm } from "../NewProjectTaskForm";
 import { ProjectActivityTab } from "../ProjectActivityTab";
 import {
   ProjectKnowledgeTab,
@@ -289,7 +289,7 @@ function NewTaskDrawerHost({ projectId }: { readonly projectId: string }) {
   const { closeDrawer, replaceDrawer } = useDrawer();
   const revalidator = useRevalidator();
   return (
-    <NewTaskForm
+    <NewProjectTaskForm
       projectId={projectId}
       onCreated={(taskId) => {
         // Reflect the new task and roll-up, then open it in the shared Task Drawer.

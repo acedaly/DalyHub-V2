@@ -28,6 +28,7 @@ import {
   makeDiaryRepository,
   makeLinkRepository,
   makeMeetingRepository,
+  makeMeetingTaskConversionRepository,
   makeNoteDetailsRepository,
   makePersonRepository,
   makeRepository,
@@ -65,6 +66,8 @@ export interface Seeded {
   readonly personId: string;
   readonly meetingId: string;
   readonly meetingItemId: string;
+  /** The Task the meeting decision was CONVERTED into (AUDIT-13, one operation). */
+  readonly followUpTaskId: string;
   readonly assetId: string;
   readonly assetEventId: string;
   readonly obligationId: string;
@@ -196,10 +199,13 @@ export async function seedWorkspace(): Promise<Seeded> {
     type: "meeting.attendee",
   });
   await meetings.markHeld(meeting.id);
-  await meetings.linkFollowUpTask({
+  // AUDIT-13 — the conversion is one atomic operation, so the fixture converts
+  // rather than hand-assembling a Task and a mapping row. The Task it produces is
+  // a real converted follow-up, exactly as a request would create it.
+  const followUp = await makeMeetingTaskConversionRepository(context).convert({
     meetingId: meeting.id,
     itemId: decision.id,
-    taskId: task.id,
+    task: { title: "Move the long run to Sunday", parent: null },
   });
 
   /* Assets ---------------------------------------------------------------- */
@@ -336,6 +342,7 @@ export async function seedWorkspace(): Promise<Seeded> {
     personId: person.id,
     meetingId: meeting.id,
     meetingItemId: decision.id,
+    followUpTaskId: followUp.taskId,
     assetId: asset.id,
     assetEventId: assetEvent.id,
     obligationId: obligation.id,

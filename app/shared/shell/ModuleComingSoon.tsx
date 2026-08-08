@@ -4,9 +4,9 @@
  * Every future DalyHub module (Notes, Diary, Meetings, People, Assets, Reviews,
  * AI, Settings, Help) needs a real, navigable route TODAY so the application reads
  * as a complete platform, even though its product experience is a later roadmap
- * phase. This is that route's body: it composes the SAME PX-02 Pane Header
- * `ModulePlaceholder` already uses (title + entity-identity glyph + one-sentence
- * subtitle), plus a "Coming Soon" section that honestly states the module isn't
+ * phase. This is that route's body: it composes the PX-02 Pane Header (title +
+ * entity-identity glyph + one-sentence subtitle), plus a "Coming Soon" section
+ * that honestly states the module isn't
  * built yet, names its roadmap phase, and lists the capabilities already planned
  * for it in ROADMAP_V2.md — never invented copy. No lorem ipsum.
  *

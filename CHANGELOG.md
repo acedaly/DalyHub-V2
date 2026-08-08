@@ -17,6 +17,45 @@ no version number to group them under.
 
 ---
 
+## Turning a meeting item into a task now happens all at once, and writing has one keyboard save (AUDIT-13 / AUDIT-16 / DOC-EDITOR-01)
+
+Three things, all of them about not being surprised.
+
+**Converting a meeting item into a Task is one action again.** It always looked like
+one, and underneath it was five separate writes: the Task, then its status, then its
+description, then the record that the item had been converted, then the link between
+the two. If DalyHub died in the middle — a dropped connection at the wrong instant, a
+tab closed mid-request — you could end up with a Task that no meeting knew about. The
+meeting item still showed **Create task**, so you would press it again, and now you
+had two Tasks for one decision. The same shape of problem sat behind completing an
+Asset obligation: the task it tracked was ticked off first, and if recording the work
+then failed you were left with a done task and a service that DalyHub still thought
+was outstanding.
+
+Both are now a single write. Either everything lands — the Task, the conversion, the
+link, the history entry — or nothing does, and the item is still there waiting,
+exactly as it was. Pressing the button twice creates one Task. A retry after a
+failure creates one Task. Two devices doing it at the same moment create one Task.
+And the history entry no longer says a task was closed when it was not: it says what
+actually happened.
+
+**⌘/Ctrl+Enter now saves wherever you are writing.** A Diary entry, a Task's
+description, a Review reflection — anywhere with a **Save** button, you can reach it
+from inside the text without moving your hands. Pressing plain **Enter** still starts
+a new paragraph, which is the whole point: an editor that saved on Enter could not be
+used to write more than a sentence.
+
+**One writing surface, and nothing beside it.** DalyHub had quietly kept two older
+long-form editors around after everything moved to the current one. Neither was
+reachable from anywhere in the product, and both were the kind of thing that ends up
+back on screen by accident. They are gone. Nothing you use looks or behaves
+differently — the writing surface, its toolbar and its shortcuts are the same ones
+you already have.
+
+Nothing you have written was touched, no data moved, and nothing needed migrating.
+
+---
+
 ## Account & security, and a browser that now refuses injected script (SET-03 / AUDIT-10)
 
 Two things you could not see, and one you could not do.
@@ -79,6 +118,7 @@ never asked for.
 
 Nothing about this changes what you see. It is the kind of improvement whose
 whole value is that you never notice it.
+
 ## Add something you own from your phone, in seconds (ASSET-03)
 
 Recording an Asset used to mean getting to a laptop, or at least getting to the
@@ -118,6 +158,7 @@ was never asked for one.
 type list no longer closes the whole capture and loses what you had written, and
 tapping straight to the type field no longer makes it jump out from under your
 finger.
+
 ## Save a useful question, not just a filter (X-02)
 
 Tasks could hold a saved view. Nothing else could — and none of the questions you

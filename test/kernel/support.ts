@@ -19,6 +19,7 @@ import {
   createGoalDetailsRepository,
   createGoalRepository,
   createMeetingRepository,
+  createMeetingTaskConversionRepository,
   createNoteDetailsRepository,
   createNoteRepository,
   createPersonRepository,
@@ -43,6 +44,7 @@ import {
   type D1PersonRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
   type D1ReviewRepositoryOptions,
+  type D1MeetingTaskConversionOptions,
   type D1SpineRepositoryOptions,
   type D1TaskRepositoryOptions,
 } from "~/platform/storage/d1";
@@ -264,6 +266,34 @@ export function makeMeetingRepository(
   options?: RepositoryTestOptions,
 ) {
   return createMeetingRepository(env.DB, context, options);
+}
+
+/**
+ * AUDIT-13 — the atomic Meeting → Task conversion authority over the isolated test
+ * database. It composes the SAME workspace-bound Task, Meeting and EntityLink
+ * adapters a request would, so a test proves the real batch, not a stand-in.
+ */
+export function makeMeetingTaskConversionRepository(
+  context: WorkspaceContext,
+  options?: D1MeetingTaskConversionOptions,
+  repositories?: {
+    readonly tasks?: ReturnType<typeof createTaskRepository>;
+    readonly meetings?: ReturnType<typeof createMeetingRepository>;
+    readonly entityLinks?: ReturnType<typeof createEntityLinkRepository>;
+  },
+) {
+  return createMeetingTaskConversionRepository(
+    env.DB,
+    {
+      tasks: repositories?.tasks ?? createTaskRepository(env.DB, context),
+      meetings:
+        repositories?.meetings ?? createMeetingRepository(env.DB, context),
+      entityLinks:
+        repositories?.entityLinks ??
+        createEntityLinkRepository(env.DB, context),
+    },
+    options,
+  );
 }
 
 /** Count all rows in `meeting_details` directly. */

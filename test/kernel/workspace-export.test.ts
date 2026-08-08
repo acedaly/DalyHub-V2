@@ -214,7 +214,7 @@ describe("workspace export (D1)", () => {
       expect.objectContaining({
         meetingId: seeded.meetingId,
         itemId: seeded.meetingItemId,
-        taskId: seeded.taskId,
+        taskId: seeded.followUpTaskId,
       }),
     );
     expect(snapshot.records.assetEvents.map((event) => event.id)).toContain(

@@ -28,7 +28,6 @@ import {
   FormButton,
   FormErrorSummary,
   FormSection,
-  MarkdownField,
   SaveStatusIndicator,
   SelectField,
   TagsField,
@@ -46,6 +45,7 @@ import {
   type EntityLinkTargetOption,
   type SubmitOutcome,
 } from "~/shared/forms";
+import { MarkdownEditorField } from "~/shared/markdown-editor";
 
 import "~/styles/forms-demo.css";
 
@@ -235,9 +235,9 @@ function ExplicitFormDemo() {
             autoComplete="off"
             {...form.field("title")}
           />
-          <MarkdownField
+          <MarkdownEditorField
             label="Description"
-            help="Markdown source with a safe preview."
+            help="Markdown — headings, lists, quotes and tables format as you type."
             {...form.field("description")}
           />
         </FormSection>
