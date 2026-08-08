@@ -14,6 +14,7 @@
 
 import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import type { TaskViewRepository } from "~/kernel/task-views";
 import type { AssetHistoryRepository, AssetRepository } from "~/kernel/assets";
@@ -47,6 +48,7 @@ import type {
 
 import { D1ActivityRepository } from "./d1-activity-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
+import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
 import {
   D1AppPreferencesRepository,
   type D1AppPreferencesRepositoryOptions,
@@ -138,6 +140,7 @@ export {
 };
 export { D1ActivityRepository };
 export { D1AlignmentRepository };
+export { D1ReviewInsightRepository };
 export { D1AppPreferencesRepository, type D1AppPreferencesRepositoryOptions };
 export { D1AreaRepository };
 export {
@@ -457,6 +460,21 @@ export function createAlignmentRepository(
   context: WorkspaceContext,
 ): AlignmentRepository {
   return new D1AlignmentRepository(db, context);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed ReviewInsightRepository — REVIEW-03's
+ * bounded aggregate reads over the append-only Activity stream and the spine, plus
+ * the one persisted Review-period insight snapshot (ADR-079). Every read is a
+ * grouped aggregate computed in the database; the snapshot is written only when a
+ * Review is completed and is never authoritative for any Area, Goal, Project or
+ * Task. Bound to a `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createReviewInsightRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): ReviewInsightRepository {
+  return new D1ReviewInsightRepository(db, context);
 }
 
 /**

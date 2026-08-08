@@ -547,6 +547,19 @@ export function makeSnapshot(
         acknowledgedAt: T(14),
       },
     ],
+    // REVIEW-03 — the derived facts a completed Review captured. It cannot be
+    // recomputed after the fact, so it must survive a round trip verbatim.
+    reviewInsightSnapshots: [
+      {
+        reviewId: IDS.review,
+        version: 1,
+        periodStart: "2026-07-27",
+        periodEnd: "2026-08-02",
+        capturedAt: T(14),
+        factsJson:
+          '{"version":1,"periodStart":"2026-07-27","periodEnd":"2026-08-02","tasksCompleted":3,"projectsCompleted":0,"goalsCompleted":0,"overdueCarryOver":1,"waitingCarryOver":0,"projects":[],"projectsBounded":false,"goals":[],"goalsBounded":false,"areas":[],"areasBounded":false,"carryOverTaskIds":[],"carryOverTaskIdsBounded":false}',
+      },
+    ],
     entityLinks: [
       {
         id: "l-01",

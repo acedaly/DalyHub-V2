@@ -75,10 +75,15 @@ test.describe("the fold anchor", () => {
       page,
     }) => {
       await gotoFixture(page, record.path);
-      await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 1 }).first(),
+      ).toBeVisible();
 
       const top = await workingContentTop(page);
-      expect(top, "the record should have a working-content region").not.toBeNull();
+      expect(
+        top,
+        "the record should have a working-content region",
+      ).not.toBeNull();
       expect(
         top as number,
         `${record.name}: working content starts at ${top}px, past the fold anchor`,
@@ -107,15 +112,20 @@ test.describe("the record header", () => {
     await expect(overflow).toBeVisible();
     const box = await overflow.boundingBox();
     expect(box).not.toBeNull();
-    expect((box as { x: number; width: number }).x + (box as { width: number }).width)
-      .toBeLessThanOrEqual(1280);
+    expect(
+      (box as { x: number; width: number }).x +
+        (box as { width: number }).width,
+    ).toBeLessThanOrEqual(1280);
   });
 
   test("a short title does not wrap, and the status sits beside it", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    const heading = page.getByRole("heading", { level: 1, name: "Kitchen fit-out" });
+    const heading = page.getByRole("heading", {
+      level: 1,
+      name: "Kitchen fit-out",
+    });
     await expect(heading).toBeVisible();
 
     const geometry = await page.evaluate(() => {
@@ -132,7 +142,11 @@ test.describe("the record header", () => {
       };
     });
     expect(geometry).not.toBeNull();
-    const g = geometry as { titleLines: number; beside: boolean; after: boolean };
+    const g = geometry as {
+      titleLines: number;
+      beside: boolean;
+      after: boolean;
+    };
     expect(g.titleLines).toBeLessThan(2);
     expect(g.beside).toBe(true);
     expect(g.after).toBe(true);
@@ -368,17 +382,25 @@ test.describe("the Person action hierarchy (UIQ-011)", () => {
     // A greyed-out Call on someone with no number is a control that can never
     // do anything, so it is absent rather than disabled.
     await gotoFixture(page, "/person/p-rc-ana");
-    await expect(page.getByRole("heading", { level: 1, name: "Ana Ruiz" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Ana Ruiz" }),
+    ).toBeVisible();
     expect(
       await page.getByRole("group", { name: "Contact actions" }).count(),
     ).toBe(0);
 
     await page.getByRole("button", { name: /^More actions for/ }).click();
     const menu = page.getByRole("menu");
-    await expect(menu.getByRole("menuitem", { name: "Copy email" })).toHaveCount(0);
-    await expect(menu.getByRole("menuitem", { name: "Copy phone" })).toHaveCount(0);
+    await expect(
+      menu.getByRole("menuitem", { name: "Copy email" }),
+    ).toHaveCount(0);
+    await expect(
+      menu.getByRole("menuitem", { name: "Copy phone" }),
+    ).toHaveCount(0);
     // The capture entries do not depend on contact data, so they remain.
-    await expect(menu.getByRole("menuitem", { name: "New task" })).toBeVisible();
+    await expect(
+      menu.getByRole("menuitem", { name: "New task" }),
+    ).toBeVisible();
   });
 });
 
@@ -409,8 +431,12 @@ test.describe("contextual creation defaults", () => {
     await page.getByRole("button", { name: /^More actions for/ }).click();
     const menu = page.getByRole("menu");
     // Notes/Meetings/Diary have no local path on this record, so they stay.
-    await expect(menu.getByRole("menuitem", { name: "New note" })).toBeVisible();
+    await expect(
+      menu.getByRole("menuitem", { name: "New note" }),
+    ).toBeVisible();
     // A second route to the same outcome is what the convergence removed.
-    await expect(menu.getByRole("menuitem", { name: "New task" })).toHaveCount(0);
+    await expect(menu.getByRole("menuitem", { name: "New task" })).toHaveCount(
+      0,
+    );
   });
 });

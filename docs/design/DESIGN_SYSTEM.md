@@ -1761,6 +1761,77 @@ Decision: [ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-we
 
 ---
 
+## Insight list and bounded trend (REVIEW-03)
+
+An **insight list** is how DalyHub presents derived evidence about the owner's own
+records: a short list of claims, each with the reason that produced it and a way to
+check it. Reviews is the first consumer; anything that later wants to say something
+derived about a period composes this rather than inventing a metrics layout.
+
+**It is deliberately not a dashboard.** No metric tiles, no gauges, no KPI row, no
+nested cards, no grid of boxes. One insight is a paragraph with a quiet tone rule
+beside it, because a card inside whatever surface hosts the list would stack a border
+inside a border — the thing the M3 audit already ruled out.
+
+The rules:
+
+- **A claim, a reason, and a way to check it.** The claim is the sentence
+  ("3 Tasks completed", "At risk → On track"); the reason states the counts that
+  produced it; the links reach the records behind it. **A classification is never shown
+  without its reason** — an unexplained label asks the owner to trust a rule they
+  cannot see.
+- **Existing destinations only.** Drill-down is ordinary links to the canonical record
+  routes and system views. An insight surface never builds a parallel record browser.
+- **Tone never carries meaning alone.** `neutral` / `success` / `info` / `warning`,
+  reusing the same token triples as the Project-health and Goal-alignment pills — one
+  status vocabulary, three consumers. `danger` is deliberately excluded: derived
+  evidence about someone's week is not an emergency.
+- **Absence renders less.** A section with nothing to say is not rendered. A surface
+  with nothing at all shows ONE sentence explaining why, never a row of zeros. A read
+  that failed says "not available", never nought.
+- **Bounded numbers say so.** Every measure carries its exactness (`exact` / `bounded` /
+  `unavailable`), and a bounded number renders as `12+`. A bounded number is never
+  presented as an exact one.
+- **A reason names a few, then counts.** Past four records a reason names the first four
+  and says how many more; the links beneath still reach them. Nine titles in one
+  sentence is not a calm surface.
+- **No score.** No percentage, index, grade, streak or weighted composite. Completion,
+  contribution, health, trend, inactivity, overdue work and alignment are kept separate,
+  because a single number mixing them looks precise and embeds subjective weights.
+
+### The bounded trend
+
+`TrendBars` (`~/shared/charts`) is the shared primitive for **a handful of periods, one
+value each** — the only chart shape this pattern has. Hand-rolled SVG, no charting
+dependency: a bar chart of six points is a `map` over rectangles, and painting it with
+the generated tokens makes it correct in both appearances by construction.
+
+- **The chart is never the only way to read it.** A `summary` sentence stating every
+  value is required; it is the SVG's `role="img"` accessible name *and* is rendered
+  visibly beneath the bars. Each bar also carries its value and short period label as
+  real text, so the numbers survive a printed page, a narrow phone and a screen reader.
+- **Two points minimum.** One point is a number with decoration.
+- **It grows with the number of periods, then stops.** The plot's width is set from the
+  point count, so a two-period trend is a small chart rather than a full-bleed slab
+  across a desktop — and it always yields to its container, so a phone gets narrower
+  bars and never a horizontal scrollbar. The summary sentence is not width-constrained:
+  prose keeps the full measure.
+- **Deliberately not interactive.** No tooltips, no hover readouts, no focus targets:
+  every value is already printed, so an interaction would only reveal a second copy of
+  what is on the page while costing a keyboard user a tab stop.
+- **Forced colours.** Fills collapse in forced-colours mode, so the bars carry an
+  explicit stroke and stay legible as shapes.
+
+Reference implementation:
+[`app/kernel/review-insights/`](../../app/kernel/review-insights/) (the rules — pure,
+no React), [`app/modules/reviews/insights/ReviewInsightsPanel.tsx`](../../app/modules/reviews/insights/ReviewInsightsPanel.tsx)
+(the surface — renders a decided model and computes nothing),
+[`app/shared/charts/TrendBars.tsx`](../../app/shared/charts/TrendBars.tsx) and
+[`app/styles/insights.css`](../../app/styles/insights.css) (tokens only).
+Decision: [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score).
+
+---
+
 ## Motion & feedback timing
 
 - **Fast and few.** Transitions ~120–200ms, easing that feels natural. Motion shows causality (this became that, this came from there), never decoration.

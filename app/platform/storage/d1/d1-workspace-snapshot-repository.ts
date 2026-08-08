@@ -666,6 +666,23 @@ const COLLECTIONS: CollectionDescriptors = {
       acknowledgedAt: requiredText(row.acknowledged_at),
     }),
   },
+  // REVIEW-03 — the derived-facts row a completed Review captured. It is the
+  // one insight artefact a restore cannot rebuild (ADR-079), so it travels with
+  // the workspace; `facts_json` is carried verbatim under its own version.
+  reviewInsightSnapshots: {
+    table: "review_insight_snapshots",
+    columns:
+      "review_id, version, period_start, period_end, captured_at, facts_json",
+    order: ["review_id"],
+    map: (row) => ({
+      reviewId: requiredText(row.review_id),
+      version: requiredInteger(row.version, 1),
+      periodStart: requiredText(row.period_start),
+      periodEnd: requiredText(row.period_end),
+      capturedAt: requiredText(row.captured_at),
+      factsJson: requiredText(row.facts_json),
+    }),
+  },
   entityLinks: {
     table: "entity_links",
     columns:

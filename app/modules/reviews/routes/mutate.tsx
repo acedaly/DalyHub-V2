@@ -11,6 +11,7 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { lifecycleBlockedByLinks } from "~/shared/record-lifecycle";
 
+import { captureSnapshotForCompletedReview } from "../insights/review-insights-context";
 import type { Route } from "./+types/mutate";
 
 export type ReviewMutationResult =
@@ -130,7 +131,15 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({ kind: "lifecycle", ok: true });
     }
     if (intent === "complete") {
-      await scope.reviews.complete(reviewId);
+      const result = await scope.reviews.complete(reviewId);
+      // REVIEW-03 — record what was true at this Review point, so the NEXT
+      // Review can say what changed. Best-effort by design: a failed capture
+      // never turns a completion the owner made into an error.
+      await captureSnapshotForCompletedReview(
+        scope,
+        session.user.subject,
+        result.review,
+      );
       return json({ kind: "lifecycle", ok: true });
     }
     if (intent === "reopen") {

@@ -94,6 +94,10 @@
 /* REVIEW-02/REVIEW-04 — the guided weekly Review and its phone stepper. After
  * reviews.css because it is the newer, narrower Review surface. */
 @import "./styles/review-guide.css";
+/* REVIEW-03 — the Review evidence surface and the shared bounded trend. After
+ * both Review stylesheets because it is rendered inside each of them, and it
+ * reuses the health/alignment pill anatomy rather than restating it. */
+@import "./styles/insights.css";
 /* PWA — the offline, connection-state and installation surfaces. Late in the
  * cascade because the connection status sits inside the pane the shell owns. */
 @import "./styles/offline.css";

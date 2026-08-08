@@ -508,8 +508,9 @@ describe("an empty workspace", () => {
       );
       expect(data.kind).toBeDefined();
       if (data.kind === "period") {
-        expect(data.period.tasksCompleted.value).toBe(0);
-        expect(data.period.meetings.value).toBe(0);
+        // REVIEW-03: an empty workspace renders LESS, not a row of zeros.
+        expect(data.insights.isEmpty).toBe(true);
+        expect(data.insights.movement).toEqual([]);
       }
       if (data.kind === "inbox") {
         expect(data.inbox.tasks).toEqual([]);

@@ -6,6 +6,7 @@ import {
   type ReviewSectionId,
   type ReviewStatus,
 } from "~/kernel/reviews";
+import type { ReviewInsights } from "~/kernel/review-insights";
 import { useDrawer } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
@@ -34,6 +35,7 @@ import type {
   ReviewPeriodContext,
   ReviewContextItem,
 } from "./review-period-context";
+import { ReviewInsightsPanel } from "./insights/ReviewInsightsPanel";
 import { ReviewTimelineTab } from "./ReviewTimelineTab";
 import type { SerializedReview, SerializedReviewSection } from "./review-view";
 import type { ReviewMutationResult } from "./routes/mutate";
@@ -41,6 +43,8 @@ import type { ReviewMutationResult } from "./routes/mutate";
 interface ReviewRecordProps {
   readonly review: SerializedReview;
   readonly context: ReviewPeriodContext;
+  /** REVIEW-03 — the derived evidence for this Review's period. */
+  readonly insights: ReviewInsights;
   readonly activeTabId: string;
   readonly onTabChange: (tabId: string) => void;
   readonly onSaved: () => void;
@@ -198,6 +202,7 @@ function section(review: SerializedReview, id: ReviewSectionId) {
 export function ReviewRecord({
   review,
   context,
+  insights,
   activeTabId,
   onTabChange,
   onSaved,
@@ -439,6 +444,16 @@ export function ReviewRecord({
             label: "Progress",
             content: (
               <div className="dh-record-stack">
+                {/*
+                 * REVIEW-03 — evidence first, then the owner's own words. The
+                 * product supplies what it can prove; the interpretation stays
+                 * theirs, and nothing here writes into the Review.
+                 */}
+                <ReviewInsightsPanel
+                  insights={insights}
+                  headingLevel={3}
+                  title="Evidence for this period"
+                />
                 <p className="dh-review-context-note">{context.note}</p>
                 <SectionEditor
                   review={review}

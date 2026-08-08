@@ -49,7 +49,11 @@ const RECORDS = [
     path: "/goals/g-rc-move",
     heading: "Finish the ground-floor renovation before summer",
   },
-  { name: "project", path: "/projects/pr-rc-kitchen", heading: "Kitchen fit-out" },
+  {
+    name: "project",
+    path: "/projects/pr-rc-kitchen",
+    heading: "Kitchen fit-out",
+  },
   { name: "note", path: "/notes/n-rc-brief", heading: "Kitchen fit-out brief" },
   {
     name: "meeting",
@@ -78,7 +82,9 @@ test.beforeAll(() => {
 /** Land on a record and wait for its heading, so a capture is never mid-render. */
 async function openRecord(page: Page, path: string, heading: string) {
   await gotoFixture(page, path);
-  await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: heading }),
+  ).toBeVisible();
   // The record heading is an inline-edit trigger whose width settles a frame
   // after hydration; capturing before that produces a misleading header height.
   await page.waitForTimeout(250);
@@ -102,7 +108,11 @@ test.describe("record screens — 1280 laptop", () => {
   }) => {
     // The capture strip lives on the Meeting tab, over the meeting's own content —
     // the specific thing the convergence has to stop dominating the viewport.
-    await openRecord(page, "/meeting/m-rc-site?tab=meeting", "Kitchen fit-out site walkthrough");
+    await openRecord(
+      page,
+      "/meeting/m-rc-site?tab=meeting",
+      "Kitchen fit-out site walkthrough",
+    );
     await page.screenshot({
       path: join(OUT, `record-${STAGE}-meeting-capture-1280.png`),
     });
@@ -124,7 +134,11 @@ test.describe("record screens — 1280 laptop", () => {
   test(`captures the Asset history actions at 1280x800 (${STAGE})`, async ({
     page,
   }) => {
-    await openRecord(page, "/asset/as-rc-ute?tab=history", "Hilux SR5 — work ute");
+    await openRecord(
+      page,
+      "/asset/as-rc-ute?tab=history",
+      "Hilux SR5 — work ute",
+    );
     await page.screenshot({
       path: join(OUT, `record-${STAGE}-asset-history-1280.png`),
     });

@@ -1,0 +1,278 @@
+/*
+ * REVIEW-03 — the Review evidence surface and the shared bounded trend.
+ *
+ * Deliberately NOT a dashboard. There are no metric tiles, no gauges, no nested
+ * cards and no grid of boxes: a section heading, a short list of sentences, and
+ * links. The visual weight belongs to the words, because the words are what the
+ * owner is going to think about.
+ *
+ * Tokens only — no raw colour, spacing, radius or duration. Every tone here is
+ * paired with a text label in the markup, so nothing on this surface is carried
+ * by colour alone (DS-11 / WCAG 2.2 AA), and the pills reuse exactly the token
+ * triples `health.css` and `alignment.css` already established rather than
+ * introducing a third status vocabulary.
+ */
+
+.dh-insights {
+  display: grid;
+  gap: var(--app-space-5);
+  min-width: 0;
+}
+
+.dh-insights__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+}
+
+.dh-insights__section {
+  display: grid;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+.dh-insights__section-heading {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-insights__list {
+  display: grid;
+  gap: var(--app-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/*
+ * One insight is a paragraph with a quiet rule beside it, not a card. Cards
+ * would stack a border inside whatever surface the evidence is placed in — the
+ * guided step's panel or the record's tab — and the M3 audit already ruled that
+ * out. The rule gives the tone somewhere to live without boxing the sentence.
+ */
+.dh-insights__item {
+  display: grid;
+  gap: var(--app-space-1);
+  min-width: 0;
+  padding-inline-start: var(--app-space-3);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-outline-variant);
+}
+
+.dh-insights__item[data-tone="success"] {
+  border-inline-start-color: var(--md-sys-color-success);
+}
+.dh-insights__item[data-tone="warning"] {
+  border-inline-start-color: var(--md-sys-color-warning);
+}
+.dh-insights__item[data-tone="info"] {
+  border-inline-start-color: var(--md-sys-color-info);
+}
+
+.dh-insights__claim {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-insights__reason,
+.dh-insights__note {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+/* The same pill anatomy as Project health and Goal alignment — one status
+ * vocabulary across the product, three consumers. */
+.dh-insights__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-2);
+  min-height: var(--app-space-5);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
+  white-space: nowrap;
+}
+
+.dh-insights__dot {
+  inline-size: var(--app-space-2);
+  block-size: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: currentColor;
+  flex: none;
+}
+
+.dh-insights__pill[data-tone="success"] {
+  color: var(--md-sys-color-on-success-container);
+  background: var(--md-sys-color-success-container);
+  border-color: transparent;
+}
+.dh-insights__pill[data-tone="warning"] {
+  color: var(--md-sys-color-on-warning-container);
+  background: var(--md-sys-color-warning-container);
+  border-color: transparent;
+}
+.dh-insights__pill[data-tone="info"] {
+  color: var(--md-sys-color-on-info-container);
+  background: var(--md-sys-color-info-container);
+  border-color: transparent;
+}
+
+.dh-insights__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-1) var(--app-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.dh-insights__links a {
+  display: inline-flex;
+  align-items: center;
+  /* Every drill-down is a real touch target on a phone. */
+  min-block-size: var(--app-touch-target-min);
+  color: var(--md-sys-color-primary);
+  overflow-wrap: anywhere;
+}
+
+.dh-insights__notes {
+  display: grid;
+  gap: var(--app-space-2);
+  padding-block-start: var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+}
+
+.dh-insights__notes .dh-insights__note {
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-insights[data-empty="true"] {
+  gap: var(--app-space-3);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Trends                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.dh-insights__trends {
+  display: grid;
+  gap: var(--app-space-4);
+  min-width: 0;
+}
+
+.dh-insights__trend {
+  margin: 0;
+  display: grid;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+.dh-insights__trend-label {
+  font-size: var(--md-sys-typescale-label-large-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The chart itself. It is always exactly as wide as its container and never
+ * wider, so no Review can overflow horizontally on a phone — the bars get
+ * narrower, the numbers below them wrap.
+ */
+.dh-trend {
+  display: grid;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/*
+ * `--app-trend-width` is set by the component from the number of periods, so a
+ * two-period trend is a small chart and a six-period one is a wider chart — and
+ * neither is a full-bleed slab across a desktop. It always yields to the
+ * container, so a phone simply gets narrower bars. The SUMMARY sentence below
+ * is deliberately not constrained by it: prose gets the full measure.
+ */
+.dh-trend__plot,
+.dh-trend__axis {
+  max-inline-size: min(100%, var(--app-trend-width, 24rem));
+}
+
+.dh-trend__plot {
+  inline-size: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.dh-trend__bar {
+  fill: var(--md-sys-color-secondary-container);
+}
+
+/* The period being reviewed is the stronger tone — and it is also the only one
+ * labelled as current in the summary sentence, so the emphasis is never the
+ * only cue. */
+.dh-trend__bar[data-current="true"] {
+  fill: var(--md-sys-color-primary);
+}
+
+/* In forced-colours mode fills collapse; an explicit stroke keeps the bars
+ * visible as shapes rather than disappearing into the background. */
+@media (forced-colors: active) {
+  .dh-trend__bar {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1;
+  }
+  .dh-trend__bar[data-current="true"] {
+    fill: Highlight;
+  }
+}
+
+.dh-trend__axis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--app-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.dh-trend__axis li {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.dh-trend__value {
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-trend__label {
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.dh-trend__summary {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}

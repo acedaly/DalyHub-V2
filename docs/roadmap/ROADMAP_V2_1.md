@@ -740,11 +740,12 @@ They are small and well-understood; none of them blocks the V2 release.*
   section write path. REVIEW-04's stepper shipped with it.
 - **Docs.** [`REVIEWS_MODULE.md → The guided weekly Review`](../development/REVIEWS_MODULE.md#the-guided-weekly-review-review-02--review-04-2026-08-05) ·
   [ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state).
-- **Explicitly NOT in scope, and still open:** derived insights and historical alignment
-  trend ([REVIEW-03](#-review-03--insights--alignment)).
+- **Explicitly NOT in scope at the time:** derived insights and historical alignment
+  trend — delivered since, by [REVIEW-03](#-review-03--insights--alignment), which
+  replaced this flow's settle-in fact grid with the Review's evidence.
 - **Priority.** P2 — closed.
 
-### ☐ DOC-EDITOR-01 — One document-editor shell for Notes and Meetings
+### ⊘ DOC-EDITOR-01 — One document-editor shell for Notes and Meetings — **superseded, re-checked 2026-08-08**
 
 - **Recorded, not started.** Noted while migrating Areas and Projects to the M3
   entity card (Gate D unit 1, PR #122). It is deliberately NOT in that PR: the M3
@@ -772,21 +773,95 @@ They are small and well-understood; none of them blocks the V2 release.*
   a rider on one.
 - **Not scoped here.** No component names, no anatomy and no migration order are
   being decided in this note. Do the audit first.
-- **Priority.** P2.
+- **Re-checked 2026-08-08 (REVIEW-03), and the observation above is now STALE.**
+  REVIEW-03 was asked to compare the original problem statement with what #124,
+  #128 and #132 actually delivered rather than closing this on sight. The audit
+  it did:
+  - **"The shell around the editor is not shared."** It is now. `LiveMarkdownEditor`
+    owns the toolbar (`.dh-md-toolbar`), the top bar with its `statusSlot`, the
+    Read toggle, the density variants, the writing measure and the CodeMirror
+    surface — and it has **three** consumers, not two: Notes
+    (`NoteContentForm.tsx`), Meetings (`MeetingMarkdown.tsx`) and the guided
+    Review's prompt editor (`ReviewPromptEditor.tsx`). ADR-076 and ADR-078
+    delivered this as "refine the shared writing surface in place", which is the
+    same outcome this note proposed by a different route.
+  - **"`markdown-editor.css` declares five bespoke card blocks and puts a border
+    around every region."** No longer true. EDIT-01 collapsed the bar and the
+    writing surface into ONE outlined surface — the bar carries the top corners
+    and no bottom edge, the surface carries the bottom corners, and the gap
+    between them is zero. The stylesheet is now the shared editor's own chrome,
+    not a per-module card system.
+  - **What each module still composes for itself** is autosave wiring, its field
+    labels and its unsaved-changes guard — data plumbing bound to each module's
+    own persistence contract (a Note autosaves, a Diary entry saves explicitly, a
+    Review prompt quotes an optimistic-concurrency version). ADR-078 decision 4
+    made that difference deliberate: *presentation converges, persistence does
+    not.* Consolidating it would mean giving three modules one save strategy,
+    which is the opposite of what the audit concluded.
+  - **Reviews' prompt editor**, which this note said should be *assessed rather
+    than assumed to fit*, already sits on the same shared surface at the
+    `compact` density — assessed, and it fits.
+- **State: superseded by [ADR-076](../decisions/ARCHITECTURE_DECISIONS.md#adr-076-the-shared-writing-surface-refined-in-place-and-inline-editing-as-one-state-machine-over-focused-server-intents)
+  and [ADR-078](../decisions/ARCHITECTURE_DECISIONS.md#adr-078-editing-consistency--adoption-over-invention-one-focused-intent-per-inline-field-and-the-forms-that-deliberately-stayed-forms).**
+  Not "done by this PR" and not closed silently: the work it asked for was done
+  under different item numbers, and the remainder it would still describe is
+  deliberately-divergent persistence rather than duplicated chrome. It is
+  recorded here so the next agent does not re-derive the audit, and it is NOT
+  the next major product unit it was written as.
+- **Priority.** P2 → closed by supersession.
 
-### ☐ REVIEW-03 — Insights & alignment
+### ☑ REVIEW-03 — Insights & alignment — **delivered 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → REVIEW-03`](ROADMAP_V2.md#-review-03--insights--alignment).
-- **Still open after REVIEW-02.** The guided flow READS the existing AREA-03 and PROJ-02
-  evaluators for the current period; it derives no trend, stores no classification and
-  keeps no history. Everything below remains unbuilt.
-- Nothing of this exists today. Keep it derived and non-persisted, mirroring
-  PROJ-02/AREA-03 — no stored score, no cached classification, no streaks. It is the
-  accepted home for
-  [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3)
-  and the richer period facts in
-  [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2).
-- **Priority.** P3.
+- **Why it existed.** The guided flow READ the existing AREA-03 and PROJ-02 evaluators
+  for the current period, derived no trend and kept no history. Its first step showed
+  six live counts — completed, overdue, Inbox, Diary, Meetings, active Projects — with
+  nothing to compare any of them against; in a quiet week three of them read zero. That
+  is a dashboard measuring nothing, and it is what this item replaces.
+- **The audit's central finding: there are THREE kinds of truth, not one.** The standing
+  instruction was to keep this derived and non-persisted, mirroring PROJ-02/AREA-03.
+  That is right for four fifths of the feature and impossible for the fifth:
+  1. **Historical, exact** — what completed in a period. Activity is append-only, so
+     this is exact for every past period with nothing stored in advance.
+  2. **Current state only** — Project health, Goal alignment, open/overdue/waiting.
+     Recomputed live, describing today and only today.
+  3. **Requires a snapshot** — *change* in (2). "Did this Project go from At risk to On
+     track since my last Review?" has no answer in the existing model, because the
+     inputs to (2) are themselves current-state.
+  So the **trend is derived from Activity** (no storage, and truthful immediately), and
+  exactly one small thing is persisted: `review_insight_snapshots` (migration `0034`),
+  one row per completed Review, **derived facts only** — ids, states and counts, never
+  titles or bodies — versioned, cascading from its Review, written on completion and
+  only on completion, best-effort so it can never fail a completion, deterministic,
+  workspace-scoped, exported with the workspace, and **never authoritative** for any
+  Area, Goal, Project or Task.
+- **What shipped.** What changed / where the work contributed / how Project health moved
+  / what needs attention / where effort landed / a bounded trend over recent Reviews of
+  the same type. Every classification carries a reason built from the counts that
+  produced it; every claim links to the record behind it. No score, no index, no grade,
+  no streak, no AI, no new top-level Analytics module and no charting dependency — the
+  trend is a hand-rolled SVG (`TrendBars`) painted with the generated tokens, with the
+  numbers stated in words beside it.
+- **Where it lives.** The guided weekly Review's existing first step (same id, same
+  label — the stepper is unchanged) and the Review record's existing Progress tab, for
+  every Review type. The authored Review is untouched: DalyHub supplies evidence, the
+  owner supplies the interpretation.
+- **Performance.** One evidence load costs an **asserted 14 executed statements**
+  against real D1, flat with respect to workspace size *and* to how many past Reviews
+  exist. Every measure carries its exactness; a bounded number is never shown as exact.
+- **Closes** [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3)
+  and the derived-period-facts half of
+  [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2);
+  DEBT-34's Today "Start this week's Review" card remains open and is recorded there.
+- **Documentation.** [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
+  · [`REVIEWS_MODULE.md → Review evidence`](../development/REVIEWS_MODULE.md#review-evidence-review-03)
+  · [`DESIGN_SYSTEM.md → Insight list`](../design/DESIGN_SYSTEM.md#insight-list-and-bounded-trend-review-03).
+- **Known limitation, stated rather than hidden.** Health-change and carry-over
+  comparison begin from the first Review completed after this shipped — existing
+  completed Reviews have no snapshot, and the surface says so instead of inventing one.
+  The trend has no such limitation. Completed work is attributed to the Goal and Area
+  its Project belongs to **today**, because the spine stores no link history.
+- **Priority.** P3 — closed.
 
 ### ☐ DIARY-02 — Day context links
 
@@ -1299,8 +1374,9 @@ because a reader would otherwise wonder whether it was forgotten:
    actually cannot do today.
 4. **[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
    the two named mobile remainders, now unblocked.
-5. **[DIARY-02](#-diary-02--day-context-links)**, **[REVIEW-03](#-review-03--insights--alignment)**,
-   **[SET-03](#-set-03--account--security)** — module completion.
+5. **[DIARY-02](#-diary-02--day-context-links)**, **[SET-03](#-set-03--account--security)** —
+   module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
+   member of this group and is now delivered.
 6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
    exists.

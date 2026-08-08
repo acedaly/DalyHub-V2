@@ -525,3 +525,231 @@ keeps what the title cannot say precisely (the exact period) and what changes as
 the owner works (how much of the reflection is authored).
 
 **Complete** takes the same low-emphasis treatment as a Project's and a Goal's.
+
+---
+
+## Review evidence (REVIEW-03)
+
+REVIEW-03 makes the Review the place DalyHub starts paying the owner back for
+keeping their life in it. Decision record:
+[ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score).
+
+The Review now answers, from the owner's own records:
+
+- **What changed?** Concrete movement inside the period.
+- **Where did the work contribute?** Per-Goal, with the counts behind the label.
+- **How did Project health move?** Improved, slipped, or newly stalled.
+- **What needs attention?** Carried-over commitments and stagnation.
+- **What is changing over recent Reviews?** A small bounded trend.
+
+The authored Review is untouched. **DalyHub supplies evidence; the owner supplies
+the interpretation.** Nothing here writes into a Review section, and nothing here
+calls an AI model.
+
+### The three kinds of truth
+
+The audit behind this feature found that a Review period has three genuinely
+different kinds of answer, and that conflating them is how an insight surface
+starts lying. The code keeps them visibly apart
+([`review-insight-facts.ts`](../../app/kernel/review-insights/review-insight-facts.ts)):
+
+| | What it covers | Where it comes from | Available for past periods? |
+|---|---|---|---|
+| **1. Historical, exact** | Tasks / Projects / Goals completed; where that work landed | the append-only Activity stream (ADR-012) | **Yes** — for every period, with nothing stored in advance |
+| **2. Current state only** | Project health (PROJ-02), Goal alignment (AREA-03), open / overdue / waiting counts, carry-over | recomputed live, never cached | **No** — it describes today |
+| **3. Requires a snapshot** | *Change* in (2): "At risk → On track since my last Review" | `review_insight_snapshots` | **Only from the first Review completed after REVIEW-03 shipped** |
+
+Two consequences the surface states out loud rather than hiding:
+
+- **The trend needs no snapshot.** Because (1) is exactly reconstructible,
+  "Tasks completed by Review period" is computed from Activity over the recent
+  completed Reviews **of the same type**, in one grouped statement. A workspace
+  that has never captured a snapshot still gets a truthful trend as soon as it
+  has two completed Reviews.
+- **Ancestry is current.** A completed Task is attributed to the Goal and Area
+  its Project belongs to **today**, because the spine stores no link history.
+  Moving a Project later moves its history with it. The surface says so.
+
+### The snapshot
+
+Migration `0034` adds ONE table, `review_insight_snapshots`, and it is the only
+thing REVIEW-03 persists.
+
+- **One row per Review**, cascading from `review_details`, workspace-scoped.
+- **Derived facts only** — ids, states and counts. No titles, no descriptions,
+  no reflection text, no Task names. A renamed Project still renders under its
+  live title through its id, so the row can never become a stale second copy of
+  the owner's records.
+- **Versioned** (`REVIEW_INSIGHT_SNAPSHOT_VERSION`). An unrecognised version, or
+  malformed JSON, reads as **"no snapshot"** — never as fabricated zeros. Rows
+  carrying a state this build does not know are dropped individually.
+- **Written on completion, and only on completion.** Both completion paths (the
+  record's Complete action and the guided flow's final step) call the same
+  capture immediately AFTER the existing `ReviewRepository.complete`, so the
+  completion contract, its Activity event and its concurrency behaviour are
+  unchanged. There is no second completion path and no new event.
+- **Best effort.** A failed capture is swallowed: the Review is already
+  complete, and failing to record derived bookkeeping must never turn a
+  completion the owner made into an error they see. A missing snapshot degrades
+  to "no comparison available", which the next Review states honestly.
+- **Deterministic and idempotent.** The same facts build the same row, so
+  completing again after a reopen simply overwrites with the state at the new
+  completion.
+- **Never authoritative.** Areas, Goals, Projects and Tasks remain the only
+  source of truth for what they are; a snapshot only says what was true at one
+  Review point, and nothing but the insight comparison reads it.
+- **Exported with the workspace** as the `reviewInsightSnapshots` collection
+  (`facts_json` verbatim, under its own version) — it is the one insight
+  artefact a restore cannot rebuild. Added to
+  `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS` in the same change, so archives
+  written before it existed still validate. See
+  [`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md).
+- **No Activity.** Capturing derived bookkeeping about a completion that already
+  has its own event is not itself meaningful history.
+
+### The insight set
+
+The rules live in [`review-insights.ts`](../../app/kernel/review-insights/review-insights.ts)
+as a pure evaluator. Every classification carries a **reason built from the
+counts that produced it**, so the owner can disagree with the rule rather than
+having to trust it.
+
+**What changed.** Tasks, Projects and Goals completed in the period (exact), plus
+previously-stalled Projects that moved again (needs a snapshot). A zero-valued
+claim is never emitted.
+
+**Goal contribution.** Introduces **no new threshold** — it reads completed work
+rolled up through the spine plus AREA-03's own live alignment state:
+
+| State | Label | Rule |
+|---|---|---|
+| `moving` | Moving | Tasks completed during the period roll up to this Goal |
+| `limited` | Limited movement | none did, but AREA-03 still reads the Goal as recently active |
+| `none` | No recent movement | no completed work this period, and no recent action either |
+| `no_structure` | No contribution path | no Project currently advances this Goal |
+| `completed` | Completed | the Goal itself is done |
+
+`no_structure` is deliberately distinct from `none`: a Goal no Project advances
+has a **missing structure**, not a stalled one, and calling it "no movement"
+would blame the owner for something they never built.
+
+**Project health change.** Needs the previous Review's snapshot. Shown as a
+transition with both states named (`At risk → On track`), never as a colour.
+Two rules that matter:
+
+- **Completion is not health.** A Project is never "improved" because more Tasks
+  were completed; a Project that finished is reported under *what changed*.
+- **A Project appears in ONE place.** If its health moved, that is the news; if
+  it is simply sitting where it was, it is an attention item. Never both.
+
+**Attention.** Commitments that were already outstanding when the period began
+and are still open — overdue (due before `period_start`) and long-waiting
+(waiting since before it) — plus open, concerning Projects that completed
+nothing. `cancelled` and `someday` work is excluded: a Task the owner parked or
+dropped is not an unfinished commitment. With a snapshot, the surface can also
+say *how many of these were already carrying over last time*.
+
+**Where effort landed.** Areas that received completed work, with counts, and
+Areas with active work that received none — with what counted as contribution
+stated in the same sentence.
+
+**Trend.** Bounded to the current period plus the last five completed Reviews of
+the same type (`MAX_TREND_PERIODS` is a hard cap of 8). Two points minimum: one
+point is a number with decoration. Direction compares the ends of the series,
+not a fitted slope — the owner is comparing "then" with "now".
+
+### Absence
+
+The rule is DalyHub's existing one: **absence renders less, not a dashboard
+measuring nothing.**
+
+- A **first Review** says so in one sentence. It does not show "0 Projects
+  improved, 0 Goals completed, 0 overdue resolved".
+- "This is your first Review" and "your previous Review predates insight
+  history" are different situations and get different sentences.
+- A **failed read** is "not available", never zero.
+- A section with nothing to say is **not rendered**, because an empty section
+  still costs the reader a glance.
+- No score, no index, no grade, no percentage, no streak. A unit test asserts
+  the serialised model contains none of those words, and the tone vocabulary
+  excludes `danger` entirely.
+
+### Where it appears
+
+No new module, no new route, no new top-level Analytics surface, and no change
+to the guided stepper.
+
+- **The guided weekly Review's first step** (`overview`, "Settle in") now renders
+  the evidence. It previously showed six live counts — completed, overdue,
+  Inbox, Diary, Meetings, active Projects — with nothing to compare any of them
+  against; in a quiet week three of them read zero. Same step id, same label,
+  same completion rule.
+- **The Review record's Progress tab** renders the same model for **every**
+  Review type, above the existing progress commentary. A monthly Review compares
+  itself against the previous monthly Review, so horizons are never mixed.
+
+### Drill-down
+
+Every claim reaches the record behind it through ordinary links to existing
+destinations — `/projects/:id`, `/goals/:id`, `/areas/:id`, `/tasks?task=:id`
+and the canonical Task system views. The Review builds no parallel record
+browser. Where a reason would otherwise name nine Projects, it names the first
+four and says how many more there are; the links beneath it still reach them.
+
+### Query bounds
+
+[`review-insights-context.ts`](../../app/modules/reviews/insights/review-insights-context.ts)
+is the only place the evidence reads a repository. One evidence load costs an
+**asserted `REVIEW_INSIGHTS_QUERY_BUDGET` = 14 executed statements**, measured
+against real D1, and two further tests prove the count is flat with respect to
+**workspace size** and to **how many past Reviews exist**.
+
+- The period contribution breakdown is read **once** and shared by the Project,
+  Goal and Area projections — asking the same grouped question three times is an
+  N+1 in disguise.
+- The whole trend is **one** statement, whatever its length.
+- Every list carries an explicit limit from `REVIEW_INSIGHT_LIMITS`.
+- Carry-over shows a bounded list of names beside an **exact** workspace-wide
+  count, so a short list never becomes a wrong number.
+- Every displayed measure carries its exactness (`exact` / `bounded` /
+  `unavailable`). A bounded number is never presented as an exact one.
+
+The Review record's loader computes the evidence for **every** tab rather than
+only for Progress. That is deliberate: the tab is client-side state, and making
+the projection conditional on it would trade a bounded, asserted page cost for a
+tab that can render empty if a revalidation does not happen. A weekly page paying
+14 bounded statements is the cheaper mistake.
+
+### Test coverage
+
+- **Unit** — the Goal-contribution matrix, health-transition classification,
+  trend direction and its two-point minimum, carry-over and repeat carry-over,
+  distribution, first-Review and no-snapshot behaviour, unavailable reads,
+  determinism, the naming bound, the "no score anywhere in the shape" assertion,
+  snapshot build/parse/round-trip/version-fail-closed, and the evidence surface's
+  headings, reasons, drill-down destinations and empty states.
+- **Kernel / D1** — exact period completions (including a Task completed twice
+  in one period counting once), Project/Goal completions under their own
+  headings, contribution attribution through all three Area paths, deterministic
+  ordering, carry-over partitioning and its `someday`/`cancelled` exclusions,
+  snapshot round-trip, idempotency, cross-workspace refusal on read AND write,
+  `listSnapshotsBefore` boundaries, version fail-closed, purge cascade,
+  capture-on-completion and re-capture, same-type comparison, and the asserted
+  query budget with both flatness proofs. Workspace isolation on every read.
+- **Browser** — [`e2e/reviews-insights.spec.ts`](../../e2e/reviews-insights.spec.ts)
+  over [`e2e/seed-review-insights.sql`](../../e2e/seed-review-insights.sql), a
+  week that actually happened: the first-Review case, a populated Review, the
+  trend read without the chart, drill-down to Project/Goal/Area, the guided step,
+  390/1280/1440 with no horizontal overflow, axe in light and dark on both
+  surfaces, and keyboard reach.
+
+Evidence set: [`docs/design/assets/review-03-2026-08/`](../design/assets/review-03-2026-08/).
+
+### What REVIEW-03 deliberately does not do
+
+No AI, no recommendations, no time tracking, no productivity scoring, no
+calendar or notification integration, no new top-level Analytics module, no
+charting dependency, and no new metric added merely to make the page look
+populated. If a number does not help the owner notice progress, notice
+stagnation, notice imbalance, notice carry-over, understand contribution or
+decide what deserves attention next, it is not shown.
