@@ -217,8 +217,18 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     const goToToday = () => nav().getByRole("link", { name: "Today" }).click();
     const goToProjects = () =>
       nav().getByRole("link", { name: "Projects", exact: true }).click();
+    /*
+     * Today's "Continue working" panel. The Today redesign replaced its cards
+     * with plain rows, so the project is a link inside a labelled region rather
+     * than an `article[data-card-id]` — scoping to the region is what keeps this
+     * from also matching the Projects collection later in the journey.
+     */
+    const continueWorking = () =>
+      page.getByRole("region", { name: "Continue working" });
     const projectLink = () =>
-      page.getByRole("link", { name: "Open Today integration project" });
+      continueWorking().getByRole("link", {
+        name: "Today integration project",
+      });
     const statusSelect = () =>
       page.getByRole("combobox", { name: "Workflow status" });
 
@@ -242,8 +252,8 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await goToToday();
     await expect(page).toHaveURL(/\/today$/);
     await expect(projectLink()).toBeVisible();
-    const card = page.locator('article[data-card-id="pr-today"]');
-    await expect(card.getByText("Active", { exact: true })).toBeVisible();
+    // The row states the workflow status in words beside its open-task count.
+    await expect(continueWorking().getByText(/· Active$/)).toBeVisible();
 
     // 5: real client navigation BACK to the record via the Continue working
     // card link itself (it is visible, since the project is Active).
@@ -265,7 +275,7 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await expect(page).toHaveURL(/\/today$/);
     await expect(projectLink()).toHaveCount(0);
 
-    // 7: it is no longer reachable via a Today card, so return to the record
+    // 7: it is no longer reachable from Today, so return to the record
     // via REAL browser history (`goBack`) rather than a fresh navigation —
     // this restores the exact `?tab=settings` entry from step 5.
     await page.goBack();

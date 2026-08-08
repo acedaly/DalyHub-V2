@@ -41,6 +41,7 @@ import {
 /** The seeded state of the task these tests borrow (see `e2e/seed-tasks.sql`). */
 const SEEDED_TASK = {
   id: "t-search-e2e",
+  title: "Global Search E2E Task",
   priority: "p1",
   dueDate: "2026-07-29",
 };
@@ -130,14 +131,26 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
   /** The seeded search fixture task: priority p1, due 2026-07-29. */
   const TASK_DRAWER = `/tasks?drawer=task:${SEEDED_TASK.id}`;
 
+  /*
+   * Every inline control below is asked for INSIDE the Drawer.
+   *
+   * When this was written the Drawer held the only inline priority and date
+   * fields in the product, so a page-wide locator was unambiguous. TASKS-05 put
+   * the same shared fields on every task ROW, and the Tasks collection is what
+   * is behind this Drawer — so a page-wide `/^Priority: /` now matches the
+   * Drawer's control and one per row behind it. The subject of these tests is
+   * the Drawer's field; scoping says so.
+   */
+  const drawerOf = (page: Page) => page.getByRole("dialog");
+
   test("current → new in one action, with the current one announced", async ({
     page,
   }) => {
     await gotoFixture(page, TASK_DRAWER);
-    const drawer = page.getByRole("dialog");
+    const drawer = drawerOf(page);
     await expect(drawer).toBeVisible();
 
-    const priority = page.getByRole("button", { name: /^Priority: / });
+    const priority = drawer.getByRole("button", { name: /^Priority: / });
     await expect(priority).toHaveAccessibleName("Priority: P1 · Urgent");
     await expectMinTouchTarget(priority);
     await priority.click();
@@ -155,14 +168,14 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     // ONE action to a different real value — no "clear it first" step.
     await menu.getByRole("menuitemradio", { name: "P3 · Normal" }).click();
     await expect(
-      page.getByRole("button", { name: "Priority: P3 · Normal" }),
+      drawer.getByRole("button", { name: "Priority: P3 · Normal" }),
     ).toBeVisible();
 
     // Put the shared fixture back exactly as it was.
-    await page.getByRole("button", { name: /^Priority: / }).click();
+    await drawer.getByRole("button", { name: /^Priority: / }).click();
     await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
     await expect(
-      page.getByRole("button", { name: "Priority: P1 · Urgent" }),
+      drawer.getByRole("button", { name: "Priority: P1 · Urgent" }),
     ).toBeVisible();
   });
 
@@ -170,15 +183,16 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     page,
   }) => {
     await gotoFixture(page, TASK_DRAWER);
-    await expect(page.getByRole("dialog")).toBeVisible();
+    const drawer = drawerOf(page);
+    await expect(drawer).toBeVisible();
 
-    await page.getByRole("button", { name: /^Priority: / }).click();
+    await drawer.getByRole("button", { name: /^Priority: / }).click();
     await page.getByRole("menuitemradio", { name: "Clear priority" }).click();
 
     // §3 — the empty state is genuinely EMPTY: an untriaged task is not "set to
     // No priority", and the menu no longer offers a clear command because there
     // is nothing left to clear.
-    const empty = page.getByRole("button", { name: "Priority: No priority" });
+    const empty = drawer.getByRole("button", { name: "Priority: No priority" });
     await expect(empty).toBeVisible();
     await empty.click();
     await expect(
@@ -188,7 +202,7 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     // Unset → set is also one action.
     await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
     await expect(
-      page.getByRole("button", { name: "Priority: P1 · Urgent" }),
+      drawer.getByRole("button", { name: "Priority: P1 · Urgent" }),
     ).toBeVisible();
   });
 
@@ -196,9 +210,10 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     page,
   }) => {
     await gotoFixture(page, TASK_DRAWER);
-    await expect(page.getByRole("dialog")).toBeVisible();
+    const drawer = drawerOf(page);
+    await expect(drawer).toBeVisible();
 
-    const priority = page.getByRole("button", { name: /^Priority: / });
+    const priority = drawer.getByRole("button", { name: /^Priority: / });
     await priority.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("menu")).toBeVisible();
@@ -214,9 +229,14 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     page,
   }) => {
     await gotoFixture(page, `/tasks?drawer=task:${SEEDED_TASK.id}`);
-    await expect(page.getByRole("dialog")).toBeVisible();
+    // Scoped to the RECORD Drawer — the Tasks rows behind it carry the same
+    // shared inline date field since TASKS-05 (see §3's note).
+    const record = page.getByRole("dialog", {
+      name: new RegExp(SEEDED_TASK.title),
+    });
+    await expect(record).toBeVisible();
 
-    const due = page.getByRole("button", { name: /^Due date: / });
+    const due = record.getByRole("button", { name: /^Due date: / });
     await expect(due).toHaveAccessibleName(/29 Jul 2026/);
     await due.click();
 
@@ -225,26 +245,26 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     await popover.getByLabel("Due date").fill("2026-08-15");
     await popover.getByRole("button", { name: "Save" }).click();
     await expect(
-      page.getByRole("button", { name: /^Due date: .*15 Aug 2026/ }),
+      record.getByRole("button", { name: /^Due date: .*15 Aug 2026/ }),
     ).toBeVisible();
 
     // Clearing is possible because the data model permits it…
-    await page.getByRole("button", { name: /^Due date: / }).click();
+    await record.getByRole("button", { name: /^Due date: / }).click();
     await page
       .getByRole("dialog", { name: "Edit due date" })
       .getByRole("button", { name: "Clear" })
       .click();
     await expect(
-      page.getByRole("button", { name: "Due date: No due date" }),
+      record.getByRole("button", { name: "Due date: No due date" }),
     ).toBeVisible();
 
     // …and the fixture goes back to the date it was seeded with.
-    await page.getByRole("button", { name: /^Due date: / }).click();
+    await record.getByRole("button", { name: /^Due date: / }).click();
     const restore = page.getByRole("dialog", { name: "Edit due date" });
     await restore.getByLabel("Due date").fill("2026-07-29");
     await restore.getByRole("button", { name: "Save" }).click();
     await expect(
-      page.getByRole("button", { name: /^Due date: .*29 Jul 2026/ }),
+      record.getByRole("button", { name: /^Due date: .*29 Jul 2026/ }),
     ).toBeVisible();
   });
 });
@@ -256,10 +276,13 @@ test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () =>
     }) => {
       await page.setViewportSize({ width, height: 800 });
       await gotoFixture(page, `/tasks?drawer=task:${SEEDED_TASK.id}`);
-      await expect(page.getByRole("dialog")).toBeVisible();
+      const record = page.getByRole("dialog", {
+        name: new RegExp(SEEDED_TASK.title),
+      });
+      await expect(record).toBeVisible();
       await expectNoHorizontalOverflow(page);
 
-      await page.getByRole("button", { name: /^Priority: / }).click();
+      await record.getByRole("button", { name: /^Priority: / }).click();
       await expect(page.getByRole("menu")).toBeVisible();
       // The anchored menu flips to the inline-end edge when a start-anchored
       // box would run past the viewport, so opening it never adds a page
@@ -267,7 +290,7 @@ test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () =>
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
 
-      await page.getByRole("button", { name: /^Due date: / }).click();
+      await record.getByRole("button", { name: /^Due date: / }).click();
       await expect(
         page.getByRole("dialog", { name: "Edit due date" }),
       ).toBeVisible();
