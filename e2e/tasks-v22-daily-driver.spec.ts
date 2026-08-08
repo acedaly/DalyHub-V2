@@ -279,8 +279,17 @@ test.describe("TASKS-06 — bulk management", () => {
     await expect(confirm).toContainText(/restored/i);
     await confirm.getByRole("button", { name: /^Delete 3 tasks/ }).click();
 
-    // Gone from the ordinary collection…
+    // Wait for the WRITE, not for the bar. While the confirmation is showing, the
+    // "Bulk task actions" group is already gone — the component renders the confirm
+    // panel INSTEAD of it — so `bulkBar` reaching zero says nothing about whether the
+    // delete committed, and navigating on it aborted the in-flight POST. The live
+    // region is the honest signal: it is written from the server's own result.
+    await expect(
+      page.locator("[role='status']").filter({ hasText: /3 tasks deleted/ }),
+    ).toBeAttached();
     await expect(bulkBar(page)).toHaveCount(0);
+
+    // Gone from the ordinary collection…
     await gotoFixture(page, LIST);
     await expect(cardFor(page, `E2E delete ${stamp} 0`)).toHaveCount(0);
 

@@ -1488,6 +1488,19 @@ const BULK_STATUS_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
  *      which resolves and validates every id before a single write and then runs one
  *      atomic batch. There is no client loop anywhere in this component.
  */
+/**
+ * The past-tense verb each bulk intent reports in the live region. Only the four
+ * LIFECYCLE intents get their own word — those are the ones where "updated" would
+ * be actively misleading. Every field mutation (priority, dates, parent, status,
+ * commitment) genuinely is an update and shares the default.
+ */
+const BULK_INTENT_VERBS: Readonly<Record<string, string>> = {
+  delete: "deleted",
+  restore: "restored",
+  complete: "completed",
+  reopen: "reopened",
+};
+
 function BulkActionBar({
   cards,
   ids,
@@ -1510,6 +1523,15 @@ function BulkActionBar({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const processed = useRef<TasksBulkResult | null>(null);
+  /*
+   * The verb the LAST submitted intent deserves.
+   *
+   * "18 tasks updated" is true of a priority change and misleading of a deletion —
+   * the one bulk action whose outcome the owner most needs stated back to them is
+   * the one a generic verb describes worst. The live region is the only confirmation
+   * a screen-reader user gets, so it names what happened.
+   */
+  const lastVerb = useRef<string>("updated");
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
@@ -1518,7 +1540,7 @@ function BulkActionBar({
     processed.current = result;
     if (result.ok) {
       setStatus(
-        `${result.changed} ${result.changed === 1 ? "task" : "tasks"} updated, ${result.unchanged} unchanged.`,
+        `${result.changed} ${result.changed === 1 ? "task" : "tasks"} ${lastVerb.current}, ${result.unchanged} unchanged.`,
       );
       setConfirmDelete(false);
       setShowMore(false);
@@ -1536,6 +1558,7 @@ function BulkActionBar({
 
   const run = useCallback(
     (fields: Record<string, string>) => {
+      lastVerb.current = BULK_INTENT_VERBS[fields.intent ?? ""] ?? "updated";
       const body = new FormData();
       for (const id of ids) body.append("id", id);
       for (const [key, value] of Object.entries(fields)) body.set(key, value);
