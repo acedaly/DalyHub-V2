@@ -2372,7 +2372,11 @@ that existed for exactly this purpose was incremented and never compared.
   idempotent success or a typed conflict (`AppPreferencesConflictError`,
   `NoteDetailsConflictError`). A `SELECT`, an application comparison and then an
   unconditional `UPDATE` is not a precondition; it is a race with better manners.
-  Conflicts answer `409`, never `500`: nothing failed.
+  Conflicts answer `409`, never `500`: nothing failed. And a precondition that
+  cannot be READ is refused (`400`) rather than dropped — degrading a malformed
+  version to "no version" hands a stale caller an opt-out from the very check
+  that protects the newer data, while refusing costs the writer nothing, because
+  their draft has not left their editor.
 
 - **Decision 4 — merge where the values are independent; refuse where they are
   not.** Preferences and Note content have the same low-level mechanism and

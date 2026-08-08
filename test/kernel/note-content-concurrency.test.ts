@@ -329,4 +329,80 @@ describe("AUDIT-08 — the mutation route answers a conflict, not a failure", ()
       "Written by the capture panel.",
     );
   });
+
+  it("refuses a MALFORMED precondition instead of falling back to last-write-wins", async () => {
+    /*
+     * The escape hatch this closes: an unparseable `expectedContentUpdatedAt`
+     * used to degrade to "no precondition", which is indistinguishable at the
+     * repository from a caller that never sent one — so a stale client could
+     * skip the compare-and-set entirely and overwrite newer stored content.
+     *
+     * A `400` costs the owner nothing: their draft never left the editor and
+     * comes back with the error. Dropping the guard could cost them the OTHER
+     * version, which no longer exists anywhere once it is overwritten.
+     */
+    const note = await entities().create({ type: "note", title: "Essay" });
+    await runMutate(note.id, saveForm("Written on the other device.", null));
+    const before = await editor().get(note.id);
+    const eventsBefore = await contentEventCount(note.id);
+
+    // Unparseable — no version could be read at all.
+    for (const malformed of [
+      "not-a-timestamp",
+      "2026-13-45T99:99:99.000Z",
+      "   ",
+      "1786170000",
+    ]) {
+      const response = await runMutate(
+        note.id,
+        saveForm("Written by a stale client.", malformed),
+      );
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as NoteMutationResult;
+      expect(body.kind).toBe("update_content");
+      expect(body.ok).toBe(false);
+      if (body.kind === "update_content" && !body.ok) {
+        // Not reported as a conflict: nothing was compared, so there is no
+        // newer version to offer — the request itself was unusable.
+        expect(body.conflict).toBeUndefined();
+        expect(body.formError).toBeTruthy();
+      }
+
+      // The stored content is byte-identical and its version has not moved.
+      const after = await editor().get(note.id);
+      expect(after?.content).toBe("Written on the other device.");
+      expect(after?.contentUpdatedAt?.toISOString()).toBe(
+        before?.contentUpdatedAt?.toISOString(),
+      );
+    }
+
+    // And nothing was written to the Note's timeline by the refused attempts.
+    expect(await contentEventCount(note.id)).toBe(eventsBefore);
+
+    // The boundary, stated precisely: a value that PARSES is a version, and a
+    // wrong one is a CONFLICT (409) — the newer text is offered back — not a
+    // validation error. Only an unreadable value is a `400`. The two failures
+    // mean different things and must not be collapsed.
+    const wrongButValid = await runMutate(
+      note.id,
+      saveForm("Written by a stale client.", "2000-01-01T00:00:00.000Z"),
+    );
+    expect(wrongButValid.status).toBe(409);
+    expect((await editor().get(note.id))?.content).toBe(
+      "Written on the other device.",
+    );
+
+    // The same client, once it quotes the version it actually holds, saves.
+    const ok = await runMutate(
+      note.id,
+      saveForm(
+        "Written on the other device, then continued.",
+        before?.contentUpdatedAt?.toISOString() ?? null,
+      ),
+    );
+    expect(ok.status).toBe(200);
+    expect((await editor().get(note.id))?.content).toBe(
+      "Written on the other device, then continued.",
+    );
+  });
 });
