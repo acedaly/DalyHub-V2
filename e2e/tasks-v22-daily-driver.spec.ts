@@ -285,6 +285,18 @@ test.describe("TASKS-06 — bulk management", () => {
     // …and reachable, and restorable, from the built-in Deleted view.
     await gotoFixture(page, DELETED);
     await expect(cardFor(page, `E2E delete ${stamp} 0`)).toBeVisible();
+    // The trash is a RECOVERY surface: a deleted row offers no edit that could only
+    // fail, so its inline fields and its Complete action are not there at all.
+    await expect(
+      cardFor(page, `E2E delete ${stamp} 0`).getByRole("button", {
+        name: /^Priority/,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      cardFor(page, `E2E delete ${stamp} 0`).getByRole("button", {
+        name: /^Complete /,
+      }),
+    ).toHaveCount(0);
     await selectTask(page, `E2E delete ${stamp} 0`);
     await runBulk(page, () =>
       bulkBar(page).getByRole("button", { name: "Restore" }).click(),
@@ -315,9 +327,7 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
 
   /** Open a row's shared quick-edit panel, which hosts the recurrence editor. */
   async function openQuickEdit(page: Page, title: string) {
-    await cardFor(page, title)
-      .getByRole("button", { name: /^More actions for / })
-      .click();
+    await openRowMenu(page, title);
     await page
       .getByRole("menuitem", { name: "Repeat, sector and dates…" })
       .click();
@@ -463,12 +473,14 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     const title = `E2E phone repeat ${RUN}`;
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow`);
-    // On a phone the newest row sits directly under the sticky top bar, which would
-    // otherwise take the click. Scroll it clear first — the same thing a thumb does.
+    // At a phone WIDTH the harness still reports a fine pointer, so the row behaves
+    // as it does on a desktop: the action rail reveals on hover. The newest row also
+    // sits directly under the sticky top bar, which would otherwise take the click,
+    // so it is scrolled clear first — the same thing a thumb does.
     const row = cardFor(page, title);
     await row.scrollIntoViewIfNeeded();
     await page.mouse.wheel(0, -160);
-    await row.getByRole("button", { name: /^More actions for / }).click();
+    await openRowMenu(page, title);
     await page
       .getByRole("menuitem", { name: "Repeat, sector and dates…" })
       .click();

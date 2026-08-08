@@ -20,8 +20,8 @@ no version number to group them under.
 ## Tasks, as a daily driver (V2.2 — TASKS-05 · TASKS-06 · TASKS-07 · TASKS-08)
 
 The programme that makes Tasks the fastest thing in DalyHub. The whole point is one
-change of shape: **see a task → act on the task**, instead of *see a task → open it →
-find Edit → change a field → save → close*.
+change of shape: **see a task → act on the task**, instead of _see a task → open it →
+find Edit → change a field → save → close_.
 
 ### Change a task where you can see it
 
@@ -79,10 +79,10 @@ A repeat is now one of two things, and DalyHub asks which:
 Every repeat you already have keeps behaving exactly as it did — they are all fixed
 schedules, which is what they already meant.
 
-**Custom repeats are now buildable.** Choose *Custom…* under Repeat for every 3 weeks,
+**Custom repeats are now buildable.** Choose _Custom…_ under Repeat for every 3 weeks,
 every 3 months, or a weekly routine pinned to particular days. Whatever you build, the
-panel states it in plain English — *"Every 2 weeks on Monday and Thursday"*, *"14 days
-after completion"* — before you save it.
+panel states it in plain English — _"Every 2 weeks on Monday and Thursday"_, _"14 days
+after completion"_ — before you save it.
 
 Two more things a repeating task needed:
 

@@ -722,6 +722,17 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
   const density = config.density;
 
+  /**
+   * The Deleted view is a RECOVERY surface, not a working one.
+   *
+   * A soft-deleted Task is invisible to every ordinary mutation — `getTask` will not
+   * resolve it — so offering the row's inline fields and its Complete action there
+   * would offer controls that can only ever fail. In the trash there are exactly two
+   * useful moves: restore it, or leave it. The row says so by going read-only rather
+   * than by refusing each attempt afterwards.
+   */
+  const viewingDeleted = config.systemView === "deleted";
+
   const toCardProps = useCallback(
     (card: TaskCardData, headingLevel: 2 | 3): CardProps => {
       // Priority ≠ urgency ≠ display-state as THREE separable slots (TASKS-02): the
@@ -753,7 +764,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             title={card.title}
             priority={card.priority}
             onSaved={quick.announce}
-            disabled={card.completed}
+            disabled={card.completed || viewingDeleted}
           />
         ),
       });
@@ -800,7 +811,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             kind="due"
             value={card.dueDate}
             onSaved={quick.announce}
-            disabled={card.completed}
+            disabled={card.completed || viewingDeleted}
           />
         ),
         priority: "low",
@@ -814,7 +825,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             kind="scheduled"
             value={card.scheduledDate}
             onSaved={quick.announce}
-            disabled={card.completed}
+            disabled={card.completed || viewingDeleted}
           />
         ),
         priority: "low",
@@ -828,7 +839,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             parent={card.parent}
             options={data.parents}
             onSaved={quick.announce}
-            disabled={card.completed}
+            disabled={card.completed || viewingDeleted}
           />
         ),
         priority: "low",
@@ -886,9 +897,10 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
               ),
             disabled: quick.busy,
           };
-      const quickActions = [completeAction, planTodayAction].filter(
-        (action) => action !== null,
-      );
+      // Nothing on a deleted row can be mutated, so nothing on it offers to.
+      const quickActions = viewingDeleted
+        ? []
+        : [completeAction, planTodayAction].filter((action) => action !== null);
 
       // The long tail of quick edits stays in the ONE shared overflow menu rather
       // than turning every row into a spreadsheet. Archive/restore/delete keep the
@@ -906,86 +918,95 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
        * replaces the title), the searchable full parent picker, the composed
        * quick-edit panel, the commitment change, and the recurrence-series operations.
        */
-      const overflowActions = card.completed
+      const overflowActions = viewingDeleted
         ? [
-            {
-              id: "reopen-record",
-              label: "Open task record",
-              onSelect: () => openDrawer(`task:${card.id}`),
-            },
-          ]
-        : [
-            {
-              id: "rename",
-              label: "Rename",
-              disabled: quick.busy,
-              onSelect: () => setEditingTitleId(card.id),
-            },
-            {
-              id: "move-to",
-              label: "Move to Project or Area…",
-              description: "Search the whole workspace.",
-              onSelect: () => openDrawer(`task-move:${card.id}`),
-            },
-            {
-              id: "someday",
-              label: "Move to Someday / Maybe",
-              separatorBefore: true,
-              disabled: quick.busy,
-              onSelect: () =>
-                quick.setField(
-                  card.id,
-                  { intent: "set_commitment", commitment: "someday" },
-                  `${card.title} moved to Someday / Maybe.`,
-                ),
-            },
-            // TASKS-07 — the two series operations that belong on a row. Skipping is
-            // NOT completing: the occurrence moves one step along the series and the
-            // history says it was skipped. Stopping keeps every past occurrence and
-            // only ends the future.
-            ...(card.recurrence
-              ? [
-                  {
-                    id: "skip-occurrence",
-                    label: "Skip this occurrence",
-                    description:
-                      "Moves to the next date without completing it.",
-                    separatorBefore: true,
-                    disabled: quick.busy,
-                    onSelect: () =>
-                      quick.setRecord(
-                        card.id,
-                        { intent: "skip_occurrence" },
-                        `Skipped this occurrence of ${card.title}.`,
-                      ),
-                  },
-                  {
-                    id: "stop-repeat",
-                    label: "Stop repeating",
-                    description: "Past occurrences are kept.",
-                    disabled: quick.busy,
-                    onSelect: () =>
-                      quick.setRecord(
-                        card.id,
-                        { intent: "set_recurrence" },
-                        `${card.title} no longer repeats.`,
-                      ),
-                  },
-                ]
-              : []),
-            {
-              id: "quick-edit",
-              label: "Repeat, sector and dates…",
-              separatorBefore: true,
-              onSelect: () => openDrawer(`task-quick:${card.id}`),
-            },
             {
               id: "open-record",
               label: "Open task record",
-              description: "For delegation, waiting and removal.",
+              description: "Read-only until it is restored.",
               onSelect: () => openDrawer(`task:${card.id}`),
             },
-          ];
+          ]
+        : card.completed
+          ? [
+              {
+                id: "reopen-record",
+                label: "Open task record",
+                onSelect: () => openDrawer(`task:${card.id}`),
+              },
+            ]
+          : [
+              {
+                id: "rename",
+                label: "Rename",
+                disabled: quick.busy,
+                onSelect: () => setEditingTitleId(card.id),
+              },
+              {
+                id: "move-to",
+                label: "Move to Project or Area…",
+                description: "Search the whole workspace.",
+                onSelect: () => openDrawer(`task-move:${card.id}`),
+              },
+              {
+                id: "someday",
+                label: "Move to Someday / Maybe",
+                separatorBefore: true,
+                disabled: quick.busy,
+                onSelect: () =>
+                  quick.setField(
+                    card.id,
+                    { intent: "set_commitment", commitment: "someday" },
+                    `${card.title} moved to Someday / Maybe.`,
+                  ),
+              },
+              // TASKS-07 — the two series operations that belong on a row. Skipping is
+              // NOT completing: the occurrence moves one step along the series and the
+              // history says it was skipped. Stopping keeps every past occurrence and
+              // only ends the future.
+              ...(card.recurrence
+                ? [
+                    {
+                      id: "skip-occurrence",
+                      label: "Skip this occurrence",
+                      description:
+                        "Moves to the next date without completing it.",
+                      separatorBefore: true,
+                      disabled: quick.busy,
+                      onSelect: () =>
+                        quick.setRecord(
+                          card.id,
+                          { intent: "skip_occurrence" },
+                          `Skipped this occurrence of ${card.title}.`,
+                        ),
+                    },
+                    {
+                      id: "stop-repeat",
+                      label: "Stop repeating",
+                      description: "Past occurrences are kept.",
+                      disabled: quick.busy,
+                      onSelect: () =>
+                        quick.setRecord(
+                          card.id,
+                          { intent: "set_recurrence" },
+                          `${card.title} no longer repeats.`,
+                        ),
+                    },
+                  ]
+                : []),
+              {
+                id: "quick-edit",
+                label: "Repeat, sector and dates…",
+                separatorBefore: true,
+                onSelect: () => openDrawer(`task-quick:${card.id}`),
+              },
+              {
+                id: "open-record",
+                label: "Open task record",
+                description: "For delegation, waiting and removal.",
+                onSelect: () => openDrawer(`task:${card.id}`),
+              },
+            ];
 
       const key = `task:${card.id}`;
       return {
@@ -1044,6 +1065,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       quick,
       density,
       editingTitleId,
+      viewingDeleted,
     ],
   );
 
@@ -1250,7 +1272,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             ids={[...selected]}
             todayIso={data.todayIso}
             parents={data.parents}
-            viewingDeleted={config.systemView === "deleted"}
+            viewingDeleted={viewingDeleted}
             onCleared={clearSelection}
           />
         ) : selection.mode ? (
