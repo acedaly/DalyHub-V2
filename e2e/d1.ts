@@ -42,6 +42,13 @@ export function sqlLiteral(value: string): string {
  * `SQLITE_BUSY` is the writer lock. The foreign-key case is the ordered-cleanup
  * race described above — a child row written after its parent was selected for
  * deletion — which the next pass sweeps.
+ *
+ * The foreign-key entry has a cost worth stating: a cleanup sequence that is
+ * simply WRONG — one that deletes an entity while a `RESTRICT` child of it still
+ * exists — fails identically, and is retried five times before it reports. It
+ * still fails, and loudly, but the message names contention rather than the
+ * missing statement. If a teardown fails here, check the ORDER of the statements
+ * before assuming the database was busy.
  */
 function isTransientD1Error(output: string): boolean {
   return (

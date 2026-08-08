@@ -84,6 +84,11 @@ function removeTask(title: string): void {
     `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
     `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
     `DELETE FROM task_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+    // The spine row goes BEFORE the entity: `spine_records_entity_fk` is
+    // `ON DELETE RESTRICT`, so deleting the entity first raises
+    // `FOREIGN KEY constraint failed` — which `d1Execute` would then retry five
+    // times before failing the teardown and leaving the fixtures behind.
+    `DELETE FROM spine_records WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
     `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${selection});`,
   ]);
 }
