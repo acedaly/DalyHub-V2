@@ -45,6 +45,17 @@ export interface LinkedItemsSectionProps {
   readonly transport?: LinkedItemsTransport;
   /** Optional server-seeded items (SSR) so the list renders without a fetch flash. */
   readonly initialItems?: readonly LinkedItem[];
+  /**
+   * The level of this section's own heading, so the surrounding document's
+   * outline stays valid wherever it is mounted.
+   *
+   * It used to be a hard-coded `h2` with `h3` groups, which is right on a record
+   * TAB (the section is a top-level region of that record) and wrong anywhere
+   * nested: a Diary entry mounts it under an `h4` "Related", so the outline went
+   * 4 → 2 → 3 and axe reported a real `heading-order` failure on the next
+   * heading after it. Group headings always sit one level below this one.
+   */
+  readonly headingLevel?: 2 | 3 | 4 | 5;
 }
 
 function typeLabel(type: string): string {
@@ -87,7 +98,12 @@ export function LinkedItemsSection({
   readOnly = false,
   transport,
   initialItems,
+  headingLevel = 2,
 }: LinkedItemsSectionProps) {
+  // One authority for both levels, so a group can never outrank its section.
+  const SectionHeading = `h${headingLevel}` as "h2" | "h3" | "h4" | "h5";
+  const GroupHeading = `h${headingLevel + 1}` as "h3" | "h4" | "h5" | "h6";
+
   const feedback = useFeedback();
   const controller = useLinkedItems({
     anchorId,
@@ -161,7 +177,9 @@ export function LinkedItemsSection({
 
   return (
     <div className="dh-linked-items">
-      <h2 className="dh-visually-hidden">Linked items</h2>
+      <SectionHeading className="dh-visually-hidden">
+        Linked items
+      </SectionHeading>
 
       {status === "loading" ? (
         <p className="dh-linked-items__status" role="status">
@@ -187,7 +205,7 @@ export function LinkedItemsSection({
         <ul className="dh-linked-items__groups">
           {groups.map((group) => (
             <li key={group.type} className="dh-linked-items__group">
-              <h3 className="dh-linked-items__group-heading">
+              <GroupHeading className="dh-linked-items__group-heading">
                 <span
                   className="dh-linked-items__group-icon"
                   aria-hidden="true"
@@ -201,7 +219,7 @@ export function LinkedItemsSection({
                   {" "}
                   ({group.items.length})
                 </span>
-              </h3>
+              </GroupHeading>
               <ul className="dh-linked-items__list">
                 {group.items.map((item) => (
                   <li key={item.linkId} className="dh-linked-items__item">
