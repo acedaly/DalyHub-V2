@@ -33,7 +33,7 @@
  */
 
 import { APP_VERSION } from "~/lib/version";
-import { requireAuthenticatedSession } from "~/platform/request";
+import { getCspNonce, requireAuthenticatedSession } from "~/platform/request";
 import { BrandMark } from "~/shared/brand";
 import {
   OfflineCaptureForm,
@@ -70,7 +70,12 @@ export async function loader({ context }: Route.LoaderArgs) {
   // this function returns is what gets baked into a cached document, so it
   // returns only what is already public at `/health`.
   requireAuthenticatedSession(context);
-  return { version: APP_VERSION };
+  // AUDIT-10 — this route renders the product's ONE hand-written inline script,
+  // so it needs the request's nonce. A nonce is not a secret: it is already on
+  // every script tag in the document the browser is reading, and it is worthless
+  // outside the response that carries it. Returning it as loader data is what
+  // lets the component below emit it without a second nonce channel.
+  return { version: APP_VERSION, nonce: getCspNonce(context) };
 }
 
 export default function OfflineRoute({ loaderData }: Route.ComponentProps) {
@@ -98,8 +103,16 @@ export default function OfflineRoute({ loaderData }: Route.ComponentProps) {
        *
        * Inline rather than a module: a module is a network fetch, and the whole
        * point is the case where the network is gone. It is a single assignment
-       * with no listener, no timer and no navigation, so it cannot loop. */}
+       * with no listener, no timer and no navigation, so it cannot loop.
+       *
+       * AUDIT-10 — it carries the request's CSP nonce, so `script-src` needs no
+       * exception for it. When this document is cached as the offline shell the
+       * nonce is frozen alongside the `Content-Security-Policy` header the same
+       * response carried, and the service worker replays that header rather than
+       * substituting its own, so the pair stays consistent for the life of the
+       * cache entry. See `docs/development/PWA_AND_OFFLINE.md`. */}
       <script
+        nonce={loaderData.nonce || undefined}
         dangerouslySetInnerHTML={{
           __html:
             'if(location.pathname!=="/offline"){try{history.replaceState(null,"","/offline")}catch(e){}}',

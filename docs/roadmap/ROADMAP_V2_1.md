@@ -524,7 +524,8 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 ### The rest — near-term remediation and cleanup
 
-Sequenced but not blocking: the security/ops hardening (AUDIT-10 CSP, AUDIT-11
+Sequenced but not blocking: the security/ops hardening (AUDIT-10 CSP — **resolved
+2026-08-08 with SET-03**, AUDIT-11
 backup artifact) and the cleanups (AUDIT-13 non-atomic flows, AUDIT-16 dead
 code). The multi-device concurrency pair (AUDIT-07 preferences, AUDIT-08 note
 content) and the owner-timezone/parentless-restore cleanup (AUDIT-14, AUDIT-15)
@@ -1100,15 +1101,53 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Priority.** P3 — closed. See
   [`DIARY_MODULE.md` §9](../development/DIARY_MODULE.md#9-diary-02--related-records-and-day-context).
 
-### ☐ SET-03 — Account & security
+### ◐ SET-03 — Account & security — substantially delivered 2026-08-08
 
 - **Original entry.** [`ROADMAP_V2.md → SET-03`](ROADMAP_V2.md#-set-03--account--security).
-- The identity layer beneath it is done and accepted (FND-09, ADR-016): DalyHub *is*
-  authenticated, so this is not blocking safety. What is missing is the owner-facing
+- The identity layer beneath it was already done and accepted (FND-09, ADR-016): DalyHub *is*
+  authenticated, so this was never blocking safety. What was missing was the owner-facing
   surface — visible session/identity state, sign-out-everywhere, and a
-  security-relevant audit view. Related:
-  [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3).
-- **Priority.** P2.
+  security-relevant audit view.
+- **What shipped.** `Settings → Account & security`, with five groups: **Identity**
+  (display name, verified email, a trailing fragment of the identity subject, the
+  authenticator, the environment — all from the boundary-validated session, never
+  from a browser-submitted field); **This session** (status, issued-at, expiry,
+  derived from the credential's own `iat`/`exp`); **Data on this device**;
+  **Security activity**; and **Sign out**. It carries no password control, no MFA
+  control, no device list, no "last login", no IP address and no session
+  inventory — DalyHub observes none of them. Full documentation:
+  [`SETTINGS_MODULE.md → Account & security`](../development/SETTINGS_MODULE.md#account--security-set-03-2026-08-08).
+- **Sign-out is now a path DalyHub owns end to end**, closing
+  [DEBT-68](../product/PRODUCT_DEBT.md#-debt-68--logging-out-does-not-clear-the-devices-offline-data-automatically--p2--resolved-2026-08-08):
+  it clears this device's reproducible personal data and cached application files
+  before handing the browser to Cloudflare's logout endpoint, while PRESERVING
+  offline captures that have never reached the server.
+- **A security-relevant audit view exists, over the ONE Activity stream.**
+  `security.signed_out` and `security.local_data_cleared` are recorded as
+  workspace-scoped, subject-less events in the same `activities` table every other
+  event lives in — no second audit log. That resolves the modelling half of
+  [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08),
+  which is narrowed rather than closed: ordinary preference changes still append
+  no Activity.
+- **☐ NOT delivered: sign-out-everywhere, and this item is NOT ☑ because of it.**
+  The acceptance criterion is unchanged and unmet. Revoking every Cloudflare
+  Access session for the owner requires a Cloudflare API credential with Access
+  write scope; DalyHub's Worker is configured with the Access team domain, the
+  application AUD and the owner email
+  ([`auth-configuration.ts`](../../app/platform/auth/auth-configuration.ts)) and
+  **no Cloudflare credential of any kind** — there is no binding for one and no
+  deploy step that supplies one. Rather than ship a button that signs out one
+  browser while implying it signed out all of them, the surface states what
+  DalyHub can and cannot do and points at the Cloudflare Zero Trust dashboard.
+  Whether the control renders is a SERVER-derived capability flag, so it will
+  appear if and when the capability does, and not before.
+- **What closing it would take.** A deliberate decision to give the Worker a
+  scoped Cloudflare API token (a new secret, a new external dependency in the
+  sign-out path, and a new failure mode on the most safety-critical control in
+  the product), or an explicit, transparent revision of the acceptance criterion
+  to "the owner can reach Access session management from DalyHub". Neither is
+  taken here; the item stays ◐ until one is.
+- **Priority.** P2. **Decision record.** [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-a-nonce-based-content-security-policy-one-header-authority-and-a-security-surface-that-refuses-to-overclaim).
 
 ---
 
@@ -1607,7 +1646,7 @@ because a reader would otherwise wonder whether it was forgotten:
    phone-first capture of a new Asset.
 5. **[DIARY-02](#-diary-02--day-context-links)** (**closed 2026-08-08**, alongside
    PEOPLE-04 — they share the one contextual-relationship contract),
-   **[SET-03](#-set-03--account--security)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
+   **[SET-03](#-set-03--account--security--substantially-delivered-2026-08-08)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
    member of this group and is now delivered.
 6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore

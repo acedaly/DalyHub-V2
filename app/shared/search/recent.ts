@@ -13,7 +13,15 @@ import type {
   SearchResultTarget,
 } from "./types";
 
-const STORAGE_KEY = "dalyhub.search.recent.v1";
+/**
+ * The key recent searches are stored under.
+ *
+ * Exported (SET-03) because recent search terms are OWNER-SPECIFIC data, and the
+ * account-security local-data model has to be able to name every key it clears
+ * rather than sweeping a prefix. One constant, two readers.
+ */
+export const RECENT_SEARCH_STORAGE_KEY = "dalyhub.search.recent.v1";
+const STORAGE_KEY = RECENT_SEARCH_STORAGE_KEY;
 const MAX_RECENT_RESULTS = 8;
 const SENSITIVE_SUBTITLE_TYPES = new Set([
   "asset",

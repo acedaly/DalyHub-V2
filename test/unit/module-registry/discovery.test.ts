@@ -537,6 +537,12 @@ describe("module discovery", () => {
           moduleId: "settings",
           file: "routes/restore.tsx",
         },
+        // SET-03 — the two Account & security history endpoints (POST-only).
+        {
+          id: "settings.account.security",
+          moduleId: "settings",
+          file: "routes/account-security.tsx",
+        },
         { id: "help.index", moduleId: "help", file: "routes/index.tsx" },
         { id: "about.index", moduleId: "about", file: "routes/index.tsx" },
       ]);

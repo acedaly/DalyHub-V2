@@ -316,10 +316,17 @@ well-built and test-guarded.)
 - **Offline data persists after logout (P2, = DEBT-68).** Note/diary excerpts,
   meeting titles and attendee names live in IndexedDB and are not cleared on
   logout; on a shared/stolen device they remain readable for up to the retention
-  window. Acknowledged in-product and in DEBT-68.
+  window. Acknowledged in-product and in DEBT-68. *(Resolved 2026-08-08 with
+  SET-03: signing out through DalyHub clears the snapshot, recent searches, the
+  diagnostics ring and the cached application files, and removes the offline
+  database entirely when nothing is queued — while deliberately preserving
+  offline captures that have never reached the server. See
+  [DEBT-68](PRODUCT_DEBT.md#-debt-68--logging-out-does-not-clear-the-devices-offline-data-automatically--p2--resolved-2026-08-08).)*
 - **[AUDIT-10] CSP provides no XSS mitigation (P3)** — only `base-uri`,
   `frame-ancestors`, `object-src`; no `script-src`/`default-src`, so the sanitiser
-  is the sole script-injection defence with no second layer.
+  is the sole script-injection defence with no second layer. *(Resolved
+  2026-08-08 — see [AUDIT-10](#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08)
+  below. This section records the audited commit, not today's state.)*
 - **[AUDIT-11] Full production D1 dump stored as a GitHub artifact, 30-day
   retention (P2/P3)** — correct credential handling, but the dump itself is all
   personal data and its exposure scales with who can read the repo's Actions.
@@ -521,7 +528,7 @@ Summary:
 | AUDIT-07 | Multi-device preference lost-update (`version` never enforced) | Confirmed (code) |
 | AUDIT-08 | Concurrent note-content saves are blind last-write-wins (links DEBT-47) | Confirmed (code) |
 | AUDIT-09 | Help "choose from the five themes" contradicts the seven that ship | Confirmed |
-| AUDIT-10 | CSP has no `script-src`/`default-src` (no XSS defence-in-depth) | Confirmed |
+| AUDIT-10 | CSP has no `script-src`/`default-src` (no XSS defence-in-depth) | Confirmed — **resolved 2026-08-08** |
 | AUDIT-12 | `react-router@8.0.0` advisory GHSA-qwww-vcr4-c8h2 (RSC-mode CSRF; patched 8.3.0) | Confirmed (RSC-specific) |
 | AUDIT-13 | Non-atomic cross-repository flows (meeting→task, obligation→task) | Confirmed (code) |
 | AUDIT-14 | Two "owner today" definitions (hard-coded Sydney vs stored tz) | Confirmed (code) |
@@ -815,12 +822,23 @@ daily use · related roadmap/debt.
   `:592` lists all seven, but `:662` still says "You can choose from the five; you
   cannot yet make a sixth." **Fix:** correct the sentence. **Size:** trivial.
 
-### AUDIT-10 — CSP has no script-src/default-src — P3
+### AUDIT-10 — CSP has no script-src/default-src — P3 — **RESOLVED 2026-08-08**
 
-- **Status:** Confirmed. `app/platform/request/security-headers.ts` sets only
-  `base-uri 'none'; frame-ancestors 'none'; object-src 'none'`. No second layer
-  behind the Markdown sanitiser. **Fix:** add a hash/nonce `script-src`. **Size:**
-  medium (needs hydration-safe nonce). **Debt:** new.
+- **Status:** Confirmed at the time of the audit. `app/platform/request/security-headers.ts`
+  set only `base-uri 'none'; frame-ancestors 'none'; object-src 'none'`. No second
+  layer behind the Markdown sanitiser. **Fix:** add a hash/nonce `script-src`.
+  **Size:** medium (needs hydration-safe nonce). **Debt:** new.
+- **Resolved (2026-08-08, with SET-03).** A complete, ENFORCING policy is built
+  per response around a fresh 128-bit nonce and applied by the request boundary
+  to every exit — served documents, data requests, `/health`, 403 CSRF rejections
+  and 401/403/503 authentication failures alike. Production carries `default-src
+  'self'` and `script-src 'self' 'nonce-…'` with no `'unsafe-inline'` and no
+  `'unsafe-eval'`; the nonce-based approach the fix called for turned out to be
+  exactly right, because React Router's inline scripts are all server-rendered by
+  this repository. The one exception is `style-src-attr 'unsafe-inline'`, confined
+  to attributes. The Markdown sanitiser is unchanged and is still the first layer.
+  Recorded as [DEBT-85](PRODUCT_DEBT.md#-debt-85--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08);
+  decision record [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-a-nonce-based-content-security-policy-one-header-authority-and-a-security-surface-that-refuses-to-overclaim).
 
 ### AUDIT-11 — Production D1 dump stored as a GitHub artifact — P2/P3 — **RESOLVED 2026-08-08**
 

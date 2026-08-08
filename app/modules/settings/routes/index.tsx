@@ -30,6 +30,13 @@ import {
   AppPreferencesConflictError,
   AppPreferencesValidationError,
 } from "~/kernel/preferences";
+import {
+  SECURITY_ACTIVITY_TYPES,
+  SECURITY_LOCAL_DATA_CLEARED,
+  SECURITY_SIGNED_OUT,
+  subjectFragment,
+  type LocalDataClearScope,
+} from "~/kernel/account-security";
 import { buildInfo } from "~/lib/version";
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -56,7 +63,12 @@ import {
   type PrivacyCategory,
 } from "~/kernel/ai";
 import { resolveAiConfiguration } from "~/platform/ai";
+import { resolveAuthConfig } from "~/platform/auth";
 import { AiSettingsSection } from "../AiSettingsSection";
+import {
+  AccountSecuritySection,
+  type AccountSecurityData,
+} from "../AccountSecuritySection";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 // The specific module, not the `~/shared/shell` barrel: the barrel also exports
 // `AppShell`, and importing it here would pull the whole application frame into
@@ -73,6 +85,7 @@ import type { Route } from "./+types/index";
 type SectionId =
   | "general"
   | "ai"
+  | "account-security"
   | "date-time"
   | "navigation"
   | "privacy-data"
@@ -88,6 +101,7 @@ const SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] =
     { id: "date-time", label: "Date & time" },
     { id: "navigation", label: "Navigation" },
     { id: "ai", label: "AI" },
+    { id: "account-security", label: "Account & security" },
     { id: "privacy-data", label: "Privacy & data" },
     { id: "offline", label: "Offline & app" },
     { id: "about", label: "About" },
@@ -169,6 +183,7 @@ export function meta() {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  const section = sectionFromUrl(request);
   const preferences = await scope.appPreferences.get(session.user.subject);
   const navigation = getPrimaryNavigation();
   const resolvedNavigation = resolveNavigationPreferences(
@@ -177,7 +192,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   );
   const availablePaths = new Set(navigation.map((item) => item.href));
   return {
-    section: sectionFromUrl(request),
+    section,
+    // SET-03 — assembled ONLY for the section that renders it. It costs three
+    // bounded Activity reads, and every other Settings section would pay for
+    // them without showing anything.
+    accountSecurity:
+      section === "account-security"
+        ? await readAccountSecurity(scope, session)
+        : null,
     preferences: {
       timezone: preferences.timezone,
       dateFormat: preferences.dateFormat,
@@ -398,6 +420,147 @@ async function withPreferenceRetry(
 }
 
 /**
+ * SET-03 — how many security events the Account & security surface shows.
+ *
+ * Bounded and small on purpose. This is a "did anything happen I did not do?"
+ * glance, not an audit console; the full history is the workspace Activity feed,
+ * which renders these same events from the same stream.
+ */
+const SECURITY_ACTIVITY_LIMIT = 8;
+
+/** The owner-facing sentence for each recorded security event. */
+function summariseSecurityEvent(
+  type: string,
+  payload: Record<string, unknown>,
+): string {
+  if (type === SECURITY_SIGNED_OUT) {
+    const kept = Number(payload.queuedCapturesKept ?? 0);
+    const cleared = payload.localSnapshotCleared === true;
+    const base = cleared
+      ? "Signed out of DalyHub and cleared this device's personal data"
+      : "Signed out of DalyHub; this device's personal data could not be cleared";
+    return kept > 0
+      ? `${base}. ${kept} offline capture${kept === 1 ? "" : "s"} kept on the device.`
+      : `${base}.`;
+  }
+  if (type === SECURITY_LOCAL_DATA_CLEARED) {
+    const scope = payload.scope as LocalDataClearScope | undefined;
+    const discarded = Number(payload.queuedCapturesDiscarded ?? 0);
+    const what =
+      scope === "everything"
+        ? "Cleared everything DalyHub keeps on a device"
+        : scope === "snapshot_and_caches"
+          ? "Cleared a device's stored copy and cached files"
+          : "Cleared a device's personal data";
+    return discarded > 0
+      ? `${what}, discarding ${discarded} offline capture${discarded === 1 ? "" : "s"} that had never reached DalyHub.`
+      : `${what}.`;
+  }
+  // Unreachable for the declared vocabulary, and deliberately not a payload dump.
+  return "A security-relevant action was recorded.";
+}
+
+/**
+ * SET-03 — assemble the Account & security payload.
+ *
+ * Note what crosses this boundary and what does not. OUT: the verified email,
+ * the provider display name, a trailing FRAGMENT of the identity subject, the
+ * authenticator's mode, the credential's own `iat`/`exp`, and a bounded list of
+ * events DalyHub itself recorded. NOT OUT, at any point: the Access JWT, any
+ * cookie, the raw subject, the team domain, the AUD tag, the configured owner
+ * email, the workspace id, or any AI or deployment credential.
+ *
+ * The security history is read with the ordinary workspace Activity repository —
+ * one bounded query per declared type, merged and re-sorted here. There is no
+ * second store and no security-specific table: these are ordinary events in the
+ * one Activity stream, which is the whole point of resolving DEBT-33 this way
+ * rather than building a parallel log.
+ */
+async function readAccountSecurity(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  session: {
+    readonly user: {
+      readonly subject: string;
+      readonly email: string;
+      readonly displayName: string | null;
+    };
+    readonly issuedAt: Date;
+    readonly expiresAt: Date;
+  },
+): Promise<AccountSecurityData> {
+  const authMode = resolveAuthConfig(env).mode;
+
+  const pages = await Promise.all(
+    SECURITY_ACTIVITY_TYPES.map((type) =>
+      scope.activity
+        .listForWorkspace({ type, limit: SECURITY_ACTIVITY_LIMIT })
+        // A history read must never be able to break the security page. An
+        // empty list is the honest degradation: the surface says "no security
+        // activity yet", which is also what a genuinely empty stream says, and
+        // nothing on the page depends on telling those two apart.
+        .catch(() => ({ items: [], nextCursor: null, hasMore: false })),
+    ),
+  );
+
+  const securityActivity = pages
+    .flatMap((page) => page.items)
+    .sort((left, right) => {
+      const byTime = right.occurredAt.getTime() - left.occurredAt.getTime();
+      return byTime !== 0 ? byTime : right.id.localeCompare(left.id);
+    })
+    .slice(0, SECURITY_ACTIVITY_LIMIT)
+    .map((item) => ({
+      id: item.id,
+      type: item.type as string,
+      occurredAt: item.occurredAt.toISOString(),
+      summary: summariseSecurityEvent(
+        item.type as string,
+        item.payload as Record<string, unknown>,
+      ),
+    }));
+
+  /*
+   * A Cloudflare Access token need not carry `iat`; the authenticator maps an
+   * absent one to the epoch rather than inventing a time. That sentinel must not
+   * reach the surface as a plausible 1970 timestamp, so it becomes `null` here
+   * and the surface says "Not reported".
+   */
+  const issuedAtMs = session.issuedAt.getTime();
+
+  return {
+    identity: {
+      email: session.user.email,
+      displayName: session.user.displayName,
+      subjectFragment: subjectFragment(session.user.subject),
+      source: authMode === "development" ? "development" : "cloudflare-access",
+    },
+    session: {
+      issuedAt: issuedAtMs > 0 ? session.issuedAt.toISOString() : null,
+      expiresAt: Number.isFinite(session.expiresAt.getTime())
+        ? session.expiresAt.toISOString()
+        : null,
+    },
+    /*
+     * FALSE, and it is a measured answer rather than a placeholder.
+     *
+     * Revoking every Access session for an owner needs a Cloudflare API call —
+     * `POST /accounts/{account}/access/users/{user}/revoke`, or the equivalent
+     * Zero Trust action — which needs an account id and an API token with Access
+     * write scope. DalyHub is configured with the team domain, the application
+     * AUD and the owner email (`auth-configuration.ts`), and nothing else: there
+     * is no Cloudflare credential of any kind in the Worker's environment, no
+     * binding for one, and no deploy step that supplies one. So the capability
+     * is genuinely absent, and the surface says so instead of shipping a button
+     * that would sign out one browser while implying it had signed out all of
+     * them. Recorded as remaining SET-03 scope in ROADMAP_V2_1.md.
+     */
+    globalSignOutSupported: false,
+    securityActivity,
+    environment: buildInfo(env).environment,
+  };
+}
+
+/**
  * AI-01 — assemble the AI settings payload.
  *
  * Note what it reads and what it returns: the owner's stored policy, this
@@ -600,6 +763,9 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
           <NavigationSection data={loaderData} />
         ) : null}
         {active === "ai" ? <AiSettingsSection data={loaderData.ai} /> : null}
+        {active === "account-security" && loaderData.accountSecurity ? (
+          <AccountSecuritySection data={loaderData.accountSecurity} />
+        ) : null}
         {active === "privacy-data" ? <PrivacyDataSection /> : null}
         {active === "offline" ? <OfflineSection /> : null}
         {active === "about" ? <AboutSection data={loaderData} /> : null}

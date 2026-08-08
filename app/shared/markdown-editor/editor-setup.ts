@@ -29,6 +29,8 @@ import {
   placeholder as placeholderExt,
 } from "@codemirror/view";
 
+import { readDocumentCspNonce } from "~/shared/csp-nonce";
+
 import { createMarkdownLanguage } from "./editor-language";
 import { formattingKeymap } from "./editor-keymap";
 import { livePreview } from "./live-preview";
@@ -109,6 +111,14 @@ export function createEditorExtensions(options: EditorSetupOptions): Extension {
     readOnly = false,
   } = options;
   return [
+    // AUDIT-10 — CodeMirror builds its theme as a `<style>` element injected into
+    // the document head (`style-mod`). Under `style-src 'self' 'nonce-…'` that
+    // element is refused unless it carries the response's nonce, and an editor
+    // with no stylesheet is an unusable one. `cspNonce` is CodeMirror's own
+    // supported facet for exactly this, so the editor is NONCED rather than the
+    // policy being widened for it. Empty (SSR, a test DOM) is harmless: the facet
+    // documents the empty string as "no nonce provided".
+    EditorView.cspNonce.of(readDocumentCspNonce()),
     history(),
     // Formatting shortcuts first, then Markdown's Enter/Backspace list
     // continuation, then the default editing keymap.

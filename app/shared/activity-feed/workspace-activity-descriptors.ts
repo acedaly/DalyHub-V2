@@ -74,6 +74,10 @@ import {
   ASSET_TASK_LINKED,
   ASSET_UPDATED,
 } from "~/kernel/assets";
+import {
+  SECURITY_LOCAL_DATA_CLEARED,
+  SECURITY_SIGNED_OUT,
+} from "~/kernel/account-security";
 import { DIARY_ENTRY_CREATED, DIARY_ENTRY_UPDATED } from "~/kernel/diary";
 import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
 import {
@@ -210,6 +214,25 @@ function joins(
   };
 }
 
+/**
+ * SET-03 — a descriptor for a WORKSPACE-SCOPED event: something the owner did to
+ * their account or to a device, which relates to no record at all.
+ *
+ * It renders "<actor> <verb>" and stops. There is no `record()` segment because
+ * there is no entity to name, and no `entityType` because an entity marker beside
+ * an event about no entity would be a small lie. Like every other curated
+ * descriptor here it reads ONLY the actor — never the payload — so the counts and
+ * booleans these events carry stay out of the feed.
+ */
+function ownerAction(label: string, verb: string): ActivityTypeDescriptor {
+  return {
+    label,
+    describe: () => ({
+      segments: [{ kind: "actor" }, { kind: "text", text: ` ${verb}` }],
+    }),
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* The curated cross-module set                                               */
 /* -------------------------------------------------------------------------- */
@@ -267,6 +290,13 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
   [GOAL_COMPLETED]: event("Completed goal", "goal", "success"),
   [GOAL_REOPENED]: event("Reopened goal", "goal"),
   [GOAL_DETAILS_UPDATED]: event("Updated goal", "goal"),
+
+  /* Account & security (SET-03) --------------------------------------------- */
+  [SECURITY_SIGNED_OUT]: ownerAction("Signed out", "signed out of DalyHub"),
+  [SECURITY_LOCAL_DATA_CLEARED]: ownerAction(
+    "Cleared local data",
+    "cleared DalyHub's data on a device",
+  ),
 
   /* Areas ------------------------------------------------------------------ */
   [AREA_ARCHIVED]: event("Archived area", "area", "warning"),

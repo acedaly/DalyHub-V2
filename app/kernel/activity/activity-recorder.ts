@@ -130,3 +130,46 @@ export function buildActivityWriteModel(
     subjects: validateSubjects(event.subjects),
   };
 }
+
+/**
+ * A workspace-scoped event: something the owner did to the WORKSPACE, not to a
+ * record in it. It carries no subjects because there is no entity it is about.
+ */
+export type NewWorkspaceActivityEvent = {
+  /** The event type as a raw string; validated into an `ActivityType`. */
+  readonly type: string;
+  /** The structured payload; validated as an `ActivityPayload`. */
+  readonly payload: ActivityPayload;
+};
+
+/**
+ * Validate a workspace-scoped event into the same storage-ready model an entity
+ * event produces (SET-03, resolving the modelling half of DEBT-33).
+ *
+ * This is a SEPARATE entry point on purpose. `buildActivityWriteModel` keeps its
+ * "at least one subject" rule untouched, so no existing or future domain mutation
+ * can lose its subject by accident; a subject-less event has to be asked for by
+ * name, at a call site that has read this comment. What comes out is an ordinary
+ * `ActivityWriteModel` on the ordinary `activities` table, readable through the
+ * ordinary workspace feed — DalyHub has one event model, and this keeps it that
+ * way rather than growing a second security log beside it.
+ *
+ * Note what it CANNOT do: it takes no actor, no id and no timestamp from its
+ * caller, exactly like the entity path, so a module cannot forge who did it, when
+ * it happened, or which workspace it belongs to.
+ */
+export function buildWorkspaceActivityWriteModel(
+  event: NewWorkspaceActivityEvent,
+  actor: ActivityActor,
+  id: string,
+  occurredAt: Date,
+): ActivityWriteModel {
+  return {
+    id: validateActivityId(id),
+    type: parseActivityType(event.type),
+    actor: validateActor(actor),
+    occurredAt,
+    payload: validateActivityPayload(event.payload),
+    subjects: validateSubjects([], { allowEmpty: true }),
+  };
+}

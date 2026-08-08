@@ -5,7 +5,7 @@
 >
 > Implements [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21)
 > and closes the AUDIT-11 half of
-> [DEBT-85](../product/PRODUCT_DEBT.md#-debt-85--csp-has-no-script-src-audit-10--p3).
+> [DEBT-85](../product/PRODUCT_DEBT.md#-debt-85--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08).
 > Decision & rationale: [ADR-081](../decisions/ARCHITECTURE_DECISIONS.md#adr-081-restore--one-canonical-format-a-staged-atomic-cutover-and-a-verified-way-back).
 > Related: [`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md) ·
 > [`DEPLOYMENT.md`](DEPLOYMENT.md) · [`SETTINGS_MODULE.md`](SETTINGS_MODULE.md).
