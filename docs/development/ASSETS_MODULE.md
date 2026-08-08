@@ -267,16 +267,79 @@ The rules that follow from it:
   service" is not proof the car was serviced. The obligation stays open and the
   record says so in the owner's words: *"Its task is done. Record what actually
   happened to complete this obligation."*
-- **Completing the obligation completes an open linked Task.** That direction is
-  safe, because completing an obligation *is* recording the work.
+- **Completing the obligation completes an open linked Task, in the SAME
+  transaction.** That direction is safe, because completing an obligation *is*
+  recording the work — and since AUDIT-13 the two commit together or not at all
+  (below).
 - **Rescheduling the obligation moves the Task's due date**, so the two can never
   permanently diverge.
 - **Deleting the Task never deletes the obligation.** The pointer is cleared on
   reconciliation, and the owner can create a fresh Task.
-- **Task WRITES go through the canonical `TaskRepository`**, via a narrow injected
-  `ObligationTaskGateway`. The Task is completed FIRST, then the obligation
-  transaction runs. If that fails, the system lands in "Task done, work not yet
-  recorded" — a state the product already models.
+- **Task WRITES go through the canonical `TaskRepository`**, so Task recurrence,
+  project rollup and the Task's own Activity are never reimplemented here.
+
+### Obligation completion and its linked Task are ONE transaction (AUDIT-13)
+
+The Task used to be completed FIRST, through the injected `ObligationTaskGateway`,
+with the obligation's own batch following. A failure in that second transaction left
+a Task ticked off against an obligation that was still open — and the obligation is
+the record of whether the work happened. `ObligationTaskGateway.completeTask` is
+therefore **deleted**: an API that closes a Task on behalf of another transaction is
+the failure mode, not a step towards fixing it.
+
+`completeObligation` now assembles ONE `D1Database.batch()`:
+
+```text
+  closeObligation (UPDATE … status='open' → 'completed' … RETURNING)
+  asset.obligation_completed Activity            (guarded on changes())
+  insertEvent — the proof the work happened      (guarded on completionGuard)
+  successor occurrence, at most one              (guarded on completionGuard
+                                                  AND NOT EXISTS the series slot)
+  canonical asset facts / meter, forward-only    (guarded on completionGuard)
+  ── the linked Task's completion statements ──   (its gate carries completionGuard)
+```
+
+The Task's statements are **planned, not executed**, by the Task adapter
+(`planCompletion`, which returns prepared statements and writes nothing), and its
+completion gate carries the obligation's own `completionGuard` —
+`EXISTS (obligation completed with this event id)` — evaluated *inside* the
+transaction. So the Task closes only if the obligation actually closed, and any
+later failure rolls the Task's completion back with everything else. Task
+recurrence and the waiting-state clearance ride along in the same batch exactly as
+they do for an ordinary completion.
+
+**The Activity payload stopped guessing — by not making the claim at all.**
+`taskOutcome` used to be produced by `catch { taskOutcome = "already_closed" }`, so
+a genuine storage failure, a validation error and a Task the owner had actually
+already ticked were all recorded as `already_closed` in the permanent event.
+Replacing that with a pre-batch read was better and still not truthful: the payload
+is serialised BEFORE the batch, so a Task completed — or deleted — by another
+request in the gap left an event asserting that this operation closed it.
+
+So the obligation's event no longer restates it. There is already exactly one
+authority for "was the linked Task completed": the Task's OWN `task.completed`
+event, appended by the Task's own statements in this same batch. A second copy of
+one fact is how two events come to disagree. The payload keeps only structural
+facts it can guarantee — `category`, `recurrence`, `createdSuccessor`.
+
+**The RESULT still reports the outcome, and derives it from what the batch did.**
+`completeObligation` remembers the index of the Task's completion gate and reads
+its `changes()` afterwards. A planned `completed` that changed no row means another
+request won the gap, so the result is re-derived from fresh state: `already_closed`
+if the Task is still there, `missing` if it is gone. `none` when nothing was
+linked. A rolled-back completion appends no event at all.
+
+**Evidence.** `test/kernel/audit-13-atomic-operations.test.ts` (real Workers
+runtime, real D1): success closes the obligation, lands the proof event and
+completes the Task together; a fault BEFORE the Task's statements and a fault AFTER
+them both leave the obligation open, the Task open and no event, with no successor
+left behind; a retry after a failure yields exactly one completion, one event and
+one completed Task; two concurrent completions commit one of each; a Task closed or
+deleted by another request between the plan and the batch is reported as
+`already_closed` / `missing` rather than `completed`, with no invented
+`task.completed`; and another workspace can neither complete the obligation nor
+touch its Task. See
+[ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-a-compound-domain-mutation-is-one-storage-transaction-composed-from-the-owning-repositories-statements).
 
 ---
 

@@ -1,5 +1,5 @@
 /**
- * TASKS-07 / ADR-083 — real Workers/D1 tests for Recurrence 2.0.
+ * TASKS-07 / ADR-085 — real Workers/D1 tests for Recurrence 2.0.
  *
  * Three things are proved here, all against real D1 through the real repository:
  *

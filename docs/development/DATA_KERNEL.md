@@ -382,6 +382,46 @@ mutation timestamp and the event's `occurred_at` come from the **same** clock
 call. Entity `update` uses a bounded optimistic retry so a concurrent change
 cannot record a stale before/after.
 
+### A COMPOUND domain operation is also one batch (AUDIT-13 / ADR-083)
+
+The rule above covers "one mutation plus its event". The same rule applies when
+several DOMAIN writes are one thing the owner asked for — converting a meeting item
+into a Task, completing an obligation and the Task it tracked. **A user-visible
+operation that means one action must not leave half of itself committed.**
+
+- **One `D1Database.batch()`, not a saga.** Compensation (undoing the first write
+  when a later one throws) covers a thrown failure and cannot cover the process not
+  being there to run it. It is not used on either path any more.
+- **Compose the owning repositories' OWN statements; never re-author their SQL.**
+  Each D1 adapter that participates exposes a narrow **statement seam** that returns
+  prepared statements and performs no write — `D1TaskRepository.buildCreateTaskStatements`
+  / `.planCompletion`, `D1MeetingRepository.buildFollowUpLinkStatements`,
+  `D1EntityLinkRepository.buildCreateLinkStatements`. The Task authority still owns
+  every Task field, the parent-gate security SQL and the recurrence rules; only
+  where its statements RUN moves. These seams stay inside
+  `app/platform/storage/d1` and are never on a kernel port.
+- **A seam that returns statements cannot rebuild the sequence it replaced**, which
+  is what makes exposing it safe: there is no write to interleave and no
+  intermediate state to observe.
+- **Gate a dependent group on the preceding write, in SQL.** Where one half must
+  only happen if the other committed, pass a repository-authored predicate that is
+  evaluated *inside* the transaction (`buildSpineCompleteStatement`'s optional
+  guard) rather than checking a result between two transactions. Every value stays
+  bound.
+- **Idempotency is a constraint, not a caught error.** Let the unique index arbitrate
+  a concurrent duplicate; the loser's whole transaction rolls back and it re-reads
+  and returns the winner. Never weaken a uniqueness constraint to make a retry look
+  successful, and never swallow a violation.
+- **Delete the low-level API that permitted the old sequence.** A mutation method
+  that records or completes something a *different* transaction created is atomic on
+  its own and useless as a guarantee; leaving it callable keeps the failure mode one
+  call away for as long as the code exists.
+- **Prove it with fault injection at BOTH ends.** A TEST-ONLY fault before the
+  dependent write and one after it, asserted against raw row counts — including
+  soft-deleted rows, which is the only way to distinguish "rolled back" from
+  "compensated" — plus a retry case, a concurrency case, a workspace-isolation case
+  and an Activity-truthfulness case. See `test/kernel/audit-13-atomic-operations.test.ts`.
+
 ### Reading Activity: workspace feed & entity Timeline
 
 The module-facing `ActivityRepository` (from `resolveWorkspaceScope().activity`)

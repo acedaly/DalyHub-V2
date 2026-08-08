@@ -2541,7 +2541,84 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 - **Alternatives considered.** *Copy the Tasks filter implementation into each module* — rejected: six saved-view systems that drift, which is the debt this item exists to close. *Persist a DS-07 `FilterExpression`* — rejected under ADR-059 decision 2 and again here: a stored view able to name a repository field is a persisted injection surface. *A generic `field + operator + value` language* — rejected: untyped, unvalidatable and the wrong product. *One UNION query* — rejected under decision 5. *A new `saved_views` table alongside the old one* — rejected: that is two saved-view systems by another name. *Renaming the table* — rejected under decision 4. *Merging this into global Search* — rejected: Search answers "find this thing", a saved view answers "keep showing me things matching this condition"; they reuse repository infrastructure, not product concepts.
 
-## ADR-083: The Tasks daily driver — the Matrix removed, editing moved onto the row, bulk made structural, and recurrence given a second scheduling mode
+## ADR-083: A compound domain mutation is ONE storage transaction, composed from the owning repositories' statements
+
+- **Status.** Accepted (2026-08-08, AUDIT-13).
+
+- **Context.** The August 2026 end-to-end audit's [AUDIT-13](../product/END_TO_END_AUDIT_2026_08_05.md#audit-13--non-atomic-cross-repository-flows--p3) found two user-visible operations that were several transactions wearing one name.
+
+  **Meeting item → Task** was five: `createTask`, then up to two `updateTask` calls for `status` and `description`, then `linkFollowUpTask` (documented in the code as "the commit point"), then `entityLinks.create`. A compensating `spine.softDelete` ran if anything after the first failed. That saga was carefully built and honestly documented, and it still had a hole its own header comment named: a process death between the Task committing and the mapping committing leaves a Task with **no mapping**. Such a Task is invisible to the mapping-backed Follow-up surface, so the owner sees an unconverted item, retries, and gets a second Task. Compensation covers a THROWN failure; it cannot cover the process not being there to run it.
+
+  **Asset obligation completion** was two: the linked Task was closed through the injected `ObligationTaskGateway` in its own transaction, and the obligation's batch followed. A failure in the second left a Task ticked off against an obligation that was still open — and the obligation is the record of whether the work happened. Worse, the gateway call was wrapped in `catch { taskOutcome = "already_closed" }`, so a genuine storage failure was written into the `asset.obligation_completed` Activity payload as an established fact.
+
+  Both were blocked by the same thing, and it was not a lack of discipline: `createTask` and `completeTask` each encapsulate their OWN `D1Database.batch()`, and a public repository contract that returns a domain object cannot hand its statements to somebody else's transaction. The repository boundary was the obstacle to atomicity, which is exactly backwards.
+
+- **Decision.**
+
+  1. **Where several D1 writes are one domain operation, they run in one `D1Database.batch()`.** D1 executes a batch as a single SQL transaction and rolls the entire sequence back on any failure. That is the only atomicity guarantee DalyHub has, and a compound operation either uses it or is not atomic. Compensation is not a substitute and is no longer used on either path.
+
+  2. **A composing operation assembles the owning repositories' OWN statements. It never re-authors their SQL.** Each adapter gains a narrow, documented **statement seam** — `D1TaskRepository.buildCreateTaskStatements` / `.planCompletion`, `D1MeetingRepository.buildFollowUpLinkStatements` / `.buildRemoveFollowUpStatement`, `D1EntityLinkRepository.buildCreateLinkStatements` — that returns prepared statements and performs no write. The Task authority still owns every Task field, the parent-gate security SQL and the recurrence rules; only where its statements RUN moved. This is the same kind of seam `D1ActivityRecorder` has been since FND-05, and it stays INSIDE `app/platform/storage/d1`.
+
+  3. **A seam that returns statements cannot be used to rebuild the sequence it replaced**, which is why this is safe to expose at all. There is no write to interleave, no intermediate state to observe, and no way to commit half of it.
+
+  4. **The dangerous low-level APIs are deleted, not deprecated.** `MeetingRepository.linkFollowUpTask` and `ObligationTaskGateway.completeTask` are gone from their ports. Each of them, on its own, was atomic and useless as a guarantee: they recorded or completed something a DIFFERENT transaction had created moments earlier. Leaving them callable would keep the non-atomic flow one call away for as long as the code exists, and a stale mutation API is not harmless dead code. `getFollowUpForItem`, `listFollowUps`, `removeFollowUpTask` and `rescheduleTask` stay — they are reads and genuinely independent operations.
+
+  5. **One explicit domain operation replaces the sequence a caller used to have to know.** `MeetingTaskConversionRepository.convert` is the ONLY way to create a follow-up Task. Route code and the AI acceptance path name the operation; neither can get the order wrong, because there is no order to get wrong.
+
+  6. **Idempotency is a database constraint, never a caught error.** A live conversion for a source item short-circuits before the batch. Two concurrent conversions both reach their batches, and the `meeting_item_tasks (workspace_id, item_id)` unique index decides: the loser's whole transaction rolls back — no Task, no Activity, nothing to compensate — and it re-reads and returns the winner's Task. No uniqueness violation is swallowed and no constraint was weakened to make a retry look successful.
+
+  7. **A cross-transaction guard becomes an in-transaction predicate.** Obligation completion appends the Task's completion statements to its own batch behind the `completionGuard` it already used — `EXISTS (obligation completed with this event id)` — evaluated inside the transaction. The Task closes only if the obligation actually closed, and any later failure rolls both back. `buildSpineCompleteStatement` takes an optional repository-authored predicate for this; every value stays bound.
+
+  8. **Activity describes only what the same transaction did.** `asset.obligation_completed`'s `taskOutcome` is derived from a real pre-read — `completed` for an open Task whose statements are in this batch, `already_closed` for one the owner had already ticked, `none` when no Task is linked — and the swallowing `catch` is gone. A rolled-back operation appends no event at all, because every event is guarded on its own domain statement.
+
+  9. **`createTask` accepts `status` and `description`.** Removing two transactions is better than moving them. Both are validated at the boundary, so an invalid value fails before the batch is assembled rather than half-way through it.
+
+- **Consequences.** *Easy:* a failed conversion now leaves NO row — not a soft-deleted Task, not a stale mapping — so a retry is a first attempt; a failed obligation completion leaves the Task open and the obligation open, which is a state the owner can act on. *Hard:* the composer needs the concrete D1 adapters rather than the kernel ports, so it is constructed in the composition root and exposed to modules only as `MeetingTaskConversionRepository`. *Accepted:* one write is deliberately outside the conversion's transaction — the AI acceptance path's `addItem`, which records an action the owner approved and is a legitimate change to the Meeting in its own right. If the conversion then fails, the owner sees the action and no Task, and a retry REUSES that item rather than adding a second.
+
+- **Alternatives considered.** *Keep the saga and add a reconciler* — rejected: a background sweep for orphan Tasks is a second source of truth about whether a conversion happened, and it does not stop the duplicate the owner creates before the sweep runs. *An idempotency-key table* — rejected: the integrity constraint that already exists is a better arbiter than a key the client supplies, and it needs no migration. *Compensating browser requests* — rejected outright; atomicity that lives in the client is not atomicity. *Duplicating the Task's SQL inside the obligation batch* — rejected: it would fork task recurrence, project rollup and Task Activity into a second implementation. *A generic cross-repository transaction manager* — rejected as premature: two operations need this, both are in one adapter package, and a framework for it would be more machinery than the problem.
+
+---
+
+## ADR-084: Long-form Markdown is edited on a permanent shared writing surface — there is no read-then-activate variant
+
+- **Status.** Accepted (2026-08-08, DOC-EDITOR-01).
+
+- **Context.** [ADR-076](#adr-076-the-shared-writing-surface-refined-in-place-and-inline-editing-as-one-state-machine-over-focused-server-intents) and [ADR-078](#adr-078-editing-consistency--adoption-over-invention-one-focused-intent-per-inline-field-and-the-forms-that-deliberately-stayed-forms) already gave DalyHub one writing ENGINE with one toolbar, one set of shortcuts and one typography, shared by Notes, Meetings, Reviews, Diary and a Task's description. DOC-EDITOR-01 was written before that and its stated observation was re-checked and found stale.
+
+  What was left was not two editors. It was two shared CONTROLS with no product consumer, and an unanswered product question:
+
+  - `MarkdownField` (DS-06) — a source textarea plus a "Show preview" disclosure. EDIT-02 moved every product surface off it; the only importer left was the dev-only `/design/forms` fixture that documented it ([DEBT-101](../product/PRODUCT_DEBT.md)).
+  - `InlineMarkdownField` (DS-16) — built for the read-then-activate transition, exported from the barrel, and **never adopted by anything**. It was the migration half of [DEBT-97](../product/PRODUCT_DEBT.md), whose own text said the entry might be closeable "by deciding so, not by migrating".
+
+  A shared control with no product consumer is not neutral. `~/shared/forms` is imported by nearly every route, so the next module that needs a Markdown field finds one in the barrel, uses it, and re-opens the divergence EDIT-02 closed.
+
+- **Decision.**
+
+  1. **Long-form Markdown is edited on a permanent writing surface.** Notes, Meeting agenda and notes, Diary entries, Review sections and reflection prompts, and a Task's description are all surfaces you OPEN IN ORDER TO WRITE. A record body that shows rendered text until you activate it is a smaller idea than a document, and it is not the one DalyHub wants — a document should feel like one surface, not a read-only card that becomes an unrelated form.
+
+  2. **Reading is the editor's own Read toggle**, or the host's own rendered view (a Task's Details tab, an archived Meeting). Both render through the ONE FND-08 pipeline and the ONE `MarkdownContent` sink. No second reading affordance is added inside a form.
+
+  3. **`InlineMarkdownField` is therefore deleted, not kept dormant.** Decision 1 says nothing will adopt it. Keeping a well-built component that the architecture has just decided against is how a codebase acquires two answers to one question.
+
+  4. **`MarkdownField` is deleted, and `~/shared/forms` exports no long-form control.** `MarkdownEditorField` — the writing surface wearing DS-06 field anatomy — is the one answer for a form, and it lives in `~/shared/markdown-editor` so importing the forms barrel never pulls the editor into a route that only renders a text input. The `/design/forms` fixture demonstrates what the product uses.
+
+  5. **⌘/Ctrl+Enter is the writing surface's own commit shortcut.** Deleting the read-then-activate field would otherwise have deleted the only long-form surface offering a keyboard save. It is bound on BOTH surfaces — the live editor and the SSR/no-JS fallback — so keyboard save does not depend on enhancement, and it binds FIRST so neither Markdown's list continuation nor CodeMirror's default `Mod-Enter` (insert blank line) can claim it. Every explicit-save host passes its submit; an autosaving surface passes nothing, because a shortcut that appears to do something and does not is worse than none.
+
+  6. **Plain Enter is a paragraph, everywhere, always.** A multiline editor that saves on Enter cannot be used to write anything longer than a sentence, and the owner discovers that by losing one. Asserted in unit tests against the fallback surface and in a browser journey against the enhanced one.
+
+  7. **Markdown remains canonical and per-module persistence remains divergent.** This changes no storage format, adds no editor dependency and gives no module a new save strategy: a Note still autosaves, a Diary entry still saves explicitly, a Note's save still quotes the version it was written against and surfaces a stale save through the shared `RemoteChangeBanner`. ADR-078 decision 4 stands — presentation converges, persistence does not.
+
+  8. **Formatting where formatting is stored, and nowhere else.** A Goal's definition of done, a Person's notes and an Asset's description stay plain multiline text. They are not Markdown columns, and a formatting toolbar over one is a control that silently does nothing.
+
+  9. **The boundary is test-enforced.** `test/unit/markdown-editor/one-writing-surface.test.ts` fails if CodeMirror is imported outside `~/shared/markdown-editor`, if a second toolbar or formatting catalogue appears, if either deleted control is redeclared, if `~/shared/forms` exports anything Markdown, or if a rich-text document model (ProseMirror, Lexical, Slate, TipTap, Quill, Draft) enters the application. It asserts boundaries, never file counts.
+
+- **Consequences.** *Easy:* there is one long-form control and one place to improve it; keyboard save now works on every explicit-save long-form surface instead of one; and the writing surface is the only thing a new module can reach for. *Hard:* a record whose prose is read far more often than written still opens with editor chrome — accepted, because the chrome is now one bar and one surface rather than the five bespoke card blocks EDIT-01 removed. *Accepted:* Areas and Projects still have no description field at all ([DEBT-98](../product/PRODUCT_DEBT.md)); adding a kernel column so that a UI has more to show is the wrong direction of causation and remains its own decision.
+
+- **Alternatives considered.** *Migrate Meetings, Reviews and the Diary body to read-then-activate* — rejected under decision 1: it would make five surfaces behave less like documents to justify keeping one component. *Keep `InlineMarkdownField` dormant for a future adopter* — rejected under decision 3. *Keep `MarkdownField` for "short Markdown"* — rejected: short Markdown is still Markdown, and the shared surface's `compact` density is exactly that case. *Adopt a rich-text editor* — rejected under decision 7 and ADR-006/ADR-015: the document IS the Markdown source, and no accepted decision requires a different persistence format. *Bind ⌘/Ctrl+Enter per host* — rejected: that is how Diary capture ended up firing both a submit and a blank-line insertion.
+
+---
+
+## ADR-085: The Tasks daily driver — the Matrix removed, editing moved onto the row, bulk made structural, and recurrence given a second scheduling mode
 
 - **Status.** Accepted (2026-08-08, V2.2 / TASKS-05 · TASKS-06 · TASKS-07 · TASKS-08). Extends [ADR-043](#adr-043--the-first-class-tasks-module-the-four-question-planning-model-time-sectors-somedaymaybe-and-derived-display-state) (the Tasks module), [ADR-059](#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration) (the declarative collection contract) and [ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence) (Inbox semantics and incremental recurrence). Nothing here creates a second Task authority.
 

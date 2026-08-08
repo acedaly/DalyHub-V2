@@ -81,6 +81,34 @@ export interface LiveMarkdownEditorProps {
   readonly onChange: (value: string) => void;
   /** Fired when the writing surface loses focus (drives autosave-on-blur). */
   readonly onBlur?: () => void;
+  /**
+   * DOC-EDITOR-01 — ⌘/Ctrl+Enter from inside the writing surface.
+   *
+   * A long-form surface with an EXPLICIT save needs a keyboard path to it, and
+   * that path can never be plain Enter — Enter is a paragraph, and a multiline
+   * editor that saves on Enter loses the paragraph the owner was writing. This
+   * fires on the SAME chord DalyHub already uses for the same purpose, on BOTH
+   * surfaces (the live editor and the SSR/no-JS textarea), so keyboard save does
+   * not depend on enhancement having happened.
+   *
+   * Omit it on an autosaving surface: there is nothing to commit, and a shortcut
+   * that appears to do something and does not is worse than no shortcut.
+   */
+  readonly onCommit?: () => void;
+  /**
+   * A ref to the focusable WRITING SURFACE, whichever one is live.
+   *
+   * A form host needs this: when the server refuses a Markdown field — an
+   * oversized Diary body, a rejected Task description — `useForm`'s
+   * `focusFirstInvalid` and the error-summary links move focus to the control that
+   * failed, and a control that reports no focusable node simply cannot be reached
+   * that way (AGENTS.md §15: keyboard-complete, and announce change). It resolves
+   * to the SSR/no-JS textarea before enhancement and to the CodeMirror content
+   * element after it, so the contract does not depend on enhancement having
+   * happened. Focusing the content element puts the caret in the document, which
+   * is where an author being sent to fix their text wants it.
+   */
+  readonly surfaceRef?: (node: HTMLElement | null) => void;
   /** Accessible name for the writing surface and its region. */
   readonly label: string;
   /** Optional help text under the editor. */
@@ -170,6 +198,8 @@ export function LiveMarkdownEditor({
   value,
   onChange,
   onBlur,
+  onCommit,
+  surfaceRef,
   label,
   help,
   error,
@@ -194,6 +224,10 @@ export function LiveMarkdownEditor({
   onChangeRef.current = onChange;
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+  const surfaceRefCallback = useRef(surfaceRef);
+  surfaceRefCallback.current = surfaceRef;
   const valueRef = useRef(value);
   valueRef.current = value;
   const autoFocusRef = useRef(autoFocusOnMount);
@@ -286,10 +320,23 @@ export function LiveMarkdownEditor({
                     onChange: (next) => onChangeRef.current(next),
                     onSurfaceState,
                     onBlur: () => onBlurRef.current?.(),
+                    // Asked at PRESS time, never captured at creation: a host
+                    // that disables its fields mid-submit and re-enables them
+                    // must not lose the shortcut for the rest of the session.
+                    onCommit: () => {
+                      const commit = onCommitRef.current;
+                      if (!commit) return false;
+                      commit();
+                      return true;
+                    },
                   }),
                 }),
               });
               viewRef.current = view;
+              // The live surface is now the focusable one. `contentDOM` is the
+              // element CodeMirror gives `role="textbox"`, so a host focusing it
+              // lands the caret in the document rather than on a wrapper.
+              surfaceRefCallback.current?.(view.contentDOM);
               // Reconfiguration, not re-creation: a later disable must not cost
               // the author their undo history or their caret.
               setEditableRef.current = (editable) =>
@@ -315,6 +362,7 @@ export function LiveMarkdownEditor({
         cleanupRef.current = null;
         setEditableRef.current = null;
         if (viewRef.current) {
+          surfaceRefCallback.current?.(null);
           viewRef.current.destroy();
           viewRef.current = null;
         }
@@ -586,7 +634,12 @@ export function LiveMarkdownEditor({
         <div className="dh-md-editor__surface">
           {!editorReady ? (
             <textarea
-              ref={fallbackRef}
+              ref={(node) => {
+                fallbackRef.current = node;
+                // Only while the fallback IS the writing surface: once CodeMirror
+                // mounts, the ref above takes over and this element is gone.
+                if (!editorReady) surfaceRefCallback.current?.(node);
+              }}
               className="dh-md-editor__fallback"
               value={value}
               rows={rows}
@@ -604,6 +657,18 @@ export function LiveMarkdownEditor({
               onKeyUp={syncFallbackSelection}
               onClick={syncFallbackSelection}
               onBlur={() => onBlur?.()}
+              onKeyDown={(event) => {
+                // The fallback surface gets the same chord. Plain Enter is left
+                // entirely alone — the textarea inserts its paragraph.
+                if (
+                  onCommit &&
+                  event.key === "Enter" &&
+                  (event.metaKey || event.ctrlKey)
+                ) {
+                  event.preventDefault();
+                  onCommit();
+                }
+              }}
             />
           ) : null}
           <div

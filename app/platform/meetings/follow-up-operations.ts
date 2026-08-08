@@ -1,163 +1,64 @@
 /**
- * MEET-02 — the meeting follow-up / Task-conversion orchestration.
+ * MEET-02 / AUDIT-13 — the Meeting follow-up / Task-conversion entry points.
  *
  * Homed in `app/platform` rather than the Meetings module since AI-02, so the AI
  * acceptance path can route through this ONE conversion authority without
  * breaching the module-boundary rule. See `./index.ts` for that reasoning.
  *
- * Turning a meeting item (or a direct meeting follow-up) into a canonical DalyHub
- * Task spans four writes across three repositories: the Task (the spine + task
- * detail authority), the durable source-item mapping (Meetings), the navigable
- * `task.relates_to` EntityLink, and the structural Activity event. The FND-07 Task
- * `createTask` encapsulates its OWN atomic `D1Database.batch()`, so these writes
- * cannot be fused into a single cross-repository transaction through the public
- * contracts. This module is therefore the explicit orchestration boundary the
- * prompt calls for, with:
+ * ── What changed in AUDIT-13 ─────────────────────────────────────────────────
  *
- *   - **A clear commit point** — `meetings.linkFollowUpTask` (the mapping row +
- *     its structural Activity, written in ONE batch). The conversion is "official"
- *     only once this commits.
- *   - **Idempotency** — the mapping is keyed on the source item (a unique index),
- *     so a retry of an already-converted item returns the SAME Task, never a
- *     second one.
- *   - **Recovery** — if the commit is lost to a concurrent winner
- *     (`MeetingFollowUpConflictError`) the just-created Task is compensated
- *     (soft-deleted) and the winning Task is returned; any other pre-commit failure
- *     soft-deletes the Task so the UI's "it failed" is truthful and a retry is
- *     clean.
- *   - **Truthful response semantics** — success is reported only after the commit
- *     point; the navigable EntityLink is a post-commit, self-healing step (a retry
- *     of an already-converted item re-asserts it via the idempotent link create).
+ * This module used to BE the orchestration: it called `createTask`, then up to two
+ * `updateTask`s, then `linkFollowUpTask`, then `entityLinks.create` — five
+ * transactions — with a compensating `spine.softDelete` if anything after the
+ * first failed. Compensation narrowed the failure window and could not close it:
+ * a process death between the Task committing and the mapping committing left a
+ * Task with no mapping, invisible to the Follow-up surface, so a retry created a
+ * SECOND Task. That is the August 2026 audit's AUDIT-13 finding.
  *
- * Task authority is never duplicated: every Task field flows through
- * `scope.tasks.createTask` / `updateTask`. This module writes no Task rows and
- * invents no status/priority vocabulary.
- *
- * Residual window (documented, not hidden): a hard process crash in the gap between
- * `createTask` committing and the mapping committing can leave one Task with no
- * mapping. Because that Task is invisible to the mapping-backed Follow-up surface, a
- * retry would create a second Task. This is the one state a single D1 batch would
- * remove; the encapsulated `createTask` batch is why it cannot be, and it is called
- * out in MEETINGS_MODULE.md.
+ * The conversion is now ONE storage transaction, owned by
+ * `scope.meetingTaskConversions` (`MeetingTaskConversionRepository`). Everything
+ * that made this file an orchestrator — the commit point, the compensation, the
+ * post-commit link, the conflict recovery — moved into that repository, where it
+ * is expressed as statement ordering and database constraints rather than as
+ * application-level bookkeeping. What is left here is the two THIN entry points
+ * modules call, plus the one genuine piece of domain logic that is not storage:
+ * deciding which meeting item an AI proposal converts.
  */
 
 import {
   MeetingArchivedError,
-  MeetingFollowUpConflictError,
+  MeetingItemNotFoundError,
   MeetingNotFoundError,
-  type MeetingItemKind,
+  type MeetingTaskConversionResult,
+  type MeetingTaskFields,
 } from "~/kernel/meetings";
-import type {
-  CommitmentState,
-  TaskPriority,
-  TaskStatus,
-  TaskView,
-  TimeSector,
-} from "~/kernel/tasks";
 import type { WorkspaceScope } from "~/platform/workspaces";
-import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
-
-/** The Task planning fields a conversion/follow-up form may supply. */
-export interface FollowUpTaskFields {
-  readonly title: string;
-  /**
-   * The structural parent, or `null` for an intentionally unassigned (Inbox)
-   * Task. TASKS-04 permits a parentless Task, and AI-02's acceptance path needs
-   * it: the owner may accept a proposed follow-up without choosing a Project.
-   * The MEET-02 follow-up FORM still requires a parent — it always supplies one
-   * — so this widens the orchestration contract without loosening that surface.
-   */
-  readonly parent: {
-    readonly kind: "area" | "project";
-    readonly id: string;
-  } | null;
-  readonly priority?: TaskPriority | null;
-  readonly dueDate?: string | null;
-  readonly scheduledDate?: string | null;
-  readonly timeSector?: TimeSector | null;
-  readonly commitmentState?: CommitmentState;
-  readonly status?: TaskStatus;
-  /**
-   * The Task's Markdown description. Applied through the canonical Task
-   * authority INSIDE the compensated region (like `status`), so a description
-   * that fails validation rolls the whole conversion back rather than leaving a
-   * Task the owner did not approve.
-   */
-  readonly description?: string | null;
-}
-
-export interface ConvertResult {
-  readonly taskId: string;
-  /** `false` when an existing conversion was returned idempotently. */
-  readonly created: boolean;
-}
 
 /**
- * MEET-03 moved these two to the kernel (`~/kernel/meetings`), beside the
- * repository contract that now also throws them, so the module orchestration and
- * the repository share ONE error family rather than two identically-named ones
- * that could drift. Re-exported here so existing importers are unaffected; the
- * follow-up throw site keeps its own, more specific archived message.
+ * The Task planning fields a conversion/follow-up form may supply. An alias of the
+ * kernel's `MeetingTaskFields` so existing importers are unaffected; the shape now
+ * lives beside the conversion contract it feeds.
  */
-export { MeetingArchivedError, MeetingNotFoundError };
+export type FollowUpTaskFields = MeetingTaskFields;
 
-export class MeetingItemNotFoundError extends Error {
-  constructor() {
-    super("That meeting item no longer exists.");
-    this.name = "MeetingItemNotFoundError";
-  }
-}
+/** An alias of the kernel conversion result, for the same reason. */
+export type ConvertResult = MeetingTaskConversionResult;
 
 /**
- * Create the navigable Meeting↔Task relationship: a `task.relates_to` EntityLink
- * with the Task as source and the Meeting as target. Idempotent (a repeat returns
- * `already_exists`), so it is safe to re-assert on the idempotent conversion path.
- * Surfacing follows requirement 5: outgoing `task.relates_to` shows the Meeting in
- * the Task Drawer's Linked section, and the same link shows the Task (read-only) in
- * the Meeting's universal Linked Items — one row, navigable both ways.
+ * MEET-03 moved these to the kernel (`~/kernel/meetings`), beside the repository
+ * contract that also throws them, so the module orchestration and the repository
+ * share ONE error family rather than two identically-named ones that could drift.
+ * Re-exported here so existing importers are unaffected.
  */
-async function ensureRelatesLink(
-  scope: WorkspaceScope,
-  taskId: string,
-  meetingId: string,
-): Promise<void> {
-  await scope.entityLinks.create({
-    sourceEntityId: taskId,
-    targetEntityId: meetingId,
-    type: TASK_RELATES_TO,
-  });
-}
-
-/** Create the base canonical Task through the Task authority (status applied later,
- * inside the compensated region — see `convert`). */
-async function createBaseTask(
-  scope: WorkspaceScope,
-  fields: FollowUpTaskFields,
-): Promise<TaskView> {
-  return scope.tasks.createTask({
-    title: fields.title,
-    parent: fields.parent,
-    priority: fields.priority ?? null,
-    dueDate: fields.dueDate ?? null,
-    scheduledDate: fields.scheduledDate ?? null,
-    timeSector: fields.timeSector ?? null,
-    commitmentState: fields.commitmentState ?? "active",
-  });
-}
-
-async function loadWritableMeeting(scope: WorkspaceScope, meetingId: string) {
-  const meeting = await scope.meetings.get(meetingId);
-  if (!meeting) throw new MeetingNotFoundError();
-  if (meeting.archivedAt)
-    throw new MeetingArchivedError(
-      "This meeting is archived — restore it to create follow-up tasks.",
-    );
-  return meeting;
-}
+export { MeetingArchivedError, MeetingItemNotFoundError, MeetingNotFoundError };
 
 /**
- * Convert a specific agenda item / decision / outcome into a Task. Idempotent per
- * source item; safe against concurrent double-conversion.
+ * Convert a specific agenda item / decision / outcome into a Task.
+ *
+ * Atomic, idempotent per source item, and safe against concurrent
+ * double-conversion — see `MeetingTaskConversionRepository`, which owns all three
+ * guarantees. This function exists so callers keep naming the operation rather
+ * than the repository.
  */
 export async function convertMeetingItemToTask(
   scope: WorkspaceScope,
@@ -165,24 +66,11 @@ export async function convertMeetingItemToTask(
   itemId: string,
   fields: FollowUpTaskFields,
 ): Promise<ConvertResult> {
-  const meeting = await loadWritableMeeting(scope, meetingId);
-  const item = meeting.items.find((i) => i.id === itemId);
-  if (!item) throw new MeetingItemNotFoundError();
-
-  // Idempotency: a live conversion for this item short-circuits — no second Task.
-  const existing = await scope.meetings.getFollowUpForItem(itemId);
-  if (existing) {
-    const existingTask = await scope.tasks.getTask(existing.taskId);
-    if (existingTask) {
-      await ensureRelatesLink(scope, existingTask.id, meetingId);
-      return { taskId: existingTask.id, created: false };
-    }
-    // The converted Task was deleted (canonical Task lifecycle) — the item is
-    // convertible again. Drop the stale mapping before re-converting.
-    await scope.meetings.removeFollowUpTask(existing.taskId);
-  }
-
-  return convert(scope, meetingId, itemId, item.kind, fields);
+  return scope.meetingTaskConversions.convert({
+    meetingId,
+    itemId,
+    task: fields,
+  });
 }
 
 /**
@@ -203,12 +91,20 @@ export async function convertMeetingItemToTask(
  *
  * Reuse is also what makes ACCEPTANCE idempotent, and it is idempotent through
  * the integrity constraints rather than around them: a replay finds the item the
- * first acceptance created, `convertMeetingItemToTask` finds its live mapping,
- * and the SAME Task comes back with `created: false`. No uniqueness error is
- * caught and ignored anywhere on this path.
+ * first acceptance created, the conversion finds its live mapping, and the SAME
+ * Task comes back with `created: false`. No uniqueness error is caught and
+ * ignored anywhere on this path.
  *
  * Comparison is on the exact trimmed body. Two proposals whose text differs are
  * two different actions, and DalyHub does not fuzzy-match the owner's words.
+ *
+ * **The one write that is deliberately NOT inside the conversion's transaction**
+ * is `addItem`. Recording an action the owner approved is a legitimate change to
+ * the Meeting in its own right — `addItem` is atomic, has its own ordinal-conflict
+ * retry, and an item that exists without a Task is a state the Meetings module
+ * already models and shows. If the conversion then fails, the owner sees the
+ * action on the meeting and no Task, and a retry REUSES that item rather than
+ * adding a second: there is no duplicate and nothing is silently lost.
  */
 export async function convertMeetingProposalToTask(
   scope: WorkspaceScope,
@@ -222,7 +118,13 @@ export async function convertMeetingProposalToTask(
   // Read (and lifecycle-check) the meeting BEFORE writing an item to it. A
   // meeting archived or deleted since the proposal was generated refuses here,
   // so no item is added to a record that cannot accept one.
-  const meeting = await loadWritableMeeting(scope, meetingId);
+  const meeting = await scope.meetings.get(meetingId);
+  if (!meeting) throw new MeetingNotFoundError();
+  if (meeting.archivedAt) {
+    throw new MeetingArchivedError(
+      "This meeting is archived — restore it to create follow-up tasks.",
+    );
+  }
   const body = input.itemBody.trim();
 
   const existing = meeting.items.find(
@@ -240,60 +142,9 @@ export async function createMeetingFollowUpTask(
   meetingId: string,
   fields: FollowUpTaskFields,
 ): Promise<ConvertResult> {
-  await loadWritableMeeting(scope, meetingId);
-  return convert(scope, meetingId, null, undefined, fields);
-}
-
-async function convert(
-  scope: WorkspaceScope,
-  meetingId: string,
-  itemId: string | null,
-  itemKind: MeetingItemKind | undefined,
-  fields: FollowUpTaskFields,
-): Promise<ConvertResult> {
-  const task = await createBaseTask(scope, fields);
-  try {
-    // `createTask` forces `status='todo'`; a non-default status is applied through
-    // the Task authority INSIDE this compensated region, so an invalid/failed status
-    // update (like any pre-commit failure) rolls the Task back — never an orphan.
-    if (fields.status && fields.status !== "todo") {
-      await scope.tasks.updateTask(task.id, { status: fields.status });
-    }
-    // Same reasoning for the description: `createTask` does not take one, so it
-    // goes through `updateTask` here rather than after the commit point, where a
-    // failure would leave a converted Task missing the text the owner approved.
-    if (
-      typeof fields.description === "string" &&
-      fields.description.length > 0
-    ) {
-      await scope.tasks.updateTask(task.id, {
-        description: fields.description,
-      });
-    }
-    // COMMIT POINT: the mapping row + its structural Activity, in one batch.
-    await scope.meetings.linkFollowUpTask({
-      meetingId,
-      itemId,
-      taskId: task.id,
-      itemKind,
-    });
-  } catch (cause) {
-    // Compensate the just-created Task so a reported failure is truthful. Tasks are
-    // a reserved spine type, so deletion goes through the spine (the Task authority).
-    await scope.spine.softDelete(task.id);
-    if (cause instanceof MeetingFollowUpConflictError && itemId !== null) {
-      const winner = await scope.meetings.getFollowUpForItem(itemId);
-      const winnerTask = winner
-        ? await scope.tasks.getTask(winner.taskId)
-        : null;
-      if (winnerTask) {
-        await ensureRelatesLink(scope, winnerTask.id, meetingId);
-        return { taskId: winnerTask.id, created: false };
-      }
-    }
-    throw cause;
-  }
-  // Post-commit, self-healing: a repeat conversion re-asserts this idempotently.
-  await ensureRelatesLink(scope, task.id, meetingId);
-  return { taskId: task.id, created: true };
+  return scope.meetingTaskConversions.convert({
+    meetingId,
+    itemId: null,
+    task: fields,
+  });
 }

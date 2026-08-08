@@ -64,7 +64,7 @@ import {
 } from "~/shared/markdown-editor";
 
 import { validateNoteContentSize } from "./note-content-validation";
-import { useOnlineStatus } from "./use-online-status";
+import { useOnlineStatus } from "~/shared/linked-items";
 import type { NoteMutationResult } from "./routes/mutate";
 
 const CONTENT_HELP = `Markdown — headings, lists, checklists, quotes, tables and more format as you type. Up to ${MARKDOWN_SOURCE_MAX_BYTES.toLocaleString()} bytes.`;

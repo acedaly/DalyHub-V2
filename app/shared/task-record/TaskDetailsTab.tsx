@@ -269,6 +269,9 @@ function TaskDetailsForm({
         rows={6}
         placeholder="Anything worth remembering about this task…"
         disabled={form.isSubmitting}
+        // DOC-EDITOR-01 — ⌘/Ctrl+Enter reaches this form's Save changes from
+        // inside the description. Plain Enter stays a paragraph.
+        onCommit={form.handleSubmit}
         {...descriptionField}
       />
       <FormActions>

@@ -173,6 +173,9 @@ export function ReviewPromptEditor({
           if (state !== "idle") setState("idle");
         }}
         onBlur={() => void save()}
+        // DOC-EDITOR-01 — the same keyboard save every other explicit-save
+        // long-form surface offers, reaching this prompt's own Save button.
+        onCommit={readOnly ? undefined : () => void save()}
         label={prompt.label}
         placeholder="Write your reflection…"
         error={error}

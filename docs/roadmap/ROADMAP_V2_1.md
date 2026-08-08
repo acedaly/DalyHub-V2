@@ -514,7 +514,8 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   kind keeps its parent requirement.
 - **Deliberately NOT in scope.** No revision history, no CRDT/real-time
   collaboration, no offline note editing, no automatic Markdown merge, and no
-  AUDIT-16 dead-code deletion (a different blast radius — see DEBT-88 §3).
+  AUDIT-16 dead-code deletion (a different blast radius — see DEBT-88 §3, since
+  delivered by [AUDIT-FIX-07](#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08)).
 - **No migration.** Every column the preconditions use — `owner_app_preferences.version`,
   `note_details.updated_at`, the owner's stored `timezone` — already existed and
   was already written; the change is that they are now compared. **Production data
@@ -522,18 +523,120 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 - **Debt.** DEBT-82 and DEBT-83 resolved; DEBT-88 partially resolved (timezone and
   restore closed, dead code open). **Size.** Medium. **Priority.** P3.
 
+### ☑ AUDIT-FIX-07 — Atomic compound mutations, one long-form editor, and the dead code (P3) — **DELIVERED 2026-08-08**
+
+- **Findings.** [AUDIT-13](../product/END_TO_END_AUDIT_2026_08_05.md#audit-13--non-atomic-cross-repository-flows--p3)
+  (two compound mutations spanning several transactions) and
+  [AUDIT-16](../product/END_TO_END_AUDIT_2026_08_05.md#audit-16--deadduplicate-code--p3)
+  (dead/duplicate code), plus the remainder of
+  [DOC-EDITOR-01](#-doc-editor-01--one-document-editor-shell-for-notes-and-meetings--superseded-2026-08-08-remainder-delivered-2026-08-08-audit-fix-07),
+  which its own 2026-08-08 re-check had narrowed to two shared long-form controls
+  with no product consumer. All three were re-confirmed against `main` at
+  `6e5860e` before any code changed; the audit is
+  [`DOC_EDITOR_ATOMIC_AUDIT_2026_08_08.md`](../product/DOC_EDITOR_ATOMIC_AUDIT_2026_08_08.md).
+
+- **AUDIT-13 delivered.** Both compound mutations are now ONE `D1Database.batch()`.
+  The meeting item → Task conversion was five transactions with a compensating
+  soft-delete; the compensation covered a thrown failure and could not cover the
+  process not being there to run it, so a crash between the Task committing and
+  the mapping committing left an orphan Task that a retry duplicated. It is now
+  one transaction assembled from the Task, Meeting and EntityLink adapters' OWN
+  statements — no authority duplicated, and a failure leaves no row at all rather
+  than a soft-deleted one. Obligation completion closed its linked Task in a
+  separate transaction FIRST; the Task's completion statements now join the
+  obligation's batch behind the guard the obligation already used, so the Task
+  closes only if the obligation actually closed. The `catch` that wrote
+  `already_closed` into the Activity payload for every Task failure is gone:
+  `taskOutcome` names what the same transaction did. `createTask` accepts `status`
+  and `description`, which removes two more transactions rather than moving them.
+  The two APIs that permitted the old sequences — `MeetingRepository.linkFollowUpTask`
+  and `ObligationTaskGateway.completeTask` — are **deleted**, because either of
+  them keeps the non-atomic flow one call away for as long as it exists.
+
+- **DOC-EDITOR-01 delivered.** A dated decision, and the deletions it licenses:
+  long-form Markdown is edited on the permanent shared writing surface, and there
+  is no read-then-activate variant. `MarkdownField` (a source textarea plus a
+  preview disclosure, product consumers: none) and `InlineMarkdownField` (built
+  for read-then-activate, never adopted) are both gone, `~/shared/forms` exports
+  no long-form control, and `/design/forms` demonstrates what the product uses.
+  ⌘/Ctrl+Enter became the writing surface's OWN commit shortcut — on the live
+  editor and the no-JS fallback both — so deleting the read-then-activate field
+  did not cost a keyboard save; plain Enter is still a paragraph, asserted in a
+  unit test and in a browser journey.
+
+- **AUDIT-16 delivered.** `ModulePlaceholder.tsx` (superseded by
+  `ModuleComingSoon`, no production importer) and the duplicate
+  `app/modules/notes/use-online-status.ts` (byte-identical to the shared hook that
+  says in its own header it was promoted from it) are deleted. The two colliding
+  `NewTaskForm.tsx` files were **not** duplicates and are kept: the Projects one
+  posts a title alone and the SERVER binds the parent, the Tasks one posts a
+  client-chosen parent that `/tasks` re-verifies — same words, different trust
+  boundaries, so only the name was wrong. Renamed `NewProjectTaskForm`. The dead
+  CSS the deleted controls left behind went with them.
+
+- **Evidence.** 17 real-Workers/real-D1 cases in
+  [`test/kernel/audit-13-atomic-operations.test.ts`](../../test/kernel/audit-13-atomic-operations.test.ts)
+  — success commits everything, a fault on EITHER side of each operation commits
+  nothing (asserted against every Task row, not just live ones, so "rolled back"
+  is distinguishable from "compensated"), a retry yields exactly one logical
+  result, concurrent requests cannot contradict each other, another workspace
+  cannot take part, and the obligation event's `taskOutcome` matches committed
+  state. Plus the rewritten fault-injection cases in
+  [`meeting-follow-up.test.ts`](../../test/kernel/meeting-follow-up.test.ts), the
+  architecture boundary in
+  [`one-writing-surface.test.ts`](../../test/unit/markdown-editor/one-writing-surface.test.ts),
+  the keyboard-save contract in
+  [`keyboard-save.test.tsx`](../../test/unit/markdown-editor/keyboard-save.test.tsx),
+  and three browser journeys
+  ([`audit-13-conversion-atomicity.spec.ts`](../../e2e/audit-13-conversion-atomicity.spec.ts) —
+  a double-submitted, replayed and refused conversion;
+  [`doc-editor-keyboard-save.spec.ts`](../../e2e/doc-editor-keyboard-save.spec.ts) —
+  the ENHANCED CodeMirror surface, where the chord could be stolen by Markdown's
+  list continuation or CodeMirror's own `Mod-Enter`; and
+  [`doc-editor-responsive.spec.ts`](../../e2e/doc-editor-responsive.spec.ts) — the
+  writing surface measured at all ten canonical viewports, 320 → 2560).
+  `e2e/accessibility.spec.ts` passes at 122 checks across every product route and
+  design fixture in light AND dark.
+
+- **Documentation.** [ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-a-compound-domain-mutation-is-one-storage-transaction-composed-from-the-owning-repositories-statements)
+  · [ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant)
+  · [`DOC_EDITOR_ATOMIC_AUDIT_2026_08_08.md`](../product/DOC_EDITOR_ATOMIC_AUDIT_2026_08_08.md)
+  · [`MEETINGS_MODULE.md`](../development/MEETINGS_MODULE.md)
+  · [`ASSETS_MODULE.md`](../development/ASSETS_MODULE.md)
+  · [`DESIGN_SYSTEM.md → Shared writing surface`](../design/DESIGN_SYSTEM.md#shared-writing-surface-edit-01).
+
+- **Deliberately NOT in scope.** No collaboration, live cursors, automatic merge,
+  comments, track changes, version-history UI, AI writing, attachments, templates
+  or slash commands. No persistence-format change and no migration. No global CSS
+  purge and no unrelated module cleanup — the other open debt items that sit
+  nearby (DEBT-99, DEBT-103, DEBT-104) are real and are not these three items.
+  Areas and Projects still have no description field (DEBT-98).
+
+- **No migration. Nothing deployed. Production data untouched.** **Debt.** DEBT-87
+  resolved; DEBT-88 §3 resolved (closing DEBT-88 entirely); DEBT-97 and DEBT-101
+  resolved. **Size.** Large. **Priority.** P3 — closed.
+
 ### The rest — near-term remediation and cleanup
 
-Sequenced but not blocking: the security/ops hardening (AUDIT-10 CSP — **resolved
-2026-08-08 with SET-03**, AUDIT-11
-backup artifact) and the cleanups (AUDIT-13 non-atomic flows, AUDIT-16 dead
-code). The multi-device concurrency pair (AUDIT-07 preferences, AUDIT-08 note
-content) and the owner-timezone/parentless-restore cleanup (AUDIT-14, AUDIT-15)
-were delivered by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3).
-Each remaining item is recorded in
-[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-85, DEBT-87, DEBT-88 §3)
-with its finding id. The full sequence is
+**This section is now empty of code items, and that is the point of recording it.**
+Everything it sequenced has shipped:
+
+- the security/ops hardening — **AUDIT-10** (CSP) resolved 2026-08-08 with
+  [SET-03](#-set-03--account--security--substantially-delivered-2026-08-08), and **AUDIT-11** (the plaintext backup
+  artifact) with [SET-02](#-set-02--backup--restore-v21);
+- the multi-device concurrency pair (**AUDIT-07** preferences, **AUDIT-08** note
+  content) and the owner-timezone / parentless-restore cleanup (**AUDIT-14**,
+  **AUDIT-15**) by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3);
+- the non-atomic compound mutations (**AUDIT-13**) and the dead code
+  (**AUDIT-16**) by
+  [AUDIT-FIX-07](#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08).
+
+Every one is recorded against its finding id in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — DEBT-82 … DEBT-88 and DEBT-105 —
+and the original ordering is
 [Recommended remediation sequence](../product/END_TO_END_AUDIT_2026_08_05.md#20-recommended-remediation-sequence).
+What the August audit still leaves open is not code: it is the
+**verification gaps** below, which are the owner's to close.
 
 **Verification gaps (owner action, not a code item).** The audit could not reach
 production; its
@@ -946,7 +1049,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   replaced this flow's settle-in fact grid with the Review's evidence.
 - **Priority.** P2 — closed.
 
-### ⊘ DOC-EDITOR-01 — One document-editor shell for Notes and Meetings — **superseded, re-checked 2026-08-08**
+### ☑ DOC-EDITOR-01 — One document-editor shell for Notes and Meetings — **superseded 2026-08-08; remainder delivered 2026-08-08 (AUDIT-FIX-07)**
 
 - **Recorded, not started.** Noted while migrating Areas and Projects to the M3
   entity card (Gate D unit 1, PR #122). It is deliberately NOT in that PR: the M3
@@ -1009,7 +1112,24 @@ They are small and well-understood; none of them blocks the V2 release.*
   deliberately-divergent persistence rather than duplicated chrome. It is
   recorded here so the next agent does not re-derive the audit, and it is NOT
   the next major product unit it was written as.
-- **Priority.** P2 → closed by supersession.
+- **☑ The remainder CLOSED 2026-08-08 by [AUDIT-FIX-07](#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08).**
+  The 2026-08-08 re-check above was audited a second time before anything was
+  built, and it held: the shell IS shared, three consumers use it, and the
+  stylesheet is no longer a per-module card system. What it had NOT noticed was
+  that two shared long-form CONTROLS were still shipping with **no product
+  consumer at all** — `MarkdownField`, whose only importer was the design fixture
+  documenting it ([DEBT-101](../product/PRODUCT_DEBT.md)), and
+  `InlineMarkdownField`, built for a read-then-activate variant and never adopted
+  by anything ([DEBT-97](../product/PRODUCT_DEBT.md)). That is a smaller finding
+  than "two editor engines" and a real one: `~/shared/forms` is imported by nearly
+  every route, so the next module needing a Markdown field would have found one
+  there. Both are deleted, behind a dated decision that says why nothing will
+  need them ([ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant)):
+  long-form Markdown is edited on the permanent shared writing surface, and
+  reading is the editor's own Read toggle. The full pre-implementation audit,
+  including the classification of every long-form and multiline surface in the
+  product, is [`DOC_EDITOR_ATOMIC_AUDIT_2026_08_08.md`](../product/DOC_EDITOR_ATOMIC_AUDIT_2026_08_08.md).
+- **Priority.** P2 → closed by supersession, remainder delivered.
 
 ### ☑ REVIEW-03 — Insights & alignment — **delivered 2026-08-08**
 

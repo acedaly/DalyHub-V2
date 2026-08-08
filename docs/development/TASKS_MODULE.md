@@ -967,7 +967,7 @@ the mutation contracts they document are unchanged.
 V2.2 is the programme that made Tasks the fastest surface in DalyHub. Its target
 interaction is **see Task → act on Task**, not *see Task → open record → find Edit →
 modify field → save → close record*. It is accepted as
-[ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode)
+[ADR-085](../decisions/ARCHITECTURE_DECISIONS.md#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode)
 and recorded in [`ROADMAP_V2_2.md`](../roadmap/ROADMAP_V2_2.md).
 
 **No Task authority changed.** The spine still owns identity, completion and
@@ -1200,7 +1200,7 @@ to the grid and stores `NULL`.
 **Deferred, honestly:** ordinal monthly patterns ("first Monday of every month") are
 NOT implemented. They need a second monthly representation beside the anchor-day one,
 and every consumer — validator, successor planner, label, editor and parser — would
-have to carry both. Recorded as [DEBT-107](../product/PRODUCT_DEBT.md) rather than
+have to carry both. Recorded as [DEBT-109](../product/PRODUCT_DEBT.md) rather than
 half-built.
 
 ### Skip, and stopping a repeat
@@ -1309,10 +1309,10 @@ reviewable rather than re-derived:
 **Known limitations, stated rather than implied.**
 
 - **Ordinal monthly recurrence** ("first Monday of every month") is not expressible —
-  [DEBT-107](../product/PRODUCT_DEBT.md). Deferred deliberately; the reasoning is in
-  ADR-083 decision 11.
+  [DEBT-109](../product/PRODUCT_DEBT.md). Deferred deliberately; the reasoning is in
+  ADR-085 decision 11.
 - **The bulk bound is 100 tasks and no surface says so** —
-  [DEBT-108](../product/PRODUCT_DEBT.md). Not reachable in ordinary use, because
+  [DEBT-110](../product/PRODUCT_DEBT.md). Not reachable in ordinary use, because
   "Select all" only ever selects the loaded page.
 - **Series scope applies to the DATE only.** Every other field is "this and future" by
   construction, because the successor is copied from the current occurrence. That is
@@ -1322,8 +1322,8 @@ reviewable rather than re-derived:
 
 **Relevant product-debt items.**
 [DEBT-66](../product/PRODUCT_DEBT.md) ☑ (closed by TASKS-07) ·
-[DEBT-107](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-07) ·
-[DEBT-108](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-06) ·
+[DEBT-109](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-07) ·
+[DEBT-110](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-06) ·
 [DEBT-56](../product/PRODUCT_DEBT.md) ☐ (unchanged: an axe `label-title-only`
 false positive on one shared SelectField in the Tasks Drawer).
 

@@ -39,7 +39,7 @@ export type TaskRecurrenceDateKind =
  *     Monday's occurrence was finished on time. The next date is computed from the
  *     series grid, so completing late does not permanently move the routine. This
  *     is exactly the behaviour every rule stored before TASKS-07 had, which is why
- *     it is the migration default (ADR-083).
+ *     it is the migration default (ADR-085).
  *   - **`after_completion`** — an INTERVAL that restarts when the work is actually
  *     done. "Every 14 days after completion" on a task due 1 August, completed on
  *     the 6th, next falls on the 20th, not the 15th. For cleaning, maintenance and

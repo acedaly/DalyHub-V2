@@ -17,7 +17,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 ## The programme
 
 Four items, delivered as one coherent Tasks upgrade and accepted together as
-[ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode).
+[ADR-085](../decisions/ARCHITECTURE_DECISIONS.md#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode).
 
 The objective, in one sentence:
 
@@ -106,7 +106,7 @@ EntityLinks the one relationship model and Activity the one audit stream.
   retained edited successors, concurrent completion, retries, sequence uniqueness and
   recurrence-row slot release.
 - **Deferred, recorded honestly:** ordinal monthly patterns ("first Monday of every
-  month") — see [DEBT-107](../product/PRODUCT_DEBT.md).
+  month") — see [DEBT-109](../product/PRODUCT_DEBT.md).
 
 ---
 
@@ -142,6 +142,6 @@ builder, cron expressions, realtime collaborative editing and PWA offline Task e
 ## Related documents
 
 - [`TASKS_MODULE.md`](../development/TASKS_MODULE.md) — the module's full behaviour
-- [ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) — the accepted decision
+- [ADR-085](../decisions/ARCHITECTURE_DECISIONS.md#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) — the accepted decision
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — what is still owed
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — the shared patterns this added

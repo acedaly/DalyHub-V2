@@ -50,7 +50,10 @@ import type {
   NoteQueryRepository,
 } from "~/kernel/notes";
 import type { PersonRepository } from "~/kernel/people";
-import type { MeetingRepository } from "~/kernel/meetings";
+import type {
+  MeetingRepository,
+  MeetingTaskConversionRepository,
+} from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { RelationshipRepository } from "~/kernel/relationships";
@@ -90,6 +93,7 @@ import {
   createNoteRepository,
   createPersonRepository,
   createMeetingRepository,
+  createMeetingTaskConversionRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -209,6 +213,14 @@ export interface WorkspaceScope {
    */
   readonly people: PersonRepository;
   readonly meetings: MeetingRepository;
+  /**
+   * AUDIT-13 — the ONE way to turn a Meeting's work into a Task. It exists as its
+   * own scope member, rather than as more methods on `meetings`, because it is not
+   * a Meeting operation: it writes a Task, a mapping, a relationship and three
+   * Activity events in one transaction, and no module should be able to assemble
+   * that sequence itself.
+   */
+  readonly meetingTaskConversions: MeetingTaskConversionRepository;
   /**
    * The ASSET-01 authoritative Asset repository: the Assets collection/record read
    * model AND capture surface. It creates `asset` entities with their structured
@@ -471,28 +483,24 @@ export function bindWorkspaceRepositories(
   const diary = createDiaryRepository(env.DB, context, { actorContext });
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
+  const meetingTaskConversions = createMeetingTaskConversionRepository(env.DB, {
+    tasks,
+    meetings,
+    entityLinks,
+  });
   const assets = createAssetRepository(env.DB, context, {
     actorContext,
     ownerTimeZone,
   });
-  // The narrow Task write port an Asset obligation uses. Completion and
-  // rescheduling stay the TaskRepository's — this only names them (§22).
+  // The narrow Task write port an Asset obligation uses. Rescheduling stays the
+  // TaskRepository's — this only names it (§22).
+  //
+  // AUDIT-13 — `completeTask` is deliberately NOT here any more. Obligation
+  // completion no longer closes the Task in a transaction of its own; the Task
+  // repository PLANS the completion and the obligation's own batch runs it, so
+  // both commit or neither does. `tasks` is the concrete D1 adapter, which is
+  // where that planning seam lives.
   const obligationTasks: ObligationTaskGateway = {
-    async completeTask(taskId) {
-      try {
-        // AUDIT-14 — the SAME owner day the Task module uses. This gateway used
-        // to resolve Sydney, so completing an obligation could close a Task
-        // against a different calendar date than the Task record itself showed.
-        const result = await tasks.completeTask(taskId, {
-          ownerTodayIso: await ownerTodayIso(),
-        });
-        return result.changed ? "completed" : "already_closed";
-      } catch {
-        // A missing/deleted/cross-workspace Task is not an error here: the
-        // obligation simply has nothing left to reconcile against.
-        return "missing";
-      }
-    },
     async rescheduleTask(taskId, dueDate) {
       try {
         await tasks.updateTask(taskId, { dueDate });
@@ -505,6 +513,7 @@ export function bindWorkspaceRepositories(
   const assetHistory = createAssetHistoryRepository(env.DB, context, {
     actorContext,
     taskGateway: obligationTasks,
+    taskCompletionPlanner: tasks,
     ownerTimeZone,
   });
   const reviews = createReviewRepository(env.DB, context, { actorContext });
@@ -571,6 +580,7 @@ export function bindWorkspaceRepositories(
     diary,
     people,
     meetings,
+    meetingTaskConversions,
     assets,
     assetHistory,
     reviews,

@@ -345,6 +345,96 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     }
   }
 
+  /**
+   * AUDIT-13 — a link creation reduced to STATEMENTS, for a compound operation
+   * that is creating one of the endpoints in the SAME transaction.
+   *
+   * `create` cannot serve that case: it pre-reads both endpoints, and a Task that
+   * is being inserted three statements earlier in the same batch does not exist
+   * yet to be read. So this builds the same guarded INSERT plus the same
+   * `entity_link.created` Activity, and relies on the guards — both endpoints
+   * active, no archived task parent, no identical live row — which SQLite
+   * evaluates against the transaction's own uncommitted state.
+   *
+   * It is an INTERNAL adapter seam (not on the `EntityLinkRepository` port) and it
+   * writes nothing. The reserved-type rule is enforced here exactly as `create`
+   * enforces it, so a structural spine link can never be minted through this door.
+   */
+  buildCreateLinkStatements(
+    input: CreateEntityLinkInput,
+    now: Date,
+  ): readonly D1PreparedStatement[] {
+    const { sourceEntityId, targetEntityId, type } =
+      validateCreateEntityLinkInput(input);
+    if (isReservedLinkType(type)) {
+      throw new EntityLinkReservedTypeError();
+    }
+    const nowTs = toStorageTimestamp(now);
+    const id = validateEntityLinkId(this.#newId());
+
+    const insert = this.#db
+      .prepare(
+        `INSERT INTO entity_links
+           (id, workspace_id, source_entity_id, target_entity_id, type,
+            created_at, updated_at, deleted_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, NULL
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+               )
+           AND EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+               )
+           AND NOT ${this.#archivedTaskParentExistsSql}
+           AND NOT ${this.#archivedTaskParentExistsSql}
+           AND NOT EXISTS (
+                 SELECT 1 FROM entity_links
+                 WHERE workspace_id = ? AND source_entity_id = ?
+                   AND target_entity_id = ? AND type = ?
+               )`,
+      )
+      .bind(
+        id,
+        this.#workspaceId,
+        sourceEntityId,
+        targetEntityId,
+        type,
+        nowTs,
+        nowTs,
+        this.#workspaceId,
+        sourceEntityId,
+        this.#workspaceId,
+        targetEntityId,
+        this.#workspaceId,
+        sourceEntityId,
+        this.#workspaceId,
+        targetEntityId,
+        this.#workspaceId,
+        sourceEntityId,
+        targetEntityId,
+        type,
+      );
+
+    return [
+      insert,
+      ...this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        buildActivityWriteModel(
+          this.#linkEvent(LINK_CREATED, {
+            id,
+            sourceEntityId,
+            targetEntityId,
+            type,
+          }),
+          this.#actor.actor,
+          this.#newActivityId(),
+          now,
+        ),
+      ),
+    ];
+  }
+
   async getById(
     id: string,
     options: GetEntityLinkOptions = {},

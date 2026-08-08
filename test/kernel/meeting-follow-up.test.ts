@@ -11,6 +11,8 @@ import {
 } from "~/platform/meetings";
 import type { WorkspaceScope } from "~/platform/workspaces";
 
+const MEETING_ITEM_CONVERTED_TO_TASK = "meeting.item_converted_to_task";
+
 import {
   FakeClock,
   countMeetingItemTaskRows,
@@ -18,6 +20,7 @@ import {
   makeContext,
   makeLinkRepository,
   makeMeetingRepository,
+  makeMeetingTaskConversionRepository,
   makeRepository,
   makeSpineRepository,
   makeTaskRepository,
@@ -38,6 +41,7 @@ interface Harness {
   readonly meetings: ReturnType<typeof makeMeetingRepository>;
   readonly tasks: ReturnType<typeof makeTaskRepository>;
   readonly entityLinks: ReturnType<typeof makeLinkRepository>;
+  readonly conversions: ReturnType<typeof makeMeetingTaskConversionRepository>;
 }
 
 /**
@@ -45,7 +49,12 @@ interface Harness {
  * object bound to ONE workspace context. This mirrors the composition
  * `bindWorkspaceRepositories` performs in production without needing a full env.
  */
-function harness(ws: string): Harness {
+function harness(
+  ws: string,
+  conversionOptions: Parameters<
+    typeof makeMeetingTaskConversionRepository
+  >[1] = {},
+): Harness {
   const context = makeContext(ws);
   const shared = {
     clock: new FakeClock().now,
@@ -60,14 +69,20 @@ function harness(ws: string): Harness {
   const spine = makeSpineRepository(context, shared);
   const entityLinks = makeLinkRepository(context, shared);
   const entities = makeRepository(context, shared);
+  const conversions = makeMeetingTaskConversionRepository(
+    context,
+    { clock: new FakeClock().now, ...conversionOptions },
+    { tasks, meetings, entityLinks },
+  );
   const scope = {
     meetings,
+    meetingTaskConversions: conversions,
     tasks,
     entityLinks,
     entities,
     spine,
   } as unknown as WorkspaceScope;
-  return { scope, spine, meetings, tasks, entityLinks };
+  return { scope, spine, meetings, tasks, entityLinks, conversions };
 }
 
 async function seedArea(h: Harness, title = "Operations") {
@@ -82,6 +97,28 @@ async function countActiveTasks(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM entities WHERE type='task' AND deleted_at IS NULL",
   ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * AUDIT-13 — every Task row, INCLUDING soft-deleted ones. The compensation this
+ * PR removes left a soft-deleted Task behind on every failed conversion; the
+ * atomic version leaves no row at all, and only this count can tell them apart.
+ */
+async function countAllTaskRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM entities WHERE type='task'",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Every live `task.relates_to` link row, however it was created. */
+async function countTaskRelatesLinkRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM entity_links WHERE type=? AND deleted_at IS NULL",
+  )
+    .bind(TASK_RELATES_TO)
+    .first<{ n: number }>();
   return row?.n ?? 0;
 }
 
@@ -244,79 +281,93 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
     expect(await countActiveTasks()).toBe(1);
   });
 
-  it("recovers the winning Task and soft-deletes the duplicate on a conversion race", async () => {
+  it("AUDIT-13: a losing racer's whole transaction rolls back, and it returns the winner", async () => {
     const h = harness(WS);
     const area = await seedArea(h);
     const meeting = await seedMeeting(h);
     const item = await h.meetings.addItem(meeting.id, "decision", "Decide");
-    const first = await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
-      title: "Decide",
-      parent: { kind: "area", id: area.id },
+
+    // The racer's idempotency read runs BEFORE the winner exists, so it proceeds
+    // all the way to its batch — where the real
+    // `meeting_item_tasks (workspace_id, item_id)` unique index rejects it. There
+    // is no compensation any more, and none is needed: its Task never committed.
+    let winner: { readonly taskId: string } | null = null;
+    const racing = harness(WS, {
+      raceHook: async () => {
+        if (winner) return;
+        winner = await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
+          title: "Decide",
+          parent: { kind: "area", id: area.id },
+        });
+      },
     });
 
-    // Simulate a race: the idempotency read misses the mapping on the FIRST call, so
-    // the orchestration proceeds to create a duplicate Task; the real unique index
-    // then rejects the mapping insert, and recovery must return the winner.
-    let reads = 0;
-    const racing = {
-      ...h.scope,
-      meetings: new Proxy(h.meetings, {
-        get(target, prop, receiver) {
-          if (prop === "getFollowUpForItem") {
-            return async (id: string) => {
-              reads += 1;
-              return reads === 1 ? null : target.getFollowUpForItem(id);
-            };
-          }
-          const value = Reflect.get(target, prop, receiver);
-          return typeof value === "function" ? value.bind(target) : value;
-        },
-      }),
-    } as unknown as WorkspaceScope;
+    const second = await convertMeetingItemToTask(
+      racing.scope,
+      meeting.id,
+      item.id,
+      { title: "Decide (dup)", parent: { kind: "area", id: area.id } },
+    );
 
-    const second = await convertMeetingItemToTask(racing, meeting.id, item.id, {
-      title: "Decide (dup)",
-      parent: { kind: "area", id: area.id },
-    });
-
+    expect(winner).not.toBeNull();
     expect(second.created).toBe(false);
-    expect(second.taskId).toBe(first.taskId);
+    expect(second.taskId).toBe(winner!.taskId);
     expect(await countMeetingItemTaskRows()).toBe(1);
-    expect(await countActiveTasks()).toBe(1); // the duplicate was compensated
+    // Exactly one Task, and it was never soft-deleted: the duplicate had no
+    // moment in which it existed.
+    expect(await countActiveTasks()).toBe(1);
+    expect(await countAllTaskRows()).toBe(1);
   });
 
-  it("soft-deletes the created Task and rethrows when the commit fails (no orphan)", async () => {
-    const h = harness(WS);
-    const area = await seedArea(h);
-    const meeting = await seedMeeting(h);
+  it.each(["after-task", "after-mapping", "after-link"] as const)(
+    "AUDIT-13: a fault at %s leaves no Task, no mapping, no link and no Activity",
+    async (fault) => {
+      const h = harness(WS, { fault });
+      const area = await seedArea(h);
+      const meeting = await seedMeeting(h);
+      const item = await h.meetings.addItem(meeting.id, "action", "Do it");
 
-    const failing = {
-      ...h.scope,
-      meetings: new Proxy(h.meetings, {
-        get(target, prop, receiver) {
-          if (prop === "linkFollowUpTask") {
-            return async () => {
-              throw new Error("commit fault");
-            };
-          }
-          const value = Reflect.get(target, prop, receiver);
-          return typeof value === "function" ? value.bind(target) : value;
+      await expect(
+        convertMeetingItemToTask(h.scope, meeting.id, item.id, {
+          title: "Orphan?",
+          parent: { kind: "area", id: area.id },
+          description: "Some approved detail.",
+        }),
+      ).rejects.toBeTruthy();
+
+      expect(await countMeetingItemTaskRows()).toBe(0);
+      expect(await countActiveTasks()).toBe(0);
+      // Not merely inactive — the row never existed, so a retry cannot find a
+      // half-converted Task and cannot create a second one.
+      expect(await countAllTaskRows()).toBe(0);
+      expect(await countActivitiesOfType(MEETING_ITEM_CONVERTED_TO_TASK)).toBe(
+        0,
+      );
+      expect(await countActivitiesOfType("entity.created")).toBe(1); // the Area only
+      expect(await countTaskRelatesLinkRows()).toBe(0);
+
+      // ... and the retry (without the fault) produces exactly one of everything.
+      const clean = harness(WS);
+      const retry = await convertMeetingItemToTask(
+        clean.scope,
+        meeting.id,
+        item.id,
+        {
+          title: "Orphan?",
+          parent: { kind: "area", id: area.id },
+          description: "Some approved detail.",
         },
-      }),
-    } as unknown as WorkspaceScope;
+      );
+      expect(retry.created).toBe(true);
+      expect(await countAllTaskRows()).toBe(1);
+      expect(await countMeetingItemTaskRows()).toBe(1);
+      expect(await countActivitiesOfType(MEETING_ITEM_CONVERTED_TO_TASK)).toBe(
+        1,
+      );
+    },
+  );
 
-    await expect(
-      createMeetingFollowUpTask(failing, meeting.id, {
-        title: "Orphan?",
-        parent: { kind: "area", id: area.id },
-      }),
-    ).rejects.toThrow("commit fault");
-
-    expect(await countMeetingItemTaskRows()).toBe(0);
-    expect(await countActiveTasks()).toBe(0); // compensated — no orphan
-  });
-
-  it("compensates the created Task when a bad status update fails (no orphan)", async () => {
+  it("rolls the whole conversion back when a bad status is refused (no orphan)", async () => {
     const h = harness(WS);
     const area = await seedArea(h);
     const meeting = await seedMeeting(h);
@@ -326,14 +377,14 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
       convertMeetingItemToTask(h.scope, meeting.id, item.id, {
         title: "Bad status",
         parent: { kind: "area", id: area.id },
-        // An invalid status is validated by the Task authority INSIDE the
-        // compensated region, so the just-created Task must be rolled back.
+        // An invalid status is validated by the Task authority BEFORE the batch
+        // is assembled, so nothing is written at all.
         status: "not_a_real_status" as TaskStatus,
       }),
     ).rejects.toBeTruthy();
 
     expect(await countMeetingItemTaskRows()).toBe(0);
-    expect(await countActiveTasks()).toBe(0);
+    expect(await countAllTaskRows()).toBe(0);
   });
 
   it("re-converts an item whose Task was deleted (stale mapping cleared)", async () => {

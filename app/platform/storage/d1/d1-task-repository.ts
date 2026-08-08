@@ -452,6 +452,32 @@ const WORKSPACE_GROUP_BUCKET_EXPR: Record<WorkspaceTaskGroupDimension, string> =
   };
 
 /**
+ * AUDIT-13 — a Task creation reduced to statements, so another D1 adapter in this
+ * package can fuse it into ITS batch and make a compound domain operation ONE
+ * transaction. Never leaves `app/platform/storage/d1`.
+ */
+export interface CreateTaskStatementPlan {
+  /** The id the create will mint. Valid only if the batch commits. */
+  readonly taskId: string;
+  /** Whether a structural parent was requested (decides the zero-change error). */
+  readonly hasParent: boolean;
+  /** The statements, entity insert FIRST. Run them in this order, at the FRONT. */
+  readonly statements: readonly D1PreparedStatement[];
+}
+
+/**
+ * AUDIT-13 — what completing a Task means inside somebody else's batch.
+ *
+ * `statements` is empty for every outcome except `completed`: an already-closed or
+ * missing Task needs no write, and saying so is what keeps the composing
+ * operation's Activity payload honest.
+ */
+export interface TaskCompletionPlan {
+  readonly outcome: "completed" | "already_closed" | "missing";
+  readonly statements: readonly D1PreparedStatement[];
+}
+
+/**
  * TEST-ONLY deterministic failure injection points for `completeTask`'s atomic
  * batch, used to prove the WHOLE operation rolls back when any statement after the
  * completion write fails. Each value forces a failure immediately AFTER the named
@@ -570,6 +596,62 @@ export class D1TaskRepository implements TaskRepository {
   /* ---------------------------------------------------------------------- */
 
   async createTask(input: NewTaskInput): Promise<TaskView> {
+    const plan = this.buildCreateTaskStatements(input);
+    const statements = [...plan.statements];
+    // TEST-ONLY: prove the WHOLE create rolls back — no entity/spine/link/details/
+    // Activity survives — when a statement fails mid-batch.
+    if (this.#createTaskFault) {
+      statements.push(this.#forcedFailure());
+    }
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(statements);
+    } catch (cause) {
+      if (cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    this.interpretCreateTaskResults(plan, results);
+
+    const view = await this.getTask(plan.taskId);
+    if (!view) {
+      throw new TaskStorageError();
+    }
+    return view;
+  }
+
+  /**
+   * AUDIT-13 — the create's statements, without running them.
+   *
+   * An INTERNAL adapter seam (not on the `TaskRepository` port), in the same
+   * spirit as `D1ActivityRecorder`: it hands back prepared statements, never a
+   * write, so a caller cannot use it to reconstruct a multi-transaction sequence.
+   * Its one purpose is to let another D1 adapter in this package fuse a Task
+   * creation into ITS batch — the meeting item → Task conversion — so the whole
+   * user-visible operation is one D1 transaction rather than a saga with a
+   * compensating delete. Task SQL stays here; only its assembly moves.
+   *
+   * The entity insert is ALWAYS statement 0 of the returned array, which is what
+   * `interpretCreateTaskResults` relies on; a composing caller must therefore put
+   * these statements FIRST in its batch and pass the batch results straight back.
+   */
+  buildCreateTaskStatements(
+    input: NewTaskInput,
+    options: {
+      /**
+       * AUDIT-13 — the composing operation's OWN precondition, re-asserted inside
+       * the batch. A zero-row entity insert then declines the whole create, and
+       * everything gated on that entity declines with it.
+       */
+      readonly guard?: {
+        readonly sql: string;
+        readonly params: readonly unknown[];
+      };
+    } = {},
+  ): CreateTaskStatementPlan {
     const title = validateSpineTitle(input.title);
     const parent =
       input.parent === null || input.parent === undefined ? null : input.parent;
@@ -606,6 +688,14 @@ export class D1TaskRepository implements TaskRepository {
       input.scheduledDate ?? null,
       "scheduledDate",
     );
+    // AUDIT-13: status and description are part of the create, not a follow-up
+    // write. Both are validated here, so an invalid value fails BEFORE the batch.
+    const status =
+      input.status === undefined ? "todo" : validateTaskStatus(input.status);
+    const description =
+      input.description === undefined || input.description === null
+        ? null
+        : validateTaskDescription(input.description);
     // TASKS-04: an optional recurrence rule is validated against the dates being
     // created in this very batch, so a captured "every Monday" either commits WITH
     // its rule or not at all — never a repeating task that silently forgot to repeat.
@@ -627,7 +717,12 @@ export class D1TaskRepository implements TaskRepository {
     // no structural EntityLink, not damaged children of a hidden parent.
     const entityStmt =
       parentKind === null || parentId === null
-        ? this.#createUnassignedTaskEntityStatement(id, title, nowTs)
+        ? this.#createUnassignedTaskEntityStatement(
+            id,
+            title,
+            nowTs,
+            options.guard,
+          )
         : buildSpineChildEntityInsertStatement(this.#db, this.#workspaceId, {
             id,
             kind: TASK,
@@ -635,6 +730,7 @@ export class D1TaskRepository implements TaskRepository {
             parentKind,
             parentId,
             nowTs,
+            ...(options.guard ? { guard: options.guard } : {}),
           });
     const spineStmt = buildSpineChildRecordInsertStatement(
       this.#db,
@@ -684,7 +780,9 @@ export class D1TaskRepository implements TaskRepository {
       timeSector !== null ||
       commitmentState !== "active" ||
       dueDate !== null ||
-      scheduledDate !== null;
+      scheduledDate !== null ||
+      status !== "todo" ||
+      description !== null;
 
     const statements: D1PreparedStatement[] = [
       entityStmt,
@@ -697,7 +795,15 @@ export class D1TaskRepository implements TaskRepository {
       statements.push(
         this.#createDetailsStatement(
           id,
-          { priority, dueDate, scheduledDate, timeSector, commitmentState },
+          {
+            priority,
+            dueDate,
+            scheduledDate,
+            timeSector,
+            commitmentState,
+            status,
+            description,
+          },
           nowTs,
         ),
       );
@@ -715,52 +821,61 @@ export class D1TaskRepository implements TaskRepository {
         ),
       );
     }
-    // TEST-ONLY: prove the WHOLE create rolls back — no entity/spine/link/details/
-    // Activity survives — when a statement fails mid-batch.
-    if (this.#createTaskFault) {
-      statements.push(this.#forcedFailure());
-    }
+    return { taskId: id, hasParent: parentKind !== null, statements };
+  }
 
-    let results: D1Result<EntityRow>[];
-    try {
-      results = await this.#db.batch<EntityRow>(statements);
-    } catch (cause) {
-      if (cause instanceof ActivityError) {
-        throw cause;
-      }
-      throw new TaskStorageError(undefined, { cause });
-    }
-
+  /**
+   * Read a create batch's results and raise the same typed errors `createTask`
+   * always raised. Shared with the composing caller so one create means one set of
+   * failure semantics, wherever the batch was assembled.
+   */
+  interpretCreateTaskResults(
+    plan: CreateTaskStatementPlan,
+    results: readonly D1Result[],
+  ): void {
     // The entity insert is index 0. For assigned Tasks a zero-change result means
     // the parent was missing/deleted/wrong-kind/archived/cross-workspace; for
     // Unassigned Tasks it would indicate an id collision or storage corruption.
     const entityResult = results[0];
     const entityRow = (entityResult?.results ?? [])[0];
     if ((entityResult?.meta?.changes ?? 0) === 0 || !entityRow) {
-      if (parentKind !== null) throw new SpineParentUnavailableError();
+      if (plan.hasParent) throw new SpineParentUnavailableError();
       throw new TaskStorageError();
     }
-
-    const view = await this.getTask(id);
-    if (!view) {
-      throw new TaskStorageError();
-    }
-    return view;
   }
 
   #createUnassignedTaskEntityStatement(
     id: string,
     title: string,
     nowTs: string,
+    /** AUDIT-13 — see `buildCreateTaskStatements`. Absent for an ordinary create. */
+    guard?: { readonly sql: string; readonly params: readonly unknown[] },
   ): D1PreparedStatement {
+    // An unassigned Task has no parent to gate on, so without a guard this is an
+    // unconditional VALUES insert. With one it becomes conditional, and the
+    // `RETURNING`/`changes()` contract the rest of the batch depends on still
+    // holds: zero rows means the create declined.
     return this.#db
       .prepare(
-        `INSERT INTO entities
-           (id, workspace_id, type, title, created_at, updated_at, deleted_at)
-         VALUES (?, ?, '${TASK}', ?, ?, ?, NULL)
-         RETURNING ${ENTITY_RETURNING}`,
+        guard
+          ? `INSERT INTO entities
+               (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+             SELECT ?, ?, '${TASK}', ?, ?, ?, NULL
+             WHERE ${guard.sql}
+             RETURNING ${ENTITY_RETURNING}`
+          : `INSERT INTO entities
+               (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+             VALUES (?, ?, '${TASK}', ?, ?, ?, NULL)
+             RETURNING ${ENTITY_RETURNING}`,
       )
-      .bind(id, this.#workspaceId, title, nowTs, nowTs);
+      .bind(
+        id,
+        this.#workspaceId,
+        title,
+        nowTs,
+        nowTs,
+        ...(guard?.params ?? []),
+      );
   }
 
   async setTaskParent(
@@ -1261,6 +1376,8 @@ export class D1TaskRepository implements TaskRepository {
       readonly scheduledDate: string | null;
       readonly timeSector: string | null;
       readonly commitmentState: string;
+      readonly status: string;
+      readonly description: string | null;
     },
     nowTs: string,
   ): D1PreparedStatement {
@@ -1271,7 +1388,7 @@ export class D1TaskRepository implements TaskRepository {
             due_date, scheduled_date, time_sector, commitment_state,
             delegate_to, delegated_on, follow_up_on, delegate_note,
             description, updated_at)
-         SELECT ?, ?, '${TASK}', 'todo', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
@@ -1281,11 +1398,13 @@ export class D1TaskRepository implements TaskRepository {
       .bind(
         this.#workspaceId,
         entityId,
+        fields.status,
         fields.priority,
         fields.dueDate,
         fields.scheduledDate,
         fields.timeSector,
         fields.commitmentState,
+        fields.description === null ? null : String(fields.description),
         nowTs,
         this.#workspaceId,
         entityId,
@@ -3411,6 +3530,72 @@ export class D1TaskRepository implements TaskRepository {
   /* Completion + waiting clearance — one atomic operation (ADR-029)         */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * AUDIT-13 — completing a Task, reduced to statements for somebody else's batch.
+   *
+   * The Asset obligation → Task completion used to run `completeTask` in its own
+   * transaction and THEN open the obligation's transaction; a failure in the second
+   * left a Task ticked off against an obligation that was still open. This seam is
+   * how that becomes one batch: the caller appends these statements to its own,
+   * behind `guard` — a SQL predicate evaluated INSIDE the transaction, so the Task
+   * only closes if the caller's own domain write actually committed.
+   *
+   * INTERNAL to `app/platform/storage/d1` (not on the `TaskRepository` port), and
+   * it performs no write, so it cannot be used to rebuild the two-transaction
+   * sequence it replaces.
+   */
+  async planCompletion(
+    id: string,
+    options: {
+      readonly ownerTodayIso: string;
+      /** Extra SQL predicate + params gating the completion (AND-ed into the gate). */
+      readonly guard?: {
+        readonly sql: string;
+        readonly params: readonly unknown[];
+      };
+      readonly now?: Date;
+    },
+  ): Promise<TaskCompletionPlan> {
+    let entityId: string;
+    try {
+      entityId = validateTaskId(id);
+    } catch {
+      return { outcome: "missing", statements: [] };
+    }
+    const current = await this.getTask(entityId);
+    // A deleted / cross-workspace / wrong-type Task is not an error here: the
+    // caller simply has nothing left to close.
+    if (!current) return { outcome: "missing", statements: [] };
+    if (current.completedAt !== null) {
+      return { outcome: "already_closed", statements: [] };
+    }
+
+    const now = options.now ?? this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const successorPlan = await this.#planSuccessor(
+      current,
+      options.ownerTodayIso,
+    );
+    const group = this.#buildCompleteGroup(entityId, now, nowTs, options.guard);
+
+    return {
+      outcome: "completed",
+      statements: [
+        group.spineStmt,
+        group.entityStmt,
+        group.completionActivity,
+        ...group.completionSubjects,
+        group.waitingClearStmt,
+        group.waitingClearedActivity,
+        ...group.waitingClearedSubjects,
+        group.waitingLinkStmt,
+        ...(successorPlan
+          ? this.#buildSuccessorGroup(successorPlan, now, nowTs)
+          : []),
+      ],
+    };
+  }
+
   async completeTask(
     id: string,
     options?: CompleteTaskOptions,
@@ -3958,7 +4143,7 @@ export class D1TaskRepository implements TaskRepository {
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Series editing and Skip (TASKS-07 / ADR-083)                            */
+  /* Series editing and Skip (TASKS-07 / ADR-085)                            */
   /* ---------------------------------------------------------------------- */
 
   async moveTaskOccurrence(
@@ -4903,6 +5088,8 @@ export class D1TaskRepository implements TaskRepository {
     entityId: string,
     now: Date,
     nowTs: string,
+    /** AUDIT-13 — see `planCompletion`. Absent for every in-module completion. */
+    guard?: { readonly sql: string; readonly params: readonly unknown[] },
   ): {
     readonly spineStmt: D1PreparedStatement;
     readonly entityStmt: D1PreparedStatement;
@@ -4919,6 +5106,7 @@ export class D1TaskRepository implements TaskRepository {
       this.#workspaceId,
       entityId,
       nowTs,
+      guard,
     );
     const entityStmt = buildEntityUpdatedAtBumpStatement(
       this.#db,

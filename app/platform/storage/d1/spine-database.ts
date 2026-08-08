@@ -132,6 +132,15 @@ export function buildSpineCompleteStatement(
   workspaceId: string,
   entityId: string,
   nowTs: string,
+  /**
+   * AUDIT-13 — an OPTIONAL extra predicate, AND-ed into the completion gate and
+   * therefore evaluated inside whatever transaction runs this statement. It is how
+   * a compound operation makes a Task completion conditional on its OWN domain
+   * write having committed earlier in the same batch, instead of completing the
+   * Task in a separate transaction first and hoping the rest succeeds. The SQL is
+   * always a repository-authored literal; every value stays bound.
+   */
+  guard?: { readonly sql: string; readonly params: readonly unknown[] },
 ): D1PreparedStatement {
   return db
     .prepare(
@@ -139,9 +148,17 @@ export function buildSpineCompleteStatement(
        WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL
          AND EXISTS (SELECT 1 FROM entities
                      WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+         ${guard ? `AND ${guard.sql}` : ""}
        RETURNING entity_id`,
     )
-    .bind(nowTs, workspaceId, entityId, workspaceId, entityId);
+    .bind(
+      nowTs,
+      workspaceId,
+      entityId,
+      workspaceId,
+      entityId,
+      ...(guard?.params ?? []),
+    );
 }
 
 /**
@@ -232,6 +249,22 @@ export function buildSpineChildEntityInsertStatement(
     readonly parentKind: SpineParentKind;
     readonly parentId: string;
     readonly nowTs: string;
+    /**
+     * AUDIT-13 — an OPTIONAL extra predicate, AND-ed into the create gate and so
+     * evaluated INSIDE whatever transaction runs this statement.
+     *
+     * It exists because a compound operation's own precondition cannot be checked
+     * before the batch and trusted during it. The meeting item → Task conversion
+     * reads a live, unarchived Meeting and a live source item, and either can
+     * change in the gap before the batch runs; re-asserting them here means the
+     * Task is not created at all, and every statement gated on that Task declines
+     * with it. The SQL is always a repository-authored literal; every value stays
+     * bound.
+     */
+    readonly guard?: {
+      readonly sql: string;
+      readonly params: readonly unknown[];
+    };
   },
 ): D1PreparedStatement {
   const parentProjectNotArchivedClause =
@@ -249,7 +282,7 @@ export function buildSpineChildEntityInsertStatement(
        WHERE EXISTS (
                SELECT 1 FROM entities
                WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-             )${parentProjectNotArchivedClause}
+             )${parentProjectNotArchivedClause}${params.guard ? ` AND ${params.guard.sql}` : ""}
        RETURNING ${ENTITY_RETURNING_COLUMNS}`,
     )
     .bind(
@@ -263,6 +296,7 @@ export function buildSpineChildEntityInsertStatement(
       params.parentId,
       params.parentKind,
       ...(parentProjectNotArchivedClause ? [workspaceId, params.parentId] : []),
+      ...(params.guard?.params ?? []),
     );
 }
 

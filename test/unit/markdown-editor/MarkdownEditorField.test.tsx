@@ -88,3 +88,35 @@ describe("MarkdownEditorField", () => {
     expect(screen.getByRole("textbox", { name: "Details" })).toBeDisabled();
   });
 });
+
+/**
+ * DOC-EDITOR-01 — the field reports a focusable node to its form host.
+ *
+ * When the server refuses this field — an oversized Diary body, a rejected Task
+ * description — `useForm`'s `focusFirstInvalid` and the error-summary links move
+ * focus to the control that failed. A control that reports no focusable node is
+ * the one field in a form the keyboard cannot reach from its own error message.
+ */
+describe("MarkdownEditorField — first-invalid focus", () => {
+  it("hands its writing surface to the form host, and releases it on unmount", () => {
+    const nodes: (HTMLElement | null)[] = [];
+    const { unmount } = render(
+      <MarkdownEditorField
+        label="Details"
+        value="Body"
+        onChange={() => {}}
+        controlRef={(node) => nodes.push(node as HTMLElement | null)}
+      />,
+    );
+
+    const surface = screen.getByRole("textbox", { name: "Details" });
+    expect(nodes.filter(Boolean)).toContain(surface);
+
+    // Focusing what the host was given lands the caret in the document.
+    (nodes.filter(Boolean).at(-1) as HTMLElement).focus();
+    expect(surface).toHaveFocus();
+
+    unmount();
+    expect(nodes.at(-1)).toBeNull();
+  });
+});

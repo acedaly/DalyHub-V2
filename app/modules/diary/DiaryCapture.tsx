@@ -316,6 +316,16 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
             placeholder="What happened? Markdown is supported."
             showOptionalCue={false}
             disabled={form.isSubmitting}
+            /*
+             * DOC-EDITOR-01 — capture already had ⌘/Ctrl+Enter, via the panel
+             * listener below that serves the title, type and when fields too.
+             * Binding it INSIDE the writing surface as well is what stops
+             * CodeMirror's default `Mod-Enter` (insert blank line) from also
+             * firing and leaving a stray line in the entry that was just
+             * submitted. `useForm`'s synchronous duplicate-submit guard means
+             * the two paths still produce exactly one submission.
+             */
+            onCommit={form.handleSubmit}
             {...bodyField}
           />
         </div>

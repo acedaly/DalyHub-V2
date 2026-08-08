@@ -947,6 +947,20 @@ export type NewTaskInput = {
    * `scheduledDate`, a `due` rule needs `dueDate`, and nothing is written if not.
    */
   readonly recurrence?: TaskRecurrenceInput | null;
+  /**
+   * AUDIT-13 — the Task's opening status, written in the SAME create batch.
+   *
+   * `createTask` used to force `todo` and leave any other status to a follow-up
+   * `updateTask`. That second write is what made "convert this meeting item into
+   * an on-hold Task" two transactions, and two transactions are two places to
+   * fail. Omitted (or `todo`) writes exactly what it always did.
+   */
+  readonly status?: TaskStatus;
+  /**
+   * AUDIT-13 — the Task's Markdown description, written in the SAME create batch,
+   * for the same reason as `status`. Validated as Markdown source at the boundary.
+   */
+  readonly description?: string | null;
 };
 
 /**

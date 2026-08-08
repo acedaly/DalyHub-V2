@@ -482,6 +482,9 @@ function DiaryEditForm({
         placeholder="What happened? Markdown is supported."
         showOptionalCue={false}
         disabled={form.isSubmitting}
+        // DOC-EDITOR-01 — the keyboard path to this panel's explicit Save,
+        // without leaving the text. Plain Enter is still a paragraph.
+        onCommit={form.handleSubmit}
         {...bodyField}
       />
       {partialNotice ? (

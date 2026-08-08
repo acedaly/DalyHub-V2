@@ -399,7 +399,7 @@ export interface TaskRepository {
 
   /**
    * TASKS-07 — move a recurring occurrence's ANCHOR date at an explicit series scope
-   * (ADR-083). The anchor is whichever date the rule advances (`dateKind`): a
+   * (ADR-085). The anchor is whichever date the rule advances (`dateKind`): a
    * `scheduled` rule moves the scheduled date, a `due` rule the due date. The other
    * date keeps its distance from it, so a Monday/Friday window stays four days wide.
    *
@@ -424,7 +424,7 @@ export interface TaskRepository {
   ): Promise<MoveTaskOccurrenceResult>;
 
   /**
-   * TASKS-07 — SKIP one occurrence of a series (ADR-083): advance this occurrence to
+   * TASKS-07 — SKIP one occurrence of a series (ADR-085): advance this occurrence to
    * the series' next date without completing it, so "I am not mowing the lawn this
    * week" needs neither a false completion nor a deleted routine.
    *

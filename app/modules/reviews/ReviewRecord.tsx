@@ -135,6 +135,8 @@ function SectionEditor({
           value={value}
           onChange={setValue}
           onBlur={() => void save()}
+          // DOC-EDITOR-01 — ⌘/Ctrl+Enter reaches this section's own Save.
+          onCommit={() => void save()}
           label={section.label}
           placeholder="Write your reflection…"
           error={error}

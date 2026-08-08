@@ -39,6 +39,14 @@ export interface MarkdownEditorFieldProps extends BaseControlProps<string> {
    * and a comfortable editor would open half a screen for a two-line note.
    */
   readonly density?: "comfortable" | "compact";
+  /**
+   * DOC-EDITOR-01 — ⌘/Ctrl+Enter inside the writing surface.
+   *
+   * A form that hosts this field owns an explicit Save, and the keyboard path to
+   * it should not require leaving the text. Hosts pass their submit; a field
+   * whose host autosaves passes nothing.
+   */
+  readonly onCommit?: () => void;
 }
 
 export function MarkdownEditorField({
@@ -53,10 +61,12 @@ export function MarkdownEditorField({
   disabled,
   readOnly,
   showOptionalCue = true,
+  controlRef,
   className,
   rows = 6,
   placeholder,
   density = "compact",
+  onCommit,
 }: MarkdownEditorFieldProps) {
   /*
    * The wrapper is NOT a second `role="group"`, and it does not name the editor.
@@ -108,6 +118,15 @@ export function MarkdownEditorField({
         value={value}
         onChange={onChange}
         onBlur={onBlur ? () => onBlur() : undefined}
+        // Never while the field cannot be typed in: a shortcut that fires from a
+        // disabled control is the same lie as an enabled button that does
+        // nothing.
+        onCommit={onCommit && !disabled && !readOnly ? onCommit : undefined}
+        // The form host's first-invalid focus and its error-summary links need a
+        // focusable node for this field. Without forwarding it, a refused
+        // Markdown field is the one control in a form the keyboard cannot reach
+        // from its own error message.
+        surfaceRef={controlRef}
         help={help}
         error={error ?? null}
         placeholder={placeholder}

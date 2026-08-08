@@ -50,21 +50,25 @@ import type {
 } from "./asset-obligation";
 
 /**
- * The narrow write port this repository uses to touch a linked Task.
+ * The narrow write port this repository uses to RESCHEDULE a linked Task.
  *
- * Tasks are the Task repository's to own (§22): completion there also drives Task
- * recurrence, project rollup and the Task's own Activity. Rather than duplicating
- * any of that in SQL, obligation completion asks through this port, and the
- * composition root wires it to the real, workspace-bound `TaskRepository`.
+ * Tasks are the Task repository's to own (§22), so rather than writing Task SQL
+ * here the adapter asks through this port, and the composition root wires it to
+ * the real, workspace-bound `TaskRepository`.
  *
  * Reads of a Task's state are NOT here: they are ordinary joins the adapter does
  * itself, which is what keeps the Today query to a single bounded statement.
+ *
+ * **`completeTask` is deliberately absent (AUDIT-13).** It used to live here, and
+ * having it here is what made obligation completion two transactions: close the
+ * Task through this port, then open the obligation's batch, and lose the pair if
+ * the second half failed. Completing the linked Task is now part of the
+ * obligation's OWN batch, planned through a storage-level seam that hands back
+ * statements rather than performing a write — see
+ * `ObligationTaskCompletionPlanner` in `app/platform/storage/d1`. Re-adding a
+ * `completeTask` method here would re-open exactly that failure mode.
  */
 export interface ObligationTaskGateway {
-  /** Complete a Task. Reports honestly when it was already closed or is gone. */
-  completeTask(
-    taskId: string,
-  ): Promise<"completed" | "already_closed" | "missing">;
   /** Move a Task's due date to match its obligation. False when the Task is gone. */
   rescheduleTask(taskId: string, dueDate: string | null): Promise<boolean>;
 }
