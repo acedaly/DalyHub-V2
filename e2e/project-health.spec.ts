@@ -116,9 +116,7 @@ test.describe("PROJ-02 — Project health", () => {
 
     // Persistence + derivation: a reload recomputes the same on-track health.
     await page.reload();
-    await expect(
-      summaryBand(page).getByText("On track"),
-    ).toBeVisible();
+    await expect(summaryBand(page).getByText("On track")).toBeVisible();
   });
 
   test("blocked project explains its blocker, and Back/Forward/Escape keep health", async ({

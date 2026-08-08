@@ -59,6 +59,22 @@ async function removeSavedViews(page: Page) {
   }
 }
 
+/**
+ * Hide or show the Notes module through Settings → Navigation — the owner's own
+ * control, not a database write, so the journey exercises the same preference
+ * path the product does.
+ */
+async function setNotesModuleHidden(
+  page: Page,
+  hidden: boolean,
+): Promise<void> {
+  await gotoFixture(page, "/settings?section=navigation");
+  const toggle = page.getByRole("checkbox", { name: "Notes" });
+  if (hidden) await toggle.uncheck();
+  else await toggle.check();
+  await expect(page.getByText("Saved").first()).toBeVisible();
+}
+
 test.describe("cross-module views", () => {
   test.beforeEach(async ({ page }) => {
     await removeSavedViews(page);
@@ -204,6 +220,46 @@ test.describe("cross-module views", () => {
     // Notes have no due date. Asking for overdue records must not return every Note.
     await gotoFixture(page, "/views?show=task,note&due=overdue");
     await expect(page.getByText(/note records are not shown/i)).toBeVisible();
+  });
+
+  test("a HIDDEN module leaks nothing, even when the view asks for it", async ({
+    page,
+  }) => {
+    // The rule this proves is the one a cross-module query is most likely to get
+    // wrong: "show these record types" is the OWNER's request, and hiding a
+    // module in Settings is the owner's other, older request. The second one
+    // wins, and it has to win in the RESULTS, not merely in the chrome — a view
+    // that greys out the Notes toggle while still listing Notes has leaked.
+    const SEEDED_NOTE = "Global Search E2E Note";
+
+    // Baseline: with Notes visible, a Note genuinely reaches the cross-module view.
+    await gotoFixture(page, "/views?show=note");
+    await expect(page.getByText(SEEDED_NOTE).first()).toBeVisible();
+
+    await setNotesModuleHidden(page, true);
+    try {
+      // Ask for Notes explicitly, by URL — the strongest form of the request.
+      await gotoFixture(page, "/views?show=note,task");
+
+      // 1. The scope says why it cannot be chosen, in words.
+      const noteScope = page.getByTestId("cross-view-scope-note");
+      await expect(noteScope).toContainText("module hidden");
+
+      // 2. The view says why the request produced nothing from that module,
+      //    rather than silently widening to whatever it CAN answer.
+      await expect(page.getByText(/note records are not shown/i)).toBeVisible();
+
+      // 3. And no Note is in the results. This is the assertion the entry exists
+      //    for; the two above are how the product explains it.
+      await expect(page.getByText(SEEDED_NOTE)).toHaveCount(0);
+    } finally {
+      await setNotesModuleHidden(page, false);
+    }
+
+    // Unhiding restores it — the preference is the only thing that was doing the
+    // filtering, so the same URL is answerable again.
+    await gotoFixture(page, "/views?show=note");
+    await expect(page.getByText(SEEDED_NOTE).first()).toBeVisible();
   });
 
   test("is usable on a phone", async ({ page }) => {
