@@ -65,7 +65,7 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   "filters.css: .dh-filter-btn--ghost:hover",
   "filters.css: .dh-filter-chip__edit:hover",
   "forms.css: .dh-combobox__clear:hover",
-  "forms.css: .dh-link-picker__unlink:hover, .dh-markdown-field__preview-toggle:hover",
+  "forms.css: .dh-link-picker__unlink:hover",
   "forms.css: .dh-tags__chip-remove:hover, .dh-select__chip-remove:hover",
   "help.css: .dh-help__contents-link:hover",
   "inspector.css: .dh-inspector__close:hover",

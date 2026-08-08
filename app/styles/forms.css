@@ -270,11 +270,6 @@
   resize: vertical;
 }
 
-.dh-input--markdown {
-  font-family: var(--md-ref-typeface-mono);
-  font-size: var(--md-sys-typescale-body-small-size);
-}
-
 /* Invalid state: red border AND the field carries an icon+text error, so state
    is never colour-only. */
 .dh-field[data-invalid="true"] .dh-input,
@@ -698,8 +693,7 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.dh-link-picker__unlink,
-.dh-markdown-field__preview-toggle {
+.dh-link-picker__unlink {
   flex: 0 0 auto;
   min-block-size: var(--app-control-height-md);
   padding: var(--app-space-1) var(--app-space-3);
@@ -712,8 +706,7 @@
   cursor: pointer;
 }
 
-.dh-link-picker__unlink:hover,
-.dh-markdown-field__preview-toggle:hover {
+.dh-link-picker__unlink:hover {
   background: color-mix(
     in srgb,
     var(--md-sys-color-on-surface) 8%,
@@ -749,12 +742,12 @@
    * iOS Safari zooms the page whenever a focused field's computed font-size is
    * BELOW 16px, then leaves the page zoomed — which is how a phone form ends up
    * horizontally scrolled with its Save button off-screen. DalyHub's body scale
-   * is 15px and its Markdown source scale is 13px, so on a touch device every
-   * text-entry control is raised to exactly 16px. This is a TOUCH-only rule: the
-   * desktop type scale is unchanged, and 16px is a floor, never a shrink.
+   * is 15px, so on a touch device every text-entry control here is raised to
+   * exactly 16px. This is a TOUCH-only rule: the desktop type scale is
+   * unchanged, and 16px is a floor, never a shrink. The shared writing surface
+   * needs no such rule — it and its no-JS fallback are already 16px.
    */
   .dh-input,
-  .dh-input--markdown,
   .dh-combobox__input,
   .dh-tags__input {
     font-size: max(var(--md-sys-typescale-body-large-size), 1rem);
@@ -767,46 +760,15 @@
     block-size: var(--app-touch-target-min);
   }
 
-  .dh-link-picker__unlink,
-  .dh-markdown-field__preview-toggle {
+  .dh-link-picker__unlink {
     min-block-size: var(--app-touch-target-min);
   }
 }
 
-.dh-link-picker__single-note,
-.dh-markdown-field__hint {
+.dh-link-picker__single-note {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface-variant);
-}
-
-/* ------------------------------------------------------------------ Markdown field */
-
-.dh-markdown-field__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  flex-wrap: wrap;
-}
-
-.dh-markdown-field__preview {
-  padding: var(--app-space-3);
-  background: var(--md-app-color-surface-sunken);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
-}
-
-.dh-markdown-field__preview-empty,
-.dh-markdown-field__preview-loading {
-  margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-body-small-size);
-}
-
-.dh-markdown-field__preview-error {
-  margin: 0;
-  color: var(--md-sys-color-on-error-container);
-  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* ------------------------------------------------------------------ Save status */

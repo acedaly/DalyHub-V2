@@ -81,6 +81,20 @@ export interface LiveMarkdownEditorProps {
   readonly onChange: (value: string) => void;
   /** Fired when the writing surface loses focus (drives autosave-on-blur). */
   readonly onBlur?: () => void;
+  /**
+   * DOC-EDITOR-01 — ⌘/Ctrl+Enter from inside the writing surface.
+   *
+   * A long-form surface with an EXPLICIT save needs a keyboard path to it, and
+   * that path can never be plain Enter — Enter is a paragraph, and a multiline
+   * editor that saves on Enter loses the paragraph the owner was writing. This
+   * fires on the SAME chord DalyHub already uses for the same purpose, on BOTH
+   * surfaces (the live editor and the SSR/no-JS textarea), so keyboard save does
+   * not depend on enhancement having happened.
+   *
+   * Omit it on an autosaving surface: there is nothing to commit, and a shortcut
+   * that appears to do something and does not is worse than no shortcut.
+   */
+  readonly onCommit?: () => void;
   /** Accessible name for the writing surface and its region. */
   readonly label: string;
   /** Optional help text under the editor. */
@@ -170,6 +184,7 @@ export function LiveMarkdownEditor({
   value,
   onChange,
   onBlur,
+  onCommit,
   label,
   help,
   error,
@@ -194,6 +209,14 @@ export function LiveMarkdownEditor({
   onChangeRef.current = onChange;
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+  // The live view is created once, so it must be told at creation time WHETHER a
+  // commit shortcut exists — binding one that calls a ref that is later empty
+  // would swallow ⌘/Ctrl+Enter on a surface that has no save.
+  const hasCommit = Boolean(onCommit);
+  const hasCommitRef = useRef(hasCommit);
+  hasCommitRef.current = hasCommit;
   const valueRef = useRef(value);
   valueRef.current = value;
   const autoFocusRef = useRef(autoFocusOnMount);
@@ -286,6 +309,9 @@ export function LiveMarkdownEditor({
                     onChange: (next) => onChangeRef.current(next),
                     onSurfaceState,
                     onBlur: () => onBlurRef.current?.(),
+                    ...(hasCommitRef.current
+                      ? { onCommit: () => onCommitRef.current?.() }
+                      : {}),
                   }),
                 }),
               });
@@ -604,6 +630,18 @@ export function LiveMarkdownEditor({
               onKeyUp={syncFallbackSelection}
               onClick={syncFallbackSelection}
               onBlur={() => onBlur?.()}
+              onKeyDown={(event) => {
+                // The fallback surface gets the same chord. Plain Enter is left
+                // entirely alone — the textarea inserts its paragraph.
+                if (
+                  onCommit &&
+                  event.key === "Enter" &&
+                  (event.metaKey || event.ctrlKey)
+                ) {
+                  event.preventDefault();
+                  onCommit();
+                }
+              }}
             />
           ) : null}
           <div

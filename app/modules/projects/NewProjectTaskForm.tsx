@@ -1,6 +1,14 @@
 /**
  * PROJ-01 — the "New Task in this project" form (hosted in the shared DS-03 Drawer).
  *
+ * AUDIT-16 — it was called `NewTaskForm`, which is also the name of the Tasks
+ * module's quick-capture form, and two different components sharing one name is
+ * what the August 2026 audit recorded. It is NOT a duplicate of that form and is
+ * deliberately kept: this one posts a title alone to `/projects/:projectId/mutate`
+ * and the SERVER binds the parent, so a client cannot retarget the Task; the
+ * Tasks form posts a client-chosen parent to `/tasks` and is re-verified there.
+ * Same words, different trust boundaries. Only the name was wrong.
+ *
  * DS-06 controls + `useForm` (required title, duplicate-submit prevention,
  * server-authoritative errors). It posts to `/projects/:projectId/mutate`
  * (intent `create_task`); the parent is bound to THIS project SERVER-side (the form
@@ -27,18 +35,18 @@ type Values = { readonly title: string };
 
 const FIELD_LABELS: Record<string, string> = { title: "Title" };
 
-interface NewTaskFormProps {
+interface NewProjectTaskFormProps {
   readonly projectId: string;
   /** Called with the new task's id after a successful create. */
   readonly onCreated: (taskId: string) => void;
   readonly onCancel: () => void;
 }
 
-export function NewTaskForm({
+export function NewProjectTaskForm({
   projectId,
   onCreated,
   onCancel,
-}: NewTaskFormProps) {
+}: NewProjectTaskFormProps) {
   const form = useForm<Values>({
     initialValues: { title: "" },
     fields: { title: { validate: required("A title is required") } },

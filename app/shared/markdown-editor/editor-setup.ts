@@ -62,6 +62,18 @@ export interface EditorSetupOptions {
   readonly onSurfaceState?: (state: EditorSurfaceState) => void;
   /** Called when the editor loses focus (drives autosave-on-blur). */
   readonly onBlur?: () => void;
+  /**
+   * DOC-EDITOR-01 — the writing surface's own commit shortcut, ⌘/Ctrl+Enter.
+   *
+   * Plain Enter is a paragraph and must stay one, so a long-form surface with an
+   * explicit Save needs a keyboard path that is not Enter. ⌘/Ctrl+Enter is the
+   * one DalyHub already uses for exactly this (the shared multiline inline field
+   * and Diary capture), and this is what lets the shared editor offer it too
+   * instead of every host binding its own.
+   *
+   * Absent for an autosaving surface, where there is nothing to commit.
+   */
+  readonly onCommit?: () => void;
   /** Accessible name for the editing surface. */
   readonly ariaLabel: string;
   /** Placeholder shown while the document is empty. */
@@ -104,13 +116,31 @@ export function createEditorExtensions(options: EditorSetupOptions): Extension {
     onChange,
     onSurfaceState,
     onBlur,
+    onCommit,
     ariaLabel,
     placeholder,
     readOnly = false,
   } = options;
   return [
     history(),
-    // Formatting shortcuts first, then Markdown's Enter/Backspace list
+    // The commit shortcut binds FIRST so neither Markdown's list continuation
+    // nor the default keymap can claim ⌘/Ctrl+Enter before it. Plain Enter is
+    // untouched and still inserts a paragraph.
+    keymap.of(
+      onCommit
+        ? [
+            {
+              key: "Mod-Enter",
+              preventDefault: true,
+              run: () => {
+                onCommit();
+                return true;
+              },
+            },
+          ]
+        : [],
+    ),
+    // Formatting shortcuts next, then Markdown's Enter/Backspace list
     // continuation, then the default editing keymap.
     keymap.of([
       ...formattingKeymap(),
