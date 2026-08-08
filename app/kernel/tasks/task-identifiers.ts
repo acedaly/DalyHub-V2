@@ -110,6 +110,19 @@ export const TASK_RECURRENCE_OCCURRENCE_WITHDRAWN =
   "task.recurrence_occurrence_withdrawn";
 
 /**
+ * TASKS-07 — Activity appended when an occurrence is SKIPPED: moved forward to the
+ * series' next date without being completed.
+ *
+ * It is deliberately its own event rather than a completion or a reschedule. Marking
+ * work "done" that was not done corrupts the one record the owner relies on, and a
+ * bare `task.rescheduled` would not say the series advanced. The payload carries the
+ * date skipped from, the date skipped to and the series identity — calendar data
+ * only, never free text.
+ */
+export const TASK_RECURRENCE_OCCURRENCE_SKIPPED =
+  "task.recurrence_occurrence_skipped";
+
+/**
  * TASKS-01 — the four planning dimensions (Time Sector, priority, commitment,
  * workflow status) and delegation are edited through the SAME atomic write path as
  * every other task-detail field and recorded with the ONE existing `entity.updated`

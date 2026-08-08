@@ -64,6 +64,7 @@ import {
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
   TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_SKIPPED,
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_WAITING_STARTED,
   TaskNotFoundError,
@@ -73,6 +74,7 @@ import {
   addCalendarDays,
   calendarDaysBetween,
   nextTaskOccurrenceDate,
+  recurrenceAnchorField,
   resolveTaskRecurrenceRule,
   workspaceTaskFiltersSignature,
   validateCommitmentState,
@@ -85,6 +87,7 @@ import {
   validateTaskIdList,
   validateTaskLimit,
   validateTaskPriority,
+  validateTaskSeriesEditScope,
   validateTaskSort,
   validateTaskSortDirection,
   validateTaskStatus,
@@ -113,6 +116,8 @@ import {
   type ListWaitingTasksInput,
   type ListWorkspaceTaskGroupsInput,
   type ListWorkspaceTasksInput,
+  type MoveTaskOccurrenceInput,
+  type MoveTaskOccurrenceResult,
   type NewTaskInput,
   type PlanTaskInput,
   type PlanTaskResult,
@@ -128,6 +133,8 @@ import {
   type SetTaskRecurrenceResult,
   type SetWaitingInput,
   type SetWaitingResult,
+  type SkipTaskOccurrenceOptions,
+  type SkipTaskOccurrenceResult,
   type TaskDelegation,
   type TaskDetails,
   type TaskListItem,
@@ -189,6 +196,9 @@ const ENTITY_RETURNING =
   "id, workspace_id, type, title, created_at, updated_at, deleted_at";
 
 const ENTITY_UPDATED = "entity.updated";
+/** The generic reversible-lifecycle events, shared with the spine and entity repos. */
+const ENTITY_DELETED = "entity.deleted";
+const ENTITY_RESTORED = "entity.restored";
 const LINK_CREATED = "entity_link.created";
 const LINK_UNLINKED = "entity_link.unlinked";
 const LINK_RESTORED = "entity_link.restored";
@@ -311,6 +321,25 @@ function successorIsUntouched(row: SuccessorRow): boolean {
   );
 }
 
+/**
+ * TASKS-07 — everything a series-scoped date operation needs about one occurrence,
+ * read once and validated once, so `moveTaskOccurrence` and `skipTaskOccurrence`
+ * share exactly one set of preconditions.
+ */
+type OccurrenceMove = {
+  readonly task: TaskView;
+  readonly rule: TaskRecurrenceRule;
+  readonly series: TaskRecurrenceSeries;
+  /** Which Task date the rule advances. */
+  readonly anchorKey: "scheduledDate" | "dueDate";
+  /** This occurrence's own anchor date. */
+  readonly anchorIso: string;
+  /** The date the SERIES grid is stepped from (the anchor unless moved off it). */
+  readonly gridAnchorIso: string;
+  /** The non-anchor date, which keeps its distance from the anchor. */
+  readonly otherIso: string | null;
+};
+
 /** The stored weekday set: a comma-separated ascending list, or NULL for "none". */
 function serialiseWeekdays(weekdays: readonly number[]): string | null {
   return weekdays.length === 0 ? null : weekdays.join(",");
@@ -326,6 +355,7 @@ function recurrenceRulesEqual(
     a.frequency === b.frequency &&
     a.interval === b.interval &&
     a.dateKind === b.dateKind &&
+    a.mode === b.mode &&
     a.anchorDay === b.anchorDay &&
     a.anchorMonth === b.anchorMonth &&
     serialiseWeekdays(a.weekdays) === serialiseWeekdays(b.weekdays)
@@ -344,6 +374,7 @@ function describeRecurrence(rule: TaskRecurrenceRule | null): string | null {
     rule.dateKind,
     rule.frequency,
     `x${rule.interval}`,
+    rule.mode === "after_completion" ? "after" : "",
     weekdays === null ? "" : `d${weekdays}`,
     rule.anchorDay === null ? "" : `m${rule.anchorDay}`,
     rule.anchorMonth === null ? "" : `y${rule.anchorMonth}`,
@@ -365,7 +396,7 @@ const PLANNING_COMPLETED_LIMIT = 100;
 
 /**
  * Default and hard-max bounded records returned PER BUCKET by the Matrix/Sectors
- * grouping query (ADR-043 §11). Generous enough that most quadrants/sectors show in
+ * grouping query (ADR-043 §11). Generous enough that most buckets show in
  * full, but always bounded — an overflowing bucket is reached through the equivalent
  * filtered `all` view, which paginates that one bucket independently.
  */
@@ -398,7 +429,6 @@ const TASK_PARENT_SEARCH_MAX = 50;
  */
 const WORKSPACE_GROUP_BUCKET_EXPR: Record<WorkspaceTaskGroupDimension, string> =
   {
-    quadrant: "COALESCE(td.priority, 'untriaged')",
     priority: "COALESCE(td.priority, 'untriaged')",
     sector: "COALESCE(td.time_sector, '__none')",
     status:
@@ -680,7 +710,7 @@ export class D1TaskRepository implements TaskRepository {
         this.#insertRecurrenceStatement(
           id,
           recurrence,
-          { seriesId: id, sequence: 0 },
+          { seriesId: id, sequence: 0, scheduleAnchorDate: null },
           nowTs,
         ),
       );
@@ -1051,6 +1081,7 @@ export class D1TaskRepository implements TaskRepository {
     const series = current.recurrenceSeries ?? {
       seriesId: entityId,
       sequence: 0,
+      scheduleAnchorDate: null,
     };
 
     const entityStmt = this.#bumpTaskUpdatedAtReturningStatement(
@@ -1115,14 +1146,15 @@ export class D1TaskRepository implements TaskRepository {
     rule: TaskRecurrenceRule,
     series: TaskRecurrenceSeries,
     nowTs: string,
+    seriesAnchorDate: string | null = null,
   ): D1PreparedStatement {
     return this.#db
       .prepare(
         `INSERT INTO task_recurrence_rules
            (workspace_id, entity_id, entity_type, date_kind, frequency, interval,
-            weekdays, anchor_day, anchor_month, series_id, sequence,
-            created_at, updated_at)
-         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            weekdays, anchor_day, anchor_month, mode, series_anchor_date,
+            series_id, sequence, created_at, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
@@ -1135,6 +1167,8 @@ export class D1TaskRepository implements TaskRepository {
            weekdays = excluded.weekdays,
            anchor_day = excluded.anchor_day,
            anchor_month = excluded.anchor_month,
+           mode = excluded.mode,
+           series_anchor_date = excluded.series_anchor_date,
            updated_at = excluded.updated_at`,
       )
       .bind(
@@ -1146,6 +1180,8 @@ export class D1TaskRepository implements TaskRepository {
         serialiseWeekdays(rule.weekdays),
         rule.anchorDay,
         rule.anchorMonth,
+        rule.mode,
+        seriesAnchorDate,
         series.seriesId,
         series.sequence,
         nowTs,
@@ -1836,7 +1872,8 @@ export class D1TaskRepository implements TaskRepository {
               AND pe.deleted_at IS NULL
          ${WAITING_TARGET_JOIN}
          CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
-         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
+         WHERE e.workspace_id = ? AND e.type = '${TASK}'
+           AND ${this.#taskLifecycleWhere(view)}${whereSql}
          ORDER BY sort_value ${sortSpec.dir}, e.created_at ASC, e.id ASC
          LIMIT ?`,
       )
@@ -1927,7 +1964,8 @@ export class D1TaskRepository implements TaskRepository {
                 AND pe.deleted_at IS NULL
            ${WAITING_TARGET_JOIN}
            CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
-           WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
+           WHERE e.workspace_id = ? AND e.type = '${TASK}'
+             AND ${this.#taskLifecycleWhere(view)}${whereSql}
          ),
          counted AS (
            SELECT *,
@@ -2200,6 +2238,21 @@ export class D1TaskRepository implements TaskRepository {
    * waiting; the terminal/parked views select exactly their state; `all` is every
    * non-deleted task.
    */
+  /**
+   * The LIFECYCLE predicate of a workspace read: ordinary views see live Tasks, and
+   * the `deleted` view sees exactly the soft-deleted ones (TASKS-06).
+   *
+   * It is a fixed literal chosen from the already-validated view name — never caller
+   * text — and it is the ONE place the lifecycle boundary of the workspace collection
+   * is expressed, so the flat list and the grouped query can never disagree about
+   * which Tasks exist.
+   */
+  #taskLifecycleWhere(view: string): string {
+    return view === "deleted"
+      ? "e.deleted_at IS NOT NULL"
+      : "e.deleted_at IS NULL";
+  }
+
   #appendViewClause(
     view: string,
     todayIso: string,
@@ -2211,11 +2264,16 @@ export class D1TaskRepository implements TaskRepository {
     switch (view) {
       case "all":
         return;
+      case "deleted":
+        // The lifecycle predicate (`#taskLifecycleWhere`) already restricted the
+        // population to soft-deleted Tasks; nothing further narrows it, so every
+        // deleted Task — completed, cancelled, parked or ordinary — is restorable.
+        return;
       case "active":
         // The ACTIVE PLANNING scope (Matrix/Sectors, ADR-043 §11): actionable-now
         // work only. Beyond completed/cancelled/someday it ALSO excludes the parked/
         // blocked states — waiting (blocked on someone else) and on_hold (paused) —
-        // so neither clutters a quadrant or sector bucket. They stay reachable via
+        // so neither clutters a sector bucket. They stay reachable via
         // `all`, the `waiting` view and the status filter.
         whereParts.push(this.#activePlanningWhere);
         return;
@@ -3447,13 +3505,19 @@ export class D1TaskRepository implements TaskRepository {
       // failing the user's completion.
       return null;
     }
+    // TASKS-07 — the SERIES grid, which is the occurrence's own anchor unless this
+    // occurrence was deliberately moved off it ("change this occurrence"). A fixed
+    // routine therefore returns to its schedule after a one-off shift instead of
+    // dragging the whole series along with it.
+    const gridAnchorIso =
+      current.recurrenceSeries?.scheduleAnchorDate ?? anchorIso;
     const nextAnchorIso = nextTaskOccurrenceDate(
       rule,
-      anchorIso,
+      gridAnchorIso,
       ownerTodayIso,
     );
-    // The NON-anchor date keeps its distance from the anchor, so a task scheduled
-    // Monday and due Friday stays a four-day window instead of inheriting a
+    // The NON-anchor date keeps its distance from THIS occurrence's anchor, so a task
+    // scheduled Monday and due Friday stays a four-day window instead of inheriting a
     // deadline already in the past (or silently losing it).
     const otherIso =
       rule.dateKind === "due" ? current.scheduledDate : current.dueDate;
@@ -3467,6 +3531,7 @@ export class D1TaskRepository implements TaskRepository {
     const series = current.recurrenceSeries ?? {
       seriesId: current.id,
       sequence: 0,
+      scheduleAnchorDate: null,
     };
     // The STRUCTURAL parent, read from the active parent link rather than inferred
     // from the derived project/area relations (a Project-parented task also reports an
@@ -3482,7 +3547,12 @@ export class D1TaskRepository implements TaskRepository {
       linkId: parent === null ? null : this.#newEntityId(),
       predecessorId: current.id,
       rule,
-      series: { seriesId: series.seriesId, sequence: series.sequence + 1 },
+      series: {
+        seriesId: series.seriesId,
+        sequence: series.sequence + 1,
+        // The successor is back ON the grid, whatever this occurrence was moved to.
+        scheduleAnchorDate: null,
+      },
       scheduledDate: rule.dateKind === "due" ? shiftedOther : nextAnchorIso,
       dueDate: rule.dateKind === "due" ? nextAnchorIso : shiftedOther,
       title: current.title,
@@ -3885,6 +3955,668 @@ export class D1TaskRepository implements TaskRepository {
     }
 
     return { changed, unchanged };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Series editing and Skip (TASKS-07 / ADR-083)                            */
+  /* ---------------------------------------------------------------------- */
+
+  async moveTaskOccurrence(
+    id: string,
+    input: MoveTaskOccurrenceInput,
+  ): Promise<MoveTaskOccurrenceResult> {
+    const entityId = validateTaskId(id);
+    const scope = validateTaskSeriesEditScope(input.scope);
+    const date = validatePlanDate(input.date);
+    const move = await this.#readOccurrenceMove(entityId);
+
+    // "This occurrence" REMEMBERS the routine's grid so the next occurrence returns
+    // to it; "this and future" re-anchors the grid here. A move that lands back on
+    // the grid needs no override either way, so the column stays NULL rather than
+    // storing a redundant duplicate of the occurrence's own date.
+    const nextGridAnchor =
+      scope === "series" || move.gridAnchorIso === date
+        ? null
+        : move.gridAnchorIso;
+    if (
+      move.anchorIso === date &&
+      (move.series.scheduleAnchorDate ?? null) === nextGridAnchor
+    ) {
+      return { task: move.task, changed: false };
+    }
+
+    const result = await this.#writeOccurrenceDates(
+      move,
+      date,
+      nextGridAnchor,
+      {
+        type: ENTITY_UPDATED,
+        subjects: [{ entityId, role: SUBJECT_ROLE }],
+        payload: {
+          entityType: TASK,
+          changes: {
+            [move.anchorKey]: { before: move.anchorIso, after: date },
+          },
+          // The scope is part of the record: "I moved this one" and "I moved the
+          // routine" are different decisions, and the timeline should not conflate them.
+          seriesScope: scope,
+          seriesId: move.series.seriesId,
+        },
+      },
+    );
+    return { task: result, changed: true };
+  }
+
+  async skipTaskOccurrence(
+    id: string,
+    options: SkipTaskOccurrenceOptions,
+  ): Promise<SkipTaskOccurrenceResult> {
+    const entityId = validateTaskId(id);
+    const ownerTodayIso = validatePlanDate(options.ownerTodayIso);
+    const move = await this.#readOccurrenceMove(entityId);
+
+    // One step along the SERIES, from the grid — never from the occurrence's own
+    // date if it was moved off it, and never a completion. An after-completion rule
+    // steps from the owner's day, which is what "skip this one" means for an
+    // interval that restarts when the work is done.
+    const nextIso = nextTaskOccurrenceDate(
+      move.rule,
+      move.gridAnchorIso,
+      ownerTodayIso,
+    );
+    if (nextIso === move.anchorIso) {
+      return {
+        task: move.task,
+        changed: false,
+        skippedFrom: move.anchorIso,
+        nextDate: nextIso,
+      };
+    }
+
+    // A skip puts the occurrence back ON the grid, so any "this occurrence only"
+    // override is spent and cleared.
+    const task = await this.#writeOccurrenceDates(move, nextIso, null, {
+      type: TASK_RECURRENCE_OCCURRENCE_SKIPPED,
+      subjects: [{ entityId, role: SUBJECT_ROLE }],
+      payload: {
+        entityType: TASK,
+        seriesId: move.series.seriesId,
+        sequence: move.series.sequence,
+        dateKind: move.rule.dateKind,
+        skippedFrom: move.anchorIso,
+        nextDate: nextIso,
+      },
+    });
+    return {
+      task,
+      changed: true,
+      skippedFrom: move.anchorIso,
+      nextDate: nextIso,
+    };
+  }
+
+  /**
+   * The shared precondition read for both series-scoped date operations: the Task
+   * must exist in this workspace, be open, not sit in an archived Project, repeat,
+   * and have the anchor date its rule advances. Each refusal is a typed task error
+   * naming what the owner must do, never a storage error.
+   */
+  async #readOccurrenceMove(entityId: string): Promise<OccurrenceMove> {
+    const task = await this.getTask(entityId);
+    if (!task) throw new TaskNotFoundError();
+    await this.#rejectIfParentProjectArchived(task);
+    this.#rejectIfCompleted(task);
+    const rule = task.recurrence ?? null;
+    if (rule === null) {
+      throw new TaskValidationError(
+        "recurrence",
+        "this task does not repeat, so there is no series to change",
+      );
+    }
+    const anchorKey = recurrenceAnchorField(rule);
+    const anchorIso =
+      anchorKey === "dueDate" ? task.dueDate : task.scheduledDate;
+    if (anchorIso === null) {
+      throw new TaskValidationError(
+        "recurrence",
+        anchorKey === "dueDate"
+          ? "this repeat needs a due date to repeat from"
+          : "this repeat needs a scheduled date to repeat from",
+      );
+    }
+    const series = task.recurrenceSeries ?? {
+      seriesId: entityId,
+      sequence: 0,
+      scheduleAnchorDate: null,
+    };
+    return {
+      task,
+      rule,
+      series,
+      anchorKey,
+      anchorIso,
+      // The routine's grid: the remembered series anchor when this occurrence was
+      // moved off it, otherwise the occurrence's own date (the ordinary case, and
+      // the behaviour of every rule written before TASKS-07).
+      gridAnchorIso: series.scheduleAnchorDate ?? anchorIso,
+      otherIso: anchorKey === "dueDate" ? task.scheduledDate : task.dueDate,
+    };
+  }
+
+  /**
+   * Write a series-scoped date move as ONE atomic batch: the guarded open-task bump
+   * (the Activity anchor), both dates on `task_details`, the recurrence row's
+   * `series_anchor_date`, and exactly one Activity event. The non-anchor date keeps
+   * its distance from the anchor, so a Monday/Friday window stays four days wide.
+   */
+  async #writeOccurrenceDates(
+    move: OccurrenceMove,
+    nextAnchorIso: string,
+    nextGridAnchor: string | null,
+    event: NewActivityEvent,
+  ): Promise<TaskView> {
+    const shift = calendarDaysBetween(move.anchorIso, nextAnchorIso);
+    const nextOtherIso =
+      move.otherIso === null ? null : addCalendarDays(move.otherIso, shift);
+    const scheduledDate =
+      move.anchorKey === "dueDate" ? nextOtherIso : nextAnchorIso;
+    const dueDate = move.anchorKey === "dueDate" ? nextAnchorIso : nextOtherIso;
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const entityRow = await this.#runGuardedMutation(
+      this.#bumpOpenTaskStatement(move.task.id, nowTs),
+      event,
+      [
+        this.#setOccurrenceDatesStatement(
+          move.task,
+          scheduledDate,
+          dueDate,
+          nowTs,
+        ),
+        this.#setSeriesAnchorStatement(move.task.id, nextGridAnchor, nowTs),
+      ],
+      now,
+    );
+    if (!entityRow) {
+      // The open-gated guard matched nothing: completed, deleted or archived between
+      // the read and the write. Nothing was written or recorded.
+      await this.#throwPlanGuardMiss(move.task.id);
+    }
+    const task = await this.getTask(move.task.id);
+    if (!task) throw new TaskNotFoundError();
+    return task;
+  }
+
+  /**
+   * Write BOTH planning dates on `task_details` in one statement (creating the row
+   * from the task's current values on first edit), gated on the active AND OPEN task.
+   * A series move changes the anchor and carries the other date with it, so writing
+   * them separately would leave a visible half-moved window if only one applied.
+   */
+  #setOccurrenceDatesStatement(
+    current: TaskView,
+    scheduledDate: string | null,
+    dueDate: string | null,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, description, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (${this.#openTaskExistsSql})
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           due_date = excluded.due_date,
+           scheduled_date = excluded.scheduled_date,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        this.#workspaceId,
+        current.id,
+        current.status,
+        current.priority,
+        dueDate,
+        scheduledDate,
+        current.description,
+        nowTs,
+        this.#workspaceId,
+        current.id,
+        this.#workspaceId,
+        current.id,
+      );
+  }
+
+  /** Set (or clear) the SERIES grid anchor on an existing recurrence row. */
+  #setSeriesAnchorStatement(
+    entityId: string,
+    seriesAnchorDate: string | null,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE task_recurrence_rules
+         SET series_anchor_date = ?, updated_at = ?
+         WHERE workspace_id = ? AND entity_id = ?`,
+      )
+      .bind(seriesAnchorDate, nowTs, this.#workspaceId, entityId);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Bulk structural, lifecycle and reopen operations (TASKS-06)             */
+  /* ---------------------------------------------------------------------- */
+
+  async setParentMany(
+    ids: readonly string[],
+    parent: SetTaskParentInput,
+  ): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+    const target =
+      parent === null
+        ? null
+        : { kind: parent.kind, id: validateTaskId(parent.id) };
+    if (
+      target !== null &&
+      target.kind !== "area" &&
+      target.kind !== "project"
+    ) {
+      throw new SpineInvalidParentKindError();
+    }
+    const targetLinkType =
+      target === null ? null : spineLinkTypeFor(TASK, target.kind);
+    if (target !== null && targetLinkType === null) {
+      throw new SpineInvalidParentKindError();
+    }
+    // The destination is validated ONCE for the whole move — the same active-Area /
+    // non-archived-Project rule a single `setTaskParent` applies — rather than once
+    // per selected Task.
+    if (target !== null) {
+      const candidate = await this.getTaskParentCandidate(target.id);
+      if (!candidate || candidate.kind !== target.kind) {
+        throw new SpineParentUnavailableError();
+      }
+    }
+
+    // Resolve EVERY id first: a missing, cross-workspace or archived-Project Task
+    // rejects the whole move before a single write, so a selection is never left
+    // half-filed.
+    const currents: TaskParentLinkRow[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.#readCurrentTaskParentLink(entityId);
+      if (!current) throw new TaskNotFoundError();
+      const task = await this.getTask(entityId);
+      if (!task) throw new TaskNotFoundError();
+      await this.#rejectIfParentProjectArchived(task);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+
+    for (const current of currents) {
+      const taskId = current.task_id;
+      const alreadyThere =
+        target === null
+          ? current.link_id === null
+          : current.parent_id === target.id &&
+            current.parent_link_type === targetLinkType;
+      if (alreadyThere) {
+        unchanged += 1;
+        continue;
+      }
+      statements.push(this.#bumpTaskUpdatedAtStatement(taskId, nowTs));
+      if (
+        current.link_id !== null &&
+        current.parent_id !== null &&
+        current.parent_link_type !== null
+      ) {
+        statements.push(
+          this.#unlinkTaskParentStatement(current.link_id, nowTs),
+          ...this.#linkActivityStatements(
+            LINK_UNLINKED,
+            {
+              id: current.link_id,
+              source_entity_id: taskId,
+              target_entity_id: current.parent_id,
+              type: current.parent_link_type,
+              deleted_at: null,
+            },
+            now,
+          ),
+        );
+      }
+      if (target !== null && targetLinkType !== null) {
+        // A previously-used link row is RESTORED rather than duplicated, exactly as
+        // the single move does, so moving work back and forth never accumulates rows.
+        const existing = await this.#findTaskParentLink(
+          taskId,
+          target.id,
+          targetLinkType,
+        );
+        const identity: AnyLinkRow = existing ?? {
+          id: this.#newEntityId(),
+          source_entity_id: taskId,
+          target_entity_id: target.id,
+          type: targetLinkType,
+          deleted_at: null,
+        };
+        statements.push(
+          existing
+            ? this.#restoreTaskParentStatement(existing.id, target, nowTs)
+            : this.#insertTaskParentStatement(
+                identity.id,
+                taskId,
+                target,
+                targetLinkType,
+                nowTs,
+              ),
+          ...this.#linkActivityStatements(
+            existing ? LINK_RESTORED : LINK_CREATED,
+            identity,
+            now,
+          ),
+        );
+      }
+      changed += 1;
+    }
+
+    await this.#runBulkBatch(statements);
+    return { changed, unchanged };
+  }
+
+  async reopenTasks(ids: readonly string[]): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) throw new TaskNotFoundError();
+      // Reopening must not put unfinished work back inside an ARCHIVED Project.
+      await this.#rejectIfParentProjectArchived(current);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+
+    for (const current of currents) {
+      if (current.completedAt === null) {
+        unchanged += 1;
+        continue;
+      }
+      const entityId = current.id;
+      const observedCompletedAt = toStorageTimestamp(current.completedAt);
+      statements.push(
+        this.#reopenSpineStatement(entityId, observedCompletedAt),
+        buildEntityUpdatedAtBumpStatement(
+          this.#db,
+          this.#workspaceId,
+          entityId,
+          nowTs,
+        ),
+        ...this.#recorder.buildAppendStatements(
+          this.#workspaceId,
+          buildActivityWriteModel(
+            {
+              type: TASK_REOPENED,
+              subjects: [{ entityId, role: SUBJECT_ROLE }],
+              payload: { previousCompletedAt: observedCompletedAt },
+            },
+            this.#actor.actor,
+            this.#newActivityId(),
+            now,
+          ),
+        ),
+      );
+      // The SAME safe withdrawal a single reopen performs, decided from persisted
+      // series identity: an untouched successor is withdrawn and its slot released;
+      // one the owner has since changed is retained (ADR-062).
+      const successor = await this.#readSuccessorSafety(current);
+      if (successor !== null && successorIsUntouched(successor)) {
+        statements.push(
+          this.#withdrawSuccessorStatement(
+            entityId,
+            successor.entity_id,
+            nowTs,
+          ),
+          ...this.#recorder.buildAppendStatements(
+            this.#workspaceId,
+            buildActivityWriteModel(
+              {
+                type: TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
+                subjects: [
+                  { entityId, role: SUBJECT_ROLE },
+                  { entityId: successor.entity_id, role: ROLE_SUCCESSOR },
+                ],
+                payload: {
+                  entityType: TASK,
+                  seriesId: current.recurrenceSeries?.seriesId ?? null,
+                  sequence: successor.sequence,
+                },
+              },
+              this.#actor.actor,
+              this.#newActivityId(),
+              now,
+            ),
+          ),
+          this.#releaseWithdrawnRecurrenceStatement(successor.entity_id, nowTs),
+        );
+      }
+      changed += 1;
+    }
+
+    await this.#runBulkBatch(statements);
+    return { changed, unchanged };
+  }
+
+  async deleteTasks(ids: readonly string[]): Promise<BulkFieldResult> {
+    return await this.#bulkLifecycle(ids, "delete");
+  }
+
+  async restoreTasks(ids: readonly string[]): Promise<BulkFieldResult> {
+    return await this.#bulkLifecycle(ids, "restore");
+  }
+
+  /**
+   * The shared REVERSIBLE bulk lifecycle path: soft-delete or restore, as ONE atomic
+   * batch with one `entity.deleted`/`entity.restored` event per Task that actually
+   * transitions. Nothing here destroys a record — the Task keeps its details,
+   * relationships, Activity and recurrence row and stays restorable from the
+   * built-in Deleted view.
+   *
+   * A restore re-checks the RETAINED structural parent, so deleted work is never
+   * silently re-filed into a Project that has since been archived or removed. A Task
+   * that never had a parent restores to the Inbox it came from (AUDIT-15).
+   */
+  async #bulkLifecycle(
+    ids: readonly string[],
+    action: "delete" | "restore",
+  ): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId, { includeDeleted: true });
+      if (!current) throw new TaskNotFoundError();
+      currents.push(current);
+      if (action === "restore" && current.deletedAt !== null) {
+        const parent = await this.#readRetainedParent(entityId);
+        if (parent !== null && !parent.available) {
+          throw new SpineParentUnavailableError();
+        }
+      }
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+
+    for (const current of currents) {
+      const isDeleted = current.deletedAt !== null;
+      if (action === "delete" ? isDeleted : !isDeleted) {
+        unchanged += 1;
+        continue;
+      }
+      statements.push(
+        action === "delete"
+          ? this.#softDeleteTaskStatement(current.id, nowTs)
+          : this.#restoreTaskStatement(current.id, nowTs),
+        ...this.#recorder.buildAppendStatements(
+          this.#workspaceId,
+          buildActivityWriteModel(
+            {
+              type: action === "delete" ? ENTITY_DELETED : ENTITY_RESTORED,
+              subjects: [{ entityId: current.id, role: SUBJECT_ROLE }],
+              payload: { entityType: TASK, title: current.title },
+            },
+            this.#actor.actor,
+            this.#newActivityId(),
+            now,
+          ),
+        ),
+      );
+      changed += 1;
+    }
+
+    await this.#runBulkBatch(statements);
+    return { changed, unchanged };
+  }
+
+  /** Soft-delete ONE Task, gated on it still being active. Never a hard delete. */
+  #softDeleteTaskStatement(
+    entityId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entities SET deleted_at = ?, updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+           AND deleted_at IS NULL`,
+      )
+      .bind(nowTs, nowTs, this.#workspaceId, entityId);
+  }
+
+  /**
+   * Restore ONE soft-deleted Task, gated on it still being deleted AND on its
+   * retained structural parent (if any) still being an available destination — the
+   * check is folded into the UPDATE, so a Project archived between the read and the
+   * write cannot receive restored work.
+   */
+  #restoreTaskStatement(entityId: string, nowTs: string): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entities SET deleted_at = NULL, updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+           AND deleted_at IS NOT NULL
+           AND NOT EXISTS (
+                 SELECT 1
+                 FROM entity_links pl
+                 LEFT JOIN entities pe
+                   ON pe.workspace_id = pl.workspace_id
+                  AND pe.id = pl.target_entity_id
+                  AND pe.deleted_at IS NULL
+                 LEFT JOIN project_details pd
+                   ON pd.workspace_id = pe.workspace_id
+                  AND pd.entity_id = pe.id
+                 WHERE pl.workspace_id = ?
+                   AND pl.source_entity_id = ?
+                   AND pl.type IN (${TASK_PARENT_LINK_LIST})
+                   AND pl.deleted_at IS NULL
+                   AND (pe.id IS NULL
+                        OR (pe.type = '${PROJECT}' AND pd.archived_at IS NOT NULL))
+               )`,
+      )
+      .bind(nowTs, this.#workspaceId, entityId, this.#workspaceId, entityId);
+  }
+
+  /**
+   * The retained structural parent of a (possibly deleted) Task and whether it is
+   * still an available destination. `null` means the Task has no structural parent at
+   * all — a valid Inbox Task, which restores to the Inbox (AUDIT-15).
+   */
+  async #readRetainedParent(
+    entityId: string,
+  ): Promise<{ readonly available: boolean } | null> {
+    const row = await this.#db
+      .prepare(
+        `SELECT CASE
+                  WHEN pe.id IS NULL THEN 0
+                  WHEN pe.type = '${PROJECT}' AND pd.archived_at IS NOT NULL THEN 0
+                  ELSE 1
+                END AS available
+         FROM entity_links pl
+         LEFT JOIN entities pe
+           ON pe.workspace_id = pl.workspace_id
+          AND pe.id = pl.target_entity_id
+          AND pe.deleted_at IS NULL
+         LEFT JOIN project_details pd
+           ON pd.workspace_id = pe.workspace_id AND pd.entity_id = pe.id
+         WHERE pl.workspace_id = ?
+           AND pl.source_entity_id = ?
+           AND pl.type IN (${TASK_PARENT_LINK_LIST})
+           AND pl.deleted_at IS NULL
+         LIMIT 1`,
+      )
+      .bind(this.#workspaceId, entityId)
+      .first<{ readonly available: number }>();
+    return row === null ? null : { available: row.available === 1 };
+  }
+
+  /** The guarded spine reopen used by both the single and the bulk reopen path. */
+  #reopenSpineStatement(
+    entityId: string,
+    observedCompletedAt: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE spine_records SET completed_at = NULL
+         WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
+           AND EXISTS (SELECT 1 FROM entities
+                       WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+           AND NOT EXISTS (
+                 SELECT 1
+                 FROM entity_links pl
+                 JOIN project_details pd
+                   ON pd.workspace_id = pl.workspace_id
+                  AND pd.entity_id = pl.target_entity_id
+                 WHERE pl.workspace_id = ?
+                   AND pl.source_entity_id = ?
+                   AND pl.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND pl.deleted_at IS NULL
+                   AND pd.archived_at IS NOT NULL
+               )`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        observedCompletedAt,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+      );
+  }
+
+  /** Run a bulk statement list as ONE transaction, or nothing at all when empty. */
+  async #runBulkBatch(
+    statements: readonly D1PreparedStatement[],
+  ): Promise<void> {
+    if (statements.length === 0) return;
+    try {
+      await this.#db.batch([...statements]);
+    } catch (cause) {
+      if (cause instanceof ActivityError) throw cause;
+      throw new TaskStorageError(undefined, { cause });
+    }
   }
 
   /* ---------------------------------------------------------------------- */

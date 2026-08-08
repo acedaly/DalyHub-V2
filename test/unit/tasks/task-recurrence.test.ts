@@ -10,6 +10,7 @@ const scheduled = (over: Partial<TaskRecurrenceRule>): TaskRecurrenceRule => ({
   frequency: "day",
   interval: 1,
   dateKind: "scheduled",
+  mode: "fixed",
   weekdays: [],
   anchorDay: null,
   anchorMonth: null,

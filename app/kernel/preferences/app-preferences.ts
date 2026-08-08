@@ -33,12 +33,17 @@ export const LANDING_DESTINATIONS = [
 ] as const;
 export type LandingDestination = (typeof LANDING_DESTINATIONS)[number];
 
-export const TASK_DEFAULT_VIEWS = [
-  "focus",
-  "matrix",
-  "sectors",
-  "all",
-] as const;
+/**
+ * The `defaultTasksView` preference's choices.
+ *
+ * `matrix` was removed in V2.2 (TASKS-05). No migration is needed and none is run:
+ * the preference read path validates against this set and falls back to the
+ * documented default, so a stored `"matrix"` resolves to `focus` — the primary task
+ * LIST — on the next read. The owner lands on a working Tasks workspace rather than
+ * a route that no longer exists, and the row is rewritten the next time they choose a
+ * default themselves. See `TASKS_MODULE.md → The Matrix was removed`.
+ */
+export const TASK_DEFAULT_VIEWS = ["focus", "sectors", "all"] as const;
 export type TaskDefaultView = (typeof TASK_DEFAULT_VIEWS)[number];
 
 export const TASK_DESTINATIONS = ["inbox", "chosen_parent"] as const;

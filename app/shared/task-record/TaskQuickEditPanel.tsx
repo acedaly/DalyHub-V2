@@ -23,14 +23,15 @@ import { useFetcher } from "react-router";
 import {
   TASK_PRIORITIES,
   TIME_SECTORS,
-  type TaskRecurrenceFrequency,
+  type TaskRecurrenceInput,
 } from "~/kernel/tasks";
 import { DateField, FormButton, SelectField } from "~/shared/forms";
 
+import { recurrenceFormFields } from "./recurrence-authoring";
+import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
 import { useTaskParentSearch } from "./use-task-parent-search";
 import {
   taskPriorityLabel,
-  taskRecurrenceLabel,
   timeSectorLabel,
   type SerializedTaskListItem,
   type SerializedTaskView,
@@ -46,14 +47,9 @@ export type QuickEditTask = Pick<
   | "scheduledDate"
   | "timeSector"
   | "commitmentState"
+  | "recurrence"
 > & {
   readonly parent?: { readonly id: string; readonly title: string } | null;
-  readonly recurrence?: {
-    readonly frequency: TaskRecurrenceFrequency;
-    readonly interval: number;
-    readonly dateKind: "scheduled" | "due";
-    readonly weekdays: readonly number[];
-  } | null;
 };
 
 export interface TaskQuickEditPanelProps {
@@ -65,35 +61,6 @@ export interface TaskQuickEditPanelProps {
   /** Rendered under the controls — e.g. Review Inbox's Skip/Next actions. */
   readonly footer?: React.ReactNode;
 }
-
-/**
- * The common repeat choices. This list is deliberately smaller than the recurrence
- * MODEL: quick capture accepts any "every N weeks/months/years" up to 99 and weekly
- * rules pinned to specific weekdays, and those rules are all valid. A rule outside
- * this list is presented as its own labelled option (see `repeatOptionsFor`), never
- * coerced to the nearest listed value — the owner must always see the rule the task
- * actually has.
- */
-const REPEAT_OPTIONS: ReadonlyArray<{
-  readonly value: string;
-  readonly label: string;
-}> = [
-  { value: "", label: "Does not repeat" },
-  { value: "day:1", label: "Every day" },
-  { value: "weekday:1", label: "Every weekday" },
-  { value: "week:1", label: "Every week" },
-  { value: "week:2", label: "Every 2 weeks" },
-  { value: "month:1", label: "Every month" },
-  { value: "year:1", label: "Every year" },
-];
-
-/**
- * The sentinel value for a rule the predefined list cannot represent — a custom
- * interval ("every 3 weeks") or a weekday-pinned weekly rule ("every Monday").
- * Selecting it is an explicit no-op (`setRepeat` never posts it), so opening the
- * panel and re-committing the current choice can never rewrite the stored rule.
- */
-const CUSTOM_REPEAT_VALUE = "custom";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "No priority" },
@@ -115,43 +82,6 @@ const COMMITMENT_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "someday", label: "Someday / Maybe" },
 ];
-
-/**
- * The select value for the task's current rule: `frequency:interval` when a
- * predefined option represents the rule EXACTLY (which requires no pinned
- * weekdays — "every Monday" is stored as `week:1` plus `weekdays: [1]`, and
- * mapping it to plain "Every week" would silently misstate the rule), otherwise
- * the custom sentinel.
- */
-function repeatValueOf(task: QuickEditTask): string {
-  const rule = task.recurrence ?? null;
-  if (!rule) return "";
-  const value = `${rule.frequency}:${rule.interval}`;
-  const predefined = REPEAT_OPTIONS.some((option) => option.value === value);
-  return predefined && rule.weekdays.length === 0 ? value : CUSTOM_REPEAT_VALUE;
-}
-
-/**
- * The repeat options for this task: the predefined list, plus — only when the
- * current rule is not in it — that rule as a selectable option labelled by the
- * same `taskRecurrenceLabel` every read-only surface uses, so "Every 3 weeks"
- * reads here exactly as it does on the record.
- */
-function repeatOptionsFor(
-  task: QuickEditTask,
-): ReadonlyArray<{ readonly value: string; readonly label: string }> {
-  const rule = task.recurrence ?? null;
-  if (!rule || repeatValueOf(task) !== CUSTOM_REPEAT_VALUE) {
-    return REPEAT_OPTIONS;
-  }
-  return [
-    ...REPEAT_OPTIONS,
-    {
-      value: CUSTOM_REPEAT_VALUE,
-      label: taskRecurrenceLabel(rule) ?? "Custom repeat",
-    },
-  ];
-}
 
 export function TaskQuickEditPanel({
   task,
@@ -258,37 +188,34 @@ export function TaskQuickEditPanel({
     [parentSearch, record, task.title],
   );
 
-  const setRepeat = useCallback(
-    (value: string) => {
-      // Re-committing the task's own custom rule is "leave it unchanged": the
-      // panel cannot round-trip a weekday set or custom interval through the
-      // predefined vocabulary, so it must never post one.
-      if (value === CUSTOM_REPEAT_VALUE) return;
-      if (value.length === 0) {
-        record(
-          { intent: "set_recurrence" },
-          `${task.title} no longer repeats.`,
-        );
-        return;
-      }
-      const [frequency, interval] = value.split(":");
-      // A repeat needs an anchor date; a rule with neither would be refused by the
-      // server, so prefer the scheduled date and fall back to the due date.
-      const dateKind =
-        task.scheduledDate === null && task.dueDate !== null
-          ? "due"
-          : "scheduled";
+  /**
+   * TASKS-07 — authoring goes through the shared recurrence editor, which composes the
+   * whole typed rule (unit, interval, weekdays and scheduling mode) and states the
+   * result in plain language before it is saved. The panel's job is only to post it.
+   *
+   * It replaces the seven-option `Repeat` select this panel used to carry. That select
+   * could DISPLAY any rule but could only WRITE seven of them, so a custom interval or
+   * a weekday-pinned rule was authorable nowhere but quick capture — DEBT-66, now
+   * closed. The default `dateKind` still prefers the scheduled date and falls back to
+   * the due date, because a rule needs an anchor that exists.
+   */
+  const saveRecurrence = useCallback(
+    async (
+      rule: TaskRecurrenceInput | null,
+    ): Promise<{ ok: boolean; message?: string }> => {
+      const fields = recurrenceFormFields(rule);
       record(
-        {
-          intent: "set_recurrence",
-          frequency: frequency ?? "",
-          interval: interval ?? "1",
-          dateKind,
-        },
-        `${task.title} now repeats.`,
+        fields,
+        rule === null
+          ? `${task.title} no longer repeats.`
+          : `${task.title} now repeats.`,
       );
+      // The panel's shared `useEffect` reports the server's answer through `onChanged`
+      // (success) or `setError` (refusal), so the editor is told "accepted" and lets
+      // that one channel do the announcing rather than adding a second.
+      return { ok: true };
     },
-    [record, task.dueDate, task.scheduledDate, task.title],
+    [record, task.title],
   );
 
   return (
@@ -429,15 +356,14 @@ export function TaskQuickEditPanel({
         }
       />
 
-      <SelectField
-        label="Repeat"
-        id={`${groupId}-repeat`}
-        help="A repeat needs a scheduled or due date to repeat from."
-        showOptionalCue={false}
-        value={repeatValueOf(task)}
-        options={repeatOptionsFor(task)}
+      <TaskRecurrenceEditor
+        task={{
+          recurrence: task.recurrence ?? null,
+          scheduledDate: task.scheduledDate,
+          dueDate: task.dueDate,
+        }}
+        onSave={saveRecurrence}
         disabled={busy}
-        onChange={setRepeat}
       />
 
       {error ? (

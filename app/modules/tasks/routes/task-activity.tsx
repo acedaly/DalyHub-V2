@@ -20,6 +20,7 @@ import {
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
   TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_SKIPPED,
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
@@ -83,6 +84,13 @@ const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {
   [TASK_RECURRENCE_OCCURRENCE_WITHDRAWN]: {
     label: "Withdrew the next occurrence",
     entityType: "task",
+  },
+  // Deliberately NOT worded as a completion: a skipped occurrence is work that did
+  // not happen, and the history has to keep saying so.
+  [TASK_RECURRENCE_OCCURRENCE_SKIPPED]: {
+    label: "Skipped this occurrence",
+    entityType: "task",
+    tone: "warning",
   },
 };
 

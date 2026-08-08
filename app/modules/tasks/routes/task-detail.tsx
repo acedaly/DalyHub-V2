@@ -25,8 +25,10 @@ import { env } from "cloudflare:workers";
 
 import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
+  DEFAULT_TASK_RECURRENCE_MODE,
   TASK_RECURRENCE_DATE_KINDS,
   TASK_RECURRENCE_FREQUENCIES,
+  TASK_RECURRENCE_MODES,
   TaskNotFoundError,
   TaskProjectArchivedError,
   TaskValidationError,
@@ -35,6 +37,7 @@ import {
   type SetTaskRecurrenceInput,
   type TaskRecurrenceDateKind,
   type TaskRecurrenceFrequency,
+  type TaskRecurrenceMode,
   type SetWaitingInput,
   type TaskPriority,
   type TaskStatus,
@@ -180,6 +183,16 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handleSetParent(scope, taskId, form));
     case "set_recurrence":
       return json(await handleSetRecurrence(scope, taskId, form));
+    case "move_occurrence":
+      return json(await handleMoveOccurrence(scope, taskId, form));
+    case "skip_occurrence":
+      return json(
+        await handleSkipOccurrence(
+          scope,
+          taskId,
+          await ownerTodayIsoFor(scope),
+        ),
+      );
     default:
       return json(
         { kind: "update", status: "error", formError: "Unknown action." },
@@ -396,6 +409,104 @@ async function ownerTodayIsoFor(scope: WorkspaceScope): Promise<string> {
  * Task's own anchor date, so a rule that could never repeat is refused with a field
  * error the control can show.
  */
+/**
+ * TASKS-07 — move a recurring occurrence's anchor date at an explicit SERIES SCOPE.
+ *
+ * The scope is required, never inferred: "this occurrence" and "this and future
+ * occurrences" are different decisions, and silently picking one is exactly the
+ * failure this intent exists to prevent. Completed occurrences are never rewritten.
+ */
+async function handleMoveOccurrence(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  const date = nullable(form.get("date"));
+  const seriesScope = nullable(form.get("scope"));
+  if (date === null) {
+    return {
+      kind: "update",
+      status: "error",
+      fieldErrors: { recurrence: "Choose the new date." },
+    };
+  }
+  if (seriesScope !== "occurrence" && seriesScope !== "series") {
+    return {
+      kind: "update",
+      status: "error",
+      fieldErrors: {
+        recurrence:
+          "Choose whether this changes only this occurrence or this and future occurrences.",
+      },
+    };
+  }
+  try {
+    const result = await scope.tasks.moveTaskOccurrence(taskId, {
+      date,
+      scope: seriesScope,
+    });
+    return {
+      kind: "update",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    return recurrenceFailure(
+      cause,
+      "That change couldn’t be saved. Nothing was changed — try again.",
+    );
+  }
+}
+
+/**
+ * TASKS-07 — SKIP this occurrence: advance it one step along the series without
+ * completing it. Never a completion, so the history never claims work happened that
+ * did not.
+ */
+async function handleSkipOccurrence(
+  scope: WorkspaceScope,
+  taskId: string,
+  ownerTodayIso: string,
+): Promise<TaskActionData> {
+  try {
+    const result = await scope.tasks.skipTaskOccurrence(taskId, {
+      ownerTodayIso,
+    });
+    return {
+      kind: "update",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    return recurrenceFailure(
+      cause,
+      "That occurrence couldn’t be skipped. Nothing was changed — try again.",
+    );
+  }
+}
+
+/** The ONE typed-error translation both series operations use. Never raw SQL. */
+function recurrenceFailure(cause: unknown, fallback: string): TaskActionData {
+  if (cause instanceof TaskValidationError) {
+    return {
+      kind: "update",
+      status: "error",
+      fieldErrors: { recurrence: cause.message },
+    };
+  }
+  if (cause instanceof TaskNotFoundError) {
+    return {
+      kind: "update",
+      status: "error",
+      formError: "This task is no longer available.",
+    };
+  }
+  if (cause instanceof TaskProjectArchivedError) {
+    return { kind: "update", status: "error", formError: cause.message };
+  }
+  return { kind: "update", status: "error", formError: fallback };
+}
+
 async function handleSetRecurrence(
   scope: WorkspaceScope,
   taskId: string,
@@ -405,6 +516,10 @@ async function handleSetRecurrence(
   const dateKind = nullable(form.get("dateKind")) ?? "scheduled";
   const intervalRaw = nullable(form.get("interval"));
   const weekdaysRaw = nullable(form.get("weekdays"));
+  // TASKS-07: the scheduling MODE is explicit. An absent field means the documented
+  // default (`fixed`), which is what every rule authored before TASKS-07 means, so an
+  // older client cannot accidentally convert a routine into an interval.
+  const modeRaw = nullable(form.get("mode")) ?? DEFAULT_TASK_RECURRENCE_MODE;
 
   let recurrence: SetTaskRecurrenceInput = null;
   if (frequency !== null) {
@@ -422,6 +537,16 @@ async function handleSetRecurrence(
         kind: "update",
         status: "error",
         fieldErrors: { recurrence: "Choose the date this repeats from." },
+      };
+    }
+    if (!(TASK_RECURRENCE_MODES as readonly string[]).includes(modeRaw)) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: {
+          recurrence:
+            "Choose whether this keeps a fixed schedule or repeats after completion.",
+        },
       };
     }
     const interval = intervalRaw === null ? 1 : Number(intervalRaw);
@@ -442,6 +567,7 @@ async function handleSetRecurrence(
     recurrence = {
       frequency: frequency as TaskRecurrenceFrequency,
       dateKind: dateKind as TaskRecurrenceDateKind,
+      mode: modeRaw as TaskRecurrenceMode,
       interval,
       weekdays,
     };

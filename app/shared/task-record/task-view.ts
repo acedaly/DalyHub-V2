@@ -178,44 +178,15 @@ export function taskStatusLabel(status: TaskStatus): string {
   }
 }
 
-/**
- * The Eisenhower quadrant a priority maps to (ADR-043 §2), or null for an untriaged
- * (no-priority) task. The single source of truth for Matrix placement — the Matrix
- * view, the Drawer and the card presentation all read this.
+/*
+ * TASKS-05 (V2.2) — the Eisenhower QUADRANT vocabulary was removed with the Matrix
+ * view. `priorityQuadrant`, `quadrantActionLabel` and `EisenhowerQuadrant` existed
+ * only to name the 2×2's cells and to carry "Do / Defer / Delegate / Delete" as a
+ * second reading of the ONE stored priority field. With no Matrix there is no second
+ * reading: P1–P4 is the whole axis, and `taskPriorityLabel` / `taskPriorityTag` below
+ * are its only vocabulary. The stored priorities are untouched — see
+ * `TASKS_MODULE.md → The Matrix was removed`.
  */
-export type EisenhowerQuadrant = "do" | "defer" | "delegate" | "delete";
-
-/** Map a P1–P4 priority to its Matrix quadrant. `null` → null (unprioritised). */
-export function priorityQuadrant(
-  priority: TaskPriority | null,
-): EisenhowerQuadrant | null {
-  switch (priority) {
-    case "p1":
-      return "do";
-    case "p2":
-      return "defer";
-    case "p3":
-      return "delegate";
-    case "p4":
-      return "delete";
-    default:
-      return null;
-  }
-}
-
-/** The Do/Defer/Delegate/Delete-Review action word for a quadrant. */
-export function quadrantActionLabel(quadrant: EisenhowerQuadrant): string {
-  switch (quadrant) {
-    case "do":
-      return "Do";
-    case "defer":
-      return "Defer";
-    case "delegate":
-      return "Delegate";
-    case "delete":
-      return "Delete / Review";
-  }
-}
 
 /**
  * The full everyday priority label, e.g. "P1 · Urgent", "P4 · Low", or
@@ -242,21 +213,41 @@ export function taskPriorityTag(priority: TaskPriority | null): string {
 }
 
 /**
- * TASKS-04 — the human label for a recurrence rule, in the same restrained vocabulary
- * the quick-capture parser recognises ("Every weekday", "Every 2 weeks"), so what the
- * user typed, what the preview showed and what the record reports all read alike.
- * `null` means the task does not repeat.
+ * TASKS-04 / TASKS-07 — the ONE human label for a recurrence rule, in the same
+ * restrained vocabulary the quick-capture parser recognises ("Every weekday", "Every
+ * 2 weeks"), so what the user typed, what the preview showed, what the custom editor
+ * summarises and what every read-only surface reports all read alike. `null` means
+ * the task does not repeat.
+ *
+ * An `after_completion` rule is worded as an INTERVAL rather than a schedule ("14
+ * days after completion"), because that is what it means: saying "Every 14 days"
+ * for a rule whose clock restarts when the work is done would describe the wrong
+ * product.
  */
 export function taskRecurrenceLabel(
   rule:
-    | Pick<
+    | (Pick<
         TaskRecurrenceRule,
         "frequency" | "interval" | "dateKind" | "weekdays"
-      >
+      > &
+        Partial<Pick<TaskRecurrenceRule, "mode">>)
     | null
     | undefined,
 ): string | null {
   if (!rule) return null;
+  const plural = (unit: string) =>
+    rule.interval === 1 ? unit : `${rule.interval} ${unit}s`;
+  if ((rule.mode ?? "fixed") === "after_completion") {
+    const unit =
+      rule.frequency === "week"
+        ? "week"
+        : rule.frequency === "month"
+          ? "month"
+          : rule.frequency === "year"
+            ? "year"
+            : "day";
+    return `${plural(unit)} after completion`;
+  }
   const every = (unit: string) =>
     rule.interval === 1 ? `Every ${unit}` : `Every ${rule.interval} ${unit}s`;
   const base =
@@ -266,7 +257,7 @@ export function taskRecurrenceLabel(
         ? "Every weekday"
         : rule.frequency === "week"
           ? rule.weekdays.length > 0
-            ? `Every ${rule.weekdays.map((day) => WEEKDAY_NAMES[day] ?? "day").join(", ")}`
+            ? `Every ${rule.weekdays.map((day) => WEEKDAY_NAMES[day] ?? "day").join(", ")}${rule.interval === 1 ? "" : `, every ${rule.interval} weeks`}`
             : every("week")
           : rule.frequency === "month"
             ? every("month")
@@ -284,6 +275,17 @@ const WEEKDAY_NAMES = [
   "Friday",
   "Saturday",
 ];
+
+/** The short weekday names the custom recurrence editor's toggles use (0 = Sunday). */
+export const TASK_WEEKDAY_SHORT_NAMES = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+] as const;
 
 /** Human label for a Time Sector; `null` is the explicit "No sector" value. */
 export function timeSectorLabel(sector: TimeSector | null): string {

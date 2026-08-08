@@ -17,13 +17,14 @@
  *   - status/date carry text (never colour alone); progress has a text equivalent.
  */
 
-import type { MouseEvent } from "react";
+import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useId } from "react";
 
 import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
 
 import { CardActionButton } from "./CardAction";
 import { CardSwipeTray } from "./CardSwipeTray";
+import { useCardLongPress } from "./useCardLongPress";
 import { useCardSwipe } from "./useCardSwipe";
 import type { CardAction, CardProps } from "./types";
 import { normaliseProgress, primaryOpenIsModifiedClick } from "./types";
@@ -65,6 +66,7 @@ export function Card(props: CardProps) {
     overflowAction,
     overflowLabel,
     swipeActions,
+    onLongPress,
     href,
     onOpen,
     openAriaLabel,
@@ -84,6 +86,11 @@ export function Card(props: CardProps) {
   // touch-first device, so mouse/keyboard behaviour is unchanged.
   const hasSwipe = swipeActions !== undefined && swipeActions.length > 0;
   const swipe = useCardSwipe({ hasActions: hasSwipe });
+
+  // Touch long-press → the consumer's selection entry point (TASKS-08). Inert unless
+  // `onLongPress` is supplied AND the device is touch-first, so mouse/keyboard
+  // behaviour and every existing consumer are untouched.
+  const longPress = useCardLongPress({ onLongPress });
 
   // Roving-focus membership: ONLY the primary open control carries the roving
   // tabindex (0 for the active card, -1 for the rest), so the collection is exactly
@@ -181,15 +188,38 @@ export function Card(props: CardProps) {
       data-card-density={density}
       data-presentation={presentation}
       data-testid={props["data-testid"]}
-      {...(hasSwipe
+      {...(hasSwipe || longPress.enabled
         ? {
-            "data-swipe-open": swipe.isOpen ? "true" : "false",
-            "data-swipe-dragging": swipe.dragging ? "true" : "false",
-            onPointerDown: swipe.onPointerDown,
-            onPointerMove: swipe.onPointerMove,
-            onPointerUp: swipe.onPointerUp,
-            onPointerCancel: swipe.onPointerCancel,
-            onClickCapture: swipe.onClickCapture,
+            ...(hasSwipe
+              ? {
+                  "data-swipe-open": swipe.isOpen ? "true" : "false",
+                  "data-swipe-dragging": swipe.dragging ? "true" : "false",
+                }
+              : {}),
+            // Both gestures observe the SAME pointer sequence: swipe claims a
+            // horizontal drag, long press claims a stationary hold, and movement
+            // cancels the hold — so they are mutually exclusive by construction
+            // rather than by racing each other.
+            onPointerDown: (event: ReactPointerEvent) => {
+              if (hasSwipe) swipe.onPointerDown(event);
+              longPress.onPointerDown(event);
+            },
+            onPointerMove: (event: ReactPointerEvent) => {
+              if (hasSwipe) swipe.onPointerMove(event);
+              longPress.onPointerMove(event);
+            },
+            onPointerUp: (event: ReactPointerEvent) => {
+              if (hasSwipe) swipe.onPointerUp(event);
+              longPress.onPointerUp(event);
+            },
+            onPointerCancel: (event: ReactPointerEvent) => {
+              if (hasSwipe) swipe.onPointerCancel(event);
+              longPress.onPointerCancel(event);
+            },
+            onClickCapture: (event: MouseEvent<HTMLElement>) => {
+              longPress.onClickCapture(event);
+              if (hasSwipe) swipe.onClickCapture(event);
+            },
           }
         : {})}
     >
@@ -215,7 +245,13 @@ export function Card(props: CardProps) {
             tabIndex={secondaryTabIndex}
             aria-label={selection.label ?? `Select ${title}`}
             onChange={(event) =>
-              selection.onSelectedChange(event.target.checked)
+              // TASKS-06 — Shift-click extends a RANGE. The modifier is read from the
+              // native event and reported to the collection, which is the only place
+              // that knows what order the rows are in.
+              selection.onSelectedChange(event.target.checked, {
+                shift: (event.nativeEvent as PointerEvent | MouseEvent)
+                  .shiftKey,
+              })
             }
             onClick={(event) => event.stopPropagation()}
           />

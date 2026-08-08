@@ -393,6 +393,16 @@ export const ScheduleIcon = createIcon(
   <path d="m627-287 45-45-159-160v-201h-60v225l174 181ZM480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-82 31.5-155t86-127.5Q252-817 325-848.5T480-880q82 0 155 31.5t127.5 86Q817-708 848.5-635T880-480q0 82-31.5 155t-86 127.5Q708-143 635-111.5T480-80Zm0-400Zm0 340q140 0 240-100t100-240q0-140-100-240T480-820q-140 0-240 100T140-480q0 140 100 240t240 100Z" />,
 );
 
+/**
+ * A repeating task's recurrence signal (TASKS-07). Always paired with the shared
+ * `taskRecurrenceLabel` text — the icon reinforces, it never carries the meaning.
+ * Material Symbols `repeat`.
+ */
+export const RepeatIcon = createIcon(
+  "RepeatIcon",
+  <path d="M280-80 120-240l160-160 42 43-86 87h422v-120h60v180H236l86 87-42 43Zm-100-440v-180h598l-86-87 42-43 160 160-160 160-42-43 86-87H240v120h-60Z" />,
+);
+
 /** Completed work. Material Symbols `check_circle`. */
 export const CheckCircleIcon = createIcon(
   "CheckCircleIcon",

@@ -42,8 +42,10 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 /**
  * The canonical Todoist-style / Eisenhower priority set (TASKS-01 replaced the
  * legacy `low/medium/high` set — ADR-043 §2). Absence of a priority is `null`, not
- * a value (an untriaged task). The Matrix maps each value to a quadrant: `p1`·Do,
- * `p2`·Defer, `p3`·Delegate, `p4`·Delete/Review.
+ * a value (an untriaged task). Until V2.2 each value also carried an Eisenhower
+ * ACTION word (Do / Defer / Delegate / Delete-Review) so the Matrix view could name
+ * its quadrants; removing the Matrix (TASKS-05) left P1–P4 as the one vocabulary. The
+ * stored values are unchanged.
  */
 export const TASK_PRIORITIES = ["p1", "p2", "p3", "p4"] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
@@ -464,6 +466,57 @@ export type SetTaskRecurrenceResult = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Series editing (TASKS-07)                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * TASKS-07 — which occurrences a recurrence-sensitive DATE change applies to.
+ *
+ * DalyHub materialises a series incrementally (ADR-062): exactly one occurrence is
+ * ever open, and the next one is copied from it at completion. That has a direct
+ * consequence for scope, and it is the reason this set has two members rather than
+ * three:
+ *
+ *   - **`occurrence`** — move THIS occurrence's date and leave the routine's schedule
+ *     where it was. The series' grid is remembered (`series_anchor_date`), so the next
+ *     occurrence lands back on schedule.
+ *   - **`series`** — move this occurrence's date AND re-anchor the schedule here, so
+ *     every future occurrence follows from the new date.
+ *
+ * Completed occurrences are never rewritten under either scope. See
+ * `TASKS_MODULE.md → Series editing` for the full field-by-field contract.
+ */
+export const TASK_SERIES_EDIT_SCOPES = ["occurrence", "series"] as const;
+export type TaskSeriesEditScope = (typeof TASK_SERIES_EDIT_SCOPES)[number];
+
+/** Move a recurring occurrence's anchor date, at a chosen series scope. */
+export type MoveTaskOccurrenceInput = {
+  /** The new anchor date (`YYYY-MM-DD`) for THIS occurrence. */
+  readonly date: string;
+  readonly scope: TaskSeriesEditScope;
+};
+
+export type MoveTaskOccurrenceResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/** Options for skipping one occurrence of a series. */
+export type SkipTaskOccurrenceOptions = {
+  /** The owner's calendar day (ADR-022). Required for an after-completion rule. */
+  readonly ownerTodayIso: string;
+};
+
+export type SkipTaskOccurrenceResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+  /** The anchor date the occurrence was skipped FROM. */
+  readonly skippedFrom: string;
+  /** The anchor date it now sits on. */
+  readonly nextDate: string;
+};
+
+/* -------------------------------------------------------------------------- */
 /* Planning (TODAY-04)                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -560,13 +613,23 @@ export const TASK_SYSTEM_VIEWS = [
   "completed",
   "cancelled",
   /**
+   * TASKS-06 — the reversibly-DELETED Tasks (`entities.deleted_at IS NOT NULL`).
+   *
+   * The one system view whose population is outside the ordinary lifecycle filter, and
+   * it exists so bulk delete can be genuinely reversible: a deleted Task keeps its
+   * title, details, relationships, Activity and recurrence row, and this view is where
+   * it is found and restored from. Nothing else surfaces deleted Tasks, and permanent
+   * destruction is not reachable from it.
+   */
+  "deleted",
+  /**
    * The ACTIVE PLANNING scope — the default for the Matrix and Sectors planning
    * views (ADR-043 §11), distinct from `all` (the complete collection incl.
    * terminal/parked records). It excludes every state that is not actionable *now*:
    * completed, cancelled and Someday/Maybe (as the other views do) AND the two
    * parked/blocked states — **waiting** (blocked on someone else — surfaced by the
    * dedicated Waiting view) and **on_hold** (deliberately paused). Excluding those
-   * keeps a task out of a Matrix quadrant or a Time Sector bucket until it is real
+   * keeps a task out of a Time Sector bucket until it is real
    * active work again; they remain fully reachable through `all`, the `waiting`
    * view, and the status filter. (ADR-043 §11 / decision point 11.)
    */
@@ -762,17 +825,17 @@ export type WorkspaceTaskListPage = {
 
 /**
  * The dimension the collection is grouped by, SERVER-side (ADR-043 decision 12,
- * widened by TASKS-03). `quadrant` and `sector` back the Eisenhower Matrix and the
- * Time Sectors views; the rest back the optional grouping of the ordinary List and
- * Board views. Every dimension is a TRUSTED column expression chosen from this
- * closed set — a caller never supplies SQL.
+ * widened by TASKS-03). `sector` backs the Time Sectors planning view; the rest back
+ * the optional grouping of the ordinary List and Board views. Every dimension is a
+ * TRUSTED column expression chosen from this closed set — a caller never supplies SQL.
  *
- * `quadrant` and `priority` bucket identically (by `task_details.priority`); they
- * are separate names because they are PRESENTED differently — the Matrix labels a
- * bucket with its Eisenhower action word, a grouped list labels it `P1 · Urgent`.
+ * The `quadrant` dimension went with the Matrix in V2.2 (TASKS-05). It bucketed by
+ * `task_details.priority`, exactly as `priority` does — it existed only to label the
+ * same buckets with the Matrix's action words, and with no Matrix there was nothing
+ * left for it to present. The GROUPING INFRASTRUCTURE it shared is untouched: Time
+ * Sectors and every grouped list still run through the one window-function query.
  */
 export const WORKSPACE_TASK_GROUP_DIMENSIONS = [
-  "quadrant",
   "sector",
   "priority",
   "due_state",
@@ -787,7 +850,7 @@ export type WorkspaceTaskGroupDimension =
 /**
  * One server-computed bucket of the ACTIVE planning collection. The `count` is the
  * AUTHORITATIVE total for the bucket — computed over the whole active scope, never
- * "how many happen to be loaded" — so quadrant/sector counts and empty states are
+ * "how many happen to be loaded" — so bucket counts and empty states are
  * correct before (and independent of) any record paging. `items` is a bounded,
  * deterministically-sorted top slice of the bucket; `hasMore` is true when the
  * bucket holds more than `items` (the rest are reached through the equivalent
@@ -795,7 +858,7 @@ export type WorkspaceTaskGroupDimension =
  */
 export type WorkspaceTaskGroup = {
   /**
-   * The bucket key: for `quadrant`, one of `p1`|`p2`|`p3`|`p4`|`untriaged`; for
+   * The bucket key: for `priority`, one of `p1`|`p2`|`p3`|`p4`|`untriaged`; for
    * `sector`, a `TimeSector` value or `__none` ("No sector"). TASKS-04 renamed that
    * bucket: "Inbox" now means an UNASSIGNED Task, never an unsectored one.
    */

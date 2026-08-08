@@ -79,6 +79,7 @@ never asked for.
 
 Nothing about this changes what you see. It is the kind of improvement whose
 whole value is that you never notice it.
+
 ## Add something you own from your phone, in seconds (ASSET-03)
 
 Recording an Asset used to mean getting to a laptop, or at least getting to the
@@ -118,6 +119,7 @@ was never asked for one.
 type list no longer closes the whole capture and loses what you had written, and
 tapping straight to the type field no longer makes it jump out from under your
 finger.
+
 ## Save a useful question, not just a filter (X-02)
 
 Tasks could hold a saved view. Nothing else could — and none of the questions you

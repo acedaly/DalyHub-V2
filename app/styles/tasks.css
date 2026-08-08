@@ -6,7 +6,7 @@
  * class ends up styling a Tasks row and nobody notices; one file per module makes
  * the ownership obvious and the diff legible.
  *
- * Layout and rhythm ONLY: the Matrix 2x2 grid, the Sector columns, the quick-
+ * Layout and rhythm ONLY: the Time Sector columns, the grouped sections, the quick-
  * capture preview, the saved-view menu and the bulk-action bar. Every visual
  * value is a DS-01 token; all real chrome (cards, empty state, drawer, forms)
  * comes from the shared components.
@@ -15,17 +15,16 @@
 /* -------------------------------------------------------------------------- */
 /* TASKS-01 — the /tasks workspace layout (design tokens only).                */
 /*                                                                            */
-/* Layout and rhythm ONLY: the Matrix 2×2 grid, the Sector columns, the       */
+/* Layout and rhythm ONLY: the Time Sector columns, the grouped sections, the */
 /* quick-capture preview and the bulk-action bar. Every visual value is a     */
 /* DS-01 `var(--app-*)` token; all real chrome (cards, empty state, drawer,    */
-/* forms) comes from the shared components. The Matrix is a true 2×2 only at   */
-/* >= 768px and stacks full-width below, so it is never a cramped grid on a    */
-/* narrow phone and never overflows horizontally at 320px.                    */
+/* forms) comes from the shared components. Time Sectors is multi-column only  */
+/* at >= 768px and stacks full-width below, so it is never a cramped grid on a  */
+/* narrow phone and never overflows horizontally at 320px.                     */
 /* -------------------------------------------------------------------------- */
 
 .dh-tasks-focus,
-.dh-tasks-sectors,
-.dh-tasks-matrix {
+.dh-tasks-sectors {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);
@@ -59,8 +58,8 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
-/* "View all N →" link shown when a Matrix/Sector bucket holds more than the
-   loaded slice — the overflow is reached through the equivalent filtered list. */
+/* "View all N →" link shown when a grouped bucket holds more than the loaded
+   slice — the overflow is reached through the equivalent filtered list. */
 .dh-tasks-section__more {
   align-self: flex-start;
   margin-top: var(--app-space-2);
@@ -74,8 +73,7 @@
   text-decoration: none;
 }
 
-/* Matrix + Sector cells share the quiet-section rhythm. */
-.dh-tasks-matrix__cell,
+/* Sector columns share the quiet-section rhythm. */
 .dh-tasks-sectors__column {
   display: flex;
   flex-direction: column;
@@ -83,20 +81,9 @@
   min-width: 0; /* allow cards to shrink; never force horizontal overflow */
 }
 
-/* Mobile-first: everything stacks full-width. The 2×2 grid and the multi-column
- * sectors are opt-in at the wider breakpoint below. */
+/* Mobile-first: everything stacks full-width. The multi-column sectors are
+ * opt-in at the wider breakpoint below. */
 @media (min-width: 48rem) {
-  .dh-tasks-matrix {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--app-space-6);
-  }
-
-  /* The untriaged bucket spans both columns beneath the 2×2. */
-  .dh-tasks-matrix__cell--untriaged {
-    grid-column: 1 / -1;
-  }
-
   .dh-tasks-sectors {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -140,12 +127,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);
-}
-
-.dh-tasks-section__subtitle {
-  margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The control row: the shared sheet trigger plus a plain-text summary of the
@@ -243,6 +224,184 @@
 }
 
 .dh-task-quick-edit__error {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-error-container);
+}
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-07 — the shared recurrence editor                                     */
+/*                                                                             */
+/* Phone-first and single-column at EVERY width. The panel is composed, not    */
+/* wide: number + unit sit side by side only above 26rem, the mode choices and  */
+/* the weekday row always stack/wrap, and every interactive target keeps the    */
+/* 44px minimum, so 320px needs no special case and never scrolls sideways.     */
+/* -------------------------------------------------------------------------- */
+.dh-recurrence-editor {
+  display: grid;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.dh-recurrence-editor__custom {
+  display: grid;
+  gap: var(--app-space-4);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-sunken);
+  min-width: 0;
+}
+
+.dh-recurrence-editor__every {
+  display: grid;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+@media (min-width: 26rem) {
+  .dh-recurrence-editor__every {
+    /* The number stays narrow; the unit takes the rest. Two columns rather than a
+     * ratio, so a long unit word can never squeeze the input below its target size. */
+    grid-template-columns: minmax(5rem, 7rem) minmax(0, 1fr);
+    align-items: end;
+  }
+}
+
+.dh-recurrence-editor__modes,
+.dh-recurrence-editor__weekdays {
+  display: grid;
+  gap: var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.dh-recurrence-editor__legend {
+  padding: 0;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Each mode is a full-width, 44px-tall card: the title says what it does and the
+ * help line says what happens when you finish late. Both are inside the label, so
+ * the whole block is one target and one accessible name. */
+.dh-recurrence-editor__mode {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "control title"
+    ".       help";
+  column-gap: var(--app-space-2);
+  align-items: center;
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  cursor: pointer;
+}
+
+.dh-recurrence-editor__mode:focus-within {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: var(--app-space-1);
+}
+
+.dh-recurrence-editor__mode > input {
+  grid-area: control;
+}
+
+.dh-recurrence-editor__mode-title {
+  grid-area: title;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-recurrence-editor__mode-help {
+  grid-area: help;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The selected mode is marked by the checked radio AND a stronger outline — the
+ * radio carries the state, the outline reinforces it. */
+.dh-recurrence-editor__mode[data-selected="true"] {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.dh-recurrence-editor__weekday-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+/* Seven 44px targets. They WRAP rather than shrink, so at 320px the row becomes two
+ * lines instead of seven unhittable squares. */
+.dh-recurrence-editor__weekday {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--app-touch-target-min);
+  min-height: var(--app-touch-target-min);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  cursor: pointer;
+  font-size: var(--md-sys-typescale-label-large-size);
+  color: var(--md-sys-color-on-surface);
+}
+
+/* The native checkbox is the control and the accessible state; it is visually
+ * replaced by the letter, never removed from the accessibility tree. */
+.dh-recurrence-editor__weekday > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dh-recurrence-editor__weekday:focus-within {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: var(--app-space-1);
+}
+
+.dh-recurrence-editor__weekday[data-selected="true"] {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 600;
+}
+
+.dh-recurrence-editor__hint {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The plain-language result. It is the panel's most important line, so it reads as a
+ * statement rather than a caption. */
+.dh-recurrence-editor__summary {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-recurrence-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.dh-recurrence-editor__error {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-error-container);
@@ -525,12 +684,97 @@
 
 .dh-tasks-bulk__select {
   display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+/*
+ * The bulk field's own name, beside its control. The `<select>`'s first option
+ * already states what the SELECTION currently holds ("Priority: Mixed"), so the
+ * visible label is short and the two together read as one sentence — and the label is
+ * a real `<span>` inside the `<label>`, never a placeholder pretending to be one.
+ */
+.dh-tasks-bulk__select-label {
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The delete CONFIRMATION replaces the bar in place rather than opening a dialog. The
+ * bar is already an anchored, contextual surface at the bottom of the collection, and
+ * a modal over the top of it would hide the very rows the count refers to.
+ */
+.dh-tasks-bulk--confirm {
+  border-color: var(--md-sys-color-error);
+}
+
+.dh-tasks-bulk__confirm-title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-tasks-bulk__confirm-body {
+  margin: 0;
+  max-width: var(--app-width-prose);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Selection mode with nothing chosen yet: an instruction, not a dead toolbar. */
+.dh-tasks-bulk--empty .dh-tasks-bulk__count {
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 400;
+}
+
+/*
+ * A destructive action that is REVERSIBLE and is not the bar's primary act. It reads
+ * as error-coloured text on the ordinary surface rather than a filled red button, so
+ * "Delete…" does not out-shout Complete — and the trailing ellipsis plus the
+ * confirmation step carry the consequence, never the colour alone (AGENTS.md §15).
+ */
+.dh-btn--danger-quiet {
+  color: var(--md-sys-color-error);
+  border-color: var(--md-sys-color-outline-variant);
+  background: transparent;
+}
+
+.dh-btn--danger-quiet:hover {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-error) var(--md-sys-state-hover-opacity),
+    transparent
+  );
 }
 
 .dh-tasks-bulk__status {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * TASKS-07 — the recurrence signal on a row: an icon PLUS the shared
+ * `taskRecurrenceLabel`. The icon is decorative reinforcement; the words carry the
+ * meaning, so a monochrome or screen-reader user loses nothing (AGENTS.md §15).
+ */
+.dh-task-repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+}
+
+.dh-task-repeat__icon {
+  flex: none;
+  width: var(--app-space-4);
+  height: var(--app-space-4);
+}
+
+.dh-task-repeat__label {
+  min-width: 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -549,10 +793,10 @@
     display: none;
   }
 
-  /* Section labels earn more weight on a phone: on a long stacked Matrix or
-   * Sectors page they are the only way to keep your place. (The Matrix and
+  /* Section labels earn more weight on a phone: on a long stacked grouped or
+   * Sectors page they are the only way to keep your place. (Grouped views and
    * Sectors views were already mobile-first stacked — TASKS-01 — so a phone has
-   * never seen a compressed 2×2 grid.) */
+   * never seen a compressed multi-column board.) */
   .dh-tasks-section__label {
     font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
@@ -560,13 +804,15 @@
   }
 
   .dh-tasks-focus,
-  .dh-tasks-sectors,
-  .dh-tasks-matrix {
+  .dh-tasks-sectors {
     gap: var(--app-space-5);
   }
 
   /* The bulk-action bar wraps into a scrollable row rather than a tall stack of
-   * buttons that would swallow the viewport, and clears the bottom navigation. */
+   * buttons that would swallow the viewport, and clears the bottom navigation.
+   * TASKS-08: the visible set is deliberately small — Complete · Date · Priority ·
+   * Move · More — so the row does not need to scroll for the common cases, and every
+   * target keeps the 44px minimum the shared button already guarantees. */
   .dh-tasks-bulk__actions {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -576,5 +822,12 @@
 
   .dh-tasks-bulk__actions > * {
     flex: none;
+  }
+
+  /* The confirmation is a decision, not a toolbar: it stacks so the consequence is
+   * read before either button is reachable, and it never scrolls sideways. */
+  .dh-tasks-bulk--confirm .dh-tasks-bulk__actions {
+    flex-wrap: wrap;
+    overflow-x: visible;
   }
 }

@@ -8,58 +8,60 @@
  * It never fetches or mutates.
  *
  * TASKS-03 moved the URL state to `tasks-url-state.ts` (one config codec) and the
- * wording to `tasks-presentation.ts` (one label vocabulary), so this file no longer
- * carries a Matrix-shaped special case: EVERY grouped view — Matrix, Sectors, and
- * the ordinary grouped List or Board — resolves through the one
+ * wording to `tasks-presentation.ts` (one label vocabulary), so EVERY grouped view —
+ * Time Sectors and the ordinary grouped List or Board — resolves through the one
  * `resolveGroupedSections`.
  */
 
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 import {
-  priorityQuadrant,
   taskDisplayState,
   taskPriorityTag,
   timeSectorLabel,
-  type EisenhowerQuadrant,
 } from "~/shared/task-record/task-view";
 import type { TaskPriority, TaskSystemView, TimeSector } from "~/kernel/tasks";
-import type { TaskPresentation } from "~/kernel/task-views";
+import type { TaskGroupBy, TaskPresentation } from "~/kernel/task-views";
 
 import type { TasksGrouping } from "./tasks-contract";
 import { TASKS_FILTER_PARAMS } from "./tasks-url-state";
 import {
   declaredBucketOrder,
   groupBucketLabel,
-  matrixSubtitle,
   showsEmptyBuckets,
 } from "./tasks-presentation";
 
 /**
- * The legacy `?view=` values TASKS-01 shipped, kept ONLY so existing links keep
- * working. TASKS-03 replaced the four "primary views" with one presentation
- * (`list`/`board`/`matrix`/`sectors`) plus explicit grouping, because "Focus" and
- * "All" were not layouts at all — they were a system view and no filter wearing a
- * layout switcher's clothes.
+ * The legacy `?view=` values earlier versions shipped, kept ONLY so existing links
+ * keep working. Each is expressed in the CURRENT config vocabulary, and each is
+ * reached by a one-way REDIRECT rather than a silent reinterpretation, so the address
+ * bar always states the configuration that is actually applied.
  *
- * `focus` therefore migrates to "the list, scoped to This Week" and `all` to "the
- * list, showing everything", each expressed in the ordinary config vocabulary. The
- * old URL keeps resolving to the same records; nothing new is built on it.
+ * `focus` was a system view and `all` the absence of a filter (TASKS-03's premise);
+ * both now mean "the list".
+ *
+ * `matrix` was a real presentation until V2.2 removed it (TASKS-05). It resolves to
+ * the ordinary list GROUPED BY PRIORITY — the closest honest equivalent, because the
+ * 2×2's cells were only ever the one stored priority field in a grid. The owner lands
+ * on the same records, grouped by the same signal, in the primary workspace. It is
+ * never an error page, and it never quietly drops the grouping either.
  */
 export const LEGACY_PRIMARY_VIEWS: Record<
   string,
-  { presentation: TaskPresentation; systemView: TaskSystemView }
+  {
+    presentation: TaskPresentation;
+    systemView: TaskSystemView;
+    groupBy?: TaskGroupBy;
+  }
 > = {
   focus: { presentation: "list", systemView: "this_week" },
   all: { presentation: "list", systemView: "all" },
-  matrix: { presentation: "matrix", systemView: "active" },
+  matrix: { presentation: "list", systemView: "active", groupBy: "priority" },
   sectors: { presentation: "sectors", systemView: "active" },
 };
 
 /**
- * Rewrite a legacy `?view=focus|all` link into the TASKS-03 vocabulary, returning
- * the params to redirect to, or null when the URL needs no migration. A one-way
- * redirect (never a silent reinterpretation) keeps the address bar honest about
- * which configuration is actually applied.
+ * Rewrite a legacy `?view=` link into the current vocabulary, returning the params to
+ * redirect to, or null when the URL needs no migration.
  */
 export function migrateLegacyViewParams(
   params: URLSearchParams,
@@ -67,11 +69,15 @@ export function migrateLegacyViewParams(
   const view = params.get("view");
   if (view === null || !(view in LEGACY_PRIMARY_VIEWS)) return null;
   const legacy = LEGACY_PRIMARY_VIEWS[view];
-  // `matrix`/`sectors` are still real presentations — they need no migration.
-  if (view === "matrix" || view === "sectors") return null;
+  // `sectors` is still a real presentation — it needs no migration.
+  if (view === "sectors") return null;
   const next = new URLSearchParams(params);
   next.set("view", legacy.presentation);
   if (next.get("system") === null) next.set("system", legacy.systemView);
+  // An explicit grouping already in the URL is the owner's, and wins.
+  if (legacy.groupBy !== undefined && next.get("group") === null) {
+    next.set("group", legacy.groupBy);
+  }
   return next;
 }
 
@@ -83,17 +89,20 @@ export interface TaskCardData {
   readonly priority: TaskPriority | null;
   /** The short priority tag ("P1"…"P4" / "—"), for text-only contexts. */
   readonly priorityTag: string;
-  readonly quadrant: EisenhowerQuadrant | null;
   readonly sector: TimeSector | null;
   readonly sectorLabel: string;
   readonly stateLabel: string;
   readonly stateTone: string;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
+  /** The structural parent, for the row's inline parent editor (TASKS-05). */
+  readonly parent: { readonly id: string; readonly title: string } | null;
   readonly parentLabel: string | null;
   readonly delegatedTo: string | null;
   readonly completed: boolean;
   readonly waiting: boolean;
+  /** The recurrence rule, for the row's shared recurrence signal (TASKS-07). */
+  readonly recurrence: SerializedTaskListItem["recurrence"];
 }
 
 /** Map a serialized list item into card-ready display data (pure). */
@@ -112,17 +121,21 @@ export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
     title: item.title,
     priority: item.priority,
     priorityTag: taskPriorityTag(item.priority),
-    quadrant: priorityQuadrant(item.priority),
     sector: item.timeSector,
     sectorLabel: timeSectorLabel(item.timeSector),
     stateLabel: state.label,
     stateTone: state.tone,
     dueDate: item.dueDate,
     scheduledDate: item.scheduledDate,
+    parent:
+      item.parent === null
+        ? null
+        : { id: item.parent.id, title: item.parent.title },
     parentLabel: item.parent?.title ?? null,
     delegatedTo: item.delegation?.to ?? null,
     completed: item.completedAt !== null,
     waiting: item.waiting !== null && item.completedAt === null,
+    recurrence: item.recurrence ?? null,
   };
 }
 
@@ -143,7 +156,6 @@ export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
 export interface GroupedSection {
   readonly key: string;
   readonly title: string;
-  readonly subtitle: string | null;
   readonly filterParam: string | null;
   readonly filterKey: string | null;
   readonly count: number;
@@ -163,10 +175,6 @@ const BUCKET_FILTERS: Record<
   string,
   { param: string; value: (key: string) => string | null }
 > = {
-  quadrant: {
-    param: TASKS_FILTER_PARAMS.priority,
-    value: (key) => (key === "untriaged" ? "__none" : key),
-  },
   priority: {
     param: TASKS_FILTER_PARAMS.priority,
     value: (key) => (key === "untriaged" ? "__none" : key),
@@ -221,11 +229,11 @@ function indexGrouping(grouping: TasksGrouping | null): Map<
 /**
  * Resolve a server grouping into ordered display sections (pure).
  *
- * Two rules, both taken from the specialist views rather than invented:
+ * Two rules, both taken from the planning view rather than invented:
  *
- *  - a CLOSED dimension renders in its DECLARED order, and — for the Matrix and
- *    Time Sectors only — every declared bucket appears even when empty, because a
- *    matrix missing a quadrant is not a matrix. Every other dimension hides empty
+ *  - a CLOSED dimension renders in its DECLARED order, and — for Time Sectors only —
+ *    every declared bucket appears even when empty, because a planning window with
+ *    nothing in it is itself the useful fact. Every other dimension hides empty
  *    buckets, where they would only be noise;
  *  - an OPEN-ENDED dimension (parent, delegate) is ordered by size, then by label,
  *    so the biggest group of work leads and the order is still deterministic.
@@ -243,7 +251,6 @@ export function resolveGroupedSections(
     return {
       key,
       title: groupBucketLabel(dimension, key, bucket?.label ?? null),
-      subtitle: matrixSubtitle(key),
       filterParam: filterKey === null ? null : (filter?.param ?? null),
       filterKey,
       count: bucket?.count ?? 0,

@@ -8,11 +8,12 @@
  *
  * Two deliberate vocabulary decisions are encoded here:
  *
- *   - **Priority IS the Eisenhower quadrant.** P1–P4 and Do/Defer/Delegate/Delete
- *     are one axis, not two (ADR-043 §2). Offering them as two filters would imply
- *     two independent fields and let a user build a contradiction. Instead the ONE
- *     priority filter carries BOTH vocabularies in its labels, and the Matrix keeps
- *     the methodological wording where it is genuinely methodological.
+ *   - **There is ONE priority vocabulary.** P1–P4, labelled by urgency. Until V2.2
+ *     the same stored field also carried the Eisenhower action words
+ *     (Do/Defer/Delegate/Delete) so the Matrix and the list could each read it their
+ *     own way; with the Matrix removed (TASKS-05) the second vocabulary had no
+ *     surface left, and keeping it would have meant maintaining two names for one
+ *     field to serve nothing.
  *   - **Every state carries a WORD.** No option, chip or heading relies on colour,
  *     an icon or a position to be understood (AGENTS.md §15).
  */
@@ -27,10 +28,7 @@ import {
   type TaskSort,
 } from "~/kernel/tasks";
 import {
-  priorityQuadrant,
-  quadrantActionLabel,
   taskPriorityLabel,
-  taskPriorityTag,
   taskStatusLabel,
   timeSectorLabel,
 } from "~/shared/task-record/task-view";
@@ -39,7 +37,6 @@ import {
 export const PRESENTATION_LABELS: Record<TaskPresentation, string> = {
   list: "List",
   board: "Board",
-  matrix: "Matrix",
   sectors: "Sectors",
 };
 
@@ -50,7 +47,6 @@ export const PRESENTATION_LABELS: Record<TaskPresentation, string> = {
 export const PRESENTATION_DESCRIPTIONS: Record<TaskPresentation, string> = {
   list: "One calm, ordered list.",
   board: "Grouped columns you can scan side by side.",
-  matrix: "The Eisenhower 2×2, for triage.",
   sectors: "Time Sectors, for planning windows.",
 };
 
@@ -126,27 +122,24 @@ export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * Priority labels carrying BOTH vocabularies: the everyday urgency word (UX-01) and
- * the Eisenhower action the Matrix uses, so one filter serves both mental models.
+ * The priority filter's labels: the ONE everyday urgency vocabulary (UX-01). Before
+ * V2.2 each option also carried the Matrix's action word; with the Matrix gone the
+ * filter and the chips say the same thing the row does.
  */
 export const PRIORITY_FILTER_LABELS: Record<string, string> = {
-  ...Object.fromEntries(
-    TASK_PRIORITIES.map((priority) => [
-      priority,
-      `${taskPriorityLabel(priority)} — ${quadrantActionLabel(
-        priorityQuadrant(priority)!,
-      )}`,
-    ]),
-  ),
-  __none: "No priority",
-};
-
-/** The short label used in a chip or a group heading (no methodology wording). */
-export const PRIORITY_SHORT_LABELS: Record<string, string> = {
   ...Object.fromEntries(
     TASK_PRIORITIES.map((priority) => [priority, taskPriorityLabel(priority)]),
   ),
   __none: "No priority",
+};
+
+/**
+ * The label used in a chip or a group heading. Identical to the filter's labels plus
+ * the SERVER's `untriaged` bucket key, so a filter option and the heading it produces
+ * can never read differently.
+ */
+export const PRIORITY_SHORT_LABELS: Record<string, string> = {
+  ...PRIORITY_FILTER_LABELS,
   untriaged: "No priority",
 };
 
@@ -155,43 +148,6 @@ export const SECTOR_LABELS: Record<string, string> = {
     TIME_SECTORS.map((sector) => [sector, timeSectorLabel(sector)]),
   ),
   __none: "No sector",
-};
-
-/**
- * The Eisenhower QUADRANT headings, used only by the Matrix.
- *
- * This is why `quadrant` and `priority` are separate grouping dimensions over the
- * same stored field: the Matrix is a method, and its quadrants are named by the
- * ACTION they prescribe. Everywhere else the same field reads as an everyday
- * priority, because "Delete / Review" is not a useful heading for a list.
- */
-export const QUADRANT_LABELS: Record<string, string> = {
-  ...Object.fromEntries(
-    TASK_PRIORITIES.map((priority) => [
-      priority,
-      `${taskPriorityTag(priority)} · ${quadrantActionLabel(
-        priorityQuadrant(priority)!,
-      )}`,
-    ]),
-  ),
-  untriaged: "Unprioritised",
-};
-
-/**
- * The Eisenhower quadrant's supporting line, shown as a Matrix section subtitle —
- * the one place the methodological wording is genuinely the point. `null` for any
- * key that is not a quadrant.
- */
-export function matrixSubtitle(key: string): string | null {
-  return QUADRANT_SUBTITLES[key] ?? null;
-}
-
-const QUADRANT_SUBTITLES: Record<string, string> = {
-  p1: "Urgent & important — do it",
-  p2: "Important, not urgent — defer it",
-  p3: "Urgent, not important — delegate it",
-  p4: "Neither — delete or review",
-  untriaged: "No priority yet",
 };
 
 /**
@@ -205,8 +161,6 @@ export function groupBucketLabel(
   labelFromServer: string | null,
 ): string {
   switch (dimension) {
-    case "quadrant":
-      return QUADRANT_LABELS[key] ?? key;
     case "priority":
       return PRIORITY_SHORT_LABELS[key] ?? key;
     case "sector":
@@ -240,7 +194,6 @@ export function declaredBucketOrder(
   dimension: string,
 ): readonly string[] | null {
   switch (dimension) {
-    case "quadrant":
     case "priority":
       return [...TASK_PRIORITIES, "untriaged"];
     case "sector":
@@ -259,11 +212,10 @@ export function declaredBucketOrder(
 /**
  * Whether EMPTY buckets of a dimension must still be rendered.
  *
- * Only the specialist planning views need them: an Eisenhower matrix with a missing
- * quadrant is not a matrix, and a Time Sectors board with a missing window hides
- * the fact that nothing is planned for it. Everywhere else an empty group is noise,
- * so it is hidden.
+ * Only the Time Sectors planning view needs them: a board with a missing window
+ * hides the fact that nothing is planned for it. Everywhere else an empty group is
+ * noise, so it is hidden.
  */
 export function showsEmptyBuckets(dimension: string): boolean {
-  return dimension === "quadrant" || dimension === "sector";
+  return dimension === "sector";
 }
