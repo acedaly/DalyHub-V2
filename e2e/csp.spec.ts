@@ -341,6 +341,61 @@ test.describe("AUDIT-10 — normal application use raises no CSP violation", () 
     expect(await violations(page)).toEqual([]);
   });
 
+  test("the Tasks daily driver's dynamic chrome raises none either", async ({
+    page,
+  }) => {
+    /*
+     * The resting-surface sweep above proves the pages LOAD cleanly. It cannot
+     * prove anything about chrome that is only constructed once a person starts
+     * working, and V2.2 put a lot of DalyHub's newest UI there: DS-16 anchored
+     * inline menus and date popovers on the row, a bulk action bar, a custom
+     * recurrence editor, and — on a phone — the shared Sheet. Every one of them
+     * mounts after hydration and several position themselves with inline styles,
+     * which is exactly the shape `style-src` refuses if the nonce discipline
+     * ever slips.
+     */
+    test.setTimeout(180_000);
+    await watchViolations(page);
+
+    await page.goto("/tasks?view=list&system=all");
+    await waitForInteractive(page);
+
+    // An inline priority menu, anchored and opened on the row.
+    const row = page.getByRole("article").first();
+    await row.hover();
+    await row
+      .getByRole("button", { name: /^Priority/ })
+      .first()
+      .click();
+    await expect(page.getByRole("menu").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // Selection mode and the bulk action bar.
+    await page.getByRole("button", { name: "Select tasks" }).click();
+    await page
+      .getByRole("checkbox", { name: /^Select / })
+      .first()
+      .check();
+    await expect(
+      page.getByRole("group", { name: "Bulk task actions" }),
+    ).toBeVisible();
+    await page
+      .getByRole("group", { name: "Bulk task actions" })
+      .getByRole("button", { name: "Done" })
+      .click();
+
+    // The same surfaces on a phone, where the shared Sheet replaces the
+    // anchored presentations.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/tasks?view=list&system=all");
+    await waitForInteractive(page);
+    await page.getByTestId("collection-filter-trigger").click();
+    await expect(page.getByTestId("collection-sheet")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    expect(await violations(page)).toEqual([]);
+  });
+
   test("the Notes writing surface injects its stylesheet with the nonce", async ({
     page,
   }) => {
