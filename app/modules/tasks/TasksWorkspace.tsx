@@ -1274,6 +1274,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             parents={data.parents}
             viewingDeleted={viewingDeleted}
             onCleared={clearSelection}
+            onAnnounce={quick.announce}
           />
         ) : selection.mode ? (
           // Selection mode with nothing chosen yet — the state a long press or the
@@ -1508,6 +1509,7 @@ function BulkActionBar({
   parents,
   viewingDeleted,
   onCleared,
+  onAnnounce,
 }: {
   readonly cards: readonly TaskCardData[];
   readonly ids: readonly string[];
@@ -1516,9 +1518,21 @@ function BulkActionBar({
   /** True on the Deleted view, where Restore replaces the destructive actions. */
   readonly viewingDeleted: boolean;
   readonly onCleared: () => void;
+  /**
+   * Announce a COMMITTED outcome through the workspace's own live region, and
+   * re-read the list.
+   *
+   * It cannot be announced from inside this bar. A successful bulk action clears the
+   * selection, which unmounts the bar in the same commit — so a message written to a
+   * live region that lives in here is destroyed before any assistive technology can
+   * read it, and the one confirmation a screen-reader user gets for an action on
+   * eighteen records is silence. The workspace's region outlives the selection, so
+   * that is where a committed outcome belongs. A REFUSAL still speaks from in here,
+   * because a refusal keeps the selection and the bar stays mounted beside it.
+   */
+  readonly onAnnounce: (message: string) => void;
 }) {
   const fetcher = useFetcher<TasksBulkResult>();
-  const revalidator = useRevalidator();
   const [status, setStatus] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -1539,12 +1553,12 @@ function BulkActionBar({
     if (processed.current === result) return;
     processed.current = result;
     if (result.ok) {
-      setStatus(
-        `${result.changed} ${result.changed === 1 ? "task" : "tasks"} ${lastVerb.current}, ${result.unchanged} unchanged.`,
-      );
       setConfirmDelete(false);
       setShowMore(false);
-      revalidator.revalidate();
+      // Announces AND revalidates, through the same channel every row mutation uses.
+      onAnnounce(
+        `${result.changed} ${result.changed === 1 ? "task" : "tasks"} ${lastVerb.current}, ${result.unchanged} unchanged.`,
+      );
       onCleared();
     } else {
       // A refusal keeps the selection: the owner's intent survives so they can fix the
@@ -1552,7 +1566,7 @@ function BulkActionBar({
       setStatus(result.formError);
       setConfirmDelete(false);
     }
-  }, [fetcher.state, fetcher.data, revalidator, onCleared]);
+  }, [fetcher.state, fetcher.data, onAnnounce, onCleared]);
 
   const busy = fetcher.state !== "idle";
 
