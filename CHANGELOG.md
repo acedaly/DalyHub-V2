@@ -17,6 +17,67 @@ no version number to group them under.
 
 ---
 
+## Record screens: one anatomy, and the working content back above the fold (#131)
+
+Collection screens converged in #130. This does the same for the screens you
+actually work in — a Project, an Area, a Goal, a Note, a Meeting, a Person, an
+Asset, a Review and a Task — so they read as one product rather than nine.
+
+### The thing you came for is now on screen
+
+- **A Project's task list used to start 60px below the bottom of a 1280×800
+  laptop screen.** You opened a project and saw no tasks at all until you
+  scrolled. It now starts a third of the way down, with five tasks visible.
+- Every record type is held to the same rule: with the header and tabs drawn,
+  the first row of a record's working content is visible without scrolling.
+- A Note's editor starts higher, is wider, and no longer sits in a box inside a
+  box — the frame around the writing surface was being drawn twice.
+
+### Each fact said once
+
+- A Project record stated its task count three times, its health twice, its Area
+  twice, its state twice, and each of six health signals twice. It now states
+  each of them once.
+- An Area with nothing active said so **four times** — twice in the header, once
+  in a roll-up line, and again inside a card nested in another card. It now says
+  it in one sentence.
+- The same pass removed duplicated identity from the Asset overview, duplicated
+  status from the Meeting overview, and the word "Weekly" three times in the
+  first two lines of a weekly Review.
+- **Nothing was deleted.** Created, Updated and raw state moved to each record's
+  **Settings → Record details**, which is where you go for a record's paperwork.
+
+### Clearer actions
+
+- **Complete** is no longer the loudest button on a Project, a Goal or a Review.
+  Ending a record is a lifecycle action, not the next thing you came to do.
+- **A Person now offers Call and Email** (and Message where you have a mobile),
+  and only when you actually have that contact detail — no more greyed-out
+  buttons that can never do anything. Creating a task, meeting, note or diary
+  entry for that person, and copying their details, moved into the record's ⋯
+  menu, still linked to them.
+- **An Asset's history** led with six identical-looking links. It now leads with
+  the one that fits the asset — Record service for something serviceable, Record
+  renewal for a policy or licence — with the rest in the ⋯ menu.
+- Filters inside a record are now visibly quieter than the record's tabs, so
+  "where am I" and "which subset" stop competing.
+
+### A meeting you can still read
+
+- The capture strip at the bottom of a Meeting took nearly a fifth of a laptop
+  screen. It is now one row instead of two, quieter, and it no longer sits
+  underneath the global **+** button — which had been making its own Add button
+  unclickable.
+- On a phone it still stacks, because a thumb needs the targets.
+
+### Fixed along the way
+
+- Every editable record title in the product was carrying about 29px of invisible
+  space beneath it, which pushed the entity icon and the status pill below the
+  title they sit beside.
+
+---
+
 ## Collection header, view switching, overflow-menu placement and Project identity colour (#130)
 
 Finishes the collection-level convergence the August 2026 UI quality audit

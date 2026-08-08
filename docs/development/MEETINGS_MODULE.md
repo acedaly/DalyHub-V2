@@ -484,3 +484,31 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## Record-screen anatomy and the capture strip (RECORD-01, #131)
+
+The Meeting record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract).
+
+**The sticky capture strip is one row above the tablet boundary.** The stacked
+layout — four wrapping full-width type buttons above an input and a Save button
+— is a *phone* layout, and on a laptop it cost ~155px of an 800px viewport,
+permanently, on the record whose content the owner is reading while capturing
+into it. Above `48rem` the same controls sit on one row at ~68px, the four types
+take their natural width, and the record's own reservation halves with it.
+Nothing is hidden, nothing scrolls, and every target stays at 44px. On a phone
+it still stacks, because a thumb needs the targets.
+
+The type buttons also dropped from primary weight (a `primary-container` fill
+under an inset accent ring) to a quiet toolbar treatment: selection is still a
+fill plus a border plus `aria-pressed`, it is simply no longer the loudest thing
+on the record.
+
+**The strip clears the global + FAB.** Collapsing to one row put the strip's own
+Add button directly under the global capture button — two capture affordances on
+the same pixels, the nearer one unclickable. The inset is derived from the FAB's
+own tokens so it cannot drift.
+
+Elsewhere: the Overview's "Status" row is gone (the header's status pill states
+it), and each structured item form says "Add {kind}" once — as the field label —
+with the button reading "Add" and keeping the specific accessible name.

@@ -509,3 +509,19 @@ repository and its REVIEW-02 optimistic-concurrency contract. Authored text is
 never overwritten, and the Review is never completed automatically.
 
 Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).
+
+## Record-screen anatomy (RECORD-01, #131)
+
+The Review record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract). It was
+already close; what changed is metadata duplication and action weight.
+
+"Weekly" appeared three times in the record's first two lines — a "Weekly
+Review" eyebrow, a "Type: Weekly" context chip, and a title that already begins
+"Weekly review". The eyebrow is gone (the breadcrumb says "Reviews"), and Type
+and Template — the latter being the template's raw id, which is administrative
+rather than current state — moved to Settings → Record details. The context line
+keeps what the title cannot say precisely (the exact period) and what changes as
+the owner works (how much of the reflection is authored).
+
+**Complete** takes the same low-emphasis treatment as a Project's and a Goal's.
