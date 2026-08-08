@@ -840,7 +840,10 @@ They are small and well-understood; none of them blocks the V2 release.*
   global `+` → Asset at 390px, a physical and a documentary Asset end-to-end, type
   switching, validation that keeps the words and the surface, cancel-without-mutation
   with focus returned to the opener, keyboard-only operation, axe in light and dark,
-  the 320/375/390/430px matrix, and a 1280px desktop regression.
+  the 320/375/390/430px matrix, and a 1280px desktop regression. Nine screenshots
+  in [`docs/product/assets/asset-03-2026-08/`](../product/assets/asset-03-2026-08/).
+  The initial client bundle is byte-for-byte unchanged (+6,022 B total, all lazy),
+  and opening capture performs no new reads.
 - **Priority.** P3 — closed. See
   [`ASSETS_MODULE.md` → ASSET-03](../development/ASSETS_MODULE.md#asset-03--phone-first-capture-2026-08-08).
 

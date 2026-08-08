@@ -791,6 +791,24 @@ minimum viable Asset is still a name and a type.
   at. Other forms still surface the summary on blur; converging them is a follow-up,
   not something this item changed under cover of an Assets PR.
 
+### What it costs
+
+Production `pnpm run build`, client JS, measured on the same machine before and
+after (chunk hashes stripped, sizes aggregated per name):
+
+| | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| Total client JS | 2,104,141 B | 2,110,163 B | **+6,022 B (+0.29%)** |
+| Chunks | 202 | 204 | +2 |
+| `entry.client` | 182,542 B | 182,542 B | **0** |
+
+The initial bundle is byte-for-byte unchanged. `AssetCapturePanel` is its own
+813 B lazy chunk and `NewAssetForm` a 4,276 B one shared with `/new/asset`, so
+nothing Asset-shaped loads until someone chooses to capture an Asset. Opening
+the capture surface performs **no new reads**: the form needs the type
+vocabulary, which is a static kernel constant — no Areas, People, history or
+obligations are fetched to create an Asset.
+
 ### Proof
 
 [`e2e/assets-mobile-capture.spec.ts`](../../e2e/assets-mobile-capture.spec.ts):
@@ -802,4 +820,9 @@ opener; Escape scoped to the type sheet; keyboard-only operation; the type sheet
 grouping, wording and touch targets; axe in light and dark; 320/375/390/430px; and a
 1280px desktop regression. Unit coverage sits in `test/unit/assets/` and
 `test/unit/forms/select-sheet.test.tsx`; the create boundary is exercised against
-real Workers/D1 in `test/kernel/asset-create-route.test.ts`.
+real Workers/D1 in `test/kernel/asset-create-route.test.ts`. Nine screenshots —
+the chooser, the form before and after a type is chosen for two very different
+types, the picker in light and dark, validation, the created record and the
+desktop page — are in
+[`docs/product/assets/asset-03-2026-08/`](../product/assets/asset-03-2026-08/),
+captured by the opt-in `e2e/assets-mobile-capture-screenshots.spec.ts`.

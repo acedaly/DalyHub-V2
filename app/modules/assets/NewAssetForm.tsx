@@ -26,7 +26,6 @@ import { useMemo } from "react";
 import type { RefObject } from "react";
 
 import { type AssetType } from "~/kernel/assets";
-import { SubtypeIcon } from "~/shared/entity";
 import {
   DateField,
   Form,
@@ -43,6 +42,7 @@ import {
 import { useCompactViewport } from "~/shared/viewport";
 
 import { assetTypeOptions, newAssetFieldsForType } from "./asset-form-model";
+import { assetTypeIcon } from "./asset-icons";
 import type { CreateAssetResult } from "./routes/create";
 
 type Values = {
@@ -261,9 +261,15 @@ export function NewAssetForm({
         options={TYPE_OPTIONS}
         sheetOnCompact
         sheetTitle="What kind of asset?"
-        renderOptionIcon={(option) => (
-          <SubtypeIcon entityType="asset" subtype={option.value} />
-        )}
+        renderOptionIcon={(option) => {
+          // The PX-05 map directly rather than through the shared registry: the
+          // registry is populated by importing this module, and capture may be
+          // the FIRST thing that renders an Asset type — a lazily-loaded picker
+          // showing the same fallback glyph on all thirteen rows is a row of
+          // decoration that tells the owner nothing.
+          const Icon = assetTypeIcon(option.value);
+          return <Icon />;
+        }}
         {...form.field("assetType")}
       />
       {revealed.map((f) =>
