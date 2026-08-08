@@ -61,6 +61,7 @@ export function MarkdownEditorField({
   disabled,
   readOnly,
   showOptionalCue = true,
+  controlRef,
   className,
   rows = 6,
   placeholder,
@@ -121,6 +122,11 @@ export function MarkdownEditorField({
         // disabled control is the same lie as an enabled button that does
         // nothing.
         onCommit={onCommit && !disabled && !readOnly ? onCommit : undefined}
+        // The form host's first-invalid focus and its error-summary links need a
+        // focusable node for this field. Without forwarding it, a refused
+        // Markdown field is the one control in a form the keyboard cannot reach
+        // from its own error message.
+        surfaceRef={controlRef}
         help={help}
         error={error ?? null}
         placeholder={placeholder}

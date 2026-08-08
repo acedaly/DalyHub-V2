@@ -630,6 +630,92 @@
   align-items: center;
 }
 
+/* ------------------------------------------- The compact select (ASSET-03) */
+
+/*
+ * The phone presentation of the SAME select: a trigger the size of a field that
+ * opens the shared option Sheet. It borrows the text field's box so a form does
+ * not visibly change control family between a text input and a select.
+ */
+.dh-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  inline-size: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  min-block-size: 3.5rem;
+  padding-block: var(--app-space-2);
+  padding-inline: var(--app-space-4);
+  font: inherit;
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  color: var(--md-sys-color-on-surface);
+  background: transparent;
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-select-trigger[data-placeholder] .dh-select-trigger__value {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-select-trigger:disabled {
+  cursor: not-allowed;
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
+
+/* A long type label wraps inside the trigger rather than widening the page. */
+.dh-select-trigger__value {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-select-trigger__icon {
+  flex: none;
+  display: inline-flex;
+  line-height: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-field--select-sheet[data-invalid] .dh-select-trigger {
+  border-color: var(--md-sys-color-error);
+}
+
+/* Groups are PRESENTATION: a heading over the shared option rows, never data. */
+.dh-select-sheet__group + .dh-select-sheet__group {
+  margin-block-start: var(--app-space-4);
+}
+
+.dh-select-sheet__group-title {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-select-sheet__empty {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-select-sheet__clear {
+  margin-block-start: var(--app-space-4);
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  font: inherit;
+  color: var(--md-sys-color-on-surface);
+  background: transparent;
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-medium);
+  cursor: pointer;
+}
+
 /* Select chips (multi) */
 .dh-select__chips,
 .dh-link-picker__links {

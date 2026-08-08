@@ -180,6 +180,7 @@ AUDIT-13 means the flows the audit named and not everything shaped like them:
 |---|---|---|
 | AI: accept an unsourced Task (`applyUnsourcedTask`) | was `createTask` + `updateTask({description})` | **Fixed here**, because `createTask` now takes a description. It has no relationship to write afterwards, so accepting an unsourced Task is atomic outright, with nothing to compensate. |
 | AI: accept a Task proposed from a Note (`applyNoteTask`) | was `createTask` + `updateTask({description})` + `entityLinks.create`, compensating | **Partly fixed**: the description transaction is gone, so an invalid one now fails before anything is written instead of being compensated. The link still follows, still compensated. |
+| AI: accept a Task proposed from a Meeting (`applyMeetingTask`) | find-or-create the action item, then convert | **Fixed in review**: it was the one acceptance path not wrapped in the file's own `guarded` replay claim, so two SIMULTANEOUS accepts each created their own action item, each got a different item id, and the conversion's `(workspace_id, item_id)` index could not arbitrate — two Tasks for one approved proposal. Now claimed on the same deterministic acceptance key the Note and unsourced paths use. |
 | Quick capture with a context (`/tasks` `new`) | `createTask` + `applyCaptureRelationship`, compensating | **Untouched.** |
 | Create a Task for an obligation (`/assets/:id/history`) | `createTask` + `linkObligationTask` + `entityLinks.create` | **Untouched.** |
 

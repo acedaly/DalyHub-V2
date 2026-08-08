@@ -100,6 +100,24 @@ caller to get wrong.
   re-reads and returns the winner's Task.
 - **A failure leaves NO row.** Not a soft-deleted Task, not a stale mapping, not an
   orphaned event. A retry is therefore a first attempt.
+- **The lifecycle is re-asserted IN the batch, not trusted from the pre-read.** The
+  conversion reads a live, unarchived Meeting and a live source item — and either
+  can change in the gap before the batch runs. So the same conditions are AND-ed
+  into the Task's own create gate as SQL (`buildConversionLifecycleGuard`): a
+  Meeting archived, or an item removed, in that gap makes the entity insert change
+  no row, and every statement gated on that Task declines with it. This is the
+  protection `addItem`, `removeItem` and `markHeld` already apply here, and it
+  matters more for the mapping than for them, because
+  `meeting_item_tasks.item_id` carries **no** foreign key to `meeting_items` —
+  nothing in the schema would otherwise stop a mapping pointing at an item that no
+  longer exists. A declined create is then DIAGNOSED from fresh state, so the owner
+  is told the true reason: archived, item gone, or parent unavailable.
+- **The mapping insert is gated on the Task's entity row existing**, which also
+  keeps the create's own typed errors intact. Ungated, a create that declined for
+  an unavailable parent still wrote the conversion event, whose Task SUBJECT then
+  failed an `activity_subjects → entities` foreign key — replacing
+  `SpineParentUnavailableError` ("choose another parent") with an opaque storage
+  fault ("try again").
 - **Stale-mapping recovery.** If a converted Task was later deleted (canonical Task
   lifecycle), the item becomes convertible again, and the stale mapping's DELETE is
   part of the re-conversion's OWN batch rather than a write that could commit
@@ -129,7 +147,10 @@ second, so there is no duplicate and nothing is lost.
 
 **Evidence.** `test/kernel/audit-13-atomic-operations.test.ts` and
 `test/kernel/meeting-follow-up.test.ts` (real Workers runtime, real D1, no mocks):
-success commits everything; a fault after the Task's statements, after the mapping
+success commits everything; a Meeting archived, or a source item removed, between
+the pre-read and the batch refuses with the right typed error and commits nothing;
+an unavailable parent raises `SpineParentUnavailableError` rather than a raw
+storage failure; a fault after the Task's statements, after the mapping
 or after the link commits nothing — asserted against **every** `entities` row of
 type `task`, including soft-deleted ones, so "rolled back" is distinguishable from
 "compensated"; a retry yields exactly one Task, one mapping, one link and one

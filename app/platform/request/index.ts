@@ -11,6 +11,9 @@ export {
   getAuthenticatedSession,
   requireAuthenticatedSession,
   getDisplayIdentity,
+  cspNonceContext,
+  setCspNonce,
+  getCspNonce,
 } from "./authenticated-request-context";
 
 export {
@@ -19,7 +22,19 @@ export {
   withSecurityHeaders,
   buildUnauthenticatedResponse,
   buildCrossOriginRejectionResponse,
+  createSecurityHeaderOptions,
+  AUTHENTICATED_CACHE_CONTROL,
+  type SecurityHeaderOptions,
 } from "./security-headers";
+
+export {
+  buildContentSecurityPolicy,
+  createCspNonce,
+  isValidCspNonce,
+  resolveCspMode,
+  type CspMode,
+  type CspModeEnv,
+} from "./content-security-policy";
 
 export {
   evaluateMutationProvenance,

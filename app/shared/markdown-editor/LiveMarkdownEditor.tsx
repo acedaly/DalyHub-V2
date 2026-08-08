@@ -95,6 +95,20 @@ export interface LiveMarkdownEditorProps {
    * that appears to do something and does not is worse than no shortcut.
    */
   readonly onCommit?: () => void;
+  /**
+   * A ref to the focusable WRITING SURFACE, whichever one is live.
+   *
+   * A form host needs this: when the server refuses a Markdown field — an
+   * oversized Diary body, a rejected Task description — `useForm`'s
+   * `focusFirstInvalid` and the error-summary links move focus to the control that
+   * failed, and a control that reports no focusable node simply cannot be reached
+   * that way (AGENTS.md §15: keyboard-complete, and announce change). It resolves
+   * to the SSR/no-JS textarea before enhancement and to the CodeMirror content
+   * element after it, so the contract does not depend on enhancement having
+   * happened. Focusing the content element puts the caret in the document, which
+   * is where an author being sent to fix their text wants it.
+   */
+  readonly surfaceRef?: (node: HTMLElement | null) => void;
   /** Accessible name for the writing surface and its region. */
   readonly label: string;
   /** Optional help text under the editor. */
@@ -185,6 +199,7 @@ export function LiveMarkdownEditor({
   onChange,
   onBlur,
   onCommit,
+  surfaceRef,
   label,
   help,
   error,
@@ -211,6 +226,8 @@ export function LiveMarkdownEditor({
   onBlurRef.current = onBlur;
   const onCommitRef = useRef(onCommit);
   onCommitRef.current = onCommit;
+  const surfaceRefCallback = useRef(surfaceRef);
+  surfaceRefCallback.current = surfaceRef;
   const valueRef = useRef(value);
   valueRef.current = value;
   const autoFocusRef = useRef(autoFocusOnMount);
@@ -316,6 +333,10 @@ export function LiveMarkdownEditor({
                 }),
               });
               viewRef.current = view;
+              // The live surface is now the focusable one. `contentDOM` is the
+              // element CodeMirror gives `role="textbox"`, so a host focusing it
+              // lands the caret in the document rather than on a wrapper.
+              surfaceRefCallback.current?.(view.contentDOM);
               // Reconfiguration, not re-creation: a later disable must not cost
               // the author their undo history or their caret.
               setEditableRef.current = (editable) =>
@@ -341,6 +362,7 @@ export function LiveMarkdownEditor({
         cleanupRef.current = null;
         setEditableRef.current = null;
         if (viewRef.current) {
+          surfaceRefCallback.current?.(null);
           viewRef.current.destroy();
           viewRef.current = null;
         }
@@ -612,7 +634,12 @@ export function LiveMarkdownEditor({
         <div className="dh-md-editor__surface">
           {!editorReady ? (
             <textarea
-              ref={fallbackRef}
+              ref={(node) => {
+                fallbackRef.current = node;
+                // Only while the fallback IS the writing surface: once CodeMirror
+                // mounts, the ref above takes over and this element is gone.
+                if (!editorReady) surfaceRefCallback.current?.(node);
+              }}
               className="dh-md-editor__fallback"
               value={value}
               rows={rows}

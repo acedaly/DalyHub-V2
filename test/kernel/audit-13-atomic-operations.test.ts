@@ -27,7 +27,12 @@ import {
   ASSET_OBLIGATION_COMPLETED,
   AssetNotFoundError,
 } from "~/kernel/assets";
-import { MeetingNotFoundError } from "~/kernel/meetings";
+import {
+  MeetingArchivedError,
+  MeetingItemNotFoundError,
+  MeetingNotFoundError,
+} from "~/kernel/meetings";
+import { SpineParentUnavailableError } from "~/kernel/spine";
 import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
 
 import {
@@ -95,15 +100,25 @@ async function countRelatesLinkRows(ws = WS): Promise<number> {
 /* 1. Meeting item → Task                                                     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Distinct id sequences per harness. Two harnesses in one test represent two
+ * REQUESTS, and two requests never share an id generator — giving them the same
+ * `sequentialIds` prefix makes them collide on the `activities` primary key and
+ * turns every race test into a uniqueness error that hides what it meant to probe.
+ */
+let harnessSeq = 0;
+
 function meetingHarness(
   ws: string,
   options: Parameters<typeof makeMeetingTaskConversionRepository>[1] = {},
 ) {
+  harnessSeq += 1;
+  const tag = `${ws}-h${harnessSeq}`;
   const context = makeContext(ws);
   const shared = {
     clock: new FakeClock().now,
-    idGenerator: sequentialIds(`${ws}-ent`),
-    activityIdGenerator: sequentialIds(`${ws}-act`),
+    idGenerator: sequentialIds(`${tag}-ent`),
+    activityIdGenerator: sequentialIds(`${tag}-act`),
   };
   const meetings = makeMeetingRepository(context, shared);
   const tasks = makeTaskRepository(context, {
@@ -263,6 +278,88 @@ describe("AUDIT-13 — meeting item → Task is one transaction", () => {
     expect(await countMeetingItemTaskRows()).toBe(1);
     expect(await countActivitiesOfType(MEETING_ITEM_CONVERTED_TO_TASK)).toBe(1);
     expect((await seed.tasks.getTask(loser.taskId))?.title).toBe("Winner");
+  });
+
+  it("a Meeting archived between the read and the batch commits NOTHING", async () => {
+    const seed = meetingHarness(WS);
+    const { area, meeting, item } = await seedMeetingAndItem(seed);
+
+    // The lifecycle check happens before the batch. Archive the Meeting in that
+    // gap: the batch must refuse rather than convert against a read-only record.
+    const racing = meetingHarness(WS, {
+      raceHook: async () => {
+        await seed.meetings.archive(meeting.id);
+      },
+    });
+
+    await expect(
+      racing.conversions.convert({
+        meetingId: meeting.id,
+        itemId: item.id,
+        task: { title: "Too late", parent: { kind: "area", id: area.id } },
+      }),
+    ).rejects.toBeInstanceOf(MeetingArchivedError);
+
+    expect(await countAllTaskRows()).toBe(0);
+    expect(await countMeetingItemTaskRows()).toBe(0);
+    expect(await countRelatesLinkRows()).toBe(0);
+    expect(await countActivitiesOfType(MEETING_ITEM_CONVERTED_TO_TASK)).toBe(0);
+  });
+
+  it("a source item removed between the read and the batch commits NOTHING", async () => {
+    const seed = meetingHarness(WS);
+    const { area, meeting, item } = await seedMeetingAndItem(seed);
+
+    // `meeting_item_tasks.item_id` has NO foreign key to `meeting_items`, so
+    // nothing in the schema stops a mapping pointing at an item that is gone.
+    const racing = meetingHarness(WS, {
+      raceHook: async () => {
+        await seed.meetings.removeItem(meeting.id, item.id);
+      },
+    });
+
+    await expect(
+      racing.conversions.convert({
+        meetingId: meeting.id,
+        itemId: item.id,
+        task: {
+          title: "Orphan mapping?",
+          parent: { kind: "area", id: area.id },
+        },
+      }),
+    ).rejects.toBeInstanceOf(MeetingItemNotFoundError);
+
+    expect(await countAllTaskRows()).toBe(0);
+    expect(await countMeetingItemTaskRows()).toBe(0);
+    expect(await countRelatesLinkRows()).toBe(0);
+    expect(await countActivitiesOfType(MEETING_ITEM_CONVERTED_TO_TASK)).toBe(0);
+  });
+
+  it("an unavailable parent raises the TYPED parent error, not a raw storage failure", async () => {
+    const h = meetingHarness(WS);
+    const { meeting, item } = await seedMeetingAndItem(h);
+    const foreignArea = await meetingHarness(OTHER).spine.createArea({
+      title: "Their area",
+    });
+
+    // The Task's entity insert is parent-gated and changes no row. Everything
+    // after it must decline too — including the conversion event, whose Task
+    // SUBJECT would otherwise fail an `activity_subjects → entities` foreign key
+    // and surface as an opaque storage error instead of "choose another parent".
+    await expect(
+      h.conversions.convert({
+        meetingId: meeting.id,
+        itemId: item.id,
+        task: {
+          title: "Cross-workspace parent",
+          parent: { kind: "area", id: foreignArea.id },
+        },
+      }),
+    ).rejects.toBeInstanceOf(SpineParentUnavailableError);
+
+    expect(await countAllTaskRows()).toBe(0);
+    expect(await countMeetingItemTaskRows()).toBe(0);
+    expect(await countActivitiesOfType(MEETING_ITEM_CONVERTED_TO_TASK)).toBe(0);
   });
 
   it("workspace isolation: another workspace cannot convert this meeting's item", async () => {
@@ -442,34 +539,31 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     expect((await h.tasks.getTask(taskId))?.completedAt).not.toBeNull();
   });
 
-  it("Activity tells the truth: an open linked Task reads `completed`", async () => {
+  it("the reported outcome tells the truth: an open linked Task reads `completed`", async () => {
     const h = assetHarness(WS);
     const linked = await seedObligationWithTask(h);
-    await h.history.completeObligation(linked.obligation.id);
-    expect(
-      JSON.parse(
-        (await latestActivityPayload(ASSET_OBLIGATION_COMPLETED)) ?? "{}",
-      ),
-    ).toMatchObject({ taskOutcome: "completed" });
+
+    const result = await h.history.completeObligation(linked.obligation.id);
+
+    expect(result.taskOutcome).toBe("completed");
+    // And the Task's own event — the authority — was appended by the same batch.
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
+    expect((await h.tasks.getTask(linked.taskId))?.completedAt).not.toBeNull();
   });
 
-  it("Activity tells the truth: an already-ticked Task reads `already_closed`, with no second task.completed", async () => {
+  it("the reported outcome tells the truth: an already-ticked Task reads `already_closed`, with no second task.completed", async () => {
     const h = assetHarness(WS);
     const closed = await seedObligationWithTask(h);
     await h.tasks.completeTask(closed.taskId);
     const before = await countActivitiesOfType(TASK_COMPLETED);
 
-    await h.history.completeObligation(closed.obligation.id);
+    const result = await h.history.completeObligation(closed.obligation.id);
 
-    expect(
-      JSON.parse(
-        (await latestActivityPayload(ASSET_OBLIGATION_COMPLETED)) ?? "{}",
-      ),
-    ).toMatchObject({ taskOutcome: "already_closed" });
+    expect(result.taskOutcome).toBe("already_closed");
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(before);
   });
 
-  it("Activity tells the truth: an obligation with no Task reads `none`", async () => {
+  it("the reported outcome tells the truth: an obligation with no Task reads `none`", async () => {
     const h = assetHarness(WS);
     const asset = await h.assets.create({
       title: "Mower",
@@ -481,13 +575,81 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
       dueDate: "2026-07-01",
     });
 
-    await h.history.completeObligation(bare.id);
+    const result = await h.history.completeObligation(bare.id);
 
-    expect(
-      JSON.parse(
-        (await latestActivityPayload(ASSET_OBLIGATION_COMPLETED)) ?? "{}",
-      ),
-    ).toMatchObject({ taskOutcome: "none" });
+    expect(result.taskOutcome).toBe("none");
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
+  });
+
+  it("a Task closed by another request in the gap is reported as already_closed, not completed", async () => {
+    const h = assetHarness(WS);
+    const { obligation, taskId } = await seedObligationWithTask(h);
+
+    // The planner reads the Task as OPEN, then it is closed before the batch runs.
+    // The Task's completion gate (`completed_at IS NULL`) changes no row, so this
+    // operation did NOT close it — and must not say it did.
+    const planner = h.tasks;
+    const racing = assetHarness(WS, {
+      taskCompletionPlanner: {
+        async planCompletion(id, options) {
+          const plan = await planner.planCompletion(id, options);
+          await planner.completeTask(id);
+          return plan;
+        },
+      },
+    });
+
+    const result = await racing.history.completeObligation(obligation.id);
+
+    expect(result.obligation.status).toBe("completed");
+    expect(result.taskOutcome).toBe("already_closed");
+    expect((await h.tasks.getTask(taskId))?.completedAt).not.toBeNull();
+    // Exactly ONE `task.completed` — the racer's. This operation invented none.
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
+  });
+
+  it("a Task deleted in the gap is reported as missing, not completed", async () => {
+    const h = assetHarness(WS);
+    const { obligation, taskId } = await seedObligationWithTask(h);
+    const spine = makeSpineRepository(makeContext(WS));
+
+    const planner = h.tasks;
+    const racing = assetHarness(WS, {
+      taskCompletionPlanner: {
+        async planCompletion(id, options) {
+          const plan = await planner.planCompletion(id, options);
+          await spine.softDelete(id);
+          return plan;
+        },
+      },
+    });
+
+    const result = await racing.history.completeObligation(obligation.id);
+
+    expect(result.obligation.status).toBe("completed");
+    // This is the case the pre-batch value got outright wrong: it claimed the
+    // operation completed a Task that no longer existed.
+    expect(result.taskOutcome).toBe("missing");
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
+    expect(taskId).toBeTruthy();
+  });
+
+  it("the obligation event no longer restates the Task's outcome — the Task's own event is the authority", async () => {
+    const h = assetHarness(WS);
+    const { obligation } = await seedObligationWithTask(h);
+
+    await h.history.completeObligation(obligation.id);
+
+    const payload: unknown = JSON.parse(
+      (await latestActivityPayload(ASSET_OBLIGATION_COMPLETED)) ?? "{}",
+    );
+    // Structural facts only, and NOT a second copy of "was the Task completed" —
+    // a payload serialised before the batch cannot know, and two events asserting
+    // one fact is how they come to disagree.
+    expect(payload).not.toHaveProperty("taskOutcome");
+    expect(payload).toMatchObject({ createdSuccessor: false });
+    // The authority is the Task's own event, appended by the SAME batch.
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
   });
 
   it("workspace isolation: another workspace's obligation cannot be completed, and its Task is untouched", async () => {

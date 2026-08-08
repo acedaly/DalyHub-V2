@@ -311,6 +311,23 @@ async function recordOfflineBoot(now) {
 }
 
 /**
+ * AUDIT-10 — the policy for a document this worker SYNTHESISES.
+ *
+ * These two pages (`missingShellDocument`, `safeModeDocument`) are built here,
+ * from string literals in this file, and never pass through the Worker boundary
+ * — so they cannot be given a per-response nonce. They do not need one: they
+ * carry NO script of any kind, which is the property safe mode depends on. So
+ * their policy is stricter than the application's rather than looser: nothing
+ * loads, nothing connects, nothing submits, and the single exception is the one
+ * inline `<style>` block that paints them (they deliberately request no
+ * stylesheet, because zero subresources is what makes them survivable offline).
+ */
+const SYNTHETIC_DOCUMENT_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; " +
+  "script-src 'none'; base-uri 'none'; form-action 'none'; " +
+  "frame-ancestors 'none'; object-src 'none'";
+
+/**
  * The Worker's baseline security headers, restated here.
  *
  * A response this worker SYNTHESISES never passed through the Worker boundary,
@@ -318,14 +335,21 @@ async function recordOfflineBoot(now) {
  * are duplicated deliberately rather than derived: `security-headers.ts` remains
  * the source of truth, and the emitted-worker test asserts they are present here
  * too, so the duplication cannot rot silently.
+ *
+ * `csp` is the one directive that cannot be a constant. A response REPLAYED from
+ * the cache must keep the `Content-Security-Policy` it was served with, because
+ * that header names the nonce baked into that exact HTML; substituting a
+ * nonce-less policy would stop the cached offline shell from running its own
+ * scripts. Synthesised responses pass no `csp` and get the script-free policy
+ * above.
  */
-function securityHeaders(extra) {
+function securityHeaders(extra, csp) {
   return new Headers({
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy":
-      "base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    "Content-Security-Policy": csp || SYNTHETIC_DOCUMENT_CSP,
     "X-Frame-Options": "DENY",
+    "Cross-Origin-Opener-Policy": "same-origin",
     ...extra,
   });
 }
@@ -437,14 +461,24 @@ async function serveOfflineNavigation(url) {
   // Served with 200 so the browser renders it as a normal page. The document
   // itself states plainly that it is the offline shell, and shows the last
   // successful sync time — it never pretends to be the live page.
+  //
+  // AUDIT-10 — the cached response's OWN `Content-Security-Policy` is replayed
+  // with it. That header names the nonce the server put on this document's
+  // scripts; a substituted policy would name a different nonce (or none) and the
+  // shell would not boot. The rest of the baseline headers are still re-applied
+  // here so a cache entry can never serve a document with fewer protections than
+  // the Worker would have given it.
   return new Response(shell.body, {
     status: 200,
     statusText: "OK",
-    headers: securityHeaders({
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-      "X-DalyHub-Offline": "shell",
-    }),
+    headers: securityHeaders(
+      {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-DalyHub-Offline": "shell",
+      },
+      shell.headers.get("Content-Security-Policy"),
+    ),
   });
 }
 

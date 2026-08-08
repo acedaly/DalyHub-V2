@@ -65,3 +65,30 @@ export function getDisplayIdentity(context: Readonly<RouterContextProvider>): {
 } {
   return { email: requireAuthenticatedSession(context).user.email };
 }
+
+/**
+ * AUDIT-10 — the per-response CSP nonce.
+ *
+ * The request boundary mints one nonce per request, writes it into the
+ * `Content-Security-Policy` header AND places it here, so the server render can
+ * put the SAME value on every inline script it emits. It is not a secret and not
+ * a credential: it is a per-response token that ties the scripts DalyHub wrote to
+ * the policy DalyHub sent, and it is worthless the moment the response is over.
+ *
+ * Defaults to the empty string, which is the honest reading of "no boundary ran"
+ * — a render with no nonce emits no `nonce` attribute rather than a wrong one.
+ */
+export const cspNonceContext = createContext<string>("");
+
+/** Place the boundary-minted nonce into the request context (server only). */
+export function setCspNonce(
+  context: RouterContextProvider,
+  nonce: string,
+): void {
+  context.set(cspNonceContext, nonce);
+}
+
+/** Read the request's CSP nonce, or the empty string when none was set. */
+export function getCspNonce(context: Readonly<RouterContextProvider>): string {
+  return context.get(cspNonceContext);
+}

@@ -770,3 +770,34 @@ Wrangler deployment is unchanged, and `pnpm run deploy:dry-run` still needs no
 credentials.
 
 Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md) §5.
+
+---
+
+## Response security headers, and the one Cloudflare owns (AUDIT-10, 2026-08-08)
+
+Every response the Worker emits carries its security headers from ONE place,
+`app/platform/request/security-headers.ts`, applied at the request boundary. No
+route sets a security header of its own, and there is no per-route CSP fragment
+anywhere. The full policy and the evidence behind each source are documented in
+[`APP_SHELL_AUTH.md → Security headers`](APP_SHELL_AUTH.md#security-headers-rewritten-by-audit-10-2026-08-08).
+
+Two operational notes for whoever configures the Cloudflare side:
+
+- **`Strict-Transport-Security` is deliberately NOT set by the Worker.** HSTS
+  belongs to the edge that terminates TLS for the Access hostname, and it is the
+  one header whose failure mode — a wrong `max-age`, an accidental `preload` — is
+  measured in months of unreachability rather than minutes. Configure it in the
+  Cloudflare dashboard for `hub.daly.id.au`, and keep it there: two authorities
+  for that header is one too many. If a Cloudflare Transform Rule is ever added
+  that sets `Content-Security-Policy`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy` or `Cross-Origin-Opener-Policy`, it will CONTRADICT the
+  Worker rather than reinforce it — the Worker's CSP names a per-response nonce
+  that no edge rule can know, and a second, nonce-less policy would stop the
+  application booting. Do not add one.
+- **Static assets do not pass through the Worker.** `build/server/wrangler.json`
+  serves `build/client` from Cloudflare's asset handler ahead of the Worker, so
+  `/assets/*`, `/icons/*`, `/fonts/*`, `/sw.js`, the manifest and the favicon do
+  not receive these headers. They are still behind Cloudflare Access like every
+  other path on the hostname, and none of them is an HTML document, so the CSP
+  has nothing to govern there. The documents that matter — every page the browser
+  parses — are rendered by the Worker and do carry it.

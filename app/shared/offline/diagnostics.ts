@@ -64,7 +64,13 @@ export const OFFLINE_DIAGNOSTIC_LIMIT = 20;
 const DETAIL_LIMIT = 160;
 
 /** Where the ring is mirrored, so it survives the reload it may be describing. */
-const STORAGE_KEY = "dalyhub.offline.diagnostics";
+/**
+ * The key the diagnostics ring is stored under. Exported (SET-03) so the
+ * account-security local-data model can name it explicitly among the
+ * owner-specific entries a sign-out clears.
+ */
+export const OFFLINE_DIAGNOSTICS_STORAGE_KEY = "dalyhub.offline.diagnostics";
+const STORAGE_KEY = OFFLINE_DIAGNOSTICS_STORAGE_KEY;
 
 /**
  * Anything token-shaped: a long unbroken run of url-safe characters. Access

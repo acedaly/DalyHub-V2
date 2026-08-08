@@ -46,6 +46,16 @@ describe("capture types", () => {
     }
   });
 
+  it("offers Asset from the global capture surface (ASSET-03)", () => {
+    // The gap ASSET-03 closed: recording something you own required navigating
+    // to Assets and finding a module-specific button. It is now one of the
+    // types the global `+` offers, last because it is the least routine.
+    expect(CAPTURE_TYPES).toContain("asset");
+    expect(CAPTURE_TYPES[CAPTURE_TYPES.length - 1]).toBe("asset");
+    expect(captureDescriptor("asset").entityType).toBe("asset");
+    expect(captureDescriptor("asset").label).toBe("Asset");
+  });
+
   it("narrows only real capture types", () => {
     expect(isCaptureType("task")).toBe(true);
     expect(isCaptureType("project")).toBe(false);

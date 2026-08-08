@@ -618,16 +618,25 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 ### The rest — near-term remediation and cleanup
 
-Sequenced but not blocking: the security/ops hardening that remains — AUDIT-10
-(CSP), recorded as DEBT-85. AUDIT-11 (the backup artifact) shipped with SET-02.
-The multi-device concurrency pair (AUDIT-07 preferences, AUDIT-08 note content)
-and the owner-timezone/parentless-restore cleanup (AUDIT-14, AUDIT-15) were
-delivered by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3);
-the non-atomic flows (AUDIT-13) and the dead code (AUDIT-16) by
-[AUDIT-FIX-07](#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08).
-Each remaining item is recorded in
-[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-85) with its finding id. The full sequence is
+**This section is now empty of code items, and that is the point of recording it.**
+Everything it sequenced has shipped:
+
+- the security/ops hardening — **AUDIT-10** (CSP) resolved 2026-08-08 with
+  [SET-03](#-set-03--account--security--substantially-delivered-2026-08-08), and **AUDIT-11** (the plaintext backup
+  artifact) with [SET-02](#-set-02--backup--restore-v21);
+- the multi-device concurrency pair (**AUDIT-07** preferences, **AUDIT-08** note
+  content) and the owner-timezone / parentless-restore cleanup (**AUDIT-14**,
+  **AUDIT-15**) by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3);
+- the non-atomic compound mutations (**AUDIT-13**) and the dead code
+  (**AUDIT-16**) by
+  [AUDIT-FIX-07](#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08).
+
+Every one is recorded against its finding id in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — DEBT-82 … DEBT-88 and DEBT-105 —
+and the original ordering is
 [Recommended remediation sequence](../product/END_TO_END_AUDIT_2026_08_05.md#20-recommended-remediation-sequence).
+What the August audit still leaves open is not code: it is the
+**verification gaps** below, which are the owner's to close.
 
 **Verification gaps (owner action, not a code item).** The audit could not reach
 production; its
@@ -871,15 +880,76 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Priority.** P3 — closed. See
   [`PEOPLE_MODULE.md` §8](../development/PEOPLE_MODULE.md#8-people-04--contextual-capture-closure-debt-45).
 
-### ◐ ASSET-03 — Mobile Assets
+### ☑ ASSET-03 — Mobile Assets — **DELIVERED 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → ASSET-03`](ROADMAP_V2.md#-asset-03--mobile).
 - **Delivered in V2.** The phone record layout and the ASSET-02 history/obligation
   surfaces, verified at 320/375/390/430px with no overflow and 44px targets.
-- **Outstanding.** Phone-first capture of a NEW Asset and the type/subtype picker at
-  narrow widths. It was sequenced after ASSET-02, which has now shipped, so it can
-  finally be designed against the history surface it was waiting for.
-- **Priority.** P3.
+  Preserved, not rebuilt — no Asset record, collection, history, obligation or
+  Today surface was redesigned here.
+- **The wording was stale, and is corrected.** The outstanding work was recorded as
+  "the type/subtype picker". DalyHub has **no persisted Asset subtype**: the schema,
+  the kernel and the ADRs carry ONE controlled `assetType` vocabulary, and "subtype"
+  is the PX-05 *icon-registry* word for it (an Asset's type is the record's subtype,
+  which is why `AssetRecord` alone kept its `typeLabel`). No `asset_subtype` column
+  was invented to satisfy a phrase. The requirement is what the phrase was reaching
+  for: **choosing the right Asset type on a phone must be easy**.
+- **Delivered now.**
+  - **Asset is in global Quick Capture.** The shared `+` chooser offers
+    Task · Diary entry · Meeting · Note · **Asset**, so recording something you own
+    no longer means navigating to Assets to find a module-specific button. The panel
+    is **the canonical `NewAssetForm` itself**, posting to the same `/assets/create`
+    → `AssetRepository.create` authority — no capture-only Asset form, model or
+    validator exists, and the panel therefore offers no "more options" hand-off,
+    because it already IS the full form.
+  - **The type control is one control with two presentations.** Above `md` it stays
+    the DS-16 combobox with type-to-filter (desktop creation is unchanged); below it,
+    `SelectField sheetOnCompact` renders a 44px trigger that opens the SHARED phone
+    `Sheet` of large option rows. That replaced an anchored listbox capped at 16rem
+    which opened underneath the keyboard the focused input had just raised. No new
+    modal primitive, no bespoke picker, no second select vocabulary.
+  - **Thirteen types, grouped for scanning** — Physical · Documents and cover ·
+    Digital and recurring · Anything else — derived from the same sets that decide
+    which fields a type reveals. Grouping is PRESENTATION: nothing is stored,
+    submitted or renamed, and a unit test asserts every kernel key and label survives
+    exactly once.
+  - **Progressive disclosure preserved**: name + type, then the small relevant set
+    (`newAssetFieldsForType`, untouched). Switching type keeps what was typed and
+    submits only the FINAL type's fields — proven end-to-end by creating a trailer,
+    switching it to a licence, and asserting the serial number never reached the
+    record.
+  - **The commitment row is sticky below `md`** (`FormActions sticky`) and the
+    capture panel uses the shared sticky capture action, so Create clears the
+    keyboard, the phone navigation bar and the home indicator.
+- **Found and fixed in passing — two real defects, both shared.**
+  - **Escape closed two surfaces at once.** Both sheets listen on `document` in the
+    capture phase, and `stopPropagation` does not stop other listeners on the same
+    node, so dismissing the type picker also threw away the half-written capture
+    beneath it. `Sheet` now keeps a small open-sheet stack and only the topmost acts.
+    Regression test: `test/unit/shell/Sheet.test.tsx`.
+  - **The error summary was a moving target.** Blurring the untouched Name field to
+    reach Type inserted ~118px above the fields, so the Type control slid out from
+    under the thumb between finger-down and finger-up and the tap was simply lost.
+    The summary is a POST-SUBMIT affordance (its own contract says so) and the New
+    Asset form now renders it only after a submit fails; the field's own inline error
+    still appears on blur, beside the field, where it moves nothing being aimed at.
+- **Deliberately NOT done.** No barcode/QR/OCR, no registration, vehicle or insurer
+  lookup, no attachments or receipt photos, no AI classification, no valuations, no
+  reminders or notifications — all remain
+  [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3)
+  and [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2).
+- **Verified.** `format:check`, `lint`, `typecheck`, `scheme:check`, unit, Workers/D1
+  kernel, `build`, and a focused
+  [`e2e/assets-mobile-capture.spec.ts`](../../e2e/assets-mobile-capture.spec.ts):
+  global `+` → Asset at 390px, a physical and a documentary Asset end-to-end, type
+  switching, validation that keeps the words and the surface, cancel-without-mutation
+  with focus returned to the opener, keyboard-only operation, axe in light and dark,
+  the 320/375/390/430px matrix, and a 1280px desktop regression. Nine screenshots
+  in [`docs/product/assets/asset-03-2026-08/`](../product/assets/asset-03-2026-08/).
+  The initial client bundle is byte-for-byte unchanged (+6,022 B total, all lazy),
+  and opening capture performs no new reads.
+- **Priority.** P3 — closed. See
+  [`ASSETS_MODULE.md` → ASSET-03](../development/ASSETS_MODULE.md#asset-03--phone-first-capture-2026-08-08).
 
 ### ☑ REVIEW-04 — Mobile Reviews — **DELIVERED 2026-08-05**
 
@@ -1151,15 +1221,53 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Priority.** P3 — closed. See
   [`DIARY_MODULE.md` §9](../development/DIARY_MODULE.md#9-diary-02--related-records-and-day-context).
 
-### ☐ SET-03 — Account & security
+### ◐ SET-03 — Account & security — substantially delivered 2026-08-08
 
 - **Original entry.** [`ROADMAP_V2.md → SET-03`](ROADMAP_V2.md#-set-03--account--security).
-- The identity layer beneath it is done and accepted (FND-09, ADR-016): DalyHub *is*
-  authenticated, so this is not blocking safety. What is missing is the owner-facing
+- The identity layer beneath it was already done and accepted (FND-09, ADR-016): DalyHub *is*
+  authenticated, so this was never blocking safety. What was missing was the owner-facing
   surface — visible session/identity state, sign-out-everywhere, and a
-  security-relevant audit view. Related:
-  [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3).
-- **Priority.** P2.
+  security-relevant audit view.
+- **What shipped.** `Settings → Account & security`, with five groups: **Identity**
+  (display name, verified email, a trailing fragment of the identity subject, the
+  authenticator, the environment — all from the boundary-validated session, never
+  from a browser-submitted field); **This session** (status, issued-at, expiry,
+  derived from the credential's own `iat`/`exp`); **Data on this device**;
+  **Security activity**; and **Sign out**. It carries no password control, no MFA
+  control, no device list, no "last login", no IP address and no session
+  inventory — DalyHub observes none of them. Full documentation:
+  [`SETTINGS_MODULE.md → Account & security`](../development/SETTINGS_MODULE.md#account--security-set-03-2026-08-08).
+- **Sign-out is now a path DalyHub owns end to end**, closing
+  [DEBT-68](../product/PRODUCT_DEBT.md#-debt-68--logging-out-does-not-clear-the-devices-offline-data-automatically--p2--resolved-2026-08-08):
+  it clears this device's reproducible personal data and cached application files
+  before handing the browser to Cloudflare's logout endpoint, while PRESERVING
+  offline captures that have never reached the server.
+- **A security-relevant audit view exists, over the ONE Activity stream.**
+  `security.signed_out` and `security.local_data_cleared` are recorded as
+  workspace-scoped, subject-less events in the same `activities` table every other
+  event lives in — no second audit log. That resolves the modelling half of
+  [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08),
+  which is narrowed rather than closed: ordinary preference changes still append
+  no Activity.
+- **☐ NOT delivered: sign-out-everywhere, and this item is NOT ☑ because of it.**
+  The acceptance criterion is unchanged and unmet. Revoking every Cloudflare
+  Access session for the owner requires a Cloudflare API credential with Access
+  write scope; DalyHub's Worker is configured with the Access team domain, the
+  application AUD and the owner email
+  ([`auth-configuration.ts`](../../app/platform/auth/auth-configuration.ts)) and
+  **no Cloudflare credential of any kind** — there is no binding for one and no
+  deploy step that supplies one. Rather than ship a button that signs out one
+  browser while implying it signed out all of them, the surface states what
+  DalyHub can and cannot do and points at the Cloudflare Zero Trust dashboard.
+  Whether the control renders is a SERVER-derived capability flag, so it will
+  appear if and when the capability does, and not before.
+- **What closing it would take.** A deliberate decision to give the Worker a
+  scoped Cloudflare API token (a new secret, a new external dependency in the
+  sign-out path, and a new failure mode on the most safety-critical control in
+  the product), or an explicit, transparent revision of the acceptance criterion
+  to "the owner can reach Access session management from DalyHub". Neither is
+  taken here; the item stays ◐ until one is.
+- **Priority.** P2. **Decision record.** [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-a-nonce-based-content-security-policy-one-header-authority-and-a-security-surface-that-refuses-to-overclaim).
 
 ---
 
@@ -1652,13 +1760,13 @@ because a reader would otherwise wonder whether it was forgotten:
    once the two items above have stopped changing them — and it is large and pleasant
    enough that putting it first would quietly cost the owner the two things they
    actually cannot do today.
-4. **[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
-   the two named mobile remainders, now unblocked. **PEOPLE-04 is closed
-   (2026-08-08)**, together with the DEBT-45 contextual-capture matrix it was held
-   open for; ASSET-03 remains.
+4. ~~**[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
+   the two named mobile remainders.~~ **Both closed (2026-08-08)**: PEOPLE-04 with
+   the DEBT-45 contextual-capture matrix it was held open for, and ASSET-03 with
+   phone-first capture of a new Asset.
 5. **[DIARY-02](#-diary-02--day-context-links)** (**closed 2026-08-08**, alongside
    PEOPLE-04 — they share the one contextual-relationship contract),
-   **[SET-03](#-set-03--account--security)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
+   **[SET-03](#-set-03--account--security--substantially-delivered-2026-08-08)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
    member of this group and is now delivered.
 6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore

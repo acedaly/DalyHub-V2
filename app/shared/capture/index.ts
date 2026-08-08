@@ -26,6 +26,9 @@ export {
 export type { CaptureType, CaptureTypeDescriptor } from "./capture-model";
 export type { CaptureContextPayload } from "~/routes/capture-context";
 export { CaptureContextChip } from "./CaptureContextChip";
+// The panel contract, for a module that owns its own capture panel (ASSET-03).
+export { CaptureResult } from "./CaptureResult";
+export type { CapturePanelProps, CaptureSuccess } from "./types";
 export {
   CAPTURE_CONTEXT_PARAM,
   contextForCaptureType,

@@ -292,12 +292,21 @@ describe("renderServiceWorker", () => {
     // source of truth, and this reads the REAL values out of it — so the copy in
     // the worker cannot drift from the boundary's policy without failing here.
     const baseline = new Headers();
-    applyBaseSecurityHeaders(baseline);
+    applyBaseSecurityHeaders(baseline, {
+      nonce: "AAAAAAAAAAAAAAAAAAAAAA",
+      mode: "production",
+    });
     for (const [name, value] of baseline.entries()) {
       // Permissions-Policy is deliberately not duplicated: it governs powerful
       // device features that the offline documents do not use, and repeating a
       // long list in the worker would be the kind of duplication that rots.
       if (name.toLowerCase() === "permissions-policy") continue;
+      // AUDIT-10 — the CSP is deliberately NOT copied. It is per-response now
+      // (it names a nonce), so a literal copy would be a policy naming a nonce
+      // no document carries. The worker replays the cached response's own
+      // policy and gives its script-free synthesised documents a stricter one;
+      // both are asserted separately below.
+      if (name.toLowerCase() === "content-security-policy") continue;
       expect(worker, `${name} must be applied by the worker too`).toContain(
         value,
       );

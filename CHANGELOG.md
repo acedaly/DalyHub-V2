@@ -56,6 +56,109 @@ Nothing you have written was touched, no data moved, and nothing needed migratin
 
 ---
 
+## Account & security, and a browser that now refuses injected script (SET-03 / AUDIT-10)
+
+Two things you could not see, and one you could not do.
+
+### Settings → Account & security
+
+A new section that answers three questions and refuses to imply a fourth: **who
+you are signed in as**, **what DalyHub actually knows about this session**, and
+**what you can actually do about it**.
+
+- **Identity** — your name (when your sign-in provider supplies one), your
+  verified email, a short fragment of your identity reference, how you signed in,
+  and which DalyHub you are looking at.
+- **This session** — whether it is active, expiring soon or expired, when it was
+  issued and when it ends. All of it read from your sign-in itself.
+- **Data on this device** — whether this device holds a copy of your records, and
+  how many things you captured offline that have not reached DalyHub yet.
+- **Security activity** — the security-relevant things you have done, in the same
+  history DalyHub already keeps for everything else.
+- **Sign out**.
+
+**What is deliberately not there is the point.** No password control, no
+two-factor control, no list of your devices, no "last login", no IP address, no
+map. DalyHub does not know any of those things — your sign-in is handled by
+Cloudflare Access — and a security page that shows you a guess as though it were
+a fact is worse than one that shows you less.
+
+That includes **"sign out everywhere"**. It was planned. DalyHub cannot do it:
+ending your sessions on other devices is Cloudflare's job, and DalyHub holds no
+credential that can ask Cloudflare to. So instead of a button that would sign out
+only the browser you are looking at while appearing to do more, the page says so
+plainly and tells you where the control that genuinely does it lives. That is the
+one button you would reach for if you thought a device had been stolen, and it
+had to be honest or absent.
+
+### Signing out now cleans up after itself
+
+DalyHub keeps a copy of your recent records on each device so it still works
+without a connection. Until now, logging out left it there — so on a borrowed or
+shared laptop, "I logged out" did not mean "my data is off this machine".
+
+Signing out through DalyHub now removes that copy, your recent searches and
+DalyHub's cached files **before** it hands you back to the sign-in screen. When
+there is nothing waiting to sync, it removes DalyHub's offline storage entirely.
+
+**Anything you captured offline that has not reached DalyHub yet is kept.** It
+exists nowhere else, so signing out will never throw it away — the page tells you
+how many are waiting, and deleting them is its own separate control with its own
+confirmation.
+
+### A browser that refuses script DalyHub did not write
+
+DalyHub already strips anything dangerous out of the Markdown you write, and
+still does. That was the _only_ thing standing between an injected string and
+code running in your browser. Now there is a second, independent layer: DalyHub
+tells your browser exactly which scripts, styles, images, fonts and connections
+are legitimate, and your browser refuses everything else — an injected script
+tag, an `onclick` handler smuggled into content, a script from somewhere DalyHub
+never asked for.
+
+Nothing about this changes what you see. It is the kind of improvement whose
+whole value is that you never notice it.
+
+## Add something you own from your phone, in seconds (ASSET-03)
+
+Recording an Asset used to mean getting to a laptop, or at least getting to the
+Assets screen and finding its own "New Asset" button. So the trailer, the policy
+and the licence renewal stayed in your head, which is exactly where DalyHub exists
+to stop things living.
+
+**Assets is now in the global `+`.** Tap capture from anywhere — the phone bar,
+Today, the command palette — and Asset sits beside Task, Diary entry, Meeting and
+Note. It opens the real New Asset form, not a stripped-down phone version of it,
+so what you create is an ordinary Asset record from the first second.
+
+**Choosing what kind of thing it is got much better on a phone.** The type field
+used to be a small dropdown that opened underneath the keyboard. On a phone it is
+now a full-width list of large, labelled choices, grouped so you can find the right
+one at a glance:
+
+- **Physical** — Vehicle · Trailer or camper · Equipment · Appliance · Electronics ·
+  Tool · Property item
+- **Documents and cover** — Document · Licence · Insurance
+- **Digital and recurring** — Subscription · Software
+- **Anything else** — Other
+
+The groups are only there to help you look; nothing about your Asset changes
+because of which heading it sat under. On a laptop the field is exactly as it was.
+
+**It still only asks for what it needs.** A name and a kind is a complete Asset.
+Choose the kind and it offers the few details that actually apply — a trailer asks
+for a manufacturer, model, serial number, where it lives and when the warranty
+ends; an insurance policy asks for the issuer, the reference, the renewal date and
+a link. Everything else waits for the record's Details tab, whenever you feel like
+it. Change your mind about the kind and it shows the right fields without throwing
+away what you have typed — and it never files a serial number against a policy that
+was never asked for one.
+
+**Two small things that were quietly getting in the way, fixed:** dismissing the
+type list no longer closes the whole capture and loses what you had written, and
+tapping straight to the type field no longer makes it jump out from under your
+finger.
+
 ## Save a useful question, not just a filter (X-02)
 
 Tasks could hold a saved view. Nothing else could — and none of the questions you

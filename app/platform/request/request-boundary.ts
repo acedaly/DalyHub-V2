@@ -25,7 +25,11 @@ import { RouterContextProvider } from "react-router";
 import type { Authenticator } from "~/kernel/auth";
 import { createAuthenticator, type AuthConfigEnv } from "~/platform/auth";
 
-import { setAuthenticatedSession } from "./authenticated-request-context";
+import {
+  setAuthenticatedSession,
+  setCspNonce,
+} from "./authenticated-request-context";
+import { resolveCspMode, type CspModeEnv } from "./content-security-policy";
 import {
   provisionMemberSafely,
   type IdentityProvisioningEnv,
@@ -39,6 +43,7 @@ import {
 import {
   buildCrossOriginRejectionResponse,
   buildUnauthenticatedResponse,
+  createSecurityHeaderOptions,
   withSecurityHeaders,
 } from "./security-headers";
 
@@ -52,7 +57,9 @@ export type ReactRouterRequestHandler = (
 export type AuthenticatorFactory = (env: AuthConfigEnv) => Authenticator;
 
 /** Everything the boundary reads from the environment. */
-export type RequestBoundaryEnv = AuthConfigEnv & IdentityProvisioningEnv;
+export type RequestBoundaryEnv = AuthConfigEnv &
+  IdentityProvisioningEnv &
+  CspModeEnv;
 
 /**
  * Application routes that are public at the DalyHub layer. Matched EXACTLY, so
@@ -96,13 +103,24 @@ export async function handleAuthenticatedRequest(
 ): Promise<Response> {
   const { pathname } = new URL(request.url);
 
+  // AUDIT-10 — ONE nonce and ONE policy mode per request, decided before
+  // anything else happens. Every response built below — served, rejected or
+  // failed — is given these same options, so the `Content-Security-Policy`
+  // header a browser receives always matches the nonce the render used.
+  const security = createSecurityHeaderOptions(resolveCspMode(env));
+
   // The public-path bypass is limited to the SAFE methods `/health` actually
   // supports, so an exact public-path match can never become a hole through
   // which an unsafe method skips both authentication AND provenance. An unsafe
   // method on `/health` takes the protected path below and is answered there.
   if (isPublicPath(pathname) && isSafeMethod(request.method)) {
-    const response = await requestHandler(request);
-    return withSecurityHeaders(response, { authenticated: false });
+    const publicContext = new RouterContextProvider();
+    setCspNonce(publicContext, security.nonce);
+    const response = await requestHandler(request, publicContext);
+    return withSecurityHeaders(response, {
+      ...security,
+      authenticated: false,
+    });
   }
 
   let context: RouterContextProvider;
@@ -111,9 +129,10 @@ export async function handleAuthenticatedRequest(
     session = await authenticatorFactory(env).authenticate(request);
     context = new RouterContextProvider();
     setAuthenticatedSession(context, session);
+    setCspNonce(context, security.nonce);
   } catch (error) {
     // Return BEFORE invoking the handler: no protected loader/action runs.
-    return buildUnauthenticatedResponse(error);
+    return buildUnauthenticatedResponse(error, security);
   }
 
   // Authenticated, but is this DalyHub's own request? A valid Access cookie is
@@ -124,7 +143,7 @@ export async function handleAuthenticatedRequest(
     trustedOriginFor(request),
   );
   if (!provenance.allowed) {
-    return buildCrossOriginRejectionResponse();
+    return buildCrossOriginRejectionResponse(security);
   }
 
   // IDENT-01: record the subject ↔ workspace membership exactly once per
@@ -133,5 +152,5 @@ export async function handleAuthenticatedRequest(
   await provisionMemberSafely(env, session, provisionMember);
 
   const response = await requestHandler(request, context);
-  return withSecurityHeaders(response, { authenticated: true });
+  return withSecurityHeaders(response, { ...security, authenticated: true });
 }

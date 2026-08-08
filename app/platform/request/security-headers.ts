@@ -1,20 +1,35 @@
 /**
- * FND-09 request platform — baseline response security headers and the generic
- * unauthenticated response.
+ * FND-09 / AUDIT-10 request platform — baseline response security headers and
+ * the generic unauthenticated response.
  *
- * A small, verified header policy applied to every response at the Worker
- * boundary (ADR-016 §18). It is intentionally conservative so it cannot break
- * React Router SSR/hydration: the CSP restricts only `base-uri`, `frame-ancestors`
- * and `object-src` (no `script-src`, which would block hydration). Every
- * authenticated response leaves the boundary with exactly `Cache-Control:
+ * ONE header authority. Every response DalyHub's Worker emits — a document, a
+ * data request, a resource route, a 403 CSRF rejection, a 401/503 authentication
+ * failure — leaves through this module, and no route sets a security header of
+ * its own. The only other place these headers are written is the service worker,
+ * for the responses it SYNTHESISES while offline, and that duplication is
+ * asserted against this file by `test/unit/pwa/service-worker-runtime.test.ts` so
+ * it cannot rot silently.
+ *
+ * AUDIT-10 replaced the previous three-directive CSP (`base-uri`,
+ * `frame-ancestors`, `object-src` — no `default-src`, no `script-src`) with a
+ * complete, enforcing policy built per response around a fresh nonce. The policy
+ * itself, and the evidence behind every source in it, lives in
+ * `./content-security-policy`.
+ *
+ * Every authenticated response leaves the boundary with exactly `Cache-Control:
  * private, no-store` — any route-provided cache policy is OVERRIDDEN, never
  * preserved, so private application data can never be cached publicly or by an
  * intermediary. The public `/health` route keeps its own independent public-route
- * policy (it is served on the unauthenticated path and never passes through here).
- * No framework stack traces or private details are ever emitted.
+ * policy. No framework stack traces or private details are ever emitted.
  */
 
 import { AuthError } from "~/kernel/auth";
+
+import {
+  buildContentSecurityPolicy,
+  createCspNonce,
+  type CspMode,
+} from "./content-security-policy";
 
 /** A conservative Permissions-Policy denying powerful features by default. */
 const PERMISSIONS_POLICY = [
@@ -28,23 +43,47 @@ const PERMISSIONS_POLICY = [
   "usb=()",
 ].join(", ");
 
-/** A minimal CSP that does not interfere with React Router hydration. */
-const CONTENT_SECURITY_POLICY = [
-  "base-uri 'none'",
-  "frame-ancestors 'none'",
-  "object-src 'none'",
-].join("; ");
+/** What one response needs in order to be given its security headers. */
+export type SecurityHeaderOptions = {
+  /** The per-response CSP nonce minted by the request boundary. */
+  readonly nonce: string;
+  /** Which policy applies. Resolved once per request, fail-closed. */
+  readonly mode: CspMode;
+};
 
 /**
  * Apply the baseline security headers shared by every response. Uses `set` (not
  * `append`) so a header is never duplicated with a contradictory value.
+ *
+ * `X-Frame-Options: DENY` is retained ALONGSIDE `frame-ancestors 'none'` rather
+ * than in contradiction to it: the two say the same thing, and the legacy header
+ * is the one a user agent without CSP3 framing support will honour. Where a
+ * modern browser reads both, `frame-ancestors` wins and agrees.
+ *
+ * `Cross-Origin-Opener-Policy: same-origin` severs the window relationship with
+ * any cross-origin opener or popup. DalyHub opens no cross-origin window and is
+ * opened by none, so this costs nothing and closes the cross-window-scripting and
+ * XS-leak class. `Cross-Origin-Embedder-Policy` is deliberately NOT set: it would
+ * buy cross-origin isolation DalyHub has no use for (no `SharedArrayBuffer`, no
+ * high-resolution timers) at the price of breaking any future cross-origin
+ * subresource.
+ *
+ * `Strict-Transport-Security` is deliberately NOT set here. HSTS belongs to the
+ * edge that terminates TLS for `hub.daly.id.au` — Cloudflare — and it is the one
+ * header whose failure mode (a wrong `max-age`, an accidental `preload`) is
+ * measured in months of unreachability. Two authorities for it would be one too
+ * many. See `docs/development/DEPLOYMENT.md`.
  */
-export function applyBaseSecurityHeaders(headers: Headers): void {
+export function applyBaseSecurityHeaders(
+  headers: Headers,
+  options: SecurityHeaderOptions,
+): void {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("Permissions-Policy", PERMISSIONS_POLICY);
-  headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  headers.set("Content-Security-Policy", buildContentSecurityPolicy(options));
   headers.set("X-Frame-Options", "DENY");
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
 }
 
 /** The single cache policy every authenticated response leaves the boundary with. */
@@ -70,10 +109,10 @@ export function applyAuthenticatedCachePolicy(headers: Headers): void {
  */
 export function withSecurityHeaders(
   response: Response,
-  options: { readonly authenticated: boolean },
+  options: SecurityHeaderOptions & { readonly authenticated: boolean },
 ): Response {
   const headers = new Headers(response.headers);
-  applyBaseSecurityHeaders(headers);
+  applyBaseSecurityHeaders(headers, options);
   if (options.authenticated) {
     applyAuthenticatedCachePolicy(headers);
   }
@@ -93,13 +132,19 @@ export function withSecurityHeaders(
  * plain `403` with the baseline security headers and the private, non-cacheable
  * policy; it is never a redirect, because redirecting a rejected mutation would
  * hand the caller a second attempt.
+ *
+ * A REJECTION carries the full policy too (AUDIT-10). A rejected or failed
+ * response is not a lesser response: it is still a document the browser parses,
+ * and a policy that only covers the happy path is not a policy.
  */
-export function buildCrossOriginRejectionResponse(): Response {
+export function buildCrossOriginRejectionResponse(
+  options: SecurityHeaderOptions,
+): Response {
   const headers = new Headers({
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": AUTHENTICATED_CACHE_CONTROL,
   });
-  applyBaseSecurityHeaders(headers);
+  applyBaseSecurityHeaders(headers, options);
   return new Response("Request rejected.", { status: 403, headers });
 }
 
@@ -124,14 +169,28 @@ function statusForAuthError(error: AuthError): number {
  * claim, no team/AUD value and no stack trace — only a short generic message and
  * the baseline security headers. Not publicly cacheable.
  */
-export function buildUnauthenticatedResponse(error: unknown): Response {
+export function buildUnauthenticatedResponse(
+  error: unknown,
+  options: SecurityHeaderOptions,
+): Response {
   const status = error instanceof AuthError ? statusForAuthError(error) : 403;
   const headers = new Headers({
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": AUTHENTICATED_CACHE_CONTROL,
   });
-  applyBaseSecurityHeaders(headers);
+  applyBaseSecurityHeaders(headers, options);
   const message =
     status === 503 ? "Service unavailable." : "Authentication required.";
   return new Response(message, { status, headers });
+}
+
+/**
+ * Mint the security-header options for one request. Exported so the boundary — and
+ * only the boundary — decides a request's nonce exactly once, and every response
+ * built for that request (accepted, rejected or failed) carries the same one.
+ */
+export function createSecurityHeaderOptions(
+  mode: CspMode,
+): SecurityHeaderOptions {
+  return { nonce: createCspNonce(), mode };
 }

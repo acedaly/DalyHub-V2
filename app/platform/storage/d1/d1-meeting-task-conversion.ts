@@ -92,6 +92,7 @@ type MeetingSide = Pick<
   | "getFollowUpForItem"
   | "buildFollowUpLinkStatements"
   | "buildRemoveFollowUpStatement"
+  | "buildConversionLifecycleGuard"
 >;
 type EntityLinkSide = Pick<
   D1EntityLinkRepository,
@@ -190,19 +191,35 @@ export class D1MeetingTaskConversionRepository implements MeetingTaskConversionR
     }
 
     const now = this.#clock();
-    const taskPlan = this.#tasks.buildCreateTaskStatements({
-      title: input.task.title,
-      parent: input.task.parent,
-      priority: input.task.priority ?? null,
-      dueDate: input.task.dueDate ?? null,
-      scheduledDate: input.task.scheduledDate ?? null,
-      timeSector: input.task.timeSector ?? null,
-      commitmentState: input.task.commitmentState ?? "active",
-      // Both were follow-up `updateTask` calls before AUDIT-13 — two more
-      // transactions, two more ways to half-convert.
-      status: input.task.status ?? "todo",
-      description: input.task.description ?? null,
-    });
+    /*
+     * The lifecycle checks above happened BEFORE the batch, and a pre-read cannot
+     * be trusted during it: the Meeting can be archived, or the source item
+     * removed, in the gap. So the same conditions are re-asserted in SQL and
+     * AND-ed into the Task's own create gate — the protection `addItem`,
+     * `removeItem` and `markHeld` already apply on this repository. A Meeting that
+     * became read-only, or an item that went away, therefore declines the WHOLE
+     * batch: no Task, and nothing gated on that Task.
+     */
+    const lifecycleGuard = this.#meetings.buildConversionLifecycleGuard(
+      meetingId,
+      itemId,
+    );
+    const taskPlan = this.#tasks.buildCreateTaskStatements(
+      {
+        title: input.task.title,
+        parent: input.task.parent,
+        priority: input.task.priority ?? null,
+        dueDate: input.task.dueDate ?? null,
+        scheduledDate: input.task.scheduledDate ?? null,
+        timeSector: input.task.timeSector ?? null,
+        commitmentState: input.task.commitmentState ?? "active",
+        // Both were follow-up `updateTask` calls before AUDIT-13 — two more
+        // transactions, two more ways to half-convert.
+        status: input.task.status ?? "todo",
+        description: input.task.description ?? null,
+      },
+      { guard: lifecycleGuard },
+    );
 
     const statements: D1PreparedStatement[] = [...taskPlan.statements];
     if (this.#fault === "after-task") statements.push(this.#forcedFailure());
@@ -260,6 +277,24 @@ export class D1MeetingTaskConversionRepository implements MeetingTaskConversionR
       throw cause;
     }
 
+    // A zero-row create has three possible causes now, and they are three
+    // different answers for the owner. Diagnose before falling back to the Task
+    // repository's own parent error, and diagnose from FRESH state — the reason
+    // must still be true when it is reported (the same rule `addItem` follows).
+    if ((results[0]?.meta?.changes ?? 0) === 0) {
+      const fresh = await this.#meetings.get(meetingId);
+      if (!fresh) throw new MeetingNotFoundError();
+      if (fresh.archivedAt) {
+        throw new MeetingArchivedError(
+          "This meeting is archived — restore it to create follow-up tasks.",
+        );
+      }
+      if (itemId !== null && !fresh.items.some((i) => i.id === itemId)) {
+        throw new MeetingItemNotFoundError();
+      }
+      // The Meeting and the item are fine, so the create declined for its own
+      // reason — an unavailable parent. Nothing was written either way.
+    }
     // The Task's own typed errors, raised from the same batch's results — one
     // create, one set of failure semantics, wherever the batch was assembled.
     this.#tasks.interpretCreateTaskResults(taskPlan, results);

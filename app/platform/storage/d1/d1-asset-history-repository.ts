@@ -99,6 +99,7 @@ import {
   type AssetObligationChangeResult,
   type AssetObligationPage,
   type AssetObligationStatus,
+  type AssetTaskOutcome,
   type AssetObligationSummary,
   type AssetRecurrenceKind,
   type AssetValuationPoint,
@@ -1579,13 +1580,29 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
             now,
           })
         : null;
-    const taskOutcome: CompleteAssetObligationResult["taskOutcome"] =
+    const plannedOutcome: CompleteAssetObligationResult["taskOutcome"] =
       current.taskId === null
         ? "none"
         : // No planner wired (a test that links no Tasks) keeps the previous
           // reading: there is nothing this repository can close.
           (taskPlan?.outcome ?? "already_closed");
 
+    /*
+     * The Task's outcome is deliberately NOT in this payload.
+     *
+     * It used to be, and it could not be made truthful there: the payload is
+     * serialised before the batch runs, so a Task completed or DELETED by another
+     * request in the gap left a permanent event asserting that this operation
+     * closed it. Writing an intent into an audit record as though it were an
+     * outcome is the same defect as the `catch` that wrote `already_closed` for
+     * every failure, arriving from the other direction.
+     *
+     * There is already exactly one authority for "was the linked Task completed":
+     * the Task's OWN `task.completed` event, appended by the Task's own statements
+     * in THIS batch. Restating it here would be a second copy of one fact, which
+     * is how two events come to disagree. The caller still learns the outcome —
+     * from the RESULT below, derived from what the batch actually did.
+     */
     const append = this.#appendStatements(
       ASSET_OBLIGATION_COMPLETED,
       [current.assetId],
@@ -1593,7 +1610,6 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
         category: current.category,
         recurrence: current.recurrenceKind,
         createdSuccessor: successorId !== null,
-        taskOutcome,
       },
       now,
     );
@@ -1754,10 +1770,14 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
 
     // LAST, so the obligation's own guarded statements keep the `changes()` chain
     // they were written against, and the Task group's first statement (its
-    // completion gate, carrying `completionGuard`) starts a fresh one.
+    // completion gate, carrying `completionGuard`) starts a fresh one. Its index
+    // is remembered so the outcome can be read off what the batch DID, rather
+    // than off what was planned before it ran.
+    const taskGateIndex = taskPlan ? batch.length : -1;
     if (taskPlan) batch.push(...taskPlan.statements);
     if (this.#obligationTaskFault) batch.push(this.#forcedFailure());
 
+    let taskClosedHere = false;
     try {
       const results = await this.#db.batch(this.#withFault(batch));
       if ((results[0]?.meta?.changes ?? 0) === 0) {
@@ -1768,8 +1788,25 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
         }
         throw new AssetConflictError();
       }
+      // `#withFault` splices at index 1, so a faulted batch throws before this.
+      taskClosedHere =
+        taskGateIndex >= 0 && (results[taskGateIndex]?.meta?.changes ?? 0) > 0;
     } catch (cause) {
       this.#fail(cause);
+    }
+
+    /*
+     * What the batch actually did to the Task. `plannedOutcome` was read before
+     * the batch; the Task's completion gate also requires `completed_at IS NULL`,
+     * so a Task closed or deleted by another request in the gap changes no row
+     * here. Reporting the plan in that case would tell the owner this operation
+     * closed a Task it did not touch.
+     */
+    let taskOutcome = plannedOutcome;
+    if (plannedOutcome === "completed" && !taskClosedHere) {
+      taskOutcome = current.taskId
+        ? await this.#racedTaskOutcome(current.taskId)
+        : "none";
     }
 
     const [obligation, event, successor] = await Promise.all([
@@ -1789,6 +1826,30 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       successor,
       taskOutcome,
     };
+  }
+
+  /**
+   * Why a planned Task completion changed no row.
+   *
+   * The obligation demonstrably closed (its own statement changed a row), so the
+   * Task's `completionGuard` was satisfied and the only remaining condition its
+   * gate carries is `completed_at IS NULL`. Two things can therefore have happened
+   * in the gap: another request COMPLETED the Task, or it was deleted. Read after
+   * the batch, so the answer is the state the owner will actually see.
+   */
+  async #racedTaskOutcome(taskId: string): Promise<AssetTaskOutcome> {
+    const row = await this.#db
+      .prepare(
+        `SELECT 1 AS present
+           FROM spine_records sr
+           JOIN entities e
+             ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
+          WHERE sr.workspace_id = ? AND sr.entity_id = ? AND e.deleted_at IS NULL`,
+      )
+      .bind(this.#workspaceId, taskId)
+      .first<{ present: number }>();
+    // Still there ⇒ somebody else closed it; gone ⇒ nothing left to reconcile.
+    return row ? "already_closed" : "missing";
   }
 
   /** Rebuild the result of a completion that already happened (idempotency). */

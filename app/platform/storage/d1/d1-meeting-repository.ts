@@ -1019,10 +1019,17 @@ export class D1MeetingRepository implements MeetingRepository {
    * also creates the Task, so the whole conversion is one transaction. It performs
    * no write, so the two-transaction sequence cannot be reassembled from it.
    *
-   * The mapping insert is unconditional: it runs inside a transaction that has
-   * already inserted the Task, and a UNIQUE-index violation on
-   * `(workspace_id, item_id)` is the concurrency answer the caller wants — not
-   * something to guard away.
+   * The mapping insert is **gated on the Task's entity row existing**, which is
+   * load-bearing in two ways rather than defensive. It means the mapping cannot
+   * outlive a create that declined (a parent that went away, or the conversion's
+   * own lifecycle guard refusing) — and because the event that follows is guarded
+   * on this insert's `changes()`, a declined mapping writes no event, so the
+   * event's Task SUBJECT never attempts an `activity_subjects → entities` foreign
+   * key against a Task that was never inserted. Without the gate that FK failure
+   * replaced the create's own typed error with an opaque storage fault.
+   *
+   * A UNIQUE-index violation on `(workspace_id, item_id)` is deliberately NOT
+   * guarded away: it is the concurrency answer the caller wants.
    */
   buildFollowUpLinkStatements(
     input: LinkFollowUpTaskInput,
@@ -1039,7 +1046,12 @@ export class D1MeetingRepository implements MeetingRepository {
     return [
       this.#db
         .prepare(
-          "INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at) VALUES (?,?,?,?,?)",
+          `INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at)
+           SELECT ?,?,?,?,?
+            WHERE EXISTS (
+                    SELECT 1 FROM entities
+                    WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+                  )`,
         )
         .bind(
           this.#workspaceId,
@@ -1047,6 +1059,8 @@ export class D1MeetingRepository implements MeetingRepository {
           input.itemId,
           input.taskId,
           ts,
+          this.#workspaceId,
+          input.taskId,
         ),
       ...this.#eventWith(
         type,
@@ -1058,6 +1072,49 @@ export class D1MeetingRepository implements MeetingRepository {
         now,
       ),
     ];
+  }
+
+  /**
+   * AUDIT-13 — the conversion's lifecycle precondition, as SQL for the batch.
+   *
+   * A conversion reads a live, unarchived Meeting and (for an item conversion) a
+   * live source item, and either can change in the gap before the batch runs.
+   * This is the same protection `addItem`, `removeItem` and `markHeld` already
+   * apply — re-assert the lifecycle in the mutation instead of trusting the
+   * pre-read — expressed as a predicate the conversion AND-s into the Task's own
+   * create gate, so a Meeting archived (or an item removed) in that gap declines
+   * the WHOLE batch rather than committing a Task against a read-only record or a
+   * mapping pointing at an item that no longer exists.
+   *
+   * `meeting_item_tasks.item_id` carries no foreign key to `meeting_items`, so
+   * nothing in the schema would otherwise stop that second case.
+   */
+  buildConversionLifecycleGuard(
+    meetingId: string,
+    itemId: string | null,
+  ): { readonly sql: string; readonly params: readonly unknown[] } {
+    const liveMeeting = `EXISTS (
+      SELECT 1 FROM meeting_details d
+        JOIN entities e
+          ON e.workspace_id = d.workspace_id AND e.id = d.entity_id
+       WHERE d.workspace_id = ? AND d.entity_id = ?
+         AND d.archived_at IS NULL
+         AND e.type = ? AND e.deleted_at IS NULL
+    )`;
+    const params: unknown[] = [
+      this.#workspaceId,
+      meetingId,
+      MEETING_ENTITY_TYPE,
+    ];
+    if (itemId === null) return { sql: liveMeeting, params };
+    params.push(this.#workspaceId, meetingId, itemId);
+    return {
+      sql: `${liveMeeting} AND EXISTS (
+      SELECT 1 FROM meeting_items
+       WHERE workspace_id = ? AND meeting_id = ? AND id = ?
+    )`,
+      params,
+    };
   }
 
   /**

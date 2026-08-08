@@ -98,9 +98,13 @@ export {
 export {
   type ActivityActorContext,
   type NewActivityEvent,
+  type NewWorkspaceActivityEvent,
   type ActivityWriteModel,
   SYSTEM_ACTOR,
   createActivityActorContext,
   createSystemActorContext,
   buildActivityWriteModel,
+  buildWorkspaceActivityWriteModel,
 } from "./activity-recorder";
+
+export { type WorkspaceEventRecorder } from "./workspace-event-recorder";

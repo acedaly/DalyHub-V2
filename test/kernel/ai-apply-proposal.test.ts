@@ -337,6 +337,42 @@ describe("DEBT-90 — an accepted Meeting Task is a canonical conversion", () =>
     expect(fresh?.items.filter((i) => i.kind === "action")).toHaveLength(1);
   });
 
+  it("SIMULTANEOUS acceptance of one proposal creates exactly one action item and one Task", async () => {
+    const h = harness(WS);
+    const meeting = await seedMeeting(h);
+    const source = await resolveProposalSource(h.scope, meeting.id);
+    const items = [{ kind: "task", title: "Send the draft" }];
+
+    /*
+     * The race the sequential-replay test above cannot reach. Both accepts read
+     * the Meeting before either action item exists, so neither finds one to
+     * reuse; `addItem` then allocates each of them a DIFFERENT ordinal and a
+     * DIFFERENT item id, and the conversion's own
+     * `meeting_item_tasks (workspace_id, item_id)` index sees two distinct items
+     * and would admit both. Only the acceptance-level claim — a database row on
+     * the deterministic acceptance key — arbitrates this.
+     */
+    const [a, b] = await Promise.all([
+      accept(h, source, items),
+      accept(h, source, items),
+    ]);
+
+    const results = [a[0]!, b[0]!];
+    // Both callers get an answer, and neither is told something untrue.
+    expect(results.every((r) => r.ok || r.message !== undefined)).toBe(true);
+    const created = results.filter((r) => r.ok && r.created === true);
+    expect(created).toHaveLength(1);
+
+    // One action item, one mapping, one Task, one conversion event.
+    const fresh = await h.meetings.get(meeting.id);
+    expect(fresh?.items.filter((i) => i.kind === "action")).toHaveLength(1);
+    expect(await countMeetingItemTaskRows()).toBe(1);
+    expect(await activeTaskCount()).toBe(1);
+    expect(await countActivitiesOfType("meeting.item_converted_to_task")).toBe(
+      1,
+    );
+  });
+
   it("reuses an action item the owner had already written", async () => {
     const h = harness(WS);
     const meeting = await seedMeeting(h);

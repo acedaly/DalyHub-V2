@@ -608,7 +608,20 @@ export class D1TaskRepository implements TaskRepository {
    * `interpretCreateTaskResults` relies on; a composing caller must therefore put
    * these statements FIRST in its batch and pass the batch results straight back.
    */
-  buildCreateTaskStatements(input: NewTaskInput): CreateTaskStatementPlan {
+  buildCreateTaskStatements(
+    input: NewTaskInput,
+    options: {
+      /**
+       * AUDIT-13 — the composing operation's OWN precondition, re-asserted inside
+       * the batch. A zero-row entity insert then declines the whole create, and
+       * everything gated on that entity declines with it.
+       */
+      readonly guard?: {
+        readonly sql: string;
+        readonly params: readonly unknown[];
+      };
+    } = {},
+  ): CreateTaskStatementPlan {
     const title = validateSpineTitle(input.title);
     const parent =
       input.parent === null || input.parent === undefined ? null : input.parent;
@@ -674,7 +687,12 @@ export class D1TaskRepository implements TaskRepository {
     // no structural EntityLink, not damaged children of a hidden parent.
     const entityStmt =
       parentKind === null || parentId === null
-        ? this.#createUnassignedTaskEntityStatement(id, title, nowTs)
+        ? this.#createUnassignedTaskEntityStatement(
+            id,
+            title,
+            nowTs,
+            options.guard,
+          )
         : buildSpineChildEntityInsertStatement(this.#db, this.#workspaceId, {
             id,
             kind: TASK,
@@ -682,6 +700,7 @@ export class D1TaskRepository implements TaskRepository {
             parentKind,
             parentId,
             nowTs,
+            ...(options.guard ? { guard: options.guard } : {}),
           });
     const spineStmt = buildSpineChildRecordInsertStatement(
       this.#db,
@@ -799,15 +818,34 @@ export class D1TaskRepository implements TaskRepository {
     id: string,
     title: string,
     nowTs: string,
+    /** AUDIT-13 — see `buildCreateTaskStatements`. Absent for an ordinary create. */
+    guard?: { readonly sql: string; readonly params: readonly unknown[] },
   ): D1PreparedStatement {
+    // An unassigned Task has no parent to gate on, so without a guard this is an
+    // unconditional VALUES insert. With one it becomes conditional, and the
+    // `RETURNING`/`changes()` contract the rest of the batch depends on still
+    // holds: zero rows means the create declined.
     return this.#db
       .prepare(
-        `INSERT INTO entities
-           (id, workspace_id, type, title, created_at, updated_at, deleted_at)
-         VALUES (?, ?, '${TASK}', ?, ?, ?, NULL)
-         RETURNING ${ENTITY_RETURNING}`,
+        guard
+          ? `INSERT INTO entities
+               (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+             SELECT ?, ?, '${TASK}', ?, ?, ?, NULL
+             WHERE ${guard.sql}
+             RETURNING ${ENTITY_RETURNING}`
+          : `INSERT INTO entities
+               (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+             VALUES (?, ?, '${TASK}', ?, ?, ?, NULL)
+             RETURNING ${ENTITY_RETURNING}`,
       )
-      .bind(id, this.#workspaceId, title, nowTs, nowTs);
+      .bind(
+        id,
+        this.#workspaceId,
+        title,
+        nowTs,
+        nowTs,
+        ...(guard?.params ?? []),
+      );
   }
 
   async setTaskParent(

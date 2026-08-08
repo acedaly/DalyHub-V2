@@ -15,12 +15,28 @@
  *   diary   → POST /diary/new        (DIARY-01, the reserved DiaryRepository)
  *   meeting → POST /meetings/create  (MEET-01, owner-timezone start conversion)
  *   note    → POST /notes/new        (NOTES-01B, then the canonical Note editor)
+ *   asset   → POST /assets/create    (ASSET-01, the reserved AssetRepository)
  */
 
 import type { EntityType } from "~/shared/entity";
 
-/** The capture types the shared sheet offers, in the order it offers them. */
-export const CAPTURE_TYPES = ["task", "diary", "meeting", "note"] as const;
+/**
+ * The capture types the shared sheet offers, in the order it offers them.
+ *
+ * The four routine record types come first because they are what a life
+ * generates hourly. **Asset** (ASSET-03) is last and deliberately included:
+ * recording something you own is rarer, but it is exactly the thing you do
+ * standing in front of the object with a phone in your hand, and having to
+ * navigate to Assets and find a module-specific button to do it was the reason
+ * assets went unrecorded.
+ */
+export const CAPTURE_TYPES = [
+  "task",
+  "diary",
+  "meeting",
+  "note",
+  "asset",
+] as const;
 
 export type CaptureType = (typeof CAPTURE_TYPES)[number];
 
@@ -59,6 +75,12 @@ export const CAPTURE_TYPE_DESCRIPTORS: readonly CaptureTypeDescriptor[] = [
     label: "Note",
     description: "Start writing; keep writing in the editor.",
     entityType: "note",
+  },
+  {
+    type: "asset",
+    label: "Asset",
+    description: "Something you own — a name and a kind.",
+    entityType: "asset",
   },
 ];
 

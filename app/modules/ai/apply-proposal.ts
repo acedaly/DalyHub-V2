@@ -364,37 +364,59 @@ async function applyMeetingTask(
   source: ProposalSource,
 ): Promise<AppliedItem> {
   const reviewed = await reviewedTask(input.scope, item);
-  const result = await convertMeetingProposalToTask(input.scope, source.id, {
-    itemBody: reviewed.title,
-    fields: {
-      title: reviewed.title,
-      parent: reviewed.parent,
-      dueDate: reviewed.dueDate,
-      scheduledDate: reviewed.scheduledDate,
-      description: reviewed.description,
-    },
-  });
-  if (!result.created) {
-    const existing = await input.scope.tasks.getTask(result.taskId);
-    if (existing !== null && !matchesReviewedTask(existing, reviewed)) {
-      return {
-        index,
-        kind: "task",
-        ok: false,
-        id: result.taskId,
-        message:
-          "That action is already a Task on this meeting, and it doesn’t match what you reviewed. Nothing was changed — open the existing Task to edit it, or change the title to add a separate one.",
-      };
+  /*
+   * The SAME replay guard the Note and unsourced paths use, and this path needs
+   * it MORE than they do rather than less.
+   *
+   * Sequential replay is idempotent without it: the second attempt finds the
+   * action item the first created, and the conversion finds that item's live
+   * mapping. SIMULTANEOUS acceptance is not, and the conversion's own uniqueness
+   * index cannot arbitrate it — both calls read the Meeting before either action
+   * item exists, both find nothing to reuse, and `addItem` allocates each of them
+   * a DIFFERENT ordinal and a DIFFERENT item id, so
+   * `meeting_item_tasks (workspace_id, item_id)` sees two distinct items and
+   * admits both. Two Tasks, one approved proposal.
+   *
+   * `guarded` closes that at the point the race actually starts: the claim is a
+   * DATABASE row keyed on the acceptance's own deterministic key (usage id, item
+   * index, kind, reviewed identity), so exactly one of two simultaneous accepts
+   * proceeds and the other is answered with the first one's result. No new table,
+   * no migration, no second idempotency mechanism — the one this file already
+   * uses, applied to the path that was missing it.
+   */
+  return guarded(input, index, "task", identityOfTask(reviewed), async () => {
+    const result = await convertMeetingProposalToTask(input.scope, source.id, {
+      itemBody: reviewed.title,
+      fields: {
+        title: reviewed.title,
+        parent: reviewed.parent,
+        dueDate: reviewed.dueDate,
+        scheduledDate: reviewed.scheduledDate,
+        description: reviewed.description,
+      },
+    });
+    if (!result.created) {
+      const existing = await input.scope.tasks.getTask(result.taskId);
+      if (existing !== null && !matchesReviewedTask(existing, reviewed)) {
+        return {
+          index,
+          kind: "task",
+          ok: false,
+          id: result.taskId,
+          message:
+            "That action is already a Task on this meeting, and it doesn’t match what you reviewed. Nothing was changed — open the existing Task to edit it, or change the title to add a separate one.",
+        };
+      }
     }
-  }
 
-  return {
-    index,
-    kind: "task",
-    ok: true,
-    id: result.taskId,
-    created: result.created,
-  };
+    return {
+      index,
+      kind: "task",
+      ok: true,
+      id: result.taskId,
+      created: result.created,
+    };
+  });
 }
 
 /**

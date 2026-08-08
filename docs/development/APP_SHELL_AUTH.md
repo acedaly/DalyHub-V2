@@ -191,11 +191,32 @@ must exist in local D1. The e2e setup provisions `local-dev-workspace`
 automatically; for manual development use `pnpm run db:migrate:local` and the
 workspace insert documented in [`DATA_KERNEL.md`](DATA_KERNEL.md#creating-a-local-workspace).
 
-## Logout
+## Logout (updated by SET-03, 2026-08-08)
 
-Logout is an ordinary link to Cloudflare's managed endpoint,
-`/cdn-cgi/access/logout`, which clears the Access session. DalyHub never
-simulates logout by deleting a local cookie and never puts the JWT in the URL.
+Ending the session is still Cloudflare's job: sign-out is an anchor to the
+managed endpoint `/cdn-cgi/access/logout`, which clears the Access session.
+DalyHub never simulates logout by deleting a local cookie and never puts the JWT
+in the URL. It stays an **anchor** rather than becoming a button so it still
+works with scripting unavailable.
+
+SET-03 adds what DalyHub *can* own — the device — in front of that navigation
+(`app/shared/account-security/use-sign-out.ts`), closing DEBT-68:
+
+1. the personal data this device holds is cleared: the offline snapshot, recent
+   searches and the diagnostics ring, plus DalyHub's cached application files.
+   All of it also exists on the server, so nothing is lost;
+2. offline captures that have **never reached DalyHub** are PRESERVED — they
+   exist nowhere else. When there are none, the offline database is removed
+   entirely, so a device with nothing pending is left with nothing at all;
+3. a `security.signed_out` Activity event is recorded, carrying whether the clear
+   succeeded and how many captures were kept — **best effort**, because failing
+   to write a history row must never be able to keep someone signed in;
+4. the browser is sent to the Access logout endpoint.
+
+Steps 1–3 run BEFORE the navigation, because after it nothing on the page can
+run. Steps 1 and 3 both fail soft for the same reason: a security control that
+can be prevented from signing you out is not one. The recorded event says whether
+the clear happened, so the history never claims one that did not.
 
 ## Mutation provenance — application-level CSRF defence (AUDIT-FIX-04)
 
@@ -453,14 +474,74 @@ Invalid or removed values fall back to `system` and are never written back verba
 The account menu and `/settings` reuse this exact authority: both render the same
 `AppearanceSelector` and post to the same action.
 
-## Security headers
+## Security headers (rewritten by AUDIT-10, 2026-08-08)
 
-Every response carries baseline headers, applied at the boundary:
-`X-Content-Type-Options: nosniff`, `Referrer-Policy:
+Every response carries baseline headers, applied at the boundary and **nowhere
+else** — there is one header authority, and no route sets a security header of
+its own: `X-Content-Type-Options: nosniff`, `Referrer-Policy:
 strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`,
-`X-Frame-Options: DENY`, and a minimal CSP (`base-uri 'none'; frame-ancestors
-'none'; object-src 'none'` — deliberately no `script-src`, which would break
-React Router hydration). Every authenticated response leaves the boundary with
+`X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy: same-origin`, and a
+complete, enforcing `Content-Security-Policy`.
+
+`Strict-Transport-Security` is deliberately NOT set here. HSTS belongs to the
+edge that terminates TLS for the Access hostname — Cloudflare — and it is the one
+header whose failure mode is measured in months of unreachability. Two
+authorities for it would be one too many. `Cross-Origin-Embedder-Policy` is not
+set either: cross-origin isolation buys DalyHub nothing (no `SharedArrayBuffer`,
+no high-resolution timers) and would break any future cross-origin subresource.
+
+### The Content-Security-Policy
+
+Until AUDIT-10 the policy set `base-uri`, `frame-ancestors` and `object-src` and
+nothing else, so the Markdown sanitiser was the only script-injection defence.
+The production policy is now:
+
+```text
+default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none';
+frame-src 'none'; media-src 'none'; manifest-src 'self'; worker-src 'self';
+font-src 'self'; img-src 'self' data: https:; form-action 'self';
+script-src 'self' 'nonce-<per-response>'; style-src 'self' 'nonce-<per-response>';
+style-src-attr 'unsafe-inline'; connect-src 'self'
+```
+
+Every source is derived from evidence, and the evidence is recorded beside each
+one in [`content-security-policy.ts`](../../app/platform/request/content-security-policy.ts).
+The three that most often surprise a reader:
+
+- **`script-src` carries a nonce because React Router's framework mode emits
+  inline scripts on every document** (the `window.__reactRouterContext`
+  hand-off, `<ScrollRestoration>`, React's streaming completion instructions,
+  and one `history.replaceState` line in the offline shell). The boundary mints
+  128 bits per request, writes it into the header AND into the typed request
+  context; `entry.server.tsx` hands it to `<ServerRouter nonce>` and to
+  `renderToReadableStream({ nonce })`. There is no `'unsafe-inline'` and no
+  `'unsafe-eval'` in production.
+- **`img-src` admits `https:`** because a Person's `photoUrl` is an
+  owner-entered remote address — a shipped field on the Person contact form.
+  `data:` covers the segmented-filter CSS mask and data-URI avatars. Markdown
+  contributes nothing: the sanitisation schema forbids `img` outright.
+- **`connect-src` does NOT admit the AI providers.** The Worker calls Anthropic
+  and OpenAI server-side, where no browser policy applies. Listing them would
+  widen the browser's allowance for a connection the browser never makes.
+
+`style-src-attr 'unsafe-inline'` is the **one exception** in the policy, and it
+is confined to attributes so an injected `<style>` element is still refused. It
+exists for the React components that size a progress track, a ring or an avatar
+with `style={{…}}`. CodeMirror's runtime `<style>` injection is *nonced* through
+`EditorView.cspNonce`, not exempted.
+
+**Development is a separate policy behind a build-time gate.** `resolveCspMode`
+returns `"development"` only when `import.meta.env.DEV` (false in every
+production bundle) **and** an explicit development/test `ENVIRONMENT` agree, so a
+deployed bundle cannot be argued into it. The relaxed directives DROP the nonce
+rather than adding `'unsafe-inline'` beside it — a directive carrying any nonce
+source makes browsers ignore `'unsafe-inline'`.
+
+**CSP reporting is deliberately absent.** There is no safe first-party collector,
+nothing would read a report, and a report-only policy that never becomes
+enforcing is the failure AUDIT-10 describes. The policy ships enforcing.
+
+Every authenticated response leaves the boundary with
 exactly `Cache-Control: private, no-store`: any route-provided cache policy is
 **overridden**, never preserved, so private application data can never be cached
 by the browser, a shared/CDN cache or an intermediary. The public `/health` route
@@ -501,6 +582,8 @@ users/sessions/preferences/theme table, or a local password/OAuth stack.
 ## Related documents
 
 - [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) — the decision record.
+- [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-a-nonce-based-content-security-policy-one-header-authority-and-a-security-surface-that-refuses-to-overclaim) — the CSP, the sign-out path and the Account & security surface (SET-03 / AUDIT-10).
+- [SETTINGS_MODULE.md → Account & security](./SETTINGS_MODULE.md#account--security-set-03-2026-08-08) — the owner-facing surface.
 - [MODULES.md](./MODULES.md) — the module registry and route contribution contract.
 - [DATA_KERNEL.md](./DATA_KERNEL.md) — workspace composition and the Activity actor.
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — deployment, secrets and the origin-bypass risk.

@@ -19,6 +19,7 @@ import {
   createSystemActorContext,
   type ActivityActorContext,
   type ActivityRepository,
+  type WorkspaceEventRecorder,
 } from "~/kernel/activity";
 import type { AiPreferencesRepository, AiUsageRepository } from "~/kernel/ai";
 import type { AlignmentRepository } from "~/kernel/alignment";
@@ -73,6 +74,7 @@ import type {
 } from "~/kernel/workspaces";
 import {
   createActivityRepository,
+  createWorkspaceEventRecorder,
   createAiPreferencesRepository,
   createAiUsageRepository,
   createAlignmentRepository,
@@ -260,6 +262,15 @@ export interface WorkspaceScope {
    */
   readonly relationships: RelationshipRepository;
   readonly activity: ActivityRepository;
+  /**
+   * SET-03 — the WRITE seam for workspace-scoped Activity events: the small set
+   * of security-relevant things the owner does to the workspace itself rather
+   * than to a record in it (signing out, clearing this device's local data).
+   * Appends to the same one Activity stream `activity` reads, with the same
+   * trusted actor; it is deliberately not part of the read repository, which
+   * stays read-only (FND-05 / ADR-012).
+   */
+  readonly workspaceEvents: WorkspaceEventRecorder;
   /**
    * The IDENT-01 workspace-membership repository: the durable link between an
    * authenticated subject (the value the Activity stream already stores as the
@@ -515,6 +526,11 @@ export function bindWorkspaceRepositories(
     actorContext,
   });
   const activity = createActivityRepository(env.DB, context);
+  // SET-03 — the write half for workspace-scoped events, carrying the SAME
+  // trusted actor as every mutation repository above.
+  const workspaceEvents = createWorkspaceEventRecorder(env.DB, context, {
+    actorContext,
+  });
   // Membership and the actor directory are the SAME workspace-bound adapter: both
   // read one joined table, and one instance keeps a single actor-resolution rule.
   const members = createWorkspaceMemberRepository(env.DB, context);
@@ -572,6 +588,7 @@ export function bindWorkspaceRepositories(
     relationships,
     projectSettings,
     activity,
+    workspaceEvents,
     members,
     actors: members,
     alignment,

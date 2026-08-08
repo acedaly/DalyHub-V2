@@ -1151,3 +1151,75 @@ stale evidence would be worse than no proposal.
 
 Offline, the AI surfaces show their ordinary unavailable state, and every other
 part of DalyHub behaves exactly as documented above.
+
+---
+
+## 14. Sign-out, local data and the CSP (SET-03 / AUDIT-10, 2026-08-08)
+
+### 14.1 Three classes of local data
+
+`app/shared/account-security/local-data.ts` states the classification the rest of
+this section depends on. It exists because "clear the browser's storage" is the
+wrong operation — the three things DalyHub keeps on a device have different
+recovery properties:
+
+1. **Public application assets** — JS, CSS, fonts, icons and the offline shell
+   document, in Cache Storage. None of it personal, all of it re-downloadable.
+   The offline shell in particular is structurally incapable of carrying
+   workspace data (§5, and `app/routes/offline.tsx`).
+2. **Owner-specific personal data** — the seven-day snapshot, recent searches and
+   the diagnostics ring. Every byte also exists on the server, so removing it
+   loses **nothing**. This is the class that should not survive a sign-out, and
+   after SET-03 it does not.
+3. **Unsynchronised owner-created work** — captures made offline that have never
+   reached DalyHub. There is no copy anywhere else, so deleting it destroys the
+   only instance.
+
+### 14.2 What sign-out does (closing DEBT-68)
+
+The audit's finding was that a synced snapshot and queued captures survived a
+sign-out until the owner cleared them by hand — so on a shared device, "I logged
+out" did not mean "my data is off this machine".
+
+Signing out through DalyHub now clears classes 1 and 2 and **preserves class 3**.
+When there is no class-3 work on the device the offline database is removed
+entirely, so a device with nothing pending is left with nothing at all — the
+outcome DEBT-68 asked for, reached without the destruction it did not ask for.
+The full sequence is in
+[`APP_SHELL_AUTH.md → Logout`](APP_SHELL_AUTH.md#logout-updated-by-set-03-2026-08-08).
+
+`Settings → Account & security` adds two explicit controls beside it: *Clear your
+personal data on this device* (class 2, plain confirmation) and *Clear everything
+DalyHub keeps on this device* (classes 1–3, typed confirmation). `Settings →
+Offline & app` keeps its three existing controls unchanged; the two sections
+answer different questions — one is "will DalyHub still work without a
+connection", the other is "what could someone holding this device read".
+
+### 14.3 The service worker and the Content-Security-Policy
+
+The worker is the one component that can serve a DalyHub document without the
+Worker boundary having built its headers, so AUDIT-10 gives it two rules:
+
+- **A replayed cached document keeps its OWN `Content-Security-Policy`.** The
+  cached offline shell carries the nonce it was rendered with; substituting a
+  fresh policy would name a nonce that document's scripts do not have, and the
+  shell would not boot — on the one device that by definition cannot fetch a new
+  one. The rest of the baseline headers are still re-applied, so a cache entry can
+  never serve a document with fewer protections than the Worker would have given
+  it.
+- **Documents the worker SYNTHESISES get a stricter policy.** The "DalyHub is
+  offline" page and safe mode carry no script of any kind — that is what makes
+  safe mode able to break a boot loop — so their policy is `default-src 'none';
+  script-src 'none'` with a single `style-src 'unsafe-inline'` allowance for the
+  one inline `<style>` block that paints them. They deliberately request no
+  stylesheet: zero subresources is what makes them survivable offline.
+
+One consequence is worth stating plainly: the cached offline shell **freezes one
+nonce for the life of that cache entry**. It renders no workspace data, and the
+alternative is an offline shell that cannot run.
+
+`worker-src 'self'` and `manifest-src 'self'` are named explicitly in the
+production policy rather than inherited from `default-src`, because a service
+worker and a manifest are exactly the kind of thing a policy should be explicit
+about. Registration, the offline shell, the install prompt, safe mode and offline
+replay were all driven under the enforcing policy with no violation.

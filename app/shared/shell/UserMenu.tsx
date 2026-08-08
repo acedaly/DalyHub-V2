@@ -36,14 +36,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
+import { useSignOut } from "~/shared/account-security";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
 
+import { ACCESS_LOGOUT_PATH } from "./access-logout";
 import { AppearanceSelector } from "./AppearanceSelector";
 import { displayNameFromEmail, initialsFromName } from "./identity-display";
 
-/** The Cloudflare Access application logout endpoint (ADR-016 §5.7). */
-export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+export { ACCESS_LOGOUT_PATH } from "./access-logout";
 
 /**
  * The display-identity derivations now live in `identity-display.ts` (pure, no
@@ -93,6 +94,7 @@ export function UserMenu({
   compact = false,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
+  const signOut = useSignOut();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -169,15 +171,27 @@ export function UserMenu({
             Settings
           </a>
         ) : null}
+        {/* SET-03 — still an ANCHOR to Cloudflare's own logout endpoint, and
+         * deliberately so. The click is intercepted to clear this device's
+         * personal DalyHub data first (DEBT-68), but with scripting unavailable
+         * the plain link still signs the owner out — a security control that
+         * stops working when JavaScript does is not one. The href is the real
+         * destination either way, so what the browser shows on hover is the
+         * truth. */}
         <a
           className="dh-user-menu__link"
           href={ACCESS_LOGOUT_PATH}
-          onClick={() => setOpen(false)}
+          aria-disabled={signOut.state === "idle" ? undefined : true}
+          onClick={(clickEvent) => {
+            clickEvent.preventDefault();
+            setOpen(false);
+            void signOut.signOut();
+          }}
         >
           <span className="dh-user-menu__link-icon" aria-hidden="true">
             <SignOutIcon />
           </span>
-          Sign out
+          {signOut.state === "idle" ? "Sign out" : "Signing out…"}
         </a>
       </div>
     </div>
