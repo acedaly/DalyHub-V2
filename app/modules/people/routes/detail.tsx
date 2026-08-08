@@ -24,7 +24,6 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import {
   emptyPersonRelationshipFacts,
   evaluatePersonRelationship,
@@ -56,12 +55,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
-  } catch {
-    // Keep the record reachable with the deterministic owner-calendar default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority,
+  // resolved once per request and shared with every other module that
+  // asks what day it is. Degrades to the documented default on a read
+  // failure, so a missing preference never takes the page down.
+  const timezone = await scope.ownerTimeZone();
 
   // The DERIVED relationship (PEOPLE-03): one bounded, grouped facts read over the
   // Person's EntityLinks and the Activity those linked records wrote, evaluated

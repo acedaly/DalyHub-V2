@@ -36,7 +36,6 @@ import {
   validateTimezone,
 } from "~/kernel/diary";
 import { EntityValidationError } from "~/kernel/entities";
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -125,12 +124,11 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     }
   }
 
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
-  } catch {
-    // Editing remains available with the deterministic default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority,
+  // resolved once per request and shared with every other module that
+  // asks what day it is. Degrades to the documented default on a read
+  // failure, so a missing preference never takes the page down.
+  const timezone = await scope.ownerTimeZone();
 
   // The anchor must be an ACTIVE `diary` entity in THIS workspace. `getById`
   // returns null for a missing id, a soft-deleted entity and a cross-workspace

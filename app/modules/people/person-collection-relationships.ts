@@ -17,8 +17,6 @@
  */
 
 import type { FollowUpFrequency, Person } from "~/kernel/people";
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
-import type { AppPreferencesRepository } from "~/kernel/preferences";
 import {
   emptyPersonRelationshipFacts,
   evaluatePersonRelationship,
@@ -49,7 +47,7 @@ export async function loadPageStayInTouch(
   relationships: RelationshipRepository,
   people: readonly RelationshipPageSubject[],
   now: Date,
-  timeZone: string | undefined,
+  timeZone: string,
 ): Promise<Map<string, SerializedPersonStayInTouch>> {
   const signals = new Map<string, SerializedPersonStayInTouch>();
   if (people.length === 0) {
@@ -90,34 +88,17 @@ export async function loadPageStayInTouch(
 }
 
 /**
- * Resolve the owner's calendar timezone for a collection read, falling back to the
- * deterministic application default when no preference is stored or the read fails.
- * A timezone lookup must never take a collection down.
- */
-export async function resolveOwnerTimezone(
-  appPreferences: AppPreferencesRepository,
-  subject: string,
-): Promise<string> {
-  try {
-    return (await appPreferences.get(subject)).timezone;
-  } catch {
-    return DEFAULT_APP_PREFERENCES.timezone;
-  }
-}
-
-/**
  * Serialize a whole bounded page of People WITH their derived stay-in-touch signal,
  * in ONE batched facts read. This is the shape every People collection route uses,
  * so none of them can drift into a per-Person read.
  */
 export async function serializePeoplePage(
   relationships: RelationshipRepository,
-  appPreferences: AppPreferencesRepository,
-  subject: string,
+  ownerTimeZone: () => Promise<string>,
   people: readonly Person[],
   now: Date = new Date(),
 ): Promise<SerializedPersonListItem[]> {
-  const timeZone = await resolveOwnerTimezone(appPreferences, subject);
+  const timeZone = await ownerTimeZone();
   const signals = await loadPageStayInTouch(
     relationships,
     people,

@@ -43,8 +43,6 @@ import { useMemo, useState } from "react";
 import { FormButton } from "~/shared/forms";
 import { InlineDateField, type InlineSaveOutcome } from "~/shared/inline-edit";
 
-import { ownerCalendarIso } from "~/shared/datetime";
-
 import { planTargets } from "./plan-targets";
 import { formatCalendarDate } from "./task-view";
 
@@ -67,8 +65,14 @@ interface TaskPlanningSectionProps {
    * read-only text rather than a control that would fail.
    */
   readonly onSetDue?: (dueDate: string | null) => Promise<InlineSaveOutcome>;
-  /** Injectable "now" for the target dates (a fixed value keeps tests deterministic). */
-  readonly now?: Date;
+  /**
+   * AUDIT-14 — the OWNER's calendar day (`YYYY-MM-DD`), resolved SERVER-side from
+   * their stored timezone and handed down. It used to be derived here from the
+   * browser's clock through a helper that defaulted to `Australia/Sydney`, so
+   * "Today" in this control could name a different date from the one the same
+   * record's urgency chip had just rendered.
+   */
+  readonly todayIso: string;
 }
 
 export function TaskPlanningSection({
@@ -78,18 +82,14 @@ export function TaskPlanningSection({
   onPlan,
   onClear,
   onSetDue,
-  now,
+  todayIso,
 }: TaskPlanningSectionProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The quick-plan target dates, resolved in the owner's calendar zone (client-side
-  // Intl), so "Today"/"Tomorrow"/"Next week" match the pane-header day. Only used in
-  // click handlers, never rendered, so there is no hydration text to mismatch.
-  const targets = useMemo(
-    () => planTargets(ownerCalendarIso(now ?? new Date())),
-    [now],
-  );
+  // The quick-plan target dates, derived from the server-resolved owner day, so
+  // "Today"/"Tomorrow"/"Next week" match the day this record is displaying.
+  const targets = useMemo(() => planTargets(todayIso), [todayIso]);
 
   /**
    * Adapt the plan callbacks to the shared inline-field contract. Clearing is a

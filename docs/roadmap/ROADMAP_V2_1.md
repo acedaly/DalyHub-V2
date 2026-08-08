@@ -487,14 +487,51 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   checklist in the audit report. **Debt.** DEBT-84. **Size.** Small (docs).
   **Priority.** P3 (P2 for the production-state confusion).
 
+### ☑ AUDIT-FIX-06 — Concurrency, and one owner day (P3) — **DELIVERED 2026-08-08**
+
+- **Findings.** [AUDIT-07](../product/END_TO_END_AUDIT_2026_08_05.md#audit-07--multi-device-preference-lost-update--p3)
+  (preference lost-update; `version` incremented but never enforced),
+  [AUDIT-08](../product/END_TO_END_AUDIT_2026_08_05.md#audit-08--concurrent-note-content-saves-are-blind-last-write-wins--p3)
+  (note content is blind last-write-wins),
+  [AUDIT-14](../product/END_TO_END_AUDIT_2026_08_05.md#audit-14--two-owner-today-definitions--p3)
+  (two "owner today" definitions) and
+  [AUDIT-15](../product/END_TO_END_AUDIT_2026_08_05.md#audit-15--soft-deleted-inbox-task-cannot-be-restored-latent--p3)
+  (a parentless Inbox Task cannot be restored). All four were re-confirmed against
+  `main` at `03e7d81` before any code changed.
+- **Delivered.** Preference writes became per-column **patches**, so two devices
+  changing two different settings merge instead of clobbering, and the existing
+  `version` became a REAL write precondition on the one read-modify-write path
+  (the navigation hidden-set), with a typed conflict and a `409` rather than a
+  `500`. Note content saves now quote the version they were written against; the
+  repository folds that into the same statement as the write, and a stale save is
+  refused with the newer text returned — surfaced through the EXISTING
+  `RemoteChangeBanner`, not a Notes-only dialog, with the draft untouched. The
+  owner's calendar day has one authority (`WorkspaceScope.ownerTimeZone()` /
+  `.ownerTodayIso()`), the shared date helpers no longer default a timezone at
+  all, and Asset history, obligations and the obligation→task gateway follow the
+  owner instead of Sydney. `spine.restore` admits a Task with no structural
+  parent, returning it to the Inbox with nothing invented, while every other
+  kind keeps its parent requirement.
+- **Deliberately NOT in scope.** No revision history, no CRDT/real-time
+  collaboration, no offline note editing, no automatic Markdown merge, and no
+  AUDIT-16 dead-code deletion (a different blast radius — see DEBT-88 §3).
+- **No migration.** Every column the preconditions use — `owner_app_preferences.version`,
+  `note_details.updated_at`, the owner's stored `timezone` — already existed and
+  was already written; the change is that they are now compared. **Production data
+  untouched.**
+- **Debt.** DEBT-82 and DEBT-83 resolved; DEBT-88 partially resolved (timezone and
+  restore closed, dead code open). **Size.** Medium. **Priority.** P3.
+
 ### The rest — near-term remediation and cleanup
 
-Sequenced but not blocking: multi-device concurrency (AUDIT-07 preferences,
-AUDIT-08 note content), the security/ops hardening (AUDIT-10 CSP, AUDIT-11 backup
-artifact), and the cleanups (AUDIT-13 non-atomic flows, AUDIT-14 one owner
-timezone, AUDIT-15 parentless-task restore, AUDIT-16 dead code). Each is recorded
-in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-82, DEBT-83, DEBT-85,
-DEBT-87, DEBT-88) with its finding id. The full sequence is
+Sequenced but not blocking: the security/ops hardening (AUDIT-10 CSP, AUDIT-11
+backup artifact) and the cleanups (AUDIT-13 non-atomic flows, AUDIT-16 dead
+code). The multi-device concurrency pair (AUDIT-07 preferences, AUDIT-08 note
+content) and the owner-timezone/parentless-restore cleanup (AUDIT-14, AUDIT-15)
+were delivered by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3).
+Each remaining item is recorded in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-85, DEBT-87, DEBT-88 §3)
+with its finding id. The full sequence is
 [Recommended remediation sequence](../product/END_TO_END_AUDIT_2026_08_05.md#20-recommended-remediation-sequence).
 
 **Verification gaps (owner action, not a code item).** The audit could not reach

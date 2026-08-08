@@ -120,6 +120,7 @@ import {
   type IdGenerator,
 } from "~/kernel/entities";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
@@ -135,6 +136,14 @@ export interface D1AssetHistoryRepositoryOptions {
   readonly taskGateway?: ObligationTaskGateway;
   /** TEST-ONLY deterministic batch fault, proving whole-transaction rollback. */
   readonly mutationFault?: AtomicMutationFault;
+  /**
+   * AUDIT-14 — resolve the OWNER's timezone, so this repository's idea of
+   * "today" is the same one every other module uses. It used to be a hard-coded
+   * `Australia/Sydney`, which day-shifted obligation due state and the dates
+   * written onto generated work for any owner living elsewhere. Omitted, it
+   * falls back to `DEFAULT_OWNER_TIME_ZONE` — the no-preference case only.
+   */
+  readonly ownerTimeZone?: () => Promise<string>;
 }
 
 const SUBJECT_ROLE = "subject";
@@ -242,6 +251,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
   readonly #recorder: D1ActivityRecorder;
   readonly #taskGateway?: ObligationTaskGateway;
   readonly #mutationFault?: AtomicMutationFault;
+  readonly #ownerTimeZone: () => Promise<string>;
 
   constructor(
     db: D1Database,
@@ -258,6 +268,8 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
     this.#recorder = new D1ActivityRecorder(db);
     this.#taskGateway = options.taskGateway;
     this.#mutationFault = options.mutationFault;
+    this.#ownerTimeZone =
+      options.ownerTimeZone ?? (() => Promise.resolve(DEFAULT_OWNER_TIME_ZONE));
   }
 
   /* ---------------------------------------------------------------------- */
@@ -304,9 +316,17 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
     throw new AssetStorageError({ cause });
   }
 
-  /** The owner-calendar day, so every derived state resolves in one timezone. */
-  #today(): string {
-    return ownerCalendarIso(this.#clock());
+  /**
+   * The owner-calendar day, so every derived state resolves in one timezone.
+   *
+   * AUDIT-14 — "one timezone" now means the OWNER's stored one, resolved through
+   * the single scope-level authority, not a Sydney constant this module chose
+   * for itself. The two callers are the meter reading's default date and the
+   * obligation completion date, and both are calendar dates the owner will read
+   * back as "today"; the instants this repository stores stay UTC.
+   */
+  async #today(): Promise<string> {
+    return ownerCalendarIso(this.#clock(), await this.#ownerTimeZone());
   }
 
   /**
@@ -1102,7 +1122,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
     const assetId = validateAssetId(input.assetId);
     const before = await this.#assetFacts(assetId);
     if (!before) throw new AssetNotFoundError();
-    const readingDate = input.readingDate ?? this.#today();
+    const readingDate = input.readingDate ?? (await this.#today());
 
     const event = await this.recordEvent(assetId, {
       category: "history",
@@ -1432,7 +1452,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       return this.#existingCompletion(current);
     }
 
-    const completedOn = c.completedOn ?? this.#today();
+    const completedOn = c.completedOn ?? (await this.#today());
     const eventCategory = completionEventCategory(current.category);
     const eventId = this.#newId();
     const now = this.#clock();

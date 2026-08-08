@@ -22,7 +22,6 @@
 import { env } from "cloudflare:workers";
 
 import { DiaryValidationError } from "~/kernel/diary";
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import {
   applyCaptureRelationship,
   compensateCapturedRecord,
@@ -89,12 +88,11 @@ async function handleCreate(
   const rawBody = String(form.get("body") ?? "");
   const body = rawBody.length > 0 ? rawBody : null;
   const whenLocal = String(form.get("when") ?? "").trim();
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(ownerSubject)).timezone;
-  } catch {
-    // Capture remains available with the deterministic default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority,
+  // resolved once per request and shared with every other module that
+  // asks what day it is. Degrades to the documented default on a read
+  // failure, so a missing preference never takes the page down.
+  const timezone = await scope.ownerTimeZone();
 
   // Backdating is optional: an explicit owner-local "when" is converted to the
   // UTC instant the kernel stores; an absent "when" leaves occurredAt to default

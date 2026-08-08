@@ -24,6 +24,17 @@
  * branch below). This keeps "identical content never appends a second
  * Activity event" true under genuine concurrency, not just for sequential
  * calls.
+ *
+ * AUDIT-08 — that reconciliation kept identical content honest, but it could
+ * not tell a stale save from a fresh one: two tabs holding the same document
+ * both wrote the whole content, and the later write replaced the earlier one's
+ * paragraphs silently. `update` now accepts the content version the editor
+ * loaded and folds it into the SAME statement as a compare-and-set, so a save
+ * based on text that has since changed matches zero rows and is reported as a
+ * `NoteDetailsConflictError` — the newer stored content is never overwritten,
+ * and the refusal is a typed domain outcome rather than a 500 or a false
+ * success. `setTags`/`setArchived` are unchanged: they patch their own column
+ * and cannot lose long-form writing.
  */
 
 import {
@@ -50,6 +61,7 @@ import {
   type NoteDetailsChangeResult,
   type NoteDetailsRecord,
   type NoteDetailsRepository,
+  type UpdateNoteContentOptions,
 } from "~/kernel/notes";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
@@ -125,16 +137,53 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     return this.#record(id, row);
   }
 
-  async update(id: string, content: string): Promise<NoteDetailsChangeResult> {
+  async update(
+    id: string,
+    content: string,
+    options: UpdateNoteContentOptions = {},
+  ): Promise<NoteDetailsChangeResult> {
     const current = await this.#require(id);
     const validated = validateNoteContent(content);
 
     if (validated === current.content) {
+      // The stored text already IS this text. Nobody's writing can be lost by
+      // agreeing, so a stale base version is not a conflict here.
       return { details: current, changed: false };
     }
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
+
+    /*
+     * AUDIT-08 — the base-version precondition, folded into the write.
+     *
+     * `expectedContentUpdatedAt` is the content timestamp the editor loaded.
+     * Quoting it turns the upsert into a compare-and-set: the extra predicate
+     * makes a stale save match zero rows, and the reconciliation below turns
+     * that into a `NoteDetailsConflictError` instead of a silent overwrite.
+     * Without it, two tabs each held a full document and whichever saved last
+     * replaced the other's paragraphs with no trace.
+     *
+     * `null` is a DISTINCT quoted value, not an absent one: it says "the Note
+     * had no saved content when I opened it". The honest guard for that is that
+     * the stored content is still empty — which is also why it does not fire
+     * spuriously when a `setTags`/`setArchived` write created the row with empty
+     * content in the meantime. Nothing was written there, so nothing is lost.
+     *
+     * The INSERT branch is deliberately ungated: no row means no stored content,
+     * so there is nothing a stale writer could destroy.
+     */
+    const expected = options.expectedContentUpdatedAt;
+    const versionGuard =
+      expected === undefined
+        ? ""
+        : expected === null
+          ? " AND note_details.content = ''"
+          : " AND note_details.updated_at = ?";
+    const versionBinds =
+      expected === undefined || expected === null
+        ? []
+        : [toStorageTimestamp(expected)];
 
     const domainStatement = this.#db
       .prepare(
@@ -149,10 +198,18 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
            content = excluded.content,
            updated_at = excluded.updated_at
-         WHERE note_details.content != excluded.content
+         WHERE note_details.content != excluded.content${versionGuard}
          RETURNING ${DETAIL_RETURNING}`,
       )
-      .bind(this.#workspaceId, id, validated, nowTs, this.#workspaceId, id);
+      .bind(
+        this.#workspaceId,
+        id,
+        validated,
+        nowTs,
+        this.#workspaceId,
+        id,
+        ...versionBinds,
+      );
 
     const event: NewActivityEvent = {
       type: NOTE_CONTENT_UPDATED,
@@ -170,12 +227,15 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
       return { details: this.#record(id, result.row), changed: true };
     }
 
-    // The gate failed. Two distinct causes look identical here — the Note was
+    // The gate failed. Three distinct causes look identical here — the Note was
     // soft-deleted (or otherwise became unavailable) between the read above
     // and this statement's execution, OR a concurrent duplicate submission
     // already wrote this exact content first (the `WHERE note_details.content
-    // != excluded.content` predicate skipped a genuine no-op UPDATE). Reconcile
-    // honestly rather than assume the stale read still holds.
+    // != excluded.content` predicate skipped a genuine no-op UPDATE), OR the
+    // AUDIT-08 base-version predicate refused a stale save. Reconcile honestly
+    // rather than assume the stale read still holds: the first is a not-found,
+    // the second an idempotent success, and only the third is a conflict —
+    // which is exactly why the branches below re-read instead of guessing.
     const refreshed = await this.get(id);
     if (!refreshed) {
       throw new NoteDetailsNotFoundError();

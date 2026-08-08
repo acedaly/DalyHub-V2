@@ -80,6 +80,7 @@ import {
   type IdGenerator,
 } from "~/kernel/entities";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
@@ -114,6 +115,14 @@ export interface D1AssetRepositoryOptions {
   readonly mutationFault?: AtomicMutationFault;
   /** TEST-ONLY purge-batch fault (proves the purge + tombstone roll back). */
   readonly deleteFault?: D1AssetDeleteFault;
+  /**
+   * AUDIT-14 — resolve the OWNER's timezone, so this repository's idea of
+   * "today" is the same one every other module uses. It used to be a hard-coded
+   * `Australia/Sydney`, which day-shifted obligation due state and the dates
+   * written onto generated work for any owner living elsewhere. Omitted, it
+   * falls back to `DEFAULT_OWNER_TIME_ZONE` — the no-preference case only.
+   */
+  readonly ownerTimeZone?: () => Promise<string>;
 }
 
 const SUBJECT_ROLE = "subject";
@@ -345,6 +354,7 @@ export class D1AssetRepository implements AssetRepository {
   readonly #createFault?: D1AssetCreateFault;
   readonly #mutationFault?: AtomicMutationFault;
   readonly #deleteFault?: D1AssetDeleteFault;
+  readonly #ownerTimeZone: () => Promise<string>;
 
   constructor(
     db: D1Database,
@@ -362,6 +372,8 @@ export class D1AssetRepository implements AssetRepository {
     this.#createFault = options.createFault;
     this.#mutationFault = options.mutationFault;
     this.#deleteFault = options.deleteFault;
+    this.#ownerTimeZone =
+      options.ownerTimeZone ?? (() => Promise.resolve(DEFAULT_OWNER_TIME_ZONE));
   }
 
   /** A statement guaranteed to fail at execution, aborting/rolling back the batch. */
@@ -490,7 +502,11 @@ export class D1AssetRepository implements AssetRepository {
     const limit = validateAssetsLimit(input.limit);
     const query = normaliseQuery(input.query);
     const filters = validateAssetFilters(input.filters);
-    const today = validateToday(input.today) ?? ownerCalendarIso(this.#clock());
+    // AUDIT-14 — the caller's own owner-day wins (loaders resolve it once per
+    // request); otherwise resolve the OWNER's timezone rather than assuming one.
+    const today =
+      validateToday(input.today) ??
+      ownerCalendarIso(this.#clock(), await this.#ownerTimeZone());
 
     const scope: AssetCursorScope = {
       workspaceId: this.#workspaceId,

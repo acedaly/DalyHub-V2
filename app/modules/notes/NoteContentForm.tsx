@@ -23,9 +23,32 @@
  * OFFLINE failure and auto-retrying on reconnect; `UnsavedChangesGuard` arms
  * while the latest edit is not yet safely persisted and never blocks the
  * record's own Delete (`suppressGuard`).
+ *
+ * ## AUDIT-08 — the save says which version it is replacing
+ *
+ * The reconciliation contract above only fires when this record REVALIDATES and
+ * hands back a newer `initialContent`. Two tabs left open on the same note need
+ * not do that before one of them saves, so the server is the backstop: every
+ * save quotes the content version it was written against
+ * (`expectedContentUpdatedAt`), and a save based on text that has since changed
+ * is REFUSED rather than applied. Nothing is lost in either direction — the
+ * newer stored text is untouched, and the draft stays in the editor exactly as
+ * it was typed.
+ *
+ * The refusal is then routed into the SAME `RemoteChangeBanner` an out-of-band
+ * change already uses, because it is the same question with the same two safe
+ * answers: load the newer version, or keep mine. There is no Notes-only dialog,
+ * no automatic Markdown merge, and no second conflict vocabulary to learn.
  */
 
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import { MARKDOWN_SOURCE_MAX_BYTES } from "~/kernel/markdown";
 import { EntityIcon, getEntityIdentity, isEntityType } from "~/shared/entity";
@@ -58,9 +81,30 @@ const NOTE_AUTOSAVE_DEBOUNCE_MS = 1500;
 const OFFLINE_MESSAGE =
   "You’re offline. Your changes are safe here and will save automatically once you’re back online.";
 
+/**
+ * Is `candidate` a strictly newer content version than `against`? Both are the
+ * server's own ISO-8601 UTC timestamps, so lexicographic order IS chronological
+ * order; `null` means "content never saved" and is therefore the oldest value
+ * there is.
+ */
+function isNewerVersion(
+  candidate: string | null,
+  against: string | null,
+): boolean {
+  if (candidate === null) return false;
+  return against === null || candidate > against;
+}
+
 export interface NoteContentFormProps {
   readonly noteId: string;
   readonly initialContent: string;
+  /**
+   * AUDIT-08 — the stored content version `initialContent` came from, as the
+   * record loader serialised it. `null` means the note's content has never been
+   * saved, which is a real base version rather than "unknown": it is exactly
+   * what the server compares against to keep an unwritten note unwritten.
+   */
+  readonly contentUpdatedAt: string | null;
   /** Called after a successful content save, so the record can revalidate
    * (the Activity tab's `reloadKey` depends on the fresh `contentUpdatedAt`). */
   readonly onSaved: () => void;
@@ -82,6 +126,7 @@ export interface NoteContentFormProps {
 export function NoteContentForm({
   noteId,
   initialContent,
+  contentUpdatedAt,
   onSaved,
   suppressGuard = false,
   flushRef,
@@ -93,6 +138,47 @@ export function NoteContentForm({
   // message (when one exists) purely for DISPLAY, layered on top in render.
   const lastServerMessageRef = useRef<string | null>(null);
 
+  /*
+   * AUDIT-08 — the content version this editor's committed text came from, and
+   * therefore the version each save quotes.
+   *
+   * It is a ref, not state, because it must be readable inside `onSave` without
+   * re-creating the callback mid-save. It only ever moves FORWARD, and only from
+   * an authority: the server's answer to our own save, or a newer server version
+   * this editor has already TAKEN ON (see the effect below).
+   *
+   * Crucially it does NOT advance merely because a save was refused. Advancing
+   * there would make the very next save — a stray blur, the debounce — succeed
+   * silently, which is the overwrite this whole mechanism exists to stop. It
+   * advances only once the owner has answered the banner, so until they do, a
+   * repeat save is refused again rather than quietly winning.
+   */
+  const baseVersion = useRef<string | null>(contentUpdatedAt);
+  /*
+   * The newer server text a refused save came back with, and the version it is.
+   * Feeding it in as `serverValue` is what routes the conflict into the shared
+   * reconciliation contract instead of inventing a second one here.
+   */
+  const [refused, setRefused] = useState<{
+    readonly content: string;
+    readonly version: string | null;
+  } | null>(null);
+
+  /*
+   * The current server-side content, from whichever source knows it best.
+   *
+   * A refused save is fresher than the last loader value BY DEFINITION — it is
+   * why the save was refused — so it wins until the loader catches up. Comparing
+   * versions rather than swapping on arrival is what keeps this safe: the value
+   * handed to the coordinator only ever moves forward, so it can never hand back
+   * older text and have a clean editor silently adopt it.
+   */
+  const refusedIsNewer =
+    refused !== null && isNewerVersion(refused.version, contentUpdatedAt);
+  const serverContent = refusedIsNewer ? refused.content : initialContent;
+  /** The newest server version this editor knows of, from either source. */
+  const serverVersion = refusedIsNewer ? refused.version : contentUpdatedAt;
+
   const field = useAutosaveField<string>({
     initialValue: initialContent,
     // NOTES-05 §18 — opt into the shared reconciliation contract. The record
@@ -101,13 +187,17 @@ export function NoteContentForm({
     // current server-side content. Handing it to the hook lets a change made
     // elsewhere be adopted while this editor is clean, and be OFFERED rather
     // than silently applied or silently lost while it is dirty ([DEBT-47]).
-    serverValue: initialContent,
+    serverValue: serverContent,
     debounceMs: NOTE_AUTOSAVE_DEBOUNCE_MS,
     validate: validateNoteContentSize,
     onSave: async (value, signal) => {
       const body = new FormData();
       body.set("intent", "update_content");
       body.set("content", value);
+      // Always sent, so the server always has a precondition to check. An empty
+      // value is the honest answer for a note whose content has never been
+      // saved, and is checked as such rather than skipped.
+      body.set("expectedContentUpdatedAt", baseVersion.current ?? "");
       let data: NoteMutationResult;
       try {
         const response = await fetch(
@@ -121,8 +211,34 @@ export function NoteContentForm({
       }
       if (data.kind === "update_content" && data.ok) {
         lastServerMessageRef.current = null;
+        // Our text IS the stored text now: keep quoting a current base so a long
+        // writing session does not conflict with its own previous save.
+        baseVersion.current = data.contentUpdatedAt ?? null;
         onSavedRef.current();
         return;
+      }
+      if (data.kind === "update_content" && data.conflict === true) {
+        /*
+         * The save was refused. Two things must be true from here, and both are:
+         * the draft is still in the editor (the coordinator keeps it and returns
+         * to `unsaved`), and the newer stored text is still on the server.
+         *
+         * Adopting the newer base version is what makes the owner's next
+         * decision stick: "Load the newer version" replaces the draft with text
+         * that is now current, and "Keep mine" saves the draft over a version
+         * the owner has been shown and chosen against — a deliberate
+         * last-write-wins, never a silent one, and never a second conflict for
+         * the same change.
+         */
+        lastServerMessageRef.current = null;
+        setRefused({
+          content: data.serverContent ?? "",
+          version: data.contentUpdatedAt ?? null,
+        });
+        // Bring the record's other surfaces up to date with the change that was
+        // just discovered; the editor's own text is untouched by this.
+        onSavedRef.current();
+        return { outcome: "conflict" as const };
       }
       lastServerMessageRef.current =
         (data.kind === "update_content" &&
@@ -135,6 +251,28 @@ export function NoteContentForm({
   if (flushRef) {
     flushRef.current = field.flush;
   }
+
+  /*
+   * AUDIT-08 — keep the quoted base version in step with the text this editor
+   * is actually holding.
+   *
+   * It advances only while nothing is parked for the owner to decide on, which
+   * is exactly when the coordinator has either adopted the server's version
+   * silently (a clean editor takes it), or the owner has answered the banner:
+   * "Load the newer version" makes their text ours, and "Keep mine" is an
+   * explicit instruction to write over a version they have now SEEN. While a
+   * change is still parked, the base stays put, so a save attempted before they
+   * answer is refused again rather than quietly winning. And it never moves
+   * backwards, so a revalidation landing after our own save cannot restore a
+   * base we have already written past.
+   */
+  const remoteParked = field.remoteValue !== null;
+  useEffect(() => {
+    if (remoteParked) return;
+    if (isNewerVersion(serverVersion, baseVersion.current)) {
+      baseVersion.current = serverVersion;
+    }
+  }, [serverVersion, remoteParked]);
 
   // Offline detection: attribute a failure honestly, and retry automatically
   // the moment connectivity returns instead of waiting for the user to notice
@@ -220,7 +358,19 @@ export function NoteContentForm({
         label="Note"
         value={field.value}
         onChange={field.onChange}
-        onBlur={field.onBlur}
+        /*
+         * AUDIT-08 — while a change is parked for the owner to decide on, a
+         * blur does not attempt a save.
+         *
+         * The base version is deliberately held until they answer, so such a
+         * save is CERTAIN to be refused: it would cost a round trip, and — worse
+         * — it disables the banner's own buttons for its duration, right as the
+         * owner moves the mouse from the editor to them. Their draft is already
+         * safe in the editor; there is nothing to rescue by saving it here.
+         */
+        onBlur={() => {
+          if (field.remoteValue === null) field.onBlur();
+        }}
         help={CONTENT_HELP}
         error={field.validationError}
         placeholder="Start writing…"

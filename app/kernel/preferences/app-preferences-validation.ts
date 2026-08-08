@@ -59,8 +59,12 @@ export function isSupportedTimezone(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0 || value.length > 128) {
     return false;
   }
-  const supported = timezoneSet();
-  if (supported.size > 0) return supported.has(value);
+  if (timezoneSet().has(value)) return true;
+  // Falling through to the runtime probe matters: `Intl.supportedValuesOf`
+  // lists CANONICAL zone names only, so it omits links — including `UTC`, which
+  // the Settings timezone list offers and which every owner-calendar helper
+  // resolves perfectly well. The probe is the authority because it is exactly
+  // what those helpers do with the stored value.
   try {
     new Intl.DateTimeFormat("en-AU", { timeZone: value }).format(new Date(0));
     return true;

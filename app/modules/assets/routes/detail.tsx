@@ -31,7 +31,6 @@ import {
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { ownerCalendarIso } from "~/shared/datetime";
 import {
   DrawerProvider,
   useDrawer,
@@ -81,7 +80,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   if (!asset) {
     throw new Response("Not Found", { status: 404 });
   }
-  const today = ownerCalendarIso(new Date());
+  // AUDIT-14 — the owner's day, from the one scope-level authority.
+  const today = await scope.ownerTodayIso();
 
   // Resolve the id-reference fields to canonical names (never duplicated records).
   const refIds = [
