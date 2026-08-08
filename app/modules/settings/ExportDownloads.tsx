@@ -174,7 +174,7 @@ export function ExportDownloads() {
       <ExportRow
         format="full"
         label="Download full DalyHub export"
-        description="A ZIP containing the complete structured snapshot (dalyhub-snapshot.json), a manifest of what it holds, the schema description and checksums. This is the format a future restore will read."
+        description="A ZIP containing the complete structured snapshot (dalyhub-snapshot.json), a manifest of what it holds, the schema description and checksums. This is your backup: it is the file Restore reads."
         action="Download full export"
         fallbackName="dalyhub-export.zip"
       />

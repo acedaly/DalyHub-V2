@@ -42,6 +42,7 @@ import type {
   WorkspaceMemberRepository,
 } from "~/kernel/identity";
 import type { WorkspaceSnapshotRepository } from "~/kernel/export";
+import type { WorkspaceRestoreRepository } from "~/kernel/restore";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type {
   NoteDetailsRepository,
@@ -92,6 +93,7 @@ import {
   createTaskViewRepository,
   createWorkspaceMemberRepository,
   createWorkspaceRepository,
+  createWorkspaceRestoreRepository,
   createWorkspaceSnapshotRepository,
 } from "~/platform/storage/d1";
 
@@ -300,6 +302,15 @@ export interface WorkspaceScope {
    */
   readonly snapshot: WorkspaceSnapshotRepository;
   /**
+   * The SET-02 workspace-restore write port: validate-then-stage, an atomic
+   * cutover, and post-restore verification. It is the ONLY repository that
+   * replaces a workspace's records wholesale, which is exactly why it is
+   * constructed here, bound to the same trusted `WorkspaceContext` as everything
+   * else — a restore cannot be pointed at another workspace because there is no
+   * parameter with which to point it.
+   */
+  readonly restore: WorkspaceRestoreRepository;
+  /**
    * AUDIT-14 — the ONE authority for "which calendar day is it for the owner?".
    *
    * DalyHub had two answers: Task paths resolved the stored preference while
@@ -495,6 +506,9 @@ export function bindWorkspaceRepositories(
   const taskViews = createTaskViewRepository(env.DB, context);
   // Read-only: no actor, because it never mutates or records Activity.
   const snapshot = createWorkspaceSnapshotRepository(env.DB, context);
+  // Writes, but records no Activity: a restore reconstructs history rather than
+  // making it (see docs/development/BACKUP_AND_RESTORE.md).
+  const restore = createWorkspaceRestoreRepository(env.DB, context);
   return {
     context,
     entities,
@@ -527,6 +541,7 @@ export function bindWorkspaceRepositories(
     aiUsage,
     taskViews,
     snapshot,
+    restore,
     ownerTimeZone,
     ownerTodayIso,
   };

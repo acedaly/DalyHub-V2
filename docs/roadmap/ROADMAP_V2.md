@@ -48,8 +48,8 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 | Classification | Items | Count |
 |---|---|---|
 | **Complete** | FND-01…09 · DS-01…10, 10b, 11…13 · PX-02…06 · MOBILE-01 · TODAY-01…08 · TASKS-01, 02, 02b, 03, 04 · PROJ-01…06 · AREA-01…05 · NOTES-01A, 01B, 01C, 02…07 · REL-01 · MEET-01…04 · PEOPLE-01…03 · ASSET-01, 02 · DIARY-01A, 01, 01B, 03 · REVIEWS-01 · X-01 · X-04 · THEME-01 · HELP-01 · RELEASE-01 · POLISH-01 · UX-01 · SET-01 | **85** |
-| **Complete with documented limitation** | [X-04](#-x-04--export--data-portability) (export only — no restore; not an atomic point-in-time snapshot; bounded at 50,000 rows/collection and 64 MiB/archive, both reported when hit) · [REVIEWS-01](#-reviews-01--dalyhub-reviews-foundation) (period context and Today integration are bounded first cuts — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)) · [ASSET-02](#-asset-02--history--renewals--done) (obligations are tracked in-app only; no notification channel — [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)) | **3** of the 85 above |
-| **Deferred to V2.1** | [SET-02](#-set-02--backup--restore) *(moved out of V2 scope by this closure)* · [PEOPLE-04](#-people-04--mobile) · [ASSET-03](#-asset-03--mobile) · [REVIEW-04](#-review-04--mobile) · [X-02](#-x-02--saved-views--cross-module-filters) · [REVIEW-02](#-review-02--weekly-review) · [REVIEW-03](#-review-03--insights--alignment) · [DIARY-02](#-diary-02--day-context-links) · [SET-03](#-set-03--account--security) | 9 |
+| **Complete with documented limitation** | [X-04](#-x-04--export--data-portability) (restore shipped in V2.1 as [SET-02](ROADMAP_V2_1.md#-set-02--backup--restore-v21); not an atomic point-in-time snapshot; bounded at 50,000 rows/collection and 64 MiB/archive, both reported when hit) · [REVIEWS-01](#-reviews-01--dalyhub-reviews-foundation) (period context and Today integration are bounded first cuts — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)) · [ASSET-02](#-asset-02--history--renewals--done) (obligations are tracked in-app only; no notification channel — [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)) | **3** of the 85 above |
+| **Deferred to V2.1** | [SET-02](#-set-02--backup--restore) *(moved out of V2 scope by this closure; **delivered in V2.1 on 2026-08-08** — see [`ROADMAP_V2_1.md → SET-02`](ROADMAP_V2_1.md#-set-02--backup--restore-v21))* · [PEOPLE-04](#-people-04--mobile) · [ASSET-03](#-asset-03--mobile) · [REVIEW-04](#-review-04--mobile) · [X-02](#-x-02--saved-views--cross-module-filters) · [REVIEW-02](#-review-02--weekly-review) · [REVIEW-03](#-review-03--insights--alignment) · [DIARY-02](#-diary-02--day-context-links) · [SET-03](#-set-03--account--security) | 9 |
 | **Deferred to a later version** | [X-03](#-x-03--import--sync-todoist-notion-calendar) · [AI-01](#-ai-01--proposal-architecture--review-ui) · [AI-02](#-ai-02--meeting--tasksnotes-proposals) · [AI-03](#-ai-03--planning--review-assistance) · [AI-04](#-ai-04--privacy-controls) | 5 |
 | **Release blocker** | None outstanding. Two were found by this closure and both are fixed — see [the change log](#change-log-for-this-roadmap). | **0** |
 
@@ -67,9 +67,11 @@ them blocks the release, and none of them is marked ☑ to make the table tidier
 [X-03](#-x-03--import--sync-todoist-notion-calendar) (itself deferred to a later
 version, and correctly sequenced after restore) and the "trust obligation" framing
 in the old build-order section, which this closure rewrote. No delivered V2 item
-reads SET-02, and no V2 surface offers a backup or restore control:
-`Settings → Privacy & data`, Help's *"What is not here yet"* topic and the release
-notes all state that DalyHub cannot read an export back in.
+reads SET-02, and at the V2 release no V2 surface offered a backup or restore
+control: `Settings → Privacy & data`, Help's *"What is not here yet"* topic and
+the release notes all stated that DalyHub could not read an export back in.
+**That changed in V2.1** — SET-02 shipped on 2026-08-08, and those three surfaces
+were updated in the same change rather than left saying something untrue.
 
 ---
 
@@ -1127,9 +1129,9 @@ notes all state that DalyHub cannot read an export back in.
 
   **No new dependency.** The ZIP writer is ~180 lines against the published format, using only `Uint8Array`/`DataView`/`TextEncoder` and the platform's `CompressionStream` (feature-detected; a runtime without `deflate-raw` gets a valid STORED archive). Measured client-bundle cost for the whole item: **+1.0 KB gzip** — the export path is server-only.
 
-  **Known limitations, recorded rather than hidden.** No restore (that is SET-02). Not an atomic snapshot. Bounded at 50,000 rows per collection and 64 MiB per archive, both *reported* when hit rather than silently truncated. A rename changes a vault filename (the id in frontmatter is the identity). Activity payloads are structural, and an unparseable one exports as `null` and is named. No attachments — DalyHub stores none.
+  **Known limitations, recorded rather than hidden.** *(Restore was the first of these and is now delivered — [SET-02](ROADMAP_V2_1.md#-set-02--backup--restore-v21), 2026-08-08.)* Not an atomic snapshot. Bounded at 50,000 rows per collection and 64 MiB per archive, both *reported* when hit rather than silently truncated. A rename changes a vault filename (the id in frontmatter is the identity). Activity payloads are structural, and an unparseable one exports as `null` and is named. No attachments — DalyHub stores none.
 
-  **[SET-02](#-set-02--backup--restore) is now unblocked and remains not started.** `dalyhub-snapshot.json` + `manifest.json` is its documented input contract, and `SCHEMA.md` states the compatibility policy. Restore, scheduled backups, R2 storage, import, sync, email/sharing/public links, PDF and attachments were all explicitly out of scope and none of them was built.
+  **[SET-02](#-set-02--backup--restore) was unblocked by this and shipped in V2.1 on 2026-08-08** — `dalyhub-snapshot.json` + `manifest.json` is exactly the input contract it reads, and `SCHEMA.md`'s compatibility policy is exactly what its version gate enforces. See [`BACKUP_AND_RESTORE.md`](../development/BACKUP_AND_RESTORE.md). Restore, scheduled backups, R2 storage, import, sync, email/sharing/public links, PDF and attachments were all explicitly out of scope and none of them was built.
 
 ---
 

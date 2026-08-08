@@ -516,6 +516,14 @@ describe("module discovery", () => {
           moduleId: "settings",
           file: "routes/export.tsx",
         },
+        // SET-02 adds the restore steps as one POST-only resource route
+        // (`settings/restore/:step`). Also no nav entry: nothing about a restore
+        // should be reachable by following a link.
+        {
+          id: "settings.restore",
+          moduleId: "settings",
+          file: "routes/restore.tsx",
+        },
         { id: "help.index", moduleId: "help", file: "routes/index.tsx" },
         { id: "about.index", moduleId: "about", file: "routes/index.tsx" },
       ]);

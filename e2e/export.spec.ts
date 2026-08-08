@@ -77,8 +77,13 @@ test.describe("Settings → Privacy & data → export", () => {
     ).toBeVisible();
 
     // The old dead "Deferred" export row is gone; what remains deferred is named.
+    // SET-02 removed "backup and restore" from that list when restore shipped —
+    // the list is only ever allowed to shrink by exactly what was delivered.
     await expect(page.getByText("Not available yet")).toBeVisible();
-    await expect(page.getByText(/Backup and restore, import/i)).toBeVisible();
+    await expect(
+      page.getByText(/Import from other products, file attachments/i),
+    ).toBeVisible();
+    await expect(page.getByText(/Backup and restore, import/i)).toHaveCount(0);
   });
 
   test("downloads the full export, and the archive holds a valid snapshot", async ({

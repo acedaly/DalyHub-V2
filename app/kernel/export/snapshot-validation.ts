@@ -168,6 +168,7 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
     `${row.occurredAt}\u0000${row.id}`,
   activitySubjects: (row: { activityId: string; entityId: string }) =>
     `${row.activityId}\u0000${row.entityId}`,
+  workspaceMembers: (row: { subject: string }) => row.subject,
 } as unknown as Readonly<Record<SnapshotCollection, (row: never) => string>>;
 
 /** The collections whose rows reference an entity by `entityId`. */
@@ -549,6 +550,28 @@ export function validateWorkspaceSnapshot(
     }
     if (!entityIds.has(subject.entityId)) {
       c.add(`${path}.entityId`, "references an entity not in this snapshot");
+    }
+  });
+
+  /* identity -------------------------------------------------------------- */
+  // SET-02 — the membership rows that make the exported actor ids interpretable.
+  // Held to the same referential rule as everything else: a linked Person must be
+  // an entity this snapshot contains, so a restore cannot produce a dangling
+  // identity link.
+  records.workspaceMembers.forEach((member, index) => {
+    const path = `records.workspaceMembers[${index}]`;
+    requireNoUndefined(c, path, member as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.subject`, member.subject);
+    requireInstant(c, `${path}.createdAt`, member.createdAt);
+    requireInstant(c, `${path}.updatedAt`, member.updatedAt);
+    if (
+      member.personEntityId !== null &&
+      !entityIds.has(member.personEntityId)
+    ) {
+      c.add(
+        `${path}.personEntityId`,
+        "references an entity not in this snapshot",
+      );
     }
   });
 

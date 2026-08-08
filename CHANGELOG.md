@@ -17,6 +17,82 @@ no version number to group them under.
 
 ---
 
+## You can get your data back in (SET-02) — and your nightly production backup is no longer readable by anyone with repository access (AUDIT-11)
+
+DalyHub could give you everything you had ever written, in a file, on demand. It
+could not read that file back in. So the worst day — a bulk edit that went wrong,
+a week of records gone, a workspace you wanted returned to how it was on Tuesday
+— had no answer, and every export was an archive rather than a way back.
+
+**It has one now.** The full DalyHub export was always the backup format. Today
+DalyHub reads it.
+
+### Restoring
+
+**Settings → Privacy & data → Restore.** Choose a full DalyHub export ZIP, and
+DalyHub:
+
+- **checks it** — the archive's own checksums, the version it was written by, and
+  whether everything inside it holds together. **Nothing in your workspace
+  changes at this point.** Choosing a file inspects it; it does not restore it.
+- **shows you what is in it** — when the backup was taken, and how many Areas,
+  Goals, Projects, Tasks, Notes, Diary entries, Meetings, People, Assets and
+  Reviews it holds, beside what this workspace holds right now;
+- **tells you what will happen**, in one sentence. If this workspace already has
+  records, restoring **replaces** them, and DalyHub says so with both numbers
+  rather than asking "are you sure?";
+- **backs up what you have first.** Before anything is replaced, DalyHub creates
+  a backup of your current workspace, checks it can be read back in, and gives it
+  to you. If it cannot make that backup, it stops and changes nothing. That file
+  is your way back from a restore you regret;
+- **asks you to type `REPLACE`** — the same deliberate confirmation DalyHub uses
+  for anything irreversible;
+- **restores, then checks its work**, and tells you plainly if the result does
+  not match the backup rather than reporting success because rows were written.
+
+### The promise underneath it
+
+**A restore that fails leaves your workspace exactly as it was.** Not most of it,
+not a mixture of the old workspace and the new one. Either the workspace you had,
+or the workspace in the backup — never something in between. That is the whole
+reason this took as long as it did, and it is proved automatically: DalyHub
+builds a realistic workspace, backs it up, throws the workspace away, restores
+the backup and checks that every record, every link, every date and every line of
+your writing came back identical.
+
+A restore also **does not pretend to be you**. Your history comes back as history
+— the events that actually happened, when they happened — not thousands of new
+"created today" entries.
+
+### What restore does not touch
+
+AI settings. Your budgets and privacy choices are spending and consent decisions,
+and restoring a file should not quietly turn them back on. A restored workspace
+starts with AI off.
+
+### And what DalyHub still does not do
+
+Keep copies for you. There is no scheduled backup on your behalf and no second
+copy held somewhere on your account. **Downloading a backup after a significant
+week is worth the ten seconds** — Settings → Privacy & data → _Download full
+DalyHub export_.
+
+### Behind the scenes: the nightly production backup
+
+DalyHub takes a nightly low-level copy of the production database for the case
+where the database itself is gone. That copy used to be stored in plain text
+where anyone who could read the project's build history could read all of it —
+contact details, diary entries, meeting notes, everything.
+
+It is now **encrypted before it is stored**, with a key that lives in a protected
+secret store and never travels with the backup. Every night the job decrypts its
+own copy again and checks it comes back byte for byte, so "it is encrypted" and
+"it can actually be recovered" are both true rather than assumed. How that key is
+kept, and how to use it on the day it is needed, is written down in
+[`BACKUP_AND_RESTORE.md`](docs/development/BACKUP_AND_RESTORE.md).
+
+---
+
 ## Your Review now shows you what actually moved (REVIEW-03)
 
 Reviews could hold what you wrote. They could not tell you whether anything was

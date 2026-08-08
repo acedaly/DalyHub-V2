@@ -670,6 +670,10 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   // IDENT-01 membership references entities (the linked Person) AND workspaces,
   // both ON DELETE RESTRICT, so it must clear before either.
   await env.DB.prepare("DELETE FROM workspace_members").run();
+  // SET-02 restore state references workspaces ON DELETE RESTRICT, so both
+  // tables must clear before workspaces (neither references entities).
+  await env.DB.prepare("DELETE FROM workspace_restore_staged_rows").run();
+  await env.DB.prepare("DELETE FROM workspace_restore_operations").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

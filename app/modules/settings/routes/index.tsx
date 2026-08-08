@@ -66,6 +66,7 @@ import { SelectField, Switch } from "~/shared/forms";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import { ExportDownloads } from "../ExportDownloads";
+import { RestoreFromBackup } from "../RestoreFromBackup";
 
 import type { Route } from "./+types/index";
 
@@ -783,15 +784,28 @@ function PrivacyDataSection() {
         can never describe different data.
       */}
       <SettingsGroup
-        title="Export your data"
-        description="Your data is yours. Both downloads are generated on demand from one workspace snapshot and are never stored by DalyHub."
+        title="Back up your data"
+        description="Your data is yours. Both downloads are generated on demand from one workspace snapshot and are never stored by DalyHub. The full DalyHub export IS the backup format — it is what Restore below reads."
       >
         <ExportDownloads />
+      </SettingsGroup>
+      {/*
+        SET-02 — restore, in its own group with a `danger` tone because the
+        populated-workspace path replaces data. The group tone is how DalyHub
+        already separates consequential settings; the restore surface adds no new
+        pattern of its own.
+      */}
+      <SettingsGroup
+        title="Restore"
+        tone="danger"
+        description="Bring a DalyHub backup back in. Choosing a file only checks it — nothing in this workspace changes until you confirm, and replacing a workspace that already holds records requires a verified safety backup first."
+      >
+        <RestoreFromBackup />
       </SettingsGroup>
       <SettingsGroup title="Not available yet">
         <SettingsRow
           label="Deferred data tools"
-          description="Backup and restore, import, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are not built yet. Export is the format a future restore will read; restore itself is a separate piece of work and is not implemented."
+          description="Import from other products, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are not built yet."
           control={
             <span className="dh-settings-page__text-value">Deferred</span>
           }

@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-105** (DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-106** (DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -930,13 +930,30 @@ authority now.)
 - **Closing condition.** No two canonical docs disagree about production state or the theme count; production state is stated with evidence.
 - **Related finding.** [AUDIT-06](END_TO_END_AUDIT_2026_08_05.md#audit-06--production-state-documentation-drift-production-unverifiable-here--p2), [AUDIT-09](END_TO_END_AUDIT_2026_08_05.md#audit-09--help-contradicts-the-shipped-theme-count--p3). **Related roadmap item.** [AUDIT-FIX-05](../roadmap/ROADMAP_V2_1.md#-audit-fix-05--documentation-truth-pass-p2p3).
 
-### ☐ DEBT-85 — CSP has no `script-src`; full production D1 dump retained as a CI artifact — P3
+### ☐ DEBT-85 — CSP has no `script-src`/`default-src` — P3
 
-- **Current issue.** [AUDIT-10 / AUDIT-11] `app/platform/request/security-headers.ts` sets only `base-uri`/`frame-ancestors`/`object-src` — no `script-src`/`default-src`, so the Markdown sanitiser is the sole script-injection defence with no second layer. Separately, `.github/workflows/production-backup.yml` exports the entire production DB daily to a workflow artifact with 30-day retention; credentials are handled correctly, but the dump is all personal data and its exposure scales with who can read the repo's Actions.
-- **Impact.** No defence-in-depth if an XSS sink is ever introduced; a broad data-at-rest surface if Actions read access widens.
-- **Desired future state.** A hash/nonce `script-src` CSP; the backup artifact encrypted or its retention/environment-protection tightened.
-- **Closing condition.** CSP includes a `script-src`; the backup artifact is not readable as plaintext personal data by ordinary repo-read access.
-- **Related finding.** [AUDIT-10](END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3), [AUDIT-11](END_TO_END_AUDIT_2026_08_05.md#audit-11--production-d1-dump-stored-as-a-github-artifact--p2p3). **Related roadmap item.** security/ops hardening in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup).
+> **This entry was SPLIT on 2026-08-08.** It originally carried two unrelated
+> audit findings, AUDIT-10 (CSP) and AUDIT-11 (the plaintext production dump).
+> AUDIT-11 is resolved and now has its own entry,
+> [DEBT-105](#-debt-105--the-scheduled-production-backup-uploaded-a-plaintext-copy-of-the-whole-database--p2p3--resolved-2026-08-08),
+> so it can be marked closed without implying the CSP work is done. **The CSP
+> concern below remains outstanding.**
+
+- **Current issue.** [AUDIT-10] `app/platform/request/security-headers.ts` sets only `base-uri`/`frame-ancestors`/`object-src` — no `script-src`/`default-src`, so the Markdown sanitiser is the sole script-injection defence with no second layer.
+- **Impact.** No defence-in-depth if an XSS sink is ever introduced.
+- **Desired future state.** A hash/nonce `script-src` CSP, hydration-safe.
+- **Closing condition.** The CSP includes a `script-src`, and a test asserts it.
+- **Related finding.** [AUDIT-10](END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3). **Related roadmap item.** security/ops hardening in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup).
+
+### ☑ DEBT-105 — The scheduled production backup uploaded a plaintext copy of the whole database — P2/P3 — RESOLVED 2026-08-08
+
+- **Original issue.** [AUDIT-11] `.github/workflows/production-backup.yml` exported the entire production database daily to a GitHub Actions artifact as a plain `.sql` file with 30-day retention. Credentials were handled correctly and that was never the finding: the dump is all personal data — People and their contact details, Diary entries, Meeting notes, Reviews, archived and soft-deleted records — and its exposure scaled with who could read the repository's Actions. Raised as half of DEBT-85; split out on resolution so the still-open CSP work stays independently traceable.
+- **Resolved (2026-08-08, with SET-02).** The dump is now encrypted **on the runner, before it becomes an artifact**, with GnuPG symmetric AES-256 and explicitly stated S2K parameters (`--s2k-mode 3`, `--s2k-digest-algo SHA512`, `--s2k-count 65011712`). One pipeline, `scripts/production-backup.mjs`, serves the scheduled and the manually dispatched run identically — there is no weaker manual path.
+- **What GitHub now stores.** `dalyhub-v2-production-<stamp>.sql.gpg` and a `metadata.json` of sizes, SHA-256 digests, run identity and the decrypt command. **No plaintext dump. No key.** The plaintext exists only in a scratch directory removed by a trap that runs even on failure, and a guard step refuses the upload if the artifact directory contains anything unencrypted or the metadata names a credential-shaped field.
+- **The key.** `BACKUP_ENCRYPTION_PASSPHRASE`, in the protected `production` GitHub environment. It is read from a file written under `umask 077`, never from `argv` and never interpolated into a shell string; shell tracing is never enabled and no log line carries backup contents. It is not committed, not documented, not uploaded and not printed. The owner holds a copy **off GitHub**; rotation, and what happens to older backups, are documented in [`BACKUP_AND_RESTORE.md` §6](../development/BACKUP_AND_RESTORE.md#6-the-recovery-key).
+- **Recoverability is proved, not asserted.** Every run decrypts its own artifact back, compares SHA-256 with the original and asserts the plaintext does not appear in the ciphertext. `test/unit/deploy/production-backup-encryption.test.ts` does the same end to end with a real dump, a throwaway key and the real `gpg` invocation: encrypt → prove the sensitive strings are absent → decrypt → byte-identical → still passes structural validation; a wrong key fails; a tampered ciphertext fails. `test/unit/deploy/production-backup-workflow.test.ts` holds the workflow contract — upload contents, cleanup, no secret on a command line, the pre-export key guard, minimal permissions, `schedule`/`workflow_dispatch` only (no pull request can run it), and the deliberate retention.
+- **Retention.** Unchanged at 30 days, and the reasoning is recorded beside the value: it was not reduced (encryption addressed the exposure) and not extended (encryption is not a reason to keep more data on GitHub for longer).
+- **Related finding.** [AUDIT-11](END_TO_END_AUDIT_2026_08_05.md#audit-11--production-d1-dump-stored-as-a-github-artifact--p2p3). **Related roadmap item.** [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21).
 
 ### ☑ DEBT-86 — `react-router@8.0.0` carries a published advisory — P3 — RESOLVED 2026-08-05
 
