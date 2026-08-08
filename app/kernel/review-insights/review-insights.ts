@@ -420,6 +420,40 @@ function areaLink(id: string, title: string): InsightLink {
   return { label: title, to: `/areas/${id}` };
 }
 
+/**
+ * X-02 — a link from a piece of Review evidence into the CROSS-MODULE view that
+ * holds the same question open afterwards.
+ *
+ * REVIEW-03 says what was true when the period closed; a saved view keeps showing
+ * it as the records move. These are ordinary links to the existing `/views`
+ * surface, expressed in its own URL vocabulary — the Review still builds no
+ * parallel record browser, computes nothing new, and stores nothing here.
+ */
+function crossViewLink(query: string, label: string): InsightLink {
+  return { label, to: `/views?${query}` };
+}
+
+/**
+ * The X-02 view queries REVIEW-03's evidence links into. Exported so a test can
+ * prove each one still DECODES to the cross-module configuration it claims —
+ * a link that quietly stopped meaning what its label says would be worse than no
+ * link at all.
+ */
+export const REVIEW_INSIGHT_VIEW_QUERIES = {
+  /** The built-in "Needs attention" view. */
+  attention:
+    "show=task,project,goal,meeting,review&attention=1&sort=due&dir=asc",
+  /** Projects whose PROJ-02 health moved since the last completed Review. */
+  healthMoved: "show=project&p.moved=1",
+  /** Everything that changed since the last completed Review's period closed. */
+  changedSinceReview: "show=task,project,goal,note,meeting&changed=last_review",
+} as const;
+
+const ATTENTION_VIEW_QUERY = REVIEW_INSIGHT_VIEW_QUERIES.attention;
+const HEALTH_MOVED_VIEW_QUERY = REVIEW_INSIGHT_VIEW_QUERIES.healthMoved;
+const CHANGED_SINCE_REVIEW_VIEW_QUERY =
+  REVIEW_INSIGHT_VIEW_QUERIES.changedSinceReview;
+
 /* -- What changed ---------------------------------------------------------- */
 
 function buildMovement(input: ResolvedInput): Insight[] {
@@ -600,7 +634,13 @@ function buildProjectChanges(input: ResolvedInput): ProjectChangeInsight[] {
         kind === "improved"
           ? `Health improved since your last Review. ${project.tasksCompletedInPeriod > 0 ? `${plural(project.tasksCompletedInPeriod, "Task", "Tasks")} completed this period.` : "No Tasks were completed this period — the change came from its remaining work."}`
           : `Health worsened since your last Review. ${project.overdueTasks > 0 ? `${plural(project.overdueTasks, "Task is", "Tasks are")} now overdue.` : project.daysSinceActivity === null ? "No activity has been recorded." : `Last activity was ${plural(project.daysSinceActivity, "day", "days")} ago.`}`,
-      links: [projectLink(project.id, project.title)],
+      links: [
+        projectLink(project.id, project.title),
+        crossViewLink(
+          HEALTH_MOVED_VIEW_QUERY,
+          "Projects whose health moved since your last Review",
+        ),
+      ],
     });
   }
 
@@ -662,6 +702,10 @@ function buildAttention(
           to: `/tasks?task=${task.id}`,
         })),
         taskLink("overdue", "Open overdue Tasks"),
+        crossViewLink(
+          CHANGED_SINCE_REVIEW_VIEW_QUERY,
+          "Everything that changed since your last Review",
+        ),
       ],
       entityIds: overdue.map((task) => task.id),
     });
@@ -718,9 +762,17 @@ function buildAttention(
           ? `${nameList(stuck.map((project) => project.title))} — open, with nothing completed this period. ${plural(repeatedFromSnapshot.length, "was", "were")} in the same position at your last Review.`
           : `${nameList(stuck.map((project) => project.title))} — open, with nothing completed this period.`,
       measure: { value: stuck.length, exactness: "exact" },
-      links: stuck
-        .slice(0, MAX_PROJECT_CHANGES)
-        .map((project) => projectLink(project.id, project.title)),
+      links: [
+        ...stuck
+          .slice(0, MAX_PROJECT_CHANGES)
+          .map((project) => projectLink(project.id, project.title)),
+        // X-02: the same question, kept open. The Review states what was true at
+        // this point; the saved view keeps answering it as the records move.
+        crossViewLink(
+          ATTENTION_VIEW_QUERY,
+          "Open everything needing attention",
+        ),
+      ],
       entityIds: stuck.map((project) => project.id),
     });
   }

@@ -759,6 +759,7 @@ export function makeSnapshot(
       taskSavedViews: [
         {
           id: "sv-01",
+          kind: "tasks",
           name: "This week",
           configVersion: 1,
           config: { filters: [] },

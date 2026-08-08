@@ -60,6 +60,11 @@ import type { TaskRepository } from "~/kernel/tasks";
 import { ownerCalendarIso } from "~/shared/datetime";
 import type { TaskViewRepository } from "~/kernel/task-views";
 import type {
+  CrossViewConfig,
+  CrossViewQueryRepository,
+  SavedViewRepository,
+} from "~/kernel/views";
+import type {
   WorkspaceContext,
   WorkspaceContextResolver,
 } from "~/kernel/workspaces";
@@ -91,6 +96,8 @@ import {
   createSpineRepository,
   createTaskRepository,
   createTaskViewRepository,
+  createCrossViewRepository,
+  createCrossViewQueryRepository,
   createWorkspaceMemberRepository,
   createWorkspaceRepository,
   createWorkspaceRestoreRepository,
@@ -294,6 +301,18 @@ export interface WorkspaceScope {
    * `tasks` query and can neither drift from the data nor escape the workspace.
    */
   readonly taskViews: TaskViewRepository;
+  /**
+   * X-02 — the CROSS-MODULE saved views: the same workspace- and owner-scoped
+   * table and repository as `taskViews`, holding a `cross` configuration instead
+   * of a Tasks one. DalyHub has one saved-view system, not one per module.
+   */
+  readonly crossViews: SavedViewRepository<CrossViewConfig>;
+  /**
+   * X-02 — the bounded, workspace-scoped read projection a cross-module saved
+   * view executes through. It stores nothing and mutates nothing: a saved view
+   * describes a query, and re-opening it re-runs that query.
+   */
+  readonly crossViewQuery: CrossViewQueryRepository;
   /**
    * The X-04 workspace-snapshot source: a READ-ONLY, bounded, deterministic
    * projection over every persisted table in the workspace, from which BOTH the
@@ -504,6 +523,17 @@ export function bindWorkspaceRepositories(
     actorContext.actor.id ?? "system",
   );
   const taskViews = createTaskViewRepository(env.DB, context);
+  // X-02 — the cross-module saved views and the bounded query they run through.
+  // The SAME table and the SAME repository class as `taskViews`, bound to the
+  // cross-module codec; the query repository is handed the PROJ-02 / AREA-03
+  // facts repositories so derived dimensions reuse those evaluators rather than
+  // acquiring a second implementation.
+  const crossViews = createCrossViewRepository(env.DB, context);
+  const crossViewQuery = createCrossViewQueryRepository(env.DB, context, {
+    health: projectHealth,
+    goals,
+    alignment,
+  });
   // Read-only: no actor, because it never mutates or records Activity.
   const snapshot = createWorkspaceSnapshotRepository(env.DB, context);
   // Writes, but records no Activity: a restore reconstructs history rather than
@@ -540,6 +570,8 @@ export function bindWorkspaceRepositories(
     aiPreferences,
     aiUsage,
     taskViews,
+    crossViews,
+    crossViewQuery,
     snapshot,
     restore,
     ownerTimeZone,

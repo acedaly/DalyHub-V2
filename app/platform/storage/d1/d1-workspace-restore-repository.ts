@@ -53,6 +53,7 @@ import {
   type SafetyBackupReceipt,
   type WorkspaceRestoreRepository,
 } from "~/kernel/restore";
+import { isSavedViewKind } from "~/kernel/views";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
 /* -------------------------------------------------------------------------- */
@@ -454,6 +455,12 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
     columns: [
       "id",
       "owner_id",
+      // X-02: one table holds saved views of more than one KIND. Restoring
+      // without it would silently rewrite every cross-module view as a Tasks
+      // view (the column default), which is a data change wearing a restore's
+      // clothes. An archive written before X-02 carries no kind and reads back
+      // as `tasks`, which is what was true when it was written.
+      "kind",
       "name",
       "config_version",
       "config",
@@ -521,6 +528,10 @@ function stageRows(
         id: view.id,
         // The AUTHENTICATED owner, never a value from the backup.
         owner_id: ownerId,
+        // An unrecognised kind from an untrusted archive degrades to `tasks`
+        // rather than being written through — a row of an unknown kind would be
+        // invisible to every switcher, which is worse than being readable.
+        kind: isSavedViewKind(view.kind) ? view.kind : "tasks",
         name: view.name,
         config_version: view.configVersion,
         config: jsonText(view.config),

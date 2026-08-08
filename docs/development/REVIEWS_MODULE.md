@@ -534,6 +534,30 @@ REVIEW-03 makes the Review the place DalyHub starts paying the owner back for
 keeping their life in it. Decision record:
 [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score).
 
+> **X-02 integration (2026-08-08).** REVIEW-03's architecture is unchanged — no
+> derivation was moved, duplicated or re-implemented, and `review_insight_snapshots`
+> remains derived, non-authoritative data written only on completion. What X-02 added
+> is a link in each direction:
+>
+> - **Out of the Review.** Three pieces of evidence now also link into the
+>   cross-module [`/views`](VIEWS_MODULE.md) surface: the carried-over-overdue
+>   insight offers *"Everything that changed since your last Review"*, the
+>   Project-health-change insight offers *"Projects whose health moved since your
+>   last Review"*, and the attention insight offers *"Open everything needing
+>   attention"*. They are ordinary links to an existing destination, expressed in
+>   that surface's own URL vocabulary and exported as `REVIEW_INSIGHT_VIEW_QUERIES`
+>   so a unit test can decode each one and prove it still means what its label says.
+>   The Review still builds no parallel record browser.
+> - **Into a view.** X-02 READS the snapshot: `changedSince: "last_review"` resolves
+>   to the most recent snapshot's `period_end`, and a Project's
+>   `healthMovedSinceLastReview` compares today's live PROJ-02 health with the health
+>   the snapshot recorded. Nothing writes here, nothing caches it, and when no
+>   completed Review has a snapshot the view returns **nothing** and says so rather
+>   than quietly answering a different question.
+>
+> The REVIEW-03 rule holds: **derived evidence, not vanity metrics.** No score,
+> grade, streak, percentage or AI interpretation was introduced by the integration.
+
 The Review now answers, from the owner's own records:
 
 - **What changed?** Concrete movement inside the period.

@@ -7,6 +7,8 @@ import {
   createAiUsageRepository,
   createAppPreferencesRepository,
   createTaskViewRepository,
+  createCrossViewRepository,
+  createCrossViewQueryRepository,
   createAreaRepository,
   createAreaSettingsRepository,
   createAssetHistoryRepository,
@@ -31,7 +33,7 @@ import {
   createWorkspaceRepository,
   type AtomicMutationFault,
   type D1AppPreferencesRepositoryOptions,
-  type D1TaskViewRepositoryOptions,
+  type D1SavedViewRepositoryOptions,
   type D1AreaSettingsRepositoryOptions,
   type D1AssetHistoryRepositoryOptions,
   type D1AssetRepositoryOptions,
@@ -411,9 +413,34 @@ export function makeReviewInsightRepository(context: WorkspaceContext) {
  */
 export function makeTaskViewRepository(
   context: WorkspaceContext,
-  options?: D1TaskViewRepositoryOptions,
+  options?: D1SavedViewRepositoryOptions,
 ) {
   return createTaskViewRepository(env.DB, context, options);
+}
+
+/**
+ * X-02 — the workspace- and owner-scoped CROSS-MODULE saved views. The same
+ * table and repository class as `makeTaskViewRepository`, bound to the
+ * cross-module codec.
+ */
+export function makeCrossViewRepository(
+  context: WorkspaceContext,
+  options?: D1SavedViewRepositoryOptions,
+) {
+  return createCrossViewRepository(env.DB, context, options);
+}
+
+/**
+ * X-02 — the bounded, workspace-scoped cross-module query projection. The
+ * derived PROJ-02 / AREA-03 facts repositories are supplied exactly as the
+ * composition boundary supplies them.
+ */
+export function makeCrossViewQueryRepository(context: WorkspaceContext) {
+  return createCrossViewQueryRepository(env.DB, context, {
+    health: createProjectHealthRepository(env.DB, context),
+    goals: createGoalRepository(env.DB, context),
+    alignment: createAlignmentRepository(env.DB, context),
+  });
 }
 
 /**

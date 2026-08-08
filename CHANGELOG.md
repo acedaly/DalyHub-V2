@@ -56,6 +56,44 @@ was never asked for one.
 type list no longer closes the whole capture and loses what you had written, and
 tapping straight to the type field no longer makes it jump out from under your
 finger.
+## Save a useful question, not just a filter (X-02)
+
+Tasks could hold a saved view. Nothing else could — and none of the questions you
+actually ask are about one module. _What needs my attention?_ is overdue Tasks and
+at-risk Projects and off-track Goals and a Meeting with actions still hanging. There
+was no way to ask that, let alone keep asking it.
+
+**Views** is a new place in the sidebar for exactly that. Choose what to include —
+Tasks, Projects, Goals, Notes, Meetings, Reviews — narrow it in the same filter
+sheet every other collection uses, and save it with a name. Reopening it re-runs the
+question against today's records, so it is always current rather than a snapshot.
+
+It opens on four built-in views you did not have to build:
+
+- **Needs attention** — overdue and waiting work, Projects that have stalled or
+  slipped, Goals with nothing moving, Meetings with actions still open, and Reviews
+  you have not finished.
+- **This week** — everything that has moved since the week began.
+- **Since my last Review** — what changed after the period your last completed
+  Review closed. It uses that Review's own record of when it closed, not a guess.
+- **Waiting & follow-up** — what you are waiting on, and Meetings with outstanding
+  actions.
+
+Your Review now links into all of this. When it tells you a Project moved from On
+track to At risk, you can open every Project whose health moved. When it says
+something needs attention, you can open the view that keeps showing you.
+
+Three small promises worth stating. A view **never invents an answer**: if a record
+type cannot answer one of your conditions — a Note has no due date — it is left out
+and the page says so, instead of quietly returning everything. A view **never
+surfaces what you hid**: if you have turned a module off, no view reads it. And a
+view **is a URL**, so it is shareable, bookmarkable and Back-button-correct, exactly
+like the Tasks views you already had.
+
+Your existing Tasks views are untouched. They now share the same machinery as the
+new ones, which is why the switcher looks and behaves identically in both places.
+
+---
 
 ## You can get your data back in (SET-02) — and your nightly production backup is no longer readable by anyone with repository access (AUDIT-11)
 

@@ -108,6 +108,7 @@ describe("module discovery", () => {
         "settings",
         "tasks",
         "today",
+        "views",
       ]);
     });
 
@@ -122,6 +123,7 @@ describe("module discovery", () => {
         "goals",
         "projects",
         "tasks",
+        "views",
         "notes",
         "diary",
         "meetings",
@@ -306,6 +308,11 @@ describe("module discovery", () => {
           moduleId: "tasks",
           file: "routes/task-waiting-targets.tsx",
         },
+        // X-02 — the cross-module Views collection and its saved-view
+        // mutation route. Views owns no entity type; it is a way of ASKING
+        // about records other modules own.
+        { id: "views.index", moduleId: "views", file: "routes/index.tsx" },
+        { id: "views.saved", moduleId: "views", file: "routes/saved.tsx" },
         // PX-03 — one navigable Coming Soon placeholder route per shell module,
         // in module-registration order. NOTES-01B replaced the Notes
         // placeholder with the real collection/create/canonical-record/
@@ -560,6 +567,13 @@ describe("module discovery", () => {
         "tasks.matrix",
         "tasks.sectors",
         "tasks.someday",
+        // X-02 — the cross-module views: the surface plus its four built-in
+        // questions, each a plain navigation to a `/views` URL.
+        "views.open",
+        "views.attention",
+        "views.this_week",
+        "views.since_review",
+        "views.waiting",
         // NOTES-03 navigation commands (open / new / recent / unlinked /
         // archived) — Notes sorts after Tasks by the module order.
         "notes.open",

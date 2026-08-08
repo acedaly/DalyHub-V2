@@ -196,15 +196,41 @@ export async function action({ request, params, context }: Route.ActionArgs) {
      * keeps the previous behaviour exactly (the capture panel writes the first
      * body of a note it just created, and has nothing to be stale about). An
      * EMPTY value is a real, distinct answer: "the note had no saved content
-     * when I opened it". A malformed value is treated as no precondition rather
-     * than as a conflict — refusing a save over a bad timestamp would cost the
-     * owner their writing for a client bug.
+     * when I opened it".
+     *
+     * A value that is present but UNPARSEABLE is refused, and the write does not
+     * happen. This deliberately reverses an earlier reading of "never cost the
+     * owner their writing": a `400` costs them nothing — the draft has not left
+     * the editor and is offered back with the error — whereas degrading a
+     * malformed precondition to "no precondition" hands a stale client a way to
+     * skip the compare-and-set and destroy the newer STORED version, which is
+     * the exact loss this whole mechanism exists to prevent. A guard with an
+     * opt-out is not a guard.
      */
-    const options = readContentPrecondition(
+    const precondition = readContentPrecondition(
       form.get("expectedContentUpdatedAt"),
     );
+    if (!precondition.ok) {
+      return json(
+        {
+          kind: "update_content",
+          ok: false,
+          formError:
+            "That couldn’t be saved. Reload the note and try again — your text is still here.",
+          fieldErrors: {
+            expectedContentUpdatedAt:
+              "Not a valid content version. Reload the note before saving.",
+          },
+        },
+        400,
+      );
+    }
     try {
-      const saved = await scope.noteDetails.update(noteId, content, options);
+      const saved = await scope.noteDetails.update(
+        noteId,
+        content,
+        precondition.options,
+      );
       // NOTES-02: the note's `[[Wiki Link]]` references become REAL, typed
       // EntityLinks, reconciled against the saved body. This runs AFTER the
       // content write and never fails the save: the Markdown source is the
@@ -301,22 +327,40 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 }
 
 /**
+ * The outcome of reading the base-content version: either a usable set of
+ * options, or a refusal. `ok: false` is NOT "no precondition" — the two must
+ * stay distinguishable, because conflating them is what would let a malformed
+ * value disable the compare-and-set.
+ */
+type ContentPreconditionRead =
+  | { readonly ok: true; readonly options: UpdateNoteContentOptions }
+  | { readonly ok: false };
+
+/**
  * AUDIT-08 — read the optional base-content version from the submitted form.
  *
- * Three answers, deliberately distinct:
- *   - the key is ABSENT → no precondition (the previous behaviour, unchanged);
+ * Four answers, deliberately distinct:
+ *   - the key is ABSENT → no precondition (the previous behaviour, unchanged,
+ *     for a caller that has nothing to be stale about);
  *   - the key is present and EMPTY → the note had no saved content when the
- *     editor loaded it;
- *   - the key is a timestamp → that exact stored content version.
- *
- * An unparseable timestamp degrades to "no precondition" rather than to a
- * conflict: a client bug must not cost the owner what they just wrote.
+ *     editor loaded it — a real base version, checked as such;
+ *   - the key is a valid timestamp → compare-and-set against that version;
+ *   - the key is present and UNPARSEABLE (including a non-string form part) →
+ *     REFUSED. The write must not proceed: silently treating it as "no
+ *     precondition" would let a stale caller opt out of the guard and overwrite
+ *     newer stored content, and no client of this route can produce such a value
+ *     except by being wrong about which version it holds.
  */
 function readContentPrecondition(
   raw: FormDataEntryValue | null,
-): UpdateNoteContentOptions {
-  if (typeof raw !== "string") return {};
-  if (raw.length === 0) return { expectedContentUpdatedAt: null };
+): ContentPreconditionRead {
+  if (raw === null) return { ok: true, options: {} };
+  if (typeof raw !== "string") return { ok: false };
+  if (raw.length === 0) {
+    return { ok: true, options: { expectedContentUpdatedAt: null } };
+  }
   const at = new Date(raw);
-  return Number.isNaN(at.getTime()) ? {} : { expectedContentUpdatedAt: at };
+  return Number.isNaN(at.getTime())
+    ? { ok: false }
+    : { ok: true, options: { expectedContentUpdatedAt: at } };
 }
