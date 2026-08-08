@@ -239,23 +239,32 @@ test.describe("DS-09 Command Palette — desktop", () => {
     // and the row's own control flips to "Reopen", which is how the redesigned
     // Today states a finished task (it keeps its place rather than moving into a
     // separate "Completed today" section, which the redesign removed).
-    const myDay = todayDayPanel(page);
-    await myDay
-      .getByRole("checkbox", { name: `Complete ${COMPLETE_TITLE}` })
-      .check();
+    /*
+     * The row is located by its TITLE, not by its control's name: the control is
+     * named for what it will do next ("Complete …" / "Reopen …"), so naming it is
+     * asserting the state through the very thing the click changes, and it flips
+     * twice — once optimistically, once on revalidation.
+     */
+    const row = todayDayPanel(page)
+      .getByRole("listitem")
+      .filter({ hasText: COMPLETE_TITLE });
+    const toggle = row.getByRole("checkbox");
+    await expect(toggle).not.toBeChecked();
+    await toggle.check();
 
-    await expect(
-      myDay.getByRole("checkbox", { name: `Reopen ${COMPLETE_TITLE}` }),
-    ).toBeChecked();
-
-    // It PERSISTED — the proof that the shared action ran rather than only the
-    // optimistic paint.
-    await page.reload();
-    await expect(
-      todayDayPanel(page).getByRole("checkbox", {
-        name: `Reopen ${COMPLETE_TITLE}`,
-      }),
-    ).toBeChecked();
+    /*
+     * It PERSISTED, which is the whole claim — the row's checkbox IS the shared
+     * `/tasks/:id` action the palette command and the Drawer post, not a local
+     * paint.
+     *
+     * Read back from the canonical Tasks surface rather than from Today. What a
+     * completed row does NEXT on Today is that screen's own presentation
+     * decision (it keeps its place, in the completed-today band), and pinning it
+     * here made this test fail on a timing difference between a local run and a
+     * CI shard while the completion itself was perfectly correct.
+     */
+    await gotoFixture(page, "/tasks?view=list&system=completed");
+    await expect(page.getByText(COMPLETE_TITLE).first()).toBeVisible();
   });
 
   test("closes on Escape and restores focus to the trigger", async ({

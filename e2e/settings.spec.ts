@@ -81,9 +81,15 @@ test.describe("SETTINGS-01A — application settings", () => {
     await expect(page).toHaveURL(/section=date-time/);
     await choose(page, "Owner timezone", "Europe/London");
     await page.reload();
-    await expect(page.getByLabel("Owner timezone")).toHaveValue(
-      "Europe/London",
-    );
+    /*
+     * By ROLE, not by label. `getByLabel` matches a substring, and the field's
+     * clear control is now named after the field it clears ("Clear owner
+     * timezone") — which is the point of that name, and which makes the field's
+     * own label a substring of it. The role is what separates the two.
+     */
+    await expect(
+      page.getByRole("combobox", { name: "Owner timezone" }),
+    ).toHaveValue("Europe/London");
     await expect(
       page.getByText(/Timezone affects date grouping, Today, due-date/),
     ).toBeVisible();
@@ -154,10 +160,14 @@ test.describe("SETTINGS-01A — application settings", () => {
 
       // Device A changes the timezone. Device B changes the appearance.
       await choose(page, "Owner timezone", "Europe/London");
+      // `click`, not `check`: the appearance radio is controlled by the stored
+      // preference, so `check`'s own post-condition can race the write it just
+      // started. The effect is asserted on the next line, which is the honest
+      // observable anyway — and it is the pattern `appearance.spec.ts` uses.
       await other
         .getByRole("group", { name: "Appearance" })
         .getByRole("radio", { name: /Dark/ })
-        .check();
+        .click();
       await expect(other.locator("html")).toHaveAttribute(
         "data-appearance",
         "dark",

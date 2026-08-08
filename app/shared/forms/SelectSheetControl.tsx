@@ -257,7 +257,7 @@ export function SelectSheetControl({
               }}
               data-testid={`${baseId}-clear`}
             >
-              Clear {label.toLocaleLowerCase()}
+              Clear selection
             </button>
           ) : null}
         </Sheet>

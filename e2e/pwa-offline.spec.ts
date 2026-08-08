@@ -684,6 +684,26 @@ test.describe("offline lifecycle", () => {
         transaction.onerror = () => reject(transaction.error);
       });
       database.close();
+
+      /*
+       * The service worker goes FIRST, and that ordering is the whole of this
+       * step.
+       *
+       * It is part of what DalyHub installed on the device, so "clear everything
+       * stored here" has to include it — and while it is still controlling the
+       * page it is entitled to re-open `dalyhub-shell-…` on its very next fetch
+       * event. Deleting the caches out from under a live worker therefore raced
+       * its own assertion: the page is live, something revalidates, the shell
+       * cache is back, and the next line reads one entry where it expected none.
+       * (Seen on CI shard 10; it passes locally, which is exactly the shape of a
+       * race.) Unregistering first removes the thing that re-creates them, so
+       * the delete is final rather than momentary.
+       */
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations.map((registration) => registration.unregister()),
+      );
+
       const names = await caches.keys();
       await Promise.all(
         names
@@ -698,8 +718,14 @@ test.describe("offline lifecycle", () => {
       (await caches.keys()).filter((name) => name.startsWith("dalyhub-")),
     );
     expect(remaining).toEqual([]);
+    // …and the worker itself is gone, not merely its caches.
+    expect(
+      await page.evaluate(
+        async () => (await navigator.serviceWorker.getRegistrations()).length,
+      ),
+    ).toBe(0);
 
-    // Server data is untouched: DalyHub still loads and re-primes.
+    // Server data is untouched: DalyHub still loads, re-registers and re-primes.
     await page.goto("/today");
     await expect(
       page.getByRole("heading", {
@@ -707,7 +733,9 @@ test.describe("offline lifecycle", () => {
         name: /^Good (morning|afternoon|evening)/,
       }),
     ).toBeVisible();
+    await waitForServiceWorker(page);
     await waitForSnapshot(page);
+    await waitForOfflineShellCached(page);
   });
 
   test("the Settings offline section reports real device state", async ({

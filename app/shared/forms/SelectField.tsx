@@ -399,16 +399,19 @@ function SelectCombobox(props: SelectFieldProps) {
               type="button"
               className="dh-combobox__clear"
               /*
-               * Named after the FIELD it clears, not "Clear selection".
+               * Every populated select offers one of these, so a form with two
+               * of them has two buttons with one name between them — a real
+               * ambiguity, recorded as DEBT-112 rather than fixed here.
                *
-               * Every populated select offers one, so a form with two of them had
-               * two buttons with one name between them and no way for a screen
-               * reader — or a test — to tell which field either would empty. The
-               * inline select has always named its clear command this way
-               * (`Clear ${label}`); this is the same rule on the same control's
-               * other presentation.
+               * Naming it after its field (`Clear owner timezone`) is the right
+               * answer and was tried: it makes the FIELD's own label a substring
+               * of the button's, and Playwright's `getByLabel` matches
+               * substrings, so it turned every `getByLabel("<select label>")` in
+               * the suite into a strict-mode violation. That is a suite-wide
+               * migration to role-based queries (AGENTS.md §23), not a passenger
+               * on an E2E-repair PR.
                */
-              aria-label={`Clear ${label.toLocaleLowerCase()}`}
+              aria-label="Clear selection"
               disabled={disabled}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
