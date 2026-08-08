@@ -69,7 +69,8 @@ async function setNotesModuleHidden(
   hidden: boolean,
 ): Promise<void> {
   await gotoFixture(page, "/settings?section=navigation");
-  const toggle = page.getByRole("checkbox", { name: "Notes" });
+  // A `role="switch"`, not a checkbox — see `settings.spec.ts`.
+  const toggle = page.getByRole("switch", { name: "Notes" });
   if (hidden) await toggle.uncheck();
   else await toggle.check();
   /*

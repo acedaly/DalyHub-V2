@@ -198,14 +198,18 @@ test.describe("SETTINGS-01A — application settings", () => {
     });
     await sectionNav.getByRole("link", { name: "Navigation" }).click();
     await expect(page).toHaveURL(/section=navigation/);
-    const helpToggle = page.getByRole("checkbox", { name: "Help" });
+    /*
+     * A SWITCH, not a checkbox. M3-INT replaced this row's hand-rolled switch
+     * skin with the shared `Switch`, which is still an `<input type="checkbox">`
+     * underneath but adds `role="switch"` on top — and an explicit role replaces
+     * the implicit one, so `getByRole("checkbox")` no longer reaches it.
+     */
+    const helpToggle = page.getByRole("switch", { name: "Help" });
     await expect(helpToggle).toBeChecked();
     await helpToggle.uncheck();
     await expect(page.getByText("Saved").first()).toBeVisible();
     await page.reload();
-    await expect(
-      page.getByRole("checkbox", { name: "Help" }),
-    ).not.toBeChecked();
+    await expect(page.getByRole("switch", { name: "Help" })).not.toBeChecked();
     await expect(
       page
         .getByRole("navigation", { name: "Primary" })
@@ -217,14 +221,12 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toBeVisible();
 
     await gotoFixture(page, "/settings?section=navigation");
-    await expect(page.getByRole("checkbox", { name: "Today" })).toBeDisabled();
-    await expect(
-      page.getByRole("checkbox", { name: "Settings" }),
-    ).toBeDisabled();
+    await expect(page.getByRole("switch", { name: "Today" })).toBeDisabled();
+    await expect(page.getByRole("switch", { name: "Settings" })).toBeDisabled();
     await page.getByRole("button", { name: "Reset navigation" }).click();
     await expect(page.getByText("Saved").first()).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("checkbox", { name: "Help" })).toBeChecked();
+    await expect(page.getByRole("switch", { name: "Help" })).toBeChecked();
 
     await sectionNav.getByRole("link", { name: "Privacy & data" }).click();
     await expect(page).toHaveURL(/section=privacy-data/);
