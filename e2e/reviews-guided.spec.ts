@@ -493,10 +493,25 @@ test("Journey 5: an existing Review uses its own stored template and is not rewr
     page.getByText("Written before the guided flow existed."),
   ).toBeVisible();
 
-  // And the stored template version is untouched by opening the guided flow.
+  /*
+   * And the Review's own record still reads as its own after the guided flow
+   * has been opened over it — the authored text is on the record, not only in
+   * the guide.
+   *
+   * This used to assert the literal string `review.weekly.v1` on the page. The
+   * record no longer prints the template IDENTIFIER anywhere, and it should not:
+   * a versioned internal key is not something the owner needs to read. The
+   * storage invariant it was standing in for has its own coverage at the right
+   * layer — `test/kernel/review-workflow.test.ts`, *"preserves the Review's
+   * stored template version"* — so this asserts what a browser can actually
+   * see (AGENTS.md §22).
+   */
   await page.goto(reviewUrl);
   await waitForInteractive(page);
-  await expect(page.getByText("review.weekly.v1")).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(
+    page.getByText("Written before the guided flow existed."),
+  ).toBeVisible();
 });
 
 /* -------------------------------------------------------------------------- */
