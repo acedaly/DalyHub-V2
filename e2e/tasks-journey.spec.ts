@@ -395,13 +395,22 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
   test("no horizontal overflow across views after creating a task", async ({
     page,
   }) => {
-    // This test creates a task and then performs SIXTEEN full navigations (four
-    // views × four widths), each a real server render followed by hydration. On a
-    // green local run it measures 31.7s — past the 30s default, which was sized
-    // when the shell was lighter. The budget is raised to match the measured work;
-    // not one assertion is relaxed and no wait is inserted, so a genuine overflow
-    // still fails the poll exactly as before.
-    test.setTimeout(90_000);
+    /*
+     * This test creates a task and then performs FORTY-TWO full navigations (seven
+     * view configurations × six widths), each a real server render followed by
+     * hydration and a settle.
+     *
+     * The budget below is sized from that count and nothing else. It had drifted:
+     * the comment here described "sixteen navigations, four views × four widths"
+     * and a measured 31.7s, but the loop had already grown to six configurations ×
+     * six widths without the 90s ceiling moving, so the test was timing out on
+     * `main` before this programme touched it. V2.2 adds the legacy `?view=matrix`
+     * bookmark to the sweep, which is one configuration more.
+     *
+     * Not one assertion is relaxed and no wait is inserted — a genuine overflow
+     * still fails the poll exactly as before.
+     */
+    test.setTimeout(240_000);
 
     await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
