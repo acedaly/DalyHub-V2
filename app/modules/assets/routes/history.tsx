@@ -27,7 +27,6 @@ import {
 } from "~/kernel/assets";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
   serializeAssetEvent,
@@ -166,7 +165,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
-  const today = ownerCalendarIso(new Date());
+  // AUDIT-14 — the owner's day, from the one scope-level authority. Every
+  // date this action defaults (an event date, an obligation completion) is the
+  // owner's calendar day, not the Worker's and not Sydney's.
+  const today = await scope.ownerTodayIso();
   const history = scope.assetHistory;
 
   try {

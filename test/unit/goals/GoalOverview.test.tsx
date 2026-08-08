@@ -145,6 +145,7 @@ function renderGoal(
       projects={over.projects ?? []}
       projectsNextCursor={over.projectsNextCursor ?? null}
       todayIso={TODAY}
+      timeZone="Australia/Sydney"
       alignment={over.alignment ?? alignment()}
       alignmentEvidence={over.alignmentEvidence ?? []}
       alignmentEvidenceHasMore={over.alignmentEvidenceHasMore ?? false}

@@ -28,7 +28,7 @@ export interface RelationshipContextInput {
  */
 export function createOwnerRelationshipContext(
   now: Date,
-  timeZone: string | undefined,
+  timeZone: string,
   input: RelationshipContextInput,
 ): RelationshipEvaluationContext {
   return {

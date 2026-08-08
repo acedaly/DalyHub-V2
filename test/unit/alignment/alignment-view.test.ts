@@ -138,6 +138,8 @@ describe("alignmentNeedsAttention", () => {
   });
 });
 
+const SYDNEY = "Australia/Sydney";
+
 describe("alignmentToneToCardTone", () => {
   it("is a lossless identity mapping", () => {
     expect(alignmentToneToCardTone("success")).toBe("success");
@@ -149,19 +151,19 @@ describe("alignmentToneToCardTone", () => {
 describe("evidenceDateLabel", () => {
   it("labels today’s date", () => {
     expect(
-      evidenceDateLabel("2026-07-24T10:00:00.000Z", "2026-07-24"),
+      evidenceDateLabel("2026-07-24T10:00:00.000Z", "2026-07-24", SYDNEY),
     ).toContain("(today)");
   });
 
   it("labels yesterday’s date", () => {
     expect(
-      evidenceDateLabel("2026-07-23T10:00:00.000Z", "2026-07-24"),
+      evidenceDateLabel("2026-07-23T10:00:00.000Z", "2026-07-24", SYDNEY),
     ).toContain("(yesterday)");
   });
 
   it("labels an older date with an exact day count", () => {
     expect(
-      evidenceDateLabel("2026-07-10T10:00:00.000Z", "2026-07-24"),
+      evidenceDateLabel("2026-07-10T10:00:00.000Z", "2026-07-24", SYDNEY),
     ).toContain("(14 days ago)");
   });
 
@@ -173,7 +175,7 @@ describe("evidenceDateLabel", () => {
     // the alignment STATE itself (via `calendarIsoOf`) would classify the
     // same instant.
     expect(
-      evidenceDateLabel("2026-07-23T15:00:00.000Z", "2026-07-24"),
+      evidenceDateLabel("2026-07-23T15:00:00.000Z", "2026-07-24", SYDNEY),
     ).toContain("(today)");
   });
 
@@ -182,7 +184,7 @@ describe("evidenceDateLabel", () => {
     // "yesterday" relative to todayIso "2026-07-24", proving the fix is not
     // simply always advancing the date.
     expect(
-      evidenceDateLabel("2026-07-23T05:00:00.000Z", "2026-07-24"),
+      evidenceDateLabel("2026-07-23T05:00:00.000Z", "2026-07-24", SYDNEY),
     ).toContain("(yesterday)");
   });
 });
@@ -191,6 +193,7 @@ describe("createOwnerAlignmentContext", () => {
   it("derives todayIso and the approximate recent-window start from the same instant", () => {
     const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
       new Date("2026-07-24T03:00:00.000Z"),
+      SYDNEY,
     );
     expect(evaluation.todayIso).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(recentWindowStartIso).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/);

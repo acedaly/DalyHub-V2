@@ -32,6 +32,7 @@ export type {
   NoteDetailsRecord,
   NoteDetailsChangeResult,
   NoteDetailsValidationField,
+  UpdateNoteContentOptions,
 } from "./note-details";
 
 export type { NoteDetailsRepository } from "./note-details-repository";

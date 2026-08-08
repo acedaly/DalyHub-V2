@@ -157,8 +157,15 @@ export interface SpineRepository {
   /**
    * Restore a soft-deleted record. A non-Area record can only be restored when
    * its retained parent still exists and is active
-   * (`SpineParentUnavailableError` otherwise). Idempotent; appends
-   * `entity.restored` on a real transition.
+   * (`SpineParentUnavailableError` otherwise).
+   *
+   * AUDIT-15 — the ONE exception is a Task that has no structural parent link
+   * at all. Task parentage is optional (TASKS-04), so such a Task was a valid
+   * Inbox Task before the delete and is restored back to the Inbox: no Project
+   * is invented, no default parent is assigned, and nothing else is attached. A
+   * Task that DOES retain a parent link keeps the rule above unchanged.
+   *
+   * Idempotent; appends `entity.restored` on a real transition.
    */
   restore(id: string): Promise<SpineLifecycleResult>;
 

@@ -36,7 +36,6 @@
 import { env } from "cloudflare:workers";
 
 import { toLocalDayKey } from "~/kernel/diary";
-import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { loadLinkedItems } from "~/platform/entity-links";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -72,12 +71,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
-  let timezone = DEFAULT_APP_PREFERENCES.timezone;
-  try {
-    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
-  } catch {
-    // The suggestion surface stays available with the deterministic default.
-  }
+  // AUDIT-14 — the owner's timezone from the ONE scope-level authority, so
+  // "which day is this entry about?" is answered here exactly as it is by the
+  // entry read, the timeline and every other module. It degrades to the
+  // documented default on a read failure rather than taking the surface down.
+  const timezone = await scope.ownerTimeZone();
 
   const entry = await scope.diary.get(params.entryId);
   if (!entry) {

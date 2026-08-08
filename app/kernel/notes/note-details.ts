@@ -88,6 +88,25 @@ export type NoteDetailsChangeResult = {
   readonly changed: boolean;
 };
 
+/**
+ * AUDIT-08 — optimistic concurrency for a Note's long-form content.
+ *
+ * `expectedContentUpdatedAt` is the {@link NoteDetails.contentUpdatedAt} the
+ * editor loaded — the identity of the text this edit was written against.
+ * `null` is a real, distinct value meaning "the Note had never had its content
+ * saved when I opened it", not "no precondition"; omitting the option entirely
+ * is what means that.
+ *
+ * A Note is long-form authored content, so the failure this prevents is not a
+ * setting flipping back — it is a paragraph someone wrote disappearing without
+ * anyone being told. The write therefore refuses rather than merges: Markdown
+ * has no deterministic safe merge, and a wrong merge produces text neither
+ * person wrote.
+ */
+export type UpdateNoteContentOptions = {
+  readonly expectedContentUpdatedAt?: Date | null;
+};
+
 export type NoteDetailsValidationField = "id" | "content" | "tags";
 
 export class NoteDetailsValidationError extends Error {
@@ -120,10 +139,16 @@ export class NoteDetailsStorageError extends Error {
   }
 }
 
+/**
+ * The write was refused because the stored Note moved on since the caller read
+ * it (AUDIT-08). It is an EXPECTED outcome — "this note changed elsewhere" —
+ * never an infrastructure failure, and never a silent success: the newer stored
+ * content is intact and the caller's text is still theirs to keep.
+ */
 export class NoteDetailsConflictError extends Error {
   readonly code = "conflict" as const;
   constructor() {
-    super("That change couldn't be completed. Please try again.");
+    super("This note changed somewhere else. Nothing has been overwritten.");
     this.name = "NoteDetailsConflictError";
   }
 }

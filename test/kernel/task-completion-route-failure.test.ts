@@ -26,6 +26,11 @@ vi.mock("~/platform/workspaces", () => ({
     spine: {},
     tasks: { getTask, completeTask },
     activity: {},
+    // AUDIT-14 — the route asks the SCOPE what day it is for the owner; the
+    // stub answers with a fixed owner day so the assertion below stays about
+    // the calm-error behaviour rather than about a clock.
+    ownerTimeZone: async () => "Australia/Sydney",
+    ownerTodayIso: async () => "2026-08-08",
   })),
 }));
 

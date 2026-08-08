@@ -27,6 +27,15 @@ const routes: readonly RouteContribution[] = [
     path: "settings/export/:format",
     file: "routes/export.tsx",
   },
+  {
+    // SET-02 — the four restore steps. A POST-only resource route with no
+    // navigation entry: it is driven from the Privacy & data section, and it
+    // deliberately has no GET, because nothing about a restore should be
+    // reachable by following a link.
+    id: "settings.restore",
+    path: "settings/restore/:step",
+    file: "routes/restore.tsx",
+  },
 ];
 
 export default routes;

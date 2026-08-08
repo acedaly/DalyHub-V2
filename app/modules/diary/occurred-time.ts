@@ -5,7 +5,8 @@
  * captured at occurrence (`app/kernel/diary`); the Timeline groups and labels it
  * in a DISPLAY time zone. Since SET-01 the route reads the persisted
  * owner/workspace timezone and passes it into the grouping/window helpers. This
- * module keeps `OWNER_TIME_ZONE` only as the deterministic default fallback.
+ * module keeps `DIARY_DISPLAY_TIME_ZONE` only as the deterministic default
+ * fallback for a workspace with no stored preference.
  *
  * Capture and editing let the owner pick a LOCAL wall-clock ("when did this
  * happen?"). This module converts that owner-local wall-clock to the UTC instant
@@ -20,18 +21,17 @@
  * the Activity Feed's deterministic heading approach.
  */
 
-import {
-  OWNER_TIME_ZONE,
-  ownerLocalToUtc,
-  partsInTimeZone,
-} from "~/shared/datetime";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
+import { ownerLocalToUtc, partsInTimeZone } from "~/shared/datetime";
 
 export { ownerLocalToUtc, utcToOwnerLocal } from "~/shared/datetime";
 
 /**
  * Default Diary display timezone when no persisted preference is available.
+ * AUDIT-14 — an alias of the ONE product-wide fallback, so "no preference yet"
+ * resolves to the same day in the Diary as everywhere else.
  */
-export const DIARY_DISPLAY_TIME_ZONE = OWNER_TIME_ZONE;
+export const DIARY_DISPLAY_TIME_ZONE = DEFAULT_OWNER_TIME_ZONE;
 
 const MONTHS = [
   "January",

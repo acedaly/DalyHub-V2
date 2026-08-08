@@ -114,6 +114,19 @@ async function readSource(page: Page): Promise<string> {
   );
 }
 
+/** Read the editor's visible line text WITHOUT focusing it. Only safe for
+ * content with no concealed Markdown markers, which is exactly what the
+ * conflict journey types — and it matters there, because focusing would blur on
+ * the next click and change what the product does. */
+async function readVisibleSource(page: Page): Promise<string> {
+  await waitForEditor(page);
+  return page.locator(".cm-content").evaluate((el) =>
+    Array.from(el.querySelectorAll(".cm-line"))
+      .map((line) => line.textContent ?? "")
+      .join("\n"),
+  );
+}
+
 /** Blur the editor to force an immediate autosave. */
 async function blurEditor(page: Page): Promise<void> {
   await page
@@ -630,5 +643,124 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
+  });
+});
+
+/**
+ * AUDIT-08 — a Note edited in two places at once.
+ *
+ * The real journey, not a mocked one: this browser holds the editor open while a
+ * SECOND writer saves the same note through the same endpoint (a same-origin
+ * `fetch`, exactly as another tab would). The editor's next save is then based
+ * on text that no longer exists, which used to overwrite the second writer's
+ * paragraph silently.
+ *
+ * What must be true afterwards is the whole point of the fix, and all three are
+ * asserted below: this browser's draft is still in the editor, the other
+ * writer's text is still on the server, and the owner is told — in the ONE
+ * shared reconciliation banner, not a Notes-only dialog — with a safe way out.
+ */
+test.describe("NOTES-05 / AUDIT-08 — a note changed in another tab", () => {
+  test.afterEach(async () => {
+    for (const title of ownedNoteTitles) {
+      await cleanupNoteByTitle(title);
+    }
+    ownedNoteTitles.clear();
+  });
+
+  /** Save this note's content from "another device": the same endpoint, a plain
+   * same-origin POST, and deliberately NO base version — which is exactly what a
+   * writer that loaded the note independently would send if it had never seen
+   * ours. */
+  async function saveFromAnotherDevice(
+    page: Page,
+    noteUrl: string,
+    content: string,
+  ): Promise<void> {
+    const noteId = new URL(noteUrl).pathname.split("/").pop()!;
+    const status = await page.evaluate(
+      async ([id, body]) => {
+        const form = new URLSearchParams();
+        form.set("intent", "update_content");
+        form.set("content", body!);
+        const response = await fetch(
+          `/notes/${encodeURIComponent(id!)}/mutate`,
+          {
+            method: "POST",
+            body: form,
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+          },
+        );
+        return response.status;
+      },
+      [noteId, content] as const,
+    );
+    expect(status).toBe(200);
+  }
+
+  test("refuses the stale save, keeps both versions, and recovers", async ({
+    page,
+  }) => {
+    const noteTitle = uniqueNoteTitle("conflict");
+    const noteUrl = await createNote(page, noteTitle);
+
+    await clearAndType(page, "Shared opening paragraph.");
+    await blurEditor(page);
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    // The other device writes while this editor sits on the version it loaded.
+    await saveFromAnotherDevice(
+      page,
+      noteUrl,
+      "Shared opening paragraph.\n\nWritten on the other device.",
+    );
+
+    // This browser keeps writing against the version it still holds, and saves.
+    await clearAndType(
+      page,
+      "Shared opening paragraph.\n\nWritten right here.",
+    );
+    await blurEditor(page);
+
+    // 1. The owner is told, through the shared banner, in plain words.
+    const banner = page.getByRole("status", { name: "Changed elsewhere" });
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("nothing has been overwritten");
+    // It is not presented as a broken save there is nothing useful to retry.
+    await expect(page.getByText("Couldn’t save")).toBeHidden();
+
+    // 2. This browser's own words are exactly where they were left. Read
+    // WITHOUT focusing: focusing here would be the test, not the product,
+    // deciding when the editor blurs.
+    expect(await readVisibleSource(page)).toContain("Written right here.");
+
+    // 3. The other device's words are still the stored truth.
+    await expect
+      .poll(async () => {
+        const noteId = new URL(noteUrl).pathname.split("/").pop()!;
+        return page.evaluate(async (id) => {
+          const response = await fetch(`/notes/${encodeURIComponent(id)}`, {
+            headers: { accept: "text/html" },
+          });
+          return response.text();
+        }, noteId);
+      })
+      .toContain("Written on the other device");
+
+    // Recovery: take the newer version, edit on top of it, and save cleanly.
+    await page.getByRole("button", { name: "Load the newer version" }).click();
+    await expect
+      .poll(async () => readVisibleSource(page))
+      .toContain("Written on the other device");
+
+    await clearAndType(
+      page,
+      "Shared opening paragraph.\n\nWritten on the other device, then merged by hand.",
+    );
+    await blurEditor(page);
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    await gotoFixture(page, noteUrl);
+    expect(await readSource(page)).toContain("merged by hand");
   });
 });

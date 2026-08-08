@@ -23,7 +23,10 @@ import {
 import type { AiPreferencesRepository, AiUsageRepository } from "~/kernel/ai";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
-import type { AppPreferencesRepository } from "~/kernel/preferences";
+import {
+  DEFAULT_OWNER_TIME_ZONE,
+  type AppPreferencesRepository,
+} from "~/kernel/preferences";
 import {
   type AssetHistoryRepository,
   type AssetRepository,
@@ -39,6 +42,7 @@ import type {
   WorkspaceMemberRepository,
 } from "~/kernel/identity";
 import type { WorkspaceSnapshotRepository } from "~/kernel/export";
+import type { WorkspaceRestoreRepository } from "~/kernel/restore";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type {
   NoteDetailsRepository,
@@ -89,6 +93,7 @@ import {
   createTaskViewRepository,
   createWorkspaceMemberRepository,
   createWorkspaceRepository,
+  createWorkspaceRestoreRepository,
   createWorkspaceSnapshotRepository,
 } from "~/platform/storage/d1";
 
@@ -296,7 +301,44 @@ export interface WorkspaceScope {
    * method, so an export structurally cannot write data or append Activity.
    */
   readonly snapshot: WorkspaceSnapshotRepository;
+  /**
+   * The SET-02 workspace-restore write port: validate-then-stage, an atomic
+   * cutover, and post-restore verification. It is the ONLY repository that
+   * replaces a workspace's records wholesale, which is exactly why it is
+   * constructed here, bound to the same trusted `WorkspaceContext` as everything
+   * else — a restore cannot be pointed at another workspace because there is no
+   * parameter with which to point it.
+   */
+  readonly restore: WorkspaceRestoreRepository;
+  /**
+   * AUDIT-14 — the ONE authority for "which calendar day is it for the owner?".
+   *
+   * DalyHub had two answers: Task paths resolved the stored preference while
+   * Asset history, obligations and the obligation→task gateway hard-coded
+   * `Australia/Sydney`, so for any owner outside Sydney one instant could be
+   * two different dates in two modules. Every date-sensitive path — due today,
+   * overdue, obligation due state, a recurrence anchor created from today,
+   * date-based task generation — now derives from here.
+   *
+   * It reads the owner's persisted timezone ONCE per resolved scope and memoises
+   * the promise, so one request has exactly one "today" no matter how many
+   * modules ask, and a preferences read failure degrades to
+   * `DEFAULT_OWNER_TIME_ZONE` rather than failing the page.
+   *
+   * This is deliberately NOT a clock: it answers what zone the owner lives in.
+   * Instants stay UTC everywhere; only their calendar reading is zoned.
+   */
+  readonly ownerTimeZone: OwnerTimeZoneResolver;
+  /**
+   * The owner's calendar date for an instant (default: now), resolved through
+   * {@link WorkspaceScope.ownerTimeZone}. The convenience form of the question
+   * almost every caller is actually asking.
+   */
+  readonly ownerTodayIso: (now?: Date) => Promise<string>;
 }
+
+/** Resolve the owner's IANA timezone for this scope. Memoised per scope. */
+export type OwnerTimeZoneResolver = () => Promise<string>;
 
 /**
  * Build the configured workspace context resolver for an environment. Exposed so
@@ -350,6 +392,35 @@ export function bindWorkspaceRepositories(
   context: WorkspaceContext,
   actorContext: ActivityActorContext,
 ): WorkspaceScope {
+  /*
+   * AUDIT-14 — resolve the owner's timezone ONCE, here, before anything that
+   * needs a calendar date is constructed.
+   *
+   * The preferences read is deferred and memoised rather than awaited: this
+   * function is synchronous by design (every repository is bound to the same
+   * context with no I/O), and most requests never ask what day it is. The first
+   * caller that does pays for one row read; every later caller in the same
+   * request gets the SAME answer, which is what makes "the owner's today"
+   * singular within a request instead of merely consistent by convention.
+   *
+   * The owner is the trusted actor established above — never a request value —
+   * so this cannot be pointed at another owner's preferences. A read failure or
+   * an absent row degrades to `DEFAULT_OWNER_TIME_ZONE`: a page must not 500
+   * because a preference row is missing.
+   */
+  const appPreferences = createAppPreferencesRepository(env.DB, context);
+  const preferencesOwnerId = actorContext.actor.id ?? "system";
+  let ownerTimeZonePromise: Promise<string> | null = null;
+  const ownerTimeZone: OwnerTimeZoneResolver = () => {
+    ownerTimeZonePromise ??= appPreferences
+      .get(preferencesOwnerId)
+      .then((preferences) => preferences.timezone)
+      .catch(() => DEFAULT_OWNER_TIME_ZONE);
+    return ownerTimeZonePromise;
+  };
+  const ownerTodayIso = async (now: Date = new Date()): Promise<string> =>
+    ownerCalendarIso(now, await ownerTimeZone());
+
   const entities = createEntityRepository(env.DB, context, { actorContext });
   const entityLinks = createEntityLinkRepository(env.DB, context, {
     actorContext,
@@ -370,14 +441,20 @@ export function bindWorkspaceRepositories(
   const diary = createDiaryRepository(env.DB, context, { actorContext });
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
-  const assets = createAssetRepository(env.DB, context, { actorContext });
+  const assets = createAssetRepository(env.DB, context, {
+    actorContext,
+    ownerTimeZone,
+  });
   // The narrow Task write port an Asset obligation uses. Completion and
   // rescheduling stay the TaskRepository's — this only names them (§22).
   const obligationTasks: ObligationTaskGateway = {
     async completeTask(taskId) {
       try {
+        // AUDIT-14 — the SAME owner day the Task module uses. This gateway used
+        // to resolve Sydney, so completing an obligation could close a Task
+        // against a different calendar date than the Task record itself showed.
         const result = await tasks.completeTask(taskId, {
-          ownerTodayIso: ownerCalendarIso(new Date()),
+          ownerTodayIso: await ownerTodayIso(),
         });
         return result.changed ? "completed" : "already_closed";
       } catch {
@@ -398,6 +475,7 @@ export function bindWorkspaceRepositories(
   const assetHistory = createAssetHistoryRepository(env.DB, context, {
     actorContext,
     taskGateway: obligationTasks,
+    ownerTimeZone,
   });
   const reviews = createReviewRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
@@ -414,7 +492,9 @@ export function bindWorkspaceRepositories(
   const members = createWorkspaceMemberRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   const reviewInsights = createReviewInsightRepository(env.DB, context);
-  const appPreferences = createAppPreferencesRepository(env.DB, context);
+  // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
+  // AUDIT-14 owner-timezone resolver needs it before any repository that asks
+  // what day it is for the owner is constructed.
   // The AI ledger is owner-scoped as well as workspace-scoped. The owner comes
   // from the trusted actor context established here, never from a request.
   const aiPreferences = createAiPreferencesRepository(env.DB, context);
@@ -426,6 +506,9 @@ export function bindWorkspaceRepositories(
   const taskViews = createTaskViewRepository(env.DB, context);
   // Read-only: no actor, because it never mutates or records Activity.
   const snapshot = createWorkspaceSnapshotRepository(env.DB, context);
+  // Writes, but records no Activity: a restore reconstructs history rather than
+  // making it (see docs/development/BACKUP_AND_RESTORE.md).
+  const restore = createWorkspaceRestoreRepository(env.DB, context);
   return {
     context,
     entities,
@@ -458,5 +541,8 @@ export function bindWorkspaceRepositories(
     aiUsage,
     taskViews,
     snapshot,
+    restore,
+    ownerTimeZone,
+    ownerTodayIso,
   };
 }

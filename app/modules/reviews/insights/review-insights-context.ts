@@ -481,8 +481,12 @@ async function readGoalAndAreaState(
   readonly areas: readonly ReviewAreaStateFact[];
   readonly areasBounded: boolean;
 }> {
+  // AUDIT-14 — the owner's own calendar, the same one every other fact in this
+  // context is resolved in. It was defaulting to Sydney, which would have put a
+  // non-Sydney owner's Goal alignment a day out from the health and completion
+  // facts rendered beside it.
   const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-    createOwnerAlignmentContext(input.now);
+    createOwnerAlignmentContext(input.now, input.timezone);
 
   let goalPage;
   try {

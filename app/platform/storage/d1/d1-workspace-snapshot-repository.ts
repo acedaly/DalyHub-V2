@@ -723,6 +723,25 @@ const COLLECTIONS: CollectionDescriptors = {
       role: requiredText(row.role),
     }),
   },
+  // SET-02 / IDENT-01 — the membership rows that make the exported actor ids
+  // interpretable after a restore. `email` and `last_seen_at` are deliberately
+  // NOT selected: the first is an authentication-adjacent identifier the request
+  // boundary refreshes on every sign-in, the second is operational telemetry.
+  // Selecting named columns is what makes that exclusion structural.
+  workspaceMembers: {
+    table: "workspace_members",
+    columns:
+      "subject, display_name, auth_display_name, person_entity_id, created_at, updated_at",
+    order: ["subject"],
+    map: (row) => ({
+      subject: requiredText(row.subject),
+      displayName: text(row.display_name),
+      authDisplayName: text(row.auth_display_name),
+      personEntityId: text(row.person_entity_id),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
 };
 
 /* -------------------------------------------------------------------------- */
@@ -796,7 +815,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
                 default_landing_destination, default_tasks_view,
                 default_task_view_id, default_task_destination,
                 default_task_capture_parent_id, default_task_capture_parent_kind,
-                default_diary_mode, navigation_config, version,
+                default_diary_mode, appearance, navigation_config, version,
                 created_at, updated_at
          FROM owner_app_preferences
          WHERE workspace_id = ? AND owner_id = ?
@@ -819,6 +838,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
         defaultTaskCaptureParentId: null,
         defaultTaskCaptureParentKind: null,
         defaultDiaryMode: "day",
+        appearance: "system",
         navigationConfig: { version: 1, hiddenModuleIds: [] },
         version: 0,
         createdAt: null,
@@ -837,6 +857,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
       defaultTaskCaptureParentId: text(row.default_task_capture_parent_id),
       defaultTaskCaptureParentKind: text(row.default_task_capture_parent_kind),
       defaultDiaryMode: requiredText(row.default_diary_mode),
+      appearance: requiredText(row.appearance),
       navigationConfig: jsonValue(row.navigation_config),
       version: requiredInteger(row.version, 1),
       createdAt: text(row.created_at),

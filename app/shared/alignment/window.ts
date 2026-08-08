@@ -13,18 +13,22 @@
  * with the evaluator for every instant, including one at, say, 09:00 owner-time on
  * the first recent day (before UTC midnight) — which the approximate bound would
  * mis-rank as neglected while the evaluator renders it active.
+ *
+ * AUDIT-14 — "the owner's zone" is the OWNER's stored timezone, passed in by the
+ * caller, not a module constant. The boundary instant and the evaluator's
+ * calendar day must be computed in the SAME zone or the disagreement this
+ * function exists to remove comes straight back for a non-Sydney owner.
  */
 
 import {
   addDaysToIsoDate,
   RECENT_ACTION_WINDOW_DAYS,
 } from "~/kernel/alignment";
-import { OWNER_TIME_ZONE } from "~/shared/datetime";
 
 /** The offset (owner-zone wall clock − UTC), in ms, at a given instant. */
-function ownerZoneOffsetMs(instantMs: number): number {
+function ownerZoneOffsetMs(instantMs: number, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
     hourCycle: "h23",
     year: "numeric",
     month: "2-digit",
@@ -51,13 +55,16 @@ function ownerZoneOffsetMs(instantMs: number): number {
 }
 
 /** The UTC instant (ISO string) of 00:00 on `dateIso` in the owner's timezone. */
-export function ownerZonedMidnightUtcIso(dateIso: string): string {
+export function ownerZonedMidnightUtcIso(
+  dateIso: string,
+  timeZone: string,
+): string {
   const [y, m, d] = dateIso.split("-").map(Number);
   const wallMidnightAsUtc = Date.UTC(y!, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
   // First approximation, then one refinement so a DST boundary resolves correctly
   // (owner-zone DST transitions are never at midnight, so a single refine suffices).
-  let utc = wallMidnightAsUtc - ownerZoneOffsetMs(wallMidnightAsUtc);
-  utc = wallMidnightAsUtc - ownerZoneOffsetMs(utc);
+  let utc = wallMidnightAsUtc - ownerZoneOffsetMs(wallMidnightAsUtc, timeZone);
+  utc = wallMidnightAsUtc - ownerZoneOffsetMs(utc, timeZone);
   return new Date(utc).toISOString();
 }
 
@@ -67,8 +74,12 @@ export function ownerZonedMidnightUtcIso(dateIso: string): string {
  * at/after this instant ranks the Goal `active`, matching the evaluator's owner-
  * calendar-day comparison exactly.
  */
-export function recentBoundaryStartIso(todayIso: string): string {
+export function recentBoundaryStartIso(
+  todayIso: string,
+  timeZone: string,
+): string {
   return ownerZonedMidnightUtcIso(
     addDaysToIsoDate(todayIso, -(RECENT_ACTION_WINDOW_DAYS - 1)),
+    timeZone,
   );
 }

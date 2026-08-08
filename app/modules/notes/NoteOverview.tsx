@@ -282,6 +282,7 @@ export function NoteOverview({
                   <NoteContentForm
                     noteId={overview.id}
                     initialContent={details.content}
+                    contentUpdatedAt={details.contentUpdatedAt}
                     onSaved={onSaved}
                     suppressGuard={deleted}
                     flushRef={flushContentRef}

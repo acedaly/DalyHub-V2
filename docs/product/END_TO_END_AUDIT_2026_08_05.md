@@ -512,7 +512,7 @@ Summary:
 | AUDIT-04 | Review permanent delete: nondeterministic/empty tombstone, non-idempotent under race | Confirmed (code) |
 | AUDIT-05 | No application-level CSRF defence (relies on Access cookie SameSite) | Confirmed (absent) |
 | AUDIT-06 | Production-state documentation drift; production unverifiable from here | Confirmed (docs) + verification gap |
-| AUDIT-11 | Daily full production-D1 dump stored as GitHub artifact (30-day retention) | Confirmed |
+| AUDIT-11 | Daily full production-D1 dump stored as GitHub artifact (30-day retention) | Confirmed — **resolved 2026-08-08** (encrypted before upload; see DEBT-105) |
 
 **P3 (minor defect / inconsistency / polish) — 9:**
 
@@ -822,13 +822,22 @@ daily use · related roadmap/debt.
   behind the Markdown sanitiser. **Fix:** add a hash/nonce `script-src`. **Size:**
   medium (needs hydration-safe nonce). **Debt:** new.
 
-### AUDIT-11 — Production D1 dump stored as a GitHub artifact — P2/P3
+### AUDIT-11 — Production D1 dump stored as a GitHub artifact — P2/P3 — **RESOLVED 2026-08-08**
 
-- **Status:** Confirmed. `.github/workflows/production-backup.yml` exports the
-  whole production DB daily to a workflow artifact with 30-day retention;
-  credentials are handled correctly but the dump is all personal data. **Fix:**
-  encrypt the artifact or tighten retention/environment protection. **Size:**
-  small. **Debt:** new.
+- **Status:** Confirmed at the time of the audit. `.github/workflows/production-backup.yml`
+  exported the whole production DB daily to a workflow artifact with 30-day
+  retention; credentials were handled correctly but the dump was all personal
+  data. **Size:** small.
+- **Resolved (2026-08-08, with SET-02).** The dump is encrypted on the runner —
+  GnuPG symmetric AES-256, passphrase from the protected `production`
+  environment — before it becomes an artifact. GitHub now stores the `.gpg` file
+  and non-sensitive metadata only; no plaintext, no key. Every run proves
+  recovery by decrypting its own artifact back and comparing digests, and a
+  guard step refuses the upload if anything unencrypted is present. Retention is
+  unchanged at 30 days, deliberately. Recorded as
+  [DEBT-105](PRODUCT_DEBT.md#-debt-105--the-scheduled-production-backup-uploaded-a-plaintext-copy-of-the-whole-database--p2p3--resolved-2026-08-08),
+  split out of DEBT-85 so the still-open AUDIT-10 CSP work stays independently
+  traceable. Procedures: [`BACKUP_AND_RESTORE.md`](../development/BACKUP_AND_RESTORE.md).
 
 ### AUDIT-12 — react-router 8.0.0 dependency advisory — P3
 

@@ -22,7 +22,6 @@ import { useMemo, useState } from "react";
 
 import type { AppAction } from "~/shared/commands/action";
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
-import { ownerCalendarIso } from "~/shared/datetime";
 import {
   TaskRecordDrawer,
   type TaskRecordDrawerApi,
@@ -58,7 +57,10 @@ export function TaskDrawerContent({
     if (api === null || activeTask === null || !isTop) {
       return [];
     }
-    const targets = planTargets(ownerCalendarIso(new Date()));
+    // AUDIT-14 — the day the drawer itself is showing, resolved server-side from
+    // the owner's stored timezone; never a second, browser-derived answer.
+    if (api.todayIso === null) return [];
+    const targets = planTargets(api.todayIso);
     const commands: AppAction[] = [
       ...buildFocusedTaskCommands({
         task: {

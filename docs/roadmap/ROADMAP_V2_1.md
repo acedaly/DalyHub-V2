@@ -487,14 +487,51 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   checklist in the audit report. **Debt.** DEBT-84. **Size.** Small (docs).
   **Priority.** P3 (P2 for the production-state confusion).
 
+### ☑ AUDIT-FIX-06 — Concurrency, and one owner day (P3) — **DELIVERED 2026-08-08**
+
+- **Findings.** [AUDIT-07](../product/END_TO_END_AUDIT_2026_08_05.md#audit-07--multi-device-preference-lost-update--p3)
+  (preference lost-update; `version` incremented but never enforced),
+  [AUDIT-08](../product/END_TO_END_AUDIT_2026_08_05.md#audit-08--concurrent-note-content-saves-are-blind-last-write-wins--p3)
+  (note content is blind last-write-wins),
+  [AUDIT-14](../product/END_TO_END_AUDIT_2026_08_05.md#audit-14--two-owner-today-definitions--p3)
+  (two "owner today" definitions) and
+  [AUDIT-15](../product/END_TO_END_AUDIT_2026_08_05.md#audit-15--soft-deleted-inbox-task-cannot-be-restored-latent--p3)
+  (a parentless Inbox Task cannot be restored). All four were re-confirmed against
+  `main` at `03e7d81` before any code changed.
+- **Delivered.** Preference writes became per-column **patches**, so two devices
+  changing two different settings merge instead of clobbering, and the existing
+  `version` became a REAL write precondition on the one read-modify-write path
+  (the navigation hidden-set), with a typed conflict and a `409` rather than a
+  `500`. Note content saves now quote the version they were written against; the
+  repository folds that into the same statement as the write, and a stale save is
+  refused with the newer text returned — surfaced through the EXISTING
+  `RemoteChangeBanner`, not a Notes-only dialog, with the draft untouched. The
+  owner's calendar day has one authority (`WorkspaceScope.ownerTimeZone()` /
+  `.ownerTodayIso()`), the shared date helpers no longer default a timezone at
+  all, and Asset history, obligations and the obligation→task gateway follow the
+  owner instead of Sydney. `spine.restore` admits a Task with no structural
+  parent, returning it to the Inbox with nothing invented, while every other
+  kind keeps its parent requirement.
+- **Deliberately NOT in scope.** No revision history, no CRDT/real-time
+  collaboration, no offline note editing, no automatic Markdown merge, and no
+  AUDIT-16 dead-code deletion (a different blast radius — see DEBT-88 §3).
+- **No migration.** Every column the preconditions use — `owner_app_preferences.version`,
+  `note_details.updated_at`, the owner's stored `timezone` — already existed and
+  was already written; the change is that they are now compared. **Production data
+  untouched.**
+- **Debt.** DEBT-82 and DEBT-83 resolved; DEBT-88 partially resolved (timezone and
+  restore closed, dead code open). **Size.** Medium. **Priority.** P3.
+
 ### The rest — near-term remediation and cleanup
 
-Sequenced but not blocking: multi-device concurrency (AUDIT-07 preferences,
-AUDIT-08 note content), the security/ops hardening (AUDIT-10 CSP, AUDIT-11 backup
-artifact), and the cleanups (AUDIT-13 non-atomic flows, AUDIT-14 one owner
-timezone, AUDIT-15 parentless-task restore, AUDIT-16 dead code). Each is recorded
-in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-82, DEBT-83, DEBT-85,
-DEBT-87, DEBT-88) with its finding id. The full sequence is
+Sequenced but not blocking: the security/ops hardening (AUDIT-10 CSP, AUDIT-11
+backup artifact) and the cleanups (AUDIT-13 non-atomic flows, AUDIT-16 dead
+code). The multi-device concurrency pair (AUDIT-07 preferences, AUDIT-08 note
+content) and the owner-timezone/parentless-restore cleanup (AUDIT-14, AUDIT-15)
+were delivered by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3).
+Each remaining item is recorded in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-85, DEBT-87, DEBT-88 §3)
+with its finding id. The full sequence is
 [Recommended remediation sequence](../product/END_TO_END_AUDIT_2026_08_05.md#20-recommended-remediation-sequence).
 
 **Verification gaps (owner action, not a code item).** The audit could not reach
@@ -516,27 +553,26 @@ wonder whether it quietly consumed part of V2.1.
 Two entries are worth reading *alongside* it, because V2.0.1 touched adjacent
 ground without doing their work:
 
-- **[SET-02](#-set-02--backup--restore-v21) is untouched.** V2.0.1 added a
-  scheduled workflow that **exports** production D1 to a retained artifact.
-  That is the automated half of a backup and nothing more: there is still **no
-  import, no restore and no proven end-to-end restoration test**, which is the
-  entirety of what SET-02 owes. The rule this file already states applies
-  unchanged — *an untested restore is not a backup* — and a scheduled export is
-  not partial credit for SET-02 any more than X-04's on-demand export was. The
-  workflow, its retention and its explicit "restore is V2.1 SET-02" statement
-  are documented in
-  [`DEPLOYMENT.md`](../development/DEPLOYMENT.md#automated-production-backups-v201).
-  - One genuine input for SET-02, recorded rather than lost:
-    [DEBT-61](../product/PRODUCT_DEBT.md) already named scheduled backups as the
-    thing that would hit the export's read-consistency window more often than a
-    hand-pressed export does. A daily unattended export now exists, so that
-    entry has a real consumer to be evaluated against when SET-02 is built.
-- **[DIARY-02](#-diary-02--day-context-links) was untouched by V2.0.1.** V2.0.1
-  repaired a **broken link Reviews already emitted** to Diary, by adopting the
-  canonical Diary deep-link URL that Search and Quick Capture already used. It
-  added no linking affordance to the Diary surface and made Diary no more a Linked
-  Items consumer than it was — which is DIARY-02's actual scope, and which the
-  DIARY-02 entry above has since delivered (2026-08-08).
+- **[SET-02](#-set-02--backup--restore-v21) was untouched by V2.0.1, and has since
+  SHIPPED (2026-08-08).** V2.0.1 added a scheduled workflow that **exported**
+  production D1 to a retained artifact — the automated half of a backup and
+  nothing more, with no import, no restore and no proven end-to-end restoration
+  test, which was the entirety of what SET-02 owed. That work is now done: see
+  the item's entry above, and
+  [`BACKUP_AND_RESTORE.md`](../development/BACKUP_AND_RESTORE.md). The same
+  change encrypted the scheduled artifact, closing AUDIT-11.
+  - The genuine input recorded here for SET-02 was
+    [DEBT-61](../product/PRODUCT_DEBT.md) — scheduled backups hitting the
+    export's read-consistency window more often than a hand-pressed export does.
+    It was evaluated rather than inherited: see the SET-02 entry's
+    "Read consistency" note.
+- **[DIARY-02](#-diary-02--day-context-links) was untouched by V2.0.1, and has
+  since SHIPPED (2026-08-08).** V2.0.1 repaired a **broken link Reviews already
+  emitted** to Diary, by adopting the canonical Diary deep-link URL that Search
+  and Quick Capture already used. It added no linking affordance to the Diary
+  surface and made Diary no more a Linked Items consumer than it was — which is
+  DIARY-02's actual scope, and which the DIARY-02 entry above has since
+  delivered.
 
 ## How an item got here
 
@@ -544,8 +580,9 @@ Nothing was moved into this file to make V2 look finished. An item is here for o
 of exactly three reasons, and each entry says which:
 
 1. **It was never in V2's scope** (the AI phase, imports, account/security surface).
-2. **It was in V2's scope and is being deferred deliberately**, with the reason
-   stated — currently only [SET-02](#-set-02--backup--restore-v21).
+2. **It was in V2's scope and was deferred deliberately**, with the reason
+   stated — [SET-02](#-set-02--backup--restore-v21), which has since shipped
+   (2026-08-08).
 3. **Its module shipped, and a named remainder did not** — the three `◐` mobile
    items and the cross-module half of `X-02`.
 
@@ -609,57 +646,85 @@ the V2 record stays closed.*
 *The one thing V2 knowingly does not give the owner: a way to get their data back
 IN. Everything else in this file can wait behind it.*
 
-### ☐ SET-02 — Backup & restore (V2.1)
+### ☑ SET-02 — Backup & restore (V2.1) — **DELIVERED 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → SET-02`](ROADMAP_V2.md#-set-02--backup--restore).
-- **Deferred from V2 on 2026-08-01, by the V2 release closure.** Not because it is
-  low value — it is the highest-value remaining item in the product — but because
-  the honest state of it is *nothing of the write side exists*, and a release that
-  claimed backup and restore on the strength of X-04 would be claiming something
-  DalyHub cannot do.
-- **What V2 actually ships in this space, stated precisely.**
-  [X-04](ROADMAP_V2.md#-x-04--export--data-portability) is ☑: the owner can
-  download their entire workspace, on demand, as a structured versioned archive
-  (`manifest.json` + `dalyhub-snapshot.json` + `SCHEMA.md` + `README.md` +
-  `CHECKSUMS.txt`) **and** as a ready-to-open Obsidian vault, both derived from the
-  one canonical `DalyHubWorkspaceSnapshotV1`. **Downloadable export is V2's
-  data-safety and portability feature**, and it is a real one: it is verifiable
-  without DalyHub (`sha256sum -c CHECKSUMS.txt`), it is readable in any text
-  editor, and it includes archived, soft-deleted and unlinked records with their
-  state marked.
-- **What V2 does NOT ship, and must never be described as shipping.** Full backup
-  restoration. **Restore has not been proven and is not implemented.** There is no
-  import path, no scheduled backup, no automatic cloud backup, and no second copy
-  of the owner's data held on their behalf. `/settings`, `/help` and the release
-  notes all say so in the owner's own words, and tests hold that wording.
-- **What V2.1 owes.** Validated backup **import and restore**, reading the
-  canonical X-04 snapshot format as its input contract — the format exists, is
-  versioned, and states its compatibility policy in
-  [`EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md) and
-  [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it).
-  Restore must include, at minimum:
-  - a **preview** of what a restore would change, before anything is written;
-  - **validation** of the archive against the schema and against the target
-    workspace, refusing an incompatible or tampered snapshot rather than
-    half-applying it;
-  - **workspace protection** — a restore is scoped to one workspace, cannot write
-    across the isolation boundary, and cannot silently overwrite a populated
-    workspace without an explicit, informed decision;
-  - a deliberate, documented **merge-versus-replace** answer;
-  - **failure safety** — a failed or interrupted restore leaves the workspace in a
-    defined state, never partially written;
-  - a **proven end-to-end restoration test**: export a populated workspace, restore
-    it into an empty one, and assert the result is equivalent. Until that test
-    exists and passes, this item is not done.
-- **Still true, and still the rule.** Cloudflare or D1 platform durability does
-  **not** satisfy this item. An untested restore is not a backup, and
-  infrastructure the owner cannot invoke or verify is not recoverability. **This
-  item must not be marked ☑ on the strength of Cloudflare or D1 capabilities, and
-  X-04 having shipped is not partial credit for it.**
+- **Deferred from V2 on 2026-08-01, by the V2 release closure.** Not because it was
+  low value — it was the highest-value remaining item in the product — but because
+  the honest state of it was *nothing of the write side existed*, and a release that
+  claimed backup and restore on the strength of X-04 would have been claiming
+  something DalyHub could not do.
+- **Delivered now, and the rule it had to satisfy is satisfied.** *An untested
+  restore is not a backup* — so the item's own acceptance test exists and passes:
+  `test/kernel/workspace-restore.test.ts` seeds a realistic workspace through the
+  production repositories (the SAME fixture the X-04 export suite is proved
+  against — every module, the whole spine, links including unlinked ones,
+  recurrence, meeting children, asset history and obligations, Review workflow
+  state and insights, archived and soft-deleted records, Markdown, Activity,
+  workspace membership), takes a real backup archive through the canonical export
+  path, **loses the workspace**, restores the archive into a clean target
+  workspace, re-exports that, and asserts the two snapshots are **semantically
+  equal**. The only permitted differences are the three that are facts about the
+  target rather than about the data — the new export's timestamp and the target
+  workspace's own id and lifecycle — and they are named in the test rather than
+  smoothed away.
+- **What shipped.**
+  - **One format.** Restore reads the canonical `DalyHubWorkspaceSnapshotV1`
+    archive X-04 already writes. There is no backup format, no restore format and
+    no import format — there is *the workspace snapshot*
+    ([ADR-081](../decisions/ARCHITECTURE_DECISIONS.md#adr-081-restore--one-canonical-format-a-staged-atomic-cutover-and-a-verified-way-back)).
+  - **A version gate before anything is interpreted.** A newer version, an older
+    version with no reader, a malformed version, a missing version and another
+    application's JSON are all refused. There is no best-effort import.
+  - **Validation before any write**, in five stages: archive integrity (CRC,
+    bounds, path safety, no encrypted entry), archive structure (an allow-list of
+    files), checksums recomputed against the bytes read, the X-04 validator, and
+    then the constraints the DATABASE enforces — so a corrupt backup fails
+    *before* restoration begins rather than halfway through it.
+  - **A preview** naming the backup's date, version and contents, the workspace's
+    current contents, and what will happen — in the product's own nouns.
+  - **A deliberate merge-versus-replace answer:** restore into an empty workspace
+    is the canonical path; restore over a populated one is an explicit **replace**;
+    **merge is not implemented, and that is the answer, not a deferral**.
+  - **A verified pre-restore safety backup** for any destructive restore, built
+    through the same canonical machinery and *read back through the restore
+    reader* before it counts. A safety backup that cannot be produced or verified
+    **aborts** the restore.
+  - **Failure safety as a structural property.** Staging into
+    `workspace_restore_staged_rows` (many bounded batches, nothing canonical
+    touched) then a cutover in ONE D1 transaction of a **fixed ~55 statements
+    whatever the workspace's size**. At every instant the workspace is entirely
+    the old one or entirely the restored one.
+  - **Post-restore verification** — per-table counts, exact id-set membership,
+    referential integrity, and that nothing landed in another workspace. A failed
+    verification is reported as a failure, never as success.
+  - **Workspace isolation**: no workspace parameter anywhere on the route, the
+    target bound from trusted configuration, and a crafted archive proved unable
+    to write into another workspace.
+  - **Ids preserved**, so EntityLinks, recurrence, meeting follow-ups, asset
+    history and Activity subjects survive intact.
+  - **No manufactured Activity**: history is restored, not re-enacted.
+  - **Actor attribution preserved** by adding `workspaceMembers` to the canonical
+    snapshot — the identity metadata needed to interpret restored history, and
+    deliberately not the email or the sign-in telemetry.
+  - **Settings → Privacy & data** now offers *Back up* and *Restore*, and the
+    "restore is not available" copy is gone from Settings and Help.
+- **Documented.** [`BACKUP_AND_RESTORE.md`](../development/BACKUP_AND_RESTORE.md)
+  (recovery procedures, the two backups and which to use, the recovery key and
+  its rotation, retention, size limits, read consistency),
+  [`EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md),
+  [`DEPLOYMENT.md`](../development/DEPLOYMENT.md), ADR-081.
+- **Migration.** `0035_create_workspace_restore.sql` — purely additive: two new
+  tables and one index, no existing table, row or index touched.
+- **Read consistency (DEBT-61) evaluated, as promised.** The window is real,
+  narrowed rather than closed, and stated precisely in
+  [`BACKUP_AND_RESTORE.md` §11](../development/BACKUP_AND_RESTORE.md#11-read-consistency--what-a-backup-is-a-snapshot-of):
+  collections are read sequentially, the snapshot is validated for referential
+  integrity before it becomes a file, the restore validates the same properties
+  again on the way in, and the unattended run happens at 02:30 local time. A skew
+  that broke a relationship fails the export instead of becoming a bad backup.
 - **Dependencies.** FND-02, X-04 (both ☑ — satisfied).
-- **Priority.** P1. First item of V2.1.
-
----
+- **Priority.** P1. First item of V2.1 — now done.
 
 ## V2.1 — Named remainders from shipped V2 modules
 
@@ -1423,8 +1488,9 @@ because a reader would otherwise wonder whether it was forgotten:
    AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
    documentation follow-ups. Restore is worth more than a restyle, but a product
    that bricks a recurring task on a checkbox toggle is worth fixing before either.
-1. **[SET-02](#-set-02--backup--restore-v21)** — restore. The one gap V2 knowingly
-   leaves, and the reason a bad day is still unrecoverable.
+1. ~~**[SET-02](#-set-02--backup--restore-v21)** — restore. The one gap V2
+   knowingly left, and the reason a bad day was unrecoverable.~~ **Delivered
+   2026-08-08**, with the end-to-end restoration proof the item demanded.
 2. **[REVIEW-02](#-review-02--weekly-review)** + REVIEW-04's stepper — the flagship
    weekly flow, and the mobile ergonomic that belongs with it.
 3. **[DS-14](#-ds-14--whole-application-visual-overhaul)** and
