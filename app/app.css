@@ -60,6 +60,7 @@
 @import "./styles/switch.css";
 @import "./styles/today.css";
 @import "./styles/tasks.css";
+@import "./styles/views.css";
 @import "./styles/segmented-filter.css";
 @import "./styles/task-drawer.css";
 @import "./styles/task-signals.css";

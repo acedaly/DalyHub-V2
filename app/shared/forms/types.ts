@@ -133,6 +133,14 @@ export interface SelectOption {
   readonly disabled?: boolean;
   /** Optional secondary text (e.g. a hint or category) for richer options. */
   readonly description?: string;
+  /**
+   * ASSET-03 — a PRESENTATION-ONLY heading this option sits under in the compact
+   * selection sheet (`SelectField sheetOnCompact`). It groups a long vocabulary
+   * so it can be scanned on a phone; it is never stored, never submitted and
+   * never part of the option's meaning. Options with no `group` render first, in
+   * their given order.
+   */
+  readonly group?: string;
 }
 
 /**

@@ -445,6 +445,21 @@ show a list touched a few times a day. It names the ACTIVE view (matching by
 configuration, so a bare `/tasks` reads "All active" rather than "Custom") and
 marks an unsaved change with the word "Modified".
 
+> **X-02 (2026-08-08): the same table, the same repository, the same switcher.**
+> Tasks saved views did not change — not their rows, their names, their configs,
+> their versions, their timestamps, their errors or their route. What changed is
+> that they are no longer the ONLY kind. The record and the repository moved to
+> `~/kernel/views` as `SavedView<TConfig>` / `SavedViewRepository<TConfig>` and
+> `~/kernel/task-views` became a thin façade over them, so `TaskSavedView`,
+> `TaskViewRepository` and `TaskViewValidationError` are literally those types and
+> classes under their original names. Migration `0036` adds one `kind` column with
+> the default `'tasks'`, so every existing row was classified without being touched,
+> and names are now unique per owner **per kind**. The switcher itself was extracted
+> to `~/shared/saved-views` and is now shared with the cross-module `/views` surface
+> — same markup, same class names, same test ids, driven by props. See
+> [`VIEWS_MODULE.md`](VIEWS_MODULE.md) and
+> [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract).
+
 ### Capture and quick editing
 
 An in-workspace **quick add** row keeps the field available after a save, clears it,

@@ -42,7 +42,7 @@
 | PEOPLE-01…03 | ✅ Complete | `e2e/people.spec.ts`, `people-timeline.spec.ts`, `people-relationship.spec.ts`; ADR-052, ADR-056 | — |
 | PEOPLE-04 (mobile) | ⏭️ Partly delivered | Layout, quick actions and ADR-060 capture context shipped | **V2.1** — the DEBT-45 capture-context matrix |
 | ASSET-01, 02 | ✅ Complete | `e2e/assets.spec.ts`, `assets-ownership.spec.ts`; `test/kernel/asset-history*`; ADR-063 | ⚠️ [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2): no notification channel |
-| ASSET-03 (mobile) | ⏭️ Partly delivered | Record + history surfaces verified at 320–430px | **V2.1** — phone-first capture of a NEW asset |
+| ASSET-03 (mobile) | ✅ Complete **in V2.1 (2026-08-08)** | Record + history surfaces verified at 320–430px in V2; phone-first capture of a NEW asset closed in V2.1 — `e2e/assets-mobile-capture.spec.ts`, `test/kernel/asset-create-route.test.ts` | — |
 | DIARY-01A, 01, 01B, 03 | ✅ Complete | `e2e/diary.spec.ts`; `test/kernel/diary-*`; ADR-041 | — |
 | DIARY-02 (day context links) | ⏭️ Not started | — | **V2.1** |
 | REVIEWS-01 | ✅ Complete | `e2e/reviews.spec.ts`; `test/kernel/reviews*`; ADR-051. **The 2026-07-27 "not cleanly verified" caveat is cleared** — its cause (DEBT-38) is closed and the spec passes. | ⚠️ [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2): period context is a bounded first cut |

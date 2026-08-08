@@ -237,6 +237,12 @@ describe("workspace backup and restore (D1)", () => {
       source.records.entityLinks.some((link) => link.deletedAt !== null),
     ).toBe(true);
     expect(source.records.taskRecurrenceRules.length).toBeGreaterThan(0);
+    // X-02: both saved-view KINDS share one table, so the fixture holds one of
+    // each. A restore that dropped the discriminator would rewrite the
+    // cross-module view as a Tasks view — silently, and only visibly here.
+    expect(source.owner.taskSavedViews.map((view) => view.kind).sort()).toEqual(
+      ["cross", "tasks"],
+    );
     expect(source.limitations).toEqual([]);
 
     // The workspace is lost. The archive is all that is left.

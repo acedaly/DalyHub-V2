@@ -79,6 +79,81 @@ never asked for.
 
 Nothing about this changes what you see. It is the kind of improvement whose
 whole value is that you never notice it.
+## Add something you own from your phone, in seconds (ASSET-03)
+
+Recording an Asset used to mean getting to a laptop, or at least getting to the
+Assets screen and finding its own "New Asset" button. So the trailer, the policy
+and the licence renewal stayed in your head, which is exactly where DalyHub exists
+to stop things living.
+
+**Assets is now in the global `+`.** Tap capture from anywhere — the phone bar,
+Today, the command palette — and Asset sits beside Task, Diary entry, Meeting and
+Note. It opens the real New Asset form, not a stripped-down phone version of it,
+so what you create is an ordinary Asset record from the first second.
+
+**Choosing what kind of thing it is got much better on a phone.** The type field
+used to be a small dropdown that opened underneath the keyboard. On a phone it is
+now a full-width list of large, labelled choices, grouped so you can find the right
+one at a glance:
+
+- **Physical** — Vehicle · Trailer or camper · Equipment · Appliance · Electronics ·
+  Tool · Property item
+- **Documents and cover** — Document · Licence · Insurance
+- **Digital and recurring** — Subscription · Software
+- **Anything else** — Other
+
+The groups are only there to help you look; nothing about your Asset changes
+because of which heading it sat under. On a laptop the field is exactly as it was.
+
+**It still only asks for what it needs.** A name and a kind is a complete Asset.
+Choose the kind and it offers the few details that actually apply — a trailer asks
+for a manufacturer, model, serial number, where it lives and when the warranty
+ends; an insurance policy asks for the issuer, the reference, the renewal date and
+a link. Everything else waits for the record's Details tab, whenever you feel like
+it. Change your mind about the kind and it shows the right fields without throwing
+away what you have typed — and it never files a serial number against a policy that
+was never asked for one.
+
+**Two small things that were quietly getting in the way, fixed:** dismissing the
+type list no longer closes the whole capture and loses what you had written, and
+tapping straight to the type field no longer makes it jump out from under your
+finger.
+## Save a useful question, not just a filter (X-02)
+
+Tasks could hold a saved view. Nothing else could — and none of the questions you
+actually ask are about one module. _What needs my attention?_ is overdue Tasks and
+at-risk Projects and off-track Goals and a Meeting with actions still hanging. There
+was no way to ask that, let alone keep asking it.
+
+**Views** is a new place in the sidebar for exactly that. Choose what to include —
+Tasks, Projects, Goals, Notes, Meetings, Reviews — narrow it in the same filter
+sheet every other collection uses, and save it with a name. Reopening it re-runs the
+question against today's records, so it is always current rather than a snapshot.
+
+It opens on four built-in views you did not have to build:
+
+- **Needs attention** — overdue and waiting work, Projects that have stalled or
+  slipped, Goals with nothing moving, Meetings with actions still open, and Reviews
+  you have not finished.
+- **This week** — everything that has moved since the week began.
+- **Since my last Review** — what changed after the period your last completed
+  Review closed. It uses that Review's own record of when it closed, not a guess.
+- **Waiting & follow-up** — what you are waiting on, and Meetings with outstanding
+  actions.
+
+Your Review now links into all of this. When it tells you a Project moved from On
+track to At risk, you can open every Project whose health moved. When it says
+something needs attention, you can open the view that keeps showing you.
+
+Three small promises worth stating. A view **never invents an answer**: if a record
+type cannot answer one of your conditions — a Note has no due date — it is left out
+and the page says so, instead of quietly returning everything. A view **never
+surfaces what you hid**: if you have turned a module off, no view reads it. And a
+view **is a URL**, so it is shareable, bookmarkable and Back-button-correct, exactly
+like the Tasks views you already had.
+
+Your existing Tasks views are untouched. They now share the same machinery as the
+new ones, which is why the switcher looks and behaves identically in both places.
 
 ---
 

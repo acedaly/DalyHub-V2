@@ -17,6 +17,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  chooseAssetType,
   cleanupAllAssetFixtures,
   cleanupAssetByTitle,
   uniqueAssetTitle,
@@ -50,11 +51,13 @@ function isoInDays(days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Choose an Asset type. The shared helper handles BOTH presentations of the one
+ * control (combobox on desktop, option sheet below `md`), so a journey that runs
+ * at 320px picks a type the same way a laptop journey does.
+ */
 async function chooseType(page: Page, label: string): Promise<void> {
-  const combo = page.getByRole("combobox", { name: /Type/ });
-  await combo.click();
-  await combo.fill(label);
-  await page.getByRole("option", { name: label, exact: true }).first().click();
+  await chooseAssetType(page, label);
 }
 
 async function createAsset(

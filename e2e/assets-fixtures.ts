@@ -13,8 +13,39 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { expect, type Page } from "@playwright/test";
 
 export const ASSET_TITLE_PREFIX = "Assets e2e ";
+
+/**
+ * ASSET-03 — choose an Asset type in WHICHEVER presentation the viewport shows.
+ *
+ * The Type field is one control with two presentations: the DS-16 combobox on a
+ * laptop, and the shared option Sheet below `md`. A journey should not care
+ * which it got — it should care that the owner can choose "Trailer or camper" —
+ * so every Asset spec goes through this one helper.
+ */
+export async function chooseAssetType(
+  page: Page,
+  label: string,
+): Promise<void> {
+  const combo = page.getByRole("combobox", { name: /Type/ });
+  if (await combo.count()) {
+    await combo.click();
+    await combo.fill(label);
+    await page
+      .getByRole("option", { name: label, exact: true })
+      .first()
+      .click();
+    return;
+  }
+  // The compact presentation: a trigger that opens the shared option sheet.
+  await page.locator("button.dh-select-trigger").click();
+  const sheet = page.getByRole("dialog", { name: "What kind of asset?" });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("button", { name: label, exact: true }).click();
+  await expect(sheet).toBeHidden();
+}
 
 let counter = 0;
 

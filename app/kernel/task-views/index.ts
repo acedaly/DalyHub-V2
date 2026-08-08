@@ -37,6 +37,8 @@ export {
   type TaskViewRepository,
 } from "./task-view";
 
+export { TASK_VIEW_CODEC } from "./task-view-codec";
+
 export {
   TASK_SYSTEM_VIEW_DEFINITIONS,
   findTaskSystemView,

@@ -49,7 +49,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 |---|---|---|
 | **Complete** | FND-01…09 · DS-01…10, 10b, 11…13 · PX-02…06 · MOBILE-01 · TODAY-01…08 · TASKS-01, 02, 02b, 03, 04 · PROJ-01…06 · AREA-01…05 · NOTES-01A, 01B, 01C, 02…07 · REL-01 · MEET-01…04 · PEOPLE-01…03 · ASSET-01, 02 · DIARY-01A, 01, 01B, 03 · REVIEWS-01 · X-01 · X-04 · THEME-01 · HELP-01 · RELEASE-01 · POLISH-01 · UX-01 · SET-01 | **85** |
 | **Complete with documented limitation** | [X-04](#-x-04--export--data-portability) (restore shipped in V2.1 as [SET-02](ROADMAP_V2_1.md#-set-02--backup--restore-v21); not an atomic point-in-time snapshot; bounded at 50,000 rows/collection and 64 MiB/archive, both reported when hit) · [REVIEWS-01](#-reviews-01--dalyhub-reviews-foundation) (period context and Today integration are bounded first cuts — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)) · [ASSET-02](#-asset-02--history--renewals--done) (obligations are tracked in-app only; no notification channel — [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)) | **3** of the 85 above |
-| **Deferred to V2.1** | [SET-02](#-set-02--backup--restore) *(moved out of V2 scope by this closure; **delivered in V2.1 on 2026-08-08** — see [`ROADMAP_V2_1.md → SET-02`](ROADMAP_V2_1.md#-set-02--backup--restore-v21))* · [PEOPLE-04](#-people-04--mobile) · [ASSET-03](#-asset-03--mobile) · [REVIEW-04](#-review-04--mobile) · [X-02](#-x-02--saved-views--cross-module-filters) · [REVIEW-02](#-review-02--weekly-review) · [REVIEW-03](#-review-03--insights--alignment) · [DIARY-02](#-diary-02--day-context-links) · [SET-03](#-set-03--account--security) | 9 |
+| **Deferred to V2.1** | [SET-02](#-set-02--backup--restore) *(moved out of V2 scope by this closure; **delivered in V2.1 on 2026-08-08** — see [`ROADMAP_V2_1.md → SET-02`](ROADMAP_V2_1.md#-set-02--backup--restore-v21))* · [PEOPLE-04](#-people-04--mobile) · [ASSET-03](#-asset-03--mobile) *(**delivered in V2.1 on 2026-08-08** — see [`ROADMAP_V2_1.md → ASSET-03`](ROADMAP_V2_1.md#-asset-03--mobile-assets))* · [REVIEW-04](#-review-04--mobile) · [X-02](#-x-02--saved-views--cross-module-filters) · [REVIEW-02](#-review-02--weekly-review) · [REVIEW-03](#-review-03--insights--alignment) · [DIARY-02](#-diary-02--day-context-links) · [SET-03](#-set-03--account--security) | 9 |
 | **Deferred to a later version** | [X-03](#-x-03--import--sync-todoist-notion-calendar) · [AI-01](#-ai-01--proposal-architecture--review-ui) · [AI-02](#-ai-02--meeting--tasksnotes-proposals) · [AI-03](#-ai-03--planning--review-assistance) · [AI-04](#-ai-04--privacy-controls) | 5 |
 | **Release blocker** | None outstanding. Two were found by this closure and both are fixed — see [the change log](#change-log-for-this-roadmap). | **0** |
 
@@ -62,6 +62,9 @@ that reason, not counted twice.
 REVIEW-04 each have a module that shipped and a specific named remainder that did
 not; X-02 shipped saved views for Tasks and not the cross-module contract. None of
 them blocks the release, and none of them is marked ☑ to make the table tidier.
+*(Since written: all three mobile remainders have been delivered in V2.1 — REVIEW-04
+on 2026-08-05, PEOPLE-04 and ASSET-03 on 2026-08-08. Their V2 statuses stay as
+written, because this file is the record of what V2 was.)*
 
 **Nothing in V2 is blocked by SET-02.** Its only dependants were
 [X-03](#-x-03--import--sync-todoist-notion-calendar) (itself deferred to a later
@@ -926,13 +929,13 @@ were updated in the same change rather than left saying something untrue.
   - **Deliberately excluded** and recorded rather than partially built: external vehicle/registration/insurer lookup, automatic market valuations, OCR, receipt ingestion, accounting, tax depreciation, fleet administration, fuel and GPS tracking, meter-unit conversion, file attachments, data export, backup/restore, and **every notification channel** — see [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2), which records the honest consequence: obligations are tracked, but nothing reaches the owner outside the app.
 
 ### ◐ ASSET-03 — Mobile
-> **Target release: V2.1** — the module shipped in V2; the named remainder below did not. See [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md#-asset-03--mobile-assets).
+> **Target release: V2.1** — the module shipped in V2; the named remainder below did not. **Delivered in V2.1 on 2026-08-08**; the status below is the historical V2 record and is left as it was written. See [`ROADMAP_V2_1.md → ASSET-03`](ROADMAP_V2_1.md#-asset-03--mobile-assets) for what closed it.
 
 - **Purpose.** Mobile-complete Assets.
 - **Dependencies.** DS-11, ASSET-01.
 - **Expected outcome.** Assets usable on a phone. **P3.**
 - **Priority.** P3.
-- **Status: ◐ Partially delivered by [MOBILE-01](#-mobile-01--fast-mobile-first-daily-experience) (2026-07-28).** Delivered: the Asset record's fact list stacks label-above-value so long serial numbers and URLs wrap instead of forcing the page wide, the next renewal/service date keeps its prominence (it is the reason to open an Asset on a phone at all), and the collection and record inherit the compact Card preset, the full-screen phone Drawer, the tab overflow and the keyboard-safe forms. **Still outstanding:** phone-first capture of a NEW asset and the type/subtype picker at narrow widths — the shared Quick Capture framework does not offer an Asset type, and adding one before [ASSET-02](#-asset-02--history--renewals--done) would mean designing capture for a record whose history surface does not exist yet. Sequence it after ASSET-02, as this item already said.
+- **Status: ◐ Partially delivered by [MOBILE-01](#-mobile-01--fast-mobile-first-daily-experience) (2026-07-28).** Delivered: the Asset record's fact list stacks label-above-value so long serial numbers and URLs wrap instead of forcing the page wide, the next renewal/service date keeps its prominence (it is the reason to open an Asset on a phone at all), and the collection and record inherit the compact Card preset, the full-screen phone Drawer, the tab overflow and the keyboard-safe forms. **Still outstanding:** phone-first capture of a NEW asset and the type/subtype picker at narrow widths — the shared Quick Capture framework does not offer an Asset type, and adding one before [ASSET-02](#-asset-02--history--renewals--done) would mean designing capture for a record whose history surface does not exist yet. Sequence it after ASSET-02, as this item already said. *(V2.1 note: "type/subtype" was stale wording. There is no persisted Asset subtype — the one `assetType` vocabulary IS the record's subtype, in the PX-05 icon-registry sense — and none was invented; the delivered work made choosing that type easy on a phone.)*
 
 ---
 
@@ -1293,7 +1296,8 @@ pass are all delivered. What each step of the old order actually became:
 10. **Complete module-specific mobile work.** ☑ Largely done by MOBILE-01, with three
     honest remainders — [PEOPLE-04](#-people-04--mobile), [ASSET-03](#-asset-03--mobile)
     and [REVIEW-04](#-review-04--mobile) — each carried to V2.1 with its specific
-    outstanding piece named. **A module is not "mobile-complete" because it passes a
+    outstanding piece named, and all three since closed there (REVIEW-04 on
+    2026-08-05, PEOPLE-04 and ASSET-03 on 2026-08-08). **A module is not "mobile-complete" because it passes a
     no-overflow test**, which is exactly why those three are not ☑.
 11. **Build full export and data portability — X-04.** ☑ Done.
 12. **Build backup and restore — SET-02.** ⊘ **Deferred to V2.1 by this closure.**
@@ -1493,7 +1497,7 @@ actor label, and touches no data-integrity or isolation boundary.
   [REVIEW-04](#-review-04--mobile) are ◐ — each has a specific, named remainder
   (capture context linking; phone-first Asset capture; the one-prompt-at-a-time
   Review stepper) that is genuinely outstanding rather than covered by a passing
-  no-overflow test. The four already-☑ module mobile items were extended, not
+  no-overflow test — each named remainder has since been delivered in V2.1. The four already-☑ module mobile items were extended, not
   re-opened. Two debts were recorded in the same change that created them:
   [DEBT-45](../product/PRODUCT_DEBT.md) (a captured record is not linked to its
   capture context) and [DEBT-46](../product/PRODUCT_DEBT.md) (Diary's timeline

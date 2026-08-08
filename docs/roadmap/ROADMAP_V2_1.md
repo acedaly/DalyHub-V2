@@ -777,15 +777,76 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Priority.** P3 — closed. See
   [`PEOPLE_MODULE.md` §8](../development/PEOPLE_MODULE.md#8-people-04--contextual-capture-closure-debt-45).
 
-### ◐ ASSET-03 — Mobile Assets
+### ☑ ASSET-03 — Mobile Assets — **DELIVERED 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → ASSET-03`](ROADMAP_V2.md#-asset-03--mobile).
 - **Delivered in V2.** The phone record layout and the ASSET-02 history/obligation
   surfaces, verified at 320/375/390/430px with no overflow and 44px targets.
-- **Outstanding.** Phone-first capture of a NEW Asset and the type/subtype picker at
-  narrow widths. It was sequenced after ASSET-02, which has now shipped, so it can
-  finally be designed against the history surface it was waiting for.
-- **Priority.** P3.
+  Preserved, not rebuilt — no Asset record, collection, history, obligation or
+  Today surface was redesigned here.
+- **The wording was stale, and is corrected.** The outstanding work was recorded as
+  "the type/subtype picker". DalyHub has **no persisted Asset subtype**: the schema,
+  the kernel and the ADRs carry ONE controlled `assetType` vocabulary, and "subtype"
+  is the PX-05 *icon-registry* word for it (an Asset's type is the record's subtype,
+  which is why `AssetRecord` alone kept its `typeLabel`). No `asset_subtype` column
+  was invented to satisfy a phrase. The requirement is what the phrase was reaching
+  for: **choosing the right Asset type on a phone must be easy**.
+- **Delivered now.**
+  - **Asset is in global Quick Capture.** The shared `+` chooser offers
+    Task · Diary entry · Meeting · Note · **Asset**, so recording something you own
+    no longer means navigating to Assets to find a module-specific button. The panel
+    is **the canonical `NewAssetForm` itself**, posting to the same `/assets/create`
+    → `AssetRepository.create` authority — no capture-only Asset form, model or
+    validator exists, and the panel therefore offers no "more options" hand-off,
+    because it already IS the full form.
+  - **The type control is one control with two presentations.** Above `md` it stays
+    the DS-16 combobox with type-to-filter (desktop creation is unchanged); below it,
+    `SelectField sheetOnCompact` renders a 44px trigger that opens the SHARED phone
+    `Sheet` of large option rows. That replaced an anchored listbox capped at 16rem
+    which opened underneath the keyboard the focused input had just raised. No new
+    modal primitive, no bespoke picker, no second select vocabulary.
+  - **Thirteen types, grouped for scanning** — Physical · Documents and cover ·
+    Digital and recurring · Anything else — derived from the same sets that decide
+    which fields a type reveals. Grouping is PRESENTATION: nothing is stored,
+    submitted or renamed, and a unit test asserts every kernel key and label survives
+    exactly once.
+  - **Progressive disclosure preserved**: name + type, then the small relevant set
+    (`newAssetFieldsForType`, untouched). Switching type keeps what was typed and
+    submits only the FINAL type's fields — proven end-to-end by creating a trailer,
+    switching it to a licence, and asserting the serial number never reached the
+    record.
+  - **The commitment row is sticky below `md`** (`FormActions sticky`) and the
+    capture panel uses the shared sticky capture action, so Create clears the
+    keyboard, the phone navigation bar and the home indicator.
+- **Found and fixed in passing — two real defects, both shared.**
+  - **Escape closed two surfaces at once.** Both sheets listen on `document` in the
+    capture phase, and `stopPropagation` does not stop other listeners on the same
+    node, so dismissing the type picker also threw away the half-written capture
+    beneath it. `Sheet` now keeps a small open-sheet stack and only the topmost acts.
+    Regression test: `test/unit/shell/Sheet.test.tsx`.
+  - **The error summary was a moving target.** Blurring the untouched Name field to
+    reach Type inserted ~118px above the fields, so the Type control slid out from
+    under the thumb between finger-down and finger-up and the tap was simply lost.
+    The summary is a POST-SUBMIT affordance (its own contract says so) and the New
+    Asset form now renders it only after a submit fails; the field's own inline error
+    still appears on blur, beside the field, where it moves nothing being aimed at.
+- **Deliberately NOT done.** No barcode/QR/OCR, no registration, vehicle or insurer
+  lookup, no attachments or receipt photos, no AI classification, no valuations, no
+  reminders or notifications — all remain
+  [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3)
+  and [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2).
+- **Verified.** `format:check`, `lint`, `typecheck`, `scheme:check`, unit, Workers/D1
+  kernel, `build`, and a focused
+  [`e2e/assets-mobile-capture.spec.ts`](../../e2e/assets-mobile-capture.spec.ts):
+  global `+` → Asset at 390px, a physical and a documentary Asset end-to-end, type
+  switching, validation that keeps the words and the surface, cancel-without-mutation
+  with focus returned to the opener, keyboard-only operation, axe in light and dark,
+  the 320/375/390/430px matrix, and a 1280px desktop regression. Nine screenshots
+  in [`docs/product/assets/asset-03-2026-08/`](../product/assets/asset-03-2026-08/).
+  The initial client bundle is byte-for-byte unchanged (+6,022 B total, all lazy),
+  and opening capture performs no new reads.
+- **Priority.** P3 — closed. See
+  [`ASSETS_MODULE.md` → ASSET-03](../development/ASSETS_MODULE.md#asset-03--phone-first-capture-2026-08-08).
 
 ### ☑ REVIEW-04 — Mobile Reviews — **DELIVERED 2026-08-05**
 
@@ -802,19 +863,58 @@ They are small and well-understood; none of them blocks the V2 release.*
   of scrolling inside itself), and axe clean in light and dark.
 - **Priority.** P3 — closed.
 
-### ◑ X-02 — Saved views & cross-module filters
+### ☑ X-02 — Saved views & cross-module filters — **delivered 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → X-02`](ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
 - **Delivered in V2.** Real, persisted, workspace- and owner-scoped saved views for
   Tasks over a validated declarative configuration (TASKS-03, ADR-059).
-- **Outstanding — exactly the word "cross-module".** Generalising the declarative
-  configuration beyond Task dimensions
-  ([DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3)),
-  adopting it in other collections
-  ([DEBT-20](../product/PRODUCT_DEBT.md#-debt-20--no-health-specific-project-filter-yet-ds-07-clause-builder-still-deferred--p3)),
-  and a cross-entity query contract that does not exist yet. **Do not mark this ☑
-  because Tasks has saved views.**
-- **Priority.** P3.
+- **What was outstanding — exactly the word "cross-module".** Generalising the
+  declarative configuration beyond Task dimensions, adopting it beyond one
+  collection, and a cross-entity query contract that did not exist.
+- **Delivered now, and NOT by giving other modules their own saved views.** One
+  collection-agnostic contract in `app/kernel/views` — ADR-059's model with exactly
+  one idea added: a configuration names a SET of entity SCOPES rather than assuming
+  Tasks. It spans **Tasks · Projects · Goals · Notes · Meetings · Reviews**, keeps
+  every rule that made a Task saved view safe to persist (closed-set DIMENSIONS,
+  never a field or an operator; total lenient parsing; canonical on write), and
+  splits dimensions into SHARED and MODULE with the split ENFORCED: a dimension a
+  record type cannot answer removes that record type and says so, rather than
+  silently widening the result.
+- **One saved-view system, not one per module.** `SavedView<TConfig>` /
+  `SavedViewRepository<TConfig>` are generic and the D1 adapter is codec-driven, so
+  `~/kernel/task-views` became a thin façade over the same types, the same table and
+  the same error classes. Migration `0036` adds ONE `kind` column (default `'tasks'`)
+  and swaps two indexes; nothing is rewritten, and the table deliberately keeps its
+  historical name so a rollback stays survivable.
+- **The product.** A `/views` surface with a scope selector reading *Show — Tasks +
+  Projects*, the SAME shared control sheet and chip row every other collection uses,
+  four built-in views (Needs attention · This week · Since my last Review · Waiting &
+  follow-up) derived in code, and full create/reopen/edit/rename/duplicate/delete over
+  the shared saved-view switcher — which was extracted from Tasks rather than copied.
+  Every result opens its canonical destination through the one shared
+  `entityDestination` helper.
+- **REVIEW-03 integration.** `changedSince: "last_review"` resolves to the period end
+  recorded in `review_insight_snapshots`, and `project.healthMovedSinceLastReview`
+  compares today's live PROJ-02 health with the health that snapshot recorded — both
+  READ from REVIEW-03, neither recomputed. REVIEW-03's own evidence links now lead
+  into the matching view. No second Review analytics store, no score, no streak.
+- **Performance.** One five-module view costs an **asserted 8 executed statements**
+  against real D1, flat with respect to how many records come back: one bounded,
+  deterministically ordered read per scope, then a fixed grouped anchor tail.
+- **Closes** [DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3--resolved-2026-08-08-x-02)
+  on its own stated closing condition, and delivers the server-evaluated health
+  filter half of
+  [DEBT-20](../product/PRODUCT_DEBT.md#-debt-20--no-health-specific-project-filter-yet-ds-07-clause-builder-still-deferred--p3)
+  (the `/projects` collection's own header remains an adoption task, recorded there).
+- **Documentation.** [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)
+  · [`VIEWS_MODULE.md`](../development/VIEWS_MODULE.md)
+  · [`DESIGN_SYSTEM.md → Filters`](../design/DESIGN_SYSTEM.md#shared-filters-ds-07).
+- **Deliberately deferred, stated rather than hidden.** People, Assets and Diary are
+  not scopes. Their collections are real, but their query contracts do not express
+  the shared dimensions, and forcing them in would have meant a poor abstraction
+  rather than universal support. Recorded as follow-up in
+  [`VIEWS_MODULE.md → Not scopes yet`](../development/VIEWS_MODULE.md#not-scopes-yet-and-why).
+- **Priority.** P3 — closed.
 
 ---
 
@@ -1540,10 +1640,10 @@ because a reader would otherwise wonder whether it was forgotten:
    once the two items above have stopped changing them — and it is large and pleasant
    enough that putting it first would quietly cost the owner the two things they
    actually cannot do today.
-4. **[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
-   the two named mobile remainders, now unblocked. **PEOPLE-04 is closed
-   (2026-08-08)**, together with the DEBT-45 contextual-capture matrix it was held
-   open for; ASSET-03 remains.
+4. ~~**[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
+   the two named mobile remainders.~~ **Both closed (2026-08-08)**: PEOPLE-04 with
+   the DEBT-45 contextual-capture matrix it was held open for, and ASSET-03 with
+   phone-first capture of a new Asset.
 5. **[DIARY-02](#-diary-02--day-context-links)** (**closed 2026-08-08**, alongside
    PEOPLE-04 — they share the one contextual-relationship contract),
    **[SET-03](#-set-03--account--security--substantially-delivered-2026-08-08)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
