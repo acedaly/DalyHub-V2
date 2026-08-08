@@ -37,6 +37,27 @@ describe("SelectField (single)", () => {
     expect(input).toHaveValue("To do");
   });
 
+  it("puts the field's name on the CONTROL only, never on a wrapper too", () => {
+    /*
+     * Regression: the field root was a `role="group"` labelled by the same
+     * element as the combobox, so "Status" named two nested elements. A screen
+     * reader announced "Status group, Status combobox", and every by-name query
+     * for the control — including `getByLabelText` and Playwright's
+     * `getByLabel` — matched both and failed as ambiguous. A single select
+     * contains one control; the name belongs to the thing you operate.
+     */
+    const { container } = render(
+      <SelectField
+        label="Status"
+        options={OPTIONS}
+        value=""
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getAllByLabelText("Status")).toHaveLength(1);
+    expect(container.querySelector('[role="group"]')).toBeNull();
+  });
+
   it("closes on Escape without changing the value", () => {
     render(
       <SelectField
@@ -66,6 +87,26 @@ describe("SelectField (single)", () => {
 });
 
 describe("SelectField (multi)", () => {
+  it("KEEPS a labelled group, which genuinely holds chips AND a control", () => {
+    // The counterpart to the single-select assertion above. Here the wrapper
+    // contains more than one named thing, so naming it is correct rather than
+    // duplicative.
+    function H() {
+      const [value, setValue] = useState<readonly string[]>(["todo"]);
+      return (
+        <SelectField
+          label="Labels"
+          multiple
+          options={OPTIONS}
+          value={value}
+          onChange={setValue}
+        />
+      );
+    }
+    const { container } = render(<H />);
+    expect(container.querySelector('[role="group"]')).not.toBeNull();
+  });
+
   it("adds and removes selections", () => {
     function H() {
       const [value, setValue] = useState<readonly string[]>([]);
