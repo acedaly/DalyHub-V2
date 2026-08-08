@@ -235,8 +235,11 @@ export function taskRecurrenceLabel(
     | undefined,
 ): string | null {
   if (!rule) return null;
-  const plural = (unit: string) =>
-    rule.interval === 1 ? unit : `${rule.interval} ${unit}s`;
+  // An after-completion rule always states its NUMBER, even at one: "1 week after
+  // completion" is an interval, whereas a bare "week after completion" reads as a
+  // fragment.
+  const counted = (unit: string) =>
+    rule.interval === 1 ? `1 ${unit}` : `${rule.interval} ${unit}s`;
   if ((rule.mode ?? "fixed") === "after_completion") {
     const unit =
       rule.frequency === "week"
@@ -246,7 +249,7 @@ export function taskRecurrenceLabel(
           : rule.frequency === "year"
             ? "year"
             : "day";
-    return `${plural(unit)} after completion`;
+    return `${counted(unit)} after completion`;
   }
   const every = (unit: string) =>
     rule.interval === 1 ? `Every ${unit}` : `Every ${rule.interval} ${unit}s`;
