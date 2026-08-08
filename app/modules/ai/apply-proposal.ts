@@ -449,18 +449,17 @@ async function applyNoteTask(
   const reviewed = await reviewedTask(input.scope, item);
 
   return guarded(input, index, "task", identityOfTask(reviewed), async () => {
+    // AUDIT-13 — the description is part of the create, not a second
+    // transaction after it. `createTask` takes it, so an invalid one fails
+    // BEFORE anything is written rather than needing to be compensated.
     const task = await input.scope.tasks.createTask({
       title: reviewed.title,
       parent: reviewed.parent,
       dueDate: reviewed.dueDate,
       scheduledDate: reviewed.scheduledDate,
+      description: reviewed.description,
     });
     try {
-      if (reviewed.description !== null) {
-        await input.scope.tasks.updateTask(task.id, {
-          description: reviewed.description,
-        });
-      }
       // Idempotent by relationship identity, so a retry re-asserts rather than
       // duplicating the link.
       await input.scope.entityLinks.create({
@@ -511,17 +510,17 @@ async function applyUnsourcedTask(
   item: Record<string, unknown>,
 ): Promise<AppliedItem> {
   const reviewed = await reviewedTask(input.scope, item);
+  // AUDIT-13 — one transaction, description included. This path has no
+  // relationship to write afterwards, so accepting an unsourced Task is now
+  // atomic outright: it either exists exactly as the owner approved it, or not
+  // at all, with nothing to compensate.
   const created = await input.scope.tasks.createTask({
     title: reviewed.title,
     parent: reviewed.parent,
     dueDate: reviewed.dueDate,
     scheduledDate: reviewed.scheduledDate,
+    description: reviewed.description,
   });
-  if (reviewed.description !== null) {
-    await input.scope.tasks.updateTask(created.id, {
-      description: reviewed.description,
-    });
-  }
   return { index, kind: "task", ok: true, id: created.id, created: true };
 }
 

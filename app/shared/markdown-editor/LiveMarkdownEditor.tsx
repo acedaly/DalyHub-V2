@@ -211,12 +211,6 @@ export function LiveMarkdownEditor({
   onBlurRef.current = onBlur;
   const onCommitRef = useRef(onCommit);
   onCommitRef.current = onCommit;
-  // The live view is created once, so it must be told at creation time WHETHER a
-  // commit shortcut exists — binding one that calls a ref that is later empty
-  // would swallow ⌘/Ctrl+Enter on a surface that has no save.
-  const hasCommit = Boolean(onCommit);
-  const hasCommitRef = useRef(hasCommit);
-  hasCommitRef.current = hasCommit;
   const valueRef = useRef(value);
   valueRef.current = value;
   const autoFocusRef = useRef(autoFocusOnMount);
@@ -309,9 +303,15 @@ export function LiveMarkdownEditor({
                     onChange: (next) => onChangeRef.current(next),
                     onSurfaceState,
                     onBlur: () => onBlurRef.current?.(),
-                    ...(hasCommitRef.current
-                      ? { onCommit: () => onCommitRef.current?.() }
-                      : {}),
+                    // Asked at PRESS time, never captured at creation: a host
+                    // that disables its fields mid-submit and re-enables them
+                    // must not lose the shortcut for the rest of the session.
+                    onCommit: () => {
+                      const commit = onCommitRef.current;
+                      if (!commit) return false;
+                      commit();
+                      return true;
+                    },
                   }),
                 }),
               });

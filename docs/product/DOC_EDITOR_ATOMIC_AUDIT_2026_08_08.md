@@ -171,7 +171,24 @@ error and an actually-already-closed Task were all recorded as `already_closed` 
 the `asset.obligation_completed` Activity payload. The event asserted something the
 system had not established.
 
-### 3.3 What was checked and found already atomic
+### 3.3 Adjacent compound writes: the same CLASS, outside AUDIT-13's scope
+
+Found while tracing, recorded rather than swept, because the brief is explicit that
+AUDIT-13 means the flows the audit named and not everything shaped like them:
+
+| Flow | Shape | Verdict |
+|---|---|---|
+| AI: accept an unsourced Task (`applyUnsourcedTask`) | was `createTask` + `updateTask({description})` | **Fixed here**, because `createTask` now takes a description. It has no relationship to write afterwards, so accepting an unsourced Task is atomic outright, with nothing to compensate. |
+| AI: accept a Task proposed from a Note (`applyNoteTask`) | was `createTask` + `updateTask({description})` + `entityLinks.create`, compensating | **Partly fixed**: the description transaction is gone, so an invalid one now fails before anything is written instead of being compensated. The link still follows, still compensated. |
+| Quick capture with a context (`/tasks` `new`) | `createTask` + `applyCaptureRelationship`, compensating | **Untouched.** |
+| Create a Task for an obligation (`/assets/:id/history`) | `createTask` + `linkObligationTask` + `entityLinks.create` | **Untouched.** |
+
+The last two are honest compensating sagas with the same residual shape AUDIT-13
+described, and neither is an AUDIT-13 finding. Making them atomic is the same
+technique this PR establishes ([ADR-083](../decisions/ARCHITECTURE_DECISIONS.md)) applied to two more flows — which is a
+follow-up, not a rider on this one.
+
+### 3.4 What was checked and found already atomic
 
 Traced and left alone, because they are already one guarded batch with their
 Activity inside it: task completion + waiting clearance + recurrence successor,

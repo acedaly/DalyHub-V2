@@ -71,9 +71,16 @@ export interface EditorSetupOptions {
    * and Diary capture), and this is what lets the shared editor offer it too
    * instead of every host binding its own.
    *
-   * Absent for an autosaving surface, where there is nothing to commit.
+   * The binding is ALWAYS installed and asks this callback at press time whether
+   * there is anything to commit — it returns `false` when there is not, so the
+   * chord falls through to CodeMirror's default (insert blank line), exactly as it
+   * did before this existed. Deciding at CREATION time would mean a surface that
+   * gains a commit handler later (a form re-enabling its fields after a submit)
+   * silently never got the shortcut.
+   *
+   * Returns `true` when it committed.
    */
-  readonly onCommit?: () => void;
+  readonly onCommit?: () => boolean;
   /** Accessible name for the editing surface. */
   readonly ariaLabel: string;
   /** Placeholder shown while the document is empty. */
@@ -123,23 +130,16 @@ export function createEditorExtensions(options: EditorSetupOptions): Extension {
   } = options;
   return [
     history(),
-    // The commit shortcut binds FIRST so neither Markdown's list continuation
-    // nor the default keymap can claim ⌘/Ctrl+Enter before it. Plain Enter is
-    // untouched and still inserts a paragraph.
-    keymap.of(
-      onCommit
-        ? [
-            {
-              key: "Mod-Enter",
-              preventDefault: true,
-              run: () => {
-                onCommit();
-                return true;
-              },
-            },
-          ]
-        : [],
-    ),
+    // The commit shortcut binds FIRST so neither Markdown's list continuation nor
+    // the default keymap can claim ⌘/Ctrl+Enter before it. Plain Enter is
+    // untouched and still inserts a paragraph. `run` returning false hands the
+    // chord on, so a surface with nothing to commit behaves as it always did.
+    keymap.of([
+      {
+        key: "Mod-Enter",
+        run: () => onCommit?.() ?? false,
+      },
+    ]),
     // Formatting shortcuts next, then Markdown's Enter/Backspace list
     // continuation, then the default editing keymap.
     keymap.of([
