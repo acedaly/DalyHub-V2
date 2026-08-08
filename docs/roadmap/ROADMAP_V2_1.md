@@ -587,9 +587,16 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   [`one-writing-surface.test.ts`](../../test/unit/markdown-editor/one-writing-surface.test.ts),
   the keyboard-save contract in
   [`keyboard-save.test.tsx`](../../test/unit/markdown-editor/keyboard-save.test.tsx),
-  and two browser journeys
-  ([`audit-13-conversion-atomicity.spec.ts`](../../e2e/audit-13-conversion-atomicity.spec.ts),
-  [`doc-editor-keyboard-save.spec.ts`](../../e2e/doc-editor-keyboard-save.spec.ts)).
+  and three browser journeys
+  ([`audit-13-conversion-atomicity.spec.ts`](../../e2e/audit-13-conversion-atomicity.spec.ts) —
+  a double-submitted, replayed and refused conversion;
+  [`doc-editor-keyboard-save.spec.ts`](../../e2e/doc-editor-keyboard-save.spec.ts) —
+  the ENHANCED CodeMirror surface, where the chord could be stolen by Markdown's
+  list continuation or CodeMirror's own `Mod-Enter`; and
+  [`doc-editor-responsive.spec.ts`](../../e2e/doc-editor-responsive.spec.ts) — the
+  writing surface measured at all ten canonical viewports, 320 → 2560).
+  `e2e/accessibility.spec.ts` passes at 122 checks across every product route and
+  design fixture in light AND dark.
 
 - **Documentation.** [ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-a-compound-domain-mutation-is-one-storage-transaction-composed-from-the-owning-repositories-statements)
   · [ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant)
