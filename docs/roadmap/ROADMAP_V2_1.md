@@ -801,19 +801,58 @@ They are small and well-understood; none of them blocks the V2 release.*
   of scrolling inside itself), and axe clean in light and dark.
 - **Priority.** P3 — closed.
 
-### ◑ X-02 — Saved views & cross-module filters
+### ☑ X-02 — Saved views & cross-module filters — **delivered 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → X-02`](ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
 - **Delivered in V2.** Real, persisted, workspace- and owner-scoped saved views for
   Tasks over a validated declarative configuration (TASKS-03, ADR-059).
-- **Outstanding — exactly the word "cross-module".** Generalising the declarative
-  configuration beyond Task dimensions
-  ([DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3)),
-  adopting it in other collections
-  ([DEBT-20](../product/PRODUCT_DEBT.md#-debt-20--no-health-specific-project-filter-yet-ds-07-clause-builder-still-deferred--p3)),
-  and a cross-entity query contract that does not exist yet. **Do not mark this ☑
-  because Tasks has saved views.**
-- **Priority.** P3.
+- **What was outstanding — exactly the word "cross-module".** Generalising the
+  declarative configuration beyond Task dimensions, adopting it beyond one
+  collection, and a cross-entity query contract that did not exist.
+- **Delivered now, and NOT by giving other modules their own saved views.** One
+  collection-agnostic contract in `app/kernel/views` — ADR-059's model with exactly
+  one idea added: a configuration names a SET of entity SCOPES rather than assuming
+  Tasks. It spans **Tasks · Projects · Goals · Notes · Meetings · Reviews**, keeps
+  every rule that made a Task saved view safe to persist (closed-set DIMENSIONS,
+  never a field or an operator; total lenient parsing; canonical on write), and
+  splits dimensions into SHARED and MODULE with the split ENFORCED: a dimension a
+  record type cannot answer removes that record type and says so, rather than
+  silently widening the result.
+- **One saved-view system, not one per module.** `SavedView<TConfig>` /
+  `SavedViewRepository<TConfig>` are generic and the D1 adapter is codec-driven, so
+  `~/kernel/task-views` became a thin façade over the same types, the same table and
+  the same error classes. Migration `0036` adds ONE `kind` column (default `'tasks'`)
+  and swaps two indexes; nothing is rewritten, and the table deliberately keeps its
+  historical name so a rollback stays survivable.
+- **The product.** A `/views` surface with a scope selector reading *Show — Tasks +
+  Projects*, the SAME shared control sheet and chip row every other collection uses,
+  four built-in views (Needs attention · This week · Since my last Review · Waiting &
+  follow-up) derived in code, and full create/reopen/edit/rename/duplicate/delete over
+  the shared saved-view switcher — which was extracted from Tasks rather than copied.
+  Every result opens its canonical destination through the one shared
+  `entityDestination` helper.
+- **REVIEW-03 integration.** `changedSince: "last_review"` resolves to the period end
+  recorded in `review_insight_snapshots`, and `project.healthMovedSinceLastReview`
+  compares today's live PROJ-02 health with the health that snapshot recorded — both
+  READ from REVIEW-03, neither recomputed. REVIEW-03's own evidence links now lead
+  into the matching view. No second Review analytics store, no score, no streak.
+- **Performance.** One five-module view costs an **asserted 8 executed statements**
+  against real D1, flat with respect to how many records come back: one bounded,
+  deterministically ordered read per scope, then a fixed grouped anchor tail.
+- **Closes** [DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3--resolved-2026-08-08-x-02)
+  on its own stated closing condition, and delivers the server-evaluated health
+  filter half of
+  [DEBT-20](../product/PRODUCT_DEBT.md#-debt-20--no-health-specific-project-filter-yet-ds-07-clause-builder-still-deferred--p3)
+  (the `/projects` collection's own header remains an adoption task, recorded there).
+- **Documentation.** [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)
+  · [`VIEWS_MODULE.md`](../development/VIEWS_MODULE.md)
+  · [`DESIGN_SYSTEM.md → Filters`](../design/DESIGN_SYSTEM.md#shared-filters-ds-07).
+- **Deliberately deferred, stated rather than hidden.** People, Assets and Diary are
+  not scopes. Their collections are real, but their query contracts do not express
+  the shared dimensions, and forcing them in would have meant a poor abstraction
+  rather than universal support. Recorded as follow-up in
+  [`VIEWS_MODULE.md → Not scopes yet`](../development/VIEWS_MODULE.md#not-scopes-yet-and-why).
+- **Priority.** P3 — closed.
 
 ---
 

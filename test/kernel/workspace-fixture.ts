@@ -24,6 +24,7 @@ import {
   makeAssetHistoryRepository,
   makeAssetRepository,
   makeContext,
+  makeCrossViewRepository,
   makeDiaryRepository,
   makeLinkRepository,
   makeMeetingRepository,
@@ -33,7 +34,10 @@ import {
   makeReviewRepository,
   makeSpineRepository,
   makeTaskRepository,
+  makeTaskViewRepository,
 } from "./support";
+import { parseTaskViewConfig } from "~/kernel/task-views";
+import { parseCrossViewConfig } from "~/kernel/views";
 
 /** The workspace the fixture seeds. */
 export const FIXTURE_WORKSPACE = "test-default-workspace";
@@ -279,6 +283,34 @@ export async function seedWorkspace(): Promise<Seeded> {
   /* Owner preferences ------------------------------------------------------ */
   await preferences.update(OWNER, {
     timezone: "Australia/Sydney",
+  });
+
+  /* Saved views, of BOTH kinds -------------------------------------------
+   * They share one table (X-02), so a fixture holding only one kind would let
+   * a restore silently rewrite a cross-module view as a Tasks view and still
+   * pass the round trip. One of each makes the `kind` column load-bearing. */
+  await makeTaskViewRepository(context).create(OWNER, {
+    name: "Overdue P1 work",
+    config: parseTaskViewConfig({
+      version: 1,
+      presentation: "list",
+      systemView: "active",
+      sort: "due_date",
+      direction: "asc",
+      groupBy: "parent",
+      density: "comfortable",
+      filters: { priority: "p1", dueState: "overdue" },
+    }),
+  });
+  await makeCrossViewRepository(context).create(OWNER, {
+    name: "Needs a look this week",
+    config: parseCrossViewConfig({
+      scopes: ["task", "project", "meeting"],
+      shared: { attention: true, updatedWithin: "this_week" },
+      modules: { project: { health: "at_risk" } },
+      sort: "due",
+      direction: "asc",
+    }),
   });
 
   /* A SECOND workspace, whose records must never appear ------------------- */

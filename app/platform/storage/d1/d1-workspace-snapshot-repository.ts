@@ -870,7 +870,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
   ): Promise<readonly SnapshotTaskSavedView[]> {
     const result = await this.#db
       .prepare(
-        `SELECT id, name, config_version, config, created_at, updated_at
+        `SELECT id, kind, name, config_version, config, created_at, updated_at
          FROM task_saved_views
          WHERE workspace_id = ? AND owner_id = ?
          ORDER BY id
@@ -880,6 +880,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
       .all<Record<string, unknown>>();
     return (result.results ?? []).map((row) => ({
       id: requiredText(row.id),
+      kind: requiredText(row.kind),
       name: requiredText(row.name),
       configVersion: requiredInteger(row.config_version, 1),
       config: jsonValue(row.config),
