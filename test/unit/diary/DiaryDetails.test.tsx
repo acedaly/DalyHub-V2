@@ -142,10 +142,15 @@ describe("Diary details panel", () => {
     expect(
       screen.getByRole("heading", { level: 3, name: "Team stand-up" }),
     ).toBeInTheDocument();
-    // The shared section, identified by its own landmark heading — proof this is
-    // the Universal Relationship System and not a bespoke Diary component.
+    // The shared section, identified by its own heading — proof this is the
+    // Universal Relationship System and not a bespoke Diary component.
+    //
+    // At level 5, because the panel already titles the section "Related" (h4)
+    // above it. The shared section takes a `headingLevel` so a nested host keeps
+    // a valid outline; hard-coded at h2 it produced a real axe `heading-order`
+    // failure here (4 → 2 → 3).
     expect(
-      screen.getByRole("heading", { level: 2, name: "Linked items" }),
+      screen.getByRole("heading", { level: 5, name: "Linked items" }),
     ).toBeInTheDocument();
     // Content comes before context in the DOM, which is the reading order too.
     expect(

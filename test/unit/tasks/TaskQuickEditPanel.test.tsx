@@ -15,13 +15,7 @@
  */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
@@ -209,10 +203,12 @@ describe("TaskQuickEditPanel", () => {
     });
     const picker = screen.getByRole("combobox", { name: /Project or Area/ });
     fireEvent.click(picker);
-    // Scoped to the parent field's own group: every populated control offers a clear.
-    const field = picker.closest('[role="group"]') as HTMLElement;
+    // Every populated select offers a clear, and each one is now named after the
+    // FIELD it clears — so this asks for the parent field's own, by name, rather
+    // than reaching for the wrapper that used to disambiguate three identical
+    // "Clear selection" buttons.
     fireEvent.click(
-      within(field).getByRole("button", { name: /Clear selection/ }),
+      screen.getByRole("button", { name: /^Clear project or area$/i }),
     );
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));

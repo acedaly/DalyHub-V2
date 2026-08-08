@@ -180,15 +180,13 @@ describe("the compact select sheet", () => {
   it("lets an OPTIONAL field return to empty, and a required one never can", () => {
     const { unmount } = render(<Host initial="vehicle" required={false} />);
     fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear type" }));
     expect(trigger()).toHaveTextContent("Choose a type…");
     unmount();
 
     render(<Host initial="vehicle" />);
     fireEvent.click(trigger());
-    expect(
-      screen.queryByRole("button", { name: "Clear selection" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear type" })).toBeNull();
   });
 
   it("closes on Escape without changing the value", () => {

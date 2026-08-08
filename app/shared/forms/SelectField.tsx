@@ -398,7 +398,17 @@ function SelectCombobox(props: SelectFieldProps) {
             <button
               type="button"
               className="dh-combobox__clear"
-              aria-label="Clear selection"
+              /*
+               * Named after the FIELD it clears, not "Clear selection".
+               *
+               * Every populated select offers one, so a form with two of them had
+               * two buttons with one name between them and no way for a screen
+               * reader — or a test — to tell which field either would empty. The
+               * inline select has always named its clear command this way
+               * (`Clear ${label}`); this is the same rule on the same control's
+               * other presentation.
+               */
+              aria-label={`Clear ${label.toLocaleLowerCase()}`}
               disabled={disabled}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
