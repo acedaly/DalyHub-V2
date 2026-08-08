@@ -19,6 +19,7 @@ import {
   makeContext,
   makeLinkRepository,
   makeMeetingRepository,
+  makeMeetingTaskConversionRepository,
   makeNoteDetailsRepository,
   makeRepository,
   makeSpineRepository,
@@ -98,6 +99,11 @@ function harness(ws: string): Harness {
   const scope = {
     context,
     meetings,
+    meetingTaskConversions: makeMeetingTaskConversionRepository(
+      context,
+      { clock: shared.clock },
+      { tasks, meetings, entityLinks },
+    ),
     tasks,
     entityLinks,
     entities,

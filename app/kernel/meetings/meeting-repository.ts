@@ -1,6 +1,5 @@
 import type {
   CreateMeetingInput,
-  LinkFollowUpTaskInput,
   MarkMeetingHeldResult,
   Meeting,
   MeetingFollowUpLink,
@@ -260,16 +259,18 @@ export interface MeetingRepository {
 
   // --- MEET-02: follow-up Task mapping ------------------------------------------
 
-  /**
-   * Durably record a Meeting → Task conversion AND append its structural Activity
-   * (`meeting.item_converted_to_task` for an item, `meeting.follow_up_created` for a
-   * direct follow-up) in ONE atomic `D1Database.batch()` — the conversion's commit
-   * point. Both the Meeting and the Task are Activity subjects, so the event shows
-   * on both timelines; the payload carries only the item kind, never item content.
-   * Rejects a second active mapping for the same source item with
-   * `MeetingFollowUpConflictError`. It never creates or mutates the Task itself.
+  /*
+   * AUDIT-13 — `linkFollowUpTask` USED to be here.
+   *
+   * It durably recorded a Meeting → Task conversion and appended its structural
+   * Activity in one batch, which was atomic in itself and useless as a guarantee:
+   * the Task it referred to had been created by a DIFFERENT transaction moments
+   * earlier, so a failure here left an orphan Task and a retry made a second one.
+   * Recording a conversion is not separable from making the thing that was
+   * converted, so it is no longer separately callable — it is one statement group
+   * inside `MeetingTaskConversionRepository.convert`, which is now the only way to
+   * create a follow-up Task.
    */
-  linkFollowUpTask(input: LinkFollowUpTaskInput): Promise<MeetingFollowUpLink>;
 
   /**
    * A Meeting's follow-up mappings, NEWEST first and bounded (default/max applied by

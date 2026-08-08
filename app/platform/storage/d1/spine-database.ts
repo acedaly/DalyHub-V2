@@ -132,6 +132,15 @@ export function buildSpineCompleteStatement(
   workspaceId: string,
   entityId: string,
   nowTs: string,
+  /**
+   * AUDIT-13 — an OPTIONAL extra predicate, AND-ed into the completion gate and
+   * therefore evaluated inside whatever transaction runs this statement. It is how
+   * a compound operation makes a Task completion conditional on its OWN domain
+   * write having committed earlier in the same batch, instead of completing the
+   * Task in a separate transaction first and hoping the rest succeeds. The SQL is
+   * always a repository-authored literal; every value stays bound.
+   */
+  guard?: { readonly sql: string; readonly params: readonly unknown[] },
 ): D1PreparedStatement {
   return db
     .prepare(
@@ -139,9 +148,17 @@ export function buildSpineCompleteStatement(
        WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL
          AND EXISTS (SELECT 1 FROM entities
                      WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+         ${guard ? `AND ${guard.sql}` : ""}
        RETURNING entity_id`,
     )
-    .bind(nowTs, workspaceId, entityId, workspaceId, entityId);
+    .bind(
+      nowTs,
+      workspaceId,
+      entityId,
+      workspaceId,
+      entityId,
+      ...(guard?.params ?? []),
+    );
 }
 
 /**

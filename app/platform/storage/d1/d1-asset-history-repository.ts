@@ -19,13 +19,16 @@
  *     actually changed a row, so a retry or a concurrent completion produces no
  *     second event and no second successor.
  *
- * The ONE deliberate exception is the linked Task. Completing a Task also drives
- * Task recurrence, project rollup and the Task's own Activity, all of which the
- * `TaskRepository` owns; reimplementing that in SQL here would be exactly the
- * duplicated authority §22 forbids. So the Task is completed FIRST, through the
- * injected `ObligationTaskGateway`, and the obligation transaction follows. If the
- * transaction then fails, the system lands in "Task done, work not yet recorded" —
- * a state the product already models and surfaces, rather than an invented one.
+ * AUDIT-13 — the linked Task is no longer an exception. Completing a Task also
+ * drives Task recurrence, project rollup and the Task's own Activity, all of which
+ * the `TaskRepository` owns; reimplementing that in SQL here would be exactly the
+ * duplicated authority §22 forbids. So the Task's completion is PLANNED by the
+ * Task repository (`ObligationTaskCompletionPlanner`, which returns statements and
+ * writes nothing) and appended to the obligation's own batch, gated on the
+ * obligation having actually closed in that same transaction. The Task authority
+ * is unchanged; only where its statements RUN moved. Previously the Task was
+ * completed first in a transaction of its own, and a failure in the obligation
+ * transaction left a Task ticked off against an obligation that was still open.
  *
  * ACTIVITY PRIVACY (§17). Payloads carry only structural terms — the category
  * token, the derived state, whether a successor was created. Never a cost, a
@@ -127,15 +130,58 @@ import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import type { AtomicMutationFault } from "./d1-atomic-mutation";
 
+/**
+ * AUDIT-13 — the storage-level seam through which a linked Task's completion joins
+ * the OBLIGATION's batch instead of preceding it in a transaction of its own.
+ *
+ * It hands back prepared statements; it never writes. `guard` is a SQL predicate
+ * the planner AND-s into the Task's completion gate, so the Task closes only if the
+ * obligation actually closed earlier in the same transaction — and if any later
+ * statement fails, D1 rolls the Task's completion back with everything else.
+ *
+ * It is declared here rather than in `~/kernel/assets` on purpose: `D1PreparedStatement`
+ * is a storage type, and the kernel stays storage-independent (ADR-010).
+ */
+export interface ObligationTaskCompletionPlanner {
+  planCompletion(
+    taskId: string,
+    options: {
+      readonly ownerTodayIso: string;
+      readonly guard?: {
+        readonly sql: string;
+        readonly params: readonly unknown[];
+      };
+      readonly now?: Date;
+    },
+  ): Promise<{
+    readonly outcome: "completed" | "already_closed" | "missing";
+    readonly statements: readonly D1PreparedStatement[];
+  }>;
+}
+
 export interface D1AssetHistoryRepositoryOptions {
   readonly clock?: Clock;
   readonly idGenerator?: IdGenerator;
   readonly actorContext?: ActivityActorContext;
   readonly activityIdGenerator?: IdGenerator;
-  /** The canonical Task write port. Omitted in tests that link no Tasks. */
+  /** The canonical Task RESCHEDULE port. Omitted in tests that link no Tasks. */
   readonly taskGateway?: ObligationTaskGateway;
+  /**
+   * AUDIT-13 — the Task-completion statement planner. Omitted in tests that link
+   * no Tasks; then a linked Task is reported as `already_closed`, exactly as it
+   * was when no gateway was supplied.
+   */
+  readonly taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   /** TEST-ONLY deterministic batch fault, proving whole-transaction rollback. */
   readonly mutationFault?: AtomicMutationFault;
+  /**
+   * AUDIT-13 TEST-ONLY: force `completeObligation`'s batch to fail AFTER the linked
+   * Task's completion statements — the far side of the transaction from
+   * `mutationFault`, which fails immediately after the obligation's own write.
+   * Together they prove that a failure on EITHER side of the fused operation
+   * leaves both the obligation open and the Task open. Never set in production.
+   */
+  readonly obligationTaskFault?: boolean;
   /**
    * AUDIT-14 — resolve the OWNER's timezone, so this repository's idea of
    * "today" is the same one every other module uses. It used to be a hard-coded
@@ -250,7 +296,9 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #taskGateway?: ObligationTaskGateway;
+  readonly #taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   readonly #mutationFault?: AtomicMutationFault;
+  readonly #obligationTaskFault?: boolean;
   readonly #ownerTimeZone: () => Promise<string>;
 
   constructor(
@@ -267,7 +315,9 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#taskGateway = options.taskGateway;
+    this.#taskCompletionPlanner = options.taskCompletionPlanner;
     this.#mutationFault = options.mutationFault;
+    this.#obligationTaskFault = options.obligationTaskFault;
     this.#ownerTimeZone =
       options.ownerTimeZone ?? (() => Promise.resolve(DEFAULT_OWNER_TIME_ZONE));
   }
@@ -1485,21 +1535,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
           )
         : null;
 
-    /* -- The linked Task goes FIRST, through its own repository ------------ */
-    let taskOutcome: CompleteAssetObligationResult["taskOutcome"] = "none";
-    if (current.taskId) {
-      if (this.#taskGateway) {
-        try {
-          taskOutcome = await this.#taskGateway.completeTask(current.taskId);
-        } catch {
-          taskOutcome = "already_closed";
-        }
-      } else {
-        taskOutcome = "already_closed";
-      }
-    }
-
-    /* -- Then the obligation transaction ---------------------------------- */
+    /* -- One transaction, obligation and linked Task together (AUDIT-13) --- */
 
     const closeObligation = this.#db
       .prepare(
@@ -1512,6 +1548,44 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       )
       .bind(nowTs, eventId, successorId, nowTs, this.#workspaceId, id);
 
+    // The event only lands if the obligation actually closed and now points at
+    // exactly this event id — so a losing concurrent completion writes nothing.
+    const completionGuard = `EXISTS (
+      SELECT 1 FROM asset_obligations
+      WHERE workspace_id = ? AND id = ? AND status = 'completed'
+        AND completed_event_id = ?
+    )`;
+    const completionGuardParams = [this.#workspaceId, id, eventId] as const;
+
+    /* -- The linked Task joins THIS batch (AUDIT-13) -----------------------
+     * It used to be completed first, in a transaction of its own, so a failure
+     * in the obligation's transaction left a Task ticked off against an
+     * obligation that was still open. Now its statements are planned (never
+     * executed) here and appended below, gated on `completionGuard` — the
+     * obligation having actually closed in this very transaction. Either both
+     * commit or neither does.
+     */
+    const taskPlan =
+      current.taskId && this.#taskCompletionPlanner
+        ? await this.#taskCompletionPlanner.planCompletion(current.taskId, {
+            // The OWNER's today, not the (possibly back-dated) completion date:
+            // this anchors the Task's own recurrence exactly as the Task module
+            // does, which is the AUDIT-14 contract this must not quietly change.
+            ownerTodayIso: await this.#today(),
+            guard: {
+              sql: completionGuard,
+              params: [...completionGuardParams],
+            },
+            now,
+          })
+        : null;
+    const taskOutcome: CompleteAssetObligationResult["taskOutcome"] =
+      current.taskId === null
+        ? "none"
+        : // No planner wired (a test that links no Tasks) keeps the previous
+          // reading: there is nothing this repository can close.
+          (taskPlan?.outcome ?? "already_closed");
+
     const append = this.#appendStatements(
       ASSET_OBLIGATION_COMPLETED,
       [current.assetId],
@@ -1523,14 +1597,6 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       },
       now,
     );
-
-    // The event only lands if the obligation actually closed and now points at
-    // exactly this event id — so a losing concurrent completion writes nothing.
-    const completionGuard = `EXISTS (
-      SELECT 1 FROM asset_obligations
-      WHERE workspace_id = ? AND id = ? AND status = 'completed'
-        AND completed_event_id = ?
-    )`;
 
     const insertEvent = this.#db
       .prepare(
@@ -1685,6 +1751,12 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
           ),
       );
     }
+
+    // LAST, so the obligation's own guarded statements keep the `changes()` chain
+    // they were written against, and the Task group's first statement (its
+    // completion gate, carrying `completionGuard`) starts a fresh one.
+    if (taskPlan) batch.push(...taskPlan.statements);
+    if (this.#obligationTaskFault) batch.push(this.#forcedFailure());
 
     try {
       const results = await this.#db.batch(this.#withFault(batch));

@@ -39,7 +39,7 @@ import type {
   NoteQueryRepository,
 } from "~/kernel/notes";
 import type { PersonRepository } from "~/kernel/people";
-import type { MeetingRepository } from "~/kernel/meetings";
+import type { MeetingTaskConversionRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -100,6 +100,10 @@ import {
   type D1PersonRepositoryOptions,
 } from "./d1-person-repository";
 import { D1MeetingRepository } from "./d1-meeting-repository";
+import {
+  D1MeetingTaskConversionRepository,
+  type D1MeetingTaskConversionOptions,
+} from "./d1-meeting-task-conversion";
 import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
 import {
@@ -181,6 +185,10 @@ export {
   type D1PersonCreateFault,
 } from "./d1-person-repository";
 export { D1MeetingRepository } from "./d1-meeting-repository";
+export {
+  D1MeetingTaskConversionRepository,
+  type D1MeetingTaskConversionOptions,
+} from "./d1-meeting-task-conversion";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1RelationshipRepository };
@@ -231,9 +239,17 @@ export function createEntityLinkRepository(
   db: D1Database,
   context: WorkspaceContext,
   options?: D1EntityLinkRepositoryOptions,
-): EntityLinkRepository {
+): D1EntityLinkAdapter {
   return new D1EntityLinkRepository(db, context, options);
 }
+
+/**
+ * AUDIT-13 — the D1 EntityLink adapter: the port PLUS the statement seam a
+ * compound operation composes when it is creating one of the link's endpoints in
+ * the SAME transaction. It returns statements and performs no write.
+ */
+export type D1EntityLinkAdapter = EntityLinkRepository &
+  Pick<D1EntityLinkRepository, "buildCreateLinkStatements">;
 
 /**
  * Factory for the workspace-scoped D1-backed SpineRepository — the authoritative
@@ -261,9 +277,27 @@ export function createTaskRepository(
   db: D1Database,
   context: WorkspaceContext,
   options?: D1TaskRepositoryOptions,
-): TaskRepository {
+): D1TaskAdapter {
   return new D1TaskRepository(db, context, options);
 }
+
+/**
+ * AUDIT-13 — the D1 Task adapter: the storage-independent port PLUS the two
+ * statement seams a compound operation composes.
+ *
+ * The port stays the thing modules program against. These two extras exist so a
+ * D1 operation that must be ONE transaction (meeting item → Task; obligation →
+ * Task completion) can put the Task's own statements in its own batch instead of
+ * running them first and hoping. Both return statements and perform no write, so
+ * neither re-opens the multi-transaction sequence they replaced.
+ */
+export type D1TaskAdapter = TaskRepository &
+  Pick<
+    D1TaskRepository,
+    | "buildCreateTaskStatements"
+    | "interpretCreateTaskResults"
+    | "planCompletion"
+  >;
 
 /**
  * Factory for the workspace-scoped, READ-ONLY D1-backed ProjectRepository — the
@@ -385,8 +419,29 @@ export function createMeetingRepository(
   db: D1Database,
   context: WorkspaceContext,
   options?: ConstructorParameters<typeof D1MeetingRepository>[2],
-): MeetingRepository {
+): D1MeetingRepository {
   return new D1MeetingRepository(db, context, options);
+}
+
+/**
+ * AUDIT-13 — the ONE authority for turning a Meeting's work into a Task.
+ *
+ * It needs the CONCRETE adapters rather than the ports, because what it composes
+ * are their prepared statements — the whole point being that the Task, the
+ * conversion mapping, the relationship and all three Activity events commit in a
+ * single D1 transaction. Constructing it is the composition root's job; modules
+ * see only `MeetingTaskConversionRepository`.
+ */
+export function createMeetingTaskConversionRepository(
+  db: D1Database,
+  repositories: {
+    readonly tasks: D1TaskAdapter;
+    readonly meetings: D1MeetingRepository;
+    readonly entityLinks: D1EntityLinkAdapter;
+  },
+  options?: D1MeetingTaskConversionOptions,
+): MeetingTaskConversionRepository {
+  return new D1MeetingTaskConversionRepository(db, repositories, options);
 }
 
 /**

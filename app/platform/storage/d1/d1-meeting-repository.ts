@@ -23,7 +23,6 @@ import {
   MEETING_RESTORED,
   MEETING_UPDATED,
   MeetingArchivedError,
-  MeetingFollowUpConflictError,
   MeetingItemConflictError,
   MeetingStorageError,
   MeetingValidationError,
@@ -1009,11 +1008,27 @@ export class D1MeetingRepository implements MeetingRepository {
     };
   }
 
-  async linkFollowUpTask(
+  /**
+   * AUDIT-13 — the mapping row + its structural Activity, as STATEMENTS.
+   *
+   * This used to be `linkFollowUpTask`, a public repository method that executed
+   * its own batch. That is exactly the API that let a caller create a Task in one
+   * transaction and record the conversion in another, and lose the pair in
+   * between. It is now an internal seam of this adapter package: the
+   * `D1MeetingTaskConversionRepository` appends these statements to the batch that
+   * also creates the Task, so the whole conversion is one transaction. It performs
+   * no write, so the two-transaction sequence cannot be reassembled from it.
+   *
+   * The mapping insert is unconditional: it runs inside a transaction that has
+   * already inserted the Task, and a UNIQUE-index violation on
+   * `(workspace_id, item_id)` is the concurrency answer the caller wants — not
+   * something to guard away.
+   */
+  buildFollowUpLinkStatements(
     input: LinkFollowUpTaskInput,
-  ): Promise<MeetingFollowUpLink> {
-    const now = this.#clock(),
-      ts = toStorageTimestamp(now);
+    now: Date,
+  ): readonly D1PreparedStatement[] {
+    const ts = toStorageTimestamp(now);
     const type =
       input.itemId === null
         ? MEETING_FOLLOW_UP_CREATED
@@ -1021,43 +1036,43 @@ export class D1MeetingRepository implements MeetingRepository {
     // Structural metadata ONLY — never item body/agenda/notes content (§17).
     const payload: Record<string, string> = {};
     if (input.itemKind) payload.itemKind = input.itemKind;
-    try {
-      await this.#db.batch([
-        this.#db
-          .prepare(
-            "INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at) VALUES (?,?,?,?,?)",
-          )
-          .bind(
-            this.#workspaceId,
-            input.meetingId,
-            input.itemId,
-            input.taskId,
-            ts,
-          ),
-        ...this.#eventWith(
-          type,
-          [
-            { entityId: input.meetingId, role: "subject" },
-            { entityId: input.taskId, role: "target" },
-          ],
-          payload,
-          now,
+    return [
+      this.#db
+        .prepare(
+          "INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at) VALUES (?,?,?,?,?)",
+        )
+        .bind(
+          this.#workspaceId,
+          input.meetingId,
+          input.itemId,
+          input.taskId,
+          ts,
         ),
-      ]);
-    } catch (cause) {
-      // A UNIQUE-index violation means a concurrent conversion already claimed this
-      // source item; surface it as the typed conflict the orchestration recovers from.
-      if (input.itemId !== null && /unique|constraint/i.test(String(cause))) {
-        throw new MeetingFollowUpConflictError(input.itemId);
-      }
-      throw cause;
-    }
-    return {
-      meetingId: input.meetingId,
-      itemId: input.itemId,
-      taskId: input.taskId,
-      createdAt: now,
-    };
+      ...this.#eventWith(
+        type,
+        [
+          { entityId: input.meetingId, role: "subject" },
+          { entityId: input.taskId, role: "target" },
+        ],
+        payload,
+        now,
+      ),
+    ];
+  }
+
+  /**
+   * AUDIT-13 — drop a STALE mapping (its Task was permanently gone) as part of the
+   * re-conversion's own transaction, rather than in a delete that could commit and
+   * then be followed by a failed re-conversion. Scoped to this workspace and this
+   * task id; writes no Activity, because removing a pointer to a record that no
+   * longer exists is bookkeeping, not a domain change.
+   */
+  buildRemoveFollowUpStatement(taskId: string): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        "DELETE FROM meeting_item_tasks WHERE workspace_id=? AND task_id=?",
+      )
+      .bind(this.#workspaceId, taskId);
   }
   async listFollowUps(
     meetingId: string,
