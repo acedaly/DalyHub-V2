@@ -62,17 +62,80 @@ A `task.relates_to` EntityLink alone says a Task relates to a Meeting but not **
 
 The mapping **supplements** the Universal Relationship System; it never replaces it (RELATIONSHIPS.md). Task→Meeting navigation and the global Linked Items view use the `task.relates_to` link; the mapping only answers "which item, and is it converted".
 
-### The conversion orchestration (transaction & idempotency)
+### The conversion is ONE transaction (AUDIT-13)
 
-`app/platform/meetings/follow-up-operations.ts` is the explicit orchestration boundary. **It moved out of `app/modules/meetings/` in AI-02** and is now a platform service, for the reason the architecture already has a precedent for (ADR-033; AREA-02's shared `NewGoalForm`): a second module needs it. The AI acceptance path must route a Meeting-derived Task through THIS authority and no other, and the module-boundary rule correctly forbids `app/modules/ai` from importing `app/modules/meetings`. Duplicating the orchestration would have created the second conversion path the single-authority rule exists to prevent. Nothing about the orchestration changed in the move; the Meetings module's own follow-up route imports it from `~/platform/meetings` unchanged. The FND-07 `createTask` encapsulates its own atomic `D1Database.batch()`, so the four writes (Task, mapping, link, Activity) cannot be fused into one cross-repository transaction through the public contracts. The orchestration therefore provides:
+**`MeetingTaskConversionRepository.convert` is the only way to create a follow-up
+Task.** Everything a conversion writes — the Task (its `entities` row, its
+`spine_records` row, its structural parent link, its `task_details` slice
+including `status` and `description`, its recurrence rule if one was supplied, and
+its `entity.created` / `entity_link.created` Activity), the `meeting_item_tasks`
+mapping and its `meeting.item_converted_to_task` / `meeting.follow_up_created`
+event, and the navigable `task.relates_to` EntityLink with its own event — commits
+in a **single `D1Database.batch()`**, which D1 executes as one SQL transaction and
+rolls back entirely on any failure.
 
-- **A clear commit point** — `meetings.linkFollowUpTask` writes the mapping row **and** its structural Activity (`meeting.item_converted_to_task` for an item, `meeting.follow_up_created` for a direct follow-up) in ONE batch. The conversion is "official" only once this commits.
-- **Idempotency** — an item's mapping is the key: a repeat conversion of an already-converted item returns the SAME Task (never a second), and re-asserts the (idempotent) `task.relates_to` link.
-- **Duplicate rejection & recovery** — a concurrent winner trips the partial unique index (`MeetingFollowUpConflictError`); the just-created duplicate Task is compensated (soft-deleted through the spine — the Task authority) and the winning Task is returned. Any other pre-commit failure soft-deletes the created Task so a reported failure is truthful and a retry is clean.
-- **Truthful semantics** — success is reported only after the commit point; the navigable link is a post-commit, self-healing step.
-- **Stale-mapping recovery** — if a converted Task was later deleted (canonical Task lifecycle), the item becomes convertible again: the stale mapping is cleared and a fresh conversion proceeds.
+`app/platform/meetings/follow-up-operations.ts` remains the named entry point, and
+**it moved out of `app/modules/meetings/` in AI-02** for the reason the
+architecture already has a precedent for (ADR-033; AREA-02's shared `NewGoalForm`):
+a second module needs it. The AI acceptance path must route a Meeting-derived Task
+through THIS authority and no other, and the module-boundary rule correctly forbids
+`app/modules/ai` from importing `app/modules/meetings`. What changed in AUDIT-13 is
+that the file stopped being an ORCHESTRATOR: the sequence lives in the storage
+adapter as statement ordering and database constraints, so there is no order for a
+caller to get wrong.
 
-**Documented residual window:** a hard process crash in the gap between `createTask` committing and the mapping committing can leave one Task with no mapping (invisible to the mapping-backed Follow-up surface), so a retry could create a second Task. This is the one state a single D1 batch would remove; the encapsulated `createTask` batch is why it cannot be, and it is accepted rather than hidden.
+- **How it composes without duplicating anybody's SQL.** The Task, Meeting and
+  EntityLink D1 adapters each expose a narrow statement seam that returns prepared
+  statements and performs no write (`buildCreateTaskStatements`,
+  `buildFollowUpLinkStatements`, `buildCreateLinkStatements`,
+  `buildRemoveFollowUpStatement`). The Task authority still owns every Task field,
+  the parent-gate security SQL and the recurrence rules — only where its statements
+  RUN moved. Same idea as the `D1ActivityRecorder` seam FND-05 introduced.
+- **Idempotency is the index, not a caught error.** A live mapping for the source
+  item short-circuits before the batch and returns the SAME Task with
+  `created: false`, re-asserting the (idempotent) `task.relates_to` link. Two
+  concurrent conversions both reach their batches and the partial unique index
+  `meeting_item_tasks (workspace_id, item_id)` decides: the loser's whole
+  transaction rolls back — no Task, no Activity, nothing to compensate — and it
+  re-reads and returns the winner's Task.
+- **A failure leaves NO row.** Not a soft-deleted Task, not a stale mapping, not an
+  orphaned event. A retry is therefore a first attempt.
+- **Stale-mapping recovery.** If a converted Task was later deleted (canonical Task
+  lifecycle), the item becomes convertible again, and the stale mapping's DELETE is
+  part of the re-conversion's OWN batch rather than a write that could commit
+  before a re-conversion that then fails.
+- **Item identity is stable**, so a mapping survives item reordering.
+
+**What this replaced, and why the old shape could not be fixed in place.** The
+conversion used to be five transactions — `createTask`, up to two `updateTask`
+calls, `linkFollowUpTask` (the "commit point"), `entityLinks.create` — with a
+compensating `spine.softDelete` on any failure after the first. The compensation
+covered a *thrown* failure; it could not cover the process not being there to run
+it. A hard crash between the Task committing and the mapping committing left a Task
+with no mapping, invisible to the mapping-backed Follow-up surface, so the owner
+retried and got a **second Task**. That was the documented residual window, and it
+is gone: `MeetingRepository.linkFollowUpTask` — the public API that made the
+two-transaction shape possible — is **deleted**, because leaving it callable keeps
+the failure mode one call away for as long as the code exists. See
+[ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-a-compound-domain-mutation-is-one-storage-transaction-composed-from-the-owning-repositories-statements).
+
+**The one write deliberately outside that transaction**, stated rather than hidden:
+the AI acceptance path's `addItem`. Recording an action the owner approved is a
+legitimate change to the Meeting in its own right, `addItem` is atomic with its own
+ordinal-conflict retry, and an action item without a Task is a state this module
+already models and shows. If the conversion then fails, the owner sees the action
+and no Task — and a retry REUSES that item by exact body rather than adding a
+second, so there is no duplicate and nothing is lost.
+
+**Evidence.** `test/kernel/audit-13-atomic-operations.test.ts` and
+`test/kernel/meeting-follow-up.test.ts` (real Workers runtime, real D1, no mocks):
+success commits everything; a fault after the Task's statements, after the mapping
+or after the link commits nothing — asserted against **every** `entities` row of
+type `task`, including soft-deleted ones, so "rolled back" is distinguishable from
+"compensated"; a retry yields exactly one Task, one mapping, one link and one
+event; a losing racer returns the winner; a cross-workspace meeting, item or parent
+refuses and writes nothing. `e2e/audit-13-conversion-atomicity.spec.ts` drives the
+same guarantees through the real application.
 
 ## Activity
 
@@ -223,7 +286,7 @@ attendee semantics remain distinct from generic related-record links.
 - **A meeting's substance is still not scoped to individual attendees.** `meeting.held` truthfully answers *"did we meet, and who was there"*, but not *"which decision concerned them, and what did they commit to"*. That is a schema limitation, not a deferred effort: `meeting_items` carries no Person reference and a follow-up Task's delegation is plain text, so no honest per-Person assignment exists to record. Closing it needs a structural way to name a Person on an item — never text inference ([The event model](#the-event-model)).
 - **Marking a meeting as held is manual, and one-way.** There is no reliable automatic occurrence signal to derive it from, and Activity is append-only, so there is no "un-mark". Both are deliberate ([Held-state authority](#held-state-authority-meet-03)).
 - **A meeting with more than 31 attendees records a disclosed subset.** The FND-05 32-subject bound leaves 31 attendee subjects; the payload and the action's result both say so.
-- **A sub-millisecond snapshot window.** Attendees are read immediately before the commit, and that read is not inside the commit's transaction. So an attendee added inside that window may miss the snapshot, and — the converse — an attendee removed inside it can still be written into the permanent history. Closing it would mean deriving the subjects in SQL inside the batch, bypassing the shared `D1ActivityRecorder` seam (and the payload counts still could not be computed there), so it is accepted and disclosed rather than hidden — the same class of documented residual as MEET-02's conversion window. The held state itself is still exactly-once regardless.
+- **A sub-millisecond snapshot window.** Attendees are read immediately before the commit, and that read is not inside the commit's transaction. So an attendee added inside that window may miss the snapshot, and — the converse — an attendee removed inside it can still be written into the permanent history. Closing it would mean deriving the subjects in SQL inside the batch, bypassing the shared `D1ActivityRecorder` seam (and the payload counts still could not be computed there), so it is accepted and disclosed rather than hidden. (It used to be described as "the same class of residual as MEET-02's conversion window"; that window is closed as of AUDIT-13, so this is now the only one on this module's write paths.) The held state itself is still exactly-once regardless.
 - **The collection forks the shared Card.** `MeetingsCollection.tsx` renders a hand-rolled `dh-meeting-card` anchor rather than the DS-04 Card, so it does not inherit selection, quick actions, density or swipe behaviour — [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p2).
 - Mobile coverage is partial: the follow-up surface and the MEET-03 held action each have axe (light and dark), 390/320px overflow and touch-target assertions, and `/meetings` is in the accessibility sweep, but the collection and record have no dedicated mobile journey ([MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile)).
 

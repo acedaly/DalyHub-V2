@@ -24,7 +24,7 @@ interaction — not the module.
 | **A** Simple inline text | a record title/name, a short value | `InlineTextField` — activate the value, Enter saves, Escape cancels, blur saves |
 | **B** Simple selectable metadata | status, priority, a small closed vocabulary | `InlineSelectField` — an anchored menu button; choosing saves immediately |
 | **C** Dates | due, target, scheduled, review | `InlineDateField` — an anchored dialog around a native date input, with Clear where the model allows it |
-| **D** Long-form text | Note bodies, Diary entries, Meeting notes, descriptions | the shared writing surface (`LiveMarkdownEditor`), inline via `InlineMarkdownField` or in a form via `MarkdownEditorField` |
+| **D** Long-form text | Note bodies, Diary entries, Meeting notes, descriptions | the shared writing surface (`LiveMarkdownEditor`), directly or in a form via `MarkdownEditorField`. *(This row said "inline via `InlineMarkdownField`" until 2026-08-08. Nothing ever adopted that field, and [ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant) settled it: long-form is editor-first, there is no read-then-activate variant, and the field is deleted.)* |
 | **E** Complex forms | multi-field configuration, interdependent validation, destructive workflow | stays a **form**. Category E is never converted. |
 
 The two boundary rules that decide the hard cases:
@@ -116,7 +116,7 @@ Notes are the reference record, and were the furthest from it.
 ### Diary
 | Field | Cat | Before | After |
 |---|---|---|---|
-| Body (entry panel) | D | `MarkdownField` — a textarea with a "Show preview" link | ✅ shared writing surface, **same explicit Save changes** |
+| Body (entry panel) | D | `MarkdownField` — a textarea with a "Show preview" link | ✅ shared writing surface, **same explicit Save changes** (and, since DOC-EDITOR-01, ⌘/Ctrl+Enter reaches that Save from inside the text) |
 | Body (capture) | D | same textarea | ✅ shared writing surface, **same submit** |
 | Title, type, when | A/B/C | explicit-save form fields | ⏸️ day-scoped Diary behaviour and the split-ownership save (ADR-041) are untouched |
 
@@ -223,3 +223,14 @@ Recorded so the next reader does not mistake absence for oversight:
 - no conversion of a scheduling or recurrence workflow into an inline date;
 - the Project Settings tab's two selects stay where they are (§2 above);
 - a Note's tags, a Person's contact block and an Asset's details stay forms.
+
+---
+
+## 6. Followed up 2026-08-08 (DOC-EDITOR-01)
+
+Two things this audit left open were closed rather than carried:
+
+- **`MarkdownField` was retired from every product surface here but not deleted**, and it kept its `~/shared/forms` export — recorded as DEBT-101. It is now deleted; the design fixture that documented it demonstrates `MarkdownEditorField`, and a repository test fails if a long-form control is exported from the forms barrel again.
+- **Which long-form surfaces are editor-first was left as a product decision** (DEBT-97). It is taken: all of them. [ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant). `InlineMarkdownField`, built for the other answer and never adopted, is deleted — and the ⌘/Ctrl+Enter save it was the only holder of moved into the shared writing surface, which is where every explicit-save long-form host now gets it.
+
+Nothing in §2's classification changed: no field moved category, and no module's save semantics changed.

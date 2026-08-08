@@ -35,7 +35,7 @@ Every control accepts the same anatomy + binding props, so it is usable standalo
 
 `Field` builds the accessible layout: a visible label, an explicit required/optional cue (words, not colour), optional help, the current validation message, and correct `aria-describedby`/`aria-invalid`/`aria-errormessage`. Disabled and read-only are distinct. Input is never trimmed/mutated unless the field contract asks for it.
 
-**Controls:** `TextField` (single/multi-line, length, autocomplete), `MarkdownField` (source + safe preview), `DateField` (`kind="date" | "datetime"`), `SelectField` (single or `multiple`, `onSearch`/`loading` for async), `TagsField` (constraints), `BooleanField` (`variant="checkbox" | "switch"`), `EntityLinkPicker`.
+**Controls:** `TextField` (single/multi-line, length, autocomplete), `DateField` (`kind="date" | "datetime"`), `SelectField` (single or `multiple`, `onSearch`/`loading` for async), `TagsField` (constraints), `BooleanField` (`variant="checkbox" | "switch"`), `EntityLinkPicker`. **Long-form Markdown is not here** — see below.
 
 ## Explicit-save forms
 
@@ -160,7 +160,9 @@ Worked example: [`NoteContentForm.tsx`](../../app/modules/notes/NoteContentForm.
 
 ## Markdown
 
-`MarkdownField` edits FND-08 **source** (preserved byte-for-byte) and previews only through the shared `renderMarkdownSource` → `MarkdownContent` pipeline. It adds no second parser and no HTML sink of its own (the single sanctioned sink stays in `MarkdownContent`); the `unified` renderer is lazy-loaded only when the preview opens. It is not the Notes editor.
+**There is no Markdown control in this package, and that is deliberate (DOC-EDITOR-01 / [ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant)).** A form that needs a long-form field uses **`MarkdownEditorField`** from [`~/shared/markdown-editor`](../design/DESIGN_SYSTEM.md#shared-writing-surface-edit-01) — the shared writing surface wearing this package's field anatomy (a real visible label row with the required/optional cue, help text, an error slot), so it stands in a `<Form>` beside `TextField` without looking like a transplant. It edits FND-08 **source**, preserved byte for byte, and renders only through the shared `renderMarkdownSource` → `MarkdownContent` pipeline.
+
+It is outside this barrel for two reasons. `~/shared/forms` is imported by nearly every route, and re-exporting the editor from it would pull the writing surface into bundles that only render a text input. And a Markdown control sitting in the barrel is what re-opens the divergence EDIT-02 closed: the earlier `MarkdownField` — a source textarea plus a "Show preview" disclosure — outlived its last product consumer by a whole release, and was found still exported with one importer, the design fixture documenting it. It is deleted, and a repository test fails if anything Markdown is exported from here again.
 
 ## The entity-link picker (FND-04)
 

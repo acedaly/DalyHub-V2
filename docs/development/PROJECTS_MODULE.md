@@ -168,11 +168,20 @@ same pattern the shared task record surface uses).
   remains the canonical Project Knowledge surface. A Note captured from a Project
   through Quick Capture writes the same Project→Note `link.related` relationship
   as the tab's own New note flow; no `project_notes` table or Note parent is added.
-- **Create / rename** — DS-06 forms
+- **Create** — DS-06 forms
   ([`NewProjectForm`](../../app/modules/projects/NewProjectForm.tsx),
-  [`NewTaskForm`](../../app/modules/projects/NewTaskForm.tsx),
-  [`RenameProjectForm`](../../app/modules/projects/RenameProjectForm.tsx)) hosted in
-  the DS-03 Drawer, with duplicate-submit prevention and server-authoritative errors.
+  [`NewProjectTaskForm`](../../app/modules/projects/NewProjectTaskForm.tsx)) hosted
+  in the DS-03 Drawer, with duplicate-submit prevention and server-authoritative
+  errors. Renaming is not a form: EDIT-02 made the record heading the control and
+  deleted the `RenameProjectForm` this list used to name.
+
+  `NewProjectTaskForm` carries that longer name since AUDIT-16, where it shared the
+  bare name `NewTaskForm` with the Tasks module's own quick-capture form. They are
+  **not** duplicates and both are kept deliberately: this one submits a title alone
+  and the SERVER binds the parent to THIS project, so a client cannot retarget the
+  Task, while the Tasks one submits a client-chosen parent that `/tasks` re-verifies
+  independently. Same words, different trust boundaries — only the name was wrong.
+
   `NewProjectForm`'s "Area or Goal" field is **server-backed and searchable** —
   `SelectField.onSearch` queries `/projects/parent-options?q=` (reusing the shared
   `searchLinkTargets`), so every eligible Area/Goal is selectable however many there are;

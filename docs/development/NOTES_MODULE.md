@@ -273,8 +273,9 @@ deliberately.
 the editor's top bar via its `statusSlot`) presents unsaved/saving/saved/error
 directly from the hook's status, pairing an icon glyph with words (never
 colour-only). A save failure distinguishes a detected **offline** condition
-(`use-online-status.ts`) from a generic failure and auto-retries the moment
-connectivity returns. `UnsavedChangesGuard` arms while the latest edit is not yet
+(`useOnlineStatus`, the SHARED hook from `~/shared/linked-items` — the Notes-local
+copy it was promoted from was a byte-identical duplicate and AUDIT-16 deleted it)
+from a generic failure and auto-retries the moment connectivity returns. `UnsavedChangesGuard` arms while the latest edit is not yet
 safely persisted (`unsaved`/`saving`/`error`) and disarms the instant it is; it
 never blocks the record's own Delete (`useDeleteNote` sets a `flushSync`-guarded
 `suppressGuard` and flushes the pending edit before navigating). No toast fires
@@ -919,8 +920,10 @@ Explicitly out of scope for this module, left to later roadmap items (see
 - **Offline-first editing.** Autosave *detects* and honestly *attributes* an
   offline failure and auto-retries on reconnect; it does **not** queue writes
   for later sync while offline.
-- **Promoting Notes' `useOnlineStatus`/debounce tuning to DS-06 defaults.**
-  These stay Notes-local until a second full-document autosave consumer exists.
+- **Promoting Notes' debounce tuning to DS-06 defaults.** It stays Notes-local
+  until a second full-document autosave consumer exists. (`useOnlineStatus` itself
+  was promoted to the shared layer by the Universal Relationship System; the
+  Notes-local duplicate that survived the promotion was deleted by AUDIT-16.)
 - **Future editor directions (placeholders, not scheduled here).** The
   writing-first editor is designed to grow into these without changing the
   Markdown-source contract: **backlinks/wikilinks** (NOTES-02); **embeds** of
