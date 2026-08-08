@@ -1088,7 +1088,15 @@
   margin-block-end: var(--app-space-3);
 }
 
-.dh-record-toolbar > .dh-segmented {
+/*
+ * The LEADING control — whichever kind it is.
+ *
+ * Projects and Areas use the shared segmented filter; the Asset history's
+ * filter is a labelled `<select>`. Binding the rule to "the first child that is
+ * not a button" covers both without each module having to remember a class, and
+ * a toolbar whose only child IS an action still puts it on the trailing edge.
+ */
+.dh-record-toolbar > :first-child:not(.dh-btn):not(button) {
   margin-inline-end: auto;
 }
 
@@ -1098,10 +1106,36 @@
     align-items: stretch;
   }
 
-  .dh-record-toolbar > .dh-segmented,
-  .dh-record-toolbar > .dh-btn {
+  .dh-record-toolbar > * {
     inline-size: 100%;
     margin-inline-end: 0;
+  }
+
+  .dh-record-toolbar > .dh-btn {
     justify-content: center;
   }
+}
+
+/*
+ * RECORD-01 — a summary band carrying PROSE takes the card surface.
+ *
+ * The same rule `RecordSummary` already follows (M3-INT: "a container is
+ * earned, not automatic"). A band of derived state is a line of context and
+ * belongs on the page canvas; a band that also carries a Goal's definition of
+ * done is a substantial region and takes the plane every other in-flow card
+ * takes.
+ */
+.dh-record-summary-bar[data-density="full"] {
+  gap: var(--app-space-4);
+  padding: var(--app-space-5);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+}
+
+.dh-record-summary-bar__description {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
 }

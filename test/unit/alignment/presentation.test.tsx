@@ -87,7 +87,15 @@ describe("AlignmentIndicator", () => {
 });
 
 describe("GoalAlignmentPanel", () => {
-  it("shows every reason once, with no duplicates", () => {
+  /*
+   * RECORD-01 — the panel no longer renders the state pill or the reason list.
+   * The Goal record states both once, in its compact summary band (the chip
+   * beside the contribution meter, the reasons as the band's signal line), and
+   * this panel keeps the half the band cannot carry: the EVIDENCE. The
+   * no-duplicate-reasons guarantee moved with the reasons and is asserted in
+   * `GoalOverview.test.tsx`.
+   */
+  it("renders no state pill and no reason list — the record's band states those", () => {
     render(
       <GoalAlignmentPanel
         alignment={alignment()}
@@ -97,10 +105,8 @@ describe("GoalAlignmentPanel", () => {
         onOpenTask={() => {}}
       />,
     );
-    const reasons = screen.getByRole("list");
-    const items = within(reasons).getAllByRole("listitem");
-    const texts = items.map((li) => li.textContent);
-    expect(new Set(texts).size).toBe(texts.length);
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(screen.queryByText("No recent action")).not.toBeInTheDocument();
   });
 
   it("lists real contributing Tasks with a working Project link and an open-Task action", () => {

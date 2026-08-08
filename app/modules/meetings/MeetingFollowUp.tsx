@@ -214,6 +214,17 @@ export function MeetingItemsSection({
             })();
           }}
         >
+          {/*
+            RECORD-01 — "Add {label}" once, not twice.
+
+            The section already has a heading ("Agenda items"), and the field
+            label directly above the input already says what typing here adds.
+            The button repeating the same three words a second time is the
+            "repeated Add X labels" this convergence removes — so the button
+            says what it does and keeps the specific ACCESSIBLE name, which is
+            what a screen-reader user needs when four of these forms sit on one
+            record.
+          */}
           <label className="dh-field">
             <span className="dh-field__label">Add {label}</span>
             <input
@@ -227,9 +238,10 @@ export function MeetingItemsSection({
           <button
             type="submit"
             className="dh-btn dh-btn--secondary"
+            aria-label={`Add ${label}`}
             disabled={saving}
           >
-            Add {label}
+            Add
           </button>
         </form>
       ) : null}

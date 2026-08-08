@@ -160,6 +160,15 @@ export interface RecordSignal {
  * one signal line, one context line. Anything more belongs in a tab.
  */
 export interface RecordSummaryBarProps {
+  /**
+   * Genuine PROSE the record's summary carries — a Goal's definition of done,
+   * an archived explanation. When present the band takes the card surface,
+   * following the DS-02 rule that a container is earned by real content rather
+   * than granted automatically; a band of derived state alone stays on the page
+   * canvas. This is what lets a record have prose AND compact derived state in
+   * ONE summary region rather than stacking two.
+   */
+  readonly description?: ReactNode;
   /** The record's headline progress, shown as the shared compact meter. */
   readonly progress?: ProgressMeterProps;
   /** The record's current-state chip (health, stay-in-touch, next obligation). */

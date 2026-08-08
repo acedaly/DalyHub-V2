@@ -74,6 +74,31 @@ async function createAsset(
 }
 
 /** The record's Drawer, which hosts every ASSET-02 write form. */
+/**
+ * RECORD-01 — start a history capture, wherever the record's action hierarchy
+ * puts it.
+ *
+ * The History tab used to render all six captures as six equally-weighted ghost
+ * buttons. It now exposes the asset's PRIMARY capture — "Record service" for a
+ * serviceable thing, "Record renewal" for a document/licence/policy — and keeps
+ * the rest in the shared DS-12 overflow. These journeys care that the capture
+ * happens, not about which control started it, so the helper takes whichever
+ * route the record offers rather than each test encoding the hierarchy.
+ */
+async function startCapture(page: Page, label: string): Promise<void> {
+  const exposed = page
+    .locator(".dh-record-toolbar")
+    .getByRole("button", { name: label });
+  if ((await exposed.count()) > 0) {
+    await exposed.click();
+    return;
+  }
+  await page
+    .getByRole("button", { name: "More ways to record an entry" })
+    .click();
+  await page.getByRole("menu").getByRole("menuitem", { name: label }).click();
+}
+
 function drawer(page: Page) {
   return page.getByRole("dialog");
 }
@@ -112,7 +137,7 @@ test("record a service, a repair and a meter reading, and see the history", asyn
   await expect(page.getByText("No history recorded yet")).toBeVisible();
 
   // 1. Record a service — the fast path asks only for what is on the invoice.
-  await page.getByRole("button", { name: "Record service" }).click();
+  await startCapture(page, "Record service");
   await drawer(page)
     .getByRole("textbox", { name: /^Title/ })
     .fill("60,000 km service");
@@ -135,7 +160,7 @@ test("record a service, a repair and a meter reading, and see the history", asyn
   await expect(history.getByText(/60,200 km/)).toBeVisible();
 
   // 2. Record a repair.
-  await page.getByRole("button", { name: "Record repair" }).click();
+  await startCapture(page, "Record repair");
   await drawer(page)
     .getByRole("textbox", { name: /^Title/ })
     .fill("Alternator replaced");
@@ -144,7 +169,7 @@ test("record a service, a repair and a meter reading, and see the history", asyn
   await expect(history.getByText("Alternator replaced").first()).toBeVisible();
 
   // 3. Update the meter — two fields, not a generic form.
-  await page.getByRole("button", { name: "Update meter" }).click();
+  await startCapture(page, "Update meter");
   await drawer(page)
     .getByRole("textbox", { name: /^Meter reading/ })
     .fill("61500");
@@ -290,7 +315,7 @@ test("a meter obligation asks for a reading rather than accusing you of being la
 
   // 2. Record a reading comfortably short of the threshold.
   await page.getByRole("tab", { name: "History" }).click();
-  await page.getByRole("button", { name: "Update meter" }).click();
+  await startCapture(page, "Update meter");
   await drawer(page)
     .getByRole("textbox", { name: /^Meter reading/ })
     .fill("55000");
@@ -303,7 +328,7 @@ test("a meter obligation asks for a reading rather than accusing you of being la
 
   // 3. Push the reading past the threshold — now it IS overdue, by a distance.
   await page.getByRole("tab", { name: "History" }).click();
-  await page.getByRole("button", { name: "Update meter" }).click();
+  await startCapture(page, "Update meter");
   await drawer(page)
     .getByRole("textbox", { name: /^Meter reading/ })
     .fill("70500");
@@ -407,7 +432,7 @@ test("valuation history refuses to call two points a trend", async ({
     ["38000", "Insurance valuation"],
     ["35500", "Dealer quote"],
   ] as const) {
-    await page.getByRole("button", { name: "Record valuation" }).click();
+    await startCapture(page, "Record valuation");
     await drawer(page)
       .getByRole("textbox", { name: /^Title/ })
       .fill(source);
@@ -435,7 +460,7 @@ test("archiving keeps the history and stops the reminders; restoring brings both
   const url = await createAsset(page, title);
 
   await page.goto(`${url}?tab=history`);
-  await page.getByRole("button", { name: "Record service" }).click();
+  await startCapture(page, "Record service");
   await drawer(page)
     .getByRole("textbox", { name: /^Title/ })
     .fill("Annual service");
@@ -467,8 +492,10 @@ test("archiving keeps the history and stops the reminders; restoring brings both
       .getByText("Annual service")
       .first(),
   ).toBeVisible();
+  // RECORD-01 — an archived asset offers no capture at all: neither the
+  // exposed primary action nor the overflow that holds the rest.
   await expect(
-    page.getByRole("group", { name: "Record an entry" }),
+    page.locator(".dh-record-toolbar").getByRole("button"),
   ).toHaveCount(0);
 
   // An archived asset stops asking for things.
@@ -595,7 +622,7 @@ for (const width of [320, 375, 390, 430]) {
     const url = await createAsset(page, title);
 
     await page.goto(`${url}?tab=history`);
-    await page.getByRole("button", { name: "Record service" }).click();
+    await startCapture(page, "Record service");
     await drawer(page)
       .getByRole("textbox", { name: /^Title/ })
       // A long unbroken provider/serial-like value is exactly what forces a page
@@ -713,10 +740,7 @@ test("the obligation and history states read correctly in both appearances", asy
   await expect(drawer(page)).toHaveCount(0);
 
   await page.getByRole("tab", { name: "History" }).click();
-  await page
-    .getByRole("group", { name: "Record an entry" })
-    .getByRole("button", { name: "Record service" })
-    .click();
+  await startCapture(page, "Record service");
   await drawer(page)
     .getByRole("textbox", { name: /^Title/ })
     .fill("Annual service");

@@ -28,9 +28,10 @@
 import { useId } from "react";
 import type { ReactNode } from "react";
 
-import { ProgressMeter } from "~/shared/progress";
 import {
+  AlignmentIndicator,
   GoalAlignmentPanel,
+  alignmentReasonText,
   type GoalAlignment,
   type SerializedGoalAlignmentEvidence,
 } from "~/shared/alignment";
@@ -43,7 +44,6 @@ import {
   type InlineSaveOutcome,
 } from "~/shared/inline-edit";
 import {
-  RecordDetails,
   RecordLayout,
   recordTimestampItems,
   type RecordAction,
@@ -261,7 +261,32 @@ export function GoalOverview({
          */
         secondaryActions={completed ? [primaryAction] : []}
         overflowActions={lifecycle.overflowActions}
-        summary={{
+        summaryBar={{
+          /*
+           * RECORD-01 — ONE summary region carrying the Goal's prose AND its
+           * derived state, rather than a card holding a second dashboard.
+           *
+           * The definition of done is genuine prose, so the band takes the card
+           * surface (the DS-02 "a container is earned" rule). The contribution
+           * meter and the alignment state now sit on one row, and alignment's
+           * reasons are the band's signal line instead of a heading, a pill on
+           * its own row and a bulleted list.
+           */
+          progress: {
+            label: "Project contribution",
+            percent: progress.percent,
+            summary: progress.summary,
+            available: progress.has,
+          },
+          state: <AlignmentIndicator alignment={alignment} />,
+          signals: alignment.reasons.map((reason) => ({
+            id: reason.code,
+            text: alignmentReasonText(reason),
+            tone: reason.tone,
+          })),
+          // The administrative timestamps, as the band's quiet trailing line —
+          // the right tier AND the right position (see `detailItems`).
+          facts: detailItems,
           description: (
             <div className="dh-goal-overview__summary">
               <div className="dh-goal-overview__definition">
@@ -288,36 +313,30 @@ export function GoalOverview({
                   data-testid="goal-definition-edit"
                 />
               </div>
-              {/* THEME-01 — the same derived number, now shown as the shared
-               * meter. `available` is false when no Project contributes yet, so
-               * the Goal reads "no Projects yet" rather than an empty 0% bar. */}
-              <ProgressMeter
-                label="Project contribution"
-                percent={progress.percent}
-                summary={progress.summary}
-                available={progress.has}
-              />
-              <div className="dh-goal-overview__alignment">
-                <h2
-                  id={alignmentHeadingId}
-                  className="dh-goal-overview__alignment-heading"
-                >
-                  Alignment
-                </h2>
-                <GoalAlignmentPanel
-                  alignment={alignment}
-                  evidence={alignmentEvidence}
-                  evidenceHasMore={alignmentEvidenceHasMore}
-                  todayIso={todayIso}
-                  headingId={alignmentHeadingId}
-                  onOpenTask={onOpenTask}
-                />
-              </div>
-              {detailItems.length > 0 ? (
-                <RecordDetails
-                  items={detailItems}
-                  label="Goal record details"
-                />
+              {/*
+                RECORD-01 — the contribution EVIDENCE, and only when there is
+                any. The alignment state and its reasons are the summary band's
+                chip and signal line; this is the part they cannot carry — the
+                actual recent Tasks, which are links the owner follows. A
+                heading over an empty panel is chrome describing nothing.
+              */}
+              {alignmentEvidence.length > 0 ? (
+                <div className="dh-goal-overview__alignment">
+                  <h2
+                    id={alignmentHeadingId}
+                    className="dh-goal-overview__alignment-heading"
+                  >
+                    Recent contribution
+                  </h2>
+                  <GoalAlignmentPanel
+                    alignment={alignment}
+                    evidence={alignmentEvidence}
+                    evidenceHasMore={alignmentEvidenceHasMore}
+                    todayIso={todayIso}
+                    headingId={alignmentHeadingId}
+                    onOpenTask={onOpenTask}
+                  />
+                </div>
               ) : null}
             </div>
           ),

@@ -101,12 +101,20 @@ test.describe("AREA-03 — Alignment view", () => {
     await expect(page).toHaveURL(goalUrl);
     await expect(page.getByRole("heading", { name: goalTitle })).toBeVisible();
 
-    // 4. The Alignment Summary panel explains WHY this Goal reads as active,
-    // and lists the real contributing Task with working navigation.
+    /*
+     * 4. The Goal's summary explains WHY this Goal reads as active, and lists
+     * the real contributing Task with working navigation.
+     *
+     * RECORD-01 — the alignment STATE is the summary band's chip beside the
+     * contribution meter it explains, and its reasons are the band's signal
+     * line. The evidence keeps its own section, headed "Recent contribution"
+     * and rendered only where there is evidence.
+     */
+    const goalSummary = page.getByRole("region", { name: "Summary" });
+    await expect(goalSummary.getByText("Recently active")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Alignment", exact: true }),
+      page.getByRole("heading", { name: "Recent contribution", exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("Recently active")).toBeVisible();
     const taskButton = page.getByRole("button", { name: taskTitle });
     await expect(taskButton).toBeVisible();
     await expect(
@@ -133,9 +141,7 @@ test.describe("AREA-03 — Alignment view", () => {
     // revalidation — no full browser refresh.
     await page.getByRole("button", { name: "Complete" }).click();
     await expect(page.locator(".record-status")).toHaveText(/Completed/);
-    await expect(
-      page.getByRole("heading", { name: "Alignment", exact: true }),
-    ).toBeVisible();
+    // The band's signal line carries the reason, with no full browser refresh.
     await expect(
       page.getByText("This Goal is already completed."),
     ).toBeVisible();

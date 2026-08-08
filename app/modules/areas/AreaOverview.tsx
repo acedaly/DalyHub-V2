@@ -341,10 +341,16 @@ export function AreaOverviewView({
          */
         summaryBar={{
           note: archived
-            ? "This Area is archived — hidden from your active Areas and creation pickers, and read-only. Restore it from Settings to make changes."
-            : dormant
-              ? momentum.summary
-              : undefined,
+            ? "This Area is archived. It is hidden from your active Areas and creation pickers and is read-only. Restore it from the Settings tab to make changes."
+            : undefined,
+          /*
+           * A dormant Area has nothing to measure, so it states its momentum
+           * and nothing else: the chip (the state, in one word) and the one
+           * sentence explaining it — the same chip-plus-explanation shape every
+           * other record uses. A meter measuring nothing and a reason list
+           * repeating the sentence are what made the same absence appear four
+           * times on one screen.
+           */
           progress: dormant
             ? undefined
             : {
@@ -355,9 +361,9 @@ export function AreaOverviewView({
                   : "No active tasks yet.",
                 available: tasksProgress.has,
               },
-          state: dormant ? undefined : <MomentumChip momentum={momentum} />,
+          state: <MomentumChip momentum={momentum} />,
           signals: dormant
-            ? undefined
+            ? [{ id: "dormant", text: momentum.summary }]
             : momentum.reasons.map((reason) => ({
                 id: `${reason.code}-${reason.count ?? "none"}`,
                 text: reason.summary,
@@ -388,7 +394,7 @@ export function AreaOverviewView({
                     <div className="dh-record-toolbar">
                       <DrawerTrigger
                         drawerKey={NEW_GOAL_KEY}
-                        className="dh-btn dh-btn--text"
+                        className="dh-btn dh-btn--ghost"
                       >
                         New Goal
                       </DrawerTrigger>

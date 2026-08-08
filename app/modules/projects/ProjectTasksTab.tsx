@@ -333,7 +333,7 @@ export function ProjectTasksTab({
         {archived ? null : (
           <DrawerTrigger
             drawerKey={NEW_TASK_KEY}
-            className="dh-btn dh-btn--text"
+            className="dh-btn dh-btn--ghost"
           >
             Add task
           </DrawerTrigger>

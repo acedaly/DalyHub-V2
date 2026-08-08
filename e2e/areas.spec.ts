@@ -36,13 +36,18 @@ test.describe("AREA-01 — Areas", () => {
       page.getByRole("heading", { name: "DalyHub V2" }),
     ).toBeVisible();
     await expect(page.getByText("Permanent").first()).toBeVisible();
-    await expect(page.locator(".dh-area-momentum")).toBeVisible();
+    /*
+     * RECORD-01 — momentum is the compact summary band's state chip and signal
+     * line. It used to be an outlined card nested inside the summary card
+     * (`.dh-area-momentum`), carrying a chip, a duplicate of its own summary
+     * sentence and a bulleted list of its reasons.
+     */
+    const summary = page.getByRole("region", { name: "Summary" });
+    await expect(summary).toBeVisible();
     await expect(
-      page
-        .locator(".dh-area-momentum")
-        .getByText(
-          /Momentum visible|Worth a look|Needs attention|Blocked work|Mostly paused/,
-        ),
+      summary.getByText(
+        /Momentum visible|Worth a look|Needs attention|Blocked work|Mostly paused|No active work/,
+      ),
     ).toBeVisible();
 
     await expect(

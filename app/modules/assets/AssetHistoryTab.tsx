@@ -232,7 +232,7 @@ export function AssetHistoryTab({
           <>
             <button
               type="button"
-              className="dh-btn dh-btn--text"
+              className="dh-btn dh-btn--ghost"
               onClick={() => onQuickAction(primary.id)}
             >
               {primary.label}

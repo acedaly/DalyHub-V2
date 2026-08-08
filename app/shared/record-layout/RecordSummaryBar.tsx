@@ -34,6 +34,7 @@ import { ProgressMeter } from "~/shared/progress";
 import type { RecordSummaryBarProps } from "./types";
 
 export function RecordSummaryBar({
+  description,
   progress,
   state,
   signals,
@@ -44,15 +45,31 @@ export function RecordSummaryBar({
   const hasSignals = signals !== undefined && signals.length > 0;
   const hasFacts = facts !== undefined && facts.length > 0;
   const hasHead = progress !== undefined || state !== undefined;
+  const hasDescription = description !== undefined && description !== null;
 
-  if (!hasHead && !hasSignals && !hasFacts && note === undefined) {
+  if (
+    !hasHead &&
+    !hasSignals &&
+    !hasFacts &&
+    !hasDescription &&
+    note === undefined
+  ) {
     return null;
   }
 
   return (
-    <section className="dh-record-summary-bar" aria-label={label}>
+    <section
+      className="dh-record-summary-bar"
+      aria-label={label}
+      // The container is EARNED by prose, exactly as `RecordSummary` decides it.
+      data-density={hasDescription ? "full" : "sparse"}
+    >
       {note !== undefined && (
         <p className="dh-record-summary-bar__note">{note}</p>
+      )}
+
+      {hasDescription && (
+        <div className="dh-record-summary-bar__description">{description}</div>
       )}
 
       {hasHead && (

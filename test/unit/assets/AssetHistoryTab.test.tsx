@@ -357,8 +357,13 @@ describe("read-only (archived asset)", () => {
   it("shows the history but offers no capture or row actions", () => {
     renderTab([event()], { readOnly: true });
     expect(screen.getByRole("listitem")).toHaveTextContent("60,000 km service");
+    // RECORD-01 — neither the exposed primary capture nor the overflow that
+    // holds the other five.
     expect(
-      screen.queryByRole("group", { name: "Record an entry" }),
+      screen.queryByRole("button", { name: "Record service" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "More ways to record an entry" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^Remove/ }),

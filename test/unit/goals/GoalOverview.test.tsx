@@ -1,5 +1,11 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
@@ -473,10 +479,15 @@ describe("GoalOverview", () => {
         ],
       }),
     });
-    expect(
-      screen.getByRole("heading", { name: "Alignment" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("No recent action")).toBeInTheDocument();
+    /*
+     * RECORD-01 — alignment is stated ONCE, in the record's compact summary
+     * band: the state as the band's chip beside the contribution meter it
+     * explains, and the reasons as the band's signal line. It used to be a
+     * headed sub-panel with a pill on its own row above a bulleted list, which
+     * on a 320px phone put the Goal's Projects tab 1022px down the page.
+     */
+    const summary = screen.getByRole("region", { name: "Summary" });
+    expect(within(summary).getByText("No recent action")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Projects exist, but no recent Task activity was found.",

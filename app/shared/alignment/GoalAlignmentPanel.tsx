@@ -12,7 +12,6 @@
 import type { GoalAlignment } from "~/kernel/alignment";
 
 import {
-  alignmentReasonText,
   evidenceDateLabel,
   type SerializedGoalAlignmentEvidence,
 } from "./alignment-view";
@@ -41,25 +40,18 @@ export function GoalAlignmentPanel({
       aria-labelledby={headingId}
       data-state={alignment.state}
     >
-      <div className="dh-alignment-panel__header">
-        <span className="dh-alignment__pill" data-tone={alignment.tone}>
-          <span className="dh-alignment__dot" aria-hidden="true" />
-          {alignment.label}
-        </span>
-      </div>
+      {/*
+        RECORD-01 — the state pill and the reason list are NOT rendered here.
 
-      <ul className="dh-alignment-panel__reasons">
-        {alignment.reasons.map((reason) => (
-          <li
-            key={reason.code}
-            className="dh-alignment-panel__reason"
-            data-tone={reason.tone}
-          >
-            {alignmentReasonText(reason)}
-          </li>
-        ))}
-      </ul>
+        The Goal record now states them once, in its compact summary band: the
+        pill as the band's state chip beside the contribution meter it explains,
+        and the reasons as the band's signal line. This panel keeps the half the
+        band cannot carry — the EVIDENCE, the actual recent Tasks that did or
+        did not contribute — which is the part an owner clicks into.
 
+        On a 320px phone the old arrangement (a heading, a pill on its own row,
+        then a bulleted list) put the Goal's Projects tab 1022px down the page.
+      */}
       {evidence.length > 0 ? (
         <div className="dh-alignment-panel__evidence">
           <h3 className="dh-alignment-panel__evidence-heading">

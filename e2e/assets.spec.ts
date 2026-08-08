@@ -80,25 +80,23 @@ test("create, edit, search, filter, archive, restore, delete", async ({
     .first()
     .fill("Toyota");
   await page.getByRole("button", { name: "Save details" }).click();
-  // Summary reflects the saved make. Scoped to the Summary tab panel: the make
-  // legitimately appears twice on the record — once as the header's "Make &
-  // model" metadata chip and once in the Summary's identity line — so an
-  // unscoped text locator is ambiguous under Playwright strict mode and proves
-  // nothing about *where* the value surfaced.
-  // ASSET-02 renamed the Summary tab to Overview and folded the old standalone
-  // Dates tab into it behind an "All dates" disclosure.
+  /*
+   * The record reflects the saved make — ONCE.
+   *
+   * This assertion used to prove the opposite: the make appeared both as the
+   * header's "Make & model" chip and again in the Overview's identity line, and
+   * the test called that duplication "a deliberate, proven product behaviour".
+   * RECORD-01 removed it, along with the type and the status, which the Overview
+   * was likewise restating from the header a few pixels above. The header's
+   * context line is now the single place the make and model are stated.
+   */
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(
-    page.getByRole("tabpanel", { name: "Overview" }).getByText("Toyota"),
+    page.getByRole("list", { name: "Record context" }).getByText("Toyota"),
   ).toBeVisible();
-  // …and so does the record header's "Make & model" metadata chip. Asserting
-  // both places explicitly keeps the duplication a deliberate, proven product
-  // behaviour rather than an accident the test has to route around.
   await expect(
-    page
-      .getByRole("list", { name: "Record metadata" })
-      .getByText("Toyota", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("tabpanel", { name: "Overview" }).getByText("Toyota"),
+  ).toHaveCount(0);
 
   // 6. Search finds the asset by title.
   await gotoFixture(page, "/assets");
