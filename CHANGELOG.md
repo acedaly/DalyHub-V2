@@ -66,6 +66,9 @@ all share one value — and choosing a value sets it on all of them.
 move to a new **Deleted** view keeping their dates, links and history, and you restore
 them from there. Nothing is destroyed by a toolbar button.
 
+Every bulk action says what it did — "18 tasks deleted", not "18 tasks updated" — and
+says it somewhere a screen reader will still be listening after the selection clears.
+
 ### Repeats that mean what you meant
 
 A repeat is now one of two things, and DalyHub asks which:

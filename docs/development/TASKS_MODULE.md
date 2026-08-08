@@ -1388,6 +1388,20 @@ than inventing one:
   lives on the occurrence, `setTaskRecurrence` writes it in one batch behind the guarded
   bump, and the series identity is never re-parented by an edit.
 
+**A committed bulk outcome is announced from the WORKSPACE's live region, not the
+bulk bar's.** This is not a stylistic choice about where a `role="status"` lives. A
+successful bulk action clears the selection, and clearing the selection unmounts the
+bar — in the same React commit that would have written the message. A live region
+inside the bar is therefore destroyed before any assistive technology can read it, so
+an action on eighteen records confirms itself with silence. `BulkActionBar` takes an
+`onAnnounce` callback and reports success through the same announce-and-revalidate
+channel the row's inline fields use; the region outlives the selection. A REFUSAL is
+the opposite case and stays in the bar: a refusal keeps the selection, so the bar is
+still mounted and the message belongs beside the controls the owner will retry with.
+The message also names the action — the four lifecycle intents report "deleted",
+"restored", "completed" and "reopened" rather than the generic "updated", which is
+true of a priority change and misleading of a deletion.
+
 **Reads are unchanged in shape.** No V2.2 surface added a query. The row's inline
 parent menu is drawn from the loader's EXISTING bounded parent option set, so opening it
 costs nothing and there is no per-row Project lookup. The bulk bar's summaries are
