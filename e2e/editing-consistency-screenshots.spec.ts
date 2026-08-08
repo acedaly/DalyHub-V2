@@ -57,6 +57,13 @@ const DESKTOP = { width: 1440, height: 1000 };
 const MOBILE = { width: 390, height: 844 };
 
 const TASK_DRAWER = "/tasks?drawer=task:t-search-e2e";
+/**
+ * The record Drawer itself. Since TASKS-05 the Tasks rows BEHIND it carry the
+ * same shared inline fields, so a page-wide `/^Priority: /` matches several
+ * controls — see the note in `editing-consistency.spec.ts`.
+ */
+const taskRecord = (page: Page) =>
+  page.getByRole("dialog", { name: /Global Search E2E Task/ });
 
 test.skip(
   process.env.CAPTURE_SCREENSHOTS !== "1",
@@ -139,9 +146,10 @@ test.describe("EDIT-02 — a selected value changes directly", () => {
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
       await gotoFixture(page, TASK_DRAWER);
-      await expect(page.getByRole("dialog")).toBeVisible();
+      const record = taskRecord(page);
+      await expect(record).toBeVisible();
 
-      const priority = page.getByRole("button", { name: /^Priority: / });
+      const priority = record.getByRole("button", { name: /^Priority: / });
       await expect(priority).toHaveAccessibleName("Priority: P1 · Urgent");
       await shot(page, `task-priority-set-${scheme}`);
 
@@ -154,23 +162,23 @@ test.describe("EDIT-02 — a selected value changes directly", () => {
       // Set → DIFFERENT set, with no clearing step in between.
       await page.getByRole("menuitemradio", { name: "P3 · Normal" }).click();
       await expect(
-        page.getByRole("button", { name: "Priority: P3 · Normal" }),
+        record.getByRole("button", { name: "Priority: P3 · Normal" }),
       ).toBeVisible();
       await shot(page, `task-priority-changed-${scheme}`);
 
       // Set → UNSET, and the genuinely empty state that follows.
-      await page.getByRole("button", { name: /^Priority: / }).click();
+      await record.getByRole("button", { name: /^Priority: / }).click();
       await page.getByRole("menuitemradio", { name: "Clear priority" }).click();
       await expect(
-        page.getByRole("button", { name: "Priority: No priority" }),
+        record.getByRole("button", { name: "Priority: No priority" }),
       ).toBeVisible();
       await shot(page, `task-priority-unset-${scheme}`);
 
       // UNSET → set, in one action, and the fixture is back where it started.
-      await page.getByRole("button", { name: /^Priority: / }).click();
+      await record.getByRole("button", { name: /^Priority: / }).click();
       await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
       await expect(
-        page.getByRole("button", { name: "Priority: P1 · Urgent" }),
+        record.getByRole("button", { name: "Priority: P1 · Urgent" }),
       ).toBeVisible();
     }
   });
@@ -267,8 +275,10 @@ test.describe("EDIT-02 — on a phone", () => {
       // An anchored menu at 390px: it flips to the inline-end edge rather than
       // hanging off the viewport.
       await gotoFixture(page, TASK_DRAWER);
-      await expect(page.getByRole("dialog")).toBeVisible();
-      await page.getByRole("button", { name: /^Priority: / }).click();
+      await expect(taskRecord(page)).toBeVisible();
+      await taskRecord(page)
+        .getByRole("button", { name: /^Priority: / })
+        .click();
       await expect(page.getByRole("menu")).toBeVisible();
       await shot(page, `phone-priority-menu-${scheme}`);
       await page.keyboard.press("Escape");
