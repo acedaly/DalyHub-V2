@@ -38,7 +38,22 @@ export type EmptyStateProps = {
    * icon, title, one sentence, a next action — only denser, so a widget's empty
    * state still teaches the next step instead of degrading to a bare paragraph.
    */
-  readonly size?: "default" | "compact";
+  /**
+   * RECORD-01 — `inline` is the RECORD-level absence: one calm, left-aligned
+   * line, no icon, no centred block, no card.
+   *
+   * A record tab that is empty is not a collection that is empty. The
+   * collection treatment — glyph, headline, sentence, primary button — teaches
+   * a first-time owner where their Projects live, and it earns its space
+   * there. Inside a record the same treatment restates a next action that is
+   * already visible a few pixels above ("No open tasks / Add a task to start
+   * moving this project forward" under an Add task control), in a block tall
+   * enough to be the loudest thing in the panel.
+   *
+   * `inline` keeps the heading (the outline stays correct and assistive tech
+   * still hears the region's state) and drops the theatre.
+   */
+  readonly size?: "default" | "compact" | "inline";
   readonly className?: string;
 };
 

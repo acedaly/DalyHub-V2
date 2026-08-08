@@ -902,3 +902,26 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## Record-screen anatomy (RECORD-01, #131)
+
+The Project record is the **reference implementation** of the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract). What
+changed here is layout and hierarchy only — the read projection, the spine
+roll-up and every mutation intent are untouched:
+
+- the 505px "Roll-up progress" card became the shared `RecordSummaryBar`. Its
+  key/value grid is gone because every row but one restated a health reason
+  above it; the one that did not (last activity) is in Settings → Record details
+  alongside Created, Updated and State;
+- health, the Area, the state and the task counts are each stated once;
+- **Complete project** is the header's low-emphasis secondary action. Ending a
+  project is a lifecycle action, not the next thing an owner came to do;
+- the `?tasks=` filter renders through the shared subordinate segmented filter,
+  so it no longer reads as a second row of tabs;
+- **"Add task" is the one local creation path.** The header overflow's "New
+  task" — which opened the global capture sheet pre-seeded with this project —
+  was a second mechanism for one outcome and is gone. Notes, Meetings and Diary
+  entries stay in the overflow because they have no local path on this record.
+
+Measured at 1280×800: working content moved from 860px (below the fold) to 317px.

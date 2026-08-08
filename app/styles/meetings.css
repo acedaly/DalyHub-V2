@@ -213,13 +213,27 @@
   );
 }
 
-/* Selected: aria-pressed (semantic) + accent border + weight — never colour
- * alone. */
+/*
+ * Selected: aria-pressed (semantic) + a filled container + weight — never
+ * colour alone.
+ *
+ * RECORD-01 softened this. The four types were outlined in full `outline` with
+ * the selected one in `primary-container` under an inset accent ring, which is
+ * the weight the product spends on a PRIMARY action — so the capture strip read
+ * as four primary buttons sitting on top of the meeting. The selection is still
+ * a fill plus a border plus `aria-pressed`; it is simply no longer the loudest
+ * thing on the record.
+ */
+.dh-meeting-capturebar__type {
+  border-color: var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
 .dh-meeting-capturebar__type[aria-pressed="true"] {
-  border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary-container);
+  border-color: var(--md-sys-color-outline);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
   font-weight: 500;
-  box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
 }
 
 .dh-meeting-capturebar__form {
@@ -252,17 +266,90 @@
 
 /* The bar overlays the end of the record, so the record reserves its height.
  *
- * The reservation must cover the bar's WHOLE stack, not a nominal gap: two 44px
- * rows plus their gap and padding, then the phone navigation bar beneath it and
- * the safe-area inset. The first version reserved 4rem — less than the bar's own
- * two rows — so the last section's "Add …" control sat underneath the bar and
- * could not be clicked at all. A sticky action bar that swallows the controls at
- * the end of the record is worse than no sticky bar. */
+ * The reservation must cover the bar's WHOLE stack, not a nominal gap: its rows
+ * plus their gap and padding, then the phone navigation bar beneath it and the
+ * safe-area inset. An early version reserved 4rem — less than the bar's own two
+ * rows — so the last section's "Add …" control sat underneath the bar and could
+ * not be clicked at all. A sticky action bar that swallows the controls at the
+ * end of the record is worse than no sticky bar.
+ *
+ * The value is a TOKEN-free calc off the bar's own metrics rather than a
+ * measurement, and it is halved below alongside the single-row layout: the
+ * reservation and the bar are changed in the same place so they cannot drift. */
 .dh-record-section:has(~ .dh-meeting-capturebar),
 .record-layout:has(~ .dh-meeting-capturebar) {
   padding-bottom: calc(
     9rem + var(--app-bottomnav-height, 0px) + env(safe-area-inset-bottom)
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* RECORD-01 — the capture strip is ONE row on a laptop                        */
+/*                                                                             */
+/* The stacked layout is a PHONE layout: four wrapping full-width type buttons  */
+/* above an input and a Save button, because a thumb needs the targets and the  */
+/* width is genuinely scarce. On a laptop it cost ~155px of an 800px viewport — */
+/* almost a fifth of the screen, permanently, on the one record whose content   */
+/* the owner is reading while they capture into it.                            */
+/*                                                                             */
+/* Above the tablet boundary the same controls sit on one row: the four types   */
+/* take their natural width instead of growing, the input takes the rest, and   */
+/* the strip drops to ~68px. Nothing is hidden, nothing scrolls, every target   */
+/* stays at 44px, and the announcement region still wraps to its own line when  */
+/* it has something to say.                                                     */
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 48rem) {
+  .dh-meeting-capturebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--app-space-3);
+  }
+
+  .dh-meeting-capturebar__types {
+    flex: none;
+  }
+
+  .dh-meeting-capturebar__type {
+    flex: none;
+  }
+
+  .dh-meeting-capturebar__form {
+    flex: 1 1 24rem;
+    min-inline-size: 0;
+  }
+
+  /*
+   * Clear the global capture FAB.
+   *
+   * The strip spans the full viewport and the FAB floats over its trailing end,
+   * so collapsing to one row put the strip's own Add button directly underneath
+   * the global +. Two capture affordances stacked on the same pixels is exactly
+   * the "global + and meeting capture must have clearly distinct purposes"
+   * confusion — and the nearer one was unclickable. The inset is derived from
+   * the FAB's own tokens, so it cannot drift if the FAB is resized.
+   */
+  .dh-meeting-capturebar {
+    padding-inline-end: max(
+      calc(var(--app-fab-inset) + var(--app-fab-size) + var(--app-fab-gap)),
+      env(safe-area-inset-right)
+    );
+  }
+
+  /* The live region takes the full width so an announcement never squeezes the
+   * input the owner is typing into; it collapses entirely when empty. */
+  .dh-meeting-capturebar__status {
+    flex: 1 0 100%;
+  }
+
+  /* One row instead of two, so the record reserves half as much. */
+  .dh-record-section:has(~ .dh-meeting-capturebar),
+  .record-layout:has(~ .dh-meeting-capturebar) {
+    padding-bottom: calc(
+      5.5rem + var(--app-bottomnav-height, 0px) + env(safe-area-inset-bottom)
+    );
+  }
 }
 
 /* -------------------------------------------------------------------------- */

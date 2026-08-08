@@ -18,6 +18,7 @@ import { useSetMobileTopBar } from "~/shared/shell/mobile-top-bar-context";
 
 import { RecordHeader } from "./RecordHeader";
 import { RecordSummary } from "./RecordSummary";
+import { RecordSummaryBar } from "./RecordSummaryBar";
 import { RecordTabs } from "./RecordTabs";
 import type { RecordLayoutProps } from "./types";
 
@@ -38,6 +39,7 @@ export function RecordLayout({
   overflowLabel,
   // Summary
   summary,
+  summaryBar,
   // Tabs
   tabs,
   tabsLabel,
@@ -93,12 +95,26 @@ export function RecordLayout({
         overflowLabel={overflowLabel}
       />
 
-      {summary !== undefined && (
-        <RecordSummary
-          description={summary.description}
-          metadata={summary.metadata}
-          emptyLabel={summary.emptyLabel}
-        />
+      {/*
+       * RECORD-01 — a record declares ONE summary region.
+       *
+       * `summaryBar` is the compact derived-state band most records want;
+       * `summary` remains the DS-02 card, for the minority whose summary is
+       * genuine prose. They are alternatives rather than a stack, because two
+       * summary regions above one tab strip is exactly the "three containers of
+       * identical weight" M3-INT set out to remove — so the bar takes
+       * precedence and a caller passing both gets the compact one.
+       */}
+      {summaryBar !== undefined ? (
+        <RecordSummaryBar {...summaryBar} />
+      ) : (
+        summary !== undefined && (
+          <RecordSummary
+            description={summary.description}
+            metadata={summary.metadata}
+            emptyLabel={summary.emptyLabel}
+          />
+        )
       )}
 
       {hasTabs ? (

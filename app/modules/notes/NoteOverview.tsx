@@ -35,7 +35,6 @@ import { EntityIcon } from "~/shared/entity";
 import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { MarkdownContent } from "~/shared/markdown";
-import { AbsenceText } from "~/shared/pill";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
@@ -107,30 +106,40 @@ export function NoteOverview({
   );
   const archived = details.archivedAt !== null;
 
-  const summaryMetadata: RecordMetaItem[] = [];
-  if (created) {
-    summaryMetadata.push({ id: "created", label: "Created", value: created });
-  }
+  /*
+   * RECORD-01 — a Note is a WRITING SURFACE, and its header is what stands
+   * between the owner and the cursor.
+   *
+   * It used to spend a full-width three-column grid on Created, Updated and
+   * Tags — 60px of paperwork above the editor on a record whose entire purpose
+   * is the text below it. What survives is the one timestamp a writer actually
+   * uses ("when did I last touch this?") and the tags, as one quiet line.
+   *
+   * Created is not deleted: it is the note's `entity.created` event, which the
+   * Activity tab renders from the one FND-05 stream, and it stays in the
+   * print view's byline. Notes have no Settings tab to demote it into, and
+   * adding one to hold a single date is an information-architecture change this
+   * PR is scoped out of — so the record's own history carries it, which is
+   * where a reader looking for it would go.
+   *
+   * Tags render only when there ARE tags. DS-14 §8's designed-absence rule
+   * governs how absence LOOKS where it is shown; on a writing surface "Tags:
+   * No tags" above every untagged note is a line of chrome earning nothing, and
+   * "Edit tags" is one press away in the overflow either way.
+   *
+   * Archived stops being a summary FIELD and becomes the header's status pill,
+   * where every other record in the product states its lifecycle.
+   */
+  const contextItems: RecordMetaItem[] = [];
   if (updated) {
-    summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
+    contextItems.push({ id: "updated", label: "Updated", value: updated });
   }
-  // DS-14 §8 — absence is a DESIGNED rendering, in the owner's words, not an
-  // empty slot, a zeroed count or a hyphen. M3-INT — that rendering is quiet
-  // supporting text, not a chip: "No tags" is the absence of a concept, and a
-  // chip is what the product spends on concepts that are actually there.
-  summaryMetadata.push({
-    id: "tags",
-    label: "Tags",
-    value:
-      details.tags.length > 0 ? (
-        details.tags.join(", ")
-      ) : (
-        <AbsenceText>No tags</AbsenceText>
-      ),
-  });
-  if (archived) {
-    // State in words — never a colour-only or icon-only signal (AGENTS.md §15).
-    summaryMetadata.push({ id: "state", label: "State", value: "Archived" });
+  if (details.tags.length > 0) {
+    contextItems.push({
+      id: "tags",
+      label: "Tags",
+      value: details.tags.join(", "),
+    });
   }
 
   // Handed to `NoteContentForm` (which sets it during render, alongside its
@@ -241,19 +250,22 @@ export function NoteOverview({
             data-testid="note-title-edit"
           />
         }
-        typeLabel="Note"
+        // RECORD-01 — no `typeLabel`: the breadcrumb above says "Notes".
         icon={<EntityIcon type="note" />}
         breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
+        // State in words — never a colour-only or icon-only signal (AGENTS.md §15).
+        status={archived ? { label: "Archived", tone: "on-hold" } : undefined}
+        metadata={contextItems}
         overflowActions={lifecycle.overflowActions}
-        summary={
-          summaryMetadata.length > 0 ? { metadata: summaryMetadata } : undefined
-        }
         activeTabId={activeTabId}
         onTabChange={onTabChange}
         tabs={[
           {
             id: "note",
             label: "Note",
+            // RECORD-01 — the writing surface brings its own single frame
+            // (EDIT-01), so the panel does not draw a second around it.
+            surface: "plain",
             content:
               (
                 /* DS-14 reference implementation (Reading).

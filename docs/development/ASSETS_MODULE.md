@@ -671,3 +671,25 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## Record-screen anatomy (RECORD-01, #131)
+
+The Asset record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract), with
+two Asset-specific outcomes.
+
+**The subtype label survives.** Every other record dropped its `typeLabel`
+because the breadcrumb already carried it; "Vehicle" is a genuine subtype rather
+than the entity type, which is exactly the case the contract keeps it for. The
+duplicate "Type: Vehicle" metadata chip and the Overview's repetition of the
+type, the make and model, and the status were removed instead — all three were
+being stated twice in the record's first 120px. The Overview now opens with the
+maintenance and renewal situation, starting with the next relevant obligation.
+
+**History has a real action hierarchy.** Six equally-weighted ghost links
+(`Record service … Add history entry`) floating above the filter became: the
+asset's *primary* capture exposed in the shared record toolbar, with the other
+five in the shared DS-12 overflow. Which one is primary comes from the asset's
+own `asset_type` — a serviceable thing leads with **Record service**, a
+document, licence, insurance policy, subscription or software with **Record
+renewal**. That rule is the pure, unit-tested `primaryHistoryAction`.

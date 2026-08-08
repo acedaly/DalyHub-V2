@@ -171,9 +171,16 @@ export function AssetRecord({
     throw new Error("Couldn’t delete this asset.");
   }, [post, navigate]);
 
-  const headerMetadata: RecordMetaItem[] = [
-    { id: "type", label: "Type", value: asset.assetTypeLabel },
-  ];
+  /*
+   * RECORD-01 — the context line, with the type stated ONCE.
+   *
+   * "Type: Vehicle" was a labelled chip here AND the header's own subtype label
+   * directly above it AND the first line of the Overview panel below it. The
+   * subtype label survives — it is genuinely informative in a way "Asset" would
+   * not be, which is exactly the case the contract keeps a `typeLabel` for —
+   * and the duplicate chip is gone.
+   */
+  const headerMetadata: RecordMetaItem[] = [];
   const modelLine = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
   if (modelLine) {
     headerMetadata.push({
@@ -276,6 +283,7 @@ export function AssetRecord({
             content: (
               <AssetHistoryTab
                 assetId={asset.id}
+                assetType={asset.assetType}
                 initialEvents={events}
                 initialCursor={eventsCursor}
                 initialHasMore={eventsHasMore}

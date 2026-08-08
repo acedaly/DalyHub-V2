@@ -14,6 +14,7 @@
  */
 
 import type { CardTone } from "~/shared/card";
+import type { RecordSignal } from "~/shared/record-layout";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type {
@@ -88,6 +89,32 @@ export function healthAccessibleSummary(health: ProjectHealth): string {
   const text = healthReasonText(primary);
   // Avoid a redundant "No tasks yet — No tasks yet" style echo.
   return text === health.label ? health.label : `${health.label} — ${text}`;
+}
+
+/**
+ * RECORD-01 — a project's health, as signals for the compact summary band.
+ *
+ * `ProjectHealthPanel` used to state health three ways in one card: a pill, a
+ * bulleted list of reasons, and then a key/value grid whose every row but one
+ * repeated a bullet ("Waiting: 2 of 15 open, longest 24 days" beside "2 of 15
+ * open tasks waiting" and "Longest wait is 24 days"). That card measured 505px
+ * on the reference Project and put its task list below the fold.
+ *
+ * The reasons ARE the health, so they are what survives. The one fact the grid
+ * carried that no reason did — the last recorded activity — is administrative
+ * history and now lives in the project's Settings details, per the convergence's
+ * metadata tiers. Nothing is lost; it is said once, in one place.
+ *
+ * Pure and React-free so the rule is unit-tested without a DOM, and ordered by
+ * the evaluator rather than by this function — presentation never re-decides
+ * which reason matters most.
+ */
+export function healthSignals(health: ProjectHealth): readonly RecordSignal[] {
+  return health.reasons.map((reason) => ({
+    id: reason.code,
+    text: healthReasonText(reason),
+    tone: reason.tone,
+  }));
 }
 
 /**

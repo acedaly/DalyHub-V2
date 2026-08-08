@@ -1,5 +1,11 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
@@ -314,22 +320,35 @@ describe("GoalOverview", () => {
     await waitFor(() => expect(onSetTargetDate).toHaveBeenCalledWith(null));
   });
 
-  it("shows a set, upcoming target date (in both the header and the summary)", () => {
+  /*
+   * RECORD-01 — the target date is stated ONCE, in the header's context line,
+   * and the thing shown IS the editable control. It used to render twice: as
+   * read-only text in the header metadata and again as the inline date field in
+   * the summary list, which is the metadata duplication this convergence
+   * removed.
+   */
+  it("shows a set, upcoming target date exactly once, as the editable control", () => {
     renderGoal({ details: details({ targetDate: "2026-08-01" }) });
-    expect(screen.getAllByText(/1 Aug 2026/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 Aug 2026/)).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: /^Target date: / }),
+    ).toBeInTheDocument();
   });
 
   it("shows an overdue target date with text, not colour alone", () => {
     renderGoal({ details: details({ targetDate: "2026-07-01" }) });
-    const overdueMentions = screen.getAllByText(/1 Jul 2026.*overdue/);
-    expect(overdueMentions.length).toBeGreaterThan(0);
+    // The date and the word are separate elements (the date is inside the
+    // editable control), so assert the CONTEXT LINE reads as both together.
+    const context = screen.getByRole("list", { name: "Record context" });
+    expect(context).toHaveTextContent(/1 Jul 2026/);
+    expect(context).toHaveTextContent(/overdue/);
   });
 
   it("shows the honest 'no Projects' empty state on the Projects tab", () => {
     renderGoal();
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
     expect(
-      screen.getByText("No Projects advancing this Goal"),
+      screen.getByText("No Projects advancing this Goal yet."),
     ).toBeInTheDocument();
   });
 
@@ -460,10 +479,15 @@ describe("GoalOverview", () => {
         ],
       }),
     });
-    expect(
-      screen.getByRole("heading", { name: "Alignment" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("No recent action")).toBeInTheDocument();
+    /*
+     * RECORD-01 — alignment is stated ONCE, in the record's compact summary
+     * band: the state as the band's chip beside the contribution meter it
+     * explains, and the reasons as the band's signal line. It used to be a
+     * headed sub-panel with a pill on its own row above a bulleted list, which
+     * on a 320px phone put the Goal's Projects tab 1022px down the page.
+     */
+    const summary = screen.getByRole("region", { name: "Summary" });
+    expect(within(summary).getByText("No recent action")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Projects exist, but no recent Task activity was found.",

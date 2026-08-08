@@ -741,3 +741,28 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## Record-screen anatomy and the action hierarchy (RECORD-01 / UIQ-011, #131)
+
+The Person record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract), and
+this is where [UIQ-011](../product/PRODUCT_DEBT.md) was resolved.
+
+**Primary: Call and Email**, plus **Message** where the person has a *mobile*
+(`sms:` needs one — someone with only a work number gets two actions, not a
+third that would text a landline). Each renders **only where the data behind it
+exists**; a person with no contact details renders no action group rather than a
+row of disabled buttons, because a greyed-out Call is a control that can never
+do anything.
+
+**Everything else is in the record header's shared overflow** — New task, New
+meeting, New note, New diary entry, Copy email, Copy phone — still passing this
+Person's capture context to the one shared sheet (ADR-060). The copy entries are
+themselves omitted when there is nothing to copy.
+
+The Summary stopped restating the header: name, pronouns, organisation and role
+are each stated once (the header's context line), and the derived stay-in-touch
+state appears once as a context-line indicator with `StayInTouchPanel`
+*explaining* it rather than repeating the pill. The panel's "Last interaction"
+fact went too — the DS-13 summary card directly above it is the prominent
+statement of the same derived value.

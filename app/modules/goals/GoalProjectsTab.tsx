@@ -240,11 +240,14 @@ export function GoalProjectsTab({
   // accumulated page.
   if (items.length === 0) {
     return (
+      // RECORD-01 — a record-level absence is one calm line, not a collection's
+      // icon + headline + sentence block. The Goal's summary band directly above
+      // already states the contribution as "No Projects contributing yet".
       <EmptyState
-        icon={<EntityIcon type="project" />}
+        size="inline"
         headingLevel={2}
-        title="No Projects advancing this Goal"
-        description="Projects created for this Goal will appear here."
+        title="No Projects advancing this Goal yet."
+        description="Projects created for this Goal appear here."
       />
     );
   }

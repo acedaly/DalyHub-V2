@@ -1202,3 +1202,28 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## Record-screen anatomy (RECORD-01, #131)
+
+A Note is a **writing surface**, and the record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract) with
+that as the priority.
+
+**The header is one identity line and one quiet context line.** It previously
+spent a full-width three-column grid on Created, Updated and Tags — 60px of
+paperwork above the editor on a record whose entire purpose is the text below
+it. What survives is the one timestamp a writer uses ("when did I last touch
+this?") and the tags, and tags render only when there are any. Created is not
+deleted: it is the note's `entity.created` event in the Activity tab and it
+stays in the print byline. Archived became the header's status pill.
+
+**The writing surface no longer sits in a frame inside a frame.** The shared
+editor deliberately draws ONE outline around its toolbar and its text (EDIT-01),
+and the tab panel drew another around that — two left edges 21px apart and 40px
+of the writing measure lost. The Note tab declares `surface: "plain"`, the
+shared `RecordTab` flag for content that already brings its own surface; the
+panel remains a real `tabpanel` with its focus ring and its label, and only its
+paint is suppressed. Every editor behaviour from EDIT-01/EDIT-02 is unchanged.
+
+Measured at 1280×800: the editor moved from 360px to 253px, with ~10 lines of
+prose visible.

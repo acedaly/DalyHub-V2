@@ -631,28 +631,104 @@ The [Record Header](#record-header), [Summary Panel](#summary-panel) and [Tabs](
 
 ### Anatomy
 
+**This is the canonical record-screen anatomy (RECORD-01, PR #131).** Every
+first-class record — Area, Goal, Project, Note, Meeting, Person, Asset, Review
+and the Task record in its Drawer — is built to it. Module-specific *content*
+stays module-specific; the order, the tiers and the weights do not.
+
 ```
 <article aria-labelledby=title>          ← labelled landmark, titled by its heading
   RecordHeader
-    ├ breadcrumb (parent context, aria "Breadcrumb")
-    ├ type label + entity icon (icon decorative; label names it)
-    ├ title  (the record heading — h1 by default, configurable level)
-    ├ status pill  (tone + always a text label — never colour-only)
-    ├ metadata chips
-    └ actions  (secondary… + one primary; link when href, else button)
-  RecordSummary        (optional)  ← description + key/value <dl>, or a clear empty state
-  RecordTabs           (optional)  ← tablist + panels; the active panel IS the content region
-    └ RecordContent    ← predictable padding/width + loading / empty / error slots
+    ├ breadcrumb            where this record lives
+    ├ identity (ONE row)    entity glyph · title · status pill · actions · ⋯
+    └ context line          1–3 current-state facts, tight under the identity
+  RecordSummaryBar   (optional)  ← the compact derived-state band: meter · state
+  · signals · facts                 chip · signal line · quiet context line
+  — or —
+  RecordSummary      (optional)  ← the DS-02 card, for a summary that is PROSE
+  RecordTabs         (optional)  ← tablist + panels; the active panel IS the content
+    └ RecordContent            ← predictable padding/width + loading/empty/error
 ```
 
+A record declares **one** summary region. `summaryBar` is what most records
+want, because most records' summaries are derived state; `summary` is the card,
+for the minority carrying real prose. Supplying both renders the band — two
+summary regions above one tab strip is the stacked-containers problem M3-INT set
+out to remove. A band that itself carries prose (`description`) takes the card
+surface, following the same "a container is earned" rule.
+
 When no tabs are supplied, the content region is the layout's `children` wrapped in a padded container. `RecordContent` is independently reusable and can appear inside any tab panel.
+
+### The record contract
+
+**Headers.** Title dominant, status adjacent, no empty band between the title
+and the tabs. Drop the entity-type label wherever the breadcrumb already carries
+it; keep a genuinely informative **subtype** (an Asset's "Vehicle"), which
+renders as the first entry of the context line. The entity glyph stays on every
+record and keeps its `record-type__icon` hook, which is where a record's chosen
+identity colour lives.
+
+**Metadata tiers.** A fact appears in exactly one of them:
+
+| Tier | Where | Example |
+| --- | --- | --- |
+| Current state | context line / summary band | health, next obligation, progress, target date |
+| Secondary context | context line, quiet | Area, Goal, organisation and role |
+| Administrative | **Settings → Record details** | Created, Updated, raw State, template ids |
+
+Nothing is deleted — demoted metadata lands in a `RecordDetails` list inside the
+record's Settings tab. A record with no Settings tab puts it later in the record
+(the Goal's is the band's trailing `facts` line); adding a Settings tab purely
+to host timestamps is an information-architecture change, not a layout one.
+
+**Working content — the fold anchor.** At **1280×800**, with the header and tabs
+rendered, the first row of a record's working content is visible without
+scrolling. Notes show the editor with at least three lines; Meetings keep
+meeting content readable with the capture strip present. Guarded by
+[`e2e/record-anatomy.spec.ts`](../../e2e/record-anatomy.spec.ts).
+
+**Surfaces.** The tab panel is one surface. Sections inside it separate with
+spacing and typography, not a second outline. A tab whose content already brings
+its own single surface declares `surface: "plain"` so the record never draws a
+frame inside a frame — the Note's writing surface is the case this exists for.
+
+**Tabs and filters.** Tabs are `RecordTabs` everywhere: one typography, one
+indicator, one focus behaviour, and no wrapping at laptop widths. Filters are
+**visually subordinate** — `~/shared/segmented-filter` renders the shared
+segmented control at a reduced weight for exactly this reason. Tab = *where am
+I*; filter = *which subset*; the louder control answers the bigger question.
+
+**Empty states.** A record-level absence is `EmptyState size="inline"`: one calm
+line, left-aligned, no icon and no card. The icon + headline + description +
+button treatment is the **collection** state, where it teaches a first-time
+owner something they do not know.
+
+**Actions.** Ending a record (Complete, Archive) is a lifecycle action, not the
+surface's most likely next step, so it takes the low-emphasis treatment. A
+control is rendered only where the data behind it exists — a disabled "Call" on
+a person with no number is a control that can never do anything, and belongs
+absent rather than greyed out.
+
+**Local creation vs the global +.** A local create action survives only where
+context materially matters *and* it beats the global +. Contextual defaults are
+implemented only where they amount to passing an existing route param or prop
+through the existing capture architecture; anything needing more is skipped and
+recorded in [PRODUCT_DEBT](../product/PRODUCT_DEBT.md). Never two mechanisms for
+one outcome.
+
+**The shared tab toolbar.** `.dh-record-toolbar` is the row at the top of a tab
+panel: the subordinate filter on the leading edge, the tab's own local action
+(and its overflow) on the trailing edge. One class, so a record's toolbar sits
+at the same height and the same edges whichever record it is.
 
 ### Supported configuration
 
 - **Header:** `title` (required) · `titleId`/`headingLevel` · `typeLabel` · `icon` · `status {label, tone}` · `breadcrumb[]` · `metadata[]` · `primaryAction` · `secondaryActions[]`. Every region is optional except the title and is omitted entirely when absent.
 - **Actions** (`RecordAction`): `label` (also the accessible name unless `ariaLabel` overrides) · `href` (renders a link) or `onSelect` (renders a button) · `variant` (`primary`/`secondary`) · `disabled`.
-- **Summary** (`RecordSummaryProps`): `description` · `metadata[]` · `emptyLabel`. Requested-but-empty shows a calm empty state.
-- **Tabs** (`RecordTab`): `id` · `label` · `content` · `disabled` (visible, not selectable) · `hidden` (omitted) · `badge` (decorative). Controlled (`activeTabId` + `onTabChange`) or uncontrolled (`defaultTabId`); wire `onTabChange` to a URL param for deep-linking.
+- **Summary band** (`RecordSummaryBarProps`): `description` (prose; earns the card surface) · `progress` · `state` · `signals[]` · `facts[]` · `note` · `label`. Hard budget: one meter, one state chip, one signal line, one context line — anything more belongs in a tab.
+- **Summary card** (`RecordSummaryProps`): `description` · `metadata[]` · `emptyLabel`. Requested-but-empty shows a calm empty state.
+- **Record details** (`RecordDetails`): the Settings-tab home for demoted administrative metadata. `recordTimestampItems(createdAt, updatedAt)` formats the pair every record has, and omits an absent one rather than rendering an em dash.
+- **Tabs** (`RecordTab`): `id` · `label` · `content` · `disabled` (visible, not selectable) · `hidden` (omitted) · `badge` (decorative) · `surface` (`panel` default, or `plain` for content that brings its own). Controlled (`activeTabId` + `onTabChange`) or uncontrolled (`defaultTabId`); wire `onTabChange` to a URL param for deep-linking.
 
 **Mobile/touch contract.** Header actions wrap onto additional rows rather than
 disappearing or forcing width, and on coarse-pointer/touch devices every

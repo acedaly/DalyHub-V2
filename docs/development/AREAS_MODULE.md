@@ -520,3 +520,20 @@ moralises about a neglected life Area. Every Area is one link away from the Revi
 Richer per-period Area attention, momentum history and trend are **not** derived here: they
 remain [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
 [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).
+
+## Record-screen anatomy (RECORD-01, #131)
+
+The Area record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract).
+
+The **momentum card** — an outlined card nested inside the summary card, holding
+a chip, a duplicate of its own summary sentence and a bulleted list of its
+reasons — is now the shared `RecordSummaryBar`. The header carries no context
+line at all: it used to show Goals/Projects/Tasks counts that the tab badges
+directly below already show and the band states again as a meter, and an Area
+has no parent to place it against.
+
+**An Area with no active work says so once.** It previously said it four times —
+two header metadata values, a roll-up line, a nested card and a bullet inside it
+— then again in a full empty-state card below the tabs. Created and Updated
+moved to Settings → Record details (State was already in the Lifecycle group).

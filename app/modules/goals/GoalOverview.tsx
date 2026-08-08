@@ -28,9 +28,10 @@
 import { useId } from "react";
 import type { ReactNode } from "react";
 
-import { ProgressMeter } from "~/shared/progress";
 import {
+  AlignmentIndicator,
   GoalAlignmentPanel,
+  alignmentReasonText,
   type GoalAlignment,
   type SerializedGoalAlignmentEvidence,
 } from "~/shared/alignment";
@@ -44,6 +45,7 @@ import {
 } from "~/shared/inline-edit";
 import {
   RecordLayout,
+  recordTimestampItems,
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
@@ -99,10 +101,6 @@ interface GoalOverviewProps {
   readonly onTabChange?: (tabId: string) => void;
 }
 
-function dateLabel(iso: string): string | null {
-  return formatCalendarDate(iso.slice(0, 10));
-}
-
 export function GoalOverview({
   overview,
   details,
@@ -129,59 +127,64 @@ export function GoalOverview({
 }: GoalOverviewProps) {
   const completed = isGoalComplete(overview);
   const state = goalStateLabel(overview);
-  const created = dateLabel(overview.createdAt);
-  const updated = dateLabel(overview.updatedAt);
   const target = targetDatePresentation(details.targetDate, todayIso);
   const progress = goalContributionProgress(contribution);
   const alignmentHeadingId = useId();
 
-  const headerMetadata: RecordMetaItem[] = [];
-  if (target.state !== "unset") {
-    headerMetadata.push({
+  /*
+   * RECORD-01 — the target date is stated ONCE, in the context line, and it is
+   * the EDITABLE control rather than a read-only echo of it.
+   *
+   * It used to appear twice: as read-only text in the header metadata AND as
+   * the inline date field in the summary's key/value list. Two renderings of
+   * one fact, only one of which could be changed, is the metadata duplication
+   * this convergence removes — and a Goal's target date is precisely the kind
+   * of current-state fact the context line exists for.
+   *
+   * DS-16 — the value IS the control. An unset target renders the shell's quiet
+   * invitation rather than the sentence "No target date set", because a
+   * sentence cannot also be the thing you press to set one. Overdue stays a
+   * WORD beside the date, never a colour alone (AGENTS.md §15).
+   */
+  const contextItems: RecordMetaItem[] = [
+    {
       id: "target",
       label: "Target date",
-      value:
-        target.state === "overdue"
-          ? `${target.formatted} (overdue)`
-          : (target.formatted ?? ""),
-    });
-  }
+      value: (
+        <span className="dh-goal-overview__target">
+          <InlineDateField
+            label="Target date"
+            value={details.targetDate}
+            onSave={onSetTargetDate}
+            format={(iso) => formatCalendarDate(iso) ?? iso}
+            emptyLabel="Add a target date"
+            data-testid="goal-target-date-edit"
+          />
+          {target.state === "overdue" ? (
+            <span className="dh-goal-overview__target-note">— overdue</span>
+          ) : null}
+        </span>
+      ),
+    },
+  ];
 
-  const summaryMetadata: RecordMetaItem[] = [];
-  summaryMetadata.push({
-    id: "target",
-    label: "Target date",
-    // DS-16 — the value IS the control. An unset target renders the shell's
-    // quiet invitation rather than the sentence "No target date set", because a
-    // sentence cannot also be the thing you press to set one. Overdue stays a
-    // WORD beside the date, never a colour alone (AGENTS.md §15).
-    value: (
-      <span className="dh-goal-overview__target">
-        <InlineDateField
-          label="Target date"
-          value={details.targetDate}
-          onSave={onSetTargetDate}
-          format={(iso) => formatCalendarDate(iso) ?? iso}
-          emptyLabel="Add a target date"
-          data-testid="goal-target-date-edit"
-        />
-        {target.state === "overdue" ? (
-          <span className="dh-goal-overview__target-note">— overdue</span>
-        ) : null}
-      </span>
-    ),
-  });
-  if (created) {
-    summaryMetadata.push({ id: "created", label: "Created", value: created });
-  }
-  if (updated) {
-    summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
-  }
-  summaryMetadata.push({
-    id: "state",
-    label: "Explicit completion",
-    value: state.label,
-  });
+  /*
+   * RECORD-01 deviation — a Goal has no Settings tab, so its administrative
+   * timestamps are demoted to the FOOT of the summary rather than into one.
+   *
+   * The contract's home for Created/Updated is Settings → Record details, which
+   * is where every record that has a Settings tab now puts them. Giving Goals a
+   * Settings tab purely to host two dates would add a tab to a module's
+   * information architecture, which this PR is explicitly scoped out of. "Later
+   * in the record" is the contract's other permitted answer, and this is it.
+   *
+   * "Explicit completion" is gone rather than demoted: it restated the header's
+   * status pill in different words, and a duplicate is removed, not relocated.
+   */
+  const detailItems = recordTimestampItems(
+    overview.createdAt,
+    overview.updatedAt,
+  );
 
   const primaryAction: RecordAction = completed
     ? {
@@ -191,10 +194,17 @@ export function GoalOverview({
         disabled: completionPending,
         onSelect: () => onToggleComplete(false),
       }
-    : {
+    : /*
+       * RECORD-01 — completing a Goal is a LIFECYCLE action, not the next thing
+       * the owner came here to do, so it takes the low-emphasis treatment the
+       * Project's "Complete project" now takes. The record's actual work is the
+       * definition of done and the Projects advancing it; the filled primary
+       * button at the top right was the control that ENDS the Goal.
+       */
+      {
         id: "complete",
         label: "Complete",
-        variant: "primary",
+        variant: "secondary",
         disabled: completionPending,
         onSelect: () => onToggleComplete(true),
       };
@@ -225,7 +235,8 @@ export function GoalOverview({
             data-testid="goal-title-edit"
           />
         }
-        typeLabel="Goal"
+        // RECORD-01 — no `typeLabel`: the breadcrumb already walks Areas → this
+        // Goal's Area, so "Goal" was a third line saying what two above it said.
         icon={<EntityIcon type="goal" />}
         breadcrumb={[
           { id: "areas", label: "Areas", href: "/areas" },
@@ -236,7 +247,7 @@ export function GoalOverview({
           },
         ]}
         status={{ label: state.label, tone: state.tone }}
-        metadata={headerMetadata}
+        metadata={contextItems}
         primaryAction={completed ? undefined : primaryAction}
         /*
          * EDIT-02 — the header now carries LIFECYCLE only.
@@ -250,7 +261,32 @@ export function GoalOverview({
          */
         secondaryActions={completed ? [primaryAction] : []}
         overflowActions={lifecycle.overflowActions}
-        summary={{
+        summaryBar={{
+          /*
+           * RECORD-01 — ONE summary region carrying the Goal's prose AND its
+           * derived state, rather than a card holding a second dashboard.
+           *
+           * The definition of done is genuine prose, so the band takes the card
+           * surface (the DS-02 "a container is earned" rule). The contribution
+           * meter and the alignment state now sit on one row, and alignment's
+           * reasons are the band's signal line instead of a heading, a pill on
+           * its own row and a bulleted list.
+           */
+          progress: {
+            label: "Project contribution",
+            percent: progress.percent,
+            summary: progress.summary,
+            available: progress.has,
+          },
+          state: <AlignmentIndicator alignment={alignment} />,
+          signals: alignment.reasons.map((reason) => ({
+            id: reason.code,
+            text: alignmentReasonText(reason),
+            tone: reason.tone,
+          })),
+          // The administrative timestamps, as the band's quiet trailing line —
+          // the right tier AND the right position (see `detailItems`).
+          facts: detailItems,
           description: (
             <div className="dh-goal-overview__summary">
               <div className="dh-goal-overview__definition">
@@ -277,34 +313,33 @@ export function GoalOverview({
                   data-testid="goal-definition-edit"
                 />
               </div>
-              {/* THEME-01 — the same derived number, now shown as the shared
-               * meter. `available` is false when no Project contributes yet, so
-               * the Goal reads "no Projects yet" rather than an empty 0% bar. */}
-              <ProgressMeter
-                label="Project contribution"
-                percent={progress.percent}
-                summary={progress.summary}
-                available={progress.has}
-              />
-              <div className="dh-goal-overview__alignment">
-                <h2
-                  id={alignmentHeadingId}
-                  className="dh-goal-overview__alignment-heading"
-                >
-                  Alignment
-                </h2>
-                <GoalAlignmentPanel
-                  alignment={alignment}
-                  evidence={alignmentEvidence}
-                  evidenceHasMore={alignmentEvidenceHasMore}
-                  todayIso={todayIso}
-                  headingId={alignmentHeadingId}
-                  onOpenTask={onOpenTask}
-                />
-              </div>
+              {/*
+                RECORD-01 — the contribution EVIDENCE, and only when there is
+                any. The alignment state and its reasons are the summary band's
+                chip and signal line; this is the part they cannot carry — the
+                actual recent Tasks, which are links the owner follows. A
+                heading over an empty panel is chrome describing nothing.
+              */}
+              {alignmentEvidence.length > 0 ? (
+                <div className="dh-goal-overview__alignment">
+                  <h2
+                    id={alignmentHeadingId}
+                    className="dh-goal-overview__alignment-heading"
+                  >
+                    Recent contribution
+                  </h2>
+                  <GoalAlignmentPanel
+                    alignment={alignment}
+                    evidence={alignmentEvidence}
+                    evidenceHasMore={alignmentEvidenceHasMore}
+                    todayIso={todayIso}
+                    headingId={alignmentHeadingId}
+                    onOpenTask={onOpenTask}
+                  />
+                </div>
+              ) : null}
             </div>
           ),
-          metadata: summaryMetadata,
         }}
         activeTabId={activeTabId}
         onTabChange={onTabChange}

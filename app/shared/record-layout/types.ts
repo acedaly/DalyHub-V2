@@ -12,6 +12,7 @@
 import type { ReactNode } from "react";
 
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
+import type { ProgressMeterProps } from "~/shared/progress";
 
 /**
  * A semantic tone. Tones map to DS-01 colour tokens; they NEVER carry meaning by
@@ -86,6 +87,22 @@ export interface RecordTab {
   readonly hidden?: boolean;
   /** Optional trailing badge (e.g. a count). Decorative — not the accessible name. */
   readonly badge?: ReactNode;
+  /**
+   * RECORD-01 — whether this tab's panel draws the contained record surface.
+   *
+   * `panel` (the default) is the DS-14 contained surface every scannable tab
+   * uses. `plain` is for a tab whose content ALREADY brings its own single
+   * surface — the Note record's writing surface is the canonical case: the
+   * shared editor deliberately draws one outline around its toolbar and its
+   * text (EDIT-01), so a panel drawing a second one around that produced a
+   * frame inside a frame, two left edges 21px apart, and a narrower column to
+   * write in.
+   *
+   * It is a property of the CONTENT, not of the module, which is why it is
+   * declared per tab rather than per record: the same Note record's Backlinks,
+   * Links and Activity tabs are ordinary panels.
+   */
+  readonly surface?: "panel" | "plain";
 }
 
 /** Props for the record header region. */
@@ -125,6 +142,45 @@ export interface RecordHeaderProps {
   readonly overflowActions?: readonly OverflowMenuItem[];
   /** Accessible name for the overflow trigger. Defaults to `More actions for <title>`. */
   readonly overflowLabel?: string;
+}
+
+/**
+ * RECORD-01 — one derived signal in the compact summary band: a short sentence,
+ * optionally toned. The TEXT always carries the meaning; the tone only tints it.
+ */
+export interface RecordSignal {
+  readonly id: string;
+  readonly text: ReactNode;
+  readonly tone?: "neutral" | "info" | "warning" | "danger" | "success";
+}
+
+/**
+ * Props for the compact summary BAND (RECORD-01) — the replacement for the
+ * per-module roll-up dashboard cards. Hard budget: one meter, one state chip,
+ * one signal line, one context line. Anything more belongs in a tab.
+ */
+export interface RecordSummaryBarProps {
+  /**
+   * Genuine PROSE the record's summary carries — a Goal's definition of done,
+   * an archived explanation. When present the band takes the card surface,
+   * following the DS-02 rule that a container is earned by real content rather
+   * than granted automatically; a band of derived state alone stays on the page
+   * canvas. This is what lets a record have prose AND compact derived state in
+   * ONE summary region rather than stacking two.
+   */
+  readonly description?: ReactNode;
+  /** The record's headline progress, shown as the shared compact meter. */
+  readonly progress?: ProgressMeterProps;
+  /** The record's current-state chip (health, stay-in-touch, next obligation). */
+  readonly state?: ReactNode;
+  /** Derived signals, stated ONCE. */
+  readonly signals?: readonly RecordSignal[];
+  /** Quiet secondary context (parent Area, Goal, organisation). */
+  readonly facts?: readonly RecordMetaItem[];
+  /** A single calm line — an archived banner, or a compact current-state sentence. */
+  readonly note?: ReactNode;
+  /** Accessible name for the region. Defaults to "Summary". */
+  readonly label?: string;
 }
 
 /** Props for the summary region. */
@@ -167,8 +223,16 @@ export interface RecordTabsProps {
 
 /** Props for the whole Shared Record Layout. */
 export interface RecordLayoutProps extends RecordHeaderProps {
-  /** Optional summary region; omit to render no summary. */
+  /**
+   * Optional summary CARD, for a record whose summary is genuine prose.
+   * Ignored when `summaryBar` is also supplied — see `RecordLayout`.
+   */
   readonly summary?: RecordSummaryProps;
+  /**
+   * RECORD-01 — the compact derived-state band most records want in place of a
+   * summary card.
+   */
+  readonly summaryBar?: RecordSummaryBarProps;
   /** Optional tabs; when present the content region is the active tab's panel. */
   readonly tabs?: readonly RecordTab[];
   /** Accessible name for the tablist (defaults to "<title> sections"). */

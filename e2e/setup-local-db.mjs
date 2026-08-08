@@ -24,6 +24,14 @@ const SEED_TASKS = join(
   dirname(fileURLToPath(import.meta.url)),
   "seed-tasks.sql",
 );
+// RECORD-01 — the richer records the record SCREENS need (a Project with 24
+// tasks, a quiet Area, a populated Meeting, a full and a sparse Person, an Asset
+// with obligations and history, a long-titled record). Kept in its own file so
+// `seed-tasks.sql` stays the small deterministic spine the journeys assert on.
+const SEED_RECORD_CONVERGENCE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "seed-record-convergence.sql",
+);
 const MOBILE_PROJECT_TITLE_PREFIX = "Mobile Projects workflow ";
 const AREA_OVERVIEW_TITLE_PREFIX = "Area overview e2e ";
 const GOAL_JOURNEY_TITLE_PREFIX = "Goal e2e ";
@@ -173,7 +181,8 @@ for (const statement of PEOPLE_JOURNEY_CLEANUP_SQL) {
 // TODAY-02: seed a small real spine (areas + focus tasks) so /today shows real
 // task data and the task Drawer opens real records.
 wrangler(["d1", "execute", "DB", "--local", "--file", SEED_TASKS]);
+wrangler(["d1", "execute", "DB", "--local", "--file", SEED_RECORD_CONVERGENCE]);
 
 console.log(
-  `Local D1 migrated and workspace '${WORKSPACE_ID}' seeded (with tasks).`,
+  `Local D1 migrated and workspace '${WORKSPACE_ID}' seeded (with tasks and record fixtures).`,
 );

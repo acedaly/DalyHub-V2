@@ -30,6 +30,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AreaDependencySummary } from "~/kernel/areas";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { EntityIconPicker } from "~/shared/entity";
+import { RecordDetails, recordTimestampItems } from "~/shared/record-layout";
 import {
   ConfirmationDialog,
   DangerousAction,
@@ -353,6 +354,18 @@ export function AreaSettingsTab({
         ) : (
           <DeleteBlockedGroup dependencies={dependencies} />
         )}
+        {/* RECORD-01 — Created and Updated, demoted here from the Area's
+            summary card. The Lifecycle group above already carries State, so
+            this group holds only what had nowhere else to go. */}
+        <SettingsGroup
+          title="Record details"
+          description="When this Area was created and last changed."
+        >
+          <RecordDetails
+            items={recordTimestampItems(overview.createdAt, overview.updatedAt)}
+            label="Area record details"
+          />
+        </SettingsGroup>
       </SettingsLayout>
     </div>
   );

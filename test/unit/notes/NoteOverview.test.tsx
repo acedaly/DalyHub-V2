@@ -106,11 +106,16 @@ describe("NoteOverview", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Reading list" }),
     ).toBeInTheDocument();
-    // "Note" also labels the tab and the editor field, so scope the type-label
-    // assertion to the record header's own identity marker.
-    expect(document.querySelector(".record-type__label")).toHaveTextContent(
-      "Note",
-    );
+    /*
+     * RECORD-01 — the "Note" type label is gone from the header: the breadcrumb
+     * directly above the title already says "Notes", so the eyebrow was a line
+     * of header height restating the line above it. The record's identity is
+     * now carried by the breadcrumb, the entity glyph and the title.
+     */
+    expect(document.querySelector(".record-type__label")).toBeNull();
+    expect(
+      screen.getByRole("navigation", { name: "Breadcrumb" }),
+    ).toHaveTextContent("Notes");
 
     // EDIT-02 — the dedicated Rename action is gone; the heading itself is the
     // control, exactly as it is on an Area, a Project and a Goal.

@@ -51,6 +51,9 @@ import {
 } from "~/shared/settings";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { EntityIconPicker } from "~/shared/entity";
+import type { ProjectHealth } from "~/shared/project-health";
+import { RecordDetails, type RecordMetaItem } from "~/shared/record-layout";
+import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { SelectField } from "~/shared/forms";
 import { useFeedback } from "~/shared/feedback";
 import {
@@ -61,6 +64,7 @@ import {
 
 import {
   isProjectArchived,
+  projectStateLabel,
   type SerializedProjectOverview,
 } from "./project-view";
 import { useParentOptionsSearch } from "./use-parent-options-search";
@@ -68,6 +72,12 @@ import type { SelectOption } from "~/shared/forms/types";
 
 export interface ProjectSettingsTabProps {
   readonly overview: SerializedProjectOverview;
+  /**
+   * RECORD-01 — the derived health, for the one fact its reasons do not carry:
+   * when the project last saw meaningful activity. Optional so a caller without
+   * it simply omits that row rather than inventing one.
+   */
+  readonly health?: ProjectHealth;
   /** Apply a workflow-status change (`set_status`). Reject to fail (reverts). */
   readonly onSetStatus: (
     status: ProjectWorkflowStatus,
@@ -353,8 +363,62 @@ function ProjectAppearanceGroup({
   );
 }
 
+/**
+ * RECORD-01 — the project's administrative history, demoted here from the record
+ * header and the roll-up card.
+ *
+ * Created, Updated and the raw workflow State were competing for space with the
+ * project's actual work at the top of the record; "last activity" was the one
+ * fact the roll-up card's key/value grid carried that its own reason list did
+ * not. None of it is deleted — this is where a reader goes for a record's
+ * paperwork, and it is the same shared list on every record that has one.
+ */
+function ProjectRecordDetailsGroup({
+  overview,
+  health,
+}: {
+  readonly overview: SerializedProjectOverview;
+  readonly health?: ProjectHealth;
+}) {
+  const items: RecordMetaItem[] = [];
+  const created = formatCalendarDate(overview.createdAt.slice(0, 10));
+  const updated = formatCalendarDate(overview.updatedAt.slice(0, 10));
+  const state = projectStateLabel({
+    completedAt: overview.completedAt,
+    archivedAt: overview.archivedAt,
+    status: overview.status,
+  });
+
+  items.push({ id: "d-state", label: "State", value: state.label });
+  if (health) {
+    items.push({
+      id: "d-activity",
+      label: "Last activity",
+      value: health.summary.lastActivityDate
+        ? (formatCalendarDate(health.summary.lastActivityDate) ?? "—")
+        : "No recorded activity",
+    });
+  }
+  if (created) {
+    items.push({ id: "d-created", label: "Created", value: created });
+  }
+  if (updated) {
+    items.push({ id: "d-updated", label: "Updated", value: updated });
+  }
+
+  return (
+    <SettingsGroup
+      title="Record details"
+      description="When this project was created and last changed."
+    >
+      <RecordDetails items={items} label="Project record details" />
+    </SettingsGroup>
+  );
+}
+
 export function ProjectSettingsTab({
   overview,
+  health,
   onSetStatus,
   onMove,
   onArchive,
@@ -443,6 +507,7 @@ export function ProjectSettingsTab({
             <ArchiveGroup overview={overview} onArchive={onArchive} />
           </>
         )}
+        <ProjectRecordDetailsGroup overview={overview} health={health} />
       </SettingsLayout>
     </div>
   );

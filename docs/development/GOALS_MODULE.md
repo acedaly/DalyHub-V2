@@ -654,3 +654,25 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## Record-screen anatomy (RECORD-01, #131)
+
+The Goal record follows the canonical
+[record-screen anatomy](../design/DESIGN_SYSTEM.md#the-record-contract), and is
+the one record whose summary genuinely earns a card — a definition of done is
+prose. It therefore uses the shared `RecordSummaryBar`'s `description` slot, so
+the prose and the derived state share ONE region instead of stacking two.
+
+- **The target date is stated once**, in the header's context line, and what is
+  shown IS the editable control. It used to render twice: as read-only text in
+  the header and again as the inline date field in the summary list.
+- **"Explicit completion" is gone** rather than demoted — it restated the header
+  status pill in different words, and a duplicate is removed, not relocated.
+- Alignment's state is the band's chip beside the contribution meter it
+  explains, and its reasons are the band's signal line. `GoalAlignmentPanel`
+  keeps the half the band cannot carry — the evidence — and renders only when
+  there is any.
+- **Complete** is low-emphasis, like a Project's and a Review's.
+- Created and Updated are the band's trailing quiet line. A Goal has no Settings
+  tab to demote them into; see **RECORD-02** in
+  [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).

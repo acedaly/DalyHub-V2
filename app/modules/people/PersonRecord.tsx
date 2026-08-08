@@ -14,7 +14,10 @@ import { useNavigate } from "react-router";
 
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import type { PersonRelationship } from "~/kernel/relationships";
+import { useCapture } from "~/shared/capture";
+import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { EntityIcon } from "~/shared/entity";
+import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useFeedback } from "~/shared/feedback";
 import { LinkedItemsTab } from "~/shared/linked-items";
@@ -59,6 +62,9 @@ export function PersonRecord({
 }: PersonRecordProps) {
   const feedback = useFeedback();
   const navigate = useNavigate();
+  // The ONE shared capture surface. Null outside the AppShell (an isolated
+  // render), where the entries simply do nothing rather than throwing.
+  const capture = useCapture();
   const [pending, setPending] = useState(false);
 
   const post = useCallback(
@@ -117,28 +123,33 @@ export function PersonRecord({
     throw new Error("Couldn’t delete this person.");
   }, [post, navigate]);
 
-  const headerMetadata: RecordMetaItem[] = [];
-  if (person.organisation) {
-    headerMetadata.push({
-      id: "org",
-      label: "Organisation",
-      value: person.organisation,
-    });
+  /*
+   * RECORD-01 — the context line, with each fact in exactly one place.
+   *
+   * Organisation and Role were two labelled header chips AND a "Site foreman ·
+   * Whitfield Building Co." line inside the Summary tab's identity block; they
+   * are now one unlabelled phrase here, in the same shape the Summary used, and
+   * the Summary's copy is gone. Relationship moved the other way — it is a
+   * relationship record, and "Builder" belongs beside the person's face, so it
+   * stays as the Summary's chip and leaves the header.
+   *
+   * PEOPLE-03 — the derived stay-in-touch state stays here rather than becoming
+   * a badge or a card: it is current state, it is one line, and it persists
+   * across every tab. The Summary's panel EXPLAINS it (reasons and cadence
+   * facts) and no longer repeats the pill itself. The label always carries the
+   * meaning; the tone only reinforces it.
+   */
+  const contextItems: RecordMetaItem[] = [];
+  const roleAndOrg = [person.role, person.organisation]
+    .filter(Boolean)
+    .join(" · ");
+  if (roleAndOrg) {
+    contextItems.push({ id: "role-org", label: "", value: roleAndOrg });
   }
-  if (person.role) {
-    headerMetadata.push({ id: "role", label: "Role", value: person.role });
+  if (person.pronouns) {
+    contextItems.push({ id: "pronouns", label: "", value: person.pronouns });
   }
-  if (person.relationshipLabel) {
-    headerMetadata.push({
-      id: "relationship",
-      label: "Relationship",
-      value: person.relationshipLabel,
-    });
-  }
-  // PEOPLE-03 — the derived stay-in-touch state, in the header's existing metadata
-  // slot rather than as a new badge or a second card. The label always carries the
-  // meaning; the tone only reinforces it.
-  headerMetadata.push({
+  contextItems.push({
     id: "stay-in-touch",
     label: "Staying in touch",
     value: <StayInTouchIndicator relationship={relationship} />,
@@ -149,10 +160,107 @@ export function PersonRecord({
   // dependency/blocked detail; `notifyOnSuccess` is off because the handlers
   // above already report through the shared `lifecycleSuccessMessage` wording
   // (they are driven from Settings too).
+  /*
+   * UIQ-011 — the home for everything the Summary's eight-pill action row gave
+   * up.
+   *
+   * Four of those pills created some OTHER record (a Task, a Diary entry, a
+   * Meeting, a Note) and two copied a field to the clipboard. None of them acts
+   * on this Person, so none of them belongs in the Person's primary layout —
+   * but all of them are useful, so all of them are here, one press away, in the
+   * same shared overflow slot every record in the product uses for its
+   * secondary actions.
+   *
+   * The capture entries pass this Person's context to the ONE shared sheet
+   * exactly as they did before (ADR-060): a Task is `related` unless the owner
+   * explicitly delegates, a Meeting receives an `attendee` link, and Notes and
+   * Diary entries use canonical EntityLinks. Copy entries render only where
+   * there is something to copy — a disabled "Copy phone" on a person with no
+   * number is a control that can never do anything, in a menu as much as in a
+   * button row.
+   */
+  const captureContext: CaptureContextContract = {
+    sourceEntityId: person.id,
+    sourceEntityType: "person",
+    sourceEntityTitle: person.title,
+    sourceModule: "people",
+    originatingRoute: `/person/${person.id}`,
+    mode: "removable",
+    relationshipMeaning: "related",
+    returnTo: `/person/${person.id}`,
+  };
+  const phone = person.mobile ?? person.workPhone;
+
+  const copy = useCallback(
+    async (value: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        feedback.notifySuccess(`${label} copied`);
+      } catch {
+        feedback.notifyError(`Couldn’t copy the ${label.toLowerCase()}.`);
+      }
+    },
+    [feedback],
+  );
+
+  const leadingItems: OverflowMenuItem[] = person.archived
+    ? []
+    : [
+        {
+          id: "capture-task",
+          label: "New task",
+          description: "Create a Task related to this person.",
+          onSelect: () =>
+            capture?.openCapture("task", null, {
+              ...captureContext,
+              relationshipMeaning: "related",
+            }),
+        },
+        {
+          id: "capture-meeting",
+          label: "New meeting",
+          description: "Create a Meeting with this person as an attendee.",
+          onSelect: () =>
+            capture?.openCapture("meeting", null, {
+              ...captureContext,
+              relationshipMeaning: "attendee",
+            }),
+        },
+        {
+          id: "capture-note",
+          label: "New note",
+          description: "Create a Note linked to this person.",
+          onSelect: () => capture?.openCapture("note", null, captureContext),
+        },
+        {
+          id: "capture-diary",
+          label: "New diary entry",
+          description: "Create a Diary entry linked to this person.",
+          onSelect: () => capture?.openCapture("diary", null, captureContext),
+        },
+      ];
+  if (person.email) {
+    leadingItems.push({
+      id: "copy-email",
+      label: "Copy email",
+      separatorBefore: leadingItems.length > 0,
+      onSelect: () => void copy(person.email as string, "Email"),
+    });
+  }
+  if (phone) {
+    leadingItems.push({
+      id: "copy-phone",
+      label: "Copy phone",
+      separatorBefore: !person.email && leadingItems.length > 0,
+      onSelect: () => void copy(phone, "Phone"),
+    });
+  }
+
   const lifecycle = useRecordLifecycle({
     entityType: "person",
     title: person.title,
     archived: person.archived,
+    leadingItems,
     onArchive,
     onRestore,
     onDelete,
@@ -174,13 +282,13 @@ export function PersonRecord({
             data-testid="person-title-edit"
           />
         }
-        typeLabel="Person"
+        // RECORD-01 — no `typeLabel`: the breadcrumb above says "People".
         icon={<EntityIcon type="person" />}
         breadcrumb={[{ id: "people", label: "People", href: "/people" }]}
         status={
           person.archived ? { label: "Archived", tone: "warning" } : undefined
         }
-        metadata={headerMetadata}
+        metadata={contextItems}
         overflowActions={lifecycle.overflowActions}
         activeTabId={activeTabId}
         onTabChange={onTabChange}

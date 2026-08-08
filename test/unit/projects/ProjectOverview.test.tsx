@@ -75,10 +75,13 @@ describe("ProjectOverview", () => {
     expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Career").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Ship v2").length).toBeGreaterThan(0);
-    // THEME-01 — the roll-up is now the shared meter: the percentage reaches
+    // THEME-01 — the roll-up is the shared meter: the percentage reaches
     // assistive tech through the progressbar, and the exact counts stay visible as
-    // text so nothing depends on seeing the bar.
-    const meter = screen.getByRole("progressbar", { name: "Roll-up progress" });
+    // text so nothing depends on seeing the bar. RECORD-01 renamed the meter's
+    // label from "Roll-up progress" to "Tasks": inside the compact summary band
+    // the label is context rather than a heading, and on a Project record the
+    // thing progressing is not in question.
+    const meter = screen.getByRole("progressbar", { name: "Tasks" });
     expect(meter).toHaveAttribute("aria-valuenow", "25");
     expect(meter).toHaveAttribute(
       "aria-valuetext",
@@ -267,7 +270,17 @@ describe("ProjectOverview", () => {
           settingsTab={<div>settings-content</div>}
         />,
       );
-      expect(screen.getByText("Health")).toBeInTheDocument();
+      /*
+       * RECORD-01 — health is stated ONCE, as the summary band's state chip
+       * beside the progress it explains, and its reasons are the band's signal
+       * line. It used to be a labelled "Health" chip in the header AND again
+       * inside the roll-up card, which is the duplication this PR removed — so
+       * the assertion is now that the state and its reason are present, not
+       * that a "Health" label is.
+       */
+      expect(screen.getByText("On track")).toBeInTheDocument();
+      const summary = screen.getByRole("region", { name: "Summary" });
+      expect(summary).toBeInTheDocument();
     });
 
     it.each([
@@ -292,9 +305,9 @@ describe("ProjectOverview", () => {
     ] satisfies [string, Partial<SerializedProjectOverview>, boolean][])(
       "hides BOTH the header Health metadata and the detailed health panel for a %s project",
       (_label, over, completed) => {
-        // An overdue-triggering fixture: if either the header metadata OR the
-        // summary `ProjectHealthPanel` rendered despite `healthVisible: false`,
-        // this state label and reason text would be visible.
+        // An overdue-triggering fixture: if either the summary band's state
+        // chip OR its health signal line rendered despite `healthVisible:
+        // false`, this state label and reason text would be visible.
         renderInRouter(
           <ProjectOverview
             overview={overview(over)}

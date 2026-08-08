@@ -10,11 +10,16 @@
 export { RecordLayout } from "./RecordLayout";
 export { RecordHeader } from "./RecordHeader";
 export { RecordSummary } from "./RecordSummary";
+export { RecordSummaryBar } from "./RecordSummaryBar";
+export { RecordDetails, recordTimestampItems } from "./RecordDetails";
 export { RecordTabs } from "./RecordTabs";
 export { RecordContent } from "./RecordContent";
 export { RecordActionButton } from "./RecordAction";
 
+export type { RecordDetailsProps } from "./RecordDetails";
 export type {
+  RecordSignal,
+  RecordSummaryBarProps,
   RecordAction,
   RecordBreadcrumbItem,
   RecordContentProps,

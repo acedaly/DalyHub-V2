@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   HealthIndicator,
-  ProjectHealthPanel,
   healthAccessibleSummary,
   healthNeedsAttention,
   healthReasonText,
+  healthSignals,
   healthToneToCardTone,
 } from "~/shared/project-health";
 
@@ -66,8 +66,15 @@ describe("HealthIndicator", () => {
   });
 });
 
-describe("ProjectHealthPanel", () => {
-  it("shows every reason once, with supporting facts", () => {
+/*
+ * RECORD-01 — `ProjectHealthPanel` was removed and its reasons became
+ * `healthSignals`, rendered in the compact record summary band. These are the
+ * same guarantees the panel carried — every reason once, a calm statement when
+ * on track, and an empty project that is not 0% — asserted against the pure
+ * function rather than a card that no longer exists.
+ */
+describe("healthSignals", () => {
+  it("carries every reason exactly once, in the evaluator's order", () => {
     const health = stubHealth({
       taskTotal: 6,
       taskCompleted: 1,
@@ -75,29 +82,41 @@ describe("ProjectHealthPanel", () => {
       waitingOpen: 2,
       upcomingDueOpen: 1,
     });
-    render(<ProjectHealthPanel health={health} />);
-    const reasons = screen.getByRole("list");
-    const items = within(reasons).getAllByRole("listitem");
-    // No duplicate reason codes → each list item is distinct.
-    const texts = items.map((li) => li.textContent);
-    expect(new Set(texts).size).toBe(texts.length);
-    // Supporting facts present.
-    expect(screen.getByText("Progress")).toBeInTheDocument();
-    expect(screen.getByText("Overdue")).toBeInTheDocument();
-    expect(screen.getByText("Waiting")).toBeInTheDocument();
-  });
+    const signals = healthSignals(health);
 
-  it("gives a calm, reassuring statement when on track", () => {
-    render(<ProjectHealthPanel health={stubHealth()} />);
-    expect(screen.getByText("On track")).toBeInTheDocument();
-  });
-
-  it("presents an empty project calmly (no tasks, not 100%)", () => {
-    render(
-      <ProjectHealthPanel
-        health={stubHealth({ taskTotal: 0, taskCompleted: 0 })}
-      />,
+    expect(signals).toHaveLength(health.reasons.length);
+    // No duplicate codes, and the order is the evaluator's — presentation never
+    // re-decides which reason matters most.
+    expect(signals.map((signal) => signal.id)).toEqual(
+      health.reasons.map((reason) => reason.code),
     );
-    expect(screen.getAllByText("No tasks yet").length).toBeGreaterThan(0);
+    expect(new Set(signals.map((signal) => signal.id)).size).toBe(
+      signals.length,
+    );
+  });
+
+  it("states each reason in the same words the shared formatter uses", () => {
+    const health = stubHealth({ taskTotal: 6, taskCompleted: 1, overdueOpen: 1 });
+    const signals = healthSignals(health);
+    expect(signals.map((signal) => signal.text)).toEqual(
+      health.reasons.map((reason) => healthReasonText(reason)),
+    );
+  });
+
+  it("carries the reason's own tone, never colour alone", () => {
+    const health = stubHealth({ taskTotal: 6, taskCompleted: 1, overdueOpen: 1 });
+    for (const signal of healthSignals(health)) {
+      // Every signal has real text; the tone only tints it.
+      expect(String(signal.text).length).toBeGreaterThan(0);
+    }
+    expect(healthSignals(health).map((signal) => signal.tone)).toEqual(
+      health.reasons.map((reason) => reason.tone),
+    );
+  });
+
+  it("presents an empty project calmly (no tasks, never 0% of something real)", () => {
+    const signals = healthSignals(stubHealth({ taskTotal: 0, taskCompleted: 0 }));
+    const text = signals.map((signal) => String(signal.text)).join(" ");
+    expect(text).not.toMatch(/0%/);
   });
 });

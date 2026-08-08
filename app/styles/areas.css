@@ -70,25 +70,6 @@
 }
 
 /* AREA-02: the Goals tab's "New Goal" toolbar. */
-.dh-area-tab-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--app-space-3);
-  margin-bottom: var(--app-space-4);
-}
-
-@media (max-width: 30rem) {
-  .dh-area-tab-toolbar {
-    justify-content: stretch;
-  }
-
-  .dh-area-tab-toolbar > .dh-btn {
-    inline-size: 100%;
-    justify-content: center;
-  }
-}
-
 /* AREA-05: the archived notice on the Area record, and the Settings-tab danger
    section. The archived state is carried by text + the status pill, never colour
    alone. */

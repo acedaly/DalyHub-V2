@@ -389,10 +389,18 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(goalUrl);
 
-    // 11. The Alignment Summary panel explains WHY, with working evidence
-    // navigation to the real contributing Task via the shared Drawer.
+    /*
+     * 11. The Goal's summary explains WHY, with working evidence navigation to
+     * the real contributing Task via the shared Drawer.
+     *
+     * RECORD-01 — the alignment STATE is the summary band's chip beside the
+     * contribution meter it explains, and its reasons are the band's signal
+     * line; the evidence keeps its own section, now headed "Recent
+     * contribution" and rendered only when there IS evidence (a heading over an
+     * empty panel is chrome describing nothing).
+     */
     await expect(
-      page.getByRole("heading", { name: "Alignment", exact: true }),
+      page.getByRole("heading", { name: "Recent contribution", exact: true }),
     ).toBeVisible();
     await expect(page.getByText("Recently active")).toBeVisible();
     const taskButton = page.getByRole("button", { name: taskTitle });

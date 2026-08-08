@@ -716,7 +716,12 @@ export function TaskRecordDrawer({
         />
       }
       headingLevel={3}
-      typeLabel="Task"
+      /*
+       * RECORD-01 — no `typeLabel`. This record has no breadcrumb because it is
+       * hosted in the Drawer, whose own panel header says "Task" and "Task
+       * record" directly above the title — so the eyebrow was the third
+       * statement of the same word in the first 100px of the panel.
+       */
       icon={<EntityIcon type="task" />}
       status={status}
       summary={{

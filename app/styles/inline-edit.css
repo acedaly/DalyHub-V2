@@ -298,6 +298,25 @@
   margin-inline-start: var(--app-space-2);
 }
 
+/*
+ * RECORD-01 — an EMPTY status slot must not occupy a line.
+ *
+ * The slot is deliberately mounted at all times (see `InlineEditShell`: a live
+ * region that unmounts as it gains content announces nothing), and it is
+ * `inline-flex`. An inline-level empty element still generates a line box, so on
+ * a record heading — where the inherited `line-height` is the headline's — it
+ * silently added ~29px under every editable title in the product. Measured on
+ * the Project record: a 45px trigger inside a 74px heading, which then dragged
+ * the entity glyph and the status pill 15px below the title they sit beside.
+ *
+ * Taking it out of flow WHILE EMPTY removes the line box without unmounting it,
+ * so the live region survives and announces "Saving…" exactly as before — at
+ * which point it is no longer `:empty` and returns to normal flow.
+ */
+.dh-inline-edit__status:empty {
+  position: absolute;
+}
+
 .dh-inline-edit__pending {
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
