@@ -68,8 +68,12 @@ test.describe("TASKS-03 — the primary workspace", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Tasks" }),
     ).toBeVisible();
-    // The specialist planning views are reachable but NOT the landing surface.
+    // V2.2 removed the Eisenhower Matrix outright: no 2×2 exists anywhere, and the
+    // switcher does not offer one.
     await expect(page.locator(".dh-tasks-matrix")).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Matrix", exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole("article").first()).toBeVisible();
     // The switcher names what is on screen rather than reporting "Custom".
     await expect(page.getByTestId("tasks-view-trigger")).toContainText(
@@ -82,7 +86,6 @@ test.describe("TASKS-03 — the primary workspace", () => {
   }) => {
     await gotoFixture(page, "/tasks");
     for (const [label, marker] of [
-      ["Matrix", ".dh-tasks-matrix"],
       ["Sectors", ".dh-tasks-sectors"],
       ["Board", ".dh-tasks-board"],
       ["List", ".dh-card-collection"],
@@ -236,18 +239,29 @@ test.describe("TASKS-03 — sorting and grouping", () => {
       await expect(sections.nth(i)).not.toContainText("Nothing here.");
     }
 
-    // The Matrix keeps every quadrant, because a matrix missing one is not a matrix.
-    await gotoFixture(page, "/tasks?view=matrix");
-    for (const label of [
-      "P1 · Do",
-      "P2 · Defer",
-      "P3 · Delegate",
-      "P4 · Delete / Review",
-    ]) {
+    // Time Sectors keeps every window, because a planning board with a missing week
+    // hides the fact that nothing is planned for it.
+    await gotoFixture(page, "/tasks?view=sectors");
+    for (const label of ["No sector", "This Week", "Next Week", "Long Term"]) {
       await expect(
         page.getByRole("heading", { name: label }).first(),
       ).toBeVisible();
     }
+  });
+
+  test("a LEGACY ?view=matrix link lands calmly on the priority-grouped list", async ({
+    page,
+  }) => {
+    // TASKS-05 removed the Matrix. An old bookmark must not 404 and must not quietly
+    // lose the banding it provided — it redirects ONCE into the equivalent grouped
+    // list, and the address bar says so.
+    await gotoFixture(page, "/tasks?view=matrix");
+    await expect(page).toHaveURL(/view=list/);
+    await expect(page).toHaveURL(/group=priority/);
+    await expect(
+      page.getByRole("heading", { name: /P1 · Urgent/ }).first(),
+    ).toBeVisible();
+    await expect(page.locator(".dh-tasks-matrix")).toHaveCount(0);
   });
 
   test("sorts and reverses, keeping the order stable across reloads", async ({
@@ -415,14 +429,17 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     const card = page.getByRole("article", { name: `Open ${title}` });
     await expect(card).toBeVisible();
 
-    // Set the DUE date from the row's overflow — the long tail of quick edits
-    // lives in the ONE shared menu, not in extra buttons on every row. The rail
-    // (overflow trigger included) reveals on hover (UIQ-002).
+    // TASKS-05 — the DUE date edits IN PLACE on the row. The value is the button:
+    // an unset due date reads a quiet "No due date", and activating it opens the
+    // shared DS-16 date popover right where the value is shown. It used to be a
+    // menu item two clicks away.
     await card.hover();
-    await card
-      .getByRole("button", { name: `More actions for Open ${title}` })
-      .click();
-    await page.getByRole("menuitem", { name: "Due today" }).click();
+    await card.getByRole("button", { name: /^Due date/ }).click();
+    const duePopover = page.getByRole("dialog", { name: "Edit due date" });
+    await duePopover
+      .getByLabel("Due date", { exact: true })
+      .fill(new Date().toISOString().slice(0, 10));
+    await duePopover.getByRole("button", { name: "Save", exact: true }).click();
     await expect(card).toContainText("Due today");
 
     // Then PLAN it for today. The due date is a deadline and the planned date is
@@ -478,11 +495,14 @@ test.describe("TASKS-03 — Today integration", () => {
     );
     const again = page.getByRole("article", { name: `Open ${title}` });
     await again.hover();
-    await again
-      .getByRole("button", { name: `More actions for Open ${title}` })
+    // TASKS-05 — clearing the planned date is the inline field's own Clear command,
+    // beside the value, rather than an entry in the row's overflow menu.
+    await again.getByRole("button", { name: /^Planned date/ }).click();
+    await page
+      .getByRole("dialog", { name: "Edit planned date" })
+      .getByRole("button", { name: "Clear", exact: true })
       .click();
-    await page.getByRole("menuitem", { name: "Clear planned date" }).click();
-    await expect(again).not.toContainText(/Scheduled today|Planned/);
+    await expect(again).not.toContainText(/Scheduled today/);
   });
 
   test("choosing a DEFAULT Tasks view does not change the Today dashboard", async ({

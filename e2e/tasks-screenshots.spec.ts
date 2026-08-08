@@ -79,8 +79,8 @@ test.describe("desktop", () => {
       await shoot(page, `desktop-tasks-grouped-${scheme}`);
 
       // The retained specialist views, reachable but not the default.
-      await gotoFixture(page, "/tasks?view=matrix");
-      await shoot(page, `desktop-tasks-matrix-${scheme}`);
+      await gotoFixture(page, "/tasks?view=list&group=priority");
+      await shoot(page, `desktop-tasks-grouped-priority-${scheme}`);
       await gotoFixture(page, "/tasks?view=board&group=due_state");
       await shoot(page, `desktop-tasks-board-${scheme}`);
     }

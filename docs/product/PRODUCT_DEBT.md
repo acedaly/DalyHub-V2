@@ -743,13 +743,14 @@ authority now.)
 - **Closing condition.** A query-count assertion on `list()` (the `countedDb` harness in `test/kernel/search-projections.test.ts` already exists for exactly this) showing a constant number of statements per page.
 - **Related roadmap item.** [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) (the next Meetings slice).
 
-### ☐ DEBT-66 — A custom recurrence rule is displayed truthfully but cannot be authored or edited outside quick capture — P3
+### ☑ DEBT-66 — A custom recurrence rule is displayed truthfully but cannot be authored or edited outside quick capture — P3 — **RESOLVED 2026-08-08 (TASKS-07)**
 
 - **Current issue.** The recurrence model accepts any interval 1–99 over day/weekday/week/month/year plus weekday-pinned weekly rules, and quick capture can create them ("every 3 weeks", "every Monday"). Since V2.0.1 the quick-edit panel ([`TaskQuickEditPanel.tsx`](../../app/shared/task-record/TaskQuickEditPanel.tsx)) presents such a rule as its own labelled option (via the shared `taskRecurrenceLabel`) and re-committing it is a guaranteed no-op — the rule can no longer be misrepresented or silently flattened. But there is still no surface for AUTHORING a custom interval or weekday set: the panel's predefined list is the only editor, and the full Task record shows recurrence read-only.
 - **Impact.** An owner who wants "every 3 weeks" must phrase it at capture time; changing an existing rule to a custom interval means re-capturing.
 - **Desired future state.** A small custom-repeat editor (interval + unit + optional weekdays) on the Task record or quick-edit panel, posting to the existing `set_recurrence` route — which already validates the full model.
 - **Closing condition.** A custom interval can be set and changed from the Task record, with unit coverage mirroring `TaskQuickEditPanel.test.tsx`'s preservation cases.
-- **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence) (follow-on).
+- **Resolution (TASKS-07 / [ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode)).** The seven-option `Repeat` select was replaced by the shared [`TaskRecurrenceEditor`](../../app/shared/task-record/TaskRecurrenceEditor.tsx): presets for the ordinary choices, and **Custom…** for any interval 1–99 over days/weeks/months/years, a weekday set for a weekly schedule, the anchor date when the Task has both, and the new fixed / after-completion scheduling mode. The composed result is stated in plain language BEFORE it is saved, through the same `taskRecurrenceLabel` every read-only surface uses. The translation is pure and unit-tested (`recurrence-authoring.test.ts`), and `presetOf` is the strict inverse of `ruleForPreset`, so a custom rule is reported as Custom and never coerced to the nearest preset. Because the editor lives in `TaskQuickEditPanel`, the `/tasks` row, Review Inbox and the guided Review all gained it at once.
+- **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence) · [TASKS-07](../roadmap/ROADMAP_V2_2.md#-tasks-07--recurrence-20--delivered-2026-08-08) ☑.
 
 ### ☐ DEBT-67 — Seven curated themes is more choice than one owner needs — P3
 
@@ -1149,6 +1150,23 @@ authority now.)
 - **Related roadmap item.** DS-16 / [ADR-076](../decisions/ARCHITECTURE_DECISIONS.md) decision 10.
 
 ---
+
+### ☐ DEBT-107 — Ordinal monthly recurrence ("first Monday of every month") is not expressible — P3
+
+- **Current issue.** The typed recurrence model represents a monthly rule as an ANCHOR DAY (`anchor_day`, 1–31, with documented clamping into short months), which cannot express "the first Monday" or "the last Friday". TASKS-07 investigated adding it and deferred it deliberately ([ADR-083](../decisions/ARCHITECTURE_DECISIONS.md#adr-083-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) decision 11).
+- **Impact.** An owner whose routine genuinely is "first Monday of the month" must approximate it with a date and correct it by hand, or use a 4-week interval that drifts against the calendar. It is a real gap, and a narrow one.
+- **Why it was not built.** It needs a SECOND monthly representation (an ordinal 1–5/last plus a weekday) beside the existing one, and every consumer would have to carry both: `validateTaskRecurrenceRule`, `nextTaskOccurrenceDate`, `taskRecurrenceLabel`, `recurrence-authoring`, the editor's controls and the quick-capture grammar. Bolting it onto `anchor_day` — overloading the column, or inferring an ordinal from a stored date — is how a sound typed model turns into a generic expression engine, which is exactly what the programme's brief refused.
+- **Desired future state.** An additive `anchor_ordinal` (1–5 or `last`) + `anchor_weekday` pair on `task_recurrence_rules`, valid ONLY for `frequency = 'month'`, mutually exclusive with `anchor_day`, with the label reading "First Monday of every month" and the editor offering "on the … " beside the existing "on the 15th".
+- **Closing condition.** A rule authored as "last Friday of every month" survives a complete/reopen/complete cycle, clamps correctly in a month with four Fridays and one with five, and reads identically in the editor, on the row, in the Drawer and on Today.
+- **Related roadmap item.** [TASKS-07](../roadmap/ROADMAP_V2_2.md#-tasks-07--recurrence-20--delivered-2026-08-08) (follow-on).
+
+### ☐ DEBT-108 — Bulk operations are bounded at 100 tasks with no surface that says so — P3
+
+- **Current issue.** Every bulk mutation validates its id list through `validateTaskIdList`, which caps at `MAX_PLAN_BATCH_SIZE` (100) — deliberately, so one transaction stays small and predictable. The bulk bar's "Select all" only ever selects what is VISIBLE (one loaded page), so the cap is not reachable in ordinary use, but nothing on the surface states either fact. An owner who loads several pages and then selects everything would meet a typed validation error rather than a bound they had been told about.
+- **Impact.** Small and latent: a refusal that is correct but unexplained, on the one operation where the owner is acting on many records at once.
+- **Desired future state.** "Select all" states what it selected ("Select all 42 loaded"), and a selection at the bound says so before the action rather than after it.
+- **Closing condition.** An E2E case that accumulates more than 100 rows, selects all, and sees a stated bound rather than a rejection.
+- **Related roadmap item.** [TASKS-06](../roadmap/ROADMAP_V2_2.md#-tasks-06--bulk-management--delivered-2026-08-08) (follow-on).
 
 ## Entry template
 

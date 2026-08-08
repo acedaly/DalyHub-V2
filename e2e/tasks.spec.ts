@@ -9,7 +9,7 @@ import {
 /**
  * TASKS-01 — the first-class Tasks module, driven end to end against the
  * development-auth server over real (seeded) D1. Role-based and non-brittle: it
- * exercises the workspace-wide views (All, Matrix, Time Sectors), opens a real task
+ * exercises the workspace-wide views (All, priority-grouped, Time Sectors), opens a real task
  * in the ONE canonical shared Task Drawer, proves the P1–P4 priority label and the
  * URL-backed view/drawer state, and holds the accessibility + responsive baseline.
  * It only READS the seeded spine (`t-drawer` "Draft the proposal", priority p1), so
@@ -77,26 +77,20 @@ test.describe("TASKS-01 — desktop", () => {
     await expect(priority).toContainText("P1");
   });
 
-  test("switches to the Eisenhower Matrix and shows the four quadrants", async ({
+  test("groups the list by priority — the banded triage the Matrix used to provide", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=matrix");
-    for (const label of [
-      "P1 · Do",
-      "P2 · Defer",
-      "P3 · Delegate",
-      "P4 · Delete / Review",
-    ]) {
-      // The section heading carries a count suffix, e.g. "P1 · Do (1)".
-      await expect(
-        page.getByRole("heading", { name: label }).first(),
-      ).toBeVisible();
-    }
-    // The p1 task sits in the Do quadrant.
-    const doQuadrant = page.getByRole("region", { name: "P1 · Do" });
+    await gotoFixture(page, "/tasks?view=list&group=priority");
+    // The section heading carries a count suffix, e.g. "P1 · Urgent (1)".
     await expect(
-      doQuadrant.getByRole("link", { name: "Draft the proposal" }),
+      page.getByRole("heading", { name: /P1 · Urgent/ }).first(),
     ).toBeVisible();
+    const p1Band = page.getByRole("region", { name: "P1 · Urgent" });
+    await expect(
+      p1Band.getByRole("link", { name: "Draft the proposal" }),
+    ).toBeVisible();
+    // ONE priority vocabulary: the Eisenhower action words went with the Matrix.
+    await expect(page.getByText("Delete / Review")).toHaveCount(0);
   });
 
   test("switches to Time Sectors and shows the sector sections", async ({
@@ -136,17 +130,19 @@ test.describe("TASKS-01 — desktop", () => {
 
   test("switching the primary view updates the URL", async ({ page }) => {
     await gotoFixture(page, "/tasks?view=list&system=all");
-    await page.getByRole("link", { name: "Matrix", exact: true }).click();
-    await expect(page).toHaveURL(/view=matrix/);
+    await page.getByRole("link", { name: "Sectors", exact: true }).click();
+    await expect(page).toHaveURL(/view=sectors/);
     await expect(
-      page.getByRole("heading", { name: "P1 · Do" }).first(),
+      page.getByRole("heading", { name: /No sector/ }).first(),
     ).toBeVisible();
   });
 });
 
 test.describe("TASKS-01 — accessibility & responsive", () => {
-  test("Matrix is axe-clean in light and dark", async ({ page }) => {
-    await gotoFixture(page, "/tasks?view=matrix");
+  test("the priority-grouped list is axe-clean in light and dark", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks?view=list&group=priority");
     await expectNoAxeViolations(page);
     await page.emulateMedia({ colorScheme: "dark" });
     await expectNoAxeViolations(page);
@@ -179,7 +175,7 @@ test.describe("TASKS-01 — accessibility & responsive", () => {
       "view=list&system=all",
       "view=list&group=parent",
       "view=board&group=due_state",
-      "view=matrix",
+      "view=list&group=priority",
       "view=sectors",
       "priority=p1&due=overdue&person=Sam+Okafor",
     ]) {
@@ -195,10 +191,12 @@ test.describe("TASKS-01 — accessibility & responsive", () => {
 test.describe("TASKS-01 — mobile 375px", () => {
   test.use({ viewport: { width: 375, height: 780 } });
 
-  test("Matrix stacks into readable sections on a phone", async ({ page }) => {
-    await gotoFixture(page, "/tasks?view=matrix");
+  test("a grouped list stacks into readable sections on a phone", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks?view=list&group=priority");
     await expect(
-      page.getByRole("heading", { name: "P1 · Do" }).first(),
+      page.getByRole("heading", { name: /P1 · Urgent/ }).first(),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

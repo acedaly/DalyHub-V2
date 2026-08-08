@@ -175,9 +175,14 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
     await gotoFixture(page, INBOX);
     await expect(cardFor(page, title)).toHaveCount(0);
 
-    // And "Move to Inbox" returns it, through the same canonical mutation.
+    // TASKS-05 — and it returns to Inbox from the ROW, through the inline parent
+    // field's own "Move to Inbox" command. One selection replaces the previous value
+    // in both directions; there is no clear-then-save-then-choose sequence.
     await gotoFixture(page, LIST);
-    await chooseOverflow(page, title, "Move to Inbox");
+    const row = cardFor(page, title);
+    await row.hover();
+    await row.getByRole("button", { name: /^Project or Area/ }).click();
+    await page.getByRole("menuitem", { name: "Move to Inbox" }).click();
     await expect(
       page.locator("[role='status']").filter({ hasText: "moved to Inbox" }),
     ).toBeAttached();
@@ -279,15 +284,16 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow`);
 
-    await chooseOverflow(page, title, "Dates, sector and repeat…");
+    await chooseOverflow(page, title, "Repeat, sector and dates…");
     const drawer = page.getByRole("dialog", { name: "Quick edit" });
     await expect(drawer).toBeVisible();
 
-    const repeat = drawer.getByRole("combobox", { name: /Repeat/ });
+    // TASKS-07 — the preset path: one choice, saved immediately.
+    const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await expect(repeat).toBeVisible();
     await repeat.click();
-    await repeat.fill("Every month");
-    const monthly = drawer.getByRole("option", { name: "Every month" });
+    await repeat.fill("Monthly");
+    const monthly = drawer.getByRole("option", { name: "Monthly" });
     await expect(monthly).toBeVisible();
     await monthly.click();
     await expect(
@@ -296,6 +302,8 @@ test.describe("TASKS-04 — persisted recurrence", () => {
 
     await page.keyboard.press("Escape");
     await gotoFixture(page, LIST);
+    // The ONE shared formatter: the row's recurrence signal and the record agree.
+    await expect(cardFor(page, title)).toContainText("Every month");
     await cardFor(page, title)
       .getByRole("link", { name: `Open ${title}` })
       .click();
@@ -314,7 +322,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     // The panel is the row's quick edits on a phone too — a Task is triaged from a
     // pocket at least as often as from a desk.
     await page.setViewportSize({ width: 320, height: 720 });
-    await chooseOverflow(page, title, "Dates, sector and repeat…");
+    await chooseOverflow(page, title, "Repeat, sector and dates…");
     await expect(
       page.getByRole("dialog", { name: "Quick edit" }),
     ).toBeVisible();

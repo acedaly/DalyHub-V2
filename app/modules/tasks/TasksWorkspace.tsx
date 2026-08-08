@@ -787,9 +787,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           value: <RecurrenceChip recurrence={card.recurrence} />,
         });
       }
+      // No metadata `label` on the three inline fields: each one's own accessible
+      // name already says which field it edits ("Due date: 12 Aug"), and its empty
+      // state reads "No due date" / "Not planned" / "Unassigned" — so a visible
+      // prefix would state the field name twice on every row.
       metadata.push({
         id: "due",
-        label: "Due",
         value: (
           <InlineTaskDate
             taskId={card.id}
@@ -804,7 +807,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       });
       metadata.push({
         id: "planned",
-        label: "Planned",
         value: (
           <InlineTaskDate
             taskId={card.id}
@@ -819,7 +821,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       });
       metadata.push({
         id: "parent",
-        label: "Filed under",
         value: (
           <InlineTaskParent
             taskId={card.id}

@@ -11,7 +11,7 @@ import {
  * development-auth server over real D1. Unlike the read-only `tasks.spec.ts`, this
  * MUTATES: it creates tasks under a dedicated, isolated seed Project
  * ("Tasks journey project") via the searchable parent selector and exercises the
- * four-question planning model across the real surfaces — the Eisenhower Matrix
+ * four-question planning model across the real surfaces — the priority-grouped list
  * (server-grouped buckets + counts), the Time Sectors, Someday/Maybe, Waiting-free
  * on-hold/cancel workflow states, delegation, bulk completion and reopen — then
  * confirms Today and Projects project the SAME records. Every task it creates uses
@@ -118,6 +118,28 @@ async function runBulk(
 }
 
 /**
+ * TASKS-06 — the bulk bar's LONG TAIL sits behind "More" (the phone keeps five
+ * controls visible). Reveal it before reaching for a status, a sector, Someday or
+ * Delete.
+ */
+async function openBulkMore(page: Page): Promise<void> {
+  const bar = page.getByRole("group", { name: "Bulk task actions" });
+  await bar.getByRole("button", { name: "More", exact: true }).click();
+}
+
+/** Choose a value from one of the bulk bar's mixed-value field menus. */
+async function chooseBulk(
+  page: Page,
+  field: string,
+  option: string,
+): Promise<void> {
+  await page
+    .getByRole("group", { name: "Bulk task actions" })
+    .getByRole("combobox", { name: field })
+    .selectOption({ label: option });
+}
+
+/**
  * The journey's own working list: the complete collection, MOST RECENTLY CREATED
  * FIRST.
  *
@@ -128,6 +150,9 @@ async function runBulk(
  * journey assert on the record it actually created.
  */
 const JOURNEY_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
+
+/** The banded triage surface V2.2 kept when the Eisenhower Matrix was removed. */
+const PRIORITY_GROUPS = "/tasks?view=list&system=active&group=priority";
 
 test.describe("TASKS-01 — full journey", () => {
   /*
@@ -156,7 +181,7 @@ test.describe("TASKS-01 — full journey", () => {
    */
   test.describe.configure({ timeout: 90_000 });
 
-  test("create under a Project via the parent selector, then move across the Matrix and Sectors", async ({
+  test("create under a Project via the parent selector, then move across the priority groups and Sectors", async ({
     page,
   }) => {
     await gotoFixture(page, JOURNEY_LIST);
@@ -167,45 +192,40 @@ test.describe("TASKS-01 — full journey", () => {
       sector: "This Week",
     });
 
-    // Matrix: Alpha lands in the P1 · Do quadrant, and the quadrant heading carries
-    // a server-authoritative count (parenthesised).
-    await gotoFixture(page, "/tasks?view=matrix");
-    const doRegion = page.getByRole("region", { name: "P1 · Do" });
+    // V2.2 removed the Matrix; the priority-GROUPED list is where banded triage now
+    // happens, and it is the same server grouping with the same authoritative counts.
+    await gotoFixture(page, PRIORITY_GROUPS);
+    const p1Region = page.getByRole("region", { name: "P1 · Urgent" });
     await expect(
-      doRegion.getByRole("link", { name: "Journey task Alpha" }),
+      p1Region.getByRole("link", { name: "Journey task Alpha" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /P1 · Do \(\d+\)/ }).first(),
+      page.getByRole("heading", { name: /P1 · Urgent \(\d+\)/ }).first(),
     ).toBeVisible();
 
-    // Move P1 → P4 via a bulk action; it leaves Do and appears in Delete / Review.
+    // Move P1 → P4 via a bulk action; it leaves the P1 band and joins P4.
     await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Alpha");
-    await runBulk(page, () =>
-      page
-        .getByLabel("Set priority for selected tasks")
-        .selectOption({ label: "P4 · Low" }),
-    );
-    await gotoFixture(page, "/tasks?view=matrix");
+    await runBulk(page, () => chooseBulk(page, "Priority", "P4 · Low"));
+    await gotoFixture(page, PRIORITY_GROUPS);
     await expect(
       page
-        .getByRole("region", { name: "P4 · Delete / Review" })
+        .getByRole("region", { name: "P4 · Low" })
         .getByRole("link", { name: "Journey task Alpha" }),
     ).toBeVisible();
     await expect(
       page
-        .getByRole("region", { name: "P1 · Do" })
+        .getByRole("region", { name: "P1 · Urgent" })
         .getByRole("link", { name: "Journey task Alpha" }),
     ).toHaveCount(0);
 
     // Move This Week → Next Week via a bulk action; the Sectors view reflects it.
     await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Alpha");
-    await runBulk(page, () =>
-      page
-        .getByLabel("Move selected tasks to a sector")
-        .selectOption({ label: "Next Week" }),
-    );
+    await runBulk(page, async () => {
+      await openBulkMore(page);
+      await chooseBulk(page, "Sector", "Next Week");
+    });
     await gotoFixture(page, "/tasks?view=sectors");
     await expect(
       page
@@ -239,28 +259,37 @@ test.describe("TASKS-01 — full journey", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // Someday/Maybe via bulk → it appears in the Someday view and leaves the active
-    // Matrix scope. Then reactivate it.
+    // planning scope. Then reactivate it.
     await selectTask(page, "Journey task Bravo");
-    await runBulk(page, () =>
-      page.getByRole("button", { name: "Someday / Maybe" }).click(),
-    );
+    await runBulk(page, async () => {
+      await openBulkMore(page);
+      await page
+        .getByRole("group", { name: "Bulk task actions" })
+        .getByRole("button", { name: "Someday / Maybe" })
+        .click();
+    });
     await gotoFixture(page, "/tasks?system=someday");
     await expect(
       page.getByRole("link", { name: "Journey task Bravo" }),
     ).toBeVisible();
 
     await selectTask(page, "Journey task Bravo");
-    await runBulk(page, () =>
-      page.getByRole("button", { name: "Activate" }).click(),
-    );
+    await runBulk(page, async () => {
+      await openBulkMore(page);
+      await page
+        .getByRole("group", { name: "Bulk task actions" })
+        .getByRole("button", { name: "Make active" })
+        .click();
+    });
 
-    // On hold via bulk → excluded from the active Matrix scope (parked work).
+    // On hold via bulk → excluded from the active planning scope (parked work).
     await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Bravo");
-    await runBulk(page, () =>
-      page.getByRole("button", { name: "On hold" }).click(),
-    );
-    await gotoFixture(page, "/tasks?view=matrix");
+    await runBulk(page, async () => {
+      await openBulkMore(page);
+      await chooseBulk(page, "Status", "On hold");
+    });
+    await gotoFixture(page, PRIORITY_GROUPS);
     await expect(
       page.getByRole("link", { name: "Journey task Bravo" }),
     ).toHaveCount(0);
@@ -268,12 +297,10 @@ test.describe("TASKS-01 — full journey", () => {
     // Cancel via bulk → it surfaces in the Cancelled view.
     await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Bravo");
-    await runBulk(page, () =>
-      page
-        .getByRole("group", { name: "Bulk task actions" })
-        .getByRole("button", { name: "Cancel" })
-        .click(),
-    );
+    await runBulk(page, async () => {
+      await openBulkMore(page);
+      await chooseBulk(page, "Status", "Cancelled");
+    });
     await gotoFixture(page, "/tasks?system=cancelled");
     await expect(
       page.getByRole("link", { name: "Journey task Bravo" }),
@@ -288,7 +315,7 @@ test.describe("TASKS-01 — full journey", () => {
       priority: "P1 · Urgent",
     });
 
-    // Bulk complete → it appears in the Completed view and leaves the active Matrix.
+    // Bulk complete → it appears in the Completed view and leaves the active list.
     await selectTask(page, "Journey task Charlie");
     // Scoped to the bulk bar and matched EXACTLY: Playwright matches an
     // accessible name as a case-insensitive substring by default, and MOBILE-01
@@ -314,11 +341,11 @@ test.describe("TASKS-01 — full journey", () => {
     ).toBeVisible();
     await page.keyboard.press("Escape");
 
-    // Reopened → back in the active Matrix P1 · Do.
-    await gotoFixture(page, "/tasks?view=matrix");
+    // Reopened → back in the active P1 band.
+    await gotoFixture(page, PRIORITY_GROUPS);
     await expect(
       page
-        .getByRole("region", { name: "P1 · Do" })
+        .getByRole("region", { name: "P1 · Urgent" })
         .getByRole("link", { name: "Journey task Charlie" }),
     ).toBeVisible();
   });
@@ -356,9 +383,7 @@ test.describe("TASKS-01 — full journey", () => {
     // consistent with the seed baseline.) `runBulk` confirms the clear committed.
     await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Delta");
-    await runBulk(page, () =>
-      page.getByRole("button", { name: "Clear plan" }).click(),
-    );
+    await runBulk(page, () => chooseBulk(page, "Date", "Clear planned date"));
   });
 });
 
@@ -388,9 +413,12 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
       "view=list&system=all",
       "view=list&group=parent",
       "view=board&group=priority",
-      "view=matrix",
+      "view=list&group=priority",
       "view=sectors",
       "view=focus",
+      // V2.2 removed the Matrix. A LEGACY bookmark must still render calmly at every
+      // width — it redirects into the priority-grouped list rather than 404ing.
+      "view=matrix",
     ]) {
       for (const width of [320, 375, 390, 430, 768, 1280]) {
         await page.setViewportSize({ width, height: 800 });
@@ -400,13 +428,13 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
     }
   });
 
-  test("Matrix and Sectors are axe-clean in light and dark with real content", async ({
+  test("the grouped and Sectors views are axe-clean in light and dark with real content", async ({
     page,
   }) => {
     // Four full axe passes over the 80-task collection dataset.
     test.setTimeout(120_000);
-    for (const view of ["matrix", "sectors"]) {
-      await gotoFixture(page, `/tasks?view=${view}`);
+    for (const query of ["view=list&group=priority", "view=sectors"]) {
+      await gotoFixture(page, `/tasks?${query}`);
       await expectNoAxeViolations(page);
       await page.emulateMedia({ colorScheme: "dark" });
       await expectNoAxeViolations(page);
