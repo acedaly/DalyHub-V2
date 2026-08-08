@@ -47,18 +47,23 @@ below the tabs.
 
 Same measurement, same fixtures, same viewport.
 
-| Record | Header | Content top (before → after) |
+| Record | Header (before → after) | Content top (before → after) |
 | --- | --- | --- |
-| Project | 158 → **71** | 860 → **317** |
+| Project | 158 → **96** | 860 → **342** |
 | Area (active) | 156 → **71** | 593 → **317** |
-| Area (quiet) | 156 → **71** | 593 → **288** |
+| Area (no active work) | 156 → **71** | 593 → **317** |
 | Goal | 156 → **124** | 724 → **553** |
 | Note | 126 → **96** | 360 → **253** |
 | Meeting | 156 → **96** | 333 → **273** |
 | Person | 158 → **99** | 335 → **276** |
-| Asset | 156 → **96** | 333 → **273** |
+| Asset | 156 → **96** | 333 → **285** |
 | Review | 111 → **87** | 288 → **264** |
 | Long title | 215 → **185** | 580 → **398** |
+
+An Area's header is 71px because it now carries no context line at all; a
+Project's is 96px because it carries one (Area · Goal). The Goal's 124px is the
+inline date control's 44px touch target inside its context line — the cost of
+making the target date the editable value rather than a read-only echo of it.
 
 No horizontal overflow and no tab wrapping at 320, 390, 700, 1024, 1280 or 1440.
 
