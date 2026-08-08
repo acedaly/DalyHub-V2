@@ -910,6 +910,14 @@
 
   --app-inspector-width: 25rem;
 
+  /* REVIEW-03 — the plotted width of a bounded trend, when the chart does not
+   * set its own. `TrendBars` overrides it inline from the NUMBER of periods it
+   * is drawing (one column's worth each), so a two-period trend is a small
+   * chart and a six-period one is a wider chart, and neither is a full-bleed
+   * slab across a desktop. It is always used inside `min(100%, …)`, so the
+   * chart still yields to a phone. */
+  --app-trend-width: 24rem;
+
   /* MOBILE-01 — the phone shell's two structural insets.
    *
    * `--app-keyboard-inset` is the height of the on-screen keyboard, published by

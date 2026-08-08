@@ -22,6 +22,7 @@ import {
 } from "~/kernel/activity";
 import type { AiPreferencesRepository, AiUsageRepository } from "~/kernel/ai";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import {
   type AssetHistoryRepository,
@@ -63,6 +64,7 @@ import {
   createAiPreferencesRepository,
   createAiUsageRepository,
   createAlignmentRepository,
+  createReviewInsightRepository,
   createAppPreferencesRepository,
   createAreaRepository,
   createAssetHistoryRepository,
@@ -257,6 +259,15 @@ export interface WorkspaceScope {
    * Goal completion / Project contribution stay `goals`' authority.
    */
   readonly alignment: AlignmentRepository;
+  /**
+   * REVIEW-03 — the Review insight projection (ADR-079). Bounded aggregate reads
+   * over the append-only Activity stream and the spine (what completed in a
+   * period, where it landed, what is carrying over), plus the ONE persisted
+   * Review-period snapshot that makes "since your last Review" answerable at all.
+   * Everything derivable stays derived: Project health remains `projectHealth`'s
+   * and Goal alignment remains `alignment`'s, and neither is ever cached here.
+   */
+  readonly reviewInsights: ReviewInsightRepository;
   readonly appPreferences: AppPreferencesRepository;
   /**
    * AI-01 — the owner's NON-SECRET AI policy (enabled, provider, budgets, allowed
@@ -402,6 +413,7 @@ export function bindWorkspaceRepositories(
   // read one joined table, and one instance keeps a single actor-resolution rule.
   const members = createWorkspaceMemberRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
+  const reviewInsights = createReviewInsightRepository(env.DB, context);
   const appPreferences = createAppPreferencesRepository(env.DB, context);
   // The AI ledger is owner-scoped as well as workspace-scoped. The owner comes
   // from the trusted actor context established here, never from a request.
@@ -440,6 +452,7 @@ export function bindWorkspaceRepositories(
     members,
     actors: members,
     alignment,
+    reviewInsights,
     appPreferences,
     aiPreferences,
     aiUsage,

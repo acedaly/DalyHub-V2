@@ -59,6 +59,7 @@ import {
   loadReviewGuideStepData,
   readReviewInboxRemaining,
 } from "../guided/review-guide-context";
+import { captureSnapshotForCompletedReview } from "../insights/review-insights-context";
 import {
   REVIEW_GUIDE_STEP_PARAM,
   reviewGuidePath,
@@ -238,7 +239,14 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       if (!progress.canComplete) {
         return back("complete", "blocked");
       }
-      await scope.reviews.complete(reviewId);
+      const completed = await scope.reviews.complete(reviewId);
+      // REVIEW-03 — the same best-effort capture the record's Complete action
+      // makes. One completion contract, one snapshot rule.
+      await captureSnapshotForCompletedReview(
+        scope,
+        session.user.subject,
+        completed.review,
+      );
       return back("complete", "Review completed");
     }
 

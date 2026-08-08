@@ -201,9 +201,7 @@ describe("AreaOverview", () => {
      * a headline, an icon and a sentence to teach an action already on screen.
      */
     expect(screen.getByText("No Goals in this Area yet.")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "New Goal" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "New Goal" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
     expect(
       screen.getByText("No Projects in this Area yet."),

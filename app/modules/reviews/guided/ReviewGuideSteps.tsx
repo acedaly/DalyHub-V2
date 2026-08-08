@@ -18,6 +18,7 @@ import type {
 import { EmptyState } from "~/shared/empty-state";
 import { FormButton } from "~/shared/forms";
 import { AiWeeklyReviewSurface } from "~/shared/ai";
+import type { ReviewInsights } from "~/kernel/review-insights";
 import { AlignmentIndicator } from "~/shared/alignment";
 import { HealthIndicator } from "~/shared/project-health";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
@@ -35,12 +36,11 @@ export interface AiSurfaceAvailability {
 }
 
 import type { SerializedReview } from "../review-view";
+import { ReviewInsightsPanel } from "../insights/ReviewInsightsPanel";
 import { ReviewPromptEditor } from "./ReviewPromptEditor";
 import type {
-  BoundedCount,
   ReviewAlignmentContext,
   ReviewInboxContext,
-  ReviewPeriodFacts,
   ReviewProjectsContext,
   SerializedPriorFocus,
 } from "./review-guide-context";
@@ -55,10 +55,6 @@ import {
 /* -------------------------------------------------------------------------- */
 /* Shared bits                                                                 */
 /* -------------------------------------------------------------------------- */
-
-function countLabel(count: BoundedCount): string {
-  return count.hasMore ? `${count.value}+` : String(count.value);
-}
 
 function Unavailable({ what }: { readonly what: string }) {
   return (
@@ -75,85 +71,25 @@ function Unavailable({ what }: { readonly what: string }) {
 
 export function OverviewStep({
   review,
-  period,
+  insights,
   inboxRemaining,
 }: {
   readonly review: SerializedReview;
-  readonly period: ReviewPeriodFacts;
+  readonly insights: ReviewInsights;
   readonly inboxRemaining: number | null;
 }) {
-  const facts: ReadonlyArray<{
-    readonly id: string;
-    readonly label: string;
-    readonly value: string;
-    readonly to: string;
-  }> = [
-    {
-      id: "completed",
-      label: "Tasks completed this period",
-      value: countLabel(period.tasksCompleted),
-      to: "/tasks?system=completed",
-    },
-    {
-      id: "overdue",
-      label: "Tasks overdue or still open",
-      value: countLabel(period.tasksOverdue),
-      to: "/tasks?system=overdue",
-    },
-    {
-      id: "inbox",
-      label: "Tasks waiting in the Inbox",
-      value: inboxRemaining === null ? "Not available" : String(inboxRemaining),
-      to: "/tasks?system=inbox",
-    },
-    {
-      id: "diary",
-      label: "Diary entries",
-      value: countLabel(period.diaryEntries),
-      to: "/diary",
-    },
-    {
-      id: "meetings",
-      label: "Meetings",
-      value: countLabel(period.meetings),
-      to: "/meetings",
-    },
-    {
-      id: "projects",
-      label: "Active Projects",
-      value: countLabel(period.activeProjects),
-      to: "/projects",
-    },
-  ];
-
   return (
     <div className="dh-review-guide__stack">
-      <dl className="dh-review-guide__facts">
-        {facts.map((fact) => (
-          <div className="dh-review-guide__fact" key={fact.id}>
-            <dt>{fact.label}</dt>
-            <dd>
-              <Link className="dh-review-guide__fact-link" to={fact.to}>
-                <span className="dh-review-guide__fact-value">
-                  {fact.value}
-                </span>
-                <span className="dh-visually-hidden">
-                  {" "}
-                  — open {fact.label.toLocaleLowerCase()}
-                </span>
-              </Link>
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <ReviewInsightsPanel insights={insights} headingLevel={3} />
       <p className="dh-review-guide__note">
-        These are live counts for {review.periodLabel}, read from Tasks, Diary,
-        Meetings and Projects. A “+” means there are more than this step reads;
-        each figure links to the full list. Nothing here is stored in the
-        Review.
-      </p>
-      <p className="dh-review-guide__note">
-        Last updated {review.updatedLabel} · {review.statusLabel}
+        Evidence for {review.periodLabel}, derived from your own records.{" "}
+        {inboxRemaining === null
+          ? "The Inbox count could not be read just now."
+          : inboxRemaining === 0
+            ? "Your Inbox is clear."
+            : `${inboxRemaining} ${inboxRemaining === 1 ? "Task is" : "Tasks are"} still in the Inbox — the next step is where you file them.`}{" "}
+        Nothing here is written into the Review; what you make of it is yours to
+        write.
       </p>
     </div>
   );

@@ -582,6 +582,26 @@ export interface SnapshotReviewStepAcknowledgement {
   readonly acknowledgedAt: IsoInstant;
 }
 
+/**
+ * REVIEW-03 — one completed Review's insight snapshot.
+ *
+ * Exported because it is the ONE thing in the insight feature that cannot be
+ * recomputed: it states what a Project's health and a Goal's contribution WERE
+ * at a past Review point, and the inputs to that only describe the present.
+ * Dropping it from an archive would silently erase the owner's ability to see
+ * what changed, and no restore could rebuild it. `factsJson` is carried
+ * verbatim, versioned by the row's own `version`, so an archive written under
+ * an older shape still round-trips unchanged.
+ */
+export interface SnapshotReviewInsightSnapshot {
+  readonly reviewId: string;
+  readonly version: number;
+  readonly periodStart: string;
+  readonly periodEnd: string;
+  readonly capturedAt: IsoInstant;
+  readonly factsJson: string;
+}
+
 /* -------------------------------------------------------------------------- */
 /* The collection map                                                         */
 /* -------------------------------------------------------------------------- */
@@ -615,6 +635,7 @@ export interface SnapshotCollectionRowMap {
   readonly reviewSections: SnapshotReviewSection;
   readonly reviewWorkflowState: SnapshotReviewWorkflowState;
   readonly reviewStepAcknowledgements: SnapshotReviewStepAcknowledgement;
+  readonly reviewInsightSnapshots: SnapshotReviewInsightSnapshot;
   readonly entityLinks: SnapshotEntityLink;
   readonly activities: SnapshotActivity;
   readonly activitySubjects: SnapshotActivitySubject;
@@ -647,7 +668,11 @@ export type SnapshotCollection = keyof SnapshotCollectionRowMap;
  * or corrupt snapshot is still caught.
  */
 export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[] =
-  ["reviewWorkflowState", "reviewStepAcknowledgements"];
+  [
+    "reviewWorkflowState",
+    "reviewStepAcknowledgements",
+    "reviewInsightSnapshots",
+  ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "entities",
@@ -670,6 +695,7 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "reviewSections",
   "reviewWorkflowState",
   "reviewStepAcknowledgements",
+  "reviewInsightSnapshots",
   "entityLinks",
   "activities",
   "activitySubjects",

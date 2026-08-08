@@ -6,6 +6,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { formatPreferenceDate } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -19,6 +20,7 @@ import { EntityIcon } from "~/shared/entity";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { ReviewRecord } from "../ReviewRecord";
+import { loadReviewInsights } from "../insights/review-insights-context";
 import { loadReviewPeriodContext } from "../review-period-context";
 import { serializeReview } from "../review-view";
 import type { Route } from "./+types/detail";
@@ -34,15 +36,30 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   if (!review) throw new Response("Not Found", { status: 404 });
   const preferences = await scope.appPreferences.get(session.user.subject);
   const today = ownerCalendarIso(new Date(), preferences.timezone);
-  const periodContext = await loadReviewPeriodContext(scope, {
-    periodStart: review.periodStart,
-    periodEnd: review.periodEnd,
-    today,
-    timezone: preferences.timezone,
-  });
+  const now = new Date();
+  const [periodContext, insights] = await Promise.all([
+    loadReviewPeriodContext(scope, {
+      periodStart: review.periodStart,
+      periodEnd: review.periodEnd,
+      today,
+      timezone: preferences.timezone,
+    }),
+    // REVIEW-03 — the same evidence the guided weekly flow opens on, for EVERY
+    // Review type. A monthly or quarterly Review compares itself against the
+    // previous Review of its own type, so the horizons never get mixed.
+    loadReviewInsights(scope, {
+      review,
+      now,
+      timezone: preferences.timezone,
+      todayIso: today,
+      formatDate: (iso: string) =>
+        formatPreferenceDate(iso, preferences.dateFormat),
+    }),
+  ]);
   return {
     review: serializeReview(review, preferences.dateFormat),
     context: periodContext,
+    insights: insights.insights,
   };
 }
 
@@ -91,7 +108,11 @@ function parseTab(value: string | null): TabId {
     : "summary";
 }
 
-function ReviewDetail({ review, context }: Awaited<ReturnType<typeof loader>>) {
+function ReviewDetail({
+  review,
+  context,
+  insights,
+}: Awaited<ReturnType<typeof loader>>) {
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTabId = parseTab(searchParams.get("tab"));
@@ -114,6 +135,7 @@ function ReviewDetail({ review, context }: Awaited<ReturnType<typeof loader>>) {
     <ReviewRecord
       review={review}
       context={context}
+      insights={insights}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       onSaved={() => revalidator.revalidate()}

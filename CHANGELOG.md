@@ -17,6 +17,72 @@ no version number to group them under.
 
 ---
 
+## Your Review now shows you what actually moved (REVIEW-03)
+
+Reviews could hold what you wrote. They could not tell you whether anything was
+getting anywhere. The guided weekly Review opened on six counts — Tasks
+completed, Tasks overdue, Inbox, Diary entries, Meetings, active Projects — with
+nothing to compare any of them against, and in a quiet week three of them read
+zero. That is a dashboard measuring nothing.
+
+Every Review now opens on **evidence**: what changed, where the work contributed,
+how your Projects moved, what is still hanging over from before, and how that is
+changing over your recent Reviews. You still write the Review. DalyHub just stops
+making you remember the week from scratch.
+
+### What you see now
+
+- **What changed.** What you actually finished this period — Tasks, Projects,
+  Goals — and, when there is one, the Project that was stalled last time and is
+  moving again.
+- **Where the work contributed.** Each Goal is **Moving**, **Limited movement**,
+  **No recent movement** or **No contribution path** — always followed by the
+  reason: _"3 Tasks completed this period, across 2 contributing Projects."_ A
+  Goal that no Project advances is described as having no path to contribute
+  through, not as neglected: that is a missing connection, not a failure.
+- **How Project health moved.** _At risk → On track._ _On track → At risk._ Both
+  states named, in words. A Project is never called "improved" just because you
+  ticked off more Tasks — finishing things and being on track are different
+  facts, and DalyHub keeps them apart.
+- **What needs attention.** Commitments that were already overdue when the period
+  started and still are, work that has been waiting on someone else since before
+  it, and Projects sitting open with nothing completed — with how many of them
+  were in the same position at your last Review. Things you have deliberately
+  parked or dropped are left out of it.
+- **Where effort landed.** Which Areas received finished work, and which had
+  active work but nothing completed.
+- **Over recent Reviews.** A small chart of the last few Review periods, with the
+  numbers written out beside it — so it reads on a phone, on a printout, and to a
+  screen reader just as well as it does as bars.
+
+Everything is one click from the record behind it. If DalyHub says three Projects
+need a look, you can see which three.
+
+### What it deliberately is not
+
+- **No score.** No productivity percentage, no weekly grade, no life score, no
+  streak. Those numbers look precise and hide someone else's opinion about how
+  your week should have gone. DalyHub tells you what completed, what contributed,
+  what is stuck and what is changing — separately, so you can weigh them yourself.
+- **No AI.** Nothing here asks a model anything. Every conclusion comes from your
+  own records by a rule you can read, opening a Review costs nothing, and you can
+  always see why DalyHub said what it said.
+- **No invented comparisons.** Your first Review says it is your first Review,
+  rather than showing you a column of zeros. If something could not be read, it
+  says so instead of reporting nought.
+
+### The honest small print
+
+- **Health comparisons start now.** DalyHub records what was true at each Review
+  the moment you complete it. Reviews you completed before this update have no
+  such record, so the "since your last Review" comparisons begin with your next
+  completed Review. The trend over recent Reviews does not have that limitation —
+  it is read from history you already have.
+- **Finished work counts where it lives today.** If you move a Project to a
+  different Goal or Area later, its finished work moves with it.
+
+---
+
 ## The Today screen is a place to work, not a dashboard about work (#132)
 
 Today has been replaced. It had become a report: search took the top of the page,

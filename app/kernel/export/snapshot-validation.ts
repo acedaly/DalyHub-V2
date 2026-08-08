@@ -162,6 +162,7 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   reviewWorkflowState: (row: { reviewId: string }) => row.reviewId,
   reviewStepAcknowledgements: (row: { reviewId: string; stepId: string }) =>
     `${row.reviewId}\u0000${row.stepId}`,
+  reviewInsightSnapshots: (row: { reviewId: string }) => row.reviewId,
   entityLinks: (row: { id: string }) => row.id,
   activities: (row: { occurredAt: string; id: string }) =>
     `${row.occurredAt}\u0000${row.id}`,
@@ -486,6 +487,23 @@ export function validateWorkspaceSnapshot(
     requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
     requireNonEmptyString(c, `${path}.stepId`, row.stepId);
     requireInstant(c, `${path}.acknowledgedAt`, row.acknowledgedAt);
+    if (!entityIds.has(row.reviewId)) {
+      c.add(`${path}.reviewId`, "references a review not in this snapshot");
+    }
+  });
+
+  // REVIEW-03 — one derived-facts row per completed Review, held to the same
+  // referential rule as its sections.
+  records.reviewInsightSnapshots.forEach((row, index) => {
+    const path = `records.reviewInsightSnapshots[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.periodStart`, row.periodStart);
+    requireNonEmptyString(c, `${path}.periodEnd`, row.periodEnd);
+    requireNonEmptyString(c, `${path}.factsJson`, row.factsJson);
+    requireInstant(c, `${path}.capturedAt`, row.capturedAt);
+    if (!Number.isInteger(row.version) || row.version < 1) {
+      c.add(`${path}.version`, "must be a positive integer");
+    }
     if (!entityIds.has(row.reviewId)) {
       c.add(`${path}.reviewId`, "references a review not in this snapshot");
     }

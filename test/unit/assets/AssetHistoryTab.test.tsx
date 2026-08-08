@@ -139,7 +139,9 @@ describe("fast capture", () => {
       screen.getByRole("button", { name: "More ways to record an entry" }),
     );
     const menu = await screen.findByRole("menu");
-    fireEvent.click(within(menu).getByRole("menuitem", { name: "Update meter" }));
+    fireEvent.click(
+      within(menu).getByRole("menuitem", { name: "Update meter" }),
+    );
     expect(handlers.onQuickAction).toHaveBeenCalledWith("meter");
   });
 });

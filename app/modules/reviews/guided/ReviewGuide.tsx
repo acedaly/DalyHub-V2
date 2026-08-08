@@ -412,7 +412,7 @@ function StepBody({
       return (
         <OverviewStep
           review={review}
-          period={stepData.period}
+          insights={stepData.insights}
           inboxRemaining={inboxRemaining}
         />
       );
