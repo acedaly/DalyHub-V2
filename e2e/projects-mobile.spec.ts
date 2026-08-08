@@ -187,9 +187,10 @@ test.describe("PROJ-06 — mobile Projects", () => {
 
     await enterProjectsFromMobileShell(page);
 
-    const filter = page.getByRole("group", {
-      name: "Filter projects by state",
-    });
+    // The shared collection header names this group "Project views", as it names
+    // the Tasks one "Task layout" and the Reviews one "Review views" — one
+    // vocabulary across every collection, rather than a per-module sentence.
+    const filter = page.getByRole("group", { name: "Project views" });
     await expect(filter).toBeVisible();
     for (const label of ["All", "Open", "Completed", "Archived"]) {
       await expectMinTouchTarget(
