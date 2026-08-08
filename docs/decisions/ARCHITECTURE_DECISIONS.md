@@ -2478,6 +2478,17 @@ that existed for exactly this purpose was incremented and never compared.
 
 ## ADR-082: A nonce-based Content-Security-Policy, one header authority, and a security surface that refuses to overclaim
 
+> **The number 082 was issued twice, and both keep it.** X-02's "One saved-view
+> system, two kinds" ([below](#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract))
+> was written on a parallel branch and merged first; this one merged three hours
+> later. Found by the [9 August 2026 E2E regression audit](../product/E2E_REGRESSION_AUDIT_2026_08_09.md).
+> Neither is renumbered: both already carry cross-references from five documents
+> each, and the heading ANCHORS are distinct (they include the title), so every
+> existing link still resolves — the same reasoning
+> [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) records for the duplicated
+> DEBT-45. Cite these two by title, not by number alone. The next free ADR number
+> is **ADR-086**.
+
 **Status.** Accepted (SET-03 / AUDIT-10). Builds on [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (Cloudflare Access is the identity provider and DalyHub holds no session of its own), [ADR-015](#adr-015-markdown-rendering-and-sanitisation) (the sanitisation pipeline this policy sits behind), [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (one append-only Activity stream) and the AUDIT-FIX-04 mutation boundary. Findings: [AUDIT-10](../product/END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08) and the offline-data-after-logout finding ([DEBT-68](../product/PRODUCT_DEBT.md)).
 
 **Context.** Two gaps, in the same area, that were cheaper to close together than apart.
@@ -2508,6 +2519,10 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 - **Alternatives considered.** *Hashes instead of a nonce* — rejected: the inline content is per-request, so hashes would be per-request too, with more machinery and a worse failure mode. *`'strict-dynamic'`* — rejected for now: it would drop the `'self'` host allowance in supporting browsers for no gain in a product that loads only its own modules, and it complicates reasoning for the next reader. *Keeping the policy report-only until it had been observed in production* — rejected: AUDIT-10 is a missing *defence*, and a policy that only reports is not one. *A `report-uri` to a first-party endpoint* — rejected under the scope rule: an endpoint that accepts unauthenticated POSTs from any browser is a new surface, and nothing would read it. *Clearing all browser storage on sign-out* — rejected: it destroys unsynchronised captures, which is the one class of local data with no copy on the server. *A "sign out everywhere" button that signs out this browser and tells you to visit Cloudflare* — rejected: the label is the claim, and the label would be false. *A separate `security_events` table* — rejected: two histories that disagree is worse than one history with a small extension.
 ## ADR-082: One saved-view system, two kinds — the Tasks declarative configuration generalised into a cross-module query contract
+
+> **The number 082 was issued twice, and both keep it** — see the note on the CSP
+> ADR [above](#adr-082-a-nonce-based-content-security-policy-one-header-authority-and-a-security-surface-that-refuses-to-overclaim).
+> Cite these two by title, not by number alone.
 
 - **Status.** Accepted (2026-08-08, X-02).
 
