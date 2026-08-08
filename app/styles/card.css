@@ -442,6 +442,24 @@
     background: inherit;
     padding-inline-start: var(--app-space-2);
     border-radius: var(--md-sys-shape-corner-small);
+    /*
+     * TASKS-05 — the rail OVERLAYS the row, so it must be above the row's own
+     * content, explicitly.
+     *
+     * It used to be enough that the rail comes after the body in the DOM: with only
+     * static content beneath it, tree order decided the paint order. Putting DS-16
+     * inline fields in the metadata slot changed that — an inline field is
+     * `position: relative` so its anchored menu can hang off it, which makes it a
+     * POSITIONED box competing with the rail in the same painting step. The result
+     * was a rail that was visible but not clickable where a metadata chip happened
+     * to sit under it, which is worse than either state on its own.
+     *
+     * `raised` rather than a bare `1`: this is the shared z-index scale, and the rail
+     * is exactly what "raised above the row" means. It stays far below the dropdown
+     * layer, so an inline field's own OPEN menu still covers the rail — which is
+     * right, because at that moment the menu is what the user is using.
+     */
+    z-index: var(--app-z-raised);
   }
 }
 
