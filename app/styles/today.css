@@ -354,12 +354,13 @@
 }
 
 /* The honest remainder. It states the TRUE count and goes to the canonical
- * overdue view, which is defined by exactly the rule that put these rows here. */
-.dh-day-row--more {
-  min-block-size: auto;
-}
-
+ * overdue view, which is defined by exactly the rule that put these rows here.
+ * It keeps the row's target floor: a link is a control, and a control on a
+ * touch device is 44px whatever else it is (WCAG 2.2 §2.5.8). */
 .dh-day-row__more-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
   color: var(--md-sys-color-on-error-container);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);

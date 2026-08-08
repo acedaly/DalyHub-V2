@@ -383,13 +383,27 @@ function typical({ completedToday = 3 } = {}) {
   });
 
   // REAL activity recency, so "Continue working" has something honest to rank on.
-  activity(
-    "tf-a-1",
-    "task.completed",
-    "tf-t-done-3",
-    ownerInstant(TODAY, 9, 15),
-    ["tf-proj-today"],
-  );
+  //
+  // The subject is the COMPLETED task when the scenario has one, and the project
+  // itself when it does not (the morning scenario deliberately has nothing done
+  // yet). Naming a task the scenario never created is a foreign-key error, and
+  // pointing at one that is not there would be a lie about the workspace.
+  if (completedToday > 0) {
+    activity(
+      "tf-a-1",
+      "task.completed",
+      completions[completedToday - 1][0],
+      ownerInstant(TODAY, 9, 15),
+      ["tf-proj-today"],
+    );
+  } else {
+    activity(
+      "tf-a-1",
+      "entity.updated",
+      "tf-proj-today",
+      ownerInstant(TODAY, 9, 15),
+    );
+  }
   activity(
     "tf-a-2",
     "entity.updated",
@@ -575,20 +589,35 @@ if (scenario === "restore") {
   build();
 }
 
-execFileSync(
-  "pnpm",
-  [
-    "exec",
-    "wrangler",
-    "d1",
-    "execute",
-    "DB",
-    "--local",
-    "--command",
-    statements.join("\n"),
-  ],
-  { stdio: ["ignore", "ignore", "inherit"] },
-);
+/**
+ * One `wrangler` invocation for the whole scenario, so it lands as ONE
+ * transaction: a half-applied day is worse than no day at all.
+ *
+ * `--step` runs the statements one at a time instead, which is slow and NOT
+ * atomic — it exists only to name the offending statement when a constraint
+ * fails, because a single-command failure reports the first line and nothing
+ * more.
+ */
+function run(sql) {
+  execFileSync(
+    "pnpm",
+    ["exec", "wrangler", "d1", "execute", "DB", "--local", "--command", sql],
+    { stdio: ["ignore", "ignore", "inherit"] },
+  );
+}
+
+if (process.argv.includes("--step")) {
+  for (const statement of statements) {
+    try {
+      run(statement);
+    } catch {
+      console.error(`FAILED: ${statement}`);
+      process.exit(1);
+    }
+  }
+} else {
+  run(statements.join("\n"));
+}
 
 console.log(
   scenario === "restore"

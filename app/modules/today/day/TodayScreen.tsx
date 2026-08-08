@@ -378,7 +378,7 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
                     />
                   ))}
                   {overdue.hidden > 0 ? (
-                    <li className="dh-day-row dh-day-row--more">
+                    <li className="dh-day-row">
                       <Link
                         className="dh-day-row__more-link"
                         to="/tasks?system=overdue"
