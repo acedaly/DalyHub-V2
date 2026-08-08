@@ -82,7 +82,51 @@ existed nowhere in the application. The cap was never broken; the row was
 mislabelled. It now carries the modifier, and it is not a task row in CSS, in the
 accessibility tree, or in a count.
 
-### 3.4 Four specs pinned CSS structure that had moved
+### 3.4 Fifteen fixtures could open the database; ten could survive contention
+
+The suite drives one dev server against one local SQLite file while its fixtures
+open the same file from a separate process, so a teardown `DELETE` issued while
+the server is mid-write gets `SQLITE_BUSY`. Ten specs had noticed and carried
+their own copy of a retry loop. Five had not — and `ai-assistance.spec.ts` failed
+the baseline on exactly that: a whole AI-acceptance journey reported red because
+a cleanup statement lost a race.
+
+Whether a fixture survived contention was decided by which file it happened to
+live in. There is now ONE `e2e/d1.ts` — the retry, the transient-error rule and
+the SQL literal escape in one place — and every call site goes through it. That
+removed 659 lines of duplicated boilerplate.
+
+### 3.5 A shared section hard-coded its heading levels
+
+`LinkedItemsSection` rendered a fixed `h2` with `h3` groups. That is right on a
+record's Linked TAB, where the section is a top-level region of the record, and
+wrong anywhere nested: a Diary entry mounts it under an `h4` "Related", so the
+outline went 4 → 2 → 3 and axe reported a **real WCAG 2.2 AA `heading-order`
+failure** — on two specs, in both appearances. The section now takes a
+`headingLevel`, groups always sit one below it, and the Diary panel passes the
+level that fits under the heading it already renders.
+
+### 3.6 A concealed action rail, driven cold
+
+Two "Restore" journeys — Notes' Deleted view and People's Archived collection —
+failed with *"…intercepts pointer events"*, naming the card's title in one case
+and its `Archived` status chip in the other. The DEBT-106 census recorded that as
+"a shared-Card layering problem". It is not.
+
+On a hover-capable pointer a card's action rail is `opacity: 0` **and**
+`pointer-events: none` until the pointer arrives over the card (UIQ-002) —
+deliberately, so a click in a row's empty trailing space cannot fire an unseen
+action. Playwright's visibility check ignores `opacity`, so the button reports
+"visible, enabled and stable", and the hit test at its centre then returns
+whatever sits under the transparent rail. Which element gets named is an
+accident of layout, which is why the two failures looked like different bugs.
+
+The V2.2 Tasks programme diagnosed this once already and fixed it with a local
+helper. That helper is now `clickCardAction` in the shared helpers, with the
+reasoning attached, so the next spec to meet it does not diagnose it a third
+time.
+
+### 3.7 Four specs pinned CSS structure that had moved
 
 `.dh-health-panel` (replaced by the shared record summary band), `.dh-card` inside
 Today's *My day* (replaced by plain rows), `.dh-topbar__utility` `.first()` (which
