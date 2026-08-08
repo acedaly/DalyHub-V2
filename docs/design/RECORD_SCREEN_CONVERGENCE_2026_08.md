@@ -145,6 +145,12 @@ skipped under that rule.
 
 ## Evidence
 
+> **Reading the pairs.** The before set was captured at this branch's base
+> (`bd6e283`); the after set was re-captured once `main`'s Today rewrite was
+> merged in, which replaced the desktop top bar's wide search field with a search
+> icon. That difference in the top bar belongs to that change, not to this one —
+> everything below the breadcrumb is what this PR did.
+
 Before/after pairs are captured by
 [`e2e/record-convergence-screenshots.spec.ts`](../../e2e/record-convergence-screenshots.spec.ts)
 (opt-in: `CAPTURE_SCREENSHOTS=1 SHOT_STAGE=before|after`) into
