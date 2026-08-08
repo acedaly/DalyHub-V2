@@ -394,6 +394,9 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
       "Every Monday, Thursday",
     );
     await drawer.getByRole("button", { name: "Save repeat" }).click();
+    await expect(
+      page.locator("[role='status']").filter({ hasText: /repeats/i }),
+    ).toBeAttached();
 
     await page.keyboard.press("Escape");
     await gotoFixture(page, LIST);
