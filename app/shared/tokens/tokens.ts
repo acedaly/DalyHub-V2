@@ -142,6 +142,7 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "app-shell-navigation-width",
     "app-nav-row-height",
     "app-inspector-width",
+    "app-trend-width",
     "app-page-padding",
     "app-page-padding-desktop",
     "app-page-padding-tablet",

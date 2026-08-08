@@ -12,3 +12,8 @@
  */
 
 export { ProgressRing, type ProgressRingProps } from "./ProgressRing";
+export {
+  TrendBars,
+  type TrendBarsProps,
+  type TrendBarPoint,
+} from "./TrendBars";

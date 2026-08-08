@@ -29,6 +29,12 @@ import { ReviewGuide } from "~/modules/reviews/guided/ReviewGuide";
 import type { ReviewGuideStepData } from "~/modules/reviews/guided/review-guide-context";
 import { serializeReview } from "~/modules/reviews/review-view";
 
+import {
+  areaFact,
+  buildInsights,
+  projectFact,
+} from "../../support/review-insights";
+
 const SECTION_IDS = [
   "summary.overall",
   "summary.highlights",
@@ -81,14 +87,11 @@ function facts(
 
 const PERIOD_STEP_DATA: ReviewGuideStepData = {
   kind: "period",
-  period: {
-    tasksCompleted: { value: 12, hasMore: false },
-    tasksOverdue: { value: 3, hasMore: false },
-    diaryEntries: { value: 2, hasMore: false },
-    meetings: { value: 1, hasMore: false },
-    activeProjects: { value: 4, hasMore: true },
-    goalsWithRecentProgress: null,
-  },
+  insights: buildInsights({
+    tasksCompleted: 12,
+    projects: [projectFact({ tasksCompletedInPeriod: 12 })],
+    areas: [areaFact({ tasksCompletedInPeriod: 12 })],
+  }),
 };
 
 function renderGuide(options: {
@@ -209,9 +212,12 @@ describe("the guided weekly Review shell", () => {
     expect(screen.getByRole("link", { name: "Save and exit" })).toBeTruthy();
   });
 
-  it("states a bounded count honestly rather than silently truncating", () => {
+  it("opens on evidence rather than a grid of unanchored counts", () => {
     renderGuide({ stepId: "overview", stepData: PERIOD_STEP_DATA });
-    expect(screen.getByText("4+")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "What changed" }),
+    ).toBeTruthy();
+    expect(screen.getByText("12 Tasks completed")).toBeTruthy();
   });
 });
 

@@ -42,7 +42,10 @@ import {
   type Review,
   type WeeklyReviewStepId,
 } from "~/kernel/reviews";
+import type { ReviewInsights } from "~/kernel/review-insights";
 import type { WorkspaceScope } from "~/platform/workspaces";
+
+import { loadReviewInsights } from "../insights/review-insights-context";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
@@ -95,7 +98,12 @@ export const REVIEW_GUIDE_LIMITS = {
 export const REVIEW_GUIDE_QUERY_BUDGET: Readonly<
   Record<WeeklyReviewStepId, number>
 > = {
-  overview: 9,
+  // REVIEW-03 replaced the settle-in fact grid with the Review's evidence, so
+  // this step now pays for the insight projection (its own asserted budget,
+  // `REVIEW_INSIGHTS_QUERY_BUDGET`) plus the shared Inbox aggregate every step
+  // pays. It buys a comparison against the previous Review and a bounded trend,
+  // where the six numbers it replaced could be compared against nothing.
+  overview: 15,
   inbox: 2,
   projects: 8,
   alignment: 6,
@@ -107,24 +115,6 @@ export const REVIEW_GUIDE_QUERY_BUDGET: Readonly<
 /* -------------------------------------------------------------------------- */
 /* Serialised shapes                                                           */
 /* -------------------------------------------------------------------------- */
-
-/** A bounded count that knows whether it is exact. */
-export interface BoundedCount {
-  /** How many were actually read (never more than the bound). */
-  readonly value: number;
-  /** True when more exist beyond the bound — so the UI can say "20+". */
-  readonly hasMore: boolean;
-}
-
-export interface ReviewPeriodFacts {
-  readonly tasksCompleted: BoundedCount;
-  readonly tasksOverdue: BoundedCount;
-  readonly diaryEntries: BoundedCount;
-  readonly meetings: BoundedCount;
-  readonly activeProjects: BoundedCount;
-  /** Goals whose alignment is worth a look, when the alignment read is cheap. */
-  readonly goalsWithRecentProgress: number | null;
-}
 
 export interface ReviewInboxContext {
   readonly tasks: readonly SerializedTaskListItem[];
@@ -227,7 +217,7 @@ export interface SerializedPriorFocus {
  * read a projection its step never asked for.
  */
 export type ReviewGuideStepData =
-  | { readonly kind: "period"; readonly period: ReviewPeriodFacts }
+  | { readonly kind: "period"; readonly insights: ReviewInsights }
   | { readonly kind: "inbox"; readonly inbox: ReviewInboxContext }
   | { readonly kind: "projects"; readonly projects: ReviewProjectsContext }
   | { readonly kind: "alignment"; readonly alignment: ReviewAlignmentContext }
@@ -250,10 +240,6 @@ export interface ReviewGuideContext {
 
 function inPeriod(iso: string, start: string, end: string): boolean {
   return iso >= start && iso <= end;
-}
-
-function bounded(count: number, limit: number): BoundedCount {
-  return { value: Math.min(count, limit), hasMore: count > limit };
 }
 
 const PROJECT_STATUS_LABELS: Readonly<Record<string, string>> = {
@@ -338,7 +324,26 @@ export async function loadReviewGuideStepData(
   const step = weeklyReviewStep(input.stepId);
   switch (step.context) {
     case "period":
-      return { kind: "period", period: await readPeriodFacts(scope, input) };
+      /*
+       * REVIEW-03 — the first step is the Review's EVIDENCE, not a grid of
+       * counts. It used to show six live numbers (completed, overdue, Inbox,
+       * Diary, Meetings, active Projects) with nothing to compare them against,
+       * which is exactly the "dashboard measuring nothing" this feature exists
+       * to replace. The counts that survived are the ones an insight is built
+       * from; the rest are one link away where they always were.
+       */
+      return {
+        kind: "period",
+        insights: (
+          await loadReviewInsights(scope, {
+            review: input.review,
+            now: input.now,
+            timezone: input.timezone,
+            todayIso: input.todayIso,
+            formatDate: input.formatDate,
+          })
+        ).insights,
+      };
     case "inbox":
       return {
         kind: "inbox",
@@ -396,93 +401,6 @@ async function readInboxRemaining(
     return grouping.groups.reduce((total, group) => total + group.count, 0);
   } catch {
     return null;
-  }
-}
-
-async function readPeriodFacts(
-  scope: WorkspaceScope,
-  input: ReviewGuideContextInput,
-): Promise<ReviewPeriodFacts> {
-  const limit = REVIEW_GUIDE_LIMITS.periodRecords;
-  const { review, timezone, todayIso } = input;
-  try {
-    const [
-      completed,
-      overdue,
-      diary,
-      recentMeetings,
-      upcomingMeetings,
-      projects,
-    ] = await Promise.all([
-      scope.tasks.listWorkspaceTasks({ view: "completed", limit, todayIso }),
-      scope.tasks.listWorkspaceTasks({ view: "overdue", limit, todayIso }),
-      scope.diary.list({ order: "newest", limit }),
-      scope.meetings.list({ view: "recent", limit }),
-      scope.meetings.list({ view: "upcoming", limit }),
-      scope.projects.listProjects({
-        state: "open",
-        workflowStatus: "active",
-        limit: REVIEW_GUIDE_LIMITS.projects,
-      }),
-    ]);
-
-    const completedInPeriod = completed.items.filter(
-      (task) =>
-        task.completedAt !== null &&
-        inPeriod(
-          ownerCalendarIso(task.completedAt, timezone),
-          review.periodStart,
-          review.periodEnd,
-        ),
-    ).length;
-
-    const diaryInPeriod = diary.items.filter((entry) =>
-      inPeriod(
-        ownerCalendarIso(entry.occurredAt, timezone),
-        review.periodStart,
-        review.periodEnd,
-      ),
-    ).length;
-
-    const meetingIds = new Set<string>();
-    let meetingsInPeriod = 0;
-    for (const meeting of [
-      ...recentMeetings.items,
-      ...upcomingMeetings.items,
-    ]) {
-      if (meetingIds.has(meeting.id)) continue;
-      meetingIds.add(meeting.id);
-      if (
-        inPeriod(
-          ownerCalendarIso(meeting.startsAt, timezone),
-          review.periodStart,
-          review.periodEnd,
-        )
-      ) {
-        meetingsInPeriod += 1;
-      }
-    }
-
-    return {
-      tasksCompleted: bounded(completedInPeriod, limit),
-      tasksOverdue: bounded(overdue.items.length, limit),
-      diaryEntries: bounded(diaryInPeriod, limit),
-      meetings: bounded(meetingsInPeriod, limit),
-      activeProjects: bounded(
-        projects.items.length,
-        REVIEW_GUIDE_LIMITS.projects,
-      ),
-      goalsWithRecentProgress: null,
-    };
-  } catch {
-    return {
-      tasksCompleted: { value: 0, hasMore: false },
-      tasksOverdue: { value: 0, hasMore: false },
-      diaryEntries: { value: 0, hasMore: false },
-      meetings: { value: 0, hasMore: false },
-      activeProjects: { value: 0, hasMore: false },
-      goalsWithRecentProgress: null,
-    };
   }
 }
 

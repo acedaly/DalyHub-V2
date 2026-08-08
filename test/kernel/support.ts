@@ -22,6 +22,7 @@ import {
   createPersonRepository,
   createProjectHealthRepository,
   createRelationshipRepository,
+  createReviewInsightRepository,
   createProjectRepository,
   createProjectSettingsRepository,
   createReviewRepository,
@@ -395,6 +396,15 @@ export function makeRelationshipRepository(context: WorkspaceContext) {
 }
 
 /**
+ * Construct a workspace-scoped D1-backed ReviewInsightRepository over the
+ * isolated test database (REVIEW-03: the bounded period aggregates and the one
+ * persisted Review-period snapshot, bound to a `WorkspaceContext`).
+ */
+export function makeReviewInsightRepository(context: WorkspaceContext) {
+  return createReviewInsightRepository(env.DB, context);
+}
+
+/**
  * Construct a workspace-scoped D1-backed TaskViewRepository over the isolated
  * test database (TASKS-03: persisted saved Tasks views, bound to a
  * `WorkspaceContext` AND, per call, to an authenticated owner).
@@ -639,8 +649,9 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM asset_events").run();
   await env.DB.prepare("DELETE FROM asset_obligations").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
-  // REVIEW-02 guided-flow children cascade from review_details; clear them
+  // REVIEW-02/REVIEW-03 Review children cascade from review_details; clear them
   // explicitly so a reset never leaves an orphan behind a partial delete.
+  await env.DB.prepare("DELETE FROM review_insight_snapshots").run();
   await env.DB.prepare("DELETE FROM review_step_acknowledgements").run();
   await env.DB.prepare("DELETE FROM review_workflow_state").run();
   await env.DB.prepare("DELETE FROM review_sections").run();

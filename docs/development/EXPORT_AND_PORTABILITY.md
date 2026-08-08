@@ -98,7 +98,7 @@ from it: an entry is a permanent statement about files already on disk. This is
 deliberately not a schema-version bump — the shape only ever grows, and the
 `dalyhub.workspace/1` archives owners already hold keep validating.
 
-`reviewWorkflowState` and `reviewStepAcknowledgements` are the first two entries.
+`reviewWorkflowState` and `reviewStepAcknowledgements` were the first two entries.
 They carry a guided weekly Review's **resume bookmark** and the owner's
 **explicit "I have reviewed this step" decisions**. The acknowledgements are the
 reason this matters rather than a nicety: they record intent that no calculation
@@ -106,6 +106,18 @@ can reproduce, and they gate whether the guided flow will complete a Review
 ([ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state)).
 Everything else the guided flow shows is derived and is deliberately **not**
 exported, because it is recomputed from the records that are.
+
+`reviewInsightSnapshots` is the third entry (REVIEW-03). It carries the derived
+facts a **completed** Review captured — per-Project health state, per-Goal
+contribution, the carrying-over commitment ids and the period's totals — as
+`factsJson` verbatim under the row's own `version`, so an archive written under
+an older shape round-trips unchanged. It is exported for the same reason the
+acknowledgements are: it is the one insight artefact a restore **cannot rebuild**.
+Everything else the Review evidence shows is either recomputed from the records
+in the archive or derived from the exported Activity stream, and is deliberately
+not stored here. Dropping this row would silently erase the owner's ability to
+see what changed between Reviews, with nothing able to reconstruct it
+([ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)).
 
 ### Conventions
 
