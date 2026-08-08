@@ -58,15 +58,35 @@ function cardFor(page: Page, title: string) {
   return page.getByRole("article", { name: `Open ${title}` });
 }
 
+/**
+ * Click one of a row's quick actions, the way a person reaches them.
+ *
+ * On a hover-capable pointer the action rail is CONCEALED at rest and overlays the
+ * row's trailing edge when revealed (UIQ-002, `card.css`) — so a real click is
+ * always preceded by the pointer arriving over the row. Hovering first is not a
+ * test workaround: driving the rail without it exercises a state no person can
+ * reach, and the row now carries real controls beneath the rail's footprint, which
+ * is exactly what the concealed rail is `pointer-events: none` for.
+ *
+ * The upward wheel is for the narrow viewport: the sticky mobile header covers the
+ * top of the scroll container, and a row scrolled flush to the top of the viewport
+ * sits under it.
+ */
+async function rowAction(page: Page, title: string, name: string | RegExp) {
+  const card = cardFor(page, title).first();
+  await card.scrollIntoViewIfNeeded();
+  await page.mouse.wheel(0, -160);
+  await card.hover();
+  await card.getByRole("button", { name }).click();
+}
+
 /** Open a card's overflow menu and choose one item. */
 async function chooseOverflow(
   page: Page,
   title: string,
   item: string | RegExp,
 ) {
-  await cardFor(page, title)
-    .getByRole("button", { name: new RegExp(`^More actions for `) })
-    .click();
+  await rowAction(page, title, new RegExp(`^More actions for `));
   await page.getByRole("menuitem", { name: item }).click();
 }
 
@@ -179,9 +199,7 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
     // field's own "Move to Inbox" command. One selection replaces the previous value
     // in both directions; there is no clear-then-save-then-choose sequence.
     await gotoFixture(page, LIST);
-    const row = cardFor(page, title);
-    await row.hover();
-    await row.getByRole("button", { name: /^Project or Area/ }).click();
+    await rowAction(page, title, /^Project or Area/);
     await page.getByRole("menuitem", { name: "Move to Inbox" }).click();
     await expect(
       page.locator("[role='status']").filter({ hasText: "moved to Inbox" }),
@@ -230,9 +248,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await page.keyboard.press("Escape");
 
     // Completing the occurrence creates exactly ONE successor, and says so.
-    await cardFor(page, title)
-      .getByRole("button", { name: `Complete ${title}` })
-      .click();
+    await rowAction(page, title, `Complete ${title}`);
     await expect(
       page.locator("[role='status']").filter({ hasText: /next occurrence/i }),
     ).toBeAttached();
@@ -252,18 +268,13 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow every day`);
 
-    await cardFor(page, title)
-      .getByRole("button", { name: `Complete ${title}` })
-      .click();
+    await rowAction(page, title, `Complete ${title}`);
     await expect(
       page.locator("[role='status']").filter({ hasText: /next occurrence/i }),
     ).toBeAttached();
 
     await gotoFixture(page, "/tasks?view=list&system=completed&sort=updated");
-    await cardFor(page, title)
-      .first()
-      .getByRole("button", { name: `Reopen ${title}` })
-      .click();
+    await rowAction(page, title, `Reopen ${title}`);
     await expect(
       page.locator("[role='status']").filter({ hasText: /withdrawn/i }),
     ).toBeAttached();
