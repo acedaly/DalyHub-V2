@@ -28,6 +28,19 @@ function tooltip(page: Page): Locator {
 }
 
 /**
+ * The top bar's Command palette control — the tooltip's reference trigger.
+ *
+ * Located by its accessible NAME rather than by "the first `.dh-topbar__utility`":
+ * the utilities cluster grows and reorders (the Today redesign moved search into
+ * it as an icon, ahead of the palette), and a positional locator silently starts
+ * asserting about whichever control happens to be first. The name is the thing
+ * these tests are actually about.
+ */
+function paletteControl(page: Page): Locator {
+  return page.getByRole("button", { name: "Command palette" });
+}
+
+/**
  * Hover a control and wait for ITS tooltip — the one `aria-describedby` points
  * at — to settle.
  *
@@ -82,7 +95,7 @@ test.describe("the shared tooltip", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    const palette = page.locator(".dh-topbar__utility").first();
+    const palette = paletteControl(page);
 
     await expect(tooltip(page)).toHaveCount(0);
     await hover(palette);
@@ -96,7 +109,7 @@ test.describe("the shared tooltip", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    const palette = page.locator(".dh-topbar__utility").first();
+    const palette = paletteControl(page);
 
     // Focus arrives by keyboard, so the browser reports `:focus-visible` and the
     // tooltip is shown. This is the whole point of replacing `title`.
@@ -109,7 +122,7 @@ test.describe("the shared tooltip", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    const palette = page.locator(".dh-topbar__utility").first();
+    const palette = paletteControl(page);
     await hover(palette);
 
     const id = await tooltip(page).getAttribute("id");
@@ -128,7 +141,7 @@ test.describe("the shared tooltip", () => {
 
   test("dismisses on Escape without disturbing focus", async ({ page }) => {
     await gotoFixture(page, "/today");
-    const palette = page.locator(".dh-topbar__utility").first();
+    const palette = paletteControl(page);
     await focusByKeyboard(page, palette);
     await expect(tooltip(page)).toBeVisible();
 
@@ -164,7 +177,7 @@ test.describe("the shared tooltip", () => {
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       await gotoFixture(page, "/today");
-      const palette = page.locator(".dh-topbar__utility").first();
+      const palette = paletteControl(page);
       await hover(palette);
       const background = await tooltip(page).evaluate(
         (node: HTMLElement) => getComputedStyle(node).backgroundColor,

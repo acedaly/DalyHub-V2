@@ -130,13 +130,16 @@ test.describe("the global capture control", () => {
 });
 
 test.describe("removed duplicates — the page header no longer repeats capture", () => {
-  test("Today has no pane-header Quick capture button", async ({ page }) => {
+  test("Today offers no capture control of its own", async ({ page }) => {
     await gotoFixture(page, "/today");
+    // The pane-header button went in the shell cleanup; the Quick Capture WIDGET
+    // it used to focus went with the Today redesign. The global control is the
+    // only capture affordance on this screen — one entry, not three.
     await expect(
       page.getByRole("button", { name: "Quick capture", exact: true }),
     ).toHaveCount(0);
-    // The widget it used to focus is untouched, and still offers all four types.
-    await expect(page.getByTestId("today-capture-task")).toBeVisible();
+    await expect(page.getByTestId("today-capture-task")).toHaveCount(0);
+    await expect(page.locator("button.dh-fab")).toBeVisible();
   });
 
   test("Tasks has no header New task, and keeps Review Inbox", async ({
@@ -185,7 +188,11 @@ test.describe("removed duplicates — the page header no longer repeats capture"
 
   test("the removed headers stay balanced at 320px", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    for (const path of ["/today", "/tasks", "/notes", "/meetings"]) {
+    // Today is not in this list any more: it has no pane header at all. Its
+    // greeting IS the page heading (the Today redesign), so there is no header
+    // for a removed action to leave a gap in — its own 320px balance is asserted
+    // in `today.spec.ts`.
+    for (const path of ["/tasks", "/notes", "/meetings"]) {
       await gotoFixture(page, path);
       await expect(paneHeader(page)).toBeVisible();
       await expectNoHorizontalOverflow(page);

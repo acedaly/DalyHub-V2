@@ -376,13 +376,17 @@ test.describe("larger windows — the floating button stays, and covers nothing"
     const checkbox = page.getByRole("checkbox", { name: /^Select / }).first();
     await checkbox.check();
 
-    const bulkBar = page.getByRole("group", { name: /1 selected/ });
+    const bulkBar = page.getByRole("group", { name: "Bulk task actions" });
     await expect(bulkBar).toBeVisible();
+    await expect(bulkBar).toContainText("1 selected");
     await expect(fab(page)).toBeHidden();
 
-    // The click the button used to intercept.
-    await bulkBar.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("group", { name: /selected/ })).toHaveCount(0);
+    // The click the button used to intercept. It is "Clear selection", not
+    // "Cancel": the Tasks bar's Cancel is a LIFECYCLE action that cancels the
+    // selected tasks, and clicking it here would prove nothing about the
+    // floating button while quietly mutating the seeded workspace.
+    await bulkBar.getByRole("button", { name: "Clear selection" }).click();
+    await expect(bulkBar).toHaveCount(0);
     await expect(fab(page)).toBeVisible();
   });
 });

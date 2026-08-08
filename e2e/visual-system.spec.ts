@@ -136,12 +136,15 @@ test.describe("visual system — surface hierarchy", () => {
   }) => {
     // Measured on a real CARD surface. Today's own columns are deliberately
     // shadowless tonal regions (pinned above), so the elevation contract is
-    // asserted where the product genuinely uses a card.
+    // asserted where the product genuinely uses a card: the entity card a
+    // collection draws in its grid presentation. The plain `.dh-card` survives
+    // only as a collection ROW now, and a row is explicitly NOT a card plane —
+    // that half of the contract is asserted at the end of this test.
     await page.setViewportSize({ width: 1440, height: 900 });
     await gotoFixture(page, "/projects");
 
     const widgetStyle = await page
-      .locator(".dh-card")
+      .locator(".dh-ecard")
       .first()
       .evaluate((element) => {
         const style = getComputedStyle(element);
@@ -157,12 +160,11 @@ test.describe("visual system — surface hierarchy", () => {
         };
       });
 
-    // ADR-074 replaced the bordered-card model this test used to pin. An M3
-    // card separates itself from the page by its own PLANE plus elevation, not
-    // by a hairline outline, so `border: none` here is the design, not a
-    // regression — the assertion is inverted rather than deleted so the border
-    // cannot quietly come back.
-    expect(widgetStyle.borderStyle).toBe("none");
+    // The card's own shape and elevation. The hairline is kept deliberately —
+    // an entity card is a target as well as a surface, and its edge has to
+    // survive a light scheme where the card plane and the page plane are close
+    // enough that shadow alone is a weak boundary.
+    expect(widgetStyle.borderStyle).toBe("solid");
     expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(15);
     expect(widgetStyle.boxShadow).not.toBe("none");
 
@@ -178,7 +180,7 @@ test.describe("visual system — surface hierarchy", () => {
     // shadow, which is exactly what M3 prescribes.
     expect(widgetStyle.card).not.toBe(widgetStyle.page);
 
-    await gotoFixture(page, "/tasks");
+    await gotoFixture(page, "/tasks?system=all");
     const rowShadow = await page
       .locator(".dh-card-collection--list .dh-card")
       .first()

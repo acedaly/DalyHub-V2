@@ -106,34 +106,28 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await expect(palette(page)).toHaveCount(0);
   });
 
-  test("focuses Today Quick Capture via the Focus Quick Capture command", async ({
+  test("Today contributes no capture command — the global + is the entry", async ({
     page,
   }) => {
-    // PX-03 regression: `/` now redirects to `/today`, so Today is already
-    // mounted by the time the palette opens here (previously it wasn't — the
-    // old Home page mounted no Today command at all). Today used to ALSO
-    // register a contextual run action under the exact same visible title,
-    // which — activated from inside the still-open, background-`inert`
-    // palette — silently failed to focus anything (see
-    // docs/development/COMMAND_PALETTE.md "Contextual actions"). That
-    // duplicate is removed (TodayDashboard.tsx); this asserts by the
-    // user-visible title that there is now exactly ONE "Focus Quick Capture"
-    // result, and that activating it genuinely focuses Quick Capture.
+    /*
+     * "Focus Quick Capture" is gone.
+     *
+     * It navigated to `/today?capture=1` to scroll to and focus a Quick Capture
+     * WIDGET on the dashboard; the Today redesign removed that widget, because
+     * capture belongs to the ONE global control and a screen should not offer a
+     * second entry to it. Asserting its ABSENCE keeps this meaningful — it would
+     * fail again if a duplicate capture command ever came back.
+     *
+     * Nothing was lost from the palette: each module still contributes its own
+     * create/capture command, proven by the Capture Diary case further down.
+     */
     await page.goto("/");
     const input = await openPalette(page);
     await input.fill("Focus Quick Capture");
-    const matches = option(page, /^Focus Quick Capture/);
-    await expect(matches).toHaveCount(1);
-    await expect(matches.first()).toBeVisible();
-    await input.press("Enter");
-    await expect(page).toHaveURL(/\/today/);
-    // TODAY-07 replaced the fixture textarea with the shared capture entries, so
-    // the command's focus target is now the FIRST of those entries. The contract
-    // the test protects is unchanged: the palette command lands keyboard focus on
-    // Quick Capture rather than merely navigating to Today.
-    await expect(page.getByTestId("today-capture-task")).toBeFocused();
-    // The capture intent is cleaned from the URL (no Back-button trap).
-    await expect(page).toHaveURL(/\/today$/);
+    await expect(option(page, /Focus Quick Capture/)).toHaveCount(0);
+
+    await input.fill("Go to Today");
+    await expect(option(page, /Go to Today/).first()).toBeVisible();
   });
 
   test("opens a DS-08 record result in the real Drawer", async ({ page }) => {
@@ -177,17 +171,17 @@ test.describe("DS-09 Command Palette — desktop", () => {
      * computed in the test, so the owner's calendar day comes from the product.
      */
     await page.goto("/today");
-    // Scope to the My day widget region so the task card is unambiguous — the
-    // Recent Activity feed (TODAY-08) also mentions the task by title elsewhere.
-    const card = page
-      .getByRole("region", { name: "My day" })
-      .locator(".dh-card", { hasText: COMPLETE_TITLE });
+    // The day column is the only place on this screen that lists tasks, so the
+    // row is unambiguous without scoping past a second mention of the title.
+    const row = page
+      .locator(".dh-today__timeline .dh-day-row")
+      .filter({ hasText: COMPLETE_TITLE });
 
     // Plan it only if it is not already on the page: the dev database is shared,
     // so an unconditional write is an Activity row that pushes the seeded events
     // off the first page of the workspace feed (which `activity-actor.spec.ts`
     // reads). A normaliser should be a no-op when the state is already correct.
-    if ((await card.count()) === 0) {
+    if ((await row.count()) === 0) {
       await page.goto("/today?drawer=task%3At-complete");
       const planning = page
         .getByRole("dialog")
@@ -200,9 +194,10 @@ test.describe("DS-09 Command Palette — desktop", () => {
       ).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toBeHidden();
+      await page.goto("/today");
     }
 
-    await expect(card).toBeVisible();
+    await expect(row.first()).toBeVisible();
   }
 
   test("runs a contextual action bound to an open task Drawer", async ({
@@ -231,31 +226,32 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await expect(page.getByText(/task completed/i).first()).toBeVisible();
   });
 
-  test("activates the same shared action through its Card control", async ({
+  test("activates the same shared action through the row's own control", async ({
     page,
   }) => {
     await ensureOpen(page);
-    // The card's Complete quick action IS the shared toggle action. Completing a
-    // task persists it, and it moves to the collapsed "Completed today" section
-    // (TODAY-04) — proving the shared action ran and persisted from the Card.
-    // Scope the card to the My day widget region (the Recent Activity feed also
-    // mentions this task by title, TODAY-08), then complete it via its Card control.
-    const myDay = page.getByRole("region", { name: "My day" });
-    const card = myDay.locator(".dh-card", { hasText: COMPLETE_TITLE });
-    // UIQ-002 — on a fine pointer the row's action rail reveals on hover and is
-    // pointer-inert while concealed; pointing at the row precedes the click.
-    await card.hover();
-    await card.getByRole("button", { name: "Complete" }).click();
+    // The row's checkbox drives the SAME completion path the palette's contextual
+    // action and the task Drawer use. Completing from the row persists it and the
+    // row stays in place, struck through — proving the shared path ran from the
+    // day rather than from a bespoke Today-only handler.
+    const row = page
+      .locator(".dh-today__timeline .dh-day-row")
+      .filter({ hasText: COMPLETE_TITLE })
+      .first();
+    await row
+      .getByRole("checkbox", { name: `Complete ${COMPLETE_TITLE}` })
+      .check();
 
-    // Expand the "Completed today" planning section — a labelled landmark region,
-    // semantically distinct from the Insights widget's "Completed today" signal
-    // (which is not a region), so no ordinal/`.first()` disambiguation is needed.
-    const completedSection = page.getByRole("region", {
-      name: /Completed today/,
-    });
-    await completedSection.getByText(/Completed today/).click();
-    const completed = page.getByRole("list", { name: "Tasks completed today" });
-    await expect(completed.getByText(COMPLETE_TITLE)).toBeVisible();
+    await expect(
+      row.getByRole("checkbox", { name: `Reopen ${COMPLETE_TITLE}` }),
+    ).toBeChecked();
+    await expect(row).toHaveAttribute("data-done", "true");
+
+    // And the same record reads as complete when reopened from its own drawer.
+    await page.goto("/today?drawer=task%3At-complete");
+    await expect(
+      page.getByRole("dialog").getByRole("checkbox").first(),
+    ).toBeChecked();
   });
 
   test("closes on Escape and restores focus to the trigger", async ({

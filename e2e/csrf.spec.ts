@@ -166,7 +166,10 @@ test.describe("AUDIT-FIX-04 — a cross-origin mutation is refused", () => {
     // and a normal same-origin submission still mutates.
     await page.goto(`${DEV_ORIGIN}/today`);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Good (morning|afternoon|evening)/,
+      }),
     ).toBeVisible();
 
     const completed = await postSameOrigin(
