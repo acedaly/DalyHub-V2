@@ -277,6 +277,7 @@ async function loadProjects(
 async function loadGoalsAtRisk(
   scope: WorkspaceScope,
   now: Date,
+  timezone: string,
 ): Promise<
   readonly {
     readonly id: string;
@@ -285,7 +286,7 @@ async function loadGoalsAtRisk(
   }[]
 > {
   const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-    createOwnerAlignmentContext(now);
+    createOwnerAlignmentContext(now, timezone);
   const page = await scope.goals.listGoalsByAlignment({
     activeBoundaryIso: recentBoundaryStartIso,
   });
@@ -363,7 +364,7 @@ export async function loadTodayDay(
       oldestDays: null,
     }),
     safely(() => loadProjects(scope, now, todayIso, timezone), []),
-    safely(() => loadGoalsAtRisk(scope, now), []),
+    safely(() => loadGoalsAtRisk(scope, now, timezone), []),
   ]);
 
   return {

@@ -22,6 +22,7 @@ import {
   isPersisted,
   reduceAutosave,
   type AutosaveAction,
+  type AutosaveSaveResult,
   type AutosaveState,
 } from "./autosave";
 import { valuesEqual, type IsEqual } from "./dirty";
@@ -55,8 +56,17 @@ export interface UseAutosaveFieldOptions<TValue> {
    * Persist the value. Reject (throw) to signal failure — the message shown is
    * `errorMessage`, never the raw exception. The signal is aborted if the hook
    * unmounts or the save is superseded.
+   *
+   * Resolve with `{ outcome: "conflict" }` to report that the SERVER refused the
+   * write because the value changed elsewhere (AUDIT-08): the draft is kept, the
+   * status returns to `unsaved`, and the caller is expected to feed the newer
+   * server value in through `serverValue` so it is offered rather than applied.
+   * Resolving with nothing means success, exactly as before.
    */
-  readonly onSave: (value: TValue, signal: AbortSignal) => Promise<void>;
+  readonly onSave: (
+    value: TValue,
+    signal: AbortSignal,
+  ) => Promise<AutosaveSaveResult>;
   /** Synchronous validation; an invalid value is never saved. */
   readonly validate?: Validator<TValue>;
   /** Debounce after the last valid edit. `0` disables debounce (blur-only). */
@@ -175,8 +185,12 @@ export function useAutosaveField<TValue>(
         const controller = new AbortController();
         abortRef.current = controller;
         onSaveRef.current(value, controller.signal).then(
-          () => {
+          (result) => {
             if (!mountedRef.current) return;
+            if (result && result.outcome === "conflict") {
+              dispatch({ type: "conflicted", seq });
+              return;
+            }
             dispatch({ type: "resolved", seq });
           },
           () => {

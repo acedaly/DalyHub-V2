@@ -37,7 +37,10 @@ import { recentBoundaryStartIso } from "./window";
  * the display all agree on the same "today" (mirrors
  * `createOwnerHealthContext` exactly).
  */
-export function createOwnerAlignmentContext(now: Date): {
+export function createOwnerAlignmentContext(
+  now: Date,
+  timeZone: string,
+): {
   readonly evaluation: AlignmentEvaluationContext;
   /** Approximate UTC-midnight lower bound for the SUPPORTING recent-count fact
    * (ADR-040 §40.4 — a few hours of slack never flips a state). */
@@ -46,15 +49,15 @@ export function createOwnerAlignmentContext(now: Date): {
    * the repository ranking so its order agrees with the evaluator (DEBT-23). */
   readonly recentBoundaryStartIso: string;
 } {
-  const todayIso = ownerCalendarIso(now);
+  const todayIso = ownerCalendarIso(now, timeZone);
   return {
     evaluation: {
       now,
       todayIso,
-      calendarIsoOf: (instant) => ownerCalendarIso(instant),
+      calendarIsoOf: (instant) => ownerCalendarIso(instant, timeZone),
     },
     recentWindowStartIso: recentWindowStartIso(todayIso),
-    recentBoundaryStartIso: recentBoundaryStartIso(todayIso),
+    recentBoundaryStartIso: recentBoundaryStartIso(todayIso, timeZone),
   };
 }
 
@@ -154,14 +157,17 @@ export function serializeGoalAlignmentEvidence(
  * itself used — never a raw ISO timestamp in the UI. The occurred instant is
  * converted through the SAME `ownerCalendarIso` helper the evaluator's
  * `calendarIsoOf` uses (never a raw UTC slice): near UTC midnight, the
- * owner's Sydney calendar date can differ from the UTC date, and using the
- * UTC date here would disagree with the alignment state's own "how long
- * ago" reasoning by a day. */
+ * owner's calendar date can differ from the UTC date, and using the UTC date
+ * here would disagree with the alignment state's own "how long ago" reasoning
+ * by a day. AUDIT-14 — `timeZone` is the owner's stored zone, handed down from
+ * the loader that built `todayIso`, so the label and the state read the same
+ * calendar. */
 export function evidenceDateLabel(
   occurredAtIso: string,
   todayIso: string,
+  timeZone: string,
 ): string {
-  const occurredDate = ownerCalendarIso(new Date(occurredAtIso));
+  const occurredDate = ownerCalendarIso(new Date(occurredAtIso), timeZone);
   const days = Math.max(0, daysBetweenIsoDates(occurredDate, todayIso));
   const formatted = formatCalendarDate(occurredDate) ?? occurredDate;
   if (days === 0) {

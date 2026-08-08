@@ -127,6 +127,33 @@ const field = useAutosaveField<string>({
 
 **It is opt-in.** Omit `serverValue` and behaviour is exactly as before: `initialValue` seeds the draft once and the hook owns it. Adopt the contract per field, as each field's workflow needs it.
 
+### When the SERVER refuses the save (AUDIT-08)
+
+The contract above only fires when the caller NOTICES the server-side change and feeds it in. Two tabs left open on one record need not revalidate before one of them saves, so the server is the backstop: a field whose write carries a base-version precondition can be refused outright. That is a third outcome, and `onSave` reports it as one:
+
+```tsx
+onSave: async (value, signal) => {
+  const result = await post(value, signal);      // throw to fail
+  if (result.conflict) {
+    setServerValue(result.serverContent);        // fed back in as `serverValue`
+    return { outcome: "conflict" };              // NOT a success, NOT an error
+  }
+},
+```
+
+| Outcome | What the coordinator does |
+| --- | --- |
+| resolve with nothing | The sent value is committed. Unchanged. |
+| **resolve with `{ outcome: "conflict" }`** | **Nothing is committed.** The draft stays exactly as typed, the status returns to `unsaved` (never `error` — nothing malfunctioned, so there is nothing useful to retry), and the newer server value arrives through `serverValue` and is parked for the same banner. |
+| reject | The save failed. `error` status, draft preserved, Retry offered. Unchanged. |
+
+Two rules the caller owns, and both matter:
+
+- **Hold the quoted base version until the owner answers the banner.** Advancing it on the refusal makes the very next save — a stray blur, the debounce — succeed silently, which is the overwrite the precondition exists to stop. Advance it on `adoptRemote` / `dismissRemote`.
+- **Do not save while a change is parked.** Such a save is certain to be refused, and it disables the banner's own buttons for the round trip, right as the owner reaches for them. `NoteContentForm` suppresses its blur-save while `remoteValue !== null`.
+
+Worked example: [`NoteContentForm.tsx`](../../app/modules/notes/NoteContentForm.tsx).
+
 ## Dates
 
 `DateField kind="date"` stores the literal ISO `YYYY-MM-DD` — validated/compared as integers, never routed through `Date`, so it cannot shift by timezone. `kind="datetime"` stores an ISO-8601 **UTC** instant; the control edits the UTC wall-clock explicitly (labelled). Use the model's `validateDateOnly` / `validateDateTimeLocal` as field validators. A zone-less wall-clock time is deliberately not a field type.

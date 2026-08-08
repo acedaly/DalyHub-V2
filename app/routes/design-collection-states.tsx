@@ -51,7 +51,14 @@ export function meta() {
  * screenshots would disagree with each other for no reason anyone could see.
  */
 const FIXTURE_NOW = new Date("2026-07-30T09:00:00.000Z");
-const FIXTURE_HEALTH_CTX = createOwnerHealthContext(FIXTURE_NOW);
+/** A fixed zone as well as a fixed instant: the capture must be reproducible
+ * regardless of who is signed in, so this deliberately does NOT read the owner's
+ * preference (AUDIT-14 — the one place naming a zone is a documented fixture). */
+const FIXTURE_TIME_ZONE = "Australia/Sydney";
+const FIXTURE_HEALTH_CTX = createOwnerHealthContext(
+  FIXTURE_NOW,
+  FIXTURE_TIME_ZONE,
+);
 
 function health(taskTotal: number, taskCompleted: number, completed = false) {
   return evaluateProjectHealth(

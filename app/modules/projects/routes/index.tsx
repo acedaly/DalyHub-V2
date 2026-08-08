@@ -80,7 +80,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     // Derive health for the WHOLE bounded page in one facts gather (no N+1), then
     // evaluate each with the SAME owner-calendar clock the facts used.
-    const healthContext = createOwnerHealthContext(new Date());
+    // AUDIT-14 — the OWNER's day, from the one scope-level authority, so this
+    // collection's health agrees with every Project and Task record it links to.
+    const healthContext = createOwnerHealthContext(
+      new Date(),
+      await scope.ownerTimeZone(),
+    );
     const factsById = await scope.projectHealth.listProjectHealthFacts(
       page.items.map((item) => item.id),
       healthContext.todayIso,

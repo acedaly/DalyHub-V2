@@ -100,6 +100,7 @@ export {
   type UseAutosaveFieldOptions,
   type UseAutosaveFieldResult,
 } from "./use-autosave-field";
+export type { AutosaveSaveResult } from "./autosave";
 export {
   useUnsavedChangesPrompt,
   type UnsavedChangesPrompt,

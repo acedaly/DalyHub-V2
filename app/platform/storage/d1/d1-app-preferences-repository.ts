@@ -1,3 +1,25 @@
+/**
+ * Owner application preferences — D1 adapter.
+ *
+ * AUDIT-07 — this write is a PATCH, not a snapshot replacement.
+ *
+ * It used to read the whole record, merge the caller's fields into that read
+ * and upsert EVERY column from the merged snapshot. `version` was bumped but
+ * never compared, so two devices saving different settings from reads of the
+ * same version each wrote the other's field back to its stale value, and both
+ * calls reported success. Now the statement writes ONLY the columns the patch
+ * names, so two independent settings merge instead of colliding — the same
+ * shape `updateTask` already uses — and a caller whose new value is DERIVED
+ * from the old one can quote `expectedVersion` to make the write a genuine
+ * compare-and-set (`AppPreferencesConflictError` when it has moved on).
+ *
+ * The version precondition and the change predicate both live INSIDE the one
+ * statement, evaluated at commit, so nothing can be written between a check and
+ * the write. The pre-read exists only to answer "does this patch change
+ * anything?" cheaply and to report the current record for an unchanged write;
+ * storage, not that read, is the authority.
+ */
+
 import {
   DEFAULT_APP_PREFERENCES,
   type AppPreferencePatch,
@@ -5,8 +27,10 @@ import {
   type AppPreferences,
   type AppPreferencesChangeResult,
   type AppPreferencesRepository,
+  type UpdateAppPreferencesOptions,
 } from "~/kernel/preferences";
 import {
+  AppPreferencesConflictError,
   AppPreferencesStorageError,
   normaliseStoredPreferences,
   validateAppPreferencesPatch,
@@ -89,18 +113,55 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
   async update(
     ownerId: string,
     patch: AppPreferencePatch,
+    options: UpdateAppPreferencesOptions = {},
   ): Promise<AppPreferencesChangeResult> {
     const owner = validateOwnerId(ownerId);
     const safePatch = validateAppPreferencesPatch(patch);
+    const expectedVersion = options.expectedVersion;
     const current = await this.get(owner);
+
     const next = { ...current, ...safePatch };
     if (preferencesEqual(current, next)) {
+      // The stored values already say what this patch asks for. Nothing can be
+      // lost by agreeing, so a stale version is NOT a conflict here — reporting
+      // one would send a caller to resolve a disagreement that does not exist.
       return { preferences: current, changed: false };
+    }
+
+    // A quoted version that is already out of date cannot become current, so
+    // refuse before writing anything. The SQL guard below is still the
+    // authority — this only spares the round trip in the common case.
+    if (expectedVersion !== undefined && current.version !== expectedVersion) {
+      throw new AppPreferencesConflictError();
     }
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
-    const navigationConfig = JSON.stringify(next.navigation);
+
+    // The columns this patch actually names. Everything else is left exactly as
+    // stored, so a concurrent write to another setting survives this one.
+    const touched = PATCH_COLUMNS.filter(
+      (column) => safePatch[column.key] !== undefined,
+    );
+    if (touched.length === 0) {
+      return { preferences: current, changed: false };
+    }
+    const assignments = touched
+      .map((column) => `${column.column} = excluded.${column.column}`)
+      .join(",\n               ");
+    // `IS NOT` is SQLite's null-safe inequality, so clearing a nullable setting
+    // (or setting one that was null) still counts as a change.
+    const changePredicate = touched
+      .map(
+        (column) =>
+          `owner_app_preferences.${column.column} IS NOT excluded.${column.column}`,
+      )
+      .join(" OR ");
+    const versionGuard =
+      expectedVersion === undefined
+        ? ""
+        : ` AND owner_app_preferences.version = ?`;
+    const versionBinds = expectedVersion === undefined ? [] : [expectedVersion];
 
     try {
       const statements = [
@@ -117,20 +178,10 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
              )
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
              ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
-               appearance = excluded.appearance,
-               timezone = excluded.timezone,
-               date_format = excluded.date_format,
-               first_day_of_week = excluded.first_day_of_week,
-               default_landing_destination = excluded.default_landing_destination,
-               default_tasks_view = excluded.default_tasks_view,
-               default_task_destination = excluded.default_task_destination,
-               default_task_view_id = excluded.default_task_view_id,
-               default_task_capture_parent_id = excluded.default_task_capture_parent_id,
-               default_task_capture_parent_kind = excluded.default_task_capture_parent_kind,
-               default_diary_mode = excluded.default_diary_mode,
-               navigation_config = excluded.navigation_config,
+               ${assignments},
                version = owner_app_preferences.version + 1,
                updated_at = excluded.updated_at
+             WHERE (${changePredicate})${versionGuard}
              RETURNING *`,
           )
           .bind(
@@ -147,9 +198,10 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
             next.defaultTaskCaptureParentId,
             next.defaultTaskCaptureParentKind,
             next.defaultDiaryMode,
-            navigationConfig,
+            JSON.stringify(next.navigation),
             nowTs,
             nowTs,
+            ...versionBinds,
           ),
       ];
       if (this.#fault === "after-write") {
@@ -159,11 +211,23 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
       }
       const [result] = await this.#db.batch<AppPreferencesRow>(statements);
       const row = result.results[0];
-      if (!row) throw new Error("Preference write returned no row.");
-      return { preferences: this.#record(row), changed: true };
+      if (row) return { preferences: this.#record(row), changed: true };
     } catch (error) {
       throw new AppPreferencesStorageError({ cause: error });
     }
+
+    // Nothing was written. Either the row already holds exactly these values (a
+    // genuine no-op that raced our pre-read) or the quoted version has moved on
+    // — which must never be reported as a save.
+    const refreshed = await this.get(owner);
+    if (
+      expectedVersion !== undefined &&
+      refreshed.version !== expectedVersion &&
+      !preferencesEqual(refreshed, { ...refreshed, ...safePatch })
+    ) {
+      throw new AppPreferencesConflictError();
+    }
+    return { preferences: refreshed, changed: false };
   }
 
   #record(row: AppPreferencesRow): AppPreferenceRecord {
@@ -192,6 +256,38 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
     };
   }
 }
+
+/**
+ * The patch key → stored column map. It exists so `update` can write exactly
+ * the columns a patch names; every entry must stay in step with the INSERT
+ * column list above, which supplies the first-row values for ALL of them.
+ */
+const PATCH_COLUMNS: readonly {
+  readonly key: keyof AppPreferencePatch;
+  readonly column: string;
+}[] = [
+  { key: "appearance", column: "appearance" },
+  { key: "timezone", column: "timezone" },
+  { key: "dateFormat", column: "date_format" },
+  { key: "firstDayOfWeek", column: "first_day_of_week" },
+  {
+    key: "defaultLandingDestination",
+    column: "default_landing_destination",
+  },
+  { key: "defaultTasksView", column: "default_tasks_view" },
+  { key: "defaultTaskDestination", column: "default_task_destination" },
+  { key: "defaultTaskViewId", column: "default_task_view_id" },
+  {
+    key: "defaultTaskCaptureParentId",
+    column: "default_task_capture_parent_id",
+  },
+  {
+    key: "defaultTaskCaptureParentKind",
+    column: "default_task_capture_parent_kind",
+  },
+  { key: "defaultDiaryMode", column: "default_diary_mode" },
+  { key: "navigation", column: "navigation_config" },
+];
 
 function safeJson(value: string): unknown {
   try {

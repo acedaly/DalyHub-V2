@@ -63,8 +63,13 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
+  // AUDIT-14 — the owner's day, from the one scope-level authority. The zone
+  // travels with `todayIso` to the client so the evidence labels below are
+  // computed in the SAME calendar the alignment state was evaluated in.
+  const timeZone = await scope.ownerTimeZone();
   const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
     new Date(),
+    timeZone,
   );
 
   const [details, contribution, projectPage, activityFacts, evidencePage] =
@@ -94,6 +99,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     projects: projectPage.items.map(serializeGoalProjectItem),
     projectsNextCursor: projectPage.nextCursor,
     todayIso: evaluation.todayIso,
+    timeZone,
     alignment,
     alignmentEvidence: evidencePage.items.map(serializeGoalAlignmentEvidence),
     alignmentEvidenceHasMore: evidencePage.hasMore,
@@ -316,6 +322,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
       todayIso={props.todayIso}
+      timeZone={props.timeZone}
       alignment={props.alignment}
       alignmentEvidence={props.alignmentEvidence}
       alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}

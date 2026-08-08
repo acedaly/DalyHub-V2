@@ -45,6 +45,15 @@
  * and stops asking. A "keep mine" that later saves IS last-write-wins — but a
  * deliberate one the user asked for, which is a different thing from a silent one.
  *
+ * ## Server-detected conflicts (AUDIT-08)
+ *
+ * The contract above depends on the caller NOTICING the server-side change and
+ * feeding it in. When the caller cannot (nothing revalidated between load and
+ * save), the server itself refuses the write, and the `conflicted` action lands
+ * that outcome here: the draft stays exactly as it is, the status returns to
+ * `unsaved` rather than `error`, and the newer value is then offered through the
+ * same parked-`remote` path — one reconciliation UI, not two.
+ *
  * Deliberately NOT built: automatic Markdown merging. There is no deterministic
  * safe merge for prose, and a wrong merge corrupts content in a way neither
  * version does. An honest banner beats a clever guess.
@@ -82,6 +91,20 @@ export interface AutosaveState<TValue> {
   readonly remote: TValue | null;
 }
 
+/**
+ * What a persistence callback may report beyond "it worked" (resolve) and "it
+ * failed" (reject).
+ *
+ * `{ outcome: "conflict" }` says the SERVER refused the write because the value
+ * had changed since this editor loaded it (AUDIT-08). It is neither of the other
+ * two: nothing was persisted, so reporting success would lie about where the
+ * user's text is, and nothing malfunctioned, so reporting an error would send
+ * them to retry a save that will be refused again for the same good reason.
+ * Returning nothing keeps the original two-outcome contract, so every existing
+ * caller is unchanged.
+ */
+export type AutosaveSaveResult = void | { readonly outcome: "conflict" };
+
 /** A request from the reducer to the hook to run the persistence callback. */
 export type AutosaveEffect<TValue> = {
   readonly type: "save";
@@ -109,6 +132,13 @@ export type AutosaveAction<TValue> =
       readonly seq: number;
       readonly message: string;
     }
+  /**
+   * The in-flight save with `seq` was REFUSED by the server because the value
+   * changed elsewhere (AUDIT-08). Not a failure and not a success: nothing was
+   * written, the draft is intact, and the newer server value should be offered
+   * through the same reconciliation banner an out-of-band change uses.
+   */
+  | { readonly type: "conflicted"; readonly seq: number }
   /** The user asked to retry after a failure. */
   | { readonly type: "retry" }
   /** The server's value for this field is now `value` (see the contract above). */
@@ -235,6 +265,23 @@ export function reduceAutosave<TValue>(
         inFlightSeq: null,
         inFlightValue: null,
         error: action.message,
+      });
+    }
+
+    case "conflicted": {
+      if (action.seq !== state.inFlightSeq) return noEffect(state);
+      // The server refused the write, so `committed` is still what it was and
+      // `current` is still the user's draft — the two now genuinely disagree,
+      // which is exactly what `unsaved` means. Reporting `error` instead would
+      // say "something went wrong"; nothing did, and the caller has a specific
+      // thing to show. The newer server value arrives separately as `external`
+      // and is parked for the user to decide on.
+      return noEffect({
+        ...state,
+        status: "unsaved",
+        inFlightSeq: null,
+        inFlightValue: null,
+        error: null,
       });
     }
 
