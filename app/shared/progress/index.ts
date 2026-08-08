@@ -6,3 +6,8 @@
  */
 
 export { ProgressMeter, type ProgressMeterProps } from "./ProgressMeter";
+export {
+  ProgressTrack,
+  normaliseProgressPercent,
+  type ProgressTrackProps,
+} from "./ProgressTrack";

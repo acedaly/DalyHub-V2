@@ -44,17 +44,27 @@ async function box(locator: Locator) {
   return b;
 }
 
-/** The first My-day task row on Today (seeded tasks make one always present). */
+/**
+ * The first task row in the Tasks collection.
+ *
+ * This contract used to be measured on Today, whose task list was a DS-04 Card
+ * collection. The Today redesign replaced that list with plain rows — there is
+ * no hover-revealed action rail on the day any more — so the rule is measured
+ * where the Card collection actually lives. The rule is unchanged and is a
+ * SHARED Card contract, not a Today one.
+ */
 function firstRow(page: Page) {
-  return page.locator(".dh-today__tasklist .dh-card--list").first();
+  return page.locator(".dh-card-collection--list .dh-card--list").first();
 }
 
-test.describe("UIQ — task-row hover contract (Today)", () => {
+const ROW_SURFACE = "/tasks?system=all";
+
+test.describe("UIQ — task-row hover contract (Tasks)", () => {
   test("at rest the row owns its width and concealed actions are truly absent", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await gotoFixture(page, "/today");
+    await gotoFixture(page, ROW_SURFACE);
 
     const row = firstRow(page);
     await expect(row).toBeVisible();
@@ -83,7 +93,9 @@ test.describe("UIQ — task-row hover contract (Today)", () => {
     // Nothing interactive hides in the trailing zone at rest: the topmost
     // element under the old rail position is not a button.
     const hit = await page.evaluate(() => {
-      const card = document.querySelector(".dh-today__tasklist .dh-card--list");
+      const card = document.querySelector(
+        ".dh-card-collection--list .dh-card--list",
+      );
       if (!card) return "no-card";
       const r = card.getBoundingClientRect();
       const el = document.elementFromPoint(r.right - 40, r.top + r.height / 2);
@@ -96,7 +108,7 @@ test.describe("UIQ — task-row hover contract (Today)", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await gotoFixture(page, "/today");
+    await gotoFixture(page, ROW_SURFACE);
 
     const row = firstRow(page);
     await expect(row).toBeVisible();
@@ -132,7 +144,7 @@ test.describe("UIQ — task-row hover contract (Today)", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await gotoFixture(page, "/today");
+    await gotoFixture(page, ROW_SURFACE);
 
     const row = firstRow(page);
     await row.locator(".dh-card__open").first().focus();

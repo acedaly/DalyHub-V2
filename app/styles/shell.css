@@ -547,76 +547,32 @@
     var(--md-app-color-outline-hairline);
 }
 
-/* Search takes the space; the utilities take what they need. `min-width: 0` is
- * what lets the field actually shrink instead of forcing the bar wider than the
- * viewport at narrow desktop widths. */
-.dh-topbar__search {
-  flex: 1 1 var(--app-search-width);
-  min-inline-size: 0;
-  max-inline-size: var(--app-search-width);
-}
-
 /*
- * The M3 search bar: a fully-rounded tonal field with a leading glyph, a
- * placeholder and a trailing shortcut hint. No resting outline — it is separated
- * from the app bar by tone, which is why it uses the `card-subtle` rung rather
- * than a border.
+ * The bar carries the application's utilities and nothing else.
  *
- * It is a BUTTON, not an input, because it opens the DS-08 Search surface rather
- * than filtering in place; the surface owns the real field. That is unchanged
- * from the sidebar entry it replaces.
+ * There is no search FIELD here any more. A 56px pill spanning the start of the
+ * content region was the largest object on every screen in a product with one
+ * user, and it pushed each page's own content down by a whole band. Search is now
+ * an icon in the utility cluster with the same accessible name and the same `/`
+ * shortcut, so the bar is a row of controls at the trailing edge and the page
+ * beneath it starts at the top of the pane.
+ *
+ * `role="search"` still wraps the control (it is the shell's only search
+ * landmark), and the wrapper is display-contents so the button participates
+ * directly in the cluster's flex row rather than sitting in a box of its own.
  */
-.dh-topbar__search-entry {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  inline-size: 100%;
-  min-inline-size: var(--app-search-width-min);
-  min-block-size: var(--app-search-height);
-  padding-inline: var(--app-space-4);
-  border: none;
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card-subtle);
-  color: var(--md-sys-color-on-surface-variant);
-  font: inherit;
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
-  text-align: start;
-  cursor: pointer;
-}
-
-.dh-topbar__search-icon {
-  display: inline-flex;
-  flex: none;
-  font-size: 1.25rem;
-  line-height: 0;
-}
-
-.dh-topbar__search-label {
-  flex: 1;
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dh-topbar__search-hint {
-  flex: none;
-  font-family: var(--md-ref-typeface-mono);
-  font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-app-color-surface-sunken);
-  padding: 0 var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-extra-small);
-}
-
 .dh-topbar__utilities {
   display: flex;
   align-items: center;
   gap: var(--app-space-1);
   margin-inline-start: auto;
   flex: none;
+}
+
+/* The `role="search"` wrapper is a landmark, not a box: it must not introduce a
+ * flex item between the cluster and its buttons. */
+.dh-topbar__utilities > [role="search"] {
+  display: contents;
 }
 
 /* An icon-only utility: 40px of visual control inside a 44px target, so the bar

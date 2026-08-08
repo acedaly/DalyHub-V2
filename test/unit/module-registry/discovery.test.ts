@@ -526,7 +526,6 @@ describe("module discovery", () => {
       // four modules that registered none: Areas, Goals, Projects and Diary.
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
-        "today.focus_quick_capture",
         "today.open_waiting",
         // V2.0.1 navigation commands, in module order (Areas 10 → Goals 20 →
         // Projects 30) ahead of Tasks at 40. Goals contributes NO create

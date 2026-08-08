@@ -234,7 +234,10 @@ async function goOnline(context: BrowserContext): Promise<void> {
 async function primeOfflineSession(page: Page): Promise<void> {
   await page.goto("/today");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Today" }),
+    page.getByRole("heading", {
+      level: 1,
+      name: /^Good (morning|afternoon|evening)/,
+    }),
   ).toBeVisible();
   await waitForServiceWorker(page);
   await waitForSnapshot(page);
@@ -699,7 +702,10 @@ test.describe("offline lifecycle", () => {
     // Server data is untouched: DalyHub still loads and re-primes.
     await page.goto("/today");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Good (morning|afternoon|evening)/,
+      }),
     ).toBeVisible();
     await waitForSnapshot(page);
   });

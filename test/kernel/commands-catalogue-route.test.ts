@@ -59,7 +59,7 @@ describe("GET /commands catalogue route", () => {
 
     const ids = catalogue?.commands.map((c) => c.id) ?? [];
     expect(ids).toContain("today.open");
-    expect(ids).toContain("today.focus_quick_capture");
+    expect(ids).toContain("today.open_waiting");
 
     // No serialised entry may carry a handler.
     const serialised = JSON.stringify(raw);

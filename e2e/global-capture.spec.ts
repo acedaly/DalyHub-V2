@@ -362,22 +362,27 @@ test.describe("larger windows — the floating button stays, and covers nothing"
     // its trailing Cancel lands in the button's corner. The suppression rule
     // PR #121 added still holds — it simply matters at these widths now rather
     // than on a phone, where there is no floating button to suppress.
+    //
+    // Driven against `/tasks` rather than `/today`: the Today redesign replaced
+    // the dashboard's multi-select collection with plain rows, so the Tasks
+    // collection is where a bulk selection now lives. The rule under test — a
+    // live selection hides the floating button so it cannot eat the bar's
+    // trailing control — is unchanged, and is a SHARED CollectionLayout
+    // behaviour rather than a Today one.
     await page.setViewportSize(EXPANDED);
-    await gotoFixture(page, "/today");
+    await gotoFixture(page, "/tasks?system=all");
     await expect(fab(page)).toBeVisible();
 
     const checkbox = page.getByRole("checkbox", { name: /^Select / }).first();
     await checkbox.check();
 
-    const bulkBar = page.getByRole("group", { name: /Plan 1 selected task/ });
+    const bulkBar = page.getByRole("group", { name: /1 selected/ });
     await expect(bulkBar).toBeVisible();
     await expect(fab(page)).toBeHidden();
 
     // The click the button used to intercept.
     await bulkBar.getByRole("button", { name: "Cancel" }).click();
-    await expect(
-      page.getByRole("group", { name: /Plan .* selected/ }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("group", { name: /selected/ })).toHaveCount(0);
     await expect(fab(page)).toBeVisible();
   });
 });

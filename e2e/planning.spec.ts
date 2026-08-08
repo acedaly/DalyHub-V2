@@ -44,12 +44,12 @@ test.describe("TODAY-04 — Planning", () => {
     // The read display leaves "Not planned" once the plan is saved.
     await expect(planning.getByText("Not planned")).toHaveCount(0);
 
-    // Close the Drawer; the task now appears in the Today planning section.
+    // Close the Drawer; the task is now on the day. Planning for today is one
+    // of the two ways a task lands there — the other is a due date of today.
     await page.keyboard.press("Escape");
-    const todayList = page.getByRole("list", {
-      name: "Tasks planned for today",
-    });
-    await expect(todayList.getByText(TITLE)).toBeVisible();
+    await expect(
+      page.locator(".dh-today__timeline .dh-day-row", { hasText: TITLE }),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 
@@ -72,7 +72,10 @@ test.describe("TODAY-04 — Planning", () => {
   test("holds the accessibility and responsive baseline", async ({ page }) => {
     await gotoFixture(page, "/today");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Good (morning|afternoon|evening)/,
+      }),
     ).toBeVisible();
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);

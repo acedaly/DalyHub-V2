@@ -1,6 +1,16 @@
 /**
  * The desktop top app bar.
  *
+ * ── The search control is an ICON ────────────────────────────────────────────
+ * It used to be a 56px pill spanning the start of the content region — the first
+ * and largest thing on every screen, on a product with one user who knows what
+ * their own data contains. On Today that pill was the whole top of the page, and
+ * the day's work started below it. Search is now a 40px icon control beside the
+ * palette, help and account menu, keeping the SAME accessible name, the SAME
+ * `role="search"` region and the SAME `/` shortcut — the surface shrank, the
+ * capability did not. `/` still opens the full DS-08 Search surface through the
+ * one shared dispatcher in `CommandShortcutLayer`, from every screen.
+ *
  * Before this, DalyHub had no top app bar above the phone breakpoint at all: the
  * shell was a rail and a pane, so the primary search lived in the navigation
  * drawer as a 56px pill with an equally prominent Command palette pill beneath
@@ -76,41 +86,36 @@ export function DesktopTopBar({
 }: DesktopTopBarProps) {
   return (
     <header className="dh-topbar">
-      <div
-        className="dh-topbar__search"
-        role="search"
-        aria-label="Search DalyHub"
-      >
-        <button
-          type="button"
-          className="dh-topbar__search-entry md-state-layer"
-          onClick={
-            onOpenSearch
-              ? (event) => onOpenSearch(event.currentTarget)
-              : undefined
-          }
-        >
-          <span className="dh-topbar__search-icon" aria-hidden="true">
-            <SearchIcon />
-          </span>
-          <span className="dh-topbar__search-label">Search DalyHub…</span>
-          {/* Decorative: the accessible name is the label, and the shortcut is
-           * published properly in the keyboard reference. */}
-          <kbd className="dh-topbar__search-hint" aria-hidden="true">
-            /
-          </kbd>
-        </button>
-      </div>
-
       <div className="dh-topbar__utilities">
-        {/* The palette keeps a home in the chrome, but as a 40px icon control
-         * rather than as a second full-width pill competing with search.
-         *
-         * M3-TIP — both utilities are icon-only, and neither said what it was to
-         * a pointer OR a keyboard before. The shared tooltip names them on hover
-         * and on `:focus-visible`, and carries the palette's reserved shortcut —
-         * the one place in the chrome where `⌘K` is worth showing, since the
-         * search entry beside it already prints its own `/`. */}
+        {/* Search leads the utility cluster — it is the most-used of them, and
+         * the tooltip carries the `/` shortcut the pill used to print. */}
+        <div role="search" aria-label="Search DalyHub">
+          <Tooltip label="Search DalyHub" shortcut="/" placement="bottom">
+            {(tip) => (
+              <button
+                type="button"
+                ref={tip.ref}
+                className="dh-topbar__utility md-state-layer"
+                aria-describedby={tip.describedBy}
+                onClick={
+                  onOpenSearch
+                    ? (event) => onOpenSearch(event.currentTarget)
+                    : undefined
+                }
+              >
+                <span className="dh-topbar__utility-icon" aria-hidden="true">
+                  <SearchIcon />
+                </span>
+                <span className="dh-visually-hidden">Search DalyHub</span>
+              </button>
+            )}
+          </Tooltip>
+        </div>
+
+        {/* M3-TIP — every utility here is icon-only, and none of them said what
+         * it was to a pointer OR a keyboard before. The shared tooltip names them
+         * on hover and on `:focus-visible`, and carries each one's reserved
+         * shortcut. */}
         <Tooltip label="Command palette" shortcut="Mod-k" placement="bottom">
           {(tip) => (
             <button
