@@ -205,13 +205,27 @@ test.describe("MOBILE-01 secondary module journeys", () => {
     await page.locator(".dh-card__open").first().click();
     await page.waitForLoadState("networkidle");
 
-    const actions = page.getByRole("group", { name: "Quick actions" });
-    await expect(actions).toBeVisible();
+    /*
+     * UIQ-011 moved the four "create some OTHER record" pills off the summary
+     * and into the record header's shared overflow, WITH this Person's context
+     * attached — so what the summary keeps is Call and Email, the two actions
+     * that act on the person themselves, and only where the data supports them.
+     * The contract this test protects is unchanged: a phone quick action opens
+     * the SHARED capture sheet with a focused first field, rather than raising a
+     * toast. It is asserted where the product now puts it.
+     */
+    await expect(
+      page.getByRole("group", { name: "Quick actions" }),
+    ).toHaveCount(0);
 
-    // "New Task" opens the SHARED capture sheet rather than raising a toast.
-    await actions.getByRole("button", { name: "New Task" }).click();
+    await page.getByRole("button", { name: /^More actions for / }).click();
+    await page.getByRole("menuitem", { name: "New task" }).click();
     await expect(page.getByTestId("capture-sheet")).toBeVisible();
     await expect(page.getByLabel("Title")).toBeFocused();
+
+    // …and it carries the Person it was started from, which is the whole point
+    // of demoting the pills rather than deleting them (PEOPLE-04).
+    await expect(page.getByTestId("capture-context-chip")).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("capture-sheet")).toBeHidden();
