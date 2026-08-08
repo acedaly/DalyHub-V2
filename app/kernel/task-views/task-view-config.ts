@@ -49,17 +49,17 @@ import {
 export const TASK_VIEW_CONFIG_VERSION = 1;
 
 /**
- * The primary presentations of the Tasks workspace. `list` is the default calm
- * workspace; `board` is the same query rendered as grouped columns; `matrix` and
- * `sectors` are the OPTIONAL specialist planning views retained from TASKS-01 —
- * neither is the primary way to manage tasks.
+ * The primary presentations of the Tasks workspace. `list` is the default — and, since
+ * V2.2, unambiguously the PRIMARY — way to manage tasks; `board` is the same query
+ * rendered as grouped columns; `sectors` is the OPTIONAL Time Sectors planning view.
+ *
+ * `matrix` was removed in V2.2 (TASKS-05). Parsing is lenient by design, so a stored
+ * or hand-typed `presentation: "matrix"` degrades to `list` rather than erroring; the
+ * `/tasks` loader additionally REDIRECTS a legacy `?view=matrix` link into the
+ * equivalent priority-grouped list, so an old bookmark lands somewhere honest instead
+ * of silently losing its grouping. See `TASKS_MODULE.md → The Matrix was removed`.
  */
-export const TASK_PRESENTATIONS = [
-  "list",
-  "board",
-  "matrix",
-  "sectors",
-] as const;
+export const TASK_PRESENTATIONS = ["list", "board", "sectors"] as const;
 export type TaskPresentation = (typeof TASK_PRESENTATIONS)[number];
 
 /**
@@ -67,9 +67,9 @@ export type TaskPresentation = (typeof TASK_PRESENTATIONS)[number];
  * Every value maps 1:1 to a server grouping dimension, so a grouped view always
  * shows AUTHORITATIVE counts and never a client re-bucket of one loaded page.
  *
- * Note that `quadrant` is not offered here: grouping a list by Eisenhower quadrant
- * IS grouping by priority (the quadrant is derived from P1–P4), and offering both
- * would present one axis as two.
+ * There is exactly one priority axis: `priority`. The Eisenhower quadrant grouping
+ * that used to sit beside it was the same stored field under a second name, and it
+ * went with the Matrix in V2.2.
  */
 export const TASK_GROUP_BYS = [
   "none",
@@ -94,7 +94,7 @@ export type TaskDensity = (typeof TASK_DENSITIES)[number];
  */
 export interface TaskViewFilters {
   readonly status?: TaskStatus;
-  /** A priority, or `__none` for untriaged. Also the Eisenhower quadrant axis. */
+  /** A priority, or `__none` for untriaged. */
   readonly priority?: TaskPriority | "__none";
   readonly dueState?: TaskDueState;
   readonly plannedState?: TaskPlannedState;

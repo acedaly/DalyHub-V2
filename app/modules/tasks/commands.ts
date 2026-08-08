@@ -57,12 +57,15 @@ export const tasksCommands: readonly CommandContribution[] = [
     target: { kind: "route", to: "/tasks?view=focus&system=this_week" },
   },
   {
-    id: "tasks.matrix",
-    title: "Open Matrix",
-    subtitle: "The Eisenhower Do / Defer / Delegate / Delete matrix",
-    keywords: ["matrix", "eisenhower", "priority", "quadrant", "do", "defer"],
+    // TASKS-05 replaced "Open Matrix": the 2×2 is gone, and the useful half of what
+    // it did — see the work banded by priority — is an ordinary grouped list. The
+    // Eisenhower keywords stay so an owner who learned that word still finds it.
+    id: "tasks.by_priority",
+    title: "Open Tasks by priority",
+    subtitle: "The task list, grouped P1 → P4",
+    keywords: ["priority", "p1", "triage", "grouped", "matrix", "eisenhower"],
     kind: "navigate",
-    target: { kind: "route", to: "/tasks?view=matrix" },
+    target: { kind: "route", to: "/tasks?view=list&group=priority" },
   },
   {
     id: "tasks.sectors",

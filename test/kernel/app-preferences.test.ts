@@ -66,7 +66,7 @@ describe("AppPreferencesRepository — D1", () => {
 
   it("updates an existing row and increments the version", async () => {
     const repo = makeAppPreferencesRepository(makeContext(WS));
-    await repo.update(OWNER, { defaultTasksView: "matrix" });
+    await repo.update(OWNER, { defaultTasksView: "sectors" });
     const result = await repo.update(OWNER, { defaultTasksView: "all" });
     expect(result.preferences.defaultTasksView).toBe("all");
     expect(result.preferences.version).toBe(2);

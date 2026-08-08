@@ -49,12 +49,15 @@ describe("app preferences", () => {
     expect(parseDateFormat("dmy_slash")).toBe("dmy_slash");
     expect(parseFirstDayOfWeek("sunday")).toBe("sunday");
     expect(parseLandingDestination("tasks")).toBe("tasks");
-    expect(parseTaskDefaultView("matrix")).toBe("matrix");
+    expect(parseTaskDefaultView("sectors")).toBe("sectors");
     expect(parseDiaryDefaultMode("timeline")).toBe("timeline");
     expect(() => parseDateFormat("MM/DD/YYYY")).toThrow();
     expect(() => parseFirstDayOfWeek("wednesday")).toThrow();
     expect(() => parseLandingDestination("assets")).toThrow();
     expect(() => parseTaskDefaultView("kanban")).toThrow();
+    // V2.2 removed the Matrix, so the WRITE path refuses it — Settings no longer
+    // offers it, and a hand-crafted patch cannot store a view that does not exist.
+    expect(() => parseTaskDefaultView("matrix")).toThrow();
     expect(() => parseDiaryDefaultMode("month")).toThrow();
   });
 
@@ -137,11 +140,11 @@ describe("app preferences", () => {
   it("uses the preferred Tasks view only when URL state is absent", () => {
     const preferred = {
       ...DEFAULT_TASK_VIEW_CONFIG,
-      presentation: "matrix" as const,
+      presentation: "sectors" as const,
     };
     expect(
       configFromParams(new URLSearchParams(), preferred).presentation,
-    ).toBe("matrix");
+    ).toBe("sectors");
     // An explicit URL value always wins over the preference — a deep link and
     // Back/Forward stay authoritative.
     expect(
@@ -151,7 +154,7 @@ describe("app preferences", () => {
     // An invalid URL value falls back to the preference, never to an error.
     expect(
       configFromParams(new URLSearchParams("view=bad"), preferred).presentation,
-    ).toBe("matrix");
+    ).toBe("sectors");
   });
 
   it("validates a patch field by field, rejecting a value the kernel does not know", () => {

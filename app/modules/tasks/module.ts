@@ -24,6 +24,7 @@ import {
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
   TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_SKIPPED,
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
@@ -121,6 +122,12 @@ export default defineModule({
       label: "Next occurrence withdrawn",
       description:
         "Undoing a completion withdrew the untouched next occurrence it had created.",
+    },
+    {
+      type: TASK_RECURRENCE_OCCURRENCE_SKIPPED,
+      label: "Occurrence skipped",
+      description:
+        "A repeating task moved to its next date without being completed.",
     },
   ],
 });

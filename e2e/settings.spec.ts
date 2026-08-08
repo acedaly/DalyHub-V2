@@ -114,10 +114,10 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toBeVisible();
 
     await gotoFixture(page, "/settings");
-    await choose(page, "Default Tasks view", "matrix");
+    await choose(page, "Default Tasks view", "Time Sectors");
     await gotoFixture(page, "/tasks");
     await expect(
-      page.getByRole("heading", { name: "P1 · Do" }).first(),
+      page.getByRole("heading", { name: /No sector/ }).first(),
     ).toBeVisible();
 
     await gotoFixture(page, "/settings");

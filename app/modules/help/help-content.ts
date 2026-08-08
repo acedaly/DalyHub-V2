@@ -182,6 +182,18 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
             kind: "text",
             text: "A recurring task creates its next occurrence when you complete the current one, so a missed week does not leave a pile of identical overdue copies behind it.",
           },
+          {
+            kind: "text",
+            text: "A repeat means one of two things, and DalyHub asks which. A FIXED SCHEDULE keeps its day: “every Monday” is still Monday next week even if you finished this one on Wednesday — right for weekly reviews, bins and regular admin. AFTER COMPLETION counts from the day you actually finished: “every 14 days after completion” finished on the 6th falls on the 20th — right for cleaning, maintenance and anything where the clock should restart when the work is done.",
+          },
+          {
+            kind: "text",
+            text: "Choose Custom… under Repeat to build anything else: every 3 weeks, every 3 months, or a weekly routine pinned to particular days. Whatever you build, the panel states the result in plain English before you save it.",
+          },
+          {
+            kind: "text",
+            text: "Not doing one this time is not the same as doing it. Skip this occurrence moves it to the next date and leaves it open, and your history says it was skipped — never that it was completed. Stop repeating ends the future occurrences and keeps every past one.",
+          },
         ],
       },
       {
@@ -192,6 +204,10 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           {
             kind: "text",
             text: "Capture first, sort later. A task with no project, no date and no priority sits in the Inbox until you give it one. An empty Inbox means nothing is waiting on a decision.",
+          },
+          {
+            kind: "text",
+            text: "Sorting is meant to be quick. On the task list, the priority, the dates and the project are all editable where they are shown — click the value, choose, done. To clear several at once, choose Select tasks (or press and hold a row on a phone), tick what you want and act on the whole set together.",
           },
         ],
       },

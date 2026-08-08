@@ -142,6 +142,15 @@ unaffected. Invalid, unavailable or future stored destinations fall back to
 `/tasks` uses `defaultTasksView` only when `?view=` is absent or invalid. A valid
 explicit `?view=` always wins.
 
+V2.2 removed the Eisenhower Matrix (TASKS-05), so the preference's choices are now
+**List — this week** (`focus`), **Time Sectors** (`sectors`) and **List — all tasks**
+(`all`). No migration runs: the value is validated against the closed set on read and
+falls back to the documented default, so a row still holding `matrix` resolves to the
+primary task list on its next read and is rewritten the next time the owner chooses a
+default. Nobody lands on a route that no longer exists. A legacy `/tasks?view=matrix`
+LINK is separately redirected to the equivalent priority-grouped list — see
+[`TASKS_MODULE.md`](TASKS_MODULE.md#the-matrix-was-removed).
+
 `/diary` uses `defaultDiaryMode` only when `?mode=` is absent. Explicit
 `?mode=day` or `?mode=timeline` remains authoritative, preserving Diary’s
 URL-backed state model.

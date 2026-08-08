@@ -887,6 +887,14 @@
   --app-control-height-lg: max(2.75rem, 45px);
   --app-touch-target-min: max(2.75rem, 45px);
 
+  /*
+   * The horizontal space a list Card's hover action rail occupies, reserved by the
+   * card's supporting run so no row control ends up underneath the overlay
+   * (card.css). Sized for the widest rail the product ships — two labelled quick
+   * actions plus the overflow trigger, plus the rail's own inline-end offset.
+   */
+  --app-card-action-rail-reserve: 12rem;
+
   /* Measures. There is now ONE prose measure: the Reading region and its serif
    * column are retired, so the 46ch serif cap has nothing left to cap. */
   --app-width-prose: 65ch;

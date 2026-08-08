@@ -570,7 +570,7 @@ describe("module discovery", () => {
         "tasks.inbox",
         "tasks.review_inbox",
         "tasks.this_week",
-        "tasks.matrix",
+        "tasks.by_priority",
         "tasks.sectors",
         "tasks.someday",
         // X-02 — the cross-module views: the surface plus its four built-in

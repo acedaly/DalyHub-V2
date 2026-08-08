@@ -645,16 +645,16 @@ describe("server-authoritative grouping", () => {
     expect(byKey.get("__none")?.label).toBeNull();
   });
 
-  it("keeps the Matrix and Sectors scoped to ACTIVE planning work", async () => {
+  it("keeps the grouped planning views scoped to ACTIVE planning work", async () => {
     const { repo } = await seed(WS);
     const grouping = await repo.listWorkspaceTaskGroups({
-      dimension: "quadrant",
+      dimension: "sector",
       todayIso: TODAY,
     });
     const total = grouping.groups.reduce((n, g) => n + g.count, 0);
     const active = await titles(repo, {}, { view: "active" });
     // Completed, cancelled, Someday/Maybe, waiting and on-hold are all excluded, so
-    // a quadrant only ever holds work that is actionable now.
+    // a planning bucket only ever holds work that is actionable now.
     expect(total).toBe(active.length);
     expect(active).not.toContain("Finished");
     expect(active).not.toContain("Someday idea");

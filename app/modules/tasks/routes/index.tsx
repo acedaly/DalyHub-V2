@@ -122,18 +122,21 @@ function resolveFallbackConfig(
 }
 
 /**
- * The SET-01 `defaultTasksView` preference, in the TASKS-03 vocabulary.
+ * The SET-01 `defaultTasksView` preference, in the current vocabulary.
  *
- * Two of its four values were never layouts (TASKS-03's whole premise): `focus`
- * was a system view and `all` the absence of a filter, and both now mean "the
- * list". The other two remain real presentations. Honouring it here keeps the
- * shipped Settings control meaningful instead of leaving it silently inert — the
- * worst possible state for a preference. A SAVED default view, when the owner has
- * chosen one, is more specific and wins.
+ * `focus` was a system view and `all` the absence of a filter (TASKS-03's premise);
+ * both mean "the list". `sectors` is the one value that still names a presentation.
+ * Honouring it here keeps the shipped Settings control meaningful instead of leaving
+ * it silently inert — the worst possible state for a preference. A SAVED default view,
+ * when the owner has chosen one, is more specific and wins.
+ *
+ * A stored `matrix` cannot reach this function: V2.2 removed it from
+ * `TASK_DEFAULT_VIEWS`, and the preference read validates against that set and falls
+ * back to the documented default. The owner gets the primary list, not a dead route.
  */
 function presentationForPreference(value: TaskDefaultView): TaskPresentation {
-  return value === "matrix" || value === "sectors"
-    ? value
+  return value === "sectors"
+    ? "sectors"
     : DEFAULT_TASK_VIEW_CONFIG.presentation;
 }
 

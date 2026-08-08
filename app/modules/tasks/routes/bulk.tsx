@@ -14,12 +14,17 @@ import {
   type WorkspaceScope,
 } from "~/platform/workspaces";
 import {
+  SpineInvalidParentKindError,
+  SpineParentUnavailableError,
+} from "~/kernel/spine";
+import {
   TaskNotFoundError,
   TaskProjectArchivedError,
   TaskValidationError,
   type BulkFieldResult,
   type BulkPlanResult,
   type CommitmentState,
+  type SetTaskParentInput,
   type TaskPriority,
   type TaskStatus,
   type TimeSector,
@@ -77,6 +82,22 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     if (cause instanceof TaskProjectArchivedError) {
       return json(fail(cause.message), 400);
+    }
+    // TASKS-06: a destination that is no longer a valid home says so in the owner's
+    // words. Nothing was written — the move validates its destination before the batch.
+    if (cause instanceof SpineParentUnavailableError) {
+      return json(
+        fail(
+          "That Project or Area is no longer available, so nothing was moved.",
+        ),
+        400,
+      );
+    }
+    if (cause instanceof SpineInvalidParentKindError) {
+      return json(
+        fail("Tasks can only be filed under a Project or an Area."),
+        400,
+      );
     }
     return json(
       fail(
@@ -156,9 +177,40 @@ async function dispatch(
     }
     case "clear_plan":
       return ok(await scope.tasks.clearPlans(ids));
+    case "reopen":
+      // TASKS-06: the bulk mirror of the row's Reopen, with the SAME safe recurrence
+      // withdrawal per task — a successor the owner has since edited is retained.
+      return ok(await scope.tasks.reopenTasks(ids));
+    case "set_parent":
+      // TASKS-06 / §16: ONE bounded atomic mutation through the canonical
+      // `setTaskParent` authority, never twelve route requests in a client loop. An
+      // empty parent id is the explicit "Move to Inbox".
+      return ok(await scope.tasks.setParentMany(ids, parentFrom(form)));
+    case "delete":
+      // REVERSIBLE by design (§15). Nothing is destroyed: the tasks move to the
+      // built-in Deleted view and restore from there. Permanent destruction is not
+      // reachable from a bulk toolbar.
+      return ok(await scope.tasks.deleteTasks(ids));
+    case "restore":
+      return ok(await scope.tasks.restoreTasks(ids));
     default:
       return fail("Unknown bulk action.");
   }
+}
+
+/**
+ * The bulk move's destination: a Project/Area pair, or `null` for Inbox. The KIND is
+ * required alongside the id — the server never guesses which spine link type a
+ * destination wants, and an unknown kind is refused rather than defaulted.
+ */
+function parentFrom(form: FormData): SetTaskParentInput {
+  const parentId = emptyToNull(form.get("parentId"));
+  if (parentId === null) return null;
+  const kind = String(form.get("parentKind") ?? "");
+  if (kind !== "project" && kind !== "area") {
+    throw new SpineInvalidParentKindError();
+  }
+  return { kind, id: parentId };
 }
 
 function emptyToNull(value: FormDataEntryValue | null): string | null {

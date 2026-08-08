@@ -41,7 +41,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`release/RELEASE_CHECKLIST_V2.md`](release/RELEASE_CHECKLIST_V2.md) | **The evidence behind the V2 release verdict** — every roadmap item, every primary module journey, mobile, accessibility, workspace isolation, migration safety, export integrity, CI status, deployment readiness, Help/About accuracy, documentation status and the Backup & Restore deferral, each with a test/file/PR reference and any limitation. Nothing is marked complete without evidence. |
 | **Roadmap** | |
 | [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of V2 work items — **closed** at the V2 release, with a reconciled scope-and-status table at the top. |
-| [`roadmap/ROADMAP_V2_1.md`](roadmap/ROADMAP_V2_1.md) | **What comes after V2**, and where new work goes: SET-02 backup & restore (V2.1's first item), the named remainders from shipped V2 modules, module completion, and the items that were never in V2's scope — with the build order. |
+| [`roadmap/ROADMAP_V2_1.md`](roadmap/ROADMAP_V2_1.md) | **What comes after V2**: SET-02 backup & restore (V2.1's first item), the named remainders from shipped V2 modules, module completion, and the items that were never in V2's scope — with the build order. |
+| [`roadmap/ROADMAP_V2_2.md`](roadmap/ROADMAP_V2_2.md) | **V2.2, and where new work goes** — the Tasks daily-driver programme: TASKS-05 (list-first workspace, the Eisenhower Matrix removed, direct editing on the row), TASKS-06 (multi-selection and bulk management including a reversible bulk delete), TASKS-07 (Recurrence 2.0 — custom authoring, fixed vs after-completion scheduling, skip and series scope) and TASKS-08 (the phone daily driver). |
 | **Design** | |
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) | The shared interaction language every module reuses. |
 | [`design/THEME_ACCEPTANCE_MATRIX.md`](design/THEME_ACCEPTANCE_MATRIX.md) | **Retired (M3-01).** A tombstone: the seven-theme system it recorded no longer exists. It points at ADR-074 and at the tests that now prove, on every commit, what this document used to assert per theme. |
@@ -113,7 +114,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   └── RELEASE_CHECKLIST_V2_0_1.md
     ├── roadmap/
     │   ├── ROADMAP_V2.md            (closed at the V2 release)
-    │   └── ROADMAP_V2_1.md          (where new work goes)
+    │   ├── ROADMAP_V2_1.md          (V2.1)
+    │   └── ROADMAP_V2_2.md          (V2.2 — where new work goes)
     ├── design/
     │   ├── DESIGN_SYSTEM.md
     │   ├── THEME_ACCEPTANCE_MATRIX.md

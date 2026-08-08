@@ -68,6 +68,7 @@ export {
   RedoIcon,
   // Card metadata glyphs
   HistoryIcon,
+  RepeatIcon,
   ScheduleIcon,
   CheckCircleIcon,
   // Subtype glyphs (PX-05) — never an entity glyph re-used for a subtype
