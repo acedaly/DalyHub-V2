@@ -16,8 +16,6 @@
  * `reviews.spec.ts` does.
  */
 
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -33,6 +31,7 @@ import {
   postSameOrigin,
   waitForInteractive,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 const WORKSPACE = "local-dev-workspace";
 const TASK_PREFIX = "Guided review e2e task ";
@@ -53,25 +52,9 @@ test.afterEach(async () => {
 /* Fixtures                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function d1(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+function d1(command: string | readonly string[]): void {
+  d1Execute(command);
 }
 
 /**

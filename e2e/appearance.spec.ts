@@ -16,8 +16,6 @@
  * would break while the attribute stayed perfectly correct.
  */
 
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -26,30 +24,10 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 const WORKSPACE_ID = "local-dev-workspace";
 const OWNER_ID = "local-development-user";
-
-function d1Execute(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
-}
 
 /** Put the owner back on the shipped default, so specs cannot leak into each other. */
 function resetAppearance(): void {

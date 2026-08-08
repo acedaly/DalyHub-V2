@@ -13,7 +13,7 @@
  * it can never touch a developer's own local records.
  */
 
-import { execFileSync } from "node:child_process";
+import { d1Execute } from "./d1";
 
 const WORKSPACE_ID = "local-dev-workspace";
 const TS = "2026-07-30T00:00:00.000Z";
@@ -32,25 +32,9 @@ export const EXPORT_FIXTURE = {
   linkingTitle: "X04 export link hub",
 } as const;
 
-function d1(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+function d1(command: string | readonly string[]): void {
+  d1Execute(command);
 }
 
 function entityRow(id: string, title: string, deleted: string | null): string {

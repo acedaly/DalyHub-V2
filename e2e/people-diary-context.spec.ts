@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -9,6 +7,7 @@ import {
   gotoFixture,
   waitForInteractive,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 /**
  * PEOPLE-04 / DIARY-02 — the contextual relationship journeys.
@@ -52,33 +51,9 @@ const CLEANUP_SQL = [
   `DELETE FROM entities WHERE workspace_id = '${WS}' AND id IN (${OWNED_ENTITIES});`,
 ] as const;
 
-function runD1Command(command: string): void {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-          stdio: "pipe",
-        },
-      );
-      return;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt === 3 || !message.includes("SQLITE_BUSY")) throw error;
-    }
-  }
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+function runD1Command(command: string | readonly string[]): void {
+  d1Execute(command);
 }
 
 function cleanup(): void {

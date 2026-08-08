@@ -34,7 +34,7 @@
  * crashed run left behind under the shared prefix.
  */
 
-import { execFileSync } from "node:child_process";
+import { d1Execute } from "./d1";
 
 /** Every E2E-owned Note title starts with this; nothing a developer authors does. */
 export const NOTE_TITLE_PREFIX = "Notes e2e note ";
@@ -84,63 +84,9 @@ function cleanupSql(entityPredicate: string): string {
   ].join("\n");
 }
 
-/** Retriable local-tooling contention on the shared SQLite file. */
-function isTransientD1Error(output: string): boolean {
-  return (
-    output.includes("SQLITE_BUSY") ||
-    // A late autosave can insert a fresh subject row between the ordered deletes;
-    // re-running the (idempotent) sequence sweeps it. See the module header.
-    output.includes("FOREIGN KEY constraint failed")
-  );
-}
-
-/**
- * Run one cleanup command as a single `wrangler d1 execute`, retrying the whole
- * (idempotent) sequence on transient contention or a raced FK failure. Never
- * swallows a genuine, non-transient error — it rethrows so a real cleanup defect
- * is not silently ignored.
- */
-async function runCleanup(command: string): Promise<void> {
-  const attempts = 5;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-          stdio: "pipe",
-        },
-      );
-      return;
-    } catch (error) {
-      // execFileSync surfaces the wrangler output on the thrown error's
-      // `.stdout`/`.stderr`, NOT in `.message`; inspect all three so the retry
-      // predicate actually sees the SQLite error text.
-      const err = error as {
-        message?: string;
-        stdout?: unknown;
-        stderr?: unknown;
-      };
-      const output = [err.message, err.stdout, err.stderr]
-        .map((part) => String(part ?? ""))
-        .join("\n");
-      if (attempt === attempts || !isTransientD1Error(output)) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
-    }
-  }
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+async function runCleanup(command: string | readonly string[]): Promise<void> {
+  d1Execute(command);
 }
 
 /**

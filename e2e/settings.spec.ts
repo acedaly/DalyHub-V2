@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import { DEV_ORIGIN } from "./dev-server";
@@ -9,30 +7,10 @@ import {
   expectOnToday,
   gotoFixture,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 const WORKSPACE_ID = "local-dev-workspace";
 const OWNER_ID = "local-development-user";
-
-function d1Execute(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
-}
 
 function resetPreferences(): void {
   d1Execute(

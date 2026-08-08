@@ -16,11 +16,10 @@
  * one whose save is explicit — an autosaving Note has nothing to commit.
  */
 
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import { gotoFixture } from "./helpers";
+import { d1Execute } from "./d1";
 
 const WS = "local-dev-workspace";
 const PREFIX = "DocEditor e2e ";
@@ -29,27 +28,6 @@ const ENTITY_QUERY = `
   SELECT id FROM entities
   WHERE workspace_id = '${WS}' AND type = 'diary' AND title LIKE '${PREFIX}%'
 `;
-
-function d1Execute(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
-}
 
 function cleanup(): void {
   for (const command of [
