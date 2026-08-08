@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { DEV_ORIGIN } from "./dev-server";
 import {
   RESPONSIVE_VIEWPORTS,
+  clickCardAction,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -564,7 +565,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     const noteRow = deletedList
       .getByRole("listitem")
       .filter({ hasText: noteTitle });
-    await noteRow.getByRole("button", { name: "Restore" }).click();
+    await clickCardAction(noteRow, "Restore");
     await expect(
       page
         .getByRole("region", { name: "Notifications" })

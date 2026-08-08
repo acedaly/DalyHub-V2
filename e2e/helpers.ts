@@ -377,3 +377,36 @@ export async function expectOnToday(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/today(?:[?#]|$)/);
   await expect(todayDayPanel(page)).toBeVisible();
 }
+
+/**
+ * Click one of a card's quick actions, the way a person reaches them.
+ *
+ * On a hover-capable pointer a card's action rail is CONCEALED at rest —
+ * `opacity: 0` **and** `pointer-events: none` (UIQ-002, `card.css`) — and is
+ * revealed by the pointer arriving over the card. Driving it without hovering
+ * first exercises a state no person can reach, and it fails in a way that reads
+ * like a product bug: Playwright's visibility check ignores `opacity`, so the
+ * button is reported "visible, enabled and stable", and then the hit test at its
+ * centre returns whatever sits UNDER the transparent rail — the card's title, or
+ * its status chip — as "intercepts pointer events".
+ *
+ * That misreading is on the record twice. The V2.2 Tasks programme diagnosed it
+ * for five `tasks-daily-driver` journeys and fixed it with a local helper; the
+ * DEBT-106 census met the same failure on the Archived People collection and
+ * recorded it as "a shared-Card layering problem", which it is not — the rail is
+ * `pointer-events: none` precisely so a click in a row's empty trailing space
+ * cannot activate an unseen action. This is that one helper, shared, so the next
+ * spec to meet it does not diagnose it a third time.
+ *
+ * The upward wheel is for narrow viewports: the sticky mobile header covers the
+ * top of the scroll container, so a card scrolled flush to the top sits under it.
+ */
+export async function clickCardAction(
+  card: Locator,
+  name: string | RegExp,
+): Promise<void> {
+  await card.scrollIntoViewIfNeeded();
+  await card.page().mouse.wheel(0, -160);
+  await card.hover();
+  await card.getByRole("button", { name }).click();
+}

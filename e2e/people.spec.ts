@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  clickCardAction,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -99,7 +100,7 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     await gotoFixture(page, "/people/archived");
     const archivedCard = page.getByRole("article", { name: new RegExp(name) });
     await expect(archivedCard).toBeVisible();
-    await archivedCard.getByRole("button", { name: "Restore" }).click();
+    await clickCardAction(archivedCard, "Restore");
     await expect(archivedCard).not.toBeVisible();
 
     // 6. The active collection search finds them again.
