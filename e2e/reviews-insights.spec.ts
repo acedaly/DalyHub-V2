@@ -127,13 +127,25 @@ test("a populated Review answers what changed, what contributed and what needs a
   await gotoFixture(page, CURRENT_REVIEW);
   await waitForInteractive(page);
 
-  await expect(section(page, "movement")).toContainText("3 Tasks completed");
+  /*
+   * These assertions are deliberately about what THIS fixture owns, not about
+   * workspace-wide totals. The local database is shared with every other spec,
+   * and several of them complete Tasks and Projects through the UI inside the
+   * same seven-day window — so "3 Tasks completed" is true only when this file
+   * runs alone, which is exactly the kind of assertion that rots. The claim
+   * being tested is that movement is reported at all, and that the per-record
+   * insights below say the right thing about the records this fixture created.
+   */
+  await expect(section(page, "movement")).toContainText(/\d+ Tasks? completed/);
 
-  // Goal contribution, with its reason — never a bare label.
+  // Goal contribution, with its reason — never a bare label. The RI Goal's own
+  // three completed Tasks are attributable to it whatever else the workspace did.
   const goals = section(page, "goals");
   await expect(goals).toContainText("RI: A finished ground floor");
   await expect(goals).toContainText("Moving");
-  await expect(goals).toContainText(/3 Tasks completed this period/);
+  await expect(goals).toContainText(
+    /3 Tasks completed this period, across 1 contributing Project/,
+  );
   await expect(goals).toContainText("RI: Run a half marathon");
   await expect(goals).toContainText(/No (recent movement|completed work)/);
 
@@ -173,11 +185,19 @@ test("the trend is readable without the chart", async ({ page }) => {
   // The chart carries the same sentence as its accessible name…
   const chart = trend.getByRole("img", { name: /Tasks completed over/ });
   await expect(chart).toBeVisible();
-  // …and the sentence is on the page in its own right, with every value.
-  await expect(trend.locator(".dh-trend__summary")).toContainText(
-    /up from 2 to 3/,
+  /*
+   * …and the sentence is on the page in its own right, naming every period and
+   * its value. There may legitimately be a SECOND trend beside it (Projects
+   * completed) once anything else in the shared database completes a Project in
+   * the same window, so this scopes to the Tasks figure rather than assuming
+   * one chart, and asserts the SHAPE of the summary — two named periods, each
+   * with a value — rather than totals another spec can move.
+   */
+  const tasksTrend = trend.locator(".dh-insights__trend").first();
+  await expect(tasksTrend.locator(".dh-trend__summary")).toContainText(
+    /Tasks completed over the last 2 Review periods, (up from|down from|unchanged at) .*\d/,
   );
-  await expect(trend.locator(".dh-trend__axis li")).toHaveCount(2);
+  await expect(tasksTrend.locator(".dh-trend__axis li")).toHaveCount(2);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -227,7 +247,12 @@ test("the guided weekly Review opens on evidence, not on a grid of counts", asyn
   await expect(
     page.getByRole("heading", { level: 2, name: "Settle in" }),
   ).toBeVisible();
-  await expect(section(page, "movement")).toContainText("3 Tasks completed");
+  // The step that used to open on six unanchored counts now opens on evidence:
+  // a movement claim, and the Goal this fixture's completed work rolled up to.
+  await expect(section(page, "movement")).toContainText(/\d+ Tasks? completed/);
+  await expect(section(page, "goals")).toContainText(
+    "RI: A finished ground floor",
+  );
   await expect(section(page, "attention")).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
