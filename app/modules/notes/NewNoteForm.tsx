@@ -12,6 +12,11 @@
  */
 
 import {
+  CaptureContextChip,
+  encodeCaptureContext,
+  useUrlCaptureContext,
+} from "~/shared/capture";
+import {
   Form,
   FormActions,
   FormButton,
@@ -36,6 +41,10 @@ export interface NewNoteFormProps {
 }
 
 export function NewNoteForm({ onCreated, onCancel }: NewNoteFormProps) {
+  // DEBT-45 — a hand-off from Quick Capture carries its source record in the URL,
+  // so arriving at this fuller form does not lose the reason the note is being
+  // created. The server revalidates it before linking anything.
+  const capture = useUrlCaptureContext("note");
   const form = useForm<Values>({
     initialValues: { title: "" },
     fields: { title: { validate: required("A title is required") } },
@@ -43,6 +52,9 @@ export function NewNoteForm({ onCreated, onCancel }: NewNoteFormProps) {
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
       const body = new FormData();
       body.set("title", values.title);
+      if (capture.context) {
+        body.set("captureContext", encodeCaptureContext(capture.context));
+      }
       let data: CreateNoteResult;
       try {
         const response = await fetch("/notes/new", { method: "POST", body });
@@ -81,6 +93,13 @@ export function NewNoteForm({ onCreated, onCancel }: NewNoteFormProps) {
         labels={FIELD_LABELS}
         onFocusField={form.focusField}
       />
+      {capture.context ? (
+        <CaptureContextChip
+          captureType="note"
+          context={capture.context}
+          onRemove={capture.clear}
+        />
+      ) : null}
       <TextField label="Title" required maxLength={512} {...titleField} />
       <FormActions>
         <FormButton

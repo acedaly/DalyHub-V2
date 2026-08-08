@@ -566,11 +566,13 @@ ground without doing their work:
     export's read-consistency window more often than a hand-pressed export does.
     It was evaluated rather than inherited: see the SET-02 entry's
     "Read consistency" note.
-- **[DIARY-02](#-diary-02--day-context-links) is untouched.** V2.0.1 repaired a
-  **broken link Reviews already emitted** to Diary, by adopting the canonical
-  Diary deep-link URL that Search and Quick Capture already used. It added no
-  linking affordance to the Diary surface and made Diary no more a Linked Items
-  consumer than it was — which is DIARY-02's actual scope.
+- **[DIARY-02](#-diary-02--day-context-links) was untouched by V2.0.1, and has
+  since SHIPPED (2026-08-08).** V2.0.1 repaired a **broken link Reviews already
+  emitted** to Diary, by adopting the canonical Diary deep-link URL that Search
+  and Quick Capture already used. It added no linking affordance to the Diary
+  surface and made Diary no more a Linked Items consumer than it was — which is
+  DIARY-02's actual scope, and which the DIARY-02 entry above has since
+  delivered.
 
 ## How an item got here
 
@@ -729,16 +731,50 @@ IN. Everything else in this file can wait behind it.*
 *Each of these has a module that shipped and a specific, named piece that did not.
 They are small and well-understood; none of them blocks the V2 release.*
 
-### ◐ PEOPLE-04 — Mobile People
+### ☑ PEOPLE-04 — Mobile People — **DELIVERED 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → PEOPLE-04`](ROADMAP_V2.md#-people-04--mobile).
 - **Delivered in V2.** The phone record layout, the compact Card preset, the tab
   overflow, real quick actions, and context-aware Quick Capture through ADR-060.
-- **Outstanding.** The broader
+  Verified on current `main` before this item resumed and **preserved, not
+  rebuilt** — no Person layout was redesigned here.
+- **Delivered now — the
   [DEBT-45](../product/PRODUCT_DEBT.md#-debt-45--a-captured-record-is-not-linked-to-the-context-it-was-captured-from--p2)
-  closure matrix — every record entry point, full-form hand-off, and the
-  mobile/E2E/a11y proof.
-- **Priority.** P3.
+  closure matrix.**
+  - **The full-form hand-off**, which was the named gap. Capture context used to
+    live only in the sheet's React state, so leaving it for a module's fuller
+    creation form silently discarded it. It now travels in the URL
+    (`?ctx=`, `CAPTURE_CONTEXT_PARAM`) to `/tasks?drawer=new-task`,
+    `/notes?drawer=new-note`, `/new/meeting` and `/diary?inspector=new`, each of
+    which renders the SAME shared context chip and submits it to the SAME
+    canonical create route. The parameter is refresh-stable, never authoritative
+    (the server still revalidates the anchor), and **consumed** once used so a
+    later capture on the same page starts neutral.
+  - **The relationship matrix, proven per capture type** against the real
+    Worker/D1 runtime: Person → Task creates `task.relates_to` (related work,
+    never delegation, no invented structural parent); Person → Note and
+    Person → Diary create `link.related`; Person → Meeting creates the canonical
+    `meeting.attendee`, because Meetings own attendee semantics and contextual
+    capture must not fork them into generic links.
+  - **Isolation and retry, asserted rather than assumed.** A cross-workspace
+    anchor produces no link and discloses nothing; a source deleted between
+    opening capture and submitting it produces no link; a claimed type that does
+    not match the stored record produces no link; and a retry — or a Person named
+    by both the attendee picker and the context — yields exactly ONE relationship.
+  - **The mobile/E2E/a11y proof.** Four Playwright journeys (Person → Diary at
+    390px and back, an existing entry gaining and losing a Person, the full-form
+    hand-off, and the same flow at 1280px) plus axe scans at 320px and 390px and a
+    touch-target assertion on the context chip's Remove control.
+- **Deliberately NOT done.** The Person action hierarchy is untouched — capture
+  actions stay in the shared record overflow where UIQ-011 put them, and this item
+  did not return them to a button row.
+- **Found and fixed in passing.** The shared `Sheet` header did not wrap, so its
+  `leading` control (`inline-size: 100%`) collapsed the title beside it and "New
+  diary entry" rendered one character per line at 390px. A capture sheet whose
+  title is unreadable is this item's own mobile proof failing, so it is fixed here
+  rather than recorded.
+- **Priority.** P3 — closed. See
+  [`PEOPLE_MODULE.md` §8](../development/PEOPLE_MODULE.md#8-people-04--contextual-capture-closure-debt-45).
 
 ### ◐ ASSET-03 — Mobile Assets
 
@@ -927,14 +963,42 @@ They are small and well-understood; none of them blocks the V2 release.*
   its Project belongs to **today**, because the spine stores no link history.
 - **Priority.** P3 — closed.
 
-### ☐ DIARY-02 — Day context links
+### ☑ DIARY-02 — Day context links — **DELIVERED 2026-08-08**
 
 - **Original entry.** [`ROADMAP_V2.md → DIARY-02`](ROADMAP_V2.md#-diary-02--day-context-links).
-- Diary entries are first-class entities and FND-04 EntityLinks are available, but
-  the Diary surface offers no linking affordance and Diary is not yet a Linked Items
-  consumer. Keep the DIARY-01A principle intact — chronology first, structure
-  optional — so a link is always an offer, never a required field on capture.
-- **Priority.** P3.
+- **Why it was open.** Diary entries were first-class entities and FND-04
+  EntityLinks were available to them, but the Diary surface offered no linking
+  affordance — the capability existed and the product did not.
+- **Delivered.** Diary is now a real Linked Items consumer, and a Diary entry can
+  discover what else the workspace knows about its day.
+  - **Related.** The Inspector's read view mounts the shared `LinkedItemsSection`
+    under a `Related` heading, so an entry links to People, Tasks, Meetings, Notes,
+    Projects, Goals and Areas through ordinary `link.related` EntityLinks and the
+    ordinary `/links` endpoint. Adding and removing use the shared picker and the
+    shared Undo — **no** Diary relationship model, **no** bespoke autocomplete,
+    **no** `diary_people`/`diary_projects` table, and **no migration**.
+  - **Both directions, one link.** Person → Diary (through the ADR-060 capture
+    context) and Diary → Person (through the picker) write the SAME single
+    canonical EntityLink; each end reads it, and there is no reverse row.
+  - **Unlinking removes the relationship only.** Both records, and every other
+    relationship on either of them, survive.
+  - **From this day.** A bounded, read-only `GET /diary/:entryId/day-context`
+    offers Meetings that started on the entry's owner-calendar day (one statement
+    over the existing `meeting_details_collection` index) and Tasks due that day
+    (the existing workspace query with `dueState: "due_today"` resolved against the
+    ENTRY's day), capped at 10 and excluding anything already related.
+  - **A suggestion is not a relationship.** The loader writes nothing. Candidates
+    sit in a SEPARATE section with its own heading, are labelled `Suggested` in
+    text rather than by colour, and become relationships only when the reader
+    presses Link. There is no date inference, no title matching, no shared-word
+    heuristic and no AI — an entry whose title is identical to a same-day meeting's
+    is still only a candidate, and there is a test that says so.
+- **Chronology stayed first.** Capture is unchanged: a type, a title, save. There
+  is no relationship field, no required Project and no prompt; with no links an
+  entry shows one quiet line and the suggestion section renders nothing at all. The
+  `/diary` timeline carries no relationship panel and no link count.
+- **Priority.** P3 — closed. See
+  [`DIARY_MODULE.md` §9](../development/DIARY_MODULE.md#9-diary-02--related-records-and-day-context).
 
 ### ☐ SET-03 — Account & security
 
@@ -1438,9 +1502,12 @@ because a reader would otherwise wonder whether it was forgotten:
    enough that putting it first would quietly cost the owner the two things they
    actually cannot do today.
 4. **[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
-   the two named mobile remainders, now unblocked.
-5. **[DIARY-02](#-diary-02--day-context-links)**, **[SET-03](#-set-03--account--security)** —
-   module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
+   the two named mobile remainders, now unblocked. **PEOPLE-04 is closed
+   (2026-08-08)**, together with the DEBT-45 contextual-capture matrix it was held
+   open for; ASSET-03 remains.
+5. **[DIARY-02](#-diary-02--day-context-links)** (**closed 2026-08-08**, alongside
+   PEOPLE-04 — they share the one contextual-relationship contract),
+   **[SET-03](#-set-03--account--security)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
    member of this group and is now delivered.
 6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore

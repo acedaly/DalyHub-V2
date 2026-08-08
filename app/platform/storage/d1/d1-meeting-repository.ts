@@ -470,6 +470,44 @@ export class D1MeetingRepository implements MeetingRepository {
       startsAt: fromStorageTimestamp(row.starts_at),
     }));
   }
+  async listStartingBetween(input: {
+    readonly from: Date;
+    readonly to: Date;
+    readonly limit?: number;
+  }): Promise<readonly MeetingSearchHit[]> {
+    const limit = Math.max(1, Math.min(input.limit ?? 20, 50));
+    const from = toStorageTimestamp(input.from);
+    const to = toStorageTimestamp(input.to);
+    // A backwards window is an empty result, never an unbounded scan.
+    if (from >= to) return [];
+    const rows = (
+      await this.#db
+        .prepare(
+          `SELECT e.id, e.title, d.location, d.starts_at
+           FROM entities e
+           JOIN meeting_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.type = ? AND e.deleted_at IS NULL
+             AND d.archived_at IS NULL
+             AND d.starts_at >= ? AND d.starts_at < ?
+           ORDER BY d.starts_at ASC, e.id ASC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, MEETING_ENTITY_TYPE, from, to, limit)
+        .all<{
+          id: string;
+          title: string;
+          location: string | null;
+          starts_at: string;
+        }>()
+    ).results;
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      location: row.location,
+      startsAt: fromStorageTimestamp(row.starts_at),
+    }));
+  }
   async update(id: string, input: UpdateMeetingInput) {
     const current = await this.get(id);
     if (!current || current.archivedAt) throw new Error("Meeting not found");

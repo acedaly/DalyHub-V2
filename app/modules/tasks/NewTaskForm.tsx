@@ -23,6 +23,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  CaptureContextChip,
+  encodeCaptureContext,
+  useUrlCaptureContext,
+} from "~/shared/capture";
+import { captureRelationshipPlan } from "~/shared/capture/capture-context";
+import {
   DateField,
   Form,
   FormActions,
@@ -115,7 +121,28 @@ export function NewTaskForm({
   onCancel,
 }: NewTaskFormProps) {
   const fixedParent = projectId !== undefined;
-  const resolvedParent = fixedParent ? null : defaultParent;
+  /*
+   * DEBT-45 — the full-form hand-off. Quick Capture carries its source record in
+   * the URL, so arriving here does not lose why the task is being created. The
+   * SAME relationship matrix decides what the context means (ADR-060): a Project
+   * or Area context is the task's structural PARENT (no generic link), everything
+   * else becomes a `task.relates_to` link the route creates after the task exists.
+   * Both are resolved server-side; this only mirrors it so the form tells the
+   * truth about what it will do.
+   */
+  const capture = useUrlCaptureContext("task");
+  const capturePlan = capture.context
+    ? captureRelationshipPlan("task", capture.context.sourceEntityType)
+    : null;
+  const contextParent =
+    capturePlan?.kind === "task_parent" && capture.context
+      ? {
+          id: capture.context.sourceEntityId,
+          kind: capturePlan.parentKind,
+          title: capture.context.sourceEntityTitle,
+        }
+      : null;
+  const resolvedParent = fixedParent ? null : (contextParent ?? defaultParent);
   const parentSearch = useTaskParentSearch();
   const titleRef = useRef<HTMLInputElement | null>(null);
 
@@ -174,6 +201,9 @@ export function NewTaskForm({
         body.set("parentId", parentIdValue);
         body.set("parentKind", parentKind);
       }
+      if (capture.context) {
+        body.set("captureContext", encodeCaptureContext(capture.context));
+      }
       const priority = values.priority || interpretation.priority || "";
       const timeSector = values.timeSector || interpretation.timeSector || "";
       const commitmentState =
@@ -210,6 +240,10 @@ export function NewTaskForm({
         };
       }
       if (data.ok) {
+        // The hand-off parameter has done its job; drop it so re-opening "New
+        // task" on this page starts neutral rather than re-offering a finished
+        // context.
+        capture.consume();
         onCreated(data.taskId);
         return { status: "success" };
       }
@@ -281,6 +315,14 @@ export function NewTaskForm({
         labels={FIELD_LABELS}
         onFocusField={form.focusField}
       />
+
+      {capture.context ? (
+        <CaptureContextChip
+          captureType="task"
+          context={capture.context}
+          onRemove={capture.clear}
+        />
+      ) : null}
 
       <TextField
         label="Title"

@@ -267,8 +267,7 @@ Everything below is a purely additive layer over the stable DIARY-01A contract �
 no architectural rewrite required:
 
 - **DIARY-01 — Timeline screen & quick capture.** ☑ Done — see [§7](#7-diary-01--the-timeline-screen--quick-capture-ui).
-- **DIARY-02 — Day context links.** Surface a day's related meetings/tasks/people
-  via EntityLinks — a thin layer, since relationships are already kernel links.
+- **DIARY-02 — Day context links.** ☑ Done — see [§9](#9-diary-02--related-records-and-day-context).
 - **DIARY-03 — Mobile capture.** Capture on the go; `source.channel = "mobile"`.
 - **Memory Mode.** Backdating already works: `occurred_at` accepts any instant.
 - **AI-assisted classification.** Propose an `entry_type` — the open vocabulary
@@ -501,6 +500,125 @@ floating capture action, integrated with the existing shell.
 | `app/modules/diary/diary-icons.tsx` | Entry-type → shared-icon map for timeline nodes / chooser. |
 | `app/modules/diary/occurred-time.ts` | Adds day-key helpers (add days, validate, long/medium labels, zoned date labels). |
 | `app/styles/diary.css` | Rebuilt timeline workspace styles (DS-01 tokens only). |
+
+---
+
+## 9. DIARY-02 — Related records, and day context
+
+DIARY-02 makes the Diary a **consumer** of the relationships it could already
+carry. Diary entries were first-class entities with FND-04 EntityLinks available
+to them, but the module exposed no way to see or make one — so the capability
+existed and the product did not.
+
+**No migration, no new table, no Diary relationship model.** A Diary entry's
+relationships are ordinary `link.related` EntityLinks through the ordinary
+`/links` endpoint, and they render through the ordinary shared
+[Linked Items](RELATIONSHIPS.md) section — the same component a Note, a Person and
+a Meeting mount. The only new server surface is a READ.
+
+### 9.1 Chronology first, structure optional
+
+This is the hard rule DIARY-01A set and DIARY-02 does not touch:
+
+- The simplest possible entry is still **a type, a title, save**. Capture has no
+  relationship field, no Person picker, no required Project.
+- A relationship is only ever an **enrichment added afterwards**, or a context the
+  user deliberately captured *from* (§9.3).
+- An entry with no relationships shows one quiet line under **Related** and costs
+  the reader nothing; the day-context section renders **nothing at all** when the
+  day held nothing.
+
+### 9.2 Related — the persisted relationships
+
+The Inspector's read view mounts `LinkedItemsSection` under a **Related** heading,
+positioned **below the entry's own content and above the administrative stamps**.
+That order is the hierarchy rule expressed in the DOM: time → content →
+supporting context → administration. The heading is label-scale, not title-scale,
+so an entry with four links still reads as a diary entry.
+
+From there the reader can:
+
+- **add** a relationship to any supported record type (People, Tasks, Meetings,
+  Notes, Projects, Goals, Areas) through the shared `EntityLinkPicker` — bounded,
+  workspace-scoped search, not an all-records modal;
+- **remove** one, with the shared Undo toast. Removing a relationship removes the
+  link and **only** the link: both records survive, and every other relationship
+  on either of them survives.
+
+Links a module owns (a Meeting's `meeting.attendee`, for example) appear read-only
+there, exactly as they do on every other record — the shared surface is never a
+back door around a module's own relationship rules.
+
+### 9.3 Diary ↔ Person, both directions, one link
+
+- **Person → Diary.** A Person record's overflow offers *New diary entry*; the
+  ADR-060 capture context travels to `POST /diary/new`, which revalidates the
+  Person in the authenticated workspace and creates the `link.related` link. The
+  entry then shows the Person under Related, and the Person shows the entry under
+  their own Linked tab.
+- **Diary → Person.** Open the entry, search the picker, choose the Person.
+
+Both write **one canonical EntityLink**. There is no reverse link and no second
+row: EntityLinks are bidirectional at the read level, so each end sees it.
+
+### 9.4 From this day — candidates, never relationships
+
+`GET /diary/:entryId/day-context` returns records that merely **happened on the
+same owner-calendar day** as the entry:
+
+| Kind | Source | Bound |
+|---|---|---|
+| Meetings | `MeetingRepository.listStartingBetween` — one statement over the existing `meeting_details_collection` index | 8 |
+| Tasks | `TaskRepository.listWorkspaceTasks` with `dueState: "due_today"` against the ENTRY's day, completed included | 8 |
+
+Records already related to the entry are excluded, and the whole response is
+capped at 10. The day window is resolved with the module's existing
+`startOfLocalDayUtc` / `endOfLocalDayUtc` helpers in the owner's display zone, so
+a 21:00-local entry and a 09:30-local meeting file under the same local day,
+DST-correctly.
+
+**The loader writes nothing.** A meeting on Tuesday and an entry written on
+Tuesday are not evidence that the entry is about the meeting, so:
+
+- the UI renders them in a **separate section** with its own heading and the line
+  *"These happened on the same day. Nothing is linked until you choose it."*;
+- each candidate is labelled **`Suggested`** in text — never by colour alone;
+- the only mutation is the explicit **Link** button, which posts to `/links` and
+  creates the ordinary `link.related` EntityLink, after which the record moves out
+  of the suggestions and into Related.
+
+There is no matching on titles, no shared-word heuristic, no timing proximity and
+no AI. A candidate whose title is identical to the entry's is still only a
+candidate (asserted in `test/kernel/diary-day-context-route.test.ts`).
+
+**Deliberately not offered: "completed on this day."** Completion is a UTC instant
+on `spine_records` with no index behind it, so answering it for an arbitrary past
+day would be an unbounded scan. Tasks **due** that day are offered whether open or
+complete, which covers the case the day surface is for. Adding the other half is a
+migration (one partial index) and belongs to whichever item needs it.
+
+### 9.5 The timeline is unchanged
+
+The `/diary` timeline carries **no** relationship panel and **no** link count. The
+full relationship information belongs to the Inspector; a timeline row stays time,
+identity, excerpt and restrained type/status so the day remains scannable.
+
+### 9.6 Source map (DIARY-02)
+
+| File | Role |
+|---|---|
+| `app/modules/diary/routes/day-context.tsx` | `GET /diary/:entryId/day-context` — bounded, read-only same-day candidates. |
+| `app/modules/diary/DayContextSuggestions.tsx` | The "From this day" section and its explicit Link action. |
+| `app/modules/diary/DiaryDetailsPanel.tsx` | Mounts `LinkedItemsSection` as **Related** and the suggestions beneath it. |
+| `app/kernel/meetings/meeting-repository.ts` | `listStartingBetween` — the day-window read contract. |
+| `app/platform/storage/d1/d1-meeting-repository.ts` | Its one indexed statement. |
+| `app/styles/diary.css` | Related / From-this-day presentation, tokens only. |
+
+Tests: `test/unit/diary/DayContextSuggestions.test.tsx`,
+`test/unit/diary/DiaryDetails.test.tsx` (hierarchy),
+`test/kernel/diary-day-context-route.test.ts` (day correctness, exclusion,
+isolation, "writes nothing"), and `e2e/people-diary-context.spec.ts` (journeys 1–4
+plus axe at 320/390px).
 
 ---
 

@@ -23,6 +23,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 import { EntityIcon } from "~/shared/entity";
 import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
@@ -38,9 +39,11 @@ import {
 } from "./capture-model";
 import {
   contextForCaptureType,
-  contextPresentation,
+  fullFormLabel,
+  fullFormRoute,
   type CaptureContextContract,
 } from "./capture-context";
+import { CaptureContextChip } from "./CaptureContextChip";
 import { DiaryCapturePanel } from "./DiaryCapturePanel";
 import { MeetingCapturePanel } from "./MeetingCapturePanel";
 import { NoteCapturePanel } from "./NoteCapturePanel";
@@ -62,6 +65,7 @@ export default function CaptureSheet({
   captureContext,
   onClose,
 }: CaptureSheetProps) {
+  const navigate = useNavigate();
   // Resolved once on mount: an explicit request wins, then the session memory.
   const [active, setActive] = useState<CaptureType | null>(() =>
     resolveInitialCaptureType(requestedType, readRememberedCaptureType()),
@@ -162,29 +166,44 @@ export default function CaptureSheet({
       }
     >
       {activeContext ? (
-        <div
-          className="dh-capture-context"
-          role="status"
-          data-testid="capture-context-chip"
-        >
-          <EntityIcon type={activeContext.sourceEntityType} />
-          <span className="dh-capture-context__label">
-            {contextPresentation(active, activeContext)}
-          </span>
-          {activeContext.mode === "fixed" ? (
-            <span className="dh-capture-context__fixed">Fixed</span>
-          ) : (
-            <button
-              type="button"
-              className="dh-capture-context__remove"
-              onClick={() => setActiveContext(null)}
-              aria-label={`Remove capture context ${activeContext.sourceEntityTitle}`}
-            >
-              Remove
-            </button>
-          )}
-        </div>
+        <CaptureContextChip
+          captureType={active}
+          context={activeContext}
+          onRemove={() => setActiveContext(null)}
+        />
       ) : null}
+      {/*
+        DEBT-45 — the full-form hand-off. The sheet asks for the least that can
+        work; the module's own creation surface is where the rest lives. Leaving
+        for it must not cost the user their context, so the link carries the SAME
+        contract in the URL and the destination form shows the SAME chip. It is a
+        real link (not a scripted button) so it is middle-clickable, focusable and
+        announced as navigation.
+      */}
+      <div className="dh-capture-context-actions">
+        <a
+          className="dh-capture-handoff"
+          href={fullFormRoute(active, activeContext)}
+          onClick={(event) => {
+            if (
+              event.defaultPrevented ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey ||
+              event.button !== 0
+            ) {
+              return;
+            }
+            event.preventDefault();
+            onClose();
+            navigate(fullFormRoute(active, activeContext));
+          }}
+          data-testid="capture-full-form"
+        >
+          {fullFormLabel(active)}
+        </a>
+      </div>
       {active === "task" ? (
         <TaskCapturePanel {...panelProps} />
       ) : active === "diary" ? (
