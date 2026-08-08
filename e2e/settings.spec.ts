@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { DEV_ORIGIN } from "./dev-server";
 import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -149,6 +150,55 @@ test.describe("SETTINGS-01A — application settings", () => {
         .getByRole("group", { name: "Diary view" })
         .getByRole("link", { name: "Day", exact: true }),
     ).toHaveAttribute("aria-current", "true");
+  });
+
+  test("merges independent preference writes made from two devices at once", async ({
+    page,
+    browser,
+  }) => {
+    /*
+     * AUDIT-07, from the owner's side of the glass.
+     *
+     * The kernel suite proves the storage rule (an independent field patch writes
+     * only the column it names, so two devices changing two different settings
+     * merge; the derived hidden-module SET quotes a version instead). What only a
+     * browser can show is that the PRODUCT keeps that promise end to end: two real
+     * contexts, both holding the same version, each changing a different setting,
+     * and neither one silently discarding the other's change.
+     */
+    const second = await browser.newContext({ baseURL: DEV_ORIGIN });
+    const other = await second.newPage();
+    try {
+      // Both devices load BEFORE either writes, so both are working from the
+      // same stored version — the state a merge has to survive.
+      await gotoFixture(page, "/settings?section=date-time");
+      await gotoFixture(other, "/settings");
+
+      // Device A changes the timezone. Device B changes the appearance.
+      await choose(page, "Owner timezone", "Europe/London");
+      await other
+        .getByRole("group", { name: "Appearance" })
+        .getByRole("radio", { name: /Dark/ })
+        .check();
+      await expect(other.locator("html")).toHaveAttribute(
+        "data-appearance",
+        "dark",
+      );
+
+      // Both survive, on both devices, after a reload from the server.
+      for (const device of [page, other]) {
+        await gotoFixture(device, "/settings?section=date-time");
+        await expect(
+          device.getByRole("combobox", { name: "Owner timezone" }),
+        ).toHaveValue("Europe/London");
+        await expect(device.locator("html")).toHaveAttribute(
+          "data-appearance",
+          "dark",
+        );
+      }
+    } finally {
+      await second.close();
+    }
   });
 
   test("offers no appearance section, and keeps navigation recoverable and sections history-backed", async ({

@@ -345,8 +345,19 @@ touch its Task. See
 
 ## 2e. Today, and the deduplication rule
 
-Today gains an **Assets** widget: obligations that need attention within a 30-day
-horizon, capped at five rows, ordered overdue → due → reading-needed.
+> **Not currently on screen (recorded 2026-08-09).** The Today redesign replaced
+> the dashboard wholesale and its rebuilt attention rail carries four kinds —
+> inbox, waiting, project, goal — and no Assets row. Nothing here was deliberately
+> retired: the kernel rule and its tests are untouched and `asset-today.ts` simply
+> lost its only caller. Until it has one again, an obligation with no linked Task
+> reaches the owner only through the Assets module's own surfaces (the collection's
+> obligation signal, the record's Overview and Obligations tabs), which is where
+> `e2e/assets-ownership.spec.ts` now asserts it. Tracked as
+> [DEBT-111](../product/PRODUCT_DEBT.md).
+
+The design, for whoever restores it. Today carries an **Assets** widget:
+obligations that need attention within a 30-day horizon, capped at five rows,
+ordered overdue → due → reading-needed.
 
 **The rule: an OPEN linked Task wins.** An obligation whose Task is still open is
 already in My Day, so showing it again would be the same job twice on one page. It
