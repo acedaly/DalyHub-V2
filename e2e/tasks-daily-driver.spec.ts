@@ -200,7 +200,7 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
     // in both directions; there is no clear-then-save-then-choose sequence.
     await gotoFixture(page, LIST);
     await rowAction(page, title, /^Project or Area/);
-    await page.getByRole("menuitem", { name: "Move to Inbox" }).click();
+    await page.getByRole("menuitemradio", { name: "Move to Inbox" }).click();
     await expect(
       page.locator("[role='status']").filter({ hasText: "moved to Inbox" }),
     ).toBeAttached();
