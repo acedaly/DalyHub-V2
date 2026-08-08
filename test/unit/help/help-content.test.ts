@@ -128,13 +128,16 @@ describe("HELP-01 honesty", () => {
     for (const subject of ["Weather", "AI", "Notifications", "Import"]) {
       expect(text, `"${subject}" is not named as missing`).toContain(subject);
     }
-    // X-04 shipped export. RESTORE is what is still missing, and the two must
-    // not be conflated: a downloadable copy is not the ability to put it back.
-    expect(text).toContain("Backup and restore");
-    expect(text).toContain("cannot read one back in");
+    // X-04 shipped export and SET-02 shipped restore, so "backup and restore"
+    // has LEFT this list. What has not shipped is DalyHub keeping copies on the
+    // owner's behalf, and that distinction is the one this assertion protects:
+    // being able to restore a file you hold is not the same as being backed up.
+    expect(text).not.toContain("cannot read one back in");
+    expect(text).toContain("Automatic backups on your behalf");
+    expect(text).toContain("does not keep copies for you");
   });
 
-  it("documents the export that now exists, and does not call it a restore", () => {
+  it("documents the export, and now the restore that reads it back", () => {
     const exportTopic = HELP_TOPICS.find((t) => t.id === "export");
     expect(exportTopic, "Help has no export topic").toBeDefined();
     const text = JSON.stringify(exportTopic);
@@ -145,7 +148,12 @@ describe("HELP-01 honesty", () => {
     // The two honesty claims X-04 owes the owner.
     expect(text).toContain("archived or deleted");
     expect(text).toContain("never sends it anywhere");
-    expect(text).toContain("an export is not a restore");
+    // SET-02: the export IS the backup format, and Help says how to use it —
+    // including the one consequence the owner must understand before they do.
+    expect(text).toContain("also your backup");
+    expect(text).toContain("Restore");
+    expect(text).toContain("changes nothing until you confirm");
+    expect(text).toContain("restoring replaces them");
   });
 
   it("avoids developer-only implementation language", () => {

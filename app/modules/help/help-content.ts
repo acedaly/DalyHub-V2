@@ -698,7 +698,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           },
           {
             kind: "text",
-            text: "One honest caveat: an export is not a restore. DalyHub cannot yet read one of these files back in. Keep a copy somewhere you control, and treat it as an archive you can read rather than an undo button.",
+            text: "The full DalyHub export is also your backup: DalyHub can read it back in. Settings \u2192 Privacy & data \u2192 Restore takes that ZIP, checks it, shows you what it contains and what would happen to this workspace, and changes nothing until you confirm. If this workspace already holds records, restoring replaces them \u2014 so DalyHub takes a backup of what you have now, checks it can be read back, and gives it to you first.",
           },
         ],
       },
@@ -714,7 +714,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           {
             kind: "list",
             items: [
-              "Backup and restore. You can now download a full export (see \u201cGetting your data out\u201d), but DalyHub cannot read one back in, and it takes no backups on your behalf. Keep your own copy.",
+              "Automatic backups on your behalf. You can download a full export and restore it (see \u201cGetting your data out\u201d), but DalyHub does not keep copies for you or take one on a schedule. Downloading one after a significant week is worth the ten seconds.",
               "Import and calendar sync. Nothing connects to Todoist, Notion or a calendar.",
               "Weather on Today. There is no weather data source, so there is no weather widget.",
               "Notifications and reminders. DalyHub will not email you, push to you or nag you.",

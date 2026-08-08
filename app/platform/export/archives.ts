@@ -167,10 +167,16 @@ so rather than claiming a guarantee it does not have.
 
 ## Restoring
 
-DalyHub cannot yet import this archive. Restore is a separate, deliberate piece
-of work (roadmap item SET-02), and this format is the input contract it will
-read. Until it ships, this archive is a complete, readable copy of your data —
-not a one-click undo button. Keep it somewhere you control.
+**This archive is a backup DalyHub can read back in.** In DalyHub, go to
+Settings → Privacy & data → Restore and choose this ZIP. DalyHub verifies it
+against the checksums above, checks its snapshot version, shows you exactly what
+it contains and what would happen to the workspace you are restoring into, and
+writes nothing until you confirm. Restoring over a workspace that already holds
+records replaces them, and DalyHub takes a verified safety backup of that
+workspace first.
+
+Keep this file somewhere you control. It is also readable without DalyHub: the
+snapshot is plain JSON and the checksums verify with \`sha256sum\`.
 
 If you want your records as human-readable Markdown you can open immediately,
 use **Download Obsidian vault** in DalyHub's Settings instead. Both downloads are

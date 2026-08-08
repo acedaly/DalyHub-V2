@@ -75,7 +75,8 @@ export interface ExportManifest {
 /** The categories an export never carries, named so the omission is explicit. */
 export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Authentication artefacts: Cloudflare Access JWTs, cookies and session state.",
-  "The authenticated owner's subject identifier.",
+  "Credentials of any kind: no password, token, API key or provider secret.",
+  "Workspace-member email addresses and sign-in telemetry. The membership rows an archive does carry hold a subject identifier and display names only — the minimum needed to keep exported history interpretable — and grant no access to anything.",
   "Cloudflare secrets, bindings, account, database and deployment identifiers.",
   "Application configuration and environment variables.",
   "Raw SQL, migration files and database internals.",

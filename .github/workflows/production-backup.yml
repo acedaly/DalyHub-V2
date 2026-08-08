@@ -1,24 +1,55 @@
 name: Production D1 backup
 
-# V2.0.1 — scheduled production D1 exports (the automated half of the manual
-# backup step every release already requires). Each run exports the production
-# database through the SAME audited wrapper the owner uses by hand
-# (`scripts/production-d1.mjs`, via `pnpm run db:production:export`) and stores
-# the dump as a dated workflow artifact.
+# AUDIT-11 / SET-02 — the automated, ENCRYPTED production disaster-recovery copy.
 #
-# What this deliberately is NOT: restore. Automated restore remains V2.1 SET-02
-# (docs/roadmap/ROADMAP_V2_1.md). A backup artifact here is a readable copy the
-# owner can download — recovery from it is a manual, untested-in-app process
-# until SET-02 ships. Documented in docs/development/DEPLOYMENT.md.
+# What changed, and why it mattered. This workflow used to upload the complete
+# production database as a plain `dalyhub-v2-production-*.sql` artifact with
+# 30-day retention. The Cloudflare credentials were handled correctly and that
+# was never the finding: the DUMP is the owner's entire personal life — People
+# and their contact details, Diary entries, Meeting notes, Reviews, archived and
+# deleted records — and anyone who could read this repository's Actions could
+# read all of it, in plain text, for a month. Encryption is now applied on the
+# runner, before upload, and the plaintext never becomes an artifact.
+#
+# WHICH BACKUP IS WHICH (both are real, and they are not interchangeable):
+#
+#   * This artifact is the INFRASTRUCTURE disaster-recovery copy: a raw
+#     Cloudflare D1 SQL dump. It rebuilds the DATABASE when the database itself
+#     is gone. It is not what DalyHub's Restore reads, and no SQL from here is
+#     ever executed through the application.
+#   * The CANONICAL DalyHub backup is the owner-initiated archive from
+#     Settings → Privacy & data → "Download full DalyHub export". That is the
+#     versioned `DalyHubWorkspaceSnapshotV1` archive SET-02 validates and
+#     restores, and it is the one to reach for in ordinary recovery.
+#
+# Why the canonical backup is not produced here: building it requires the
+# application runtime AND an authenticated owner session, and DalyHub
+# deliberately has no unauthenticated export path. Inventing one so a scheduled
+# job could call it would open a larger hole than this workflow closes. The
+# recovery order is therefore: restore this dump into D1, bring the application
+# back, then take a canonical backup from Settings. That sequence is documented
+# in docs/development/BACKUP_AND_RESTORE.md.
 #
 # Security posture:
-#   - Credentials come only from repository/environment secrets and are consumed
-#     by Wrangler; no secret value is ever echoed. The export itself goes to a
-#     file, never to the log.
-#   - The job runs in the `production` GitHub environment so environment
-#     protection rules (if configured) gate it, and the schedule/dispatch
-#     triggers mean it can never run from an untrusted pull request.
+#   - The export runs through the SAME audited wrapper the owner uses by hand
+#     (`scripts/production-d1.mjs`), and encryption/validation/verification run
+#     through the SAME `scripts/production-backup.mjs` a manual run uses. There
+#     is one pipeline: `workflow_dispatch` and `schedule` take identical steps.
+#   - The encryption passphrase comes from the protected `production` GitHub
+#     environment, is written to a file under `umask 077`, is never passed on a
+#     command line or interpolated into a shell string, and is deleted in a step
+#     that always runs. Shell tracing is never enabled, because a trace echoes
+#     every expanded command and would put the secret in the log.
+#   - Nothing prints backup contents. Every log line is a file name, a byte
+#     count or a digest.
+#   - Only `schedule` and `workflow_dispatch` trigger this job, so no pull
+#     request — from a fork or otherwise — can run it or reach its secrets.
 #   - Workflow permissions are read-only; artifact upload needs nothing more.
+#
+# Recovery key: see docs/development/BACKUP_AND_RESTORE.md § "The recovery key".
+# The owner holds a copy OFF GitHub. Without it these artifacts are unreadable —
+# by anyone, including the owner. That is the point, and it is the reason the
+# off-GitHub copy is a documented operational obligation rather than a nicety.
 
 on:
   schedule:
@@ -36,11 +67,12 @@ concurrency:
 
 jobs:
   export:
-    name: Export production D1
+    name: Export, encrypt and prove recovery
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # The `production` GitHub environment holds the Cloudflare secrets and any
-    # protection rules the owner configures for it.
+    timeout-minutes: 20
+    # The `production` GitHub environment holds the Cloudflare secrets, the
+    # backup encryption passphrase, and any protection rules the owner
+    # configures for it.
     environment: production
     steps:
       - name: Checkout
@@ -58,55 +90,119 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Export the production database
-        id: export
+      - name: Refuse to run without an encryption key
+        env:
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          # Fail BEFORE the database is read. A run that exports production and
+          # then discovers it cannot encrypt has already created the plaintext
+          # this workflow exists to avoid.
+          if [ -z "${BACKUP_ENCRYPTION_PASSPHRASE}" ]; then
+            echo "::error::BACKUP_ENCRYPTION_PASSPHRASE is not set in the production environment. Refusing to export production data that cannot be encrypted."
+            exit 1
+          fi
+          echo "Encryption key is present. Its value is never printed."
+
+      - name: Export, validate, encrypt and verify
+        id: backup
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
         run: |
           set -euo pipefail
+
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
           short_sha="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          dir="backup"
-          file="dalyhub-v2-production-${stamp}.sql"
-          mkdir -p "${dir}"
-          pnpm run db:production:export -- --output "${dir}/${file}"
+          # The plaintext is written to a scratch directory that is NEVER the
+          # upload path. `backup/` holds only what may be published.
+          scratch="$(mktemp -d)"
+          plain="${scratch}/dalyhub-v2-production-${stamp}.sql"
+          key="${scratch}/backup.key"
+          mkdir -p backup
+          encrypted="backup/dalyhub-v2-production-${stamp}.sql.gpg"
 
-          echo "Verifying the export exists and is non-empty…"
-          if [ ! -s "${dir}/${file}" ]; then
-            echo "::error::The production export was not created or is empty."
-            exit 1
-          fi
-          if ! grep -q "CREATE TABLE" "${dir}/${file}"; then
-            echo "::error::The production export contains no schema — refusing to store it as a backup."
-            exit 1
-          fi
-          size_bytes="$(wc -c < "${dir}/${file}")"
-          echo "Export OK: ${file} (${size_bytes} bytes). Contents are never printed."
+          # The passphrase reaches disk only, with owner-only permissions, and
+          # only inside the scratch directory that is removed below. It is never
+          # an argv value (world-readable via /proc) and never interpolated into
+          # a command string (echoable by a trace).
+          ( umask 077 && printf '%s' "${BACKUP_ENCRYPTION_PASSPHRASE}" > "${key}" )
 
-          cat > "${dir}/metadata.json" <<EOF
-          {
-            "database": "dalyhub-v2 (production)",
-            "environment": "production",
-            "exportedAtUtc": "${stamp}",
-            "workflowRunId": "${GITHUB_RUN_ID}",
-            "workflowRunUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-            "repositoryCommit": "${GITHUB_SHA}",
-            "sizeBytes": ${size_bytes},
-            "restoreNote": "Automated restore is V2.1 SET-02 and does not exist yet. Recovery from this file is a manual process — see docs/development/DEPLOYMENT.md."
+          cleanup() {
+            # Always: even on failure, the plaintext dump and the key file must
+            # not survive this step for a later step (or a debug re-run) to find.
+            rm -rf "${scratch}"
           }
-          EOF
+          trap cleanup EXIT
+
+          echo "Exporting the production database…"
+          pnpm run db:production:export -- --output "${plain}"
+
+          echo "Validating the dump structurally…"
+          node scripts/production-backup.mjs validate --in "${plain}"
+
+          echo "Encrypting…"
+          node scripts/production-backup.mjs encrypt \
+            --in "${plain}" --out "${encrypted}" --passphrase-file "${key}"
+
+          echo "Proving the encrypted artifact decrypts back to the dump…"
+          node scripts/production-backup.mjs verify \
+            --in "${plain}" --encrypted "${encrypted}" --passphrase-file "${key}"
+
+          node scripts/production-backup.mjs metadata \
+            --encrypted "${encrypted}" --in "${plain}" --out backup/metadata.json \
+            --field "environment=production" \
+            --field "database=dalyhub-v2 (production)" \
+            --field "exportedAtUtc=${stamp}" \
+            --field "workflowRunId=${GITHUB_RUN_ID}" \
+            --field "workflowRunUrl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --field "repositoryCommit=${GITHUB_SHA}" \
+            --field "retentionDays=30"
 
           echo "artifact_name=dalyhub-v2-production-d1-${stamp}-${short_sha}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload backup artifact
+      - name: Refuse to upload anything unencrypted
+        run: |
+          set -euo pipefail
+          # The last line of defence, and the one that would catch a future edit
+          # that reintroduced the finding. It inspects the upload directory only,
+          # by NAME — it never reads or prints file contents.
+          leaked="$(find backup -type f \( -name '*.sql' -o -name '*.json' -o -name '*.zip' \) \
+            ! -name 'metadata.json' -print)"
+          if [ -n "${leaked}" ]; then
+            echo "::error::Refusing to upload: the artifact directory contains unencrypted backup material."
+            echo "${leaked}"
+            exit 1
+          fi
+          if [ ! -s backup/metadata.json ]; then
+            echo "::error::The backup metadata is missing."
+            exit 1
+          fi
+          if ! ls backup/*.gpg >/dev/null 2>&1; then
+            echo "::error::No encrypted backup was produced."
+            exit 1
+          fi
+          # A key must never travel with the data it protects.
+          if grep -qiE '"(passphrase|password|secret|key|token|credential)[^"]*"[[:space:]]*:' backup/metadata.json; then
+            echo "::error::The backup metadata names a credential field."
+            exit 1
+          fi
+          echo "Upload contents verified: encrypted backup plus non-sensitive metadata only."
+
+      - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.export.outputs.artifact_name }}
+          name: ${{ steps.backup.outputs.artifact_name }}
           path: backup/
-          # Retention is 30 days, documented in docs/development/DEPLOYMENT.md.
-          # A backup older than that has been superseded by ~30 newer dailies;
-          # the owner keeps longer-term copies by downloading them.
+          # Retention stays at 30 days, deliberately unchanged by the move to
+          # encryption. It was not reduced (encryption addressed the exposure, so
+          # shortening the window would only weaken recovery for no security
+          # gain) and it was not extended (encryption is not a reason to keep
+          # more of the owner's data on GitHub for longer). Thirty dailies is a
+          # month of recoverable history; anything the owner wants beyond that is
+          # a downloaded copy they hold themselves — see
+          # docs/development/BACKUP_AND_RESTORE.md § "Retention".
           retention-days: 30
           if-no-files-found: error
