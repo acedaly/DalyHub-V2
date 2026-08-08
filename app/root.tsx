@@ -215,7 +215,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="apple-mobile-web-app-title" content="DalyHub" />
         <meta name="application-name" content="DalyHub" />
         <Meta />
-        <Links />
+        {/* AUDIT-10 — `<Links>` is the ONE nonce-aware component given an
+         * explicit EMPTY nonce, and it needs the explanation.
+         *
+         * `entry.server.tsx` passes the request's nonce to `<ServerRouter>`, so
+         * every nonce-aware component inherits it from the framework context.
+         * That is right for `<Scripts>` and `<ScrollRestoration>`, whose inline
+         * scripts `script-src` will not run without it. It is wrong here, for
+         * two reasons: everything `<Links>` emits is a `<link>` — stylesheets and
+         * module preloads, matched by URL against `style-src 'self'` /
+         * `script-src 'self'`, never by nonce — and browsers deliberately BLANK
+         * the `nonce` content attribute once the element is parsed, so the
+         * server's markup reads back as `nonce=""` while the client (which has
+         * no server nonce) renders `undefined`. React reported that as a
+         * hydration mismatch on every page.
+         *
+         * Passing `""` is not null, so the framework nonce is not consulted, and
+         * both sides render the same empty value. Nothing loses a nonce it
+         * needed: the only thing `<Links>` would nonce is an inline critical-CSS
+         * `<style>`, which exists only on the dev server (production emits no
+         * `criticalCss` at all) where `style-src` carries `'unsafe-inline'`. */}
+        <Links nonce="" />
       </head>
       <body>
         {children}

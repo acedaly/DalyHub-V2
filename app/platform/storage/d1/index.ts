@@ -12,7 +12,10 @@
  * records), deliberately named as such and not a module-facing contract.
  */
 
-import type { ActivityRepository } from "~/kernel/activity";
+import type {
+  ActivityRepository,
+  WorkspaceEventRecorder,
+} from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
@@ -122,6 +125,10 @@ import {
   type D1WorkspaceMemberRepositoryOptions,
 } from "./d1-workspace-member-repository";
 import {
+  D1WorkspaceEventRecorder,
+  type D1WorkspaceEventRecorderOptions,
+} from "./d1-workspace-event-recorder";
+import {
   D1WorkspaceRepository,
   type D1WorkspaceRepositoryOptions,
 } from "./d1-workspace-repository";
@@ -189,6 +196,7 @@ export {
   DIRECTORY_LOOKUP_CHUNK,
 } from "./d1-workspace-member-repository";
 export { D1ActivityRecorder } from "./d1-activity-recorder";
+export { D1WorkspaceEventRecorder, type D1WorkspaceEventRecorderOptions };
 export {
   recordAtomicMutation,
   type AtomicMutationFault,
@@ -445,6 +453,22 @@ export function createActivityRepository(
   context: WorkspaceContext,
 ): ActivityRepository {
   return new D1ActivityRepository(db, context);
+}
+
+/**
+ * SET-03 — the workspace-scoped Activity WRITE seam.
+ *
+ * Separate from `createActivityRepository` on purpose: that one stays read-only,
+ * as FND-05 intends. This appends the small set of events that describe
+ * something the owner did to the workspace rather than to a record in it, with
+ * the same trusted actor every mutation repository carries.
+ */
+export function createWorkspaceEventRecorder(
+  db: D1Database,
+  context: WorkspaceContext,
+  options: D1WorkspaceEventRecorderOptions,
+): WorkspaceEventRecorder {
+  return new D1WorkspaceEventRecorder(db, context, options);
 }
 
 /**

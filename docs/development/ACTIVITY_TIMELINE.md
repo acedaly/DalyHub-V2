@@ -523,3 +523,56 @@ an acceptance and requires every event's actor to be the authenticated user, no
 event type to mention AI, and a **rejected** proposal to append nothing at all.
 
 See [`AI_PLATFORM.md`](AI_PLATFORM.md) §8.
+
+---
+
+## Workspace-scoped events (SET-03, 2026-08-08)
+
+Almost every Activity event is about a record: the `activity_subjects` table
+associates it with one or more entities, and that association is what a record's
+Timeline reads. `validateSubjects` therefore requires at least one subject, and
+`buildActivityWriteModel` still does.
+
+Some security-relevant facts have no record to be about. Signing out and clearing
+a device's local DalyHub data are things the owner did to the WORKSPACE, not to
+anything in it. [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08)
+had correctly refused to invent a fake entity subject to hang such an event from,
+and had stalled there.
+
+SET-03 resolves the modelling half by adding one explicit, narrow capability:
+
+- **`buildWorkspaceActivityWriteModel`** (kernel) validates an event with an
+  EMPTY subject list. `buildActivityWriteModel`'s rule is untouched, so no domain
+  mutation can lose its subject by accident — a subject-less event has to be
+  asked for by name, at a call site that has read why.
+- **`WorkspaceEventRecorder`** (kernel contract) takes a type and a small
+  payload, and nothing else. The workspace, the event id, the timestamp and the
+  ACTOR all come from the bound composition, exactly as they do for a domain
+  mutation, so a caller cannot forge who did it or when.
+- **`D1WorkspaceEventRecorder`** (platform) writes ONE row into the SAME
+  `activities` table. It deliberately does not use `recordAtomicMutation`: that
+  coordinator guards the append on `changes() > 0` from a preceding domain
+  statement, and here there is no domain statement — the event *is* the record of
+  what happened, so the guard would have nothing to refer to and would suppress
+  the insert entirely.
+
+**Where such an event appears.** In the workspace Activity Feed
+(`listForWorkspace` reads `activities` directly), and in no entity Timeline
+(`listForEntity` joins through `activity_subjects`, and there are no rows). That
+is exactly right: the event is about no entity.
+
+**How it reads.** The shared cross-module descriptor set gains an `ownerAction`
+shape — "&lt;actor&gt; signed out of DalyHub" — with no entity marker, because an
+entity marker beside an event about no entity would be a small lie. Like every
+other curated descriptor it reads only the actor, never the payload.
+
+**What is recorded, and what is not.** Only `security.signed_out` and
+`security.local_data_cleared`, both defined in `~/kernel/account-security`. Their
+payloads carry counts and booleans and nothing else. No token, no claim, no IP
+address, no user agent, no device name — and no Cloudflare Access event, because
+DalyHub never receives one. See
+[`SETTINGS_MODULE.md → Account & security`](SETTINGS_MODULE.md#account--security-set-03-2026-08-08).
+
+**What is still open.** Ordinary preference changes (timezone, navigation,
+defaults) still append no Activity. DEBT-33 is narrowed to that, with the
+mechanism now proven.

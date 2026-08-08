@@ -6,7 +6,10 @@ import {
   type AuthenticatedSession,
   type Authenticator,
 } from "~/kernel/auth";
-import { getAuthenticatedSession } from "~/platform/request/authenticated-request-context";
+import {
+  getAuthenticatedSession,
+  getCspNonce,
+} from "~/platform/request/authenticated-request-context";
 import { handleAuthenticatedRequest } from "~/platform/request/request-boundary";
 
 import {
@@ -386,5 +389,140 @@ describe("authenticated request boundary — mutation provenance", () => {
     );
     expect((await run()).status).toBe(200);
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * AUDIT-10 — the boundary is the ONE place a response's policy is decided, and
+ * the nonce in the header has to be the same one the render was given. These
+ * assert that pairing at the boundary; the policy's own contents are asserted
+ * directive-by-directive in `content-security-policy.test.ts`.
+ */
+describe("authenticated request boundary — Content-Security-Policy", () => {
+  /** The `nonce-…` source named by a response's policy, or null. */
+  function headerNonce(response: Response): string | null {
+    const csp = response.headers.get("Content-Security-Policy") ?? "";
+    return /'nonce-([A-Za-z0-9_-]+)'/.exec(csp)?.[1] ?? null;
+  }
+
+  it("gives the render the SAME nonce the header names", async () => {
+    const handler = spyHandler();
+    const response = await handleAuthenticatedRequest(
+      browserRequest("https://hub.daly.id.au/today"),
+      PROD_ENV,
+      handler,
+      () => fixedAuthenticator(OWNER_SESSION),
+      async () => {},
+    );
+    const context = handler.mock.calls[0]?.[1];
+    expect(context).toBeDefined();
+    const rendered = getCspNonce(context!);
+    expect(rendered).not.toBe("");
+    expect(headerNonce(response)).toBe(rendered);
+  });
+
+  it("mints a fresh nonce per request", async () => {
+    const nonces = new Set<string>();
+    for (let index = 0; index < 5; index += 1) {
+      const response = await handleAuthenticatedRequest(
+        browserRequest("https://hub.daly.id.au/today"),
+        PROD_ENV,
+        spyHandler(),
+        () => fixedAuthenticator(OWNER_SESSION),
+        async () => {},
+      );
+      const nonce = headerNonce(response);
+      expect(nonce).not.toBeNull();
+      expect(nonces.has(nonce!)).toBe(false);
+      nonces.add(nonce!);
+    }
+  });
+
+  /*
+   * The rule this holds: no route can omit the policy, because no route applies
+   * it. A rejected mutation and a failed authentication are still documents a
+   * browser parses, and the public `/health` path is a response like any other.
+   */
+  it("applies the enforcing policy to every exit from the boundary", async () => {
+    const responses = await Promise.all([
+      // A served, authenticated response.
+      handleAuthenticatedRequest(
+        browserRequest("https://hub.daly.id.au/today"),
+        PROD_ENV,
+        spyHandler(),
+        () => fixedAuthenticator(OWNER_SESSION),
+        async () => {},
+      ),
+      // The public path.
+      handleAuthenticatedRequest(
+        browserRequest("https://hub.daly.id.au/health"),
+        PROD_ENV,
+        spyHandler(),
+        () => fixedAuthenticator(OWNER_SESSION),
+        async () => {},
+      ),
+      // An authentication failure.
+      handleAuthenticatedRequest(
+        browserRequest("https://hub.daly.id.au/today"),
+        PROD_ENV,
+        spyHandler(),
+        () => throwingAuthenticator(new MissingCredentialsError()),
+        async () => {},
+      ),
+      // A cross-origin mutation rejection.
+      handleAuthenticatedRequest(
+        new Request("https://hub.daly.id.au/tasks/new", {
+          method: "POST",
+          headers: {
+            Origin: TEST_HOSTILE_ORIGIN,
+            "Sec-Fetch-Site": "cross-site",
+          },
+        }),
+        PROD_ENV,
+        spyHandler(),
+        () => fixedAuthenticator(OWNER_SESSION),
+        async () => {},
+      ),
+    ]);
+
+    for (const response of responses) {
+      const csp = response.headers.get("Content-Security-Policy") ?? "";
+      expect(csp).toContain("default-src 'self'");
+      expect(csp).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9_-]+'/);
+      expect(csp).toContain("object-src 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).not.toContain("unsafe-eval");
+      expect(
+        response.headers.get("Content-Security-Policy-Report-Only"),
+      ).toBeNull();
+    }
+  });
+
+  /*
+   * The relaxed development policy is gated on `import.meta.env.DEV` AND an
+   * explicit development/test `ENVIRONMENT`. This suite runs with the build-time
+   * constant true, so it can prove the ENVIRONMENT half — a production
+   * `ENVIRONMENT` gets the strict policy even here.
+   */
+  it("does not leak development sources into a production environment", async () => {
+    const response = await handleAuthenticatedRequest(
+      browserRequest("https://hub.daly.id.au/today"),
+      PROD_ENV,
+      spyHandler(),
+      () => fixedAuthenticator(OWNER_SESSION),
+      async () => {},
+    );
+    const csp = response.headers.get("Content-Security-Policy") ?? "";
+    const directive = (name: string) =>
+      csp
+        .split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name} `)) ?? "";
+    expect(directive("script-src")).not.toContain("'unsafe-inline'");
+    expect(directive("style-src")).not.toContain("'unsafe-inline'");
+    expect(csp).not.toContain("unsafe-eval");
+    expect(csp).not.toContain("ws:");
+    // The style exception is confined to ATTRIBUTES, in every environment.
+    expect(csp).toContain("style-src-attr 'unsafe-inline'");
   });
 });

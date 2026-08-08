@@ -272,7 +272,7 @@ Coverage added for SET-01:
 
 ## Status (2026-07-27 reconciliation)
 
-**Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ (2026-08-01) and added the export controls to Privacy & data. [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) is ☑ (2026-08-08) and added the Restore group beside them. [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) is ☐.
+**Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ (2026-08-01) and added the export controls to Privacy & data. [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) is ☑ (2026-08-08) and added the Restore group beside them. [SET-03](../roadmap/ROADMAP_V2_1.md#-set-03--account--security--substantially-delivered-2026-08-08) is **◐ substantially delivered (2026-08-08)** — the Account & security section exists and is real; "sign out everywhere" is not built, because DalyHub cannot do it (see below).
 
 **Delivered capabilities.** `/settings` as a first-class authenticated route on the shared Settings layout, with General, Date & time, Appearance, Navigation, Privacy & data and About sections. (Appearance now hosts the THEME-01 five-theme picker, and About reads the RELEASE-01 version authority and links to the full `/about` screen.) Owner/workspace behavioural preferences persist through the storage-independent `app/kernel/preferences` contract and its D1 adapter (`owner_app_preferences`, migration `0017`): timezone, date format, first day of week, default landing page, default Tasks view, default Diary mode and validated navigation visibility. Timezone is the shared owner-calendar authority for Today, date-derived loaders, Tasks urgency and Diary grouping. Appearance stays device-local through the existing theme cookie; Today widget arrangement stays device-local in `localStorage`. Navigation visibility resolves against the module registry, always keeps Today and Settings reachable, discards unknown module ids and shows new modules by default.
 
@@ -282,15 +282,96 @@ Coverage added for SET-01:
 
 - **Export shipped (2026-08-01); import did not.** [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ — both a structured archive and an Obsidian vault, from one canonical snapshot. Import from external tools remains [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) and is unstarted.
 - **Backup and restore shipped (2026-08-08).** [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) is ☑. The full DalyHub export IS the backup format, and Privacy & data reads it back in: inspect, validate, preview, confirm, restore, verify, report. A populated workspace is an explicit REPLACE, gated by a verified pre-restore safety backup and the shared typed confirmation. The item's own rule was satisfied on its own terms — the end-to-end restoration proof exists and passes (`test/kernel/workspace-restore.test.ts`). What DalyHub still does NOT do is keep copies on the owner's behalf, and Privacy & data and Help both say so. See [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
-- **No Account or Security section.** The identity layer is done and accepted (FND-09 / [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing): Cloudflare Access with in-Worker JWT validation and independent `OWNER_EMAIL` enforcement), so the product is authenticated — but there is no owner-facing session/identity surface, sign-out-everywhere, or security audit view. [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security).
-- **Preference changes append no Activity**, so a settings change leaves no audit trail — [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3). A future Security section would want exactly this.
+- **Account & security shipped (2026-08-08), without a global sign-out.** [SET-03](../roadmap/ROADMAP_V2_1.md#-set-03--account--security--substantially-delivered-2026-08-08) is ◐. The identity, session, local-data, security-activity and sign-out surfaces are real. **Sign-out-everywhere is not built and is not simulated**: revoking every Cloudflare Access session needs a Cloudflare API credential the Worker does not have, so the page states that plainly and points at Cloudflare Zero Trust. See [§ Account & security](#account--security-set-03-2026-08-08).
+- **ORDINARY preference changes still append no Activity** — [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08), now narrowed rather than open-ended. SET-03 built the mechanism the entry was waiting for (workspace-scoped, subject-less Activity events) and uses it for the two security-relevant actions; extending it to timezone, navigation and the rest is a separate, smaller piece of work.
 - Today widget arrangement was deliberately **not** migrated into the new preference store; it remains per-device — [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
 
 **Deferred work.** Import; backup and restore; account and security; file attachments and R2; AI-provider credentials ([AI-01](../roadmap/ROADMAP_V2.md#-ai-01--proposal-architecture--review-ui)/[AI-04](../roadmap/ROADMAP_V2.md#-ai-04--privacy-controls)); integrations ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)); notifications and reminders; workspace deletion, roles and billing; synced Today arrangement; saved views ([X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters)), for which this preference store is the natural home.
 
-**Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ (the format SET-02 restores) · [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) ☑ · [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) ☐ · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
+**Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ (the format SET-02 restores) · [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) ☑ · [SET-03](../roadmap/ROADMAP_V2_1.md#-set-03--account--security--substantially-delivered-2026-08-08) ☐ · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
 
-**Relevant product-debt items.** [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
+**Relevant product-debt items.** [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08) (narrowed by SET-03) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
+
+---
+
+## Account & security (SET-03, 2026-08-08)
+
+`/settings?section=account-security` answers three questions and refuses to imply
+a fourth: **who am I signed in as**, **what security state does DalyHub actually
+know about**, and **what security actions can I actually take**.
+
+The rule the whole surface is written to: *it must not look more powerful than
+the architecture underneath it.* DalyHub does not own authentication — Cloudflare
+Access does ([ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)) — so the page has no password control, no MFA control, no
+passkeys, no device list, no "last login", no IP address, no location and no
+session inventory. Not because they were forgotten: DalyHub observes none of
+them, and a security page showing an inference as an observation is worse than
+one showing fewer facts.
+
+### The five groups
+
+| Group | What it shows | Where it comes from |
+|---|---|---|
+| **Identity** | Display name (when the provider supplied one), verified email, a trailing fragment of the identity subject, the authenticator, the environment | The boundary-validated session (`requireAuthenticatedSession`) — never a browser-submitted field |
+| **This session** | Status (Active / Expiring soon / Expired / Not reported), issued-at, expiry, and a plain statement that other sessions are not visible | The credential's own `iat` / `exp` |
+| **Data on this device** | Whether a personal copy is stored, and how many offline captures exist only here | The offline context, on the CLIENT — the server does not know |
+| **Security activity** | Recent `security.signed_out` / `security.local_data_cleared` events | The ONE Activity stream, read through `activity.listForWorkspace` |
+| **Sign out** | Sign out of this browser; a truthful statement about sign-out-everywhere | The sign-out hook; a SERVER-derived capability flag |
+
+### What is deliberately absent, and why
+
+- **A "sign out everywhere" button.** Revoking every Access session requires a
+  Cloudflare API credential with Access write scope. DalyHub is configured with
+  the team domain, the application AUD and the owner email, and **no Cloudflare
+  credential of any kind**. The surface says so and points at Cloudflare Zero
+  Trust. Whether the control renders is a **server-derived flag**
+  (`globalSignOutSupported`), not a layout choice, so the button cannot exist
+  without the capability behind it.
+- **A workspace identity.** The `workspaces` table deliberately holds no name
+  (FND-03), and the workspace id is trusted server configuration that must not
+  reach a device — the same rule the offline snapshot follows.
+- **Anything Cloudflare Access knows and DalyHub does not:** sign-ins, failed
+  sign-ins, MFA events, sessions elsewhere. Manufacturing a "signed in" row from
+  the fact that a request arrived would be inventing an observation.
+
+### Local data, classified
+
+`app/shared/account-security/local-data.ts` is the classification the sign-out
+and clear behaviour turns on:
+
+1. **Public application assets** — DalyHub's JS, CSS, fonts, icons and the
+   offline shell document, in Cache Storage. Not personal, re-downloadable.
+2. **Owner-specific personal data** — the seven-day snapshot, recent searches,
+   the offline diagnostics ring. All of it also exists on the server, so removing
+   it loses nothing.
+3. **Unsynchronised owner-created work** — offline captures that have never
+   reached DalyHub. **No copy exists anywhere else.**
+
+Sign-out clears 1 and 2 and preserves 3. The section offers two controls: *Clear
+your personal data on this device* (a plain confirmation — nothing is lost) and
+*Clear everything DalyHub keeps on this device* (a TYPED confirmation, because it
+can destroy class 3). The typed phrase stays required even when the queue is
+empty: a confirmation should not be easier on the day it happens to be safe.
+
+### Security activity is the ordinary Activity stream
+
+Two Activity types are recorded — `security.signed_out` and
+`security.local_data_cleared` — through a new workspace-scoped recorder that
+appends to the SAME `activities` table with the same trusted actor. They carry no
+entity subject, so they appear in the workspace feed and in no record's Timeline.
+There is no second audit log. See
+[`ACTIVITY_TIMELINE.md`](ACTIVITY_TIMELINE.md#workspace-scoped-events-set-03-2026-08-08)
+and [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-a-nonce-based-content-security-policy-one-header-authority-and-a-security-surface-that-refuses-to-overclaim) decision 9.
+
+### Mutations go through the canonical boundary
+
+The two state-changing actions post to `POST
+/settings/account-security/:action` — an ordinary DalyHub mutation, so the Worker
+boundary has already required a valid Access session AND same-origin provenance
+(AUDIT-FIX-04) before the action runs. There is no route-specific CSRF token and
+no bypass. Everything the client sends is a bounded count or an enumerated
+literal, validated by the kernel's own parsers; the actor, workspace, timestamp
+and event id all come from the trusted composition.
 
 
 ## The AI section (AI-01 / AI-04, 2026-08-05)

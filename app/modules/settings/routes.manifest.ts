@@ -36,6 +36,16 @@ const routes: readonly RouteContribution[] = [
     path: "settings/restore/:step",
     file: "routes/restore.tsx",
   },
+  {
+    // SET-03 — the two Account & security history endpoints. A POST-only
+    // resource route with no navigation entry, driven from the Account &
+    // security section and from the sign-out control in the account menu. It
+    // has no GET on purpose: nothing that writes history should be reachable by
+    // following a link.
+    id: "settings.account.security",
+    path: "settings/account-security/:action",
+    file: "routes/account-security.tsx",
+  },
 ];
 
 export default routes;

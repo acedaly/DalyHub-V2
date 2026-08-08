@@ -229,21 +229,37 @@ export function parseSubjectRole(value: unknown): ActivitySubjectRole {
 }
 
 /**
- * Validate a non-empty, bounded, duplicate-free list of subjects. An event must
- * relate to at least one entity and at most `MAX_SUBJECTS`. An entity may appear
- * only ONCE per event (the storage association table enforces this too), so a
- * repeated entity id — regardless of role — is rejected here.
+ * Validate a bounded, duplicate-free list of subjects.
+ *
+ * By DEFAULT an event must relate to at least one entity and at most
+ * `MAX_SUBJECTS`, and that default is the one every domain mutation uses: an
+ * event about a Task, a Note or a link is meaningless without the record it is
+ * about. An entity may appear only ONCE per event (the storage association table
+ * enforces this too), so a repeated entity id — regardless of role — is rejected
+ * here.
+ *
+ * `allowEmpty` opens the ONE deliberate exception: a WORKSPACE-SCOPED event, which
+ * records something the owner did to the workspace itself rather than to a record
+ * in it (SET-03 signs the owner out; the owner clears this device's local data).
+ * See `buildWorkspaceActivityWriteModel` for why that is a separate, explicit
+ * entry point rather than a relaxation of the default — and DEBT-33 for why the
+ * alternative, inventing a fake entity subject to hang such an event from, was
+ * rejected. It is not a new event model: the same `activities` row, the same
+ * stream, the same reader. It simply appears in no entity Timeline, because it is
+ * about no entity.
  */
 export function validateSubjects(
   subjects: readonly { readonly entityId: unknown; readonly role: unknown }[],
+  options: { readonly allowEmpty?: boolean } = {},
 ): ActivitySubject[] {
   if (!Array.isArray(subjects)) {
     throw new ActivityValidationError("subjects", "must be an array");
   }
-  if (subjects.length < MIN_SUBJECTS) {
+  const minimum = options.allowEmpty === true ? 0 : MIN_SUBJECTS;
+  if (subjects.length < minimum) {
     throw new ActivityValidationError(
       "subjects",
-      `must relate to at least ${MIN_SUBJECTS} entity`,
+      `must relate to at least ${minimum} entity`,
     );
   }
   if (subjects.length > MAX_SUBJECTS) {

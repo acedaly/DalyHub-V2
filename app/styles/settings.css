@@ -874,3 +874,66 @@
   color: var(--md-sys-color-on-surface);
   font-variant-numeric: tabular-nums;
 }
+
+/* -------------------------------------------------------------------------- */
+/* SET-03 — Account & security                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The section adds no new layout PATTERN: identity, session and sign-out are
+ * ordinary `SettingsRow`s inside ordinary `SettingsGroup`s, and the two
+ * destructive controls are the shared `DangerousAction` inside a `tone="danger"`
+ * group. What is here is the two things those primitives do not cover — a long
+ * opaque value that must wrap rather than overflow a 320px phone, and the
+ * security-activity list.
+ */
+
+/*
+ * An email or an identity reference is a single unbroken token. Without this it
+ * pushes the row wider than the viewport at 320px, and the page — not just the
+ * row — scrolls sideways. `anywhere` rather than `break-word` because the value
+ * has no break opportunities at all.
+ */
+.dh-account-security__value--wrap {
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+/*
+ * The security history. A list, not a table: a two-column table of "what" and
+ * "when" is unusable at phone widths, and the two facts stack cleanly instead.
+ */
+.dh-account-security__events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-account-security__event {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  padding-block-end: var(--app-space-3);
+  border-block-end: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.dh-account-security__event:last-child {
+  padding-block-end: 0;
+  border-block-end: none;
+}
+
+.dh-account-security__event-summary {
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  overflow-wrap: anywhere;
+}
+
+.dh-account-security__event-time {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-variant-numeric: tabular-nums;
+}

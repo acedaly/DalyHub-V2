@@ -186,14 +186,29 @@ function bootWorker(): WorkerHarness {
   };
 }
 
+/**
+ * The policy a real Worker response would have carried, nonce and all. The
+ * shell is cached WITH its headers, so this is what a replay has to preserve
+ * (AUDIT-10).
+ */
+const SHELL_CSP =
+  "default-src 'self'; script-src 'self' 'nonce-CACHEDNONCE1234'; " +
+  "style-src 'self' 'nonce-CACHEDNONCE1234'; object-src 'none'";
+
 /** Put a believable offline shell document into the shell cache. */
 async function primeShell(harness: WorkerHarness): Promise<void> {
   const cache = await harness.cacheStorage.open("dalyhub-shell-test-build");
   await cache.put(
     OFFLINE_DOCUMENT,
     new Response(
-      '<!doctype html><h1>DalyHub offline</h1><script type="module" src="/assets/entry.js"></script>',
-      { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+      '<!doctype html><h1>DalyHub offline</h1><script nonce="CACHEDNONCE1234">1</script><script type="module" src="/assets/entry.js"></script>',
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Security-Policy": SHELL_CSP,
+        },
+      },
     ),
   );
 }
@@ -562,5 +577,62 @@ describe("the offline-boot loop breaker", () => {
 
     const fifth = await worker.navigate(OFFLINE_DOCUMENT);
     expect(fifth?.headers.get("X-DalyHub-Offline")).toBe("safe-mode");
+  });
+});
+
+/**
+ * AUDIT-10 — the two CSP rules the service worker has to get right.
+ *
+ * The worker is the one component that can serve a DalyHub document without the
+ * Worker boundary having built its headers, so it is the one place a policy can
+ * end up mismatched with the HTML it governs.
+ */
+describe("Content-Security-Policy on worker-served responses", () => {
+  it("replays the cached shell's OWN policy, nonce included", async () => {
+    // Substituting a fresh policy here would name a nonce this document's
+    // scripts do not carry — an offline shell that cannot run itself, which is
+    // exactly the failure mode an installed PWA cannot recover from.
+    await primeShell(worker);
+    goOffline(worker);
+
+    const response = await worker.navigate(OFFLINE_DOCUMENT);
+
+    expect(response?.headers.get("Content-Security-Policy")).toBe(SHELL_CSP);
+    // The rest of the baseline is still re-applied, so a cache entry can never
+    // serve a document with fewer protections than the Worker would have.
+    expect(response?.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response?.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("gives its own script-free documents a policy that forbids script entirely", async () => {
+    goOffline(worker);
+
+    for (const response of [
+      // No shell stored: the "DalyHub is offline" page.
+      await worker.navigate("/"),
+    ]) {
+      const csp = response?.headers.get("Content-Security-Policy") ?? "";
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).toContain("script-src 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      // These pages paint themselves with one inline <style> and no stylesheet
+      // request — zero subresources is what makes them survivable offline — so
+      // that is the single allowance, and it is for style only.
+      expect(csp).toContain("style-src 'unsafe-inline'");
+    }
+  });
+
+  it("gives safe mode the same script-free policy", async () => {
+    await primeShell(worker);
+    goOffline(worker);
+    // Boot the shell past the breaker's limit.
+    for (let index = 0; index < 6; index += 1) {
+      await worker.navigate(OFFLINE_DOCUMENT);
+    }
+    const response = await worker.navigate(OFFLINE_DOCUMENT);
+    expect(response?.headers.get("X-DalyHub-Offline")).toBe("safe-mode");
+    const csp = response?.headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain("script-src 'none'");
+    await expect(response!.text()).resolves.not.toContain("<script");
   });
 });
