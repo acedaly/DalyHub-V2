@@ -253,7 +253,11 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await expect(page).toHaveURL(/\/today$/);
     await expect(projectLink()).toBeVisible();
     // The row states the workflow status in words beside its open-task count.
-    await expect(continueWorking().getByText(/· Active$/)).toBeVisible();
+    // Scoped to THIS project's row: several projects can be Active at once, and
+    // the claim is about this one.
+    await expect(
+      continueWorking().getByRole("listitem").filter({ has: projectLink() }),
+    ).toContainText("· Active");
 
     // 5: real client navigation BACK to the record via the Continue working
     // card link itself (it is visible, since the project is Active).
