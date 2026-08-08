@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   expectMinTouchTarget,
   gotoFixture,
+  ownerToday,
 } from "./helpers";
 
 /**
@@ -436,9 +437,7 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     await card.hover();
     await card.getByRole("button", { name: /^Due date/ }).click();
     const duePopover = page.getByRole("dialog", { name: "Edit due date" });
-    await duePopover
-      .getByLabel("Due date", { exact: true })
-      .fill(new Date().toISOString().slice(0, 10));
+    await duePopover.getByLabel("Due date", { exact: true }).fill(ownerToday());
     await duePopover.getByRole("button", { name: "Save", exact: true }).click();
     await expect(card).toContainText("Due today");
 

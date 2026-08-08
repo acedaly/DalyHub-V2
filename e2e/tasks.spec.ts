@@ -139,9 +139,21 @@ test.describe("TASKS-01 — desktop", () => {
 });
 
 test.describe("TASKS-01 — accessibility & responsive", () => {
+  /*
+   * TASKS-05 made a Task row an editing surface: every row now carries a priority
+   * menu, two date fields and a parent picker where it used to carry text. Over the
+   * 80-task collection dataset that is several hundred extra interactive nodes for
+   * axe to walk, and a scan that fitted the 30s default no longer does — one of the
+   * two scans below measured 33.4s.
+   *
+   * The budget matches the work; not one assertion is relaxed, no rule is disabled
+   * and no wait is inserted. The same reasoning (and the same explicit
+   * `setTimeout`) already governs the overflow sweep further down this file.
+   */
   test("the priority-grouped list is axe-clean in light and dark", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     await gotoFixture(page, "/tasks?view=list&group=priority");
     await expectNoAxeViolations(page);
     await page.emulateMedia({ colorScheme: "dark" });
@@ -151,6 +163,8 @@ test.describe("TASKS-01 — accessibility & responsive", () => {
   test("the default list (and the complete collection) are axe-clean in light and dark", async ({
     page,
   }) => {
+    // Four scans, for the same reason as the test above.
+    test.setTimeout(150_000);
     // Mirrors what the shared accessibility sweep scans: the default /tasks
     // landing (TASKS-03: the calm active list) and the complete collection.
     for (const path of ["/tasks", "/tasks?view=list&system=all"]) {

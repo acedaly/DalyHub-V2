@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  ownerToday,
 } from "./helpers";
 
 /**
@@ -41,7 +42,8 @@ const LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 const INBOX = "/tasks?view=list&system=inbox&sort=created&dir=desc";
 const DELETED = "/tasks?view=list&system=deleted&sort=updated";
 
-const TODAY = new Date().toISOString().slice(0, 10);
+/** Today on the OWNER's calendar — never the UTC day (see `ownerToday`). */
+const TODAY = ownerToday();
 
 /** Capture a task through the in-workspace quick-add row. */
 async function quickAdd(page: Page, text: string) {

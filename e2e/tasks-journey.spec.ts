@@ -4,6 +4,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  ownerToday,
 } from "./helpers";
 
 /**
@@ -351,7 +352,10 @@ test.describe("TASKS-01 — full journey", () => {
   });
 
   test("Today and Projects project the same task", async ({ page }) => {
-    const today = new Date().toISOString().slice(0, 10);
+    // The owner's calendar day, not the UTC one: Today is an owner-timezone surface
+    // (ADR-022), so a UTC date silently plans this task for YESTERDAY whenever the
+    // suite runs late in the owner's day, and Today then correctly omits it.
+    const today = ownerToday();
     await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
       title: "Journey task Delta",
