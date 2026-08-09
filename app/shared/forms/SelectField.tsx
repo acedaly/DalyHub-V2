@@ -287,8 +287,19 @@ function SelectCombobox(props: SelectFieldProps) {
   return (
     <div
       className={rootClassName}
-      role="group"
-      aria-labelledby={labelId}
+      /*
+       * The wrapper is a labelled GROUP only for a MULTI select, where it
+       * genuinely contains more than one named thing: the removable chips and
+       * the combobox that adds to them.
+       *
+       * A single select contains exactly one control, and naming the wrapper as
+       * well gave the field TWO elements with the same accessible name — the
+       * group and the combobox inside it. A screen reader announced "Owner
+       * timezone group, Owner timezone combobox", and every by-name query for
+       * the control matched both. The name belongs to the thing you operate.
+       */
+      role={multiple ? "group" : undefined}
+      aria-labelledby={multiple ? labelId : undefined}
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
       data-readonly={readOnly || undefined}
@@ -387,6 +398,19 @@ function SelectCombobox(props: SelectFieldProps) {
             <button
               type="button"
               className="dh-combobox__clear"
+              /*
+               * Every populated select offers one of these, so a form with two
+               * of them has two buttons with one name between them — a real
+               * ambiguity, recorded as DEBT-112 rather than fixed here.
+               *
+               * Naming it after its field (`Clear owner timezone`) is the right
+               * answer and was tried: it makes the FIELD's own label a substring
+               * of the button's, and Playwright's `getByLabel` matches
+               * substrings, so it turned every `getByLabel("<select label>")` in
+               * the suite into a strict-mode violation. That is a suite-wide
+               * migration to role-based queries (AGENTS.md §23), not a passenger
+               * on an E2E-repair PR.
+               */
               aria-label="Clear selection"
               disabled={disabled}
               onMouseDown={(event) => event.preventDefault()}

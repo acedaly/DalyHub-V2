@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { DEV_ORIGIN } from "./dev-server";
 import {
   RESPONSIVE_VIEWPORTS,
+  clickCardAction,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -563,7 +565,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     const noteRow = deletedList
       .getByRole("listitem")
       .filter({ hasText: noteTitle });
-    await noteRow.getByRole("button", { name: "Restore" }).click();
+    await clickCardAction(noteRow, "Restore");
     await expect(
       page
         .getByRole("region", { name: "Notifications" })
@@ -762,5 +764,91 @@ test.describe("NOTES-05 / AUDIT-08 — a note changed in another tab", () => {
 
     await gotoFixture(page, noteUrl);
     expect(await readSource(page)).toContain("merged by hand");
+  });
+
+  test("a SECOND real tab is the other writer, and neither loses its words", async ({
+    page,
+    browser,
+  }) => {
+    // The journey above simulates the other writer with a `fetch`, which proves
+    // the endpoint. This one gives the other writer a real browser context with
+    // its own cookie jar and its own editor, which is what the owner actually
+    // has when they leave DalyHub open on a laptop and a desktop. The two are
+    // complementary: the endpoint can be right while the second EDITOR is the
+    // thing that overwrites.
+    const noteTitle = uniqueNoteTitle("two-tabs");
+    const noteUrl = await createNote(page, noteTitle);
+
+    await clearAndType(page, "One shared opening line.");
+    await blurEditor(page);
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    const second = await browser.newContext({ baseURL: DEV_ORIGIN });
+    const other = await second.newPage();
+    try {
+      // Both tabs are now holding the SAME version.
+      await gotoFixture(other, noteUrl);
+      await expect(other.locator(".cm-editor")).toBeVisible();
+
+      // The other tab saves first, cleanly.
+      await clearAndType(other, "One shared opening line.\n\nFrom the laptop.");
+      await blurEditor(other);
+      await expect(other.getByText("Saved")).toBeVisible();
+
+      // This tab saves against the version it still holds. It must be refused.
+      await clearAndType(page, "One shared opening line.\n\nFrom the desktop.");
+      await blurEditor(page);
+
+      const banner = page.getByRole("status", { name: "Changed elsewhere" });
+      await expect(banner).toBeVisible();
+      await expect(banner).toContainText("nothing has been overwritten");
+
+      // Neither writer lost anything: this tab still holds its draft…
+      expect(await readVisibleSource(page)).toContain("From the desktop.");
+      // …and the other tab's words are still what the note actually says.
+      await gotoFixture(other, noteUrl);
+      expect(await readSource(other)).toContain("From the laptop.");
+      expect(await readSource(other)).not.toContain("From the desktop.");
+    } finally {
+      await second.close();
+    }
+  });
+
+  test("REFUSES a malformed content precondition instead of ignoring it", async ({
+    page,
+  }) => {
+    // AUDIT-08's actual subject. A guard with an opt-out is not a guard: if an
+    // unparseable version degraded to "no precondition", any stale client could
+    // skip the compare-and-set by sending rubbish. Proved from the browser, on
+    // the real endpoint, with the stored content read back afterwards.
+    const noteTitle = uniqueNoteTitle("malformed-precondition");
+    const noteUrl = await createNote(page, noteTitle);
+    const noteId = new URL(noteUrl).pathname.split("/").pop()!;
+
+    await clearAndType(page, "The stored truth.");
+    await blurEditor(page);
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    const result = await page.evaluate(async (id) => {
+      const form = new URLSearchParams();
+      form.set("intent", "update_content");
+      form.set("content", "Written with a nonsense version.");
+      form.set("expectedContentUpdatedAt", "not-a-timestamp");
+      const response = await fetch(`/notes/${encodeURIComponent(id)}/mutate`, {
+        method: "POST",
+        body: form,
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+      });
+      return { status: response.status, body: await response.text() };
+    }, noteId);
+
+    // Refused, and told why — never silently accepted.
+    expect(result.status).toBe(400);
+    expect(result.body).toContain("Not a valid content version");
+
+    // And the write did NOT happen: the stored content is untouched.
+    await gotoFixture(page, noteUrl);
+    expect(await readSource(page)).toContain("The stored truth.");
+    expect(await readSource(page)).not.toContain("nonsense version");
   });
 });

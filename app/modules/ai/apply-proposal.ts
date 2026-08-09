@@ -734,9 +734,12 @@ async function applyLink(
  *   - an acceptance the owner EDITED first is a different key, and creates the
  *     different record they asked for.
  *
- * Meeting-derived Tasks deliberately do NOT come through here: their idempotency
- * is the `meeting_item_tasks` mapping and MEET-02's own conversion rules, which
- * is the stronger guarantee and the one DEBT-90 asked for.
+ * Meeting-derived Tasks come through here TOO, as of AUDIT-13. The
+ * `meeting_item_tasks` mapping is the stronger guarantee for a SEQUENTIAL replay
+ * — the second attempt finds the first's action item and its live mapping — but
+ * it cannot arbitrate two SIMULTANEOUS accepts, because both read the Meeting
+ * before either item exists and each is then allocated a distinct item id. See
+ * the long note on `applyMeetingTask`.
  */
 /** The stable key one accepted item is claimed under. Pure and deterministic. */
 export async function acceptanceIdempotencyKey(

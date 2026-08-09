@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import {
+  clickCardAction,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -59,25 +60,12 @@ function cardFor(page: Page, title: string) {
 }
 
 /**
- * Click one of a row's quick actions, the way a person reaches them.
- *
- * On a hover-capable pointer the action rail is CONCEALED at rest and overlays the
- * row's trailing edge when revealed (UIQ-002, `card.css`) — so a real click is
- * always preceded by the pointer arriving over the row. Hovering first is not a
- * test workaround: driving the rail without it exercises a state no person can
- * reach, and the row now carries real controls beneath the rail's footprint, which
- * is exactly what the concealed rail is `pointer-events: none` for.
- *
- * The upward wheel is for the narrow viewport: the sticky mobile header covers the
- * top of the scroll container, and a row scrolled flush to the top of the viewport
- * sits under it.
+ * Click one of a row's quick actions, through the ONE shared cold-rail helper.
+ * `clickCardAction` carries the reasoning; this keeps the by-title call shape
+ * every journey in this file already uses.
  */
 async function rowAction(page: Page, title: string, name: string | RegExp) {
-  const card = cardFor(page, title).first();
-  await card.scrollIntoViewIfNeeded();
-  await page.mouse.wheel(0, -160);
-  await card.hover();
-  await card.getByRole("button", { name }).click();
+  await clickCardAction(cardFor(page, title).first(), name);
 }
 
 /** Open a card's overflow menu and choose one item. */

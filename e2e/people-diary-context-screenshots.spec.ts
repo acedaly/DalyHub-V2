@@ -1,8 +1,7 @@
-import { execFileSync } from "node:child_process";
-
 import { test, expect, type Page } from "@playwright/test";
 
 import { gotoFixture, waitForInteractive } from "./helpers";
+import { d1Execute } from "./d1";
 
 /**
  * PEOPLE-04 / DIARY-02 — the visual evidence set.
@@ -35,25 +34,9 @@ const CLEANUP_SQL = [
   `DELETE FROM entities WHERE workspace_id = '${WS}' AND id IN (${OWNED});`,
 ] as const;
 
-function d1(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+function d1(command: string | readonly string[]): void {
+  d1Execute(command);
 }
 
 function cleanup(): void {

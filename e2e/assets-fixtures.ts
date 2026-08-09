@@ -12,8 +12,8 @@
  * `asset_details` slice, and finally the entity row.
  */
 
-import { execFileSync } from "node:child_process";
 import { expect, type Page } from "@playwright/test";
+import { d1Execute } from "./d1";
 
 export const ASSET_TITLE_PREFIX = "Assets e2e ";
 
@@ -102,51 +102,9 @@ function cleanupSql(title: string): string {
   ].join("\n");
 }
 
-function isTransientD1Error(output: string): boolean {
-  return (
-    output.includes("SQLITE_BUSY") ||
-    output.includes("FOREIGN KEY constraint failed")
-  );
-}
-
-async function runCleanup(command: string): Promise<void> {
-  const attempts = 5;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-          stdio: "pipe",
-        },
-      );
-      return;
-    } catch (error) {
-      const err = error as {
-        message?: string;
-        stdout?: unknown;
-        stderr?: unknown;
-      };
-      const output = [err.message, err.stdout, err.stderr]
-        .map((part) => String(part ?? ""))
-        .join("\n");
-      if (attempt === attempts || !isTransientD1Error(output)) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
-    }
-  }
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+async function runCleanup(command: string | readonly string[]): Promise<void> {
+  d1Execute(command);
 }
 
 /** Remove one test's Assets (and related Notes) by exact title. */

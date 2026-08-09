@@ -209,8 +209,15 @@ describe("TaskQuickEditPanel", () => {
     });
     const picker = screen.getByRole("combobox", { name: /Project or Area/ });
     fireEvent.click(picker);
-    // Scoped to the parent field's own group: every populated control offers a clear.
-    const field = picker.closest('[role="group"]') as HTMLElement;
+    /*
+     * Scoped to the parent field's own element, because every populated select
+     * on this panel offers a clear and they all say "Clear selection" —
+     * recorded as DEBT-112. This used to scope by `[role="group"]`, which the
+     * field no longer carries: a single select's name belongs to its combobox
+     * alone, and naming the wrapper as well was the duplicate-accessible-name
+     * defect this PR fixed.
+     */
+    const field = picker.closest(".dh-field--select") as HTMLElement;
     fireEvent.click(
       within(field).getByRole("button", { name: /Clear selection/ }),
     );

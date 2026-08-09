@@ -91,6 +91,24 @@ UPDATE project_details SET status = 'active', archived_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('ri-proj-kitchen', 'ri-proj-loft', 'ri-proj-run');
 
+-- These three Projects must be INSIDE the insight read's bound, whatever else the
+-- workspace holds.
+--
+-- `REVIEW_INSIGHT_LIMITS.projects` is 20, deliberately, and the read is ordered by
+-- the effective updated-at (the later of the spine's and the detail slice's — see
+-- `EFFECTIVE_UPDATED_AT_EXPR`). With a fixed 2026-03 stamp these fixtures sank below
+-- twenty other Projects as soon as the rest of the suite had touched that many, and
+-- the health-movement section then had nothing to compare and vanished — a failure
+-- that looks like a product bug and is a fixture that aged out of its own read.
+--
+-- Only the DETAIL slice's stamp is moved: ADR-014 reserves the spine's `updated_at`
+-- for identity, and the max() is what the ordering reads. Nothing the tests assert
+-- is derived from it — health comes from the tasks and the activity rows above,
+-- both of which are already `date('now')`-relative.
+UPDATE project_details SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('ri-proj-kitchen', 'ri-proj-loft', 'ri-proj-run');
+
 -- Structural spine links. Each child has exactly ONE structural parent.
 INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
 VALUES

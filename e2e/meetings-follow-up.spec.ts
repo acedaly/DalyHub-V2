@@ -39,14 +39,14 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 /** Add a structured item via the consolidated Meeting workspace. */
 async function addItem(
   page: Page,
-  addLabel: string,
+  kindLabel: string,
   body: string,
 ): Promise<void> {
   await page.getByRole("tab", { name: "Meeting" }).click();
-  // The field and its submit button share the accessible name, so ask for the
-  // textbox by role rather than by label alone.
-  await page.getByRole("textbox", { name: addLabel }).fill(body);
-  await page.getByRole("button", { name: addLabel }).click();
+  // The field names the noun and the button names the act, so each control can
+  // be asked for unambiguously — they used to share one accessible name.
+  await page.getByRole("textbox", { name: `New ${kindLabel}` }).fill(body);
+  await page.getByRole("button", { name: `Add ${kindLabel}` }).click();
   await expect(page.getByText(body, { exact: false })).toBeVisible();
 }
 
@@ -135,9 +135,9 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await page.getByRole("button", { name: "Add selected" }).click();
   await expect(page.getByRole("link", { name: /Sarah Chen/ })).toBeVisible();
 
-  await addItem(page, "Add agenda item", "Agenda: confirm the budget");
-  await addItem(page, "Add decision", "Decision: proceed with vendor A");
-  await addItem(page, "Add outcome", "Outcome: publish the recap");
+  await addItem(page, "agenda item", "Agenda: confirm the budget");
+  await addItem(page, "decision", "Decision: proceed with vendor A");
+  await addItem(page, "outcome", "Outcome: publish the recap");
 
   // Convert the agenda item, editing title + priority.
   await page.getByRole("tab", { name: "Meeting" }).click();
@@ -220,7 +220,7 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
 }) => {
   const title = uniqueMeetingTitle("archived");
   await createMeeting(page, title);
-  await addItem(page, "Add decision", "Decision: keep the venue");
+  await addItem(page, "decision", "Decision: keep the venue");
   await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: keep the venue", {
     parent: "Website relaunch",
@@ -257,7 +257,7 @@ test("browser Back/Forward and refresh preserve the tab and Drawer", async ({
 }) => {
   const title = uniqueMeetingTitle("history");
   const url = await createMeeting(page, title);
-  await addItem(page, "Add decision", "Decision: schedule the review");
+  await addItem(page, "decision", "Decision: schedule the review");
   await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: schedule the review", {
     parent: "Website relaunch",
@@ -289,9 +289,9 @@ test("an item of the same kind can still be added after removing a non-last one"
 }) => {
   const title = uniqueMeetingTitle("item-positions");
   await createMeeting(page, title);
-  await addItem(page, "Add agenda item", "Agenda: confirm the budget");
-  await addItem(page, "Add agenda item", "Agenda: approve the hires");
-  await addItem(page, "Add agenda item", "Agenda: review the roadmap");
+  await addItem(page, "agenda item", "Agenda: confirm the budget");
+  await addItem(page, "agenda item", "Agenda: approve the hires");
+  await addItem(page, "agenda item", "Agenda: review the roadmap");
 
   // Remove the FIRST of three — the sequence that used to leave the agenda kind
   // permanently un-addable.
@@ -304,7 +304,7 @@ test("an item of the same kind can still be added after removing a non-last one"
 
   // `addItem` fails the test if the item does not appear, so this IS the assertion
   // that the previously-failing save now succeeds.
-  await addItem(page, "Add agenda item", "Agenda: name the risks");
+  await addItem(page, "agenda item", "Agenda: name the risks");
 
   // The survivors are untouched and the new item sorts last — after a reload, so
   // this is the persisted order and not an optimistic client render.
@@ -324,7 +324,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     const title = uniqueMeetingTitle(`axe-${scheme}`);
     await createMeeting(page, title);
-    await addItem(page, "Add action item", "Action: axe check");
+    await addItem(page, "action item", "Action: axe check");
     await page.getByRole("tab", { name: "Follow-up" }).click();
     await expect(
       page.getByRole("button", { name: "Add follow-up task" }),
@@ -342,7 +342,7 @@ for (const width of [390, 320]) {
     await createMeeting(page, title);
     await addItem(
       page,
-      "Add action item",
+      "action item",
       "Action: a deliberately long action line that must wrap without widening the page on a narrow phone viewport",
     );
     await page.getByRole("tab", { name: "Follow-up" }).click();

@@ -8,6 +8,7 @@ import {
   gotoFixture,
   waitForInteractive,
 } from "./helpers";
+import { d1Execute, sqlLiteral } from "./d1";
 import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 import { cleanupMeetingByTitle, uniqueMeetingTitle } from "./meetings-fixtures";
 
@@ -39,6 +40,17 @@ const bottomNav = "[data-testid='bottom-nav']";
  * product one.
  */
 const RUN = `${Date.now().toString(36)}`;
+
+/**
+ * Tasks this file creates, removed in `afterAll`.
+ *
+ * The Project journey below used to leave its Task behind on every run — neither
+ * the spec nor `setup-local-db.mjs` matched it — so a long-lived local database
+ * accumulated one per run inside a fixture Project other specs assert about.
+ */
+const createdTaskTitles = new Set<string>();
+
+const WORKSPACE_ID = "local-dev-workspace";
 const DRAWER_URL = "/today?drawer=task%3At-drawer";
 
 /** Open the shared capture sheet on a type from the phone bottom bar. */
@@ -94,6 +106,34 @@ async function submitTaskCapture(
 }
 
 test.describe("MOBILE-01 Diary on a phone", () => {
+  /*
+   * These journeys file real Diary entries ON TODAY, and nothing used to remove
+   * them. `diary.spec.ts` opens the workspace anchored on today and asserts
+   * "Nothing recorded on this day"; its own cleanup only reaches titles prefixed
+   * "Diary e2e ", so every run of this file left that assertion a little more
+   * false. CI's 18-way shard split hid it (the two files land in different
+   * shards, each with a fresh database); a single-process run against a reused
+   * local database is where it surfaces.
+   *
+   * The title match deliberately omits this run's stamp, so the sweep also
+   * collects what earlier runs of this file left behind.
+   */
+  test.afterAll(() => {
+    const selection = `
+      SELECT id FROM entities
+      WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
+        AND type = 'diary'
+        AND title LIKE ${sqlLiteral("Phone diary entry%")}
+    `;
+    d1Execute([
+      `DELETE FROM activity_subjects WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+      `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+      `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
+      `DELETE FROM diary_entry_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+      `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${selection});`,
+    ]);
+  });
+
   /** The pane header's create action (the empty state offers its own copy). */
   const headerCreate = (page: Page) =>
     page.locator(".dh-pane-header").getByRole("button", {
@@ -197,50 +237,80 @@ test.describe("ADR-060 contextual capture on a phone", () => {
     await expect(sheet.getByTestId("capture-result")).toBeVisible();
   });
 
-  test("captures a Project-context Task without choosing another parent", async ({
+  test("files a Task under a Project without being asked which Project", async ({
     page,
   }) => {
-    const title = `Phone project contextual task ${RUN}`;
+    /*
+     * This used to drive the Project record's overflow → "New task", which
+     * opened the GLOBAL capture sheet pre-seeded with the project. That control
+     * is deliberately gone (RECORD-01): it was a second mechanism for what the
+     * Tasks tab's own "Add task" already does with the project fixed, and "two
+     * routes to one outcome" is exactly the local-vs-global confusion that
+     * change resolved. Notes, Meetings and Diary entries keep their overflow
+     * entries — they have no local path — and the sibling journeys above cover
+     * the capture sheet's context chip for those.
+     *
+     * The guarantee this journey exists for is unchanged and is asserted on the
+     * path the product kept: filing a Task under the Project you are looking at
+     * never asks you which Project you meant.
+     */
+    const title = `Phone project task ${RUN}`;
+    createdTaskTitles.add(title);
 
-    await gotoFixture(page, "/projects");
-    const open = page.getByRole("link", { name: /^Open / }).first();
-    // Take the project's name from the link that opens it, not from `h1` after
-    // the click. A client-side navigation updates the URL before it swaps the
-    // heading, so reading `h1` once the URL matches can still return the
-    // collection heading ("Projects") and then assert the capture chip against
-    // the wrong name. The link text is the same title from a source that cannot
-    // be half-updated.
-    const projectTitle = ((await open.textContent()) ?? "")
-      .trim()
-      .replace(/^Open /, "");
-    expect(projectTitle).toBeTruthy();
-
-    await open.click();
-    await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
-    // The record heading has to be the project we named before the sheet opens.
+    await gotoFixture(page, "/projects/pr-website");
     await expect(
-      page.getByRole("heading", { level: 1, name: projectTitle }),
+      page.getByRole("heading", { level: 1, name: "Website relaunch" }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: /^More actions for / }).click();
-    await page.getByRole("menuitem", { name: "New task" }).click();
+    await page.getByRole("link", { name: "Add task" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "New Task" });
+    await expect(dialog).toBeVisible();
 
-    const sheet = page.getByTestId("capture-sheet");
-    await expect(sheet).toBeVisible();
-    await expect(sheet.getByTestId("capture-context-chip")).toContainText(
-      `In ${projectTitle}`,
-    );
-    await expect(sheet.getByText(`Filing under ${projectTitle}`)).toBeVisible();
+    // The project is already decided, so the form does not ask for a parent.
     await expect(
-      sheet.getByRole("combobox", { name: /Project or Area/ }),
+      dialog.getByRole("combobox", { name: /Project or Area/ }),
     ).toHaveCount(0);
 
-    await sheet.getByLabel("Title").fill(title);
-    await submitTaskCapture(page, sheet);
-    await sheet.getByTestId("capture-done").click();
+    await dialog.getByLabel(/Title/).fill(title);
+    await dialog.getByRole("button", { name: "Add task" }).click();
 
-    await page.getByRole("tab", { name: "Tasks" }).click();
-    await expect(page.getByText(title)).toBeVisible({ timeout: 15_000 });
+    /*
+     * Adding hands off to the new Task's own record, in the SAME shared Task
+     * Drawer the form was in — so the dialog never closes, it changes what it
+     * holds. Waiting for that hand-off is not politeness: Escape pressed during
+     * it lands between the two, the record drawer opens behind it, and the next
+     * assertion then measures a drawer nobody asked to keep open.
+     */
+    await expect(
+      page.getByRole("dialog", { name: "Task", exact: true }),
+    ).toBeVisible();
+
+    // It landed in THIS project's list, under this project.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: `Open ${title}` })).toBeVisible(
+      { timeout: 15_000 },
+    );
+  });
+
+  test.afterAll(() => {
+    for (const title of createdTaskTitles) {
+      const selection = `
+        SELECT id FROM entities
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
+          AND type = 'task'
+          AND title = ${sqlLiteral(title)}
+      `;
+      d1Execute([
+        `DELETE FROM activity_subjects WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+        `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+        `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
+        `DELETE FROM task_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+        `DELETE FROM spine_records WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+        `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${selection});`,
+      ]);
+    }
+    createdTaskTitles.clear();
   });
 });
 

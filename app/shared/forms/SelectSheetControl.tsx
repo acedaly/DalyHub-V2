@@ -119,8 +119,12 @@ export function SelectSheetControl({
       ]
         .filter(Boolean)
         .join(" ")}
-      role="group"
-      aria-labelledby={labelId}
+      /*
+       * No labelled group around a single control — see the same note in
+       * `SelectField`. The trigger already names itself with the field's label,
+       * so a group carrying that label as well would put one accessible name on
+       * two nested elements.
+       */
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
       data-readonly={readOnly || undefined}

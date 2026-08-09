@@ -1,5 +1,4 @@
-import { execFileSync } from "node:child_process";
-
+import { d1Execute } from "./d1";
 export const REVIEW_TITLE_PREFIX = "Reviews e2e review ";
 
 let reviewCounter = 0;
@@ -32,48 +31,9 @@ function cleanupSql(titlePredicate: string): string {
   ].join("\n");
 }
 
-function isTransientD1Error(output: string): boolean {
-  return (
-    output.includes("SQLITE_BUSY") ||
-    output.includes("FOREIGN KEY constraint failed")
-  );
-}
-
-async function runCleanup(command: string): Promise<void> {
-  const attempts = 5;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-          stdio: "pipe",
-        },
-      );
-      return;
-    } catch (error) {
-      const err = error as {
-        message?: string;
-        stdout?: unknown;
-        stderr?: unknown;
-      };
-      const output = [err.message, err.stdout, err.stderr]
-        .map((part) => String(part ?? ""))
-        .join("\n");
-      if (attempt === attempts || !isTransientD1Error(output)) throw error;
-    }
-  }
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+async function runCleanup(command: string | readonly string[]): Promise<void> {
+  d1Execute(command);
 }
 
 export async function cleanupReviewByTitle(title: string): Promise<void> {

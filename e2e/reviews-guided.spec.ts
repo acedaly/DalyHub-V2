@@ -16,8 +16,6 @@
  * `reviews.spec.ts` does.
  */
 
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -33,6 +31,7 @@ import {
   postSameOrigin,
   waitForInteractive,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 const WORKSPACE = "local-dev-workspace";
 const TASK_PREFIX = "Guided review e2e task ";
@@ -53,25 +52,9 @@ test.afterEach(async () => {
 /* Fixtures                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function d1(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+function d1(command: string | readonly string[]): void {
+  d1Execute(command);
 }
 
 /**
@@ -210,9 +193,23 @@ test("Journey 1: a weekly Review is completed through the guided flow", async ({
   await continueTo(page, "Inbox");
 
   // 2 — the Inbox, processed without leaving the Review.
+  //
+  // The step triages ONE task at a time out of the workspace's real Inbox, so
+  // which task is on screen depends on how many others are in it. This used to
+  // assert that the task captured at the top of this journey was the one shown,
+  // which is only true when the Inbox is otherwise empty — true in a CI shard
+  // that runs this file early, and false in a full single-process run, where
+  // every earlier spec's unfiled tasks are still there. That is an order
+  // dependency, not a product fact.
+  //
+  // The claim the journey is making is that the step reads the OWNER'S REAL
+  // Inbox and triages it in place, so that is what is asserted: the count the
+  // step states, and a genuine task card carrying the shared planning fields.
   await expect(stepHeading(page, "Clear the Inbox")).toBeVisible();
+  const inboxStep = page.getByRole("region", { name: "Clear the Inbox" });
+  await expect(inboxStep.getByText(/Tasks? in the Inbox/)).toBeVisible();
   await expect(
-    page.getByText(new RegExp(`${TASK_PREFIX}journey-1`)),
+    inboxStep.getByRole("combobox", { name: "Project or Area" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Mark the Inbox step reviewed" })
@@ -493,10 +490,25 @@ test("Journey 5: an existing Review uses its own stored template and is not rewr
     page.getByText("Written before the guided flow existed."),
   ).toBeVisible();
 
-  // And the stored template version is untouched by opening the guided flow.
+  /*
+   * And the Review's own record still reads as its own after the guided flow
+   * has been opened over it — the authored text is on the record, not only in
+   * the guide.
+   *
+   * This used to assert the literal string `review.weekly.v1` on the page. The
+   * record no longer prints the template IDENTIFIER anywhere, and it should not:
+   * a versioned internal key is not something the owner needs to read. The
+   * storage invariant it was standing in for has its own coverage at the right
+   * layer — `test/kernel/review-workflow.test.ts`, *"preserves the Review's
+   * stored template version"* — so this asserts what a browser can actually
+   * see (AGENTS.md §22).
+   */
   await page.goto(reviewUrl);
   await waitForInteractive(page);
-  await expect(page.getByText("review.weekly.v1")).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(
+    page.getByText("Written before the guided flow existed."),
+  ).toBeVisible();
 });
 
 /* -------------------------------------------------------------------------- */

@@ -215,18 +215,20 @@ export function MeetingItemsSection({
           }}
         >
           {/*
-            RECORD-01 — "Add {label}" once, not twice.
+            RECORD-01 — "Add {label}" once, not twice. The section already has a
+            heading ("Agenda items"), so the visible button stays the bare verb
+            and keeps the specific ACCESSIBLE name, which is what a screen-reader
+            user needs when four of these forms sit on one record.
 
-            The section already has a heading ("Agenda items"), and the field
-            label directly above the input already says what typing here adds.
-            The button repeating the same three words a second time is the
-            "repeated Add X labels" this convergence removes — so the button
-            says what it does and keeps the specific ACCESSIBLE name, which is
-            what a screen-reader user needs when four of these forms sit on one
-            record.
+            The field names the NOUN, not the act. It used to say "Add {label}"
+            too, which gave the textbox and the submit button one accessible name
+            between them: a screen reader announced "Add action item, edit text"
+            then "Add action item, button", and there was no way to ask for
+            either one unambiguously. Two controls, two names — the field is what
+            you are writing, the button is what happens to it.
           */}
           <label className="dh-field">
-            <span className="dh-field__label">Add {label}</span>
+            <span className="dh-field__label">New {label}</span>
             <input
               name="body"
               className="dh-input"

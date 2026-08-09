@@ -22,7 +22,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { DEV_ORIGIN, SECOND_ORIGIN } from "./dev-server";
-import { postSameOrigin } from "./helpers";
+import { expectOnToday, postSameOrigin } from "./helpers";
 
 /** The seeded task the attack aims at. Reversible, and restored afterwards. */
 const TARGET_TASK = "t-complete";
@@ -165,9 +165,7 @@ test.describe("AUDIT-FIX-04 — a cross-origin mutation is refused", () => {
     // The other half of the guarantee. A normal browser journey still loads,
     // and a normal same-origin submission still mutates.
     await page.goto(`${DEV_ORIGIN}/today`);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
-    ).toBeVisible();
+    await expectOnToday(page);
 
     const completed = await postSameOrigin(
       page.request,

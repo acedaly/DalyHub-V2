@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -15,6 +13,7 @@ import {
   cleanupMeetingByTitle,
   uniqueMeetingTitle,
 } from "./meetings-fixtures";
+import { d1Execute } from "./d1";
 
 /**
  * MEET-03 — Meetings contribute interaction history to the People timeline.
@@ -48,50 +47,11 @@ const PERSON_CLEANUP_SQL = [
   `DELETE FROM entities WHERE workspace_id = '${WS}' AND id IN (${PERSON_QUERY});`,
 ] as const;
 
-async function runD1Command(command: string): Promise<void> {
-  const attempts = 3;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-          stdio: "pipe",
-        },
-      );
-      return;
-    } catch (error) {
-      const err = error as {
-        message?: string;
-        stdout?: unknown;
-        stderr?: unknown;
-      };
-      const output = [err.message, err.stdout, err.stderr]
-        .map((part) => String(part ?? ""))
-        .join("\n");
-      if (
-        attempt === attempts ||
-        !(
-          output.includes("SQLITE_BUSY") ||
-          output.includes("FOREIGN KEY constraint failed")
-        )
-      ) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
-    }
-  }
+/** This file's cleanup SQL, through the ONE shared D1 helper (see `./d1`). */
+async function runD1Command(
+  command: string | readonly string[],
+): Promise<void> {
+  d1Execute(command);
 }
 
 async function cleanupPeople(): Promise<void> {

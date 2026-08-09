@@ -354,3 +354,84 @@ export function postSameOrigin(
     headers: { ...SAME_ORIGIN_MUTATION_HEADERS, ...headers },
   } as Parameters<APIRequestContext["post"]>[1]);
 }
+
+/**
+ * The Today screen's day panel — the stable landmark that says "this is Today".
+ *
+ * The Today redesign made the screen's `h1` the owner's GREETING ("Good evening,
+ * Sam"), which is page content rather than a page name: it changes with the hour
+ * and with who is signed in, and there is no pane header behind it. Several specs
+ * were still waiting for `heading level 1 "Today"` and timing out on a page that
+ * had rendered perfectly.
+ *
+ * "My day" is the screen's own labelled region and is the same at every hour, so
+ * it is what the suite asks for now. Asserting a landmark rather than a class also
+ * keeps the check on the accessibility tree, where the product's contract lives.
+ */
+export function todayDayPanel(page: Page): Locator {
+  return page.getByRole("region", { name: "My day" });
+}
+
+/** Assert the browser is on the Today screen, by URL and by that landmark. */
+export async function expectOnToday(page: Page): Promise<void> {
+  await expect(page).toHaveURL(/\/today(?:[?#]|$)/);
+  await expect(todayDayPanel(page)).toBeVisible();
+}
+
+/**
+ * Click one of a card's quick actions, the way a person reaches them.
+ *
+ * On a hover-capable pointer a card's action rail is CONCEALED at rest —
+ * `opacity: 0` **and** `pointer-events: none` (UIQ-002, `card.css`) — and is
+ * revealed by the pointer arriving over the card. Driving it without hovering
+ * first exercises a state no person can reach, and it fails in a way that reads
+ * like a product bug: Playwright's visibility check ignores `opacity`, so the
+ * button is reported "visible, enabled and stable", and then the hit test at its
+ * centre returns whatever sits UNDER the transparent rail — the card's title, or
+ * its status chip — as "intercepts pointer events".
+ *
+ * That misreading is on the record twice. The V2.2 Tasks programme diagnosed it
+ * for five `tasks-daily-driver` journeys and fixed it with a local helper; the
+ * DEBT-106 census met the same failure on the Archived People collection and
+ * recorded it as "a shared-Card layering problem", which it is not — the rail is
+ * `pointer-events: none` precisely so a click in a row's empty trailing space
+ * cannot activate an unseen action. This is that one helper, shared, so the next
+ * spec to meet it does not diagnose it a third time.
+ *
+ * The upward wheel is for narrow viewports: the sticky mobile header covers the
+ * top of the scroll container, so a card scrolled flush to the top sits under it.
+ */
+export async function clickCardAction(
+  card: Locator,
+  name: string | RegExp,
+): Promise<void> {
+  await card.scrollIntoViewIfNeeded();
+  await card.page().mouse.wheel(0, -160);
+  await card.hover();
+  await card.getByRole("button", { name }).click();
+}
+
+/**
+ * Set an M3-INT `Switch` (`~/shared/forms/Switch`) to `on`.
+ *
+ * `locator.check()` and `locator.uncheck()` cannot drive this control, and are
+ * right not to: the real `<input type="checkbox" role="switch">` is deliberately
+ * `pointer-events: none` (`switch.css`), because the 44px pointer target is the
+ * `<label>` around the track rather than the 32px graphic. A pointer therefore
+ * never reaches the input, Playwright's hit test says so, and it retries until
+ * the test times out — which is a true statement about the pointer, not a defect.
+ *
+ * So the switch is driven the way its OTHER real input method drives it: focus
+ * the control and press Space, which is exactly what the component's docstring
+ * promises the native element still gives away. State is read back from the
+ * input, which is where `:checked` actually lives.
+ *
+ * Already-in-the-wanted-state is a no-op, so a caller can assert an end state
+ * without first knowing the current one.
+ */
+export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
+  if ((await toggle.isChecked()) === on) return;
+  await toggle.focus();
+  await toggle.press(" ");
+  await expect(toggle).toBeChecked({ checked: on });
+}

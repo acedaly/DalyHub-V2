@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -27,6 +25,7 @@ import {
   cleanupReviewByTitle,
   uniqueReviewTitle,
 } from "./reviews-fixtures";
+import { d1Execute } from "./d1";
 
 /**
  * AI-01 / AI-04 — the AI assistance journeys.
@@ -58,27 +57,6 @@ import {
 
 const WORKSPACE_ID = "local-dev-workspace";
 const OWNER_ID = "local-development-user";
-
-function d1Execute(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
-}
 
 /**
  * Return AI preferences to the shipped defaults. Deleting the row IS the reset:

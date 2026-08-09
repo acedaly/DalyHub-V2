@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test } from "@playwright/test";
 
 import {
@@ -9,6 +7,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 /**
  * DIARY-01B — the Diary day-timeline workspace over the seeded Worker/D1 app.
@@ -39,27 +38,6 @@ const CLEANUP_SQL = [
   `DELETE FROM diary_entry_details WHERE workspace_id = '${WS}' AND entity_id IN (${ENTITY_QUERY});`,
   `DELETE FROM entities WHERE workspace_id = '${WS}' AND id IN (${ENTITY_QUERY});`,
 ] as const;
-
-function d1Execute(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
-}
 
 function cleanup(): void {
   for (const command of CLEANUP_SQL) d1Execute(command);

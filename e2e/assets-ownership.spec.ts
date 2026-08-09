@@ -42,6 +42,48 @@ test.afterEach(async () => {
   owned.clear();
 });
 
+/** Escape a generated fixture title for use inside a name RegExp. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Assert the Assets COLLECTION states an outstanding obligation for `title`.
+ *
+ * This used to be asserted on Today, which carried an "Assets needing attention"
+ * list. The Today redesign removed that list and did not replace it, so the
+ * collection's own obligation signal is now the only place an obligation reaches
+ * the owner outside the asset's own record. The journey these steps belong to is
+ * unchanged — "an outstanding obligation is visible somewhere I will actually
+ * look" — so it is asserted where the product now says it. The missing Today
+ * surface is recorded as debt rather than rebuilt inside an E2E repair.
+ */
+async function expectCollectionSignal(
+  page: Page,
+  title: string,
+  signal: string | RegExp,
+): Promise<void> {
+  await gotoFixture(page, "/assets");
+  const card = page
+    .getByRole("listitem")
+    .filter({ hasText: new RegExp(escapeForRegExp(title)) });
+  await expect(card).toBeVisible();
+  await expect(card.getByText(signal)).toBeVisible();
+}
+
+/** The counterpart: the card is there, and states no obligation at all. */
+async function expectNoCollectionSignal(
+  page: Page,
+  title: string,
+): Promise<void> {
+  await gotoFixture(page, "/assets");
+  const card = page
+    .getByRole("listitem")
+    .filter({ hasText: new RegExp(escapeForRegExp(title)) });
+  await expect(card).toBeVisible();
+  await expect(card.getByText(/obligation/)).toHaveCount(0);
+}
+
 /** A calendar date `days` from today, in the owner's wall-calendar form. */
 function isoInDays(days: number): string {
   const now = new Date();
@@ -89,9 +131,22 @@ async function createAsset(
  * route the record offers rather than each test encoding the hierarchy.
  */
 async function startCapture(page: Page, label: string): Promise<void> {
-  const exposed = page
-    .locator(".dh-record-toolbar")
-    .getByRole("button", { name: label });
+  /*
+   * Which capture is EXPOSED depends on the asset's type — a thing that is
+   * serviced leads with "Record service", everything else is behind the
+   * overflow — so this asks the toolbar which one it is.
+   *
+   * The toolbar is waited for before the question is asked. `count()` does not
+   * auto-wait, so calling it straight after a tab click reads the panel before
+   * it has rendered: the answer is always 0, the helper takes the overflow
+   * branch, and then waits out the whole test budget for a menu item that is
+   * not in the menu BECAUSE it is the exposed button. That is what made this
+   * spec's theme sweep burn six minutes on a locator that was on screen the
+   * whole time.
+   */
+  const toolbar = page.locator(".dh-record-toolbar");
+  await expect(toolbar).toBeVisible();
+  const exposed = toolbar.getByRole("button", { name: label });
   if ((await exposed.count()) > 0) {
     await exposed.click();
     return;
@@ -244,13 +299,9 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
     page.getByTestId("asset-next-obligation").getByText("Renew registration"),
   ).toBeVisible();
 
-  // 4. Today mentions it, by name, linking back to the obligation.
-  await gotoFixture(page, "/");
-  const todayAssets = page.getByRole("list", {
-    name: "Assets needing attention",
-  });
-  await expect(todayAssets.getByText(title)).toBeVisible();
-  await expect(todayAssets.getByText("Due soon")).toBeVisible();
+  // 4. It reaches the owner OUTSIDE the record it was created on — the Assets
+  //    collection card carries the obligation signal, by count and in words.
+  await expectCollectionSignal(page, title, "1 obligation due soon");
 
   // 5. Complete it — recording what actually happened, not just ticking a box.
   await page.goto(`${url}?tab=obligations`);
@@ -281,9 +332,9 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
   await expect(history.getByText("Registration").first()).toBeVisible();
   await expect(history.getByText(/870/)).toBeVisible();
 
-  // 8. Today is quiet again — the next one is a year away, not today's business.
-  await gotoFixture(page, "/");
-  await expect(page.getByText("Nothing due soon")).toBeVisible();
+  // 8. The signal is quiet again — the next one is a year away, not today's
+  //    business, so the card states nothing rather than a zero.
+  await expectNoCollectionSignal(page, title);
 });
 
 test("a meter obligation asks for a reading rather than accusing you of being late", async ({
@@ -387,14 +438,24 @@ test("completing the linked Task does not assert the work happened", async ({
   const taskLink = dueList.getByRole("link", { name: "Open task" });
   await expect(taskLink).toBeVisible();
 
-  // 2. Today shows the Task, NOT a duplicate obligation row — the dedup rule.
-  await gotoFixture(page, "/");
-  await expect(page.getByText("Nothing outstanding here")).toBeVisible();
+  /*
+   * 2. The dedup rule: ONE Task tracks this obligation, and the obligation stops
+   *    offering to create another.
+   *
+   *    This used to be read off Today, which said "1 asset obligation is already
+   *    tracked as a task in My day" beside an "Assets needing attention" list.
+   *    The Today redesign removed that list outright — Today now carries no
+   *    obligations at all, so there is nothing there left to duplicate and
+   *    nothing there left to assert. The gap is recorded as DEBT-111 rather than
+   *    rebuilt inside an E2E repair, and the rule itself is asserted where the
+   *    product still states it.
+   */
+  await expect(dueList.getByRole("link", { name: "Open task" })).toHaveCount(1);
   await expect(
-    page.getByText(
-      "1 asset obligation is already tracked as a task in My day.",
-    ),
-  ).toBeVisible();
+    dueList.getByRole("button", {
+      name: /^Create task for Book the annual service/,
+    }),
+  ).toHaveCount(0);
 
   // 3. Complete the Task.
   await page.goto(`${url}?tab=obligations`);
@@ -415,13 +476,9 @@ test("completing the linked Task does not assert the work happened", async ({
     page.getByRole("button", { name: /^Complete Book the annual service/ }),
   ).toBeVisible();
 
-  // 5. It is back on Today, because it is genuinely still outstanding.
-  await gotoFixture(page, "/");
-  await expect(
-    page
-      .getByRole("list", { name: "Assets needing attention" })
-      .getByText(title),
-  ).toBeVisible();
+  // 5. It is still being asked for, because it is genuinely still outstanding —
+  //    completing the TASK never asserts that the servicing happened.
+  await expectCollectionSignal(page, title, /obligation/);
 });
 
 test("valuation history refuses to call two points a trend", async ({
@@ -501,12 +558,11 @@ test("archiving keeps the history and stops the reminders; restoring brings both
     page.locator(".dh-record-toolbar").getByRole("button"),
   ).toHaveCount(0);
 
-  // An archived asset stops asking for things.
-  await gotoFixture(page, "/");
+  // An archived asset stops asking for things: it is out of the active
+  // collection entirely, so it carries no obligation signal anywhere.
+  await gotoFixture(page, "/assets");
   await expect(
-    page
-      .getByRole("list", { name: "Assets needing attention" })
-      .getByText(title),
+    page.getByRole("link", { name: new RegExp(escapeForRegExp(title)) }),
   ).toHaveCount(0);
 
   // Restoring brings the obligation back WITHOUT reopening completed work.
@@ -515,12 +571,7 @@ test("archiving keeps the history and stops the reminders; restoring brings both
   await expect(
     page.getByRole("button", { name: "Archive asset" }),
   ).toBeVisible();
-  await gotoFixture(page, "/");
-  await expect(
-    page
-      .getByRole("list", { name: "Assets needing attention" })
-      .getByText(title),
-  ).toBeVisible();
+  await expectCollectionSignal(page, title, /obligation/);
 });
 
 test("the collection surfaces the obligation signal and filters on it", async ({

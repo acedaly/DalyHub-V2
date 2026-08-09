@@ -13,7 +13,8 @@
  * It contributes the single navigable route (`routes.manifest.ts`) and — now that
  * DS-09 supplies the palette and the discriminated command contract — two honest
  * NAVIGATION COMMANDS (`commands.ts`):
- * "Go to Today" and "Focus Quick Capture". They are declarative (they open a route),
+ * "Go to Today" and "Go to Waiting". ("Focus Quick Capture" was retired with the
+ * Today redesign — `commands.ts` records why.) They are declarative (they open a route),
  * so they need no `run` handler and persist nothing; the palette navigates to them
  * directly (ADR-024 §24.15). Today is a derived dashboard, not a record collection:
  * it registers no Search provider and never manufactures records from fixtures.

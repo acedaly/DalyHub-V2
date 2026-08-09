@@ -29,7 +29,10 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { d1Execute, sqlLiteral } from "./d1";
+
 const PROD_BASE = "http://localhost:4174";
+const WORKSPACE_ID = "local-dev-workspace";
 
 /* -------------------------------------------------------------------------- */
 /* Deterministic waits over real browser state                                */
@@ -333,6 +336,56 @@ test.describe("PWA build artefacts", () => {
 test.describe("offline lifecycle", () => {
   test.beforeEach(async ({ context }) => {
     await context.setOffline(false);
+  });
+
+  /*
+   * The sync journey below queues a Task, a Note and a Diary entry and then
+   * proves the server accepted each — which means each is a REAL record, on
+   * today, that nothing used to remove. The Diary one is the expensive leak:
+   * `diary.spec.ts` opens the workspace anchored on today and asserts "Nothing
+   * recorded on this day", and its own cleanup reaches only titles prefixed
+   * "Diary e2e ". CI's shard split hides this (a fresh database per shard);
+   * a single-process run against a reused local database is where it shows.
+   *
+   * The match omits any run stamp, so the sweep also collects what earlier runs
+   * left behind.
+   */
+  test.afterAll(() => {
+    for (const [type, prefix] of [
+      ["task", "E2E offline task%"],
+      ["note", "E2E offline note%"],
+      ["diary", "E2E offline diary%"],
+    ] as const) {
+      const selection = `
+        SELECT id FROM entities
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
+          AND type = ${sqlLiteral(type)}
+          AND title LIKE ${sqlLiteral(prefix)}
+      `;
+      d1Execute([
+        `DELETE FROM activity_subjects WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+        `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+        `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
+        ...(type === "task"
+          ? [
+              `DELETE FROM task_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+              // Before the entity: `spine_records_entity_fk` is ON DELETE RESTRICT.
+              `DELETE FROM spine_records WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+            ]
+          : []),
+        ...(type === "note"
+          ? [
+              `DELETE FROM note_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+            ]
+          : []),
+        ...(type === "diary"
+          ? [
+              `DELETE FROM diary_entry_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+            ]
+          : []),
+        `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${selection});`,
+      ]);
+    }
   });
 
   test("primes the worker and the offline database from an online session", async ({
@@ -684,6 +737,26 @@ test.describe("offline lifecycle", () => {
         transaction.onerror = () => reject(transaction.error);
       });
       database.close();
+
+      /*
+       * The service worker goes FIRST, and that ordering is the whole of this
+       * step.
+       *
+       * It is part of what DalyHub installed on the device, so "clear everything
+       * stored here" has to include it — and while it is still controlling the
+       * page it is entitled to re-open `dalyhub-shell-…` on its very next fetch
+       * event. Deleting the caches out from under a live worker therefore raced
+       * its own assertion: the page is live, something revalidates, the shell
+       * cache is back, and the next line reads one entry where it expected none.
+       * (Seen on CI shard 10; it passes locally, which is exactly the shape of a
+       * race.) Unregistering first removes the thing that re-creates them, so
+       * the delete is final rather than momentary.
+       */
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations.map((registration) => registration.unregister()),
+      );
+
       const names = await caches.keys();
       await Promise.all(
         names
@@ -698,8 +771,14 @@ test.describe("offline lifecycle", () => {
       (await caches.keys()).filter((name) => name.startsWith("dalyhub-")),
     );
     expect(remaining).toEqual([]);
+    // …and the worker itself is gone, not merely its caches.
+    expect(
+      await page.evaluate(
+        async () => (await navigator.serviceWorker.getRegistrations()).length,
+      ),
+    ).toBe(0);
 
-    // Server data is untouched: DalyHub still loads and re-primes.
+    // Server data is untouched: DalyHub still loads, re-registers and re-primes.
     await page.goto("/today");
     await expect(
       page.getByRole("heading", {
@@ -707,7 +786,9 @@ test.describe("offline lifecycle", () => {
         name: /^Good (morning|afternoon|evening)/,
       }),
     ).toBeVisible();
+    await waitForServiceWorker(page);
     await waitForSnapshot(page);
+    await waitForOfflineShellCached(page);
   });
 
   test("the Settings offline section reports real device state", async ({

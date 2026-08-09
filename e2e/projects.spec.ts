@@ -71,9 +71,9 @@ test.describe("PROJ-01 — Projects", () => {
 
     // THEME-01 — the roll-up is now the shared progress meter, so this reads the
     // value assistive tech reads rather than a component-specific class name.
-    const progress = page.getByRole("progressbar", {
-      name: "Roll-up progress",
-    });
+    // RECORD-01 renamed it: the summary band's meter is labelled "Tasks", which
+    // is what the band actually shows beside the count.
+    const progress = page.getByRole("progressbar", { name: "Tasks" });
     const before = (await progress.getAttribute("aria-valuetext")) ?? "";
     expect(before).not.toBe("");
 
@@ -422,7 +422,7 @@ test.describe("PROJ-01 — Projects", () => {
     // visible summary and the accessible value have to name all 60 tasks.
     await expect(page.getByText("60 of 60 tasks complete")).toBeVisible();
     await expect(
-      page.getByRole("progressbar", { name: "Roll-up progress" }),
+      page.getByRole("progressbar", { name: "Tasks" }),
     ).toHaveAttribute("aria-valuetext", "100% — 60 of 60 tasks complete");
 
     const latecomer = page.getByRole("link", {

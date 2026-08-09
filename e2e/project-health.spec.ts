@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
@@ -16,6 +16,16 @@ import {
  * revalidation, reload for persistence, exercise Back/Forward/Escape, and hold the
  * accessibility + responsive baseline.
  */
+
+/**
+ * The record's shared summary band — where RECORD-01 put the derived progress,
+ * the health state and health's reasons, replacing the module's own health card.
+ * Asked for by its landmark name, so a later change to how the band is built
+ * cannot silently empty this spec.
+ */
+function summaryBand(page: Page): Locator {
+  return page.getByRole("region", { name: "Summary" });
+}
 
 test.describe("PROJ-02 — Project health", () => {
   test("surfaces at-risk / blocked / on-track / stale states on the collection", async ({
@@ -69,15 +79,19 @@ test.describe("PROJ-02 — Project health", () => {
     await gotoFixture(page, "/projects/pr-atrisk");
 
     // The record explains health with its reasons (not just a coloured badge).
-    const panel = page.locator(".dh-health-panel");
+    //
+    // RECORD-01 folded the standalone health CARD into the record's shared
+    // summary band, so this asks for the band by its landmark name rather than
+    // for the removed `.dh-health-panel` class (AGENTS.md §23).
+    const panel = summaryBand(page);
     await expect(panel).toBeVisible();
     await expect(panel.getByText("At risk")).toBeVisible();
     await expect(panel.getByText(/past its due date/)).toBeVisible();
-    // Supporting facts are present. `exact` matters: the panel's REASON list can
-    // legitimately contain "No progress in 14 days", which a substring match also
-    // hits, and two matches is a strict-mode violation rather than a pass. The
-    // subject here is the supporting-fact term, so name it exactly.
-    await expect(panel.getByText("Progress", { exact: true })).toBeVisible();
+    // Health sits beside the progress it explains, in the same band — the two
+    // facts the removed card carried separately.
+    await expect(
+      panel.getByRole("progressbar", { name: "Tasks" }),
+    ).toBeVisible();
 
     // Open the overdue task in the SHARED Task Drawer and complete it.
     await page
@@ -102,19 +116,17 @@ test.describe("PROJ-02 — Project health", () => {
 
     // Persistence + derivation: a reload recomputes the same on-track health.
     await page.reload();
-    await expect(
-      page.locator(".dh-health-panel").getByText("On track"),
-    ).toBeVisible();
+    await expect(summaryBand(page).getByText("On track")).toBeVisible();
   });
 
   test("blocked project explains its blocker, and Back/Forward/Escape keep health", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-blocked");
-    const panel = page.locator(".dh-health-panel");
+    const panel = summaryBand(page);
     await expect(panel.getByText("Blocked")).toBeVisible();
     await expect(panel.getByText(/waiting on something else/)).toBeVisible();
-    // Sensitive free-text waiting content is never surfaced in the health panel.
+    // Sensitive free-text waiting content is never surfaced in the summary band.
     await expect(panel).not.toContainText("landlord counter-signature");
 
     // Open a task, then Back/Forward/Escape without losing the health explanation.

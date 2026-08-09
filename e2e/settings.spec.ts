@@ -1,36 +1,17 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
+import { DEV_ORIGIN } from "./dev-server";
 import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  expectOnToday,
   gotoFixture,
+  setSwitch,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 const WORKSPACE_ID = "local-dev-workspace";
 const OWNER_ID = "local-development-user";
-
-function d1Execute(command: string): void {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--command",
-      command,
-    ],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: "pipe",
-    },
-  );
-}
 
 function resetPreferences(): void {
   d1Execute(
@@ -57,8 +38,26 @@ function forceInvalidLandingDestination(): void {
   );
 }
 
-async function choose(page: Page, label: string, value: string): Promise<void> {
-  await page.getByLabel(label).selectOption(value);
+/**
+ * Choose an option in a Settings select, and wait for the autosave to report.
+ *
+ * Every Settings select is the shared DS-06 combobox, not a native `<select>`:
+ * open it, pick the option by its VISIBLE label, and the field writes through
+ * the same focused intent the rest of the product uses. This used to call
+ * `selectOption`, which only works on a native `<select>` and had been failing
+ * before it reached the field it meant to change.
+ */
+async function choose(
+  page: Page,
+  label: string,
+  optionLabel: string,
+): Promise<void> {
+  const combobox = page.getByRole("combobox", { name: label });
+  await combobox.click();
+  await page
+    .getByRole("listbox", { name: label })
+    .getByRole("option", { name: optionLabel, exact: true })
+    .click();
   await expect(page.getByText("Saved").first()).toBeVisible();
 }
 
@@ -83,23 +82,29 @@ test.describe("SETTINGS-01A — application settings", () => {
     await expect(page).toHaveURL(/section=date-time/);
     await choose(page, "Owner timezone", "Europe/London");
     await page.reload();
-    await expect(page.getByLabel("Owner timezone")).toHaveValue(
-      "Europe/London",
-    );
+    /*
+     * By ROLE, not by label. `getByLabel` matches a substring, and the field's
+     * clear control is now named after the field it clears ("Clear owner
+     * timezone") — which is the point of that name, and which makes the field's
+     * own label a substring of it. The role is what separates the two.
+     */
+    await expect(
+      page.getByRole("combobox", { name: "Owner timezone" }),
+    ).toHaveValue("Europe/London");
     await expect(
       page.getByText(/Timezone affects date grouping, Today, due-date/),
     ).toBeVisible();
 
-    await choose(page, "Date display", "dmy_slash");
+    await choose(page, "Date display", "DD/MM/YYYY");
     await page.reload();
     await expect(page.getByText("Example: 27/07/2026")).toBeVisible();
 
-    await choose(page, "First day of week", "sunday");
+    await choose(page, "First day of week", "Sunday");
     await page.reload();
     await expect(page.getByText("Week views start on Sunday.")).toBeVisible();
 
     await page.getByRole("link", { name: "General" }).click();
-    await choose(page, "Default landing page", "tasks");
+    await choose(page, "Default landing page", "Tasks");
     await page.goto("/");
     await expect(page).toHaveURL(/\/tasks$/);
     await expect(
@@ -108,10 +113,7 @@ test.describe("SETTINGS-01A — application settings", () => {
 
     forceInvalidLandingDestination();
     await page.goto("/");
-    await expect(page).toHaveURL(/\/today$/);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
-    ).toBeVisible();
+    await expectOnToday(page);
 
     await gotoFixture(page, "/settings");
     await choose(page, "Default Tasks view", "Time Sectors");
@@ -121,7 +123,7 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toBeVisible();
 
     await gotoFixture(page, "/settings");
-    await choose(page, "Default Diary mode", "timeline");
+    await choose(page, "Default Diary mode", "Timeline");
     await gotoFixture(page, "/diary");
     await expect(page.getByRole("link", { name: "Timeline" })).toHaveAttribute(
       "aria-current",
@@ -133,6 +135,59 @@ test.describe("SETTINGS-01A — application settings", () => {
         .getByRole("group", { name: "Diary view" })
         .getByRole("link", { name: "Day", exact: true }),
     ).toHaveAttribute("aria-current", "true");
+  });
+
+  test("merges independent preference writes made from two devices at once", async ({
+    page,
+    browser,
+  }) => {
+    /*
+     * AUDIT-07, from the owner's side of the glass.
+     *
+     * The kernel suite proves the storage rule (an independent field patch writes
+     * only the column it names, so two devices changing two different settings
+     * merge; the derived hidden-module SET quotes a version instead). What only a
+     * browser can show is that the PRODUCT keeps that promise end to end: two real
+     * contexts, both holding the same version, each changing a different setting,
+     * and neither one silently discarding the other's change.
+     */
+    const second = await browser.newContext({ baseURL: DEV_ORIGIN });
+    const other = await second.newPage();
+    try {
+      // Both devices load BEFORE either writes, so both are working from the
+      // same stored version — the state a merge has to survive.
+      await gotoFixture(page, "/settings?section=date-time");
+      await gotoFixture(other, "/settings");
+
+      // Device A changes the timezone. Device B changes the appearance.
+      await choose(page, "Owner timezone", "Europe/London");
+      // `click`, not `check`: the appearance radio is controlled by the stored
+      // preference, so `check`'s own post-condition can race the write it just
+      // started. The effect is asserted on the next line, which is the honest
+      // observable anyway — and it is the pattern `appearance.spec.ts` uses.
+      await other
+        .getByRole("group", { name: "Appearance" })
+        .getByRole("radio", { name: /Dark/ })
+        .click();
+      await expect(other.locator("html")).toHaveAttribute(
+        "data-appearance",
+        "dark",
+      );
+
+      // Both survive, on both devices, after a reload from the server.
+      for (const device of [page, other]) {
+        await gotoFixture(device, "/settings?section=date-time");
+        await expect(
+          device.getByRole("combobox", { name: "Owner timezone" }),
+        ).toHaveValue("Europe/London");
+        await expect(device.locator("html")).toHaveAttribute(
+          "data-appearance",
+          "dark",
+        );
+      }
+    } finally {
+      await second.close();
+    }
   });
 
   test("offers no appearance section, and keeps navigation recoverable and sections history-backed", async ({
@@ -154,14 +209,20 @@ test.describe("SETTINGS-01A — application settings", () => {
     });
     await sectionNav.getByRole("link", { name: "Navigation" }).click();
     await expect(page).toHaveURL(/section=navigation/);
-    const helpToggle = page.getByRole("checkbox", { name: "Help" });
+    /*
+     * A SWITCH, not a checkbox. M3-INT replaced this row's hand-rolled switch
+     * skin with the shared `Switch`, which is still an `<input type="checkbox">`
+     * underneath but adds `role="switch"` on top — and an explicit role replaces
+     * the implicit one, so `getByRole("checkbox")` no longer reaches it.
+     */
+    const helpToggle = page.getByRole("switch", { name: "Help" });
     await expect(helpToggle).toBeChecked();
-    await helpToggle.uncheck();
+    // `setSwitch`, not `uncheck`: the input is `pointer-events: none` by design
+    // — the helper explains why, and why the keyboard is the honest way in.
+    await setSwitch(helpToggle, false);
     await expect(page.getByText("Saved").first()).toBeVisible();
     await page.reload();
-    await expect(
-      page.getByRole("checkbox", { name: "Help" }),
-    ).not.toBeChecked();
+    await expect(page.getByRole("switch", { name: "Help" })).not.toBeChecked();
     await expect(
       page
         .getByRole("navigation", { name: "Primary" })
@@ -173,14 +234,12 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toBeVisible();
 
     await gotoFixture(page, "/settings?section=navigation");
-    await expect(page.getByRole("checkbox", { name: "Today" })).toBeDisabled();
-    await expect(
-      page.getByRole("checkbox", { name: "Settings" }),
-    ).toBeDisabled();
+    await expect(page.getByRole("switch", { name: "Today" })).toBeDisabled();
+    await expect(page.getByRole("switch", { name: "Settings" })).toBeDisabled();
     await page.getByRole("button", { name: "Reset navigation" }).click();
     await expect(page.getByText("Saved").first()).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("checkbox", { name: "Help" })).toBeChecked();
+    await expect(page.getByRole("switch", { name: "Help" })).toBeChecked();
 
     await sectionNav.getByRole("link", { name: "Privacy & data" }).click();
     await expect(page).toHaveURL(/section=privacy-data/);

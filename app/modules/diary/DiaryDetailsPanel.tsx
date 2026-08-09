@@ -297,6 +297,10 @@ function DiaryReadView({
           key={`${entry.id}:${relatedVersion}`}
           anchorId={entry.id}
           anchorType="diary"
+          // The panel already titles this section ("Related", an h4 above), so
+          // the shared section's own heading sits below it rather than jumping
+          // back to the h2 it takes on a record's Linked tab.
+          headingLevel={5}
         />
       </section>
 

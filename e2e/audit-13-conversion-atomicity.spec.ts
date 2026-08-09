@@ -49,7 +49,7 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 
 async function addAction(page: Page, body: string): Promise<void> {
   await page.getByRole("tab", { name: "Meeting" }).click();
-  await page.getByRole("textbox", { name: "Add action item" }).fill(body);
+  await page.getByRole("textbox", { name: "New action item" }).fill(body);
   await page.getByRole("button", { name: "Add action item" }).click();
   await expect(
     page.locator(".dh-meeting-item", { hasText: body }),
