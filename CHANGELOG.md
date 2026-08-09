@@ -17,6 +17,90 @@ no version number to group them under.
 
 ---
 
+## Goals you can actually measure (GOAL-02)
+
+A Goal used to be a name, a date and a paragraph. Now it can be an outcome — and
+DalyHub can tell you whether you are getting there.
+
+### Say how success is measured
+
+When you create a Goal, DalyHub asks **how will you measure this?** and offers four
+answers:
+
+- **Target value** — move from a starting value to a number. _Reach 70 kg._ _Save
+  $20,000._
+- **Count** — work towards a total. _Read 24 books._
+- **Milestones** — complete defined stages. Each counts equally unless you give one
+  a weight.
+- **Manual progress** — set the percentage yourself, for the outcomes that genuinely
+  cannot be counted.
+
+You never have to say whether the number should go up or down. Type 85 and 70 and
+DalyHub works out that progress means going down — and tells you so, in words, before
+you save.
+
+### Record progress, and keep the history
+
+**Log weight.** **Add measurement.** Whatever your Goal is measured in, the button
+says it. It opens a three-field sheet — the number, the date (today, unless you say
+otherwise) and an optional note — with the decimal keypad on a phone and Save sitting
+above the keyboard where your thumb already is.
+
+Every reading is kept. Your current value is simply the most recent one, so mistyping
+a weigh-in is an ordinary edit rather than a lost fact, and back-dating a reading you
+forgot puts it in the right place in the history.
+
+### See where you stand
+
+The Goal now leads with the number:
+
+> **79 kg** Target 70 kg
+> ▓▓▓▓▓▓▓▓░░░░░░░░
+> 40% · 9 kg remaining · ↓ 6 kg from baseline · **Ahead**
+
+Beneath it, a line of the readings over time with your target as a quiet reference,
+your recent pace against the pace you would need, where that pace lands, and the
+full history — each entry showing the change from the one before, and each editable.
+
+### It says what it does not know
+
+This is the part we care most about. DalyHub will not make a number up:
+
+- no target yet → your value and your movement, and no percentage;
+- one reading → "More measurements needed for a trend", not a flat line;
+- two readings a day apart → no weekly pace, because a day is not a week;
+- a pace that would land in 2031 → no projection at all;
+- nothing recorded → "No progress logged yet", never an empty 0% bar.
+
+The language stays calm too. The strongest thing DalyHub says about your own life is
+**Needs attention** — never "failing" — and a Goal you have not measured for a month
+gets **No recent update**, which is a fact rather than a verdict.
+
+### Today knows about your Goals
+
+**Goal progress** shows up to four Goals that deserve a look today — the ones behind
+their own schedule or past their date first, then the ones whose target date is close,
+then the ones you have not checked in on for a week. Each shows its value, its target,
+its progress and one button: log a measurement without leaving Today.
+
+**This week** compares the tasks you completed with the tasks you created, over seven
+days, with the plain summary beneath it:
+
+> 24 completed · 18 created · 6 tasks fewer in your active workload
+
+It only claims your workload moved when the two numbers actually differ, and it does
+not appear at all in a week where nothing happened. There is no productivity score,
+because a score is a number you cannot check.
+
+### Your existing Goals are untouched
+
+Every Goal you already have keeps working exactly as it did. None of them has been
+given a measurement, a guessed baseline or an invented percentage — they simply say
+"Not measured yet" and offer to start, whenever you want to. Nothing was rewritten and
+nothing was inferred from what you had written.
+
+---
+
 ## Tasks, as a daily driver (V2.2 — TASKS-05 · TASKS-06 · TASKS-07 · TASKS-08)
 
 The programme that makes Tasks the fastest thing in DalyHub. The whole point is one

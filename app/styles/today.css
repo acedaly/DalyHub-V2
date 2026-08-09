@@ -530,3 +530,119 @@
     max-inline-size: 100%;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* GOAL-02 — progress and the workload trend                                   */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The two progress sections CONTINUE the day's own column beneath the timeline,
+ * with the rail spanning both rows beside them.
+ *
+ * As a separate row under the whole body they started below the TALLER column,
+ * which left a screen of dead space under a short "My day". Placed in the grid
+ * they simply carry on where the day's work ends, and the phone layout is
+ * unchanged because a single column stacks them in DOM order regardless.
+ */
+.dh-today__progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--app-space-5);
+  align-items: start;
+  min-inline-size: 0;
+}
+
+@container today (min-width: 56rem) {
+  .dh-today__timeline {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dh-today__rail {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .dh-today__progress {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+
+/*
+ * Side by side only when BOTH fit at a comfortable measure. `auto-fit` means a
+ * page showing only one of them gets the full column rather than half of it and
+ * an empty half — the layout follows what there is to show.
+ */
+@container today (min-width: 64rem) {
+  .dh-today__progress {
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  }
+}
+
+.dh-today__goal-list {
+  display: grid;
+  gap: var(--app-space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * One Goal. Deliberately NOT a card inside a panel (DS-02 — no panel inside a
+ * panel): it is a stack of rows separated by a rule, so four Goals stay compact
+ * enough that the section never becomes a second collection.
+ */
+.dh-today__goal {
+  display: grid;
+  gap: var(--app-space-2);
+  padding-block-end: var(--app-space-4);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  min-inline-size: 0;
+}
+
+.dh-today__goal:last-child {
+  padding-block-end: 0;
+  border-block-end: none;
+}
+
+.dh-today__goal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-today__goal-title {
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.dh-today__goal-title:hover {
+  text-decoration: underline;
+}
+
+.dh-today__goal-area {
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+/* The Goal's one action. Left-aligned and 44px, so it is a comfortable phone
+ * target without becoming the row's visual centre. */
+.dh-today__goal .dh-btn {
+  justify-self: start;
+}
+
+.dh-today__trend-note {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}

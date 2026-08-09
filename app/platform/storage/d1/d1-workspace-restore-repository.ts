@@ -129,7 +129,42 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
   },
   goalDetails: {
     table: "goal_details",
-    columns: ["entity_id", "target_date", "definition_of_done", "updated_at"],
+    columns: [
+      "entity_id",
+      "target_date",
+      "definition_of_done",
+      "measurement_type",
+      "measurement_unit",
+      "measurement_direction",
+      "baseline_value",
+      "target_value",
+      "updated_at",
+    ],
+  },
+  goalMeasurements: {
+    table: "goal_measurements",
+    columns: [
+      "id",
+      "entity_id",
+      "value",
+      "measured_on",
+      "note",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  goalMilestones: {
+    table: "goal_milestones",
+    columns: [
+      "id",
+      "entity_id",
+      "title",
+      "weight",
+      "position",
+      "completed_at",
+      "created_at",
+      "updated_at",
+    ],
   },
   projectDetails: {
     table: "project_details",
@@ -578,9 +613,42 @@ function stageRows(
           entity_id: row.entityId,
           target_date: row.targetDate,
           definition_of_done: row.definitionOfDone,
+          // `?? null` rather than the value alone: an archive written BEFORE
+          // GOAL-02 has no such key, and `undefined` is not a bindable D1 value.
+          // The result is the same state those Goals were already in.
+          measurement_type: row.measurementType ?? null,
+          measurement_unit: row.measurementUnit ?? null,
+          measurement_direction: row.measurementDirection ?? null,
+          baseline_value: row.baselineValue ?? null,
+          target_value: row.targetValue ?? null,
           updated_at: row.updatedAt,
         }),
       );
+    case "goalMeasurements":
+      return (
+        rows as readonly SnapshotCollectionRowMap["goalMeasurements"][]
+      ).map((row) => ({
+        id: row.id,
+        entity_id: row.goalId,
+        value: row.value,
+        measured_on: row.measuredOn,
+        note: row.note,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
+    case "goalMilestones":
+      return (
+        rows as readonly SnapshotCollectionRowMap["goalMilestones"][]
+      ).map((row) => ({
+        id: row.id,
+        entity_id: row.goalId,
+        title: row.title,
+        weight: row.weight,
+        position: row.position,
+        completed_at: row.completedAt,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
     case "projectDetails":
       return (
         rows as readonly SnapshotCollectionRowMap["projectDetails"][]

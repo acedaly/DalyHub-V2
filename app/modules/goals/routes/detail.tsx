@@ -36,11 +36,28 @@ import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { GoalActivityTab } from "../GoalActivityTab";
 import { GoalOverview } from "../GoalOverview";
 import {
+  GoalCheckInSheet,
+  GoalMeasurementSetupSheet,
+  evaluateGoalFromSeries,
+  goalCheckInLabel,
+  serializeGoalMeasurement,
+  serializeGoalMilestone,
+  type GoalCheckInValues,
+  type GoalMeasurementSetupValues,
+  type SerializedGoalMeasurement,
+} from "~/shared/goal-progress";
+import { ownerCalendarIso } from "~/shared/datetime";
+import { UNMEASURED_GOAL } from "~/kernel/goals";
+
+import { GoalMeasurementPanel } from "../GoalMeasurementPanel";
+
+import {
   serializeGoalDetails,
   serializeGoalOverview,
   serializeGoalProjectContribution,
   serializeGoalProjectItem,
 } from "../goal-view";
+import type { GoalMeasurementMutationResult } from "./measurements";
 import type { GoalMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
@@ -72,17 +89,33 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     timeZone,
   );
 
-  const [details, contribution, projectPage, activityFacts, evidencePage] =
-    await Promise.all([
-      scope.goalDetails.get(goalId),
-      scope.goals.getGoalProjectContribution(goalId),
-      scope.goals.listGoalProjects({ goalId, limit: GOAL_PROJECT_PAGE_SIZE }),
-      scope.alignment.getGoalAlignmentFacts(goalId, { recentWindowStartIso }),
-      scope.alignment.listGoalAlignmentEvidence(
-        goalId,
-        GOAL_ALIGNMENT_EVIDENCE_LIMIT,
-      ),
-    ]);
+  /*
+   * GOAL-02 — the FULL measurement series is read here and nowhere else.
+   *
+   * This is the one surface that draws a trend, so it is the one surface that
+   * pays for the history; every collection reads the bounded summary instead
+   * (`listMeasurementSummaries`). The read is still capped by the repository.
+   */
+  const [
+    details,
+    contribution,
+    projectPage,
+    activityFacts,
+    evidencePage,
+    measurements,
+    milestones,
+  ] = await Promise.all([
+    scope.goalDetails.get(goalId),
+    scope.goals.getGoalProjectContribution(goalId),
+    scope.goals.listGoalProjects({ goalId, limit: GOAL_PROJECT_PAGE_SIZE }),
+    scope.alignment.getGoalAlignmentFacts(goalId, { recentWindowStartIso }),
+    scope.alignment.listGoalAlignmentEvidence(
+      goalId,
+      GOAL_ALIGNMENT_EVIDENCE_LIMIT,
+    ),
+    scope.goalMeasurements.listMeasurements(goalId),
+    scope.goalMeasurements.listMilestones(goalId),
+  ]);
 
   const alignmentFacts = composeGoalAlignmentFacts({
     goalId,
@@ -92,9 +125,42 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   });
   const alignment = evaluateGoalAlignment(alignmentFacts, evaluation);
 
+  /*
+   * Progress is DERIVED on every read, never stored. The evaluator is the
+   * kernel's, and the same one the collections and Today use, so this page can
+   * never disagree with a card about the same Goal.
+   */
+  const measurement = details?.measurement ?? UNMEASURED_GOAL;
+  const milestoneSummary = {
+    goalId,
+    total: milestones.length,
+    completed: milestones.filter((item) => item.completedAt !== null).length,
+    totalWeight: milestones.reduce((sum, item) => sum + item.weight, 0),
+    completedWeight: milestones
+      .filter((item) => item.completedAt !== null)
+      .reduce((sum, item) => sum + item.weight, 0),
+  };
+  const progress = evaluateGoalFromSeries({
+    config: measurement,
+    targetDate: details?.targetDate ?? null,
+    measurements: measurements.map((item) => ({
+      value: item.value,
+      measuredOn: item.measuredOn,
+    })),
+    milestones: milestoneSummary,
+    // The Goal's own creation day is the schedule's origin when there is no
+    // earlier reading, so "on track" is measured against real elapsed time.
+    startedOn: ownerCalendarIso(overview.createdAt, timeZone),
+    completed: overview.completedAt !== null,
+    todayIso: evaluation.todayIso,
+  });
+
   return {
     overview: serializeGoalOverview(overview),
     details: serializeGoalDetails(details),
+    progress,
+    measurements: measurements.map(serializeGoalMeasurement),
+    milestones: milestones.map(serializeGoalMilestone),
     contribution: serializeGoalProjectContribution(contribution),
     projects: projectPage.items.map(serializeGoalProjectItem),
     projectsNextCursor: projectPage.nextCursor,
@@ -166,6 +232,133 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       );
     },
     [setSearchParams],
+  );
+
+  /* ---------------------------------------------------------------------- */
+  /* GOAL-02 — measurements                                                  */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * The check-in and the measurement-configuration sheets are owned HERE rather
+   * than inside the panel, because both post to trusted endpoints and both must
+   * revalidate the loader afterwards — the two responsibilities the panel is
+   * deliberately kept free of. `opener` travels with the request so the shared
+   * Sheet can return focus to the exact control that opened it.
+   */
+  const [checkIn, setCheckIn] = useState<{
+    readonly opener: HTMLElement | null;
+    readonly measurement: SerializedGoalMeasurement | null;
+  } | null>(null);
+  const [setupOpener, setSetupOpener] = useState<HTMLElement | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
+
+  const postMeasurement = useCallback(
+    async (body: FormData): Promise<GoalMeasurementMutationResult | null> => {
+      try {
+        const response = await fetch(
+          `/goals/${encodeURIComponent(props.overview.id)}/measurements`,
+          { method: "POST", body },
+        );
+        return (await response.json()) as GoalMeasurementMutationResult;
+      } catch {
+        return null;
+      }
+    },
+    [props.overview.id],
+  );
+
+  const submitCheckIn = useCallback(
+    async (values: GoalCheckInValues) => {
+      const body = new FormData();
+      const editing = checkIn?.measurement ?? null;
+      body.set("intent", editing ? "update_measurement" : "log_measurement");
+      if (editing) body.set("measurementId", editing.id);
+      body.set("value", values.value);
+      body.set("measuredOn", values.measuredOn);
+      body.set("note", values.note);
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        notifySuccess(editing ? "Measurement updated." : "Measurement saved.");
+        return { ok: true as const };
+      }
+      return {
+        ok: false as const,
+        formError:
+          (result && !result.ok ? result.formError : undefined) ??
+          "That couldn’t be saved. Your change is still here — try again.",
+        fieldErrors:
+          result && !result.ok
+            ? // The kernel's field names are the form's field names, so a
+              // validation refusal lands on the control that caused it.
+              (result.fieldErrors as Record<string, string> | undefined)
+            : undefined,
+      };
+    },
+    [checkIn, postMeasurement, revalidator, notifySuccess],
+  );
+
+  const deleteMeasurement = useCallback(
+    async (measurementId: string) => {
+      const body = new FormData();
+      body.set("intent", "delete_measurement");
+      body.set("measurementId", measurementId);
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        return true;
+      }
+      return false;
+    },
+    [postMeasurement, revalidator],
+  );
+
+  const toggleMilestone = useCallback(
+    async (milestoneId: string, completed: boolean) => {
+      const body = new FormData();
+      body.set("intent", "update_milestone");
+      body.set("milestoneId", milestoneId);
+      body.set("completed", completed ? "true" : "false");
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        return true;
+      }
+      notifyError("That couldn’t be saved. Please try again.");
+      return false;
+    },
+    [postMeasurement, revalidator, notifyError],
+  );
+
+  const addMilestone = useCallback(
+    async (title: string) => {
+      const body = new FormData();
+      body.set("intent", "add_milestone");
+      body.set("title", title);
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        return true;
+      }
+      return false;
+    },
+    [postMeasurement, revalidator],
+  );
+
+  const deleteMilestone = useCallback(
+    async (milestoneId: string) => {
+      const body = new FormData();
+      body.set("intent", "delete_milestone");
+      body.set("milestoneId", milestoneId);
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        return true;
+      }
+      notifyError("That stage couldn’t be removed. Please try again.");
+      return false;
+    },
+    [postMeasurement, revalidator, notifyError],
   );
 
   const postMutation = useCallback(
@@ -246,6 +439,49 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
     [inlineSave],
   );
 
+  /**
+   * Saving the measurement configuration reuses the SAME `/mutate` endpoint and
+   * the same partial-patch rule as every other Goal-owned field: the wire values
+   * become a validated patch server-side, merged over the current configuration
+   * and renormalised by the kernel.
+   */
+  const submitMeasurementSetup = useCallback(
+    async (values: GoalMeasurementSetupValues) => {
+      const body = new FormData();
+      body.set("intent", "set_measurement");
+      body.set("measurementType", values.measurementType);
+      body.set("unit", values.unit);
+      body.set("baselineValue", values.baselineValue);
+      body.set("targetValue", values.targetValue);
+      let result: GoalMutationResult;
+      try {
+        result = await postMutation(body);
+      } catch {
+        return {
+          ok: false as const,
+          formError: "That couldn’t be saved. Please try again.",
+        };
+      }
+      if (result.kind === "set_measurement" && result.ok) {
+        revalidator.revalidate();
+        notifySuccess("Measurement saved.");
+        return { ok: true as const };
+      }
+      return {
+        ok: false as const,
+        formError:
+          result.kind === "set_measurement" && !result.ok
+            ? result.formError
+            : "That couldn’t be saved. Please try again.",
+        fieldErrors:
+          result.kind === "set_measurement" && !result.ok
+            ? result.fieldErrors
+            : undefined,
+      };
+    },
+    [postMutation, revalidator, notifySuccess],
+  );
+
   const submitCompletion = useCallback(
     async (intent: "complete" | "reopen") => {
       const body = new FormData();
@@ -315,53 +551,127 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
   });
 
   return (
-    <GoalOverview
-      overview={props.overview}
-      details={props.details}
-      contribution={props.contribution}
-      projects={props.projects}
-      projectsNextCursor={props.projectsNextCursor}
-      todayIso={props.todayIso}
-      timeZone={props.timeZone}
-      alignment={props.alignment}
-      alignmentEvidence={props.alignmentEvidence}
-      alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}
-      completionPending={completionPending}
-      onToggleComplete={(complete) => void onToggleComplete(complete)}
-      onRename={onRename}
-      onSetTargetDate={onSetTargetDate}
-      onSetDefinitionOfDone={onSetDefinitionOfDone}
-      onDelete={onDelete}
-      deletePending={deletePending}
-      onOpenProject={(projectId) =>
-        navigate(`/projects/${encodeURIComponent(projectId)}`)
-      }
-      onOpenTask={(taskId) => openDrawer(`task:${taskId}`)}
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      linkedTab={
-        <LinkedItemsTab
-          anchorId={props.overview.id}
-          anchorType="goal"
-          linkCommandTarget={{
-            kind: "route",
-            to: `/goals/${props.overview.id}?tab=linked`,
+    <>
+      <GoalOverview
+        overview={props.overview}
+        details={props.details}
+        contribution={props.contribution}
+        projects={props.projects}
+        projectsNextCursor={props.projectsNextCursor}
+        todayIso={props.todayIso}
+        timeZone={props.timeZone}
+        alignment={props.alignment}
+        alignmentEvidence={props.alignmentEvidence}
+        alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}
+        completionPending={completionPending}
+        onToggleComplete={(complete) => void onToggleComplete(complete)}
+        onRename={onRename}
+        onSetTargetDate={onSetTargetDate}
+        onSetDefinitionOfDone={onSetDefinitionOfDone}
+        onDelete={onDelete}
+        deletePending={deletePending}
+        onOpenProject={(projectId) =>
+          navigate(`/projects/${encodeURIComponent(projectId)}`)
+        }
+        onOpenTask={(taskId) => openDrawer(`task:${taskId}`)}
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        linkedTab={
+          <LinkedItemsTab
+            anchorId={props.overview.id}
+            anchorType="goal"
+            linkCommandTarget={{
+              kind: "route",
+              to: `/goals/${props.overview.id}?tab=linked`,
+            }}
+          />
+        }
+        activityTab={
+          // `reloadKey` is the Goal's EFFECTIVE updatedAt (the later of the spine
+          // entity's own `updated_at` and `goal_details.updated_at` — mirrors
+          // ADR-037 §37.2 for Projects): a rename/complete/reopen bumps the spine
+          // value, and a target-date/definition-of-done edit bumps `goal_details`
+          // instead, so either one changes this key and revalidation re-reads the
+          // first Activity page with the new event visible immediately.
+          <GoalActivityTab
+            goalId={props.overview.id}
+            reloadKey={props.overview.updatedAt}
+          />
+        }
+        /*
+         * GOAL-02 — the progress section leads the Summary.
+         *
+         * It is passed as a SLOT rather than as ten more props, so `GoalOverview`
+         * stays the record's composition and knows nothing about measurements,
+         * sheets or fetches. Everything it needs was derived server-side.
+         */
+        progressSlot={
+          <GoalMeasurementPanel
+            goalTitle={props.overview.title}
+            progress={props.progress}
+            measurements={props.measurements}
+            milestones={props.milestones}
+            todayIso={props.todayIso}
+            onRecord={(trigger, measurement) =>
+              setCheckIn({ opener: trigger, measurement: measurement ?? null })
+            }
+            onConfigure={(trigger) => {
+              setSetupOpener(trigger);
+              setSetupOpen(true);
+            }}
+            onDeleteMeasurement={deleteMeasurement}
+            onToggleMilestone={toggleMilestone}
+            onAddMilestone={addMilestone}
+            onDeleteMilestone={deleteMilestone}
+          />
+        }
+      />
+      {checkIn ? (
+        <GoalCheckInSheet
+          goalTitle={props.overview.title}
+          actionLabel={goalCheckInLabel(
+            props.progress.type,
+            props.progress.unit,
+          )}
+          unit={props.progress.unit}
+          currentValue={props.progress.current}
+          todayIso={props.todayIso}
+          mode={checkIn.measurement ? "correct" : "record"}
+          initial={
+            checkIn.measurement
+              ? {
+                  value: String(checkIn.measurement.value),
+                  measuredOn: checkIn.measurement.measuredOn,
+                  note: checkIn.measurement.note ?? "",
+                }
+              : undefined
+          }
+          opener={checkIn.opener}
+          onClose={() => setCheckIn(null)}
+          onSubmit={submitCheckIn}
+        />
+      ) : null}
+      {setupOpen ? (
+        <GoalMeasurementSetupSheet
+          goalTitle={props.overview.title}
+          initial={{
+            measurementType: props.details.measurement.type ?? undefined,
+            unit: props.details.measurement.unit ?? "",
+            baselineValue:
+              props.details.measurement.baselineValue === null
+                ? ""
+                : String(props.details.measurement.baselineValue),
+            targetValue:
+              props.details.measurement.targetValue === null
+                ? ""
+                : String(props.details.measurement.targetValue),
           }}
+          opener={setupOpener}
+          onClose={() => setSetupOpen(false)}
+          onSubmit={submitMeasurementSetup}
         />
-      }
-      activityTab={
-        // `reloadKey` is the Goal's EFFECTIVE updatedAt (the later of the spine
-        // entity's own `updated_at` and `goal_details.updated_at` — mirrors
-        // ADR-037 §37.2 for Projects): a rename/complete/reopen bumps the spine
-        // value, and a target-date/definition-of-done edit bumps `goal_details`
-        // instead, so either one changes this key and revalidation re-reads the
-        // first Activity page with the new event visible immediately.
-        <GoalActivityTab
-          goalId={props.overview.id}
-          reloadKey={props.overview.updatedAt}
-        />
-      }
-    />
+      ) : null}
+    </>
   );
 }
 

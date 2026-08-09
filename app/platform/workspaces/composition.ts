@@ -44,7 +44,11 @@ import type {
 } from "~/kernel/identity";
 import type { WorkspaceSnapshotRepository } from "~/kernel/export";
 import type { WorkspaceRestoreRepository } from "~/kernel/restore";
-import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
+import type {
+  GoalDetailsRepository,
+  GoalMeasurementRepository,
+  GoalRepository,
+} from "~/kernel/goals";
 import type {
   NoteDetailsRepository,
   NoteQueryRepository,
@@ -88,6 +92,7 @@ import {
   createEntityLinkRepository,
   createEntityRepository,
   createGoalDetailsRepository,
+  createGoalMeasurementRepository,
   createGoalRepository,
   createNoteDetailsRepository,
   createNoteRepository,
@@ -176,6 +181,14 @@ export interface WorkspaceScope {
    * its own trusted actor, mirroring `projectSettings`.
    */
   readonly goalDetails: GoalDetailsRepository;
+  /**
+   * GOAL-02 — the Goal's measurement history and milestone stages. Separate from
+   * `goalDetails` because the CONFIGURATION ("how is this measured") is Goal-owned
+   * detail state while the READINGS are their own records with their own
+   * lifecycle; one repository writing both would make "correct a measurement" and
+   * "change the target" the same operation.
+   */
+  readonly goalMeasurements: GoalMeasurementRepository;
   /**
    * The NOTES-01A Note-owned Markdown content slice — the entities table
    * deliberately does not model a Note's body. Notes are NOT part of the
@@ -476,6 +489,11 @@ export function bindWorkspaceRepositories(
   const goalDetails = createGoalDetailsRepository(env.DB, context, {
     actorContext,
   });
+  // GOAL-02 — measurement history and milestone stages, written atomically with
+  // their own trusted actor, mirroring `goalDetails`.
+  const goalMeasurements = createGoalMeasurementRepository(env.DB, context, {
+    actorContext,
+  });
   const noteDetails = createNoteDetailsRepository(env.DB, context, {
     actorContext,
   });
@@ -575,6 +593,7 @@ export function bindWorkspaceRepositories(
     areaSettings,
     goals,
     goalDetails,
+    goalMeasurements,
     noteDetails,
     notes,
     diary,

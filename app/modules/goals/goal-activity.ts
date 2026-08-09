@@ -12,7 +12,15 @@
  */
 
 import { GOAL_COMPLETED, GOAL_REOPENED } from "~/kernel/spine";
-import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
+import {
+  GOAL_DETAILS_UPDATED,
+  GOAL_MEASUREMENT_CORRECTED,
+  GOAL_MEASUREMENT_LOGGED,
+  GOAL_MEASUREMENT_REMOVED,
+  GOAL_MILESTONE_COMPLETED,
+  GOAL_MILESTONE_REOPENED,
+  GOAL_TARGET_REACHED,
+} from "~/kernel/goals";
 import {
   buildWorkspaceActivityDescriptors,
   type ActivityItem,
@@ -37,6 +45,34 @@ export const GOAL_ACTIVITY_DESCRIPTORS: Record<string, ActivityTypeDescriptor> =
     },
     [GOAL_DETAILS_UPDATED]: {
       label: "Updated goal details",
+      entityType: "goal",
+    },
+    /* GOAL-02 — the progress events. Only "reached its target" is toned, because
+     * it is the only one that is an outcome rather than a record of an edit. */
+    [GOAL_MEASUREMENT_LOGGED]: {
+      label: "Logged a measurement",
+      entityType: "goal",
+    },
+    [GOAL_MEASUREMENT_CORRECTED]: {
+      label: "Corrected a measurement",
+      entityType: "goal",
+    },
+    [GOAL_MEASUREMENT_REMOVED]: {
+      label: "Removed a measurement",
+      entityType: "goal",
+    },
+    [GOAL_TARGET_REACHED]: {
+      label: "Reached its target",
+      entityType: "goal",
+      tone: "success",
+    },
+    [GOAL_MILESTONE_COMPLETED]: {
+      label: "Completed a milestone",
+      entityType: "goal",
+      tone: "success",
+    },
+    [GOAL_MILESTONE_REOPENED]: {
+      label: "Reopened a milestone",
       entityType: "goal",
     },
   };

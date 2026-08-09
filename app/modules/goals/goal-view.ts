@@ -21,7 +21,8 @@ import type {
   GoalProjectContribution,
   GoalProjectItem,
 } from "~/kernel/goals";
-import type { GoalDetailsRecord } from "~/kernel/goals";
+import type { GoalDetailsRecord, GoalMeasurementConfig } from "~/kernel/goals";
+import { UNMEASURED_GOAL } from "~/kernel/goals";
 import { normaliseProgress, type CardTone } from "~/shared/card";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
@@ -37,6 +38,9 @@ export type SerializedGoalOverview = {
 export type SerializedGoalDetails = {
   readonly targetDate: string | null;
   readonly definitionOfDone: string | null;
+  /** GOAL-02 — how this Goal is measured. Already JSON-safe (primitives only),
+   * so it travels to the client unchanged. `type: null` means "not measured". */
+  readonly measurement: GoalMeasurementConfig;
 };
 
 export type SerializedGoalProjectContribution = {
@@ -105,6 +109,7 @@ export function serializeGoalDetails(
   return {
     targetDate: details?.targetDate ?? null,
     definitionOfDone: details?.definitionOfDone ?? null,
+    measurement: details?.measurement ?? UNMEASURED_GOAL,
   };
 }
 

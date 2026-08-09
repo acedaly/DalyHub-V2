@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { UNMEASURED_GOAL } from "~/kernel/goals";
 import { FeedbackProvider } from "~/shared/feedback";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import type { ReactElement } from "react";
@@ -55,7 +56,12 @@ function overview(
 function details(
   over: Partial<SerializedGoalDetails> = {},
 ): SerializedGoalDetails {
-  return { targetDate: null, definitionOfDone: null, ...over };
+  return {
+    targetDate: null,
+    definitionOfDone: null,
+    measurement: UNMEASURED_GOAL,
+    ...over,
+  };
 }
 
 function contribution(

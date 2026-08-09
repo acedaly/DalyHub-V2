@@ -46,6 +46,15 @@ import { StatusPill } from "~/shared/pill";
 import { ViewSwitcher, type ViewSwitcherOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
+import {
+  formatMeasurementChange,
+  formatMeasurementValue,
+  goalCurrentAgainstTarget,
+  goalProgressStatusLabel,
+  goalProgressStatusTone,
+  goalProgressSummaryText,
+  type GoalProgressEvaluation,
+} from "~/shared/goal-progress";
 
 import { goalStateLabel } from "./goal-view";
 import type { SerializedGoalListItem } from "./goal-view";
@@ -53,6 +62,8 @@ import type { GoalMutationResult } from "./routes/mutate";
 
 export type SerializedGoalWithAlignment = SerializedGoalListItem & {
   readonly alignment: GoalAlignment;
+  /** GOAL-02 — the derived measurable progress, or the unmeasured evaluation. */
+  readonly progress: GoalProgressEvaluation;
 };
 
 /** A soft-deleted Goal, as the honest "Deleted" view shows it: identity only. */
@@ -243,6 +254,31 @@ function GoalEntityCard({
   const state = goalStateLabel(goal);
   const tone = state.tone === "success" ? "success" : "neutral";
   const updated = formatCalendarDate(goal.updatedAt.slice(0, 10));
+  const { progress } = goal;
+  const measured = progress.measured;
+
+  /*
+   * GOAL-02 — a measurable Goal's card leads with its NUMBER.
+   *
+   * The `EntityCard`'s existing `metric` and `progress` slots carry it, so this
+   * is the same card Areas and Projects use with data in two more of its
+   * openings — not a taller, Goal-specific tile. Nothing is added for an
+   * unmeasured Goal: it keeps exactly the card it had, because a Goal DalyHub
+   * has not been told how to measure is not a Goal that is 0% done.
+   *
+   * `target` is the card's ONE derived sentence, and it is deliberately short:
+   * a card answers "is this moving?", the record answers "how".
+   */
+  const targetLine = goalCurrentAgainstTarget(progress);
+  const overall = formatMeasurementChange(progress.totalChange, progress.unit);
+  const remaining =
+    !progress.achieved && progress.remaining !== null && progress.remaining > 0
+      ? `${formatMeasurementValue(progress.remaining, progress.unit)} remaining`
+      : null;
+  const targetDate = progress.targetDate
+    ? formatCalendarDate(progress.targetDate)
+    : null;
+
   return (
     <EntityCard
       data-testid="goal-card"
@@ -251,10 +287,50 @@ function GoalEntityCard({
       headingLevel={2}
       subtitle={goal.area.title}
       status={<StatusPill tone={tone}>{state.label}</StatusPill>}
+      metric={
+        measured && progress.current !== null
+          ? {
+              value:
+                progress.type === "milestone"
+                  ? `${progress.current}/${progress.target ?? 0}`
+                  : formatMeasurementValue(progress.current, progress.unit),
+              label: targetLine ?? "current",
+            }
+          : undefined
+      }
+      progress={
+        measured && progress.progressPercent !== null
+          ? {
+              value: progress.progressPercent,
+              max: 100,
+              label: `${progress.progressPercent}%`,
+              // The announced value is the SAME sentence the shared view model
+              // gives the record, so the bar shows a percentage and a screen
+              // reader hears the whole fact — one wording, two densities.
+              valueText: goalProgressSummaryText(progress),
+            }
+          : undefined
+      }
       meta={
         <>
-          <AlignmentIndicator alignment={goal.alignment} showReason />
-          {updated ? (
+          {measured ? (
+            <span className="dh-ecard__fact">
+              <StatusPill tone={goalProgressStatusTone(progress.status)}>
+                {goalProgressStatusLabel(progress.status)}
+              </StatusPill>
+            </span>
+          ) : (
+            <AlignmentIndicator alignment={goal.alignment} showReason />
+          )}
+          {remaining ? (
+            <span className="dh-ecard__fact">{remaining}</span>
+          ) : null}
+          {overall && measured ? (
+            <span className="dh-ecard__fact">{`${overall} overall`}</span>
+          ) : null}
+          {targetDate ? (
+            <span className="dh-ecard__fact">{`Target ${targetDate}`}</span>
+          ) : updated ? (
             <span className="dh-ecard__fact">
               <HistoryIcon className="dh-ecard__fact-icon" aria-hidden="true" />
               {`Updated ${updated}`}

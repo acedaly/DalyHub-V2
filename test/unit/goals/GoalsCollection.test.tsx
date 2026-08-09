@@ -10,6 +10,7 @@ import {
   type SerializedGoalWithAlignment,
 } from "~/modules/goals/GoalsCollection";
 import type { GoalAlignment } from "~/kernel/alignment";
+import { UNMEASURED_GOAL_PROGRESS } from "~/kernel/goals";
 
 /**
  * AREA-03 — the `/goals` Alignment collection component (ADR-040). Verifies
@@ -46,6 +47,9 @@ function goal(
     completedAt: null,
     area: { id: "a1", title: "Health" },
     alignment: alignment(),
+    // GOAL-02 — most Goals in these tests are unmeasured, which is the state
+    // every Goal created before the feature is in.
+    progress: UNMEASURED_GOAL_PROGRESS,
     ...over,
   };
 }

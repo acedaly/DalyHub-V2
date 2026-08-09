@@ -216,6 +216,12 @@ describe("module discovery", () => {
           file: "routes/projects.tsx",
         },
         { id: "goals.mutate", moduleId: "goals", file: "routes/mutate.tsx" },
+        // GOAL-02 — measurement readings and milestone stages.
+        {
+          id: "goals.measurements",
+          moduleId: "goals",
+          file: "routes/measurements.tsx",
+        },
         {
           id: "goals.activity",
           moduleId: "goals",

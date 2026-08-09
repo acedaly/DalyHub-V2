@@ -19,19 +19,21 @@
  */
 
 import { env } from "cloudflare:workers";
-import { useCallback, useMemo } from "react";
-import { useFetcher } from "react-router";
+import { useCallback, useMemo, useState } from "react";
+import { useFetcher, useRevalidator } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { DrawerProvider } from "~/shared/drawer";
+import { GoalCheckInSheet, goalCheckInLabel } from "~/shared/goal-progress";
 import { greetingNameFor } from "~/shared/shell/identity-display";
 import type { TaskActionData } from "~/shared/task-record/contract";
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
 import { emptyDay, loadTodayDay, type TodayDayData } from "../day/load";
+import type { TodayGoal } from "../day/goal-progress";
 import { TodayScreen } from "../day/TodayScreen";
 import { createTodayDrawerRenderer } from "../TodayDrawer";
 import type { Route } from "./+types/index";
@@ -97,6 +99,60 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export default function TodayRoute({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<TaskActionData>();
+  const revalidator = useRevalidator();
+
+  /*
+   * GOAL-02 — updating a Goal without leaving Today.
+   *
+   * The SAME shared check-in sheet the Goal record opens, posting to the SAME
+   * trusted `/goals/:id/measurements` endpoint. Today gains one action, not a
+   * copy of the Goal record: everything else about the Goal is one link away.
+   */
+  const [checkIn, setCheckIn] = useState<{
+    readonly goal: TodayGoal;
+    readonly opener: HTMLElement | null;
+  } | null>(null);
+
+  const submitCheckIn = useCallback(
+    async (values: {
+      readonly value: string;
+      readonly measuredOn: string;
+      readonly note: string;
+    }) => {
+      if (!checkIn) return { ok: false as const };
+      const body = new FormData();
+      body.set("intent", "log_measurement");
+      body.set("value", values.value);
+      body.set("measuredOn", values.measuredOn);
+      body.set("note", values.note);
+      try {
+        const response = await fetch(
+          `/goals/${encodeURIComponent(checkIn.goal.id)}/measurements`,
+          { method: "POST", body },
+        );
+        const result = (await response.json()) as {
+          readonly ok: boolean;
+          readonly formError?: string;
+          readonly fieldErrors?: Record<string, string>;
+        };
+        if (result.ok) {
+          revalidator.revalidate();
+          return { ok: true as const };
+        }
+        return {
+          ok: false as const,
+          formError: result.formError,
+          fieldErrors: result.fieldErrors,
+        };
+      } catch {
+        return {
+          ok: false as const,
+          formError: "That couldn’t be saved. Please try again.",
+        };
+      }
+    },
+    [checkIn, revalidator],
+  );
 
   // A failed completion is never silent: it surfaces as a calm error, and the
   // ensuing revalidation reconciles the optimistic row.
@@ -128,7 +184,26 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
 
   return (
     <DrawerProvider renderDrawer={renderTodayDrawer}>
-      <TodayScreen data={loaderData.day} onCompleteTask={onCompleteTask} />
+      <TodayScreen
+        data={loaderData.day}
+        onCompleteTask={onCompleteTask}
+        onUpdateGoal={(goal, trigger) => setCheckIn({ goal, opener: trigger })}
+      />
+      {checkIn ? (
+        <GoalCheckInSheet
+          goalTitle={checkIn.goal.title}
+          actionLabel={goalCheckInLabel(
+            checkIn.goal.progress.type,
+            checkIn.goal.progress.unit,
+          )}
+          unit={checkIn.goal.progress.unit}
+          currentValue={checkIn.goal.progress.current}
+          todayIso={loaderData.day.todayIso}
+          opener={checkIn.opener}
+          onClose={() => setCheckIn(null)}
+          onSubmit={submitCheckIn}
+        />
+      ) : null}
     </DrawerProvider>
   );
 }

@@ -38,6 +38,12 @@ import {
   type AttentionItem,
   type ContinueProject,
 } from "./attention-view";
+import {
+  loadActivityTrend,
+  loadTodayGoals,
+  type TodayActivityTrend,
+  type TodayGoal,
+} from "./goal-progress";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
@@ -97,6 +103,14 @@ export interface TodayDayData {
   readonly meetings: readonly DayMeeting[];
   readonly attention: readonly AttentionItem[];
   readonly continueProjects: readonly ContinueProject[];
+  /** GOAL-02 — the measurable Goals worth a look today (up to four). */
+  readonly goals: readonly TodayGoal[];
+  /**
+   * GOAL-02 — the 7-day created-vs-completed workload trend, or `null` when the
+   * week is genuinely empty. `null` is a real state, not a failure: an empty
+   * chart says less than no chart.
+   */
+  readonly activityTrend: TodayActivityTrend | null;
 }
 
 /** The empty day used when a workspace read fails — never a 500, never a blank. */
@@ -114,6 +128,8 @@ export function emptyDay(input: {
     meetings: [],
     attention: [],
     continueProjects: [],
+    goals: [],
+    activityTrend: null,
   };
 }
 
@@ -353,7 +369,20 @@ export async function loadTodayDay(
   },
 ): Promise<TodayDayData> {
   const { now, timezone, todayIso } = facts;
-  const [tasks, meetings, waiting, projects, goals] = await Promise.all([
+  // GOAL-02 — the owner-calendar alignment boundary, resolved once and shared by
+  // the at-risk read and the Goal Progress read, so the two cannot disagree about
+  // which Goals are recent.
+  const { recentBoundaryStartIso } = createOwnerAlignmentContext(now, timezone);
+
+  const [
+    tasks,
+    meetings,
+    waiting,
+    projects,
+    goals,
+    measurableGoals,
+    activityTrend,
+  ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
       buckets: { overdue: [], today: [], completedToday: [] },
       inboxCount: 0,
@@ -365,6 +394,17 @@ export async function loadTodayDay(
     }),
     safely(() => loadProjects(scope, now, todayIso, timezone), []),
     safely(() => loadGoalsAtRisk(scope, now, timezone), []),
+    safely(
+      () =>
+        loadTodayGoals(scope, {
+          now,
+          timezone,
+          todayIso,
+          recentBoundaryStartIso,
+        }),
+      [],
+    ),
+    safely(() => loadActivityTrend(scope, { timezone, todayIso }), null),
   ]);
 
   return {
@@ -393,5 +433,7 @@ export async function loadTodayDay(
     continueProjects: rankContinueProjects(
       projects.map((entry) => entry.project),
     ),
+    goals: measurableGoals,
+    activityTrend,
   };
 }

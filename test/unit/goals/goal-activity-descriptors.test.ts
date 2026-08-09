@@ -11,7 +11,15 @@
 import { describe, expect, it } from "vitest";
 
 import { GOAL_COMPLETED, GOAL_REOPENED } from "~/kernel/spine";
-import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
+import {
+  GOAL_DETAILS_UPDATED,
+  GOAL_MEASUREMENT_CORRECTED,
+  GOAL_MEASUREMENT_LOGGED,
+  GOAL_MEASUREMENT_REMOVED,
+  GOAL_MILESTONE_COMPLETED,
+  GOAL_MILESTONE_REOPENED,
+  GOAL_TARGET_REACHED,
+} from "~/kernel/goals";
 import {
   parseActivityType,
   type ActivityActor,
@@ -121,9 +129,61 @@ describe("Goal Activity descriptors", () => {
     expect(item.presentation.tone).toBe("neutral");
   });
 
-  it("registers only the three Goal-subject events, layered over the defaults", () => {
+  it("renders a logged measurement calmly, never dumping the reading itself", () => {
+    const item = toActivityItem(
+      record(GOAL_MEASUREMENT_LOGGED, "g-1", {
+        measuredOn: "2026-08-09",
+        hasNote: true,
+      }),
+      {
+        descriptors: GOAL_ACTIVITY_DESCRIPTOR_MAP,
+        resolveEntity: resolveGoal,
+        anchorEntityId: "g-1",
+      },
+    );
+    expect(item.isKnownType).toBe(true);
+    const text = item.presentation.segments
+      .map((s) => ("text" in s ? s.text : ""))
+      .join("");
+    expect(text).toContain("Logged a measurement");
+    expect(text).not.toContain("measuredOn");
+    expect(text).not.toContain("hasNote");
+  });
+
+  it("tones reaching the target as a success, unlike the edit events", () => {
+    const reached = toActivityItem(record(GOAL_TARGET_REACHED), {
+      descriptors: GOAL_ACTIVITY_DESCRIPTOR_MAP,
+      resolveEntity: resolveGoal,
+      anchorEntityId: "g-1",
+    });
+    expect(reached.presentation.tone).toBe("success");
+
+    // A correction carries no tone at all — it is a record of an edit, not an
+    // outcome, and colouring it would put weight on the wrong event.
+    const corrected = toActivityItem(record(GOAL_MEASUREMENT_CORRECTED), {
+      descriptors: GOAL_ACTIVITY_DESCRIPTOR_MAP,
+      resolveEntity: resolveGoal,
+      anchorEntityId: "g-1",
+    });
+    expect(corrected.presentation.tone).toBeUndefined();
+  });
+
+  it("registers exactly the Goal-subject events, layered over the defaults", () => {
     expect(Object.keys(GOAL_ACTIVITY_DESCRIPTORS).sort()).toEqual(
-      [GOAL_COMPLETED, GOAL_REOPENED, GOAL_DETAILS_UPDATED].sort(),
+      [
+        GOAL_COMPLETED,
+        GOAL_REOPENED,
+        GOAL_DETAILS_UPDATED,
+        // GOAL-02 — progress events. Note what is ABSENT: there is no event for
+        // a recalculated percentage, and none for adding, renaming or
+        // reweighting a milestone, because neither is a change to the record.
+        GOAL_MEASUREMENT_LOGGED,
+        GOAL_MEASUREMENT_CORRECTED,
+        GOAL_MEASUREMENT_REMOVED,
+        GOAL_TARGET_REACHED,
+        GOAL_MILESTONE_COMPLETED,
+        GOAL_MILESTONE_REOPENED,
+      ].sort(),
     );
   });
 });

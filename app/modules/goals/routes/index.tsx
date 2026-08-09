@@ -17,6 +17,10 @@ import {
 } from "~/shared/alignment";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { evaluateGoalFromSummary } from "~/shared/goal-progress";
+import { UNMEASURED_GOAL } from "~/kernel/goals";
+import { addDaysToIsoDate } from "~/kernel/alignment";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 import { GoalsCollectionView } from "../GoalsCollection";
 import type {
@@ -89,8 +93,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
     // AUDIT-14 — the owner's day, from the one scope-level authority.
+    const timeZone = await scope.ownerTimeZone();
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-      createOwnerAlignmentContext(new Date(), await scope.ownerTimeZone());
+      createOwnerAlignmentContext(new Date(), timeZone);
 
     // DEBT-23: the collection is ordered by the deterministic workspace-wide
     // Alignment precedence in the repository (BEFORE pagination), so the Goals
@@ -116,9 +121,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     }
     const ids = page.items.map((item) => item.id);
 
-    const [contributions, activityFacts] = await Promise.all([
+    /*
+     * GOAL-02 — the page's measurable state, in a FIXED number of grouped
+     * queries.
+     *
+     * `listMeasurementSummaries` returns three readings and a count per Goal,
+     * never a history, and `goalDetails.listMany` the configurations — so a page
+     * of twenty Goals costs a handful of statements rather than twenty
+     * (AGENTS.md §16). The comparison window is a month, which is the period the
+     * card's "since" figure describes.
+     */
+    const comparisonFromIso = addDaysToIsoDate(evaluation.todayIso, -30);
+    const [
+      contributions,
+      activityFacts,
+      measurementSummaries,
+      milestoneSummaries,
+      detailsById,
+    ] = await Promise.all([
       scope.goals.listGoalProjectContributions(ids),
       scope.alignment.listGoalAlignmentFacts(ids, { recentWindowStartIso }),
+      scope.goalMeasurements.listMeasurementSummaries(ids, {
+        comparisonFromIso,
+      }),
+      scope.goalMeasurements.listMilestoneSummaries(ids),
+      scope.goalDetails.listMany(ids),
     ]);
 
     const goals: SerializedGoalWithAlignment[] = page.items.map((item) => {
@@ -136,9 +163,21 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         },
         activity: activityFacts.get(item.id),
       });
+      const details = detailsById.get(item.id);
       return {
         ...serializeGoalListItem(item),
         alignment: evaluateGoalAlignment(facts, evaluation),
+        // Derived with the SAME kernel evaluator the Goal record uses, from the
+        // bounded summary rather than the full series.
+        progress: evaluateGoalFromSummary({
+          config: details?.measurement ?? UNMEASURED_GOAL,
+          targetDate: details?.targetDate ?? null,
+          summary: measurementSummaries.get(item.id) ?? null,
+          milestones: milestoneSummaries.get(item.id),
+          startedOn: ownerCalendarIso(item.createdAt, timeZone),
+          completed: item.completedAt !== null,
+          todayIso: evaluation.todayIso,
+        }),
       };
     });
 

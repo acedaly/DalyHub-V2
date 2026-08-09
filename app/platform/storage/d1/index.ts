@@ -36,7 +36,11 @@ import type {
   ActorDirectory,
   WorkspaceMemberRepository,
 } from "~/kernel/identity";
-import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
+import type {
+  GoalDetailsRepository,
+  GoalMeasurementRepository,
+  GoalRepository,
+} from "~/kernel/goals";
 import type {
   NoteDetailsRepository,
   NoteQueryRepository,
@@ -92,6 +96,10 @@ import {
   D1GoalDetailsRepository,
   type D1GoalDetailsRepositoryOptions,
 } from "./d1-goal-details-repository";
+import {
+  D1GoalMeasurementRepository,
+  type D1GoalMeasurementRepositoryOptions,
+} from "./d1-goal-measurement-repository";
 import { D1GoalRepository } from "./d1-goal-repository";
 import {
   D1NoteDetailsRepository,
@@ -176,6 +184,10 @@ export {
   D1GoalDetailsRepository,
   type D1GoalDetailsRepositoryOptions,
 } from "./d1-goal-details-repository";
+export {
+  D1GoalMeasurementRepository,
+  type D1GoalMeasurementRepositoryOptions,
+} from "./d1-goal-measurement-repository";
 export {
   D1NoteDetailsRepository,
   type D1NoteDetailsRepositoryOptions,
@@ -360,6 +372,20 @@ export function createGoalDetailsRepository(
   options?: D1GoalDetailsRepositoryOptions,
 ): GoalDetailsRepository {
   return new D1GoalDetailsRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed GoalMeasurementRepository — the
+ * GOAL-02 measurement history and milestone stages. Bound to a
+ * `WorkspaceContext` and a trusted Activity actor like every other mutation
+ * repository; there is no unscoped construction path.
+ */
+export function createGoalMeasurementRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1GoalMeasurementRepositoryOptions,
+): GoalMeasurementRepository {
+  return new D1GoalMeasurementRepository(db, context, options);
 }
 
 /**

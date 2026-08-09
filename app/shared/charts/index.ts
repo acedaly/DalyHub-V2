@@ -17,3 +17,14 @@ export {
   type TrendBarsProps,
   type TrendBarPoint,
 } from "./TrendBars";
+/* GOAL-02 — a dated series, and a two-series period comparison. */
+export {
+  TrendLine,
+  type TrendLineProps,
+  type TrendLinePoint,
+} from "./TrendLine";
+export {
+  ComparisonBars,
+  type ComparisonBarsProps,
+  type ComparisonBarsPoint,
+} from "./ComparisonBars";

@@ -12,6 +12,16 @@
 import type { FormEvent, ReactNode } from "react";
 
 export interface FormProps {
+  /**
+   * The form element's id.
+   *
+   * Needed when the submit button cannot be a DESCENDANT of the form — the
+   * MOBILE-01 `Sheet`'s sticky footer is outside the scrolling body, which is
+   * exactly where a phone's primary action has to live so the keyboard cannot
+   * push it off-screen. The button carries `form="<id>"` and native submission
+   * still flows through `onSubmit`; nothing about validation or focus changes.
+   */
+  readonly id?: string;
   /** Submit handler — pass `form.handleSubmit` from `useForm`. */
   readonly onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   /** Accessible name for the form (use when there is no visible heading). */
@@ -30,6 +40,7 @@ export interface FormProps {
  * submission (Enter in a text field, the submit button) flows through `onSubmit`.
  */
 export function Form({
+  id,
   onSubmit,
   busy = false,
   className,
@@ -39,6 +50,7 @@ export function Form({
   const rootClassName = ["dh-form", className].filter(Boolean).join(" ");
   return (
     <form
+      id={id}
       className={rootClassName}
       onSubmit={onSubmit}
       noValidate

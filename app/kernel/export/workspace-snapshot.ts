@@ -298,11 +298,53 @@ export interface SnapshotAreaDetail {
   readonly updatedAt: IsoInstant;
 }
 
-/** Goal-owned state (AREA-02). `definitionOfDone` is plain text, not Markdown. */
+/**
+ * Goal-owned state (AREA-02, extended by GOAL-02). `definitionOfDone` is plain
+ * text, not Markdown.
+ *
+ * The five measurement fields are additive and optional-by-`null`, so an archive
+ * written before GOAL-02 restores unchanged: absent keys read as `null`, which is
+ * exactly the "no measurement configured" state those Goals were in.
+ */
 export interface SnapshotGoalDetail {
   readonly entityId: string;
   readonly targetDate: IsoDate | null;
   readonly definitionOfDone: string | null;
+  readonly measurementType: string | null;
+  readonly measurementUnit: string | null;
+  readonly measurementDirection: string | null;
+  readonly baselineValue: number | null;
+  readonly targetValue: number | null;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * One recorded Goal measurement (GOAL-02).
+ *
+ * The history IS the Goal's progress — the current value is the latest row here,
+ * never a stored percentage — so an export that omitted it would produce a
+ * restore in which every measurable Goal had silently forgotten where it was.
+ * `measuredOn` is an owner-calendar date, never an instant.
+ */
+export interface SnapshotGoalMeasurement {
+  readonly id: string;
+  readonly goalId: string;
+  readonly value: number;
+  readonly measuredOn: IsoDate;
+  readonly note: string | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/** One defined stage of a milestone-measured Goal (GOAL-02). */
+export interface SnapshotGoalMilestone {
+  readonly id: string;
+  readonly goalId: string;
+  readonly title: string;
+  readonly weight: number;
+  readonly position: number;
+  readonly completedAt: IsoInstant | null;
+  readonly createdAt: IsoInstant;
   readonly updatedAt: IsoInstant;
 }
 
@@ -683,6 +725,8 @@ export interface SnapshotCollectionRowMap {
   readonly spineRecords: SnapshotSpineRecord;
   readonly areaDetails: SnapshotAreaDetail;
   readonly goalDetails: SnapshotGoalDetail;
+  readonly goalMeasurements: SnapshotGoalMeasurement;
+  readonly goalMilestones: SnapshotGoalMilestone;
   readonly projectDetails: SnapshotProjectDetail;
   readonly taskDetails: SnapshotTaskDetail;
   readonly taskRecurrenceRules: SnapshotTaskRecurrenceRule;
@@ -738,6 +782,10 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     "reviewStepAcknowledgements",
     "reviewInsightSnapshots",
     "workspaceMembers",
+    // GOAL-02 — added with the measurable-Goal model. Every archive written
+    // before it is still valid and still restores.
+    "goalMeasurements",
+    "goalMilestones",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -745,6 +793,8 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "spineRecords",
   "areaDetails",
   "goalDetails",
+  "goalMeasurements",
+  "goalMilestones",
   "projectDetails",
   "taskDetails",
   "taskRecurrenceRules",
