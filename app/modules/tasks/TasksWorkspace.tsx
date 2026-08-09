@@ -57,11 +57,13 @@ import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { ViewSwitcher } from "~/shared/view-switcher";
+import { useFeedback } from "~/shared/feedback";
 import {
   InlineTaskDate,
   InlineTaskParent,
   InlineTaskPriority,
   RecurrenceChip,
+  type TaskRowFieldSave,
 } from "~/shared/task-record/TaskRowFields";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
@@ -69,6 +71,10 @@ import type {
   TaskActionData,
   TaskRecurrenceOutcome,
 } from "~/shared/task-record/contract";
+import {
+  postTaskBulkAction,
+  postTaskRecordAction,
+} from "~/shared/task-record/task-inline-edit";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
   formatCalendarDate,
@@ -76,13 +82,18 @@ import {
   taskUrgency,
   timeSectorLabel,
   type SerializedTaskListItem,
+  type TaskListItemPatch,
 } from "~/shared/task-record/task-view";
 import {
   MAX_PLAN_BATCH_SIZE,
   TASK_PRIORITIES,
   TIME_SECTORS,
 } from "~/kernel/tasks";
-import { TASK_PRESENTATIONS, taskViewFilterCount } from "~/kernel/task-views";
+import {
+  TASK_PRESENTATIONS,
+  taskViewFilterCount,
+  type TaskViewConfig,
+} from "~/kernel/task-views";
 
 import { NewTaskForm } from "./NewTaskForm";
 import { TasksQuickAdd } from "./TasksQuickAdd";
@@ -98,6 +109,20 @@ import {
   summariseBulkField,
   taskSelectionReducer,
 } from "./task-selection";
+import {
+  NO_TASK_PATCHES,
+  applyTaskPatches,
+  applyTaskPatchesToGrouping,
+  withTaskPatch,
+  withoutTaskPatch,
+  type TaskPatches,
+} from "./task-optimistic";
+import {
+  initialTaskPagination,
+  mergeTaskPages,
+  taskPaginationReducer,
+} from "./task-pagination";
+import { shouldRevalidateTasksForIntent } from "./task-revalidation";
 import { TASKS_PARAMS, paramsFromConfig } from "./tasks-url-state";
 import {
   resolveGroupedSections,
@@ -246,9 +271,16 @@ function NewTaskDrawerHost({
 /**
  * Accumulate keyset pages WITHOUT navigating (so the `?drawer=` param and scroll
  * position survive). The loader's first page seeds the list; each "Load more" runs
- * the SAME `/tasks` loader through a fetcher with the next `cursor`, and the rows
- * are appended. A configuration change (the `resetKey`) or a loader re-run (a new
- * first page) RESETS the accumulation. Duplicate ids are collapsed defensively.
+ * the SAME `/tasks` loader through a fetcher with the next `cursor`, and the rows are
+ * appended.
+ *
+ * TASKS-09 corrected WHEN that accumulation is thrown away. It used to reset on the
+ * identity of `firstPage`, which is a fresh array on every revalidation — so any
+ * mutation at all collapsed three loaded pages back to one and lost the owner's place.
+ * The reset now keys on the CONFIGURATION alone (the pure rule, and why the first
+ * page's own cursor is deliberately NOT part of it, live in `task-pagination.ts`), and
+ * a re-run of the same query merges its refreshed first page into the accumulator BY
+ * ID instead of discarding it.
  */
 function useTaskPagination(
   firstPage: readonly SerializedTaskListItem[],
@@ -257,62 +289,63 @@ function useTaskPagination(
   loadHref: (cursor: string) => string,
 ) {
   const fetcher = useFetcher<TasksPageData>();
-  const [appended, setAppended] = useState<SerializedTaskListItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [state, dispatch] = useReducer(taskPaginationReducer, undefined, () =>
+    initialTaskPagination(resetKey, initialCursor),
+  );
   const processed = useRef<TasksPageData | null>(null);
+  const fetcherData = fetcher.data ?? null;
+  const fetcherDataRef = useRef<TasksPageData | null>(fetcherData);
+  fetcherDataRef.current = fetcherData;
+  const lastResetKey = useRef(resetKey);
 
   useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-  }, [firstPage, initialCursor, resetKey]);
+    if (lastResetKey.current !== resetKey) {
+      // Whatever page the fetcher is still holding belongs to the PREVIOUS
+      // configuration; mark it consumed so the reset cannot re-append it.
+      lastResetKey.current = resetKey;
+      processed.current = fetcherDataRef.current;
+    }
+    dispatch({ type: "sync", resetKey, initialCursor });
+  }, [resetKey, initialCursor]);
 
   useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
+    if (fetcher.state !== "idle" || !fetcherData) {
       return;
     }
-    const page = fetcher.data;
-    if (processed.current === page) {
+    if (processed.current === fetcherData) {
       return;
     }
-    processed.current = page;
-    if (page.failed || !Array.isArray(page.items)) {
-      setLoadFailed(true);
+    processed.current = fetcherData;
+    if (fetcherData.failed || !Array.isArray(fetcherData.items)) {
+      dispatch({ type: "page_failed" });
       return;
     }
-    setAppended((prev) => [...prev, ...page.items]);
-    setCursor(page.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
+    dispatch({
+      type: "page",
+      items: fetcherData.items,
+      nextCursor: fetcherData.nextCursor,
+    });
+  }, [fetcher.state, fetcherData]);
 
+  const cursor = state.cursor;
   const loadMore = useCallback(() => {
     if (cursor === null) {
       return;
     }
-    setLoadFailed(false);
+    dispatch({ type: "retry" });
     fetcher.load(loadHref(cursor));
   }, [cursor, fetcher, loadHref]);
 
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedTaskListItem[] = [];
-    for (const item of [...firstPage, ...appended]) {
-      if (seen.has(item.id)) {
-        continue;
-      }
-      seen.add(item.id);
-      out.push(item);
-    }
-    return out;
-  }, [firstPage, appended]);
+  const items = useMemo(
+    () => mergeTaskPages(firstPage, state.appended),
+    [firstPage, state.appended],
+  );
 
   return {
     items,
     hasMore: cursor !== null,
     loading: fetcher.state !== "idle",
-    loadFailed,
+    loadFailed: state.loadFailed,
     loadMore,
   };
 }
@@ -341,103 +374,256 @@ function recurrenceNote(outcome: TaskRecurrenceOutcome | undefined): string {
   }
 }
 
+/** The wording used when a write failed and said nothing useful about why. */
+const GENERIC_ROW_REFUSAL =
+  "That change couldn’t be saved. Nothing was changed.";
+
 /**
- * List-level quick edits, through the CANONICAL routes.
+ * List-level quick edits, through the CANONICAL routes, with an OPTIMISTIC
+ * presentation and a SERVER-AUTHORITATIVE announcement (ADR-086).
  *
  * Completion posts `intent=complete`/`reopen` to `POST /tasks/:taskId` — the same
  * atomic task-domain operation the Task Drawer's Complete button uses (ADR-029), so
  * completing from a list and completing from the record are ONE execution path with
  * ONE Activity trail. Every field change goes through the trusted `/tasks/bulk`
- * mutation with a single id — again the same authority the bulk bar uses.
+ * mutation with a single id — again the same authority the bulk bar uses. **Nothing
+ * about where a write goes, or who validates it, changed here.**
  *
- * The loader is revalidated after each change so a row reflects the server (a
- * completed task leaving an active view, a re-sorted list) rather than an optimistic
- * guess that could disagree with it. Every outcome is announced.
+ * What changed is the two things the client does around that write:
+ *
+ *   1. **The row leads.** A `TaskListItemPatch` is applied the instant the request
+ *      goes out, so the checkbox strikes the title through and the changed field
+ *      re-renders without waiting for four sequential hops. The patch is dropped when
+ *      fresh loader data answers it, and reverted the moment the server refuses.
+ *   2. **The announcement does not lead.** Every message in the live region, and every
+ *      Undo affordance, is raised from the SERVER's reply — including the recurrence
+ *      consequence, which only the server knows. A refused write announces the
+ *      refusal, raises a calm DS-10 error with the server's own wording, and leaves
+ *      the row exactly as it was.
+ *
+ * Revalidation is no longer unconditional. `shouldRevalidateTasks` decides, from the
+ * configuration alone, whether this change could move the row out of — or reorder it
+ * inside — the view on screen. A priority change on an unsorted, unfiltered list
+ * re-reads nothing.
+ *
+ * Each write is its own `fetch` rather than a shared fetcher submission: a fetcher
+ * carries one in-flight request and a second submission supersedes the first, which
+ * was invisible while the surface blocked and is a lost write now that it does not.
  */
-function useTaskQuickMutation() {
-  const fetcher = useFetcher();
+function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
   const revalidator = useRevalidator();
-  const settled = useRef<unknown>(null);
+  const { notifyError, notifyUndo } = useFeedback();
   const [announcement, setAnnouncement] = useState<string | null>(null);
-  const pendingLabel = useRef<string | null>(null);
+  const [patches, setPatches] = useState<TaskPatches>(NO_TASK_PATCHES);
 
+  /*
+   * Fresh loader data is the truth, so it retires every guess made against the
+   * previous one. Patches that the new payload does NOT yet reflect are dropped too:
+   * a guess the server has answered is finished either way, and holding it longer
+   * would be the client arguing with the record it just asked for.
+   */
   useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    if (settled.current === fetcher.data) {
-      return;
-    }
-    settled.current = fetcher.data;
-    const result = fetcher.data as {
-      readonly ok?: boolean;
-      readonly formError?: string;
-      readonly recurrence?: TaskRecurrenceOutcome;
-    };
-    if (result.ok === false) {
-      setAnnouncement(
-        result.formError ??
-          "That change couldn’t be saved. Nothing was changed.",
+    setPatches((previous) =>
+      previous.size === 0 ? previous : NO_TASK_PATCHES,
+    );
+  }, [data]);
+
+  // Read at mutation time, not at render time: the config a change is judged against
+  // is the one on screen when it happens.
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  const revalidateFor = useCallback(
+    (intent: string) => {
+      if (shouldRevalidateTasksForIntent(configRef.current, intent)) {
+        revalidator.revalidate();
+      }
+    },
+    [revalidator],
+  );
+
+  /**
+   * Announce AND surface a refusal, and put the row back the way it was.
+   *
+   * `keys` rolls back exactly what THIS write painted, so a refused due date cannot
+   * also un-paint a priority the server accepted a moment earlier.
+   */
+  const refuse = useCallback(
+    (
+      taskId: string,
+      message: string,
+      keys?: readonly (keyof TaskListItemPatch)[],
+    ) => {
+      setPatches((previous) => withoutTaskPatch(previous, taskId, keys));
+      setAnnouncement(message);
+      notifyError(message);
+    },
+    [notifyError],
+  );
+
+  /*
+   * Completion, both directions. Held in a ref so Undo can invoke the same function
+   * with the opposite intent without an undo of an undo of an undo.
+   */
+  const completeRef = useRef<
+    (
+      taskId: string,
+      title: string,
+      completed: boolean,
+      undoable: boolean,
+    ) => void
+  >(() => {});
+
+  const runCompletion = useCallback(
+    (taskId: string, title: string, completed: boolean, undoable: boolean) => {
+      const intent = completed ? "complete" : "reopen";
+      setPatches((previous) =>
+        withTaskPatch(previous, taskId, {
+          completedAt: completed ? new Date().toISOString() : null,
+        }),
       );
-    } else if (pendingLabel.current) {
-      // TASKS-04: completing or undoing a REPEATING task has a second consequence,
-      // and the surface says so rather than leaving a new (or surviving) occurrence
-      // unexplained.
-      setAnnouncement(
-        `${pendingLabel.current}${recurrenceNote(result.recurrence)}`,
-      );
-    }
-    pendingLabel.current = null;
-    revalidator.revalidate();
-  }, [fetcher.state, fetcher.data, revalidator]);
+      void postTaskRecordAction(taskId, { intent })
+        .then((result) => {
+          if (result.kind !== "completion") {
+            refuse(taskId, GENERIC_ROW_REFUSAL, ["completedAt"]);
+            return;
+          }
+          if (result.ok === false) {
+            refuse(taskId, result.message, ["completedAt"]);
+            return;
+          }
+          // TASKS-04: completing or undoing a REPEATING task has a second
+          // consequence, and the surface says so rather than leaving a new (or
+          // surviving) occurrence unexplained. Only the server knows which.
+          const label = completed
+            ? `Completed ${title}.`
+            : `Reopened ${title}.`;
+          const note = recurrenceNote(result.recurrence);
+          setAnnouncement(`${label}${note}`);
+          if (undoable) {
+            // ONE affordance: the visible confirmation IS the way back. The undo
+            // window is the notification's own timer (DS-10), not a second one.
+            notifyUndo(label, {
+              message: note.trim().length > 0 ? note.trim() : undefined,
+              onUndo: () =>
+                completeRef.current(taskId, title, !completed, false),
+            });
+          }
+          revalidateFor(intent);
+        })
+        .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, ["completedAt"]));
+    },
+    [notifyUndo, refuse, revalidateFor],
+  );
+  completeRef.current = runCompletion;
 
   const setCompleted = useCallback(
     (taskId: string, completed: boolean, title: string) => {
-      pendingLabel.current = completed
-        ? `Completed ${title}.`
-        : `Reopened ${title}.`;
-      const body = new FormData();
-      body.set("intent", completed ? "complete" : "reopen");
-      fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+      runCompletion(taskId, title, completed, true);
     },
-    [fetcher],
+    [runCompletion],
   );
 
+  /** A single-id `/tasks/bulk` field change, painted while it is in flight. */
   const setField = useCallback(
-    (taskId: string, fields: Record<string, string>, label: string) => {
-      pendingLabel.current = label;
-      const body = new FormData();
-      body.append("id", taskId);
-      for (const [key, value] of Object.entries(fields)) {
-        body.set(key, value);
-      }
-      fetcher.submit(body, { method: "post", action: "/tasks/bulk" });
+    (
+      taskId: string,
+      fields: Record<string, string>,
+      label: string,
+      patch: TaskListItemPatch,
+    ) => {
+      const intent = fields.intent ?? "";
+      const keys = Object.keys(patch) as (keyof TaskListItemPatch)[];
+      setPatches((previous) => withTaskPatch(previous, taskId, patch));
+      void postTaskBulkAction([taskId], fields)
+        .then((outcome) => {
+          if (!outcome.ok) {
+            refuse(taskId, outcome.message, keys);
+            return;
+          }
+          setAnnouncement(label);
+          revalidateFor(intent);
+        })
+        .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, keys));
     },
-    [fetcher],
+    [refuse, revalidateFor],
   );
 
   /**
    * A canonical `/tasks/:taskId` record mutation from the row — the same route the
    * Drawer's own controls post to. Used for the recurrence-series operations (skip,
-   * stop repeating), which are task-domain operations rather than field writes and so
-   * have no place on the bulk field endpoint.
+   * stop repeating) and the commitment change, which are task-domain operations
+   * rather than field writes and so have no place on the bulk field endpoint.
+   *
+   * A SERIES operation is deliberately NOT painted optimistically: its consequence
+   * reaches the rule, both dates and possibly a successor record the client has never
+   * seen, and a guess about any of those would be a guess about something the owner
+   * would then have to check.
    */
   const setRecord = useCallback(
-    (taskId: string, fields: Record<string, string>, label: string) => {
-      pendingLabel.current = label;
-      const body = new FormData();
-      for (const [key, value] of Object.entries(fields)) body.set(key, value);
-      fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+    (
+      taskId: string,
+      fields: Record<string, string>,
+      label: string,
+      patch?: TaskListItemPatch,
+    ) => {
+      const intent = fields.intent ?? "";
+      const keys = patch
+        ? (Object.keys(patch) as (keyof TaskListItemPatch)[])
+        : [];
+      if (patch) {
+        setPatches((previous) => withTaskPatch(previous, taskId, patch));
+      }
+      void postTaskRecordAction(taskId, fields)
+        .then((result) => {
+          const refused =
+            (result.kind === "update" ||
+              result.kind === "planning" ||
+              result.kind === "waiting") &&
+            result.status === "error";
+          if (refused) {
+            refuse(
+              taskId,
+              result.formError ??
+                Object.values(result.fieldErrors ?? {})[0] ??
+                GENERIC_ROW_REFUSAL,
+              keys,
+            );
+            return;
+          }
+          setAnnouncement(label);
+          revalidateFor(intent);
+        })
+        .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, keys));
     },
-    [fetcher],
+    [refuse, revalidateFor],
   );
 
   /**
    * Report a change the ROW's own inline field already persisted through a canonical
-   * route, and re-read the list. The inline fields own their own request (DS-16 needs a
-   * promise-returning save), so this is how their outcome reaches the same live region
-   * and the same revalidation every other row mutation uses — one announcement channel,
-   * not two.
+   * route. The inline fields own their own request (DS-16 needs a promise-returning
+   * save), so this is how their outcome reaches the same live region, the same patch
+   * map and the same revalidation rule every other row mutation uses — one
+   * announcement channel, not two.
+   */
+  const reportInlineSave = useCallback(
+    (save: TaskRowFieldSave) => {
+      setPatches((previous) =>
+        withTaskPatch(previous, save.taskId, save.patch),
+      );
+      setAnnouncement(save.message);
+      revalidateFor(save.intent);
+    },
+    [revalidateFor],
+  );
+
+  /**
+   * Announce a COMMITTED bulk outcome and re-read the list.
+   *
+   * Bulk keeps its unconditional revalidation by decision: a bulk change is a
+   * deliberate operation over a whole selection, its per-bucket counts are the
+   * server's, and the selection is cleared by the same commit — there is no row left
+   * on screen for an optimistic patch to belong to.
    */
   const announce = useCallback(
     (message: string) => {
@@ -448,11 +634,12 @@ function useTaskQuickMutation() {
   );
 
   return {
+    patches,
     setCompleted,
     setField,
     setRecord,
+    reportInlineSave,
     announce,
-    busy: fetcher.state !== "idle",
     announcement,
   };
 }
@@ -573,8 +760,8 @@ function InlineTaskTitleEditor({
 function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const [searchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
-  const quick = useTaskQuickMutation();
   const config = data.config;
+  const quick = useTaskQuickMutation(config, data);
   /**
    * TASKS-04 — which row (if any) is being renamed inline. Held here rather than in
    * the row so exactly one title is ever in edit mode and the Card keeps its open
@@ -625,15 +812,32 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     loadHref,
   );
 
+  /*
+   * The rows, with any in-flight change already applied (ADR-086).
+   *
+   * The patch is applied to the SERIALISED record, before `toTaskCardData`, so the
+   * strike-through, the state pill, the tone and the urgency chip are all re-derived
+   * by the same pure functions that read the server's own answer. There is no display
+   * value an optimistic row can have and a reconciled one cannot.
+   */
+  const patchedItems = useMemo(
+    () => applyTaskPatches(items, quick.patches),
+    [items, quick.patches],
+  );
   const cards = useMemo(
-    () => items.map((item) => toTaskCardData(item)),
-    [items],
+    () => patchedItems.map((item) => toTaskCardData(item)),
+    [patchedItems],
   );
 
   // A grouped view renders from the SERVER grouping (authoritative per-bucket
   // counts + bounded records), not from the accumulated flat page. A loader re-run
-  // replaces `data.grouping` wholesale, so stale bucket data can never linger.
-  const grouping = data.grouping;
+  // replaces `data.grouping` wholesale, so stale bucket data can never linger. The
+  // in-flight patches reach its RECORDS and never its counts — a count is the
+  // server's claim, and an optimistic presentation does not get to restate it.
+  const grouping = useMemo(
+    () => applyTaskPatchesToGrouping(data.grouping, quick.patches),
+    [data.grouping, quick.patches],
+  );
   const isGrouped = grouping !== null;
   const groupedSections = useMemo<GroupedSection[]>(
     () => resolveGroupedSections(grouping),
@@ -795,7 +999,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             taskId={card.id}
             title={card.title}
             priority={card.priority}
-            onSaved={quick.announce}
+            onSaved={quick.reportInlineSave}
             disabled={card.completed || viewingDeleted}
           />
         ),
@@ -850,7 +1054,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             title={card.title}
             kind="due"
             value={card.dueDate}
-            onSaved={quick.announce}
+            onSaved={quick.reportInlineSave}
             disabled={card.completed || viewingDeleted}
           />
         ),
@@ -863,7 +1067,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             title={card.title}
             kind="scheduled"
             value={card.scheduledDate}
-            onSaved={quick.announce}
+            onSaved={quick.reportInlineSave}
             disabled={card.completed || viewingDeleted}
           />
         ),
@@ -880,7 +1084,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             title={card.title}
             parent={card.parent}
             options={data.parents}
-            onSaved={quick.announce}
+            onSaved={quick.reportInlineSave}
             disabled={card.completed || viewingDeleted}
           />
         ),
@@ -923,6 +1127,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // The two things a user does most from a list, as visible, labelled 44px
       // buttons. The swipe tray below reveals the SAME actions, so nothing is
       // gesture-only and a non-touch device behaves identically.
+      //
+      // TASKS-09 removed the `disabled` these carried while ANY row mutation was in
+      // flight. It existed because one shared fetcher meant a second submission
+      // superseded the first; each write is now its own request, so completing three
+      // rows in three seconds is three writes and three answers rather than two
+      // refusals and a stall.
       const completeAction = {
         id: "complete",
         label: card.completed ? "Reopen" : "Complete",
@@ -931,7 +1141,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           : `Complete ${card.title}`,
         onSelect: () =>
           quick.setCompleted(card.id, !card.completed, card.title),
-        disabled: quick.busy,
       };
       const planTodayAction = card.completed
         ? null
@@ -944,8 +1153,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 card.id,
                 { intent: "plan", scheduledDate: data.todayIso },
                 `Planned ${card.title} for today.`,
+                { scheduledDate: data.todayIso },
               ),
-            disabled: quick.busy,
           };
       // Nothing on a deleted row can be mutated, so nothing on it offers to.
       const quickActions = viewingDeleted
@@ -989,7 +1198,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
               {
                 id: "rename",
                 label: "Rename",
-                disabled: quick.busy,
                 onSelect: () => setEditingTitleId(card.id),
               },
               {
@@ -1002,12 +1210,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 id: "someday",
                 label: "Move to Someday / Maybe",
                 separatorBefore: true,
-                disabled: quick.busy,
                 onSelect: () =>
                   quick.setField(
                     card.id,
                     { intent: "set_commitment", commitment: "someday" },
                     `${card.title} moved to Someday / Maybe.`,
+                    { commitmentState: "someday" },
                   ),
               },
               // TASKS-07 — the two series operations that belong on a row. Skipping is
@@ -1022,7 +1230,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                       description:
                         "Moves to the next date without completing it.",
                       separatorBefore: true,
-                      disabled: quick.busy,
                       onSelect: () =>
                         quick.setRecord(
                           card.id,
@@ -1034,7 +1241,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                       id: "stop-repeat",
                       label: "Stop repeating",
                       description: "Past occurrences are kept.",
-                      disabled: quick.busy,
                       onSelect: () =>
                         quick.setRecord(
                           card.id,
@@ -1075,6 +1281,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         typeLabel: "Task",
         icon: <EntityIcon type="task" />,
         headingLevel,
+        // The row's own signal that the work is done, alongside the status pill and
+        // the action that now reads "Reopen". Under an in-flight completion it is
+        // drawn from the optimistic patch, which is what makes the checkbox feel
+        // instant (ADR-086) — the pill and the action come from the same patched
+        // record, so the three can never disagree.
+        completed: card.completed,
         status: { label: card.stateLabel, tone: card.stateTone as CardTone },
         metadata,
         density,

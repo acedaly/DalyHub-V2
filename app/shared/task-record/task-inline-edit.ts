@@ -17,7 +17,9 @@
  *     Validation, workspace scoping, atomicity and Activity all stay server-side.
  *   - **not optimistic.** A refusal is returned as `{ ok: false, message }` with the
  *     server's own wording, so the field keeps the previous value and the owner's
- *     draft. Nothing is applied locally and then hoped for.
+ *     draft. Whether a CALLER paints the new value while waiting is the caller's
+ *     decision (ADR-086); nothing here applies anything, and nothing here reports an
+ *     outcome the server did not give.
  *   - **not a revalidation policy.** The caller decides what to refresh, because a
  *     Drawer and a list row need different things reloaded.
  *
@@ -94,6 +96,56 @@ export async function saveTaskRecordField(
       return { ok: false, message: named ?? result.formError ?? fallback };
     }
     return { ok: false, message: fallback };
+  } catch {
+    return { ok: false, message: fallback };
+  }
+}
+
+/**
+ * The typed outcome of a `/tasks/bulk` mutation, as a client sees it. Never throws:
+ * a transport failure becomes a refusal with the fallback wording, because a surface
+ * that has just painted an optimistic row needs an answer either way.
+ */
+export type TaskBulkOutcome =
+  | { readonly ok: true; readonly changed: number; readonly unchanged: number }
+  | { readonly ok: false; readonly message: string };
+
+/**
+ * POST an intent to the canonical `/tasks/bulk` route for one or more ids.
+ *
+ * It is a plain `fetch` rather than a router fetcher deliberately: a fetcher is one
+ * in-flight request per hook instance, and a second submission supersedes the first.
+ * That was tolerable while every row mutation blocked the surface behind it; once the
+ * list stopped blocking (ADR-086), two rows completed in quick succession became an
+ * ordinary thing to do, and each one needs its own request and its own answer.
+ */
+export async function postTaskBulkAction(
+  ids: readonly string[],
+  fields: Readonly<Record<string, string>>,
+  options: { readonly basePath?: string; readonly fallback?: string } = {},
+): Promise<TaskBulkOutcome> {
+  const fallback = options.fallback ?? GENERIC_REFUSAL;
+  const body = new FormData();
+  for (const id of ids) body.append("id", id);
+  for (const [key, value] of Object.entries(fields)) body.set(key, value);
+  try {
+    const response = await fetch(`${options.basePath ?? "/tasks"}/bulk`, {
+      method: "POST",
+      body,
+    });
+    const result = (await response.json()) as {
+      readonly ok?: boolean;
+      readonly formError?: string;
+      readonly changed?: number;
+      readonly unchanged?: number;
+    };
+    return result.ok === true
+      ? {
+          ok: true,
+          changed: result.changed ?? 0,
+          unchanged: result.unchanged ?? 0,
+        }
+      : { ok: false, message: result.formError ?? fallback };
   } catch {
     return { ok: false, message: fallback };
   }

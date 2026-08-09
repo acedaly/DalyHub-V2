@@ -18,6 +18,8 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 Four items, delivered as one coherent Tasks upgrade and accepted together as
 [ADR-085](../decisions/ARCHITECTURE_DECISIONS.md#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode).
+A fifth — **TASKS-09**, the latency contract — follows them: the four made Tasks
+correct and direct, and TASKS-09 is what stops it *feeling* slow while it is.
 
 The objective, in one sentence:
 
@@ -131,6 +133,45 @@ EntityLinks the one relationship model and Activity the one audit stream.
   390 and 430px.
 - The existing swipe tray is unchanged and still mirrors the row's visible actions;
   nothing is gesture-only.
+
+---
+
+### ☑ TASKS-09 — The latency contract: an optimistic list, reconciled — **DELIVERED 2026-08-09**
+
+**The `/tasks` list stops waiting for the server to show what it already knows, and
+never claims anything the server has not said.**
+
+Accepted as
+[ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement),
+which revises one sentence of ADR-085 §3 for the list surface and leaves
+[ADR-029 §29.4a](../decisions/ARCHITECTURE_DECISIONS.md#adr-029-task-waiting--additive-state-a-reserved-entitylink-and-a-derived-first-class-display-state)
+(completion is ONE atomic task-domain operation) untouched.
+
+- **The split, stated once.** *Presentation may lead the server; announcements,
+  Activity and any claim of success may not.* Every row mutation paints immediately;
+  every live region, every toast and every Undo waits for the server's own answer —
+  including the recurrence consequence of a completion, which only the server knows.
+- **Nothing moved.** Completion still posts to `POST /tasks/:taskId`, field changes to
+  `/tasks/bulk`, creation to `/tasks/new`, saved views to `/tasks/views`. No new
+  endpoint, no list-only mutation path, no client-side task cache.
+- **Revalidation became a predicate.** `shouldRevalidateTasks` asks whether a change
+  could move the row out of — or reorder it inside — the configuration on screen,
+  from the `TaskViewConfig` alone. A priority change on an unsorted, unfiltered list
+  re-reads nothing; a completion under a filter that excludes completed work still
+  does. The rules mirror the repository's own view clauses, sorts and grouping
+  dimensions, and they are pure and unit-tested.
+- **Each write is its own request**, so completing three rows in three seconds is
+  three writes rather than two superseded ones behind a disabled toolbar.
+- **Completion and reopen carry an Undo**, raised from the server's reply through the
+  existing `notifyUndo`; a refusal reverts the row and raises a calm DS-10 error with
+  the server's own wording.
+- **"Load more" survives the work done on it.** The page accumulator used to reset on
+  the identity of the loader's first page — fresh JSON on every revalidation — so any
+  mutation collapsed three loaded pages back to one. It now resets on the
+  configuration alone and merges a refreshed first page by id.
+- **Recorded honestly:** a completion is now announced twice to assistive technology
+  (the workspace's live region and the notification centre's). Converging them needs
+  an opt-out on the shared notify API — [DEBT-115](../product/PRODUCT_DEBT.md).
 
 ---
 
