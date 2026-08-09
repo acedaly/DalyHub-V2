@@ -81,9 +81,45 @@ async function expectUnclipped(page: Page, minHeight: number) {
   expect(geometry?.height ?? 0).toBeGreaterThanOrEqual(minHeight);
 }
 
-/** The first task row, and its inline editors. */
+/** The first task row — used only where the test does not MUTATE it. */
 function firstRow(page: Page): Locator {
   return page.locator(".dh-card-collection--list .dh-card").first();
+}
+
+/**
+ * A task of this spec's own, captured through the product's quick-add.
+ *
+ * The three editing journeys below change a priority, a Project and a due date
+ * and cannot restore what they overwrite, so they must not touch a shared
+ * fixture — `seed-tasks.sql` gives every mutating journey a dedicated task for
+ * exactly this reason. An earlier draft of this spec operated on "whichever row
+ * is first", which on one run was the Search journey's task: clearing its due
+ * date left `search.spec.ts` looking for an overdue signal that no longer
+ * existed, three hundred tests later.
+ *
+ * The title is unique per test so the order the tests run in cannot matter, and
+ * each one COMPLETES its task afterwards, which takes it out of every active
+ * view rather than leaving a stray Inbox row for the next journey to count.
+ */
+async function captureProbe(page: Page, suffix: string): Promise<string> {
+  const title = `EDIT-03 overlay probe ${suffix}`;
+  const quickAdd = page.getByRole("textbox", { name: "Task title" });
+  await quickAdd.fill(title);
+  await quickAdd.press("Enter");
+  const row = page.locator(".dh-card", { hasText: title }).first();
+  await expect(row).toBeVisible();
+  return title;
+}
+
+/** Take the probe out of every active view. */
+async function completeProbe(page: Page, title: string) {
+  await page
+    .getByRole("checkbox", { name: `Complete ${title}` })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("checkbox", { name: `Complete ${title}` }),
+  ).toHaveCount(0);
 }
 
 /**
@@ -145,56 +181,68 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
   test("Priority offers every priority, unclipped, and changes directly", async ({
     page,
   }) => {
-    const row = firstRow(page);
-    const title = (await row.locator(".dh-card__title").innerText()).trim();
-    const stable = page.locator(".dh-card", { hasText: title }).first();
+    const title = await captureProbe(page, "priority");
+    const row = page.locator(".dh-card", { hasText: title }).first();
 
-    await openEditor(page, stable, "task-row-priority");
+    // A freshly captured task has no priority, so the menu is the four REAL
+    // values and nothing else: the unset state is the field's empty state, not
+    // an option someone chose (EDIT-02).
+    await openEditor(page, row, "task-row-priority");
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitemradio")).toHaveText([
       "P1 · Urgent",
       "P2 · High",
       "P3 · Normal",
       "P4 · Low",
-      // The unset state is not an option (EDIT-02); clearing is the separated
-      // command at the end, offered because this row has a priority to clear.
-      "Clear priority",
     ]);
-    await expectUnclipped(page, 200);
+    await expectUnclipped(page, 150);
     // The menu takes focus, so the keyboard can drive it from the first frame.
-    await expect(
-      menu.locator('[role="menuitemradio"][aria-checked="true"]'),
-    ).toBeFocused();
+    await expect(menu.getByRole("menuitemradio").first()).toBeFocused();
 
+    // Unset → set, in one action.
     await menu.getByRole("menuitemradio", { name: "P3 · Normal" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
 
-    // Reopened, the new value is the checked one…
-    await openEditor(page, stable, "task-row-priority");
+    // Reopened, the new value is the checked one — and now there IS something
+    // to clear, so the separated command appears at the end.
+    await openEditor(page, row, "task-row-priority");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
     ).toHaveText("P3 · Normal");
+    await expect(page.getByRole("menu").getByRole("menuitemradio")).toHaveText([
+      "P1 · Urgent",
+      "P2 · High",
+      "P3 · Normal",
+      "P4 · Low",
+      "Clear priority",
+    ]);
 
     // …and one value replaces another with no clearing step in between.
     await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
-    await openEditor(page, stable, "task-row-priority");
+    await openEditor(page, row, "task-row-priority");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
     ).toHaveText("P1 · Urgent");
-    await dismiss(page);
+
+    // Clearing returns the field to genuinely empty.
+    await page.getByRole("menuitemradio", { name: "Clear priority" }).click();
+    await expect(
+      row.locator('[data-testid="task-row-priority"]'),
+    ).toContainText("No priority");
+    await settle(page);
+    await completeProbe(page, title);
   });
 
   test("Project offers the whole bounded set, scrolls it, and can remove it", async ({
     page,
   }) => {
-    const row = firstRow(page);
-    const title = (await row.locator(".dh-card__title").innerText()).trim();
-    const stable = page.locator(".dh-card", { hasText: title }).first();
+    const title = await captureProbe(page, "project");
+    const row = page.locator(".dh-card", { hasText: title }).first();
 
-    await openEditor(page, stable, "task-row-parent");
+    await openEditor(page, row, "task-row-parent");
     const menu = page.getByRole("menu");
     // Far more than the one the row already shows — the whole point.
     expect(
@@ -204,6 +252,10 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     // A list this long cannot fit; it scrolls inside the surface rather than
     // growing the row or running off the page.
     expect((await surfaceGeometry(page))?.scrollsInternally).toBe(true);
+    // Quick-add files into the Inbox, so there is nothing to remove yet.
+    await expect(
+      menu.getByRole("menuitemradio", { name: "Move to Inbox" }),
+    ).toHaveCount(0);
 
     await menu
       .getByRole("menuitemradio", { name: "Conference talk" })
@@ -211,7 +263,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
       .click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
-    await openEditor(page, stable, "task-row-parent");
+    await openEditor(page, row, "task-row-parent");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
     ).toContainText("Conference talk");
@@ -223,7 +275,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
       .click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
-    await openEditor(page, stable, "task-row-parent");
+    await openEditor(page, row, "task-row-parent");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
     ).toContainText("Kitchen fit-out");
@@ -231,26 +283,26 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     // …and removing it returns the task to the Inbox.
     await page.getByRole("menuitemradio", { name: "Move to Inbox" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
-    await expect(
-      stable.locator('[data-testid="task-row-parent"]'),
-    ).toContainText("Unassigned");
+    await expect(row.locator('[data-testid="task-row-parent"]')).toContainText(
+      "Unassigned",
+    );
     await settle(page);
     // With nothing to remove, the command is gone rather than dead.
-    await openEditor(page, stable, "task-row-parent");
+    await openEditor(page, row, "task-row-parent");
     await expect(
       page.getByRole("menuitemradio", { name: "Move to Inbox" }),
     ).toHaveCount(0);
     await dismiss(page);
+    await completeProbe(page, title);
   });
 
   test("Due date exposes the whole date interface and clears", async ({
     page,
   }) => {
-    const row = firstRow(page);
-    const title = (await row.locator(".dh-card__title").innerText()).trim();
-    const stable = page.locator(".dh-card", { hasText: title }).first();
+    const title = await captureProbe(page, "due");
+    const row = page.locator(".dh-card", { hasText: title }).first();
 
-    await openEditor(page, stable, "task-row-due-date");
+    await openEditor(page, row, "task-row-due-date");
     const popover = page.getByRole("dialog", { name: "Edit due date" });
     for (const shortcut of ["Today", "Tomorrow", "Next week"]) {
       await expect(
@@ -258,29 +310,33 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
       ).toBeVisible();
     }
     await expect(popover.locator('input[type="date"]')).toBeVisible();
-    await expect(popover.getByRole("button", { name: "Clear" })).toBeVisible();
     await expectUnclipped(page, 120);
+    // Nothing to clear yet — the command appears with the value, as it does in
+    // the select.
+    await expect(popover.getByRole("button", { name: "Clear" })).toHaveCount(0);
 
     await popover.getByRole("button", { name: "Today" }).click();
     await expect(
-      stable.locator('[data-testid="task-row-due-date"]'),
+      row.locator('[data-testid="task-row-due-date"]'),
     ).toContainText("Today");
     await settle(page);
 
     // An arbitrary date, through the platform's own picker input.
-    await openEditor(page, stable, "task-row-due-date");
+    await openEditor(page, row, "task-row-due-date");
     await page.locator('.dh-anchored input[type="date"]').fill("2026-12-25");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
-      stable.locator('[data-testid="task-row-due-date"]'),
+      row.locator('[data-testid="task-row-due-date"]'),
     ).toContainText("Dec");
     await settle(page);
 
-    await openEditor(page, stable, "task-row-due-date");
+    await openEditor(page, row, "task-row-due-date");
     await page.getByRole("button", { name: "Clear" }).click();
     await expect(
-      stable.locator('[data-testid="task-row-due-date"]'),
+      row.locator('[data-testid="task-row-due-date"]'),
     ).toContainText("No due date");
+    await settle(page);
+    await completeProbe(page, title);
   });
 
   test("repositions rather than overflowing, wherever the row sits", async ({
