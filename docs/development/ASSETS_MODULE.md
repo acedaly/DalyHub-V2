@@ -345,26 +345,23 @@ touch its Task. See
 
 ## 2e. Today, and the deduplication rule
 
-> **Not currently on screen (recorded 2026-08-09).** The Today redesign replaced
-> the dashboard wholesale and its rebuilt attention rail carries four kinds —
-> inbox, waiting, project, goal — and no Assets row. Nothing here was deliberately
-> retired: the kernel rule and its tests are untouched and `asset-today.ts` simply
-> lost its only caller. Until it has one again, an obligation with no linked Task
-> reaches the owner only through the Assets module's own surfaces (the collection's
-> obligation signal, the record's Overview and Obligations tabs), which is where
-> `e2e/assets-ownership.spec.ts` now asserts it. Tracked as
+> **Restored by TODAY-09 (2026-08-09).** The Today redesign removed the old Assets
+> dashboard widget and briefly left `asset-today.ts` without a product caller.
+> TODAY-09 restores the contract as an **Asset** row in the existing Needs
+> attention rail, not as a rebuilt widget. This closes
 > [DEBT-111](../product/PRODUCT_DEBT.md).
 
-The design, for whoever restores it. Today carries an **Assets** widget:
-obligations that need attention within a 30-day horizon, capped at five rows,
-ordered overdue → due → reading-needed.
+Today carries Asset obligations that need attention within the Assets attention
+horizon, ordered overdue → due → reading-needed by the Assets Today kernel rule.
+The rail shows one row for the signal and stays under Today's five-row cap.
 
 **The rule: an OPEN linked Task wins.** An obligation whose Task is still open is
-already in My Day, so showing it again would be the same job twice on one page. It
-is suppressed from the Assets section and the suppressed count is **stated in
-words** ("2 more are tracked as tasks in My day"), never silently dropped. The
-moment that Task is completed, cancelled or deleted, the obligation reappears here
-— which is precisely the "now record what actually happened" moment.
+already in the day or Tasks view, so showing it again would be the same job twice
+on one page. It is suppressed from the Assets row and the suppressed count is
+**stated in words** ("2 tracked as tasks"), never silently dropped when another
+obligation remains visible. The moment that Task is completed, cancelled or
+deleted, the obligation reappears here — which is precisely the "now record what
+actually happened" moment.
 
 The rule lives in the KERNEL (`app/kernel/assets/asset-today.ts`), because Today
 must not import a module's internals and both surfaces have to agree.
@@ -681,11 +678,11 @@ Both date-based and meter-based maintenance, with a bounded five-unit meter
 vocabulary, no unit conversion, and an honest "reading needed" state. Recurrence
 anchored on the day the work was actually done, producing exactly one successor
 under retry and concurrency. A documented Task authority contract in which
-completing a Task never asserts the work happened. A calm Today section with a
-stated deduplication rule. Recorded-cost totals that never claim to be a cost of
-ownership and never mix currencies. Value history that refuses to call two points a
-trend. An Overview that renders only the facts that apply, six fast-capture
-actions, and a bounded obligation signal on every collection card.
+completing a Task never asserts the work happened. A calm Today attention-rail
+signal with a stated deduplication rule. Recorded-cost totals that never claim to
+be a cost of ownership and never mix currencies. Value history that refuses to call
+two points a trend. An Overview that renders only the facts that apply, six
+fast-capture actions, and a bounded obligation signal on every collection card.
 
 **Known limitations (honest).**
 

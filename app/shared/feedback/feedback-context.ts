@@ -31,6 +31,14 @@ export type NotifyOptions = {
   readonly action?: NotificationAction;
   /** Coalesce repeats with the same key instead of stacking (calm by default). */
   readonly dedupeKey?: string;
+  /**
+   * Announce this notification through the shared feedback live region.
+   *
+   * Leave enabled by default. Set to false only when the caller has already written
+   * the same committed outcome to a more specific live region that will outlive the
+   * interaction.
+   */
+  readonly announce?: boolean;
 };
 
 /** Options for a time-boxed Undo notification. */
@@ -45,6 +53,8 @@ export type UndoOptions = {
   readonly onExpire?: () => void;
   /** Label for the action (defaults to "Undo"). */
   readonly undoLabel?: string;
+  /** See `NotifyOptions.announce`. The visible Undo notification still appears. */
+  readonly announce?: boolean;
 };
 
 /** Options for a long-running background operation. */

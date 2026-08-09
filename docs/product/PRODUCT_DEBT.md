@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-116** (DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-120** (DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. Both are now ☑ (the pagination one on 2026-08-01, the capture-context one on 2026-08-08). Do not issue DEBT-45 again.
   - **A near-miss, resolved the other way (2026-08-08).** PEOPLE-04/DIARY-02 and AUDIT-11 both issued **DEBT-105** in parallel. AUDIT-11 landed on `main` first, so it keeps the number and the PEOPLE-04/DIARY-02 entry was renumbered to **DEBT-106** on merge. That is the opposite of the DEBT-45 decision above, and deliberately so: DEBT-45 was renumbered-averse because it already had cross-references to break, whereas this entry was one commit old with a single self-reference. Renumber while it is cheap; record the collision when it is not.
   - **Twice more, resolved the same way (2026-08-08).** The V2.2 Tasks daily-driver programme and the August 2026 UI quality audit both issued **DEBT-107** in parallel, and the same programme's second entry collided with the audit's **DEBT-108**. The audit landed on `main` first, so it keeps both numbers and the V2.2 entries became **DEBT-109** and **DEBT-110** on merge. Two ADRs collided in the same merge for the same reason — `main` landed ADR-083 and ADR-084, so V2.2's became **ADR-085**. All four were a few commits old with cross-references only inside their own programme's documents, so renumbering stayed cheap. The pattern is now frequent enough to be worth naming: **two branches open at once will both reach for the next free number, and the file cannot stop them — only the merge can.** Take the next free ID as late as you can, and re-check it when you rebase.
@@ -1233,19 +1233,21 @@ authority now.)
 - **Closing condition.** A rule authored as "last Friday of every month" survives a complete/reopen/complete cycle, clamps correctly in a month with four Fridays and one with five, and reads identically in the editor, on the row, in the Drawer and on Today.
 - **Related roadmap item.** [TASKS-07](../roadmap/ROADMAP_V2_2.md#-tasks-07--recurrence-20--delivered-2026-08-08) (follow-on).
 
-### ◐ DEBT-110 — Bulk operations are bounded at 100 tasks with no surface that says so — P3 — **BEHAVIOUR DELIVERED 2026-08-09, E2E CASE STILL OWED**
+### ☑ DEBT-110 — Bulk operations are bounded at 100 tasks with no surface that says so — P3 — **RESOLVED 2026-08-09**
 
 - **Original issue.** Every bulk mutation validates its id list through `validateTaskIdList`, which caps at `MAX_PLAN_BATCH_SIZE` (100) — deliberately, so one transaction stays small and predictable. The bulk bar's "Select all" only ever selects what is VISIBLE (one loaded page), so the cap is not reachable in ordinary use, but nothing on the surface stated either fact. An owner who loads several pages and then selects everything would meet a typed validation error rather than a bound they had been told about.
 - **Impact.** Small and latent: a refusal that is correct but unexplained, on the one operation where the owner is acting on many records at once.
 - **What was fixed.** The bound is now stated BEFORE the action, and the rule is pure and tested rather than inline in the bar's JSX ([`task-selection.ts`](../../app/modules/tasks/task-selection.ts) — `boundBulkSelection` and `bulkSelectionOverBy`, covered by [`test/unit/tasks/task-selection.test.ts`](../../test/unit/tasks/task-selection.test.ts)):
   - **"Select all" is capped at the bound** and says what it will take ("Select all 100"), with a line beside it stating how many rows are loaded and why the offer stops there. It can no longer build a selection whose every action is guaranteed to be refused.
   - **A selection past the bound** — now reachable only by Shift-ranging across more than one loaded page — replaces the toolbar with the bound and the remedy ("Deselect 37 to continue"), instead of offering eleven controls that each end in the same typed validation error.
-- **What is still owed.** The **E2E** half of the original closing condition. Proving it through the browser needs 101+ open tasks in the default view, and `e2e/seed-tasks.sql` is shared by the whole suite — adding a hundred rows to it perturbs the counts, the Inbox-is-empty assumptions and the pagination journeys that the [E2E regression audit](E2E_REGRESSION_AUDIT_2026_08_09.md) had just finished stabilising. Fixture bleed was one of that audit's eight causes; re-introducing it to assert a P3 bound would be a bad trade.
-- **How it would be done, so the path is not re-derived.** Give the case its OWN seeded workspace (or a dedicated view whose filter isolates a generated block of rows) rather than adding to the shared seed, load two pages, and assert the stated bound and the capped "Select all" count.
-- **Closing condition (unchanged).** An E2E case that accumulates more than 100 rows, selects all, and sees a stated bound rather than a rejection.
-- **Related roadmap item.** [TASKS-06](../roadmap/ROADMAP_V2_2.md#-tasks-06--bulk-management--delivered-2026-08-08) (follow-on).
+- **Resolved by TASKS-10.** The owed E2E case now generates an isolated block of
+  105 tasks through the canonical `/tasks/new` route, loads more than one page in
+  the real Tasks UI, and proves both bound surfaces: "Select all" is capped at 100,
+  and a Shift-range selection of 101 rows replaces the toolbar with "Deselect 1 to
+  continue." See [`e2e/tasks-v22-daily-driver.spec.ts`](../../e2e/tasks-v22-daily-driver.spec.ts).
+- **Related roadmap item.** [TASKS-10](../roadmap/ROADMAP_V2_2.md#-tasks-10---daily-driver-verification-and-capture-polish--delivered-2026-08-09).
 
-### ☐ DEBT-111 — Today lost its Assets section, so an obligation with no linked Task reaches the owner nowhere outside the Assets module — P2
+### ☑ DEBT-111 — Today lost its Assets section, so an obligation with no linked Task reaches the owner nowhere outside the Assets module — P2 — RESOLVED 2026-08-09
 
 - **Status: raised 2026-08-09 by the [E2E regression audit](E2E_REGRESSION_AUDIT_2026_08_09.md).** Found by five `assets-ownership.spec.ts` journeys failing on `getByRole("list", { name: "Assets needing attention" })`, which had been reproducing on `main` since the Today redesign and were part of the [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1) census with no cause attached.
 - **Current issue.** [ADR-063 decision 10](../decisions/ARCHITECTURE_DECISIONS.md) and [`ASSETS_MODULE.md` §2e](../development/ASSETS_MODULE.md) both describe a Today **Assets** widget with a stated deduplication rule. The Today redesign ([#131](https://github.com/acedaly/DalyHub-V2/pull/131)) rebuilt the screen and its attention rail carries four kinds — `inbox`, `waiting`, `project`, `goal` — and no asset. `grep -rn "asset-today" app/` now finds only the kernel module and its own barrel re-export: **`app/kernel/assets/asset-today.ts` has no consumer.**
@@ -1253,6 +1255,14 @@ authority now.)
 - **Why the E2E audit did not simply restore it.** Rebuilding a section of a screen that was deliberately redesigned is product work, not test repair, and the redesign's whole thesis was "a place to work, not a dashboard about work" — the rail's four kinds and its five-row cap are a stated design, and adding a fifth kind to it is a decision for whoever owns Today, not a side effect of getting CI green ([AGENTS.md §13](../../AGENTS.md#13-pull-request-standards)). The audit updated the affected journeys to assert the obligation where the product genuinely surfaces it today (the collection's obligation signal) and raised this entry instead. Nothing was deleted: the kernel module, its tests and the documented rule all stand, so restoring it is a rail row and a loader call rather than a rebuild.
 - **Desired future state.** Either an `asset` kind on the Today attention rail, honouring the existing kernel deduplication rule and the rail's cap — or a dated decision that Today does not carry Assets, with ADR-063 decision 10, `ASSETS_MODULE.md` §2e and `asset-today.ts` retired together.
 - **Closing condition.** `grep -rn "asset-today" app/` finds a product consumer and an E2E journey asserts an obligation with no linked Task reaching Today — or all three documents above say Today does not carry Assets and the dead kernel module is gone.
+- **Resolved by TODAY-09.** Today now consumes the Assets Today kernel rule in
+  [`app/modules/today/day/load.ts`](../../app/modules/today/day/load.ts) and renders
+  it as an `asset` row in the existing Needs attention rail, not a rebuilt widget.
+  Open linked Tasks still win: they suppress the obligation row and are counted in
+  the row's words when another Asset obligation remains visible. Kernel route
+  coverage in [`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts)
+  creates one unlinked due obligation and one linked due obligation and asserts
+  that only the unlinked obligation reaches Today.
 - **Related.** [ADR-063](../decisions/ARCHITECTURE_DECISIONS.md) decisions 8 and 10 · [DEBT-57](#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2) · [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1).
 
 ### ☐ DEBT-112 — Every select's clear control says "Clear selection", so a form with two of them has one name between them — P3
@@ -1285,16 +1295,69 @@ authority now.)
 - **Closing condition.** `grep -n "dh-trend" app/styles/insights.css` returns nothing, and `charts.css` documents why the ring is elsewhere.
 - **Related.** [`app/shared/charts/`](../../app/shared/charts/) · [`app/styles/charts.css`](../../app/styles/charts.css) · [`app/styles/insights.css`](../../app/styles/insights.css) · ADR-044.
 
-### ☐ DEBT-115 — A completed task is announced twice: once by the list, once by the notification centre — P3
+### ☑ DEBT-115 — A completed task is announced twice: once by the list, once by the notification centre — P3 — RESOLVED 2026-08-09
 
 - **Status: raised 2026-08-09 by TASKS-09,** which put the second announcement there deliberately and is recording it rather than leaving it undocumented.
 - **Current issue.** Completing a task from the `/tasks` list now produces two polite live-region announcements of the same event. The workspace's own `role="status"` region says *"Completed Draft the brief. The next occurrence is scheduled for 16 Aug."*; the DS-10 notification centre's `aria-live="polite"` region says *"Completed Draft the brief."* a moment later, because `notifyUndo` announces every notification it raises. A screen-reader user hears the completion twice for every tick.
 - **Why both exist.** They are not duplicates by accident — each carries something the other does not. The list's region carries the **recurrence consequence**, which is the richer sentence and the one the accessibility gate asserts (`e2e/tasks-daily-driver.spec.ts`, `e2e/tasks-collection.spec.ts`). The notification carries the **Undo**, which is the only way back and must be discoverable to a screen-reader user too. Suppressing either one loses a real thing.
 - **Impact.** Low but genuinely irritating on the surface most likely to be used with a screen reader in a burst. It is verbosity, not a WCAG failure: both regions are polite, neither is wrong, and nothing is announced that did not happen.
-- **Desired future state.** ONE announcement per completion, carrying both facts. The shape that gets there is an opt-out on the shared notify API — `NotifyOptions.announce?: boolean`, defaulting true — so a caller that has already announced the outcome itself can raise a VISIBLE notification without a second live-region write. The list would then announce the full sentence once, and the toast would be the visible, focusable Undo beside it.
-- **Why it was not done here.** It is a change to the shared DS-10 contract with five other consumers, and TASKS-09's own scope rule was that a shared component gains a capability only when the change needs it and every consumer has been considered. Adding an announcement opt-out deserves that consideration on its own, not as a footnote to a Tasks change (AGENTS.md §13).
-- **Closing condition.** Completing a task from `/tasks` writes to exactly one live region, that region's text still names the recurrence consequence, and the Undo is still reachable and named by keyboard and screen reader — asserted in `e2e/tasks-optimistic.spec.ts`.
-- **Related.** [ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) (which accepts it) · [`app/shared/feedback/FeedbackProvider.tsx`](../../app/shared/feedback/FeedbackProvider.tsx) · [`app/shared/feedback/feedback-context.ts`](../../app/shared/feedback/feedback-context.ts) · [`app/modules/tasks/TasksWorkspace.tsx`](../../app/modules/tasks/TasksWorkspace.tsx) · [TASKS-09](../roadmap/ROADMAP_V2_2.md).
+- **Resolved by TASKS-10.** DS-10 feedback now has `announce?: boolean`, defaulting
+  true. Tasks completion keeps the visible, focusable Undo notification, but opts
+  that toast out of its duplicate feedback live-region write because the workspace
+  already announces the committed outcome and recurrence consequence. Unit coverage
+  asserts the shared API contract; `e2e/tasks-optimistic.spec.ts` asserts completion
+  writes to the Tasks live region without duplicating the same text in
+  `.dh-feedback-live`.
+- **Related.** [ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) · [`app/shared/feedback/FeedbackProvider.tsx`](../../app/shared/feedback/FeedbackProvider.tsx) · [`app/shared/feedback/feedback-context.ts`](../../app/shared/feedback/feedback-context.ts) · [`app/modules/tasks/TasksWorkspace.tsx`](../../app/modules/tasks/TasksWorkspace.tsx) · [TASKS-10](../roadmap/ROADMAP_V2_2.md#-tasks-10---daily-driver-verification-and-capture-polish--delivered-2026-08-09).
+
+### ☑ DEBT-116 — Today labels scheduled-today work as "Due today" — P2 — RESOLVED 2026-08-09
+
+- **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
+- **Current issue.** Today's day model correctly treats "on today" as an open, non-overdue task whose `dueDate` is today OR whose `scheduledDate` is today (`app/modules/today/day/day-view.ts`). The rendered section label in `TodayScreen.tsx` is "Due today", which is true for only half of that model. A Task planned for today but not due today appears under a deadline label.
+- **Impact.** Medium because this is the owner's daily entry point. DalyHub deliberately distinguishes scheduled work from deadlines; using a deadline word for planned work erodes that distinction and makes Today feel less trustworthy.
+- **Desired future state.** Today either uses wording that matches the combined model, such as "For today", or deliberately splits planned-today and due-today work if that proves clearer.
+- **Closing condition.** A browser-visible Today label matches the `day-view` model, and a Today unit/E2E case covers one scheduled-only task and one due-today task.
+- **Resolved by TODAY-09.** The visible timeline section is now **For today** and
+  the stat heading is **Tasks for today**. The Tasks `today` system view was also
+  aligned with Today so `/tasks?system=today` returns open, non-waiting work whose
+  due date OR scheduled date is the owner's today. Focused unit coverage asserts
+  the copy, and kernel coverage asserts a due-only task and a planned-only task
+  both appear in the Tasks Today view while a waiting due task does not.
+- **Related roadmap item.** [TODAY-09](../roadmap/ROADMAP_V2_2.md#-today-09---attention-rail-truth-and-taskstoday-wording).
+
+### ☑ DEBT-117 — Today's Inbox attention count is derived from a bounded planning read — P2 — RESOLVED 2026-08-09
+
+- **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
+- **Current issue.** `loadTasks` counts Inbox tasks from `scope.tasks.listPlanningTasks(...)` after applying the planning read's scheduled, backlog and completed limits (`app/modules/today/day/load.ts`). The comment says the planning bands "already carry every open task's structural parent", but the kernel contract says the unscheduled backlog band is intentionally bounded (`app/kernel/tasks/task.ts`). If a workspace has more unparented backlog tasks than the planning backlog limit, Today's Inbox attention row can undercount.
+- **Impact.** Medium. Inbox count is a trust signal: "you have unfiled work to triage." Under-counting a large Inbox makes the daily surface look calmer by losing truth rather than by prioritising it.
+- **Desired future state.** Today's Inbox attention count is computed by an authoritative count query that uses the same Inbox predicate as `/tasks?system=inbox`, independent of the planning read's display limits.
+- **Closing condition.** A test creates more unparented open tasks than the planning backlog limit and Today still reports the full Inbox count, while the task list itself remains bounded.
+- **Resolved by TODAY-09.** Today now reads the Inbox count through
+  `scope.tasks.listWorkspaceTaskGroups({ dimension: "parent", view: "inbox" })`,
+  the same canonical system view that powers `/tasks?system=inbox` and Review
+  Inbox. Focused route coverage creates 105 unassigned tasks and asserts Today
+  reports **105 unfiled tasks**, while kernel coverage exercises the count through
+  create, file under Area, move back to Inbox, complete, reopen, delete and
+  restore.
+- **Related roadmap item.** [TODAY-09](../roadmap/ROADMAP_V2_2.md#-today-09---attention-rail-truth-and-taskstoday-wording).
+
+### ☐ DEBT-118 — Quick capture cannot author after-completion recurrence — P2
+
+- **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
+- **Current issue.** The recurrence model and editor support both `fixed` and `after_completion` modes, but the deterministic quick-capture parser emits only the recurrence fields needed for the default fixed rule. A phrase such as "Service Hilux every 6 months after completion" can create a recurring task, but not with the after-completion mode the owner meant without opening the recurrence editor afterwards.
+- **Impact.** Medium because this is exactly the kind of personal routine DalyHub should capture quickly: maintenance, bills, health and household tasks often repeat from completion, not from the scheduled date.
+- **Desired future state.** The parser recognizes a small, high-confidence set of after-completion phrases and serializes the recurrence mode through the existing atomic task creation route.
+- **Closing condition.** Parser unit tests and one create-route/browser journey prove that "every 6 months after completion" creates an `after_completion` recurrence rule without AI or a second mutation.
+- **Related roadmap item.** [TASKS-11](../roadmap/ROADMAP_V2_2.md#-tasks-11---deterministic-natural-language-capture-v2).
+
+### ☐ DEBT-119 — Offline Tasks is capture-idempotent but not mutation-complete — P2
+
+- **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
+- **Current issue.** DalyHub's offline architecture supports an append-only capture queue and database-level idempotency, but the high-frequency Task actions that make Tasks a daily driver - complete/reopen, reschedule, change priority, move parent and recurrence advancement - are still online-first. The current optimistic list contract improves perceived latency, but it is not an offline conflict/replay contract.
+- **Impact.** Medium, mostly on iPhone. A personal task manager becomes less trustworthy when capture works offline but the next most common action, completing or rescheduling a Task, cannot be queued with clear conflict semantics.
+- **Desired future state.** A deliberately small offline Task mutation slice defines queued completion/reopen and basic row edits, including recurrence replay rules and conflict wording, before broader offline editing is attempted.
+- **Closing condition.** PWA/offline tests prove at least one offline completion/reopen journey and one offline date/priority edit replay correctly, including the visible recovery path for a conflict.
+- **Related roadmap item.** [PWA-12](../roadmap/ROADMAP_V2_2.md#-pwa-12---offline-task-mutation-slice).
 
 ## Entry template
 

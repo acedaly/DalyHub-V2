@@ -33,6 +33,11 @@ import {
   type DayTask,
 } from "./day-view";
 import {
+  dedupeAttention,
+  evaluateObligation,
+  type AssetsTodayData,
+} from "~/kernel/assets";
+import {
   buildAttention,
   rankContinueProjects,
   type AttentionItem,
@@ -148,19 +153,12 @@ export function emptyDay(input: {
 /* Section reads                                                               */
 /* -------------------------------------------------------------------------- */
 
-/**
- * The day's tasks, plus the two counts derived from the same read.
- *
- * `inboxCount` is counted here rather than queried separately because the
- * planning bands already carry every open task's structural parent: DalyHub's
- * inbox is exactly "an open task with no Area or Project above it", the same rule
- * the `/tasks?system=inbox` view applies.
- */
+/** The day's tasks. */
 async function loadTasks(
   scope: WorkspaceScope,
   todayIso: string,
   timezone: string,
-): Promise<{ readonly buckets: DayBuckets; readonly inboxCount: number }> {
+): Promise<DayBuckets> {
   const page = await scope.tasks.listPlanningTasks({
     todayIso,
     scheduledLimit: PLANNING_SCHEDULED_LIMIT,
@@ -181,10 +179,54 @@ async function loadTasks(
         ? ownerCalendarIso(item.completedAt, timezone)
         : null,
   }));
-  const inboxCount = tasks.filter(
-    (task) => !task.completed && task.parent === null,
-  ).length;
-  return { buckets: bucketDay(tasks, todayIso), inboxCount };
+  return bucketDay(tasks, todayIso);
+}
+
+/**
+ * The authoritative Inbox count. It uses the canonical `inbox` system view rather
+ * than Today's bounded planning read, so Today and `/tasks?system=inbox` cannot
+ * disagree when the workspace holds more unfiled work than the planning backlog
+ * limit returns.
+ */
+async function loadInboxCount(
+  scope: WorkspaceScope,
+  todayIso: string,
+): Promise<number> {
+  const grouped = await scope.tasks.listWorkspaceTaskGroups({
+    dimension: "parent",
+    view: "inbox",
+    todayIso,
+    bucketLimit: 1,
+  });
+  return grouped.groups.reduce((total, group) => total + group.count, 0);
+}
+
+/** Asset obligations that need attention and are not already represented by Tasks. */
+async function loadAssetAttention(
+  scope: WorkspaceScope,
+  todayIso: string,
+): Promise<AssetsTodayData> {
+  const items = await scope.assetHistory.listAttention({ today: todayIso });
+  return dedupeAttention(
+    items.map((item) => {
+      const evaluation = evaluateObligation(
+        item.obligation,
+        todayIso,
+        item.reading,
+      );
+      return {
+        obligationId: item.obligation.id,
+        assetId: item.assetId,
+        assetTitle: item.assetTitle,
+        assetType: item.assetType,
+        title: item.obligation.title,
+        category: item.obligation.category,
+        state: evaluation.state,
+        text: evaluation.text,
+        hasOpenTask: item.hasOpenTask,
+      };
+    }),
+  );
 }
 
 /** Owner-facing labels for a meeting's mode — the same words its record uses. */
@@ -391,6 +433,8 @@ export async function loadTodayDay(
 
   const [
     tasks,
+    inboxCount,
+    assetAttention,
     meetings,
     waiting,
     projects,
@@ -399,8 +443,15 @@ export async function loadTodayDay(
     activityTrend,
   ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
-      buckets: { overdue: [], today: [], completedToday: [] },
-      inboxCount: 0,
+      overdue: [],
+      today: [],
+      completedToday: [],
+    }),
+    safely(() => loadInboxCount(scope, todayIso), 0),
+    safely(() => loadAssetAttention(scope, todayIso), {
+      items: [],
+      trackedAsTasksCount: 0,
+      overdueCount: 0,
     }),
     safely(() => loadMeetings(scope, now, todayIso, timezone), []),
     safely(() => loadWaiting(scope, todayIso, timezone), {
@@ -427,13 +478,25 @@ export async function loadTodayDay(
     dateLong: facts.dateLong,
     hour: facts.hour,
     ownerName: facts.ownerName,
-    overdue: tasks.buckets.overdue,
-    today: tasks.buckets.today,
-    completedToday: tasks.buckets.completedToday,
+    overdue: tasks.overdue,
+    today: tasks.today,
+    completedToday: tasks.completedToday,
     meetings,
     attention: buildAttention({
-      inboxCount: tasks.inboxCount,
+      inboxCount,
       waiting,
+      assets: {
+        visibleCount: assetAttention.items.length,
+        trackedAsTasksCount: assetAttention.trackedAsTasksCount,
+        first:
+          assetAttention.items[0] === undefined
+            ? null
+            : {
+                assetTitle: assetAttention.items[0].assetTitle,
+                text: assetAttention.items[0].text,
+                href: assetAttention.items[0].href,
+              },
+      },
       // Overdue TASKS are deliberately absent: they are actionable rows in the
       // timeline, and the rail holds only what the timeline does not show.
       projects: projects

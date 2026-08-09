@@ -105,7 +105,7 @@ test.describe("the Today screen on a phone", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 2, name: "My day" }),
+      page.getByRole("heading", { level: 2, name: "Focus" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
@@ -150,7 +150,7 @@ test.describe("the Today screen on a phone", () => {
     await page.goBack();
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect(
-      page.getByRole("heading", { level: 2, name: "My day" }),
+      page.getByRole("heading", { level: 2, name: "Focus" }),
     ).toBeVisible();
   });
 
@@ -168,7 +168,7 @@ test.describe("the Today screen on a phone", () => {
     await page.goBack();
     await expect(page).toHaveURL(/\/today$/);
     await expect(
-      page.getByRole("heading", { level: 2, name: "My day" }),
+      page.getByRole("heading", { level: 2, name: "Focus" }),
     ).toBeVisible();
   });
 

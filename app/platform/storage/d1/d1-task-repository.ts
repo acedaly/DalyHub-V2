@@ -2431,9 +2431,9 @@ export class D1TaskRepository implements TaskRepository {
         return;
       case "today":
         whereParts.push(
-          `${notTerminal} AND td.waiting_since IS NULL AND td.scheduled_date = ?`,
+          `${notTerminal} AND td.waiting_since IS NULL AND (td.scheduled_date = ? OR td.due_date = ?)`,
         );
-        params.push(todayIso);
+        params.push(todayIso, todayIso);
         return;
       case "upcoming":
         whereParts.push(

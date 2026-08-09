@@ -539,7 +539,7 @@ Saturday 8 August 2026                                 ▓▓▓▓▓▓░░�
 │ ▓ Send the quarterly summary   Due 2d  │  │ Inbox    2 unfiled tasks  │
 │ Meetings                               │  │ Waiting  oldest 9 days    │
 │ 09:30  ▣  Design review        Studio  │  │ Data migration  At risk   │
-│ Due today                              │  └───────────────────────────┘
+│ For today                              │  └───────────────────────────┘
 │ ☐ Draft the release notes    Project   │  ┌─ Continue working ────────┐
 │ ☑ Clear the inbox            Project   │  │ (T) Today screen redesign │
 └────────────────────────────────────────┘  │     3 open · At risk  ▓▓░ │
@@ -574,7 +574,7 @@ on, so it is a table rather than prose.
 | Overdue block | any overdue task. No heading — the tint is the signal |
 | `+{n} more overdue` | more than 3 overdue |
 | Meetings section | any meeting today |
-| Due today section | any task on today |
+| For today section | any task on today |
 | Timeline empty line | no meetings, no tasks on today, nothing overdue |
 | Needs attention rows | per the rail rules below |
 | "All clear" | the rail has NO rows — never alongside one |
@@ -611,14 +611,16 @@ they are already actionable rows a few hundred pixels to the left.
 |---|---|---|
 | Inbox | unfiled open tasks exist | `{n} unfiled tasks` (see PRODUCT_DEBT DEBT-102) |
 | Waiting | any waiting item | `{n} waiting items · oldest {age}` — the AGE is the point, a bare count is noise |
+| Asset | Asset obligations needing attention that are not already represented by an open linked Task | the first obligation's Asset/title signal, with any suppressed linked-Task count stated in words |
 | Project | the EXISTING derived health says it needs a look | its health label |
 | Goal | the EXISTING alignment evaluation flags it | its alignment label |
 
 Caps: 2 projects, 2 goals, **5 rows overall**. Priority order: inbox, waiting,
-projects, goals. Every row navigates to its subject. No new health or risk logic
-is introduced here — the rail consumes `evaluateProjectHealth` and
-`evaluateGoalAlignment`, so Today can never disagree with a Project record about
-whether that project is at risk.
+asset, projects, goals. Every row navigates to its subject. No new health,
+obligation or risk logic is introduced here — the rail consumes
+`evaluateProjectHealth`, `evaluateGoalAlignment` and the Assets Today
+deduplication rule, so Today can never disagree with the owning module about
+whether a Project, Goal or Asset obligation needs attention.
 
 **Continue working** ranks by *real activity recency*
 (`ProjectHealthSummary.lastActivityIso`, derived from the shared Activity
@@ -1626,7 +1628,7 @@ The product-wide interaction layer every module inherits: **notifications, undo,
 - **Never intercepts a click.** The region is `position: fixed` over the bottom-right of the page — exactly where record lifecycle actions live — so **nothing in it takes pointer input except its own controls** (dismiss-all, a toast's action, a toast's close). Toasts stay visible and their controls stay operable; every other pixel passes the click through. A shared surface that overlays the page must never make the page unusable beneath it.
 - **Undo is a platform capability.** `notifyUndo(title, { onUndo, onExpire? })` raises a success toast with a time-boxed Undo. Choosing Undo runs the reverse handler; letting it expire OR dismissing early runs the commit handler (dismissing an optimistic action commits it). Every reversible action (delete/archive/complete/move/close/dismiss) uses this — never per-module undo.
 - **One background-operation lifecycle.** `runOperation({ label, run, cancellable?, retryable?, successMessage? })` drives pending → running → success | failure with **retry** and **cancellation** (a real `AbortSignal` passed to `run`) — for AI, imports, exports, sync and future integrations.
-- **Accessibility.** Two visually-hidden ARIA live regions (polite for success/info, assertive for warning/error) announce feedback, using bare `aria-live` so they never shadow other `status`/`alert` regions. 44px targets, keyboard-operable actions, reduced-motion honoured, anchored so it never covers primary UI (bottom-right desktop, bottom safe-area mobile).
+- **Accessibility.** Two visually-hidden ARIA live regions (polite for success/info, assertive for warning/error) announce feedback, using bare `aria-live` so they never shadow other `status`/`alert` regions. A caller may pass `announce: false` only when it has already written the same committed outcome to a module live region that remains mounted; the visible notification still renders. 44px targets, keyboard-operable actions, reduced-motion honoured, anchored so it never covers primary UI (bottom-right desktop, bottom safe-area mobile).
 
 ### Inspector
 

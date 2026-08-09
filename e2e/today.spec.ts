@@ -50,11 +50,18 @@ test.describe("Today — the day surface", () => {
     await page.goto("/today");
 
     await expect(
-      page.getByRole("heading", { level: 2, name: "My day" }),
+      page.getByRole("heading", { level: 2, name: "Focus" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { level: 2, name: "Needs attention" }),
     ).toBeVisible();
+    const taskStat = page.getByRole("heading", { name: "Tasks for today" });
+    if ((await taskStat.count()) > 0) {
+      await expect(taskStat).toBeVisible();
+    }
+    await expect(
+      page.locator(".dh-day-section__label", { hasText: "Due today" }),
+    ).toHaveCount(0);
 
     // "Plan day" is a navigation to the canonical Tasks view of today's work —
     // Today does not own a planning flow.
@@ -73,7 +80,7 @@ test.describe("Today — the day surface", () => {
 
     // M3X: the assist-chip row became the expressive summary's figures. Same
     // three facts, same rules, one surface.
-    const stats = page.locator(".dh-summary__stat-link");
+    const stats = page.locator(".dh-stat--interactive");
     const count = await stats.count();
     expect(count).toBeGreaterThan(0);
     for (let index = 0; index < count; index += 1) {
@@ -86,14 +93,12 @@ test.describe("Today — the day surface", () => {
     }
 
     // Overdue work is the ONLY toned figure on the page.
-    const toned = page.locator(
-      '.dh-summary__stat-value[data-tone="attention"]',
-    );
+    const toned = page.locator('.dh-stat__value[data-tone="attention"]');
     expect(await toned.count()).toBeLessThanOrEqual(1);
     if ((await toned.count()) === 1) {
       await expect(
-        page.locator('.dh-summary__stat:has([data-tone="attention"])'),
-      ).toContainText("overdue");
+        page.locator('.dh-stat:has([data-tone="attention"])'),
+      ).toContainText(/overdue/i);
     }
   });
 
@@ -234,7 +239,7 @@ test.describe("Today — the day surface", () => {
     for (let index = 0; index < count; index += 1) {
       const href = await links.nth(index).getAttribute("href");
       expect(href).toMatch(
-        /^\/(tasks\?system=inbox|today\/waiting|projects\/|goals\/)/,
+        /^\/(tasks\?system=inbox|today\/waiting|asset\/|projects\/|goals\/)/,
       );
     }
   });
@@ -269,8 +274,7 @@ test.describe("Today — narrow widths", () => {
     await expect(greeting(page)).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
 
-    // "Needs attention" comes first in the stack, ahead of "Continue working" —
-    // the same order the wide layout reads in, unwrapped.
+    // "Needs attention" comes first in the rail stack, ahead of "Continue working".
     const headings = await page
       .locator(".dh-today__rail .dh-today__panel-title")
       .allInnerTexts();

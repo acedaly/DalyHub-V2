@@ -20,6 +20,7 @@ function input(overrides: Partial<AttentionInput> = {}): AttentionInput {
   return {
     inboxCount: 0,
     waiting: { count: 0, oldestDays: null },
+    assets: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
     projects: [],
     goals: [],
     ...overrides,
@@ -68,6 +69,36 @@ describe("inclusion — an item type appears only when its condition holds", () 
     expect(rail[0]?.detail).toBe("1 waiting item");
   });
 
+  it("includes asset obligations only when one is not already represented by an open task", () => {
+    expect(
+      buildAttention(
+        input({
+          assets: { visibleCount: 0, trackedAsTasksCount: 2, first: null },
+        }),
+      ),
+    ).toEqual([]);
+
+    const rail = buildAttention(
+      input({
+        assets: {
+          visibleCount: 1,
+          trackedAsTasksCount: 1,
+          first: {
+            assetTitle: "Hilux",
+            text: "Registration expires tomorrow",
+            href: "/asset/a1?tab=obligations",
+          },
+        },
+      }),
+    );
+    expect(rail[0]).toMatchObject({
+      kind: "asset",
+      label: "Hilux",
+      detail: "Registration expires tomorrow · 1 tracked as a task",
+      href: "/asset/a1?tab=obligations",
+    });
+  });
+
   it("navigates every row to its own subject", () => {
     const rail = buildAttention(
       input({
@@ -88,6 +119,15 @@ describe("caps and priority", () => {
   const crowded = input({
     inboxCount: 2,
     waiting: { count: 3, oldestDays: 4 },
+    assets: {
+      visibleCount: 2,
+      trackedAsTasksCount: 0,
+      first: {
+        assetTitle: "Hilux",
+        text: "Registration expires tomorrow",
+        href: "/asset/a1?tab=obligations",
+      },
+    },
     projects: [
       { id: "p1", title: "One", statusLabel: "At risk" },
       { id: "p2", title: "Two", statusLabel: "Stale" },
@@ -99,13 +139,13 @@ describe("caps and priority", () => {
     ],
   });
 
-  it("orders inbox, waiting, projects, goals", () => {
+  it("orders inbox, waiting, assets, projects, goals", () => {
     expect(buildAttention(crowded).map((item) => item.kind)).toEqual([
       "inbox",
       "waiting",
+      "asset",
       "project",
       "project",
-      "goal",
     ]);
   });
 

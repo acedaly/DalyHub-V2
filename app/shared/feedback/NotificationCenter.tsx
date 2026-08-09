@@ -8,8 +8,9 @@
  *
  * Accessibility (WCAG 2.2 AA):
  *   - two visually-hidden ARIA live regions announce feedback (polite for
- *     success/info, assertive for warning/error) — separate from the visible
- *     toasts so screen readers announce once, not on every re-render;
+ *     success/info, assertive for warning/error) unless a caller already announced
+ *     the same outcome — separate from the visible toasts so screen readers
+ *     announce once, not on every re-render;
  *   - the visible stack is a labelled list; each toast/operation is a group with
  *     an accessible name; actions and dismiss are real, keyboard-operable buttons
  *     with text names and ≥44px targets;

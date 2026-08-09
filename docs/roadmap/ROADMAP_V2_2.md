@@ -34,6 +34,105 @@ EntityLinks the one relationship model and Activity the one audit stream.
 
 ---
 
+## Current audit sequence - 2026-08-09
+
+The full-product UX/Product audit on current `main`
+([`DALYHUB_UX_PRODUCT_AUDIT_2026_08.md`](../product/DALYHUB_UX_PRODUCT_AUDIT_2026_08.md))
+found no P0 Task blocker and confirmed that the expected foundational concern is
+already solved: **a Task can exist without a Project, and Inbox is first-class**.
+The next work should therefore harden the daily-driver loop rather than restart a
+visual redesign or add speculative capability.
+
+### NOW
+
+### ☑ TODAY-09 - Attention rail truth and Tasks/Today wording — DELIVERED 2026-08-09
+
+Make Today truthful enough to remain the daily entry point.
+
+- Restored the existing Assets obligation contract as an `asset` attention row:
+  obligations with no linked open Task can reach Today, while obligations already
+  represented by open Tasks are counted in words rather than duplicated.
+- Replaced the misleading "Due today" Today label with "For today" / "Tasks for
+  today", matching the `day-view` union of due-today OR scheduled-today work.
+- Made the Inbox attention count authoritative by reading the canonical Tasks
+  `inbox` system view, independent of the bounded Today planning read.
+- Aligned the Tasks `today` system view with Today: open, non-waiting work whose
+  due date OR scheduled date is the owner's today.
+- Added focused Today/unit and kernel coverage for Inbox truth, due/scheduled
+  Today agreement, completed exclusion from active task counts, and Assets
+  obligation surfacing/deduplication.
+- **Non-goals:** weather/calendar, push notifications, a metrics dashboard, or a
+  broader Today redesign.
+
+### ☑ TASKS-10 - Daily-driver verification and capture polish — **DELIVERED 2026-08-09**
+
+Lock the current Tasks daily-driver behaviour before adding new Task features.
+
+- Added the missing >100 selection/bulk-bound E2E coverage recorded in
+  [DEBT-110](../product/PRODUCT_DEBT.md#-debt-110--the-100-task-bulk-bound-has-unit-coverage-but-no-e2e-journey-that-accumulates-more-than-one-page--p3).
+- Re-ran and preserved the phone acceptance matrix for capture, list editing, bulk
+  actions and recurrence at 320, 375, 390 and 430px.
+- Revalidated the full create form against the title-first composer contract: the
+  full Drawer still focuses title first, accepts title-only Inbox capture, and leaves
+  the faster quick-add/global capture paths unchanged.
+- Fixed the completed-task double-announcement debt
+  ([DEBT-115](../product/PRODUCT_DEBT.md#-debt-115--a-completed-task-is-announced-twice-once-by-the-list-once-by-the-notification-centre--p3)).
+- **Non-goals:** new views, AI parsing, offline editing, subtasks or another Matrix.
+
+### ☐ DS-17 - Select clear-control names
+
+Complete the cross-product select accessibility follow-up.
+
+- Convert the affected tests away from brittle substring `getByLabel` queries.
+- Rename `SelectField` and `SelectSheetControl` clear controls so each names the
+  field it clears, matching `InlineSelectField`.
+- **Non-goals:** redesigning selects or changing unset/empty semantics, which are
+  already correct.
+
+### NEXT
+
+### ☐ TASKS-11 - Deterministic natural-language capture v2
+
+Extend the existing parser only where it is reliable and testable.
+
+- Support after-completion recurrence phrases such as "Service Hilux every 6 months
+  after completion".
+- Keep AI out of ordinary capture; AI remains a later proposal layer, not a mutation
+  path.
+- Prove parser changes with unit tests and one route/browser capture journey.
+
+### ☐ PWA-12 - Offline Task mutation slice
+
+Define and implement the first offline Task capability beyond capture.
+
+- Cover completion/reopen, date/priority/title edits, recurrence replay and conflict
+  wording.
+- Keep the slice small enough to validate the queue contract before broader offline
+  editing.
+
+### ☐ TODAY-10 - Focus panel refinement
+
+After TODAY-09, refine the Focus panel only if the evidence shows that one combined
+"For today" bucket is still unclear.
+
+### LATER
+
+- **TASKS-12 - Ordinal monthly recurrence**, only if owner routines need patterns
+  such as "first Monday of every month".
+- Broader mobile polish after Tasks/Today acceptance is stable.
+- Analytics or richer review surfaces after daily capture and attention are trusted.
+
+### DEFERRED / NOT PLANNED
+
+- Eisenhower Matrix replacement.
+- AI task prioritisation or autonomous rescheduling.
+- Jira-style subtasks, dependencies, Gantt views or workflow builders.
+- Collaboration or multi-user assignment.
+- Push reminders before the in-app attention model is correct.
+- A broad visual redesign before the daily-driver hardening work above.
+
+---
+
 ### ☑ TASKS-05 — Daily Driver Workspace — **DELIVERED 2026-08-08**
 
 **List-first execution, the Eisenhower Matrix removed, and direct editing on the row.**
@@ -169,9 +268,10 @@ which revises one sentence of ADR-085 §3 for the list surface and leaves
   the identity of the loader's first page — fresh JSON on every revalidation — so any
   mutation collapsed three loaded pages back to one. It now resets on the
   configuration alone and merges a refreshed first page by id.
-- **Recorded honestly:** a completion is now announced twice to assistive technology
-  (the workspace's live region and the notification centre's). Converging them needs
-  an opt-out on the shared notify API — [DEBT-115](../product/PRODUCT_DEBT.md).
+- **TASKS-10 follow-on:** a completion is now announced once. The workspace live
+  region carries the committed completion and any recurrence consequence, while the
+  visible Undo notification opts out of its own duplicate feedback live-region write
+  through the shared DS-10 notify API.
 
 ---
 
@@ -189,6 +289,7 @@ builder, cron expressions, realtime collaborative editing and PWA offline Task e
 ## Related documents
 
 - [`TASKS_MODULE.md`](../development/TASKS_MODULE.md) — the module's full behaviour
+- [`DALYHUB_UX_PRODUCT_AUDIT_2026_08.md`](../product/DALYHUB_UX_PRODUCT_AUDIT_2026_08.md) — the current-main UX/Product audit that set the post-V2.2 sequence
 - [ADR-085](../decisions/ARCHITECTURE_DECISIONS.md#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) — the accepted decision
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — what is still owed
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — the shared patterns this added

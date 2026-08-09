@@ -505,6 +505,7 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
             // window is the notification's own timer (DS-10), not a second one.
             notifyUndo(label, {
               message: note.trim().length > 0 ? note.trim() : undefined,
+              announce: false,
               onUndo: () =>
                 completeRef.current(taskId, title, !completed, false),
             });

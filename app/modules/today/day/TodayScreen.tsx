@@ -8,7 +8,7 @@
  *
  *   greeting + date                                        [ Plan day ]
  *   ┌────────────┐┌────────────┐┌────────────┐┌────────────┐
- *   │ Tasks due  ││ Overdue    ││ Meetings   ││ Progress ◯ │  the day's figures
+ *   │ Tasks today││ Overdue    ││ Meetings   ││ Progress ◯ │  the day's figures
  *   │ 6          ││ 2          ││ 2          ││ 68%        │  as quiet cards
  *   └────────────┘└────────────┘└────────────┘└────────────┘
  *   ┌───────────────────────────────────┐┌──────────────────┐
@@ -74,6 +74,7 @@ import { StatCard, StatCardItem, StatCardRow } from "~/shared/card";
 import { ProgressRing } from "~/shared/charts";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
+  AssetIcon,
   CheckCircleIcon,
   GoalIcon,
   ProjectIcon,
@@ -144,6 +145,8 @@ function AttentionGlyph({ kind }: { readonly kind: AttentionKind }) {
       return <GoalIcon />;
     case "waiting":
       return <ScheduleIcon />;
+    case "asset":
+      return <AssetIcon />;
     case "inbox":
       return <TaskIcon />;
   }
@@ -302,7 +305,7 @@ export function TodayScreen({
 
   const progress = dayProgress(buckets);
   const chips = dayChips({
-    taskCount: buckets.today.length,
+    taskCount: buckets.today.filter((task) => !isDone(task)).length,
     meetingCount: data.meetings.length,
     overdueCount: buckets.overdue.length,
   });
@@ -336,7 +339,7 @@ export function TodayScreen({
       chips.map((chip) => ({
         id: chip.id,
         value: String(chip.count),
-        // "6 / Tasks due today" rather than "6 / tasks": a label above a figure
+        // "6 / Tasks for today" rather than "6 / tasks": a label above a figure
         // is read as a heading for it, and a heading is not a plural noun.
         label: chip.heading,
         href: chip.href,
@@ -530,7 +533,7 @@ export function TodayScreen({
 
                 {buckets.today.length > 0 ? (
                   <div className="dh-day-section">
-                    <h3 className="dh-day-section__label">Due today</h3>
+                    <h3 className="dh-day-section__label">For today</h3>
                     <ul className="dh-day-list">
                       {buckets.today.map((task) => (
                         <TaskRow

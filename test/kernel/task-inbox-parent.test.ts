@@ -89,6 +89,16 @@ async function linkRows(
   return row?.n ?? 0;
 }
 
+async function inboxCount(tasks: ReturnType<typeof taskRepo>): Promise<number> {
+  const grouped = await tasks.listWorkspaceTaskGroups({
+    dimension: "parent",
+    view: "inbox",
+    todayIso: TODAY,
+    bucketLimit: 1,
+  });
+  return grouped.groups.reduce((total, group) => total + group.count, 0);
+}
+
 beforeEach(async () => {
   await resetTables([WS, OTHER]);
 });
@@ -134,6 +144,32 @@ describe("the Inbox query means active, unassigned Tasks", () => {
     });
     const ids = page.items.map((item) => item.id);
     expect(ids).toEqual([open.id]);
+  });
+
+  it("updates the authoritative Inbox count across filing, completion, reopen and delete", async () => {
+    const { area } = await seedSpine(WS);
+    const tasks = taskRepo(WS);
+    const task = await tasks.createTask({ title: "Count me truthfully" });
+
+    expect(await inboxCount(tasks)).toBe(1);
+
+    await tasks.setTaskParent(task.id, { kind: "area", id: area.id });
+    expect(await inboxCount(tasks)).toBe(0);
+
+    await tasks.setTaskParent(task.id, null);
+    expect(await inboxCount(tasks)).toBe(1);
+
+    await tasks.completeTask(task.id);
+    expect(await inboxCount(tasks)).toBe(0);
+
+    await tasks.reopenTask(task.id);
+    expect(await inboxCount(tasks)).toBe(1);
+
+    await tasks.deleteTasks([task.id]);
+    expect(await inboxCount(tasks)).toBe(0);
+
+    await tasks.restoreTasks([task.id]);
+    expect(await inboxCount(tasks)).toBe(1);
   });
 
   it("reports an Unassigned Task with a null parent in the collection projection", async () => {
@@ -445,6 +481,41 @@ describe("Today and /tasks agree about what is active work (DEBT-37)", () => {
     const page = await seeded.tasks.listPlanningTasks({ todayIso: TODAY });
     const completed = page.items.find((item) => item.id === seeded.completed);
     expect(completed?.completedAt).not.toBeNull();
+  });
+
+  it("uses the same due-or-planned definition for Today and the Tasks Today view", async () => {
+    const tasks = taskRepo(WS);
+    const dueOnly = await tasks.createTask({
+      title: "Due only",
+      dueDate: TODAY,
+    });
+    const plannedOnly = await tasks.createTask({
+      title: "Planned only",
+      scheduledDate: TODAY,
+    });
+    const waitingDue = await tasks.createTask({
+      title: "Waiting due",
+      dueDate: TODAY,
+    });
+    await tasks.setWaiting(waitingDue.id, {
+      target: { kind: "text", note: "a supplier" },
+    });
+
+    const planning = await tasks.listPlanningTasks({ todayIso: TODAY });
+    const todayView = await tasks.listWorkspaceTasks({
+      view: "today",
+      todayIso: TODAY,
+    });
+
+    const planningIds = planning.items.map((item) => item.id);
+    const todayIds = todayView.items.map((item) => item.id);
+    expect(planningIds).toEqual(
+      expect.arrayContaining([dueOnly.id, plannedOnly.id]),
+    );
+    expect(todayIds).toEqual(
+      expect.arrayContaining([dueOnly.id, plannedOnly.id]),
+    );
+    expect(todayIds).not.toContain(waitingDue.id);
   });
 
   it("agrees with the /tasks active view on every state", async () => {
