@@ -38,12 +38,16 @@
 
 /* A quiet section label — matches the Today section rhythm (heading for the
  * outline/AT, not a loud UI header). */
+/* M3X-02 — the same small-caps band label Today's sections take, so a grouped
+ * Tasks list and the day agree about what a section rule looks like. The count
+ * beside it keeps its own weight. */
 .dh-tasks-section__label {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  font-weight: 500;
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
   line-height: 1.35;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--md-sys-color-on-surface-variant);
 }
 

@@ -47,12 +47,28 @@ import { ViewSwitcher, type ViewSwitcherOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 
-import { goalStateLabel } from "./goal-view";
-import type { SerializedGoalListItem } from "./goal-view";
+import { goalContributionProgress, isGoalComplete } from "./goal-view";
+import type {
+  SerializedGoalListItem,
+  SerializedGoalProjectContribution,
+} from "./goal-view";
 import type { GoalMutationResult } from "./routes/mutate";
 
 export type SerializedGoalWithAlignment = SerializedGoalListItem & {
   readonly alignment: GoalAlignment;
+  /**
+   * M3X-02 — the Goal's REAL measure: how many of the Projects advancing it are
+   * complete.
+   *
+   * A DalyHub Goal carries no numeric target and no unit (`goal-details.ts` says
+   * so explicitly: a nullable target DATE and a definition of done, and nothing
+   * else), so the approved mockups' weight readings and capability counts have
+   * nothing behind them and are not drawn. What a Goal genuinely measures is its
+   * Project contribution, and the collection loader has ALWAYS read it — it is
+   * an input to the alignment evaluation. Until this pass it was computed, used
+   * once, and thrown away before the card that most needed it.
+   */
+  readonly contribution: SerializedGoalProjectContribution;
 };
 
 /** A soft-deleted Goal, as the honest "Deleted" view shows it: identity only. */
@@ -228,38 +244,67 @@ function useRestoreGoal() {
  * colour rank, so the neutral entity container applies rather than a colour that
  * would mean nothing; that is the same rule a Project with no Area follows.
  *
- * Alignment is the one derived signal on the card, and it is the EXISTING
- * `AlignmentIndicator` (ADR-040) — no new health score, no fabricated momentum.
+ * ── M3X-02: what this card is FOR ────────────────────────────────────────────
+ *
+ * The audit's H7 finding was that a Goal card was "a title, a chip and a
+ * sentence explaining what is ABSENT", and PR #144 answered it with a summary
+ * above the grid rather than in the grid. Three things changed here:
+ *
+ *   1. **The measure leads.** Project contribution — `N of M Projects complete`
+ *      — is the one thing a DalyHub Goal genuinely measures, and it is now the
+ *      strongest element after the title, through the same shared progress the
+ *      Project card uses. It is DERIVED, never stored (`goal-progress.ts`), and
+ *      it never implies the Goal itself is complete: that stays `completedAt`.
+ *   2. **The "Open" chip is gone.** Every open Goal in the collection carried an
+ *      identical grey pill saying it was open, in the card's most valuable
+ *      corner, next to a heading that could not have meant anything else. Only
+ *      completion — the state that is genuinely news — takes a chip now.
+ *   3. **Alignment states its REASON only when the reason is the whole story.**
+ *      With a bar on the card, "Projects exist, but no recent Task activity was
+ *      found" is a second sentence about the same subject; without one, it is
+ *      the only thing that explains why there is nothing to measure.
+ *
+ * "Updated 19 Jul 2026" went for the reason it went from Projects and Areas: a
+ * fact about the row rather than about the Goal, drawn identically on every card.
  */
 function GoalEntityCard({
   goal,
 }: {
   readonly goal: SerializedGoalWithAlignment;
 }) {
-  // The label stays the SHARED one, so the word cannot drift from the Goal
-  // record's own chip. Only the tone is narrowed here: `goalStateLabel` speaks
-  // the Card family's wider `CardTone`, and the pill's vocabulary is a subset —
-  // narrowing at the boundary is honest, casting would hide a future mismatch.
-  const state = goalStateLabel(goal);
-  const tone = state.tone === "success" ? "success" : "neutral";
-  const updated = formatCalendarDate(goal.updatedAt.slice(0, 10));
+  const complete = isGoalComplete(goal);
+  // The SHARED derivation, so the card, the record and the Area tab can never
+  // disagree about how far a Goal's Projects have got.
+  const contribution = goalContributionProgress(goal.contribution);
   return (
     <EntityCard
       data-testid="goal-card"
-      icon={<AccentIcon entityType="goal" iconKey={null} />}
+      icon={<AccentIcon entityType="goal" iconKey={null} size="lg" />}
       title={goal.title}
       headingLevel={2}
       subtitle={goal.area.title}
-      status={<StatusPill tone={tone}>{state.label}</StatusPill>}
+      status={
+        complete ? <StatusPill tone="success">Completed</StatusPill> : undefined
+      }
+      progress={
+        contribution.has
+          ? {
+              value: contribution.completed,
+              max: contribution.total,
+              label: `${contribution.percent}%`,
+              valueText: `${contribution.percent}% — ${contribution.summary}`,
+            }
+          : undefined
+      }
       meta={
         <>
-          <AlignmentIndicator alignment={goal.alignment} showReason />
-          {updated ? (
-            <span className="dh-ecard__fact">
-              <HistoryIcon className="dh-ecard__fact-icon" aria-hidden="true" />
-              {`Updated ${updated}`}
-            </span>
-          ) : null}
+          {/* Alignment is this collection's REASON FOR EXISTING (ADR-040 — the
+              intention-to-action gap), so it stays on every card. */}
+          <AlignmentIndicator
+            alignment={goal.alignment}
+            showReason={!contribution.has}
+          />
+          {contribution.has ? <span>{contribution.summary}</span> : null}
         </>
       }
       href={`/goals/${encodeURIComponent(goal.id)}`}

@@ -36,6 +36,8 @@ function project(overrides: Partial<ContinueProject> = {}): ContinueProject {
     statusLabel: "On track",
     needsAttention: false,
     lastActivityIso: "2026-08-01T00:00:00.000Z",
+    iconKey: null,
+    colourRank: 0,
     ...overrides,
   };
 }

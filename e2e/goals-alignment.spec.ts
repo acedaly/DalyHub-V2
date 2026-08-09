@@ -82,14 +82,23 @@ test.describe("AREA-03 — Alignment view", () => {
     await expect(activeCard).toBeVisible();
     await expect(activeCard.getByText("Recently active")).toBeVisible();
 
+    /*
+     * M3X-02 — the seeded Goal has a contributing Project, so its card draws the
+     * MEASURE and the alignment word, and drops the reason sentence that would
+     * restate what the bar beside it shows. The honest reason survives where it
+     * is the only explanation available: on a Goal nothing advances (asserted in
+     * the unit suite) and on the Goal record's own summary band, which step 4
+     * below still checks in full.
+     */
     const neglectedCard = page.getByRole("article", { name: "Learn Spanish" });
     await expect(neglectedCard).toBeVisible();
     await expect(neglectedCard.getByText("No recent action")).toBeVisible();
+    await expect(neglectedCard.getByRole("progressbar")).toBeVisible();
     await expect(
       neglectedCard.getByText(
         "Projects exist, but no recent Task activity was found.",
       ),
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     // 3. Keyboard operation: focus the active Goal's open link and activate
     // it with Enter (no pointer), landing on the canonical Goal record.

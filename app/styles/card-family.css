@@ -61,7 +61,9 @@
  * It steps up every rung at once — the hero shape, the hero padding, the tinted
  * surface and its wash, and the one level of real depth on the screen — because
  * a hero that is only slightly bigger than a card is not a hero, it is an
- * inconsistency. Exactly one per page (DESIGN_SYSTEM.md → Expressive surfaces).
+ * inconsistency. Exactly one per page — the hierarchy's Level 1. Level 2 lives
+ * on `.dh-scard` below, one rung down on every axis at once
+ * (DESIGN_SYSTEM.md → the hierarchy model).
  */
 .dh-dcard--expressive {
   position: relative;
@@ -625,12 +627,61 @@
  * `padding-inline-end` reserves the corner for the absolutely-positioned
  * overflow, so the menu never sits on top of the chip.
  */
+/*
+ * M3X-02 — the header is a GRID, not a wrapping flex line.
+ *
+ * With the identity mark at the large rung the wrapping line ran out of room
+ * sooner, and a wrapped status chip dropped to the card's left EDGE — under the
+ * mark, where it read as a second identity rather than as the record's state.
+ * Placing the pieces instead of flowing them keeps the mark in its own column at
+ * every title length, and drops the chip under the TITLE it qualifies.
+ *
+ *   ┌──────┬──────────────────┐
+ *   │ mark │ title            │
+ *   │      │ subtitle         │
+ *   │      │ [status]         │
+ *   └──────┴──────────────────┘
+ */
 .dh-ecard__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: var(--app-space-2) var(--app-space-3);
   min-inline-size: 0;
+}
+
+.dh-ecard__icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dh-ecard__titles {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.dh-ecard__status {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* No mark: the title column takes the whole header. */
+.dh-ecard__header:not(:has(.dh-ecard__icon)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* A card with no mark: the title column takes the whole header, and the state
+ * keeps its own row under it — at every width, since the phone composition
+ * below dissolves this header into the card's grid and would otherwise land the
+ * chip in the title's cell. */
+.dh-ecard__header:not(:has(.dh-ecard__icon)) .dh-ecard__titles {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dh-ecard__header:not(:has(.dh-ecard__icon)) .dh-ecard__status {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .dh-ecard:has(.dh-ecard__overflow--header) .dh-ecard__header {
@@ -659,6 +710,18 @@
   background: var(--md-app-color-surface-card-subtle);
   font-size: var(--app-entity-icon-size);
   line-height: 0;
+}
+
+/*
+ * M3X-02 — an `AccentIcon` brings its OWN size rung (`sm`/`md`/`lg`), so the
+ * wrapper stands its fixed 40px box down and lets the mark decide. Without this
+ * a gallery card asking for the large rung would be clipped back to the medium
+ * one by its own container, silently.
+ */
+.dh-ecard__icon:has(> .dh-accent-icon) {
+  inline-size: auto;
+  block-size: auto;
+  background: transparent;
 }
 
 /* A badge passed in brings its own tint; the wrapper then adds none. */
@@ -752,12 +815,22 @@
   z-index: var(--app-z-raised);
 }
 
+/*
+ * M3X-02 — clamped at two lines, for the same reason the title is clamped at
+ * three: a gallery row shares a height, and one card whose Area-and-Goal line
+ * runs to four lines sets that height for every card beside it. Visual only —
+ * the full text stays in the DOM and in the accessible name.
+ */
 .dh-ecard__subtitle {
   margin: var(--app-space-px) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
   color: var(--md-sys-color-on-surface-variant);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .dh-ecard__status {
@@ -807,17 +880,50 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/*
+ * M3X-02 — on a GALLERY card the figure sits above a full-width bar.
+ *
+ * The value leads, at `title-large` emphasized, and the bar runs the whole card
+ * beneath it. That is what makes a grid comparable: twelve bars starting and
+ * ending on the same two vertical lines, each in its record's own colour. Beside
+ * the figure the bar was a 120px stub whose length meant nothing across cards.
+ *
+ * The compact phone ROW keeps them side by side — see the phone block at the end
+ * of this file — because a row has width to spare and no height to spend.
+ */
 .dh-ecard__progress {
   display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--app-space-1);
+  /* Progress is the entity card's ANSWER, so it gets air above it rather than
+   * being one more line in the run. */
+  margin-block-start: var(--app-space-1);
 }
 
-/* The ONE progress thickness in the product. */
+/*
+ * M3X-02 — an entity card's bar is 8px, not the product's 6px default.
+ *
+ * The audit's H6 finding was that the only element answering "how is this
+ * going?" was the quietest thing on the card. PR #144 gave the percentage the
+ * emphasized label weight and left the bar at the ordinary thickness, which
+ * fixed the number and not the shape. A gallery is scanned by shape first: on a
+ * grid of twelve cards the bars are what the eye tracks down, and a 6px hairline
+ * at 280px wide is a rule, not a measure.
+ *
+ * It is the only place in the product that steps off the one progress
+ * thickness, and it steps off it for the one surface whose whole job is the
+ * proportion.
+ */
 .dh-ecard__progress-track {
   display: block;
-  flex: 1;
-  block-size: var(--app-progress-bar-height);
+  /* `flex: none` — in the card's COLUMN layout a flex factor would resolve the
+   * track's basis in the block axis and collapse the bar to nothing. It takes
+   * the full inline size and its own height; the compact phone ROW below turns
+   * the flex factor back on, where the axis is the inline one. */
+  flex: none;
+  inline-size: 100%;
+  block-size: var(--app-progress-bar-height-entity);
   border-radius: var(--md-sys-shape-corner-full);
   /* The TRACK is neutral. `secondary-container` is a lavender in this scheme, so
    * an empty bar read as a full one in a different colour — which is exactly
@@ -831,6 +937,51 @@
   block-size: 100%;
   border-radius: inherit;
   background: var(--md-sys-color-primary);
+  /* The fill ANIMATES to its new width. Progress is the one figure on this card
+   * that changes while the owner watches, and a jump reads as a re-render
+   * rather than as work getting done. */
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
+}
+
+/*
+ * M3X-02 — the bar takes the RECORD's own accent.
+ *
+ * A gallery of twelve identical violet bars gives the eye nothing to track down
+ * the grid; a gallery of bars in each record's own colour is scannable by the
+ * same signal the identity mark one line above already taught. The ramp is the
+ * existing `area-accent-*` identity ramp resolved from the record's stable rank
+ * — the same input, the same mapping, no second colour decision — and the
+ * percentage beside the bar states the value in words, so nothing here is
+ * carried by colour alone.
+ *
+ * A record with NO identity colour keeps the primary fill above.
+ */
+.dh-ecard[data-accent="1"] .dh-ecard__progress-fill {
+  background: var(--md-sys-color-area-accent-1);
+}
+.dh-ecard[data-accent="2"] .dh-ecard__progress-fill {
+  background: var(--md-sys-color-area-accent-2);
+}
+.dh-ecard[data-accent="3"] .dh-ecard__progress-fill {
+  background: var(--md-sys-color-area-accent-3);
+}
+.dh-ecard[data-accent="4"] .dh-ecard__progress-fill {
+  background: var(--md-sys-color-area-accent-4);
+}
+.dh-ecard[data-accent="5"] .dh-ecard__progress-fill {
+  background: var(--md-sys-color-area-accent-5);
+}
+.dh-ecard[data-accent="6"] .dh-ecard__progress-fill {
+  background: var(--md-sys-color-area-accent-6);
+}
+
+/* Forced colours discard the ramp; the bar keeps its own text colour so the
+ * shape survives as structure. */
+@media (forced-colors: active) {
+  .dh-ecard .dh-ecard__progress-fill {
+    background: CanvasText;
+  }
 }
 
 /* The percentage is the progress bar's authority, not its caption: it takes the
@@ -838,9 +989,11 @@
  * and readable without the bar at all (AGENTS.md §15 — never colour alone). */
 .dh-ecard__progress-text {
   flex: none;
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  /* M3X-02 — `title-large` emphasized. After the title, the proportion is the
+   * most decision-relevant thing on the card, and it now reads that way. */
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
   color: var(--md-sys-color-on-surface);
   font-variant-numeric: tabular-nums;
 }
@@ -1281,6 +1434,498 @@
  */
 @media (forced-colors: active) {
   .dh-dcard--expressive {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+}
+
+/* ========================================================================== */
+/* M3X-02 — SupportingSurface (hierarchy Level 2)                             */
+/* ========================================================================== */
+
+/*
+ * A supporting expressive surface. Warmer and more shaped than a Level 3 panel,
+ * unmistakably smaller and quieter than the hero above it.
+ *
+ * Every rung is deliberately ONE step down from `.dh-dcard--expressive`:
+ *
+ *   shape    entity-card (20)  against the hero's extra-large (28)
+ *   padding  card (20)         against the hero's 24
+ *   tint     half strength     against the hero's full strength
+ *   depth    none at rest      against the hero's raised
+ *   wash     none              the radial wash stays the hero's alone
+ *
+ * That is what keeps "a few of these per page" from reading as several heroes.
+ */
+.dh-scard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+  padding: var(--app-card-padding);
+  border: none;
+  border-radius: var(--app-shape-entity-card);
+  background: var(--md-app-color-surface-card);
+  box-shadow: var(--app-elevation-resting);
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+/* The tinted tone: the brand, at half the hero's strength. */
+.dh-scard--expressive {
+  background: var(--md-app-color-surface-supporting);
+}
+
+/*
+ * The identity tone: a neutral surface STEP, for a surface whose colour comes
+ * from the entity beside the words rather than from the brand. A Project's own
+ * accent is already in the icon container; tinting the surface violet as well
+ * would put two identities on one object.
+ *
+ * `surface-card-subtle` rather than a hand-mixed neutral, because this has to be
+ * a visible STEP away from both the page and an ordinary card in both
+ * appearances, and the application surfaces are the ramp that already carries
+ * that guarantee. (`surface-raised` is the wrong one: in LIGHT it is white —
+ * identical to a card — because light separates depth with shadow rather than
+ * with tone, so an identity surface built on it is invisible against the panel
+ * beside it.)
+ */
+.dh-scard--identity {
+  background: var(--md-app-color-surface-card-subtle);
+}
+
+/* The quiet tone: Level 2 by SHAPE and scale alone, no tint at all. For a
+ * supporting surface sitting next to a tinted one, so a rail of three does not
+ * become three tinted blocks. */
+.dh-scard--quiet {
+  background: var(--md-app-color-surface-card);
+}
+
+.dh-scard--interactive:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+.dh-scard__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-scard__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.dh-scard__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* The eyebrow names the KIND of surface — "Current focus", "Next up". It is the
+ * one place a supporting surface is allowed to shout, and it shouts quietly. */
+.dh-scard__eyebrow {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-transform: uppercase;
+}
+
+/* Emphasized `title-medium`: heavier than a panel title, lighter than the
+ * hero's headline. Two lines, then it clamps — the same visual-only clamp the
+ * entity card takes, with the full title still in the accessible name. */
+.dh-scard__title {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dh-scard .dh-scard__open,
+.dh-scard .dh-scard__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-scard__open:hover {
+  text-decoration: underline;
+}
+
+/* The whole surface is the destination. Interactive children sit above it. */
+.dh-scard__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dh-scard__supporting {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  overflow-wrap: anywhere;
+}
+
+/* The one figure the surface is about — emphasized, tabular, and aligned to the
+ * top so it reads against the title rather than floating. */
+.dh-scard__metric {
+  margin: 0;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: end;
+}
+
+.dh-scard__metric-value {
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-scard__metric-label {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+}
+
+/*
+ * Progress. The bar is thicker than a card's (8px against 6px) because on a
+ * supporting surface it is frequently the reason the surface exists — "how is
+ * this going?" is the question a current-focus block answers.
+ */
+.dh-scard__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-scard__progress-track {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  block-size: 8px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+  overflow: hidden;
+}
+
+.dh-scard__progress-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-scard__progress-text {
+  flex: none;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-scard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-3);
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+
+/* Above the whole-surface link, so a real control inside a linked surface stays
+ * pressable. */
+.dh-scard__action {
+  position: relative;
+  z-index: var(--app-z-raised);
+  display: flex;
+  margin-block-start: auto;
+  padding-block-start: var(--app-space-1);
+}
+
+/*
+ * Forced colours discard the tint, so a supporting surface would lose its
+ * boundary. The border restores it as structure — the same treatment the hero
+ * takes.
+ */
+@media (forced-colors: active) {
+  .dh-scard {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+}
+
+/* ========================================================================== */
+/* M3X-02 — the entity card on a PHONE: a compact row, not a giant card       */
+/* ========================================================================== */
+
+/*
+ * A phone does not get the gallery card at one column.
+ *
+ * PR #144's gallery is correct on a desktop and wrong on a 390px screen, where
+ * the same markup became a stack of ~170px slabs: the identity mark on its own
+ * line, the title under it, a status chip under that, then a bar, then two rows
+ * of facts — five vertical bands per record, three records to a viewport. The
+ * brief calls this out by name, and it is the clearest case in the product of a
+ * mobile layout that is a desktop layout stacked.
+ *
+ * The phone composition is a ROW, and it is the same DOM:
+ *
+ *   ┌──────────────────────────────────────┐
+ *   │ [◼]  Kitchen fit-out       [At risk] │
+ *   │      Home & Property                 │
+ *   │      ▓▓▓▓▓░░░░░░░░░░  38%            │
+ *   │      3 tasks past their due date     │
+ *   └──────────────────────────────────────┘
+ *
+ * `display: contents` on the header dissolves it into the card's own grid, so
+ * the mark takes a column and everything else is indented against it — which is
+ * what makes a list of these scannable by mark and by title rather than by
+ * counting boxes. No content is hidden and no element is reordered: the reading
+ * order, the tab order and the accessible name are identical at both widths.
+ */
+@media (max-width: 48rem) {
+  .dh-ecard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-content: start;
+    column-gap: var(--app-space-3);
+    row-gap: var(--app-space-2);
+    padding: var(--app-card-padding-compact);
+  }
+
+  .dh-ecard__header {
+    display: contents;
+  }
+
+  .dh-ecard__icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* The mark drops to the COMPACT rung: it identifies the row rather than
+   * leading a composition, and a 56px square on a 358px content width is a
+   * sixth of the row spent on a glyph. */
+  .dh-ecard__icon .dh-accent-icon[data-size="lg"] {
+    inline-size: var(--app-entity-icon-container-size-sm);
+    block-size: var(--app-entity-icon-container-size-sm);
+    border-radius: var(--app-shape-control);
+    font-size: var(--app-entity-icon-size-sm);
+  }
+
+  .dh-ecard__icon .dh-accent-icon[data-size="lg"] .dh-icon {
+    inline-size: var(--app-entity-icon-size-sm);
+    block-size: var(--app-entity-icon-size-sm);
+  }
+
+  .dh-ecard__titles {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* The state returns to the title's own line, where a row has room for it. */
+  .dh-ecard__status {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .dh-ecard__body,
+  .dh-ecard__footer {
+    grid-column: 2 / -1;
+  }
+
+  /* A row's title is `body-large` emphasized — the collection-row scale, not the
+   * gallery-card one. */
+  .dh-ecard__title {
+    font-size: var(--md-sys-typescale-body-large-size);
+    line-height: var(--md-sys-typescale-body-large-line-height);
+    -webkit-line-clamp: 2;
+  }
+
+  .dh-ecard__subtitle {
+    -webkit-line-clamp: 1;
+  }
+
+  .dh-ecard__body {
+    gap: var(--app-space-2);
+  }
+
+  .dh-ecard__progress {
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: var(--app-space-3);
+    margin-block-start: 0;
+  }
+
+  .dh-ecard__progress-track {
+    flex: 1;
+  }
+
+  /* `title-medium`, not `title-large`: on a row the proportion still leads, but
+   * it is not competing with a 24px page heading for the viewport. */
+  .dh-ecard__progress-text {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+  }
+
+  /* The header-mounted overflow keeps the card's corner, so the status chip
+   * stops short of it rather than sitting underneath. The reserve is the
+   * trigger's own footprint plus the inset it is positioned at — the chip and
+   * the menu now share the row rather than the column. */
+  .dh-ecard:has(.dh-ecard__overflow--header) {
+    padding-inline-end: var(--app-space-10);
+  }
+
+  .dh-ecard:has(.dh-ecard__overflow--header) .dh-ecard__header {
+    padding-inline-end: 0;
+  }
+}
+
+/* ========================================================================== */
+/* StatCard — a page's figures, on the canvas                                 */
+/* ========================================================================== */
+
+/*
+ * Quiet cards in a row, directly on the page canvas.
+ *
+ * `auto-FILL`, not `auto-fit`, and the distinction is the whole behaviour: a row
+ * with two figures in it should be two cards and some canvas, not two cards each
+ * half the page wide. `auto-fit` collapses the empty tracks and lets the
+ * survivors balloon; `auto-fill` keeps them, so a card is the same size whether
+ * the day has two figures or four.
+ *
+ * The minimum is sized so a PHONE gets two across — four stacked cards would be
+ * most of a 390px first viewport spent on counting, which is the dashboard this
+ * replaced.
+ */
+.dh-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--app-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-stat-row__item {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.dh-stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+  padding: var(--app-card-padding-compact);
+  border: none;
+  border-radius: var(--app-shape-card);
+  background: var(--md-app-color-surface-card);
+  box-shadow: var(--app-elevation-resting);
+  color: var(--md-sys-color-on-surface);
+  text-decoration: none;
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.dh-stat--interactive:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+/* The label is read before the number, so it leads — and it stays quiet, because
+ * the figure under it is the thing being scanned for. */
+.dh-stat__label {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.dh-stat__figure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * `headline-medium` emphasized, tabular. This is the largest type on the page
+ * and it is spent on the figures — which is the whole argument for the row: the
+ * previous hero spent `headline-medium` on a headline ("Your day") and left the
+ * numbers at label size beside it.
+ */
+.dh-stat__value {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The ONE place a figure takes colour, and never alone — the label above it and
+ * the line beneath it both say what it is. */
+.dh-stat__value[data-tone="attention"],
+.dh-stat__supporting[data-tone="attention"] {
+  color: var(--md-sys-color-state-overdue);
+}
+
+.dh-stat__ring {
+  display: inline-flex;
+  flex: none;
+  line-height: 0;
+}
+
+.dh-stat__supporting {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .dh-stat {
     border: var(--app-border-width-thin) solid CanvasText;
   }
 }

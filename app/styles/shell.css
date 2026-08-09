@@ -275,9 +275,27 @@
  */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  /*
+   * DH-DS — the ROLE is unchanged and the AMOUNT is not. `secondary-container`
+   * mixed toward the navigation surface: a soft tint rather than a slab across
+   * a 240px row. See the token for the full argument.
+   */
+  background: var(--md-app-color-surface-nav-selected);
+  color: var(--md-sys-color-on-surface);
   font-weight: 600;
+}
+
+/*
+ * …and the glyph takes `primary`, which is the signal the softened fill gave up.
+ *
+ * This is not the ten-colour entity rainbow the note below retired: it is ONE
+ * colour, on ONE row, meaning "you are here" — which is the same thing the pill,
+ * the weight and `aria-current` say. Restraint on the other nine rows is exactly
+ * what lets this one mean something.
+ */
+.dh-nav__link--active .dh-nav__icon,
+.dh-nav__link[aria-current="page"] .dh-nav__icon {
+  color: var(--md-sys-color-primary);
 }
 
 /*
@@ -889,19 +907,30 @@
 }
 
 /*
- * DS-14 typography — a page title is a heading, not a banner. It steps down from
- * the display size a marketing page would use to one that leads the content
- * beneath it, at `medium` rather than `bold`: hierarchy comes from size, colour
- * and space, and reserving weight means the WEIGHT still means something where
- * it is used (a selected nav row, a title against its metadata).
+ * A page title is a heading, not a banner — and not an enterprise field label
+ * either.
+ *
+ * DS-14 set it at `headline-small` (24px) and reserved weight, on the argument
+ * that hierarchy should come from size, colour and space. That argument is
+ * right; 24px was simply not enough SIZE for it to work. Against the
+ * `title-large` of the surfaces beneath it, a 24px page title was one step of
+ * separation carrying the whole heading hierarchy, and the product read cramped
+ * — the "tiny enterprise typography" the DalyHub design direction names.
+ *
+ * `headline-medium` (28px) at `medium` weight. The weight reservation is
+ * unchanged and still load-bearing: WEIGHT means "this is selected" or "this is
+ * the title of that", and it is not spent here. What changed is that the size
+ * now carries what the size was always supposed to carry.
+ *
+ * It is still one line at 1280 for every collection title in the product, which
+ * is the hard rule this cannot break (DESIGN_SYSTEM.md → Typography hierarchy).
  */
-/* A page heading is `headline-small` (DESIGN_SYSTEM.md → Typography usage map). */
 .dh-pane-header__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-small-size);
-  line-height: var(--md-sys-typescale-headline-small-line-height);
-  font-weight: var(--md-sys-typescale-headline-small-weight);
-  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
   color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
@@ -1007,9 +1036,34 @@
     justify-content: flex-start;
   }
 
-  .dh-pane-header__actions,
-  .dh-pane-header__secondary {
+  .dh-pane-header__actions {
     flex-wrap: wrap;
+  }
+
+  /*
+   * M3X-02 — the secondary row SCROLLS rather than wraps.
+   *
+   * Wrapping turned Tasks' two secondary actions into two stacked full-width
+   * rows on a 390px screen, which cost the first viewport ~50px before a single
+   * task. One scrolling line is the same M3 pattern the view switcher above it
+   * already uses, so the phone header reads as two scrollable rails rather than
+   * as a pile of buttons — and every control stays reachable, in the same DOM
+   * order, at the same touch size.
+   */
+  .dh-pane-header__secondary {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* The focus ring on the last chip must not be clipped by the scroll port. */
+    padding-block: var(--app-space-px);
+  }
+
+  .dh-pane-header__secondary::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dh-pane-header__secondary > * {
+    flex: none;
   }
 }
 

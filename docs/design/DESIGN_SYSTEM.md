@@ -32,6 +32,12 @@ This matters because it changes where design questions get answered. "What radiu
 
 ## DalyHub Material 3 Expressive Direction
 
+> The philosophy this section implements — the relationship to Material, the
+> Apple and productivity-software influences, the decision rule, and the full
+> list of deliberate departures from stock Material guidance — is
+> [`DALYHUB_DESIGN_SYSTEM.md`](DALYHUB_DESIGN_SYSTEM.md). This section is the
+> mechanics.
+
 > The M3X pass (2026-08). Everything below is an extension of the Material Design 3
 > foundation above, never a second design language beside it. Before-and-after
 > evidence: [`assets/m3x-2026-08/`](assets/m3x-2026-08/); the findings it answers:
@@ -42,33 +48,83 @@ This matters because it changes where design questions get answered. "What radiu
 **Calm workspace. Expressive moments.**
 
 Roughly 75% restrained M3, 25% M3 Expressive. Expression is a budget, not a
-style: a page spends it in one place, and everything else in the product is
-quieter *because* that one place is louder. A product where every surface is
-expressive has emphasised nothing — which is precisely the state the audit found,
-with a hairline, a shadow, a 16px radius and 20px of padding on every box in the
-application at once.
+style: a page spends most of it in one place, and everything else in the product
+is quieter *because* that one place is louder. A product where every surface is
+expressive has emphasised nothing — which is precisely the state the first audit
+found, with a hairline, a shadow, a 16px radius and 20px of padding on every box
+in the application at once.
 
-### Expressive surfaces
+### The hierarchy model (M3X-02)
 
-Appropriate — and each of these gets **one** per page, at most:
+The M3X pass wrote the rule as **one expressive surface per page**. That was too
+strict, and the second pass replaces it:
+
+> **One dominant expressive surface per page. Supporting expressive elements are
+> permitted where they strengthen hierarchy, identity, progress or action.
+> Supporting expression must remain visually subordinate to the dominant
+> surface.**
+
+Three levels, and every surface in the product is exactly one of them.
+
+| Level | What it is | Component | How many |
+| --- | --- | --- | --- |
+| **1 — Dominant** | The one surface answering the question the page exists to answer | `ExpressiveSummary` | **One** per page, at most — and **zero** is a legitimate answer |
+| **2 — Supporting expressive** | A short surface carrying identity, progress, a focus or a next action | `SupportingSurface`, the entity card's identity mark and progress | **A few** — two or three, not a gallery |
+| **3 — Quiet interface** | Everything the owner works *in* | panels, collection rows, forms, filters, navigation | The rest of the page |
+
+The levels are separated on **every** axis at once, because a level separated on
+one axis is a coincidence:
+
+| | Level 1 | Level 2 | Level 3 |
+| --- | --- | --- | --- |
+| Shape | `--app-shape-hero` (28) | `--app-shape-entity-card` (20) | `--app-shape-card` (16) |
+| Padding | `--app-card-padding-hero` | `--app-card-padding` | `--app-card-padding` |
+| Surface | `surface-expressive` + the radial wash | `surface-supporting` / `surface-card-subtle` | `surface-card` |
+| Depth at rest | `--app-elevation-raised` | none | none |
+| Text colour | `on-surface-expressive` | the ordinary ramp | the ordinary ramp |
+| May carry | a ring, a stat row, the page's primary action | one metric, one bar, one action | rows and controls |
+
+Two things this does **not** license. It is not a second hero: a page with two
+tinted, ringed, elevated surfaces has emphasised neither. And it is not colour
+for its own sake — a supporting surface earns its level by *saying something the
+page needs* (what is next, how far along, which record), never by being the next
+card along in a grid.
+
+### What earns Level 1
+
+One of these, per page, at most — and a page is allowed **none**. Today has
+none: its figures are a row of quiet `StatCard`s on the canvas, because a hero
+spends the page's largest type on a *headline* and leaves the numbers at label
+size beside it, on the one screen whose entire question is the numbers. Restraint
+is a design decision, not an omission.
 
 | Surface | Why it earns it |
 | --- | --- |
-| Today's summary | The day's state is the question the screen exists to answer |
 | Goals' summary | Momentum across open Goals, from real counts |
-| Progress | The answer to "how is this going?" on a Project, a Goal, a day |
 | Success and completion | A moment worth marking, once |
 | Quick capture | The interaction the product most wants to be easy |
 | Major empty states | The one place a page has nothing else to say |
-| Project and Area identity | Recognition before reading — the icon container |
-| A selected high-value datum | The one figure a surface is really about |
 
-### Quiet surfaces
+### What earns Level 2
+
+| Element | Why it earns it |
+| --- | --- |
+| Current focus | The record the owner was last actually working in |
+| Next up | The one thing ahead — a meeting with a time, or the next task |
+| Progress | The answer to "how is this going?" on a Project, a Goal, a day |
+| Project, Area and Goal identity | Recognition before reading — the icon container, at the large rung on a gallery card |
+| A selected high-value datum | The one figure a surface is really about |
+| A meaningful attention state | Overdue work, a stalled Project — through the `state-*` roles |
+
+### Level 3 — the quiet interface
 
 Restrained M3, always. No tint, no hero shape, no extra depth:
 
 forms · settings · the editor · every list and collection row · administration ·
 repeated data entry · navigation · filters · metadata
+
+Most of the product is Level 3, and that is the point. The levels above are
+legible *because* this one is the default.
 
 ### Shape hierarchy
 
@@ -79,7 +135,7 @@ an inner surface is never rounder than the one holding it.
 | Token | Value | Used by |
 | --- | --- | --- |
 | `--app-shape-hero` | `corner-extra-large` (28) | The page's one summary surface |
-| `--app-shape-entity-card` | `corner-large-increased` (20) | Project · Area · Goal · Asset cards |
+| `--app-shape-entity-card` | `corner-large-increased` (20) | Project · Area · Goal · Asset cards, and every Level 2 supporting surface |
 | `--app-shape-card` | `corner-large` (16) | Ordinary cards, panels, collection groups |
 | `--app-shape-supporting` | `corner-medium` (12) | A tinted run or inset list *inside* a card |
 | `--app-shape-control` | `corner-small` (8) | Chips, segments, small tiles |
@@ -122,7 +178,7 @@ The seed is **violet `#6D4AE6`**. Colour is still generated and never authored
 the identity is restrained by *how little of the page it covers*, not by
 desaturating it.
 
-- **Violet is spent on action and on the one expressive surface.** Filled
+- **Violet is spent on action and on the expressive surfaces.** Filled
   buttons, the FAB, the capture affordance, progress fills, the hero tint.
 - **Selection is `secondary-container`** — the soft lilac in light, the muted
   plum in dark — in the sidebar, the phone navigation bar, the settings rail and
@@ -135,20 +191,32 @@ desaturating it.
 - **Status keeps the `state-*` roles.** Overdue work is `state-overdue`, never
   `error` — a slipped task is a state of a record, not an application fault.
 - **Tinted surfaces mix by a generated STRENGTH, not by a fixed percentage.**
-  `--app-tint-strength-expressive` and `--app-tint-strength-state` are halved in
-  dark, because a container role that is a pale tone in light is a saturated
-  tone-30 in dark and the same mix produces a slab. This is the only thing in the
-  expressive layer that differs by appearance, and it is generated for that
-  reason.
+  `--app-tint-strength-expressive`, `--app-tint-strength-supporting` and
+  `--app-tint-strength-state` are all weaker in dark, because a container role
+  that is a pale tone in light is a saturated tone-30 in dark and the same mix
+  produces a slab. This is the only thing in the expressive layer that differs by
+  appearance, and it is generated for that reason.
+- **Intensity is a ladder, and each rung is a level.** Level 1 takes the full
+  expressive tint, the radial wash and the container's own text colour; Level 2
+  takes the supporting tint (or a neutral surface step, when the entity's own
+  accent is already on the surface) and the ordinary text ramp; Level 3 takes
+  the card surface and no tint at all. Status keeps the `state-*` roles at every
+  level. **No card in this product has a saturated full-bleed background.**
 
 ### Card vs list
 
 | Use a **card** for | Use a **list** for |
 | --- | --- |
 | Projects, Areas, Goals, Assets — things with identity | Tasks |
-| A page summary | Note, meeting and diary directories |
-| Focused grouped information | Activity and timeline feeds |
-| | Any repeated homogeneous content |
+| Notes — a document whose excerpt is worth reading | Meeting and diary directories |
+| A page summary | Activity and timeline feeds |
+| Focused grouped information | Any repeated homogeneous content |
+
+**Notes moved** (M3X-02). A note is a document, and a directory of documents is a
+gallery: the excerpt is the reason to open one, and an excerpt wants a column
+rather than a line. It was the module using its width worst — a full-bleed filter
+band over a single 200px column, with the rest of a 1,440px screen empty. It
+collapses to one column below `md`, where the phone gets the clean list it wants.
 
 **In a collection, the GROUP is the card and the row is a row** — that contract is
 unchanged. What M3X changed is that a card no longer draws a border *and* a
@@ -164,8 +232,12 @@ down when it is nested, and Today's panels forbid it outright.
 
 - **The sidebar does not compete.** Monochrome glyphs, a `secondary-container`
   selection pill, and no entity colour down the rail.
-- **One page, one hero.** It is a full-width band above the content, never inside
-  a column.
+- **At most one DOMINANT surface, and often none.** Where it sits is a
+  composition decision, not a rule: a collection's hero is a band above the grid,
+  because there is no second column to balance it against. Today has no hero at
+  all — a `StatCard` row on the canvas, then two unequal columns.
+- **Supporting expressive surfaces sit where the hierarchy needs them**, and are
+  subordinate on every axis (see [the hierarchy model](#the-hierarchy-model-m3x-02)).
 - **Surfaces are not all the same size.** Today is a hero band over an asymmetric
   two-column body; a gallery is an `auto-fill` grid whose column count is a
   consequence of one token, not a breakpoint table.
@@ -179,7 +251,21 @@ down when it is nested, and Today's panels forbid it outright.
 ### Mobile composition rules
 
 - **A phone layout is composed, not collapsed.** The desktop dashboard is not
-  reproduced vertically.
+  reproduced vertically, and an entity GALLERY is not one column of gallery
+  cards: below `md` the entity card re-composes into a row — mark in its own
+  column, title and state on the first line, progress and one supporting fact
+  indented beneath — from the same DOM, with nothing hidden and nothing
+  reordered.
+- **Desktop and phone differ by DESIGN, and the list is deliberate:** Projects
+  and Areas are a gallery against a rich list; Notes are a gallery against a
+  clean list; Today is a three-region composition against a single priority
+  stream; a collection's persistent filters are a compact row against a
+  disclosure. These are not inconsistencies to reconcile.
+- **Composition is DOM order, never `order`.** A responsive grid may place a
+  surface in a different column; it may not move it past its neighbours, because
+  `order` moves pixels and leaves the reading order and the tab order behind.
+  Where the phone needs a different sequence, the markup is written in the phone
+  sequence and the desktop grid places it.
 - **The first viewport answers the page's question.** On Today that is the
   summary — counts, overdue, progress — above the fold, with the greeting
   compact above it.
@@ -215,7 +301,10 @@ The expressive motion budget, in full:
 | Where | What |
 | --- | --- |
 | Interactive entity card, hover | Elevation to `--app-elevation-raised` + `translateY(-1px)`, `short3` |
-| Progress fill | Width, `medium2`, standard easing |
+| Interactive supporting surface, hover | The same lift, so a Level 2 surface responds like the cards it sits beside |
+| Progress fill | Width, `medium2`, standard easing — on the entity card, the supporting surface and the hero ring alike |
+| A disclosure's marker | Rotation, `short3`, standard easing — the state it reports is also in the element's own `open` |
+| Ticking a task on Today | The title's colour, `short4`, standard easing — the strike-through and the checkbox still carry the state |
 | Selection, filters, tabs | The existing state-layer and container changes |
 | Sheets, drawers, the FAB | Their existing M3 transitions |
 

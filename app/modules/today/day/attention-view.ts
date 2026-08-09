@@ -163,6 +163,17 @@ export interface ContinueProject {
    * This is the ranking key — not `updated_at`, which a rename would move.
    */
   readonly lastActivityIso: string | null;
+  /**
+   * M3X-02 — the project's PERSISTED identity, carried so Today's current-focus
+   * surface draws the same mark the Projects gallery does.
+   *
+   * Identity is recognition before reading, and a focus surface that invents its
+   * own glyph would teach the owner a second appearance for one record. Both
+   * values come straight off the same list item the Projects collection reads;
+   * neither is derived here.
+   */
+  readonly iconKey: string | null;
+  readonly colourRank: number;
 }
 
 /**

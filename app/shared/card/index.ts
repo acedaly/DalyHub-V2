@@ -69,7 +69,7 @@ export type {
  * so a module never forks one again.
  */
 export { DashboardCard, type DashboardCardProps } from "./DashboardCard";
-/** M3X — the one expressive surface a page is allowed. */
+/** M3X — hierarchy Level 1: the one DOMINANT expressive surface on a page. */
 export {
   ExpressiveSummary,
   MAX_SUMMARY_STATS,
@@ -77,6 +77,23 @@ export {
   type SummaryRing,
   type SummaryStat,
 } from "./ExpressiveSummary";
+/**
+ * The STAT CARD row — a page's figures, on the canvas, as quiet cards. The
+ * restrained alternative to a tinted hero (DALYHUB_DESIGN_SYSTEM.md).
+ */
+export {
+  StatCard,
+  StatCardItem,
+  StatCardRow,
+  type StatCardProps,
+  type StatCardTone,
+} from "./StatCard";
+/** M3X-02 — hierarchy Level 2: the supporting expressive surfaces beneath it. */
+export {
+  SupportingSurface,
+  type SupportingSurfaceProps,
+  type SupportingSurfaceTone,
+} from "./SupportingSurface";
 export {
   MetricTile,
   MetricRow,
