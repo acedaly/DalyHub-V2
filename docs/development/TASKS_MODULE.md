@@ -217,9 +217,16 @@ canonical Drawer. All three surfaces read the one shared display-state evaluator
 
 **Current status.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module), [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) and [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) are **☑ Done**.
 
-**Delivered capabilities.**
+**Delivered capabilities at the TASKS-01/TASKS-02 baseline.** This section records
+the original shipped baseline; the later [daily-driver section](#the-daily-driver-v22--tasks-05060708)
+is the current `main` state for the Matrix removal, row-first editing, bulk
+management, recurrence and mobile behaviour.
 
-- Four primary `/tasks` views — Focus, Eisenhower Matrix, Time Sectors and All — plus the kernel system views, with **server-authoritative** quadrant and sector grouping (accurate per-bucket counts, never a client re-sort of one page).
+- The original primary `/tasks` views — Focus, Eisenhower Matrix, Time Sectors and
+  All — plus the kernel system views, with **server-authoritative** quadrant and
+  sector grouping (accurate per-bucket counts, never a client re-sort of one page).
+  V2.2 later removed the Matrix deliberately and retained priority as a filter,
+  sort, grouping and row signal.
 - The four separate planning dimensions kept separate: P1–P4 priority, Do/Defer/Delegate/Delete actions, Time Sector vs scheduled date vs due date, and Active vs Someday/Maybe.
 - The widened workflow status set (`todo` / `in_progress` / `on_hold` / `cancelled`) and delegation, all additive on `task_details` (migration `0012`) — no parallel store.
 - One shared display-state evaluator, `taskDisplayState`, with the precedence Deleted → Completed → Cancelled → Waiting → On hold → Someday/Maybe → In progress → Planned → Inbox. The legacy `taskDisplayStatus` is retired.
@@ -234,7 +241,11 @@ canonical Drawer. All three surfaces read the one shared display-state evaluator
 - Task removal is a Drawer status `<select>` (cancel), not the shared lifecycle pattern other modules use — [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28).
 - A few Today task actions are reachable only through their visible controls, not a dedicated palette command — [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3--the--half-resolved-2026-08-01). This is a discoverability gap, not an accessibility one.
 
-**Deferred work.** Delegation to a real Person EntityLink (the `delegate_to` column is plain text today, deliberately EntityLink-ready); recurrence; time tracking.
+**Deferred work.** Delegation to a real Person EntityLink (the `delegate_to` column
+is plain text today, deliberately EntityLink-ready); time tracking. Recurrence is
+no longer deferred: V2.2 delivered custom rules, fixed schedule vs after-completion
+mode, skip and stop-repeating behaviour. The remaining recurrence limitation is
+ordinal monthly patterns, recorded as [DEBT-109](../product/PRODUCT_DEBT.md#-debt-109--ordinal-monthly-recurrence-is-not-expressible-first-monday-of-the-month--p3).
 
 **Relevant roadmap items.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) ☑ · [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) ☑ · [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐.
 

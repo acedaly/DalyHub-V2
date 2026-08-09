@@ -305,7 +305,7 @@ export interface DayChip {
   /** What the figure counts, already pluralised against `count`. */
   readonly noun: string;
   /**
-   * The figure's name as a HEADING — "Tasks due today", not "6 tasks".
+   * The figure's name as a HEADING — "Tasks for today", not "6 tasks".
    *
    * A stat card reads label-then-figure, and a heading over a number is not the
    * same string as the number's own noun phrase: "6 tasks" above "6" says it
@@ -340,7 +340,7 @@ export function dayChips(input: {
     chips.push({
       id: "tasks",
       label: counted(input.taskCount, "task", "tasks"),
-      heading: "Tasks due today",
+      heading: "Tasks for today",
       count: input.taskCount,
       noun,
       href: "/tasks?system=today",

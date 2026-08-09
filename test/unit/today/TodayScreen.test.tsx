@@ -185,8 +185,23 @@ describe("the day's figures", () => {
   it("names each figure as a heading over its number", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     const card = screen.getByTestId("today-stat-tasks");
-    expect(within(card).getByText("Tasks due today")).toBeInTheDocument();
+    expect(within(card).getByText("Tasks for today")).toBeInTheDocument();
     expect(within(card).getByText("1")).toBeInTheDocument();
+  });
+
+  it("counts only unfinished work in the Tasks figure, while progress keeps the full day", () => {
+    const done = task("b", "Beta", { completed: true, completedDate: TODAY });
+    renderScreen(
+      day({ today: [task("a", "Alpha"), done], completedToday: [done] }),
+    );
+    expect(
+      within(screen.getByTestId("today-stat-tasks")).getByText("1"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("today-stat-progress")).getByText(
+        "1 of 2 done today",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("gives the tone to slipped work and to nothing else", () => {
@@ -278,13 +293,13 @@ describe("the day timeline", () => {
     expect(screen.getByText(/Nothing planned today/)).toBeInTheDocument();
     // No section labels, because there are no sections.
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
-    expect(screen.queryByText("Due today")).not.toBeInTheDocument();
+    expect(screen.queryByText("For today")).not.toBeInTheDocument();
   });
 
   it("omits the Meetings section entirely when there are none", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(
-      within(timelineSection()).getByText("Due today"),
+      within(timelineSection()).getByText("For today"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
   });
@@ -488,6 +503,30 @@ describe("the rail", () => {
     expect(
       within(attentionSection()).getByRole("link", { name: "Inbox" }),
     ).toHaveAttribute("href", "/tasks?system=inbox");
+  });
+
+  it("renders Asset obligations as ordinary attention rows", () => {
+    renderScreen(
+      day({
+        attention: [
+          {
+            id: "asset",
+            kind: "asset",
+            label: "Hilux",
+            detail: "Registration expires tomorrow",
+            href: "/asset/a1?tab=obligations",
+          },
+        ],
+      }),
+    );
+    const panel = attentionSection();
+    expect(within(panel).getByRole("link", { name: "Hilux" })).toHaveAttribute(
+      "href",
+      "/asset/a1?tab=obligations",
+    );
+    expect(
+      within(panel).getByText("Registration expires tomorrow"),
+    ).toBeInTheDocument();
   });
 
   it("shows no project surface at all when no project has open work", () => {

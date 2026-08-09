@@ -7,6 +7,8 @@ import { loader as todayLoader } from "~/modules/today/routes/index";
 
 import {
   FakeClock,
+  makeAssetHistoryRepository,
+  makeAssetRepository,
   makeContext,
   makeProjectSettingsRepository,
   makeSpineRepository,
@@ -67,6 +69,22 @@ function spine(clock: FakeClock = new FakeClock()) {
 
 function settings() {
   return makeProjectSettingsRepository(makeContext(WS));
+}
+
+function assets() {
+  return makeAssetRepository(makeContext(WS), {
+    clock: new FakeClock("2026-08-09T00:00:00.000Z").now,
+    idGenerator: nextEntityId,
+    activityIdGenerator: nextActivityId,
+  });
+}
+
+function assetHistory() {
+  return makeAssetHistoryRepository(makeContext(WS), {
+    clock: new FakeClock("2026-08-09T00:00:00.000Z").now,
+    idGenerator: nextEntityId,
+    activityIdGenerator: nextActivityId,
+  });
 }
 
 /** Finish every open task under a project, so archival is actually permitted. */
@@ -458,6 +476,60 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
     );
     expect(inbox?.detail).toBe("1 unfiled task");
     expect(inbox?.href).toBe("/tasks?system=inbox");
+  });
+
+  it("counts Inbox from the canonical Tasks view, not Today's bounded planning page", async () => {
+    const tasks = makeTaskRepository(makeContext(WS));
+    for (let i = 0; i < 105; i += 1) {
+      await tasks.createTask({ title: `Loose thought ${i}` });
+    }
+
+    const data = await runToday();
+    const inbox = data.day.attention.find(
+      (item: { kind: string }) => item.kind === "inbox",
+    );
+    expect(inbox?.detail).toBe("105 unfiled tasks");
+  });
+
+  it("surfaces due Asset obligations only when an open linked Task is not already carrying them", async () => {
+    const dueTomorrow = shiftDays(ownerToday(), 1);
+    const assetRepo = assets();
+    const history = assetHistory();
+    const ute = await assetRepo.create({
+      title: "Hilux",
+      assetType: "vehicle",
+    });
+    const mower = await assetRepo.create({
+      title: "Mower",
+      assetType: "equipment",
+    });
+    await history.createObligation(ute.id, {
+      category: "registration",
+      title: "Renew registration",
+      dueDate: dueTomorrow,
+      leadDays: 14,
+    });
+    const linked = await history.createObligation(mower.id, {
+      category: "service",
+      title: "Sharpen blades",
+      dueDate: dueTomorrow,
+      leadDays: 14,
+    });
+    const task = await makeTaskRepository(makeContext(WS)).createTask({
+      title: "Book mower service",
+      dueDate: ownerToday(),
+    });
+    await history.linkObligationTask(linked.id, task.id);
+
+    const data = await runToday();
+    const asset = data.day.attention.find(
+      (item: { kind: string }) => item.kind === "asset",
+    );
+    expect(asset).toMatchObject({
+      label: "Hilux",
+      href: `/asset/${ute.id}?tab=obligations`,
+    });
+    expect(asset?.detail).toContain("1 tracked as a task");
   });
 
   it("returns a quiet, correct day when the workspace holds nothing", async () => {

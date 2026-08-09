@@ -12,8 +12,9 @@
  * quiet line, and never that line alongside items.
  *
  * Ordering is a priority, not a ranking: the inbox first (unfiled work is the
- * cheapest thing to fix), then waiting (it ages), then projects, then goals. The
- * whole rail is capped so it can never out-length the day beside it.
+ * cheapest thing to fix), then waiting (it ages), then asset obligations that are
+ * not already represented by open Tasks, then projects, then goals. The whole rail
+ * is capped so it can never out-length the day beside it.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -34,7 +35,7 @@ export const CONTINUE_MAX = 3;
 /* -------------------------------------------------------------------------- */
 
 /** Which kind of thing a rail row is about (drives its glyph, never its text). */
-export type AttentionKind = "inbox" | "waiting" | "project" | "goal";
+export type AttentionKind = "inbox" | "waiting" | "asset" | "project" | "goal";
 
 /** One row in "Needs attention". Every row navigates to its subject. */
 export interface AttentionItem {
@@ -62,6 +63,19 @@ export interface AttentionInput {
     /** Owner-calendar days the OLDEST waiting item has waited, or null. */
     readonly oldestDays: number | null;
   };
+  /**
+   * Asset obligations that need attention and are NOT already represented by an
+   * open linked Task. The Assets kernel owns that deduplication rule.
+   */
+  readonly assets: {
+    readonly visibleCount: number;
+    readonly trackedAsTasksCount: number;
+    readonly first: {
+      readonly assetTitle: string;
+      readonly text: string;
+      readonly href: string;
+    } | null;
+  };
   /** Projects whose EXISTING derived health says they need a look. */
   readonly projects: readonly {
     readonly id: string;
@@ -81,6 +95,10 @@ export interface AttentionInput {
 /** "9 days" / "1 day" — the age that makes a waiting item worth surfacing. */
 function ageLabel(days: number): string {
   return days === 1 ? "1 day" : `${days} days`;
+}
+
+function trackedAsTasksLabel(count: number): string {
+  return `${count} tracked as ${count === 1 ? "a task" : "tasks"}`;
 }
 
 /**
@@ -117,6 +135,34 @@ export function buildAttention(
           : `${count} · oldest ${ageLabel(input.waiting.oldestDays)}`,
       href: "/today/waiting",
     });
+  }
+
+  if (input.assets.visibleCount > 0) {
+    if (input.assets.visibleCount === 1 && input.assets.first !== null) {
+      const tracked =
+        input.assets.trackedAsTasksCount > 0
+          ? ` · ${trackedAsTasksLabel(input.assets.trackedAsTasksCount)}`
+          : "";
+      items.push({
+        id: "asset",
+        kind: "asset",
+        label: input.assets.first.assetTitle,
+        detail: `${input.assets.first.text}${tracked}`,
+        href: input.assets.first.href,
+      });
+    } else {
+      const tracked =
+        input.assets.trackedAsTasksCount > 0
+          ? ` · ${trackedAsTasksLabel(input.assets.trackedAsTasksCount)}`
+          : "";
+      items.push({
+        id: "asset",
+        kind: "asset",
+        label: "Assets",
+        detail: `${input.assets.visibleCount} obligations need attention${tracked}`,
+        href: "/assets",
+      });
+    }
   }
 
   for (const project of input.projects.slice(0, ATTENTION_PROJECTS_MAX)) {

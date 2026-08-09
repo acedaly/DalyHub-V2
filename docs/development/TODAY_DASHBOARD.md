@@ -79,8 +79,10 @@ restated here. What this document adds is how it is built.
   empties its own section only; a scope failure falls back to `emptyDay`, which
   still renders the greeting and the date. Today is never a 500 and never blank.
 - **No new derivations.** The rail consumes `evaluateProjectHealth` and
-  `evaluateGoalAlignment` — the same evaluators `/projects` and `/goals` use — so
-  Today can never disagree with a Project record about whether it is at risk.
+  `evaluateGoalAlignment` — the same evaluators `/projects` and `/goals` use —
+  and the Assets Today deduplication rule. Today therefore cannot disagree with a
+  Project record about whether it is at risk, a Goal record about alignment, or
+  Assets about whether an obligation is already represented by an open Task.
   "Continue working" ranks on `ProjectHealthSummary.lastActivityIso`, which comes
   from the shared Activity stream.
 
@@ -106,6 +108,33 @@ The scheduled band is ordered scheduled-date ascending and the backlog due-date
 ascending, so the day's own tasks — today's and everything already slipped — are
 at the FRONT of both bands and can never be the rows a bound drops. Waiting is
 read to 50, meetings to 12 each side of now, projects to 12 before ranking.
+
+The Inbox count deliberately does **not** come from that bounded planning read. It
+uses the canonical Tasks `inbox` system view grouped by parent, so Today,
+`/tasks?system=inbox` and Review Inbox share one definition: active Tasks with no
+structural parent. A large Inbox may be visually bounded elsewhere, but Today's
+count is not.
+
+### Assets on Today (ASSET-02)
+
+Restored by TODAY-09 (2026-08-09).
+
+Today carries Asset obligations as a single **Needs attention** rail row, not as a
+dashboard widget. The row appears only when `AssetHistoryRepository.listAttention`
+finds obligations within the Assets attention horizon and the kernel
+`dedupeAttention` rule says at least one is **not** already represented by an open
+linked Task.
+
+An open linked Task wins. If "Book mower service" is open and linked to the mower
+service obligation, the Task is the thing the owner acts on; Today does not show a
+second obligation row for the same job. If another obligation remains visible, the
+row states the suppressed count in words, such as "1 tracked as a task". If every
+due Asset obligation is already represented by an open Task, Assets does not add a
+rail row.
+
+The Assets repository owns the bounded read and the obligation evaluator owns the
+state text. Today only decides how to fit the already-deduplicated result into the
+rail's five-row cap.
 
 ### "Continue working" is Active-only (PROJ-05 Slice 4, ADR-037 §37.7)
 
