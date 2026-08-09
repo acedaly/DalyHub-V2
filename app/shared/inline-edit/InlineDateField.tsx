@@ -223,7 +223,9 @@ export function InlineDateField({
         triggerProps={{
           "aria-haspopup": "dialog",
           "aria-expanded": open,
-          "aria-controls": open ? popoverId : undefined,
+          // Only the anchored popover carries `popoverId`; the phone `Sheet`
+          // generates its own. See the same note in `InlineSelectField`.
+          "aria-controls": open && !compact ? popoverId : undefined,
         }}
         pending={field.pending}
         error={field.error}

@@ -233,6 +233,114 @@ describe("InlineSelectField — the menu escapes the row that clips it", () => {
     ).toHaveFocus();
   });
 
+  it("CYCLES through same-letter options when the letter is repeated", () => {
+    /*
+     * Appending unconditionally made the second "c" search for "cc", which
+     * matches nothing — so the press that should have walked to the next
+     * "C…" Project did nothing at all. Walking a run of same-initial names is
+     * the case typeahead exists for in a fifty-item list.
+     */
+    render(
+      <InlineSelectField
+        label="Project or Area"
+        value=""
+        options={[
+          { value: "a", label: "Activity showcase" },
+          { value: "b", label: "Conference talk" },
+          { value: "c", label: "Consolidate the renewals" },
+          { value: "d", label: "Kitchen fit-out" },
+        ]}
+        emptyLabel="Unassigned"
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Project or Area: Unassigned" }),
+    );
+    const menu = screen.getByRole("menu");
+
+    fireEvent.keyDown(menu, { key: "c" });
+    expect(
+      screen.getByRole("menuitemradio", { name: "Conference talk" }),
+    ).toHaveFocus();
+
+    fireEvent.keyDown(menu, { key: "c" });
+    expect(
+      screen.getByRole("menuitemradio", { name: "Consolidate the renewals" }),
+    ).toHaveFocus();
+
+    // …and it wraps rather than stopping at the end of the run.
+    fireEvent.keyDown(menu, { key: "c" });
+    expect(
+      screen.getByRole("menuitemradio", { name: "Conference talk" }),
+    ).toHaveFocus();
+  });
+
+  it("REFINES rather than cycling once the letters differ", () => {
+    render(
+      <InlineSelectField
+        label="Project or Area"
+        value=""
+        options={[
+          { value: "a", label: "Conference talk" },
+          { value: "b", label: "Consolidate the renewals" },
+        ]}
+        emptyLabel="Unassigned"
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Project or Area: Unassigned" }),
+    );
+    const menu = screen.getByRole("menu");
+    for (const key of ["c", "o", "n", "s"]) {
+      fireEvent.keyDown(menu, { key });
+    }
+    expect(
+      screen.getByRole("menuitemradio", { name: "Consolidate the renewals" }),
+    ).toHaveFocus();
+  });
+
+  it("names the surface it actually opened, on both presentations", async () => {
+    // `aria-controls` pointing at an element that does not exist is a broken
+    // relationship, not a missing one — the phone opens a `Sheet`, which owns
+    // its own ids and never carries the menu's.
+    const { unmount } = render(
+      <InlineSelectField
+        label="Priority"
+        value="p2"
+        options={PRIORITIES}
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    const desktopTrigger = screen.getByRole("button", {
+      name: "Priority: P2 · High",
+    });
+    fireEvent.click(desktopTrigger);
+    const controls = desktopTrigger.getAttribute("aria-controls");
+    expect(controls).toBeTruthy();
+    expect(document.getElementById(controls as string)).toBe(
+      screen.getByRole("menu"),
+    );
+    unmount();
+
+    stubViewport(true);
+    render(
+      <InlineSelectField
+        label="Priority"
+        value="p2"
+        options={PRIORITIES}
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    const phoneTrigger = screen.getByRole("button", {
+      name: "Priority: P2 · High",
+    });
+    fireEvent.click(phoneTrigger);
+    await screen.findByRole("dialog", { name: "Priority" });
+    expect(phoneTrigger).not.toHaveAttribute("aria-controls");
+  });
+
   it("leaves Space alone, because Space chooses the focused option", async () => {
     // Typeahead must not eat a key the menu pattern already spends on
     // activation — a keyboard user pressing Space on a highlighted option

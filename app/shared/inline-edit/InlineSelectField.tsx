@@ -213,13 +213,27 @@ export function InlineSelectField({
         ? character
         : state.buffer + character;
     state.at = now;
-    const query = state.buffer.toLocaleLowerCase();
+
+    /*
+     * A run of the SAME character CYCLES; a genuine word REFINES.
+     *
+     * Appending unconditionally was wrong for the first of those: pressing "c"
+     * twice inside the window made the query "cc", which matches nothing, so
+     * the second press did the opposite of what the pattern promises — walking
+     * through the Projects that start with "c" is exactly the case typeahead
+     * exists for, and it is the common one in a fifty-item list. A repeated
+     * character therefore searches for that ONE character, from the item after
+     * the current, and wraps.
+     */
+    const repeating = [...state.buffer].every(
+      (letter) => letter === state.buffer[0],
+    );
+    const query = (repeating ? character : state.buffer).toLocaleLowerCase();
     const current = activeIndex < 0 ? 0 : activeIndex;
-    // A single letter searches from the item AFTER the current one and wraps, so
-    // pressing it again walks through everything that starts with it. A longer
-    // buffer searches from the current item, so refining a word does not skip
-    // the item the previous keystroke just landed on.
-    const from = state.buffer.length > 1 ? current : current + 1;
+    // A cycling search starts AFTER the current item so it advances. A refining
+    // one starts AT it, so typing more of the word the cursor already sits on
+    // does not skip past it.
+    const from = repeating ? current + 1 : current;
     for (let offset = 0; offset < items.length; offset += 1) {
       const index = (from + offset) % items.length;
       const item = items[index];
@@ -298,7 +312,16 @@ export function InlineSelectField({
           id: triggerId,
           "aria-haspopup": compact ? "dialog" : "menu",
           "aria-expanded": open,
-          "aria-controls": open ? menuId : undefined,
+          /*
+           * `menuId` belongs to the anchored MENU, so it may only be referenced
+           * while the menu is what opened. The phone presentation is a `Sheet`,
+           * which owns its own generated ids and never carries this one — so on
+           * a phone the attribute pointed at an element that does not exist,
+           * which is a broken relationship rather than a missing one. The sheet
+           * needs no `aria-controls`: it is a modal dialog that takes focus, and
+           * the trigger's `aria-expanded` already says it is open.
+           */
+          "aria-controls": open && !compact ? menuId : undefined,
         }}
         pending={field.pending}
         error={field.error}
