@@ -77,7 +77,11 @@ import {
   timeSectorLabel,
   type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
-import { TASK_PRIORITIES, TIME_SECTORS } from "~/kernel/tasks";
+import {
+  MAX_PLAN_BATCH_SIZE,
+  TASK_PRIORITIES,
+  TIME_SECTORS,
+} from "~/kernel/tasks";
 import { TASK_PRESENTATIONS, taskViewFilterCount } from "~/kernel/task-views";
 
 import { NewTaskForm } from "./NewTaskForm";
@@ -88,7 +92,9 @@ import type { TasksBulkResult, TasksPageData } from "./tasks-contract";
 import { PRESENTATION_LABELS } from "./tasks-presentation";
 import {
   EMPTY_TASK_SELECTION,
+  boundBulkSelection,
   bulkFieldLabel,
+  bulkSelectionOverBy,
   summariseBulkField,
   taskSelectionReducer,
 } from "./task-selection";
@@ -699,6 +705,11 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     () => visibleCards.map((card) => card.id),
     [visibleCards],
   );
+  /**
+   * What "Select all" may take, and whether the loaded list outran the bulk bound
+   * (DEBT-110). The rule itself lives in `task-selection.ts` beside the reducer.
+   */
+  const bound = useMemo(() => boundBulkSelection(visibleIds), [visibleIds]);
   /**
    * Read inside the row's selection callback. A ref rather than a dependency, so
    * changing what is on screen does not rebuild every row's props — the callback needs
@@ -1327,16 +1338,29 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             <p className="dh-tasks-bulk__count">
               Choose tasks to act on them together.
             </p>
+            {/* DEBT-110 — the bound is stated BEFORE the action, not discovered as a
+                refusal after it. It is only reachable by loading more than one page,
+                so it is said only when it actually applies. */}
+            {bound.capped ? (
+              <p className="dh-tasks-bulk__status">
+                {visibleIds.length} tasks are loaded. Bulk actions work on up to{" "}
+                {MAX_PLAN_BATCH_SIZE} at a time, so “Select all” takes the first{" "}
+                {MAX_PLAN_BATCH_SIZE}.
+              </p>
+            ) : null}
             <div className="dh-tasks-bulk__actions">
               <button
                 type="button"
                 className="dh-btn dh-btn--secondary"
                 disabled={visibleIds.length === 0}
                 onClick={() =>
-                  dispatchSelection({ type: "select_visible", visibleIds })
+                  dispatchSelection({
+                    type: "select_visible",
+                    visibleIds: bound.selectableIds,
+                  })
                 }
               >
-                Select all {visibleIds.length}
+                Select all {bound.selectableIds.length}
               </button>
               <button
                 type="button"
@@ -1639,6 +1663,43 @@ function BulkActionBar({
 
   const count = ids.length;
   const noun = count === 1 ? "task" : "tasks";
+
+  /*
+   * DEBT-110 — a selection the server's bound cannot accept says so INSTEAD of
+   * offering actions that are all guaranteed to be refused.
+   *
+   * Only a Shift-range across more than one loaded page can build one: "Select all" is
+   * capped at the bound. Offering a toolbar here would be offering eleven controls
+   * that each end in the same typed validation error, which is exactly the
+   * correct-but-unexplained refusal this entry was raised about.
+   */
+  const overBy = bulkSelectionOverBy(count);
+  if (overBy > 0) {
+    return (
+      <div
+        className="dh-tasks-bulk dh-tasks-bulk--empty"
+        role="group"
+        aria-label="Bulk task actions"
+      >
+        <p className="dh-tasks-bulk__count" aria-live="polite">
+          {count} selected
+        </p>
+        <p className="dh-tasks-bulk__status">
+          Bulk actions work on up to {MAX_PLAN_BATCH_SIZE} tasks at a time, so
+          one change stays fast and atomic. Deselect {overBy} to continue.
+        </p>
+        <div className="dh-tasks-bulk__actions">
+          <button
+            type="button"
+            className="dh-btn dh-btn--secondary"
+            onClick={onCleared}
+          >
+            Clear selection
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (confirmDelete) {
     return (

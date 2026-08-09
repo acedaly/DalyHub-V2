@@ -238,7 +238,7 @@ canonical Drawer. All three surfaces read the one shared display-state evaluator
 
 **Relevant roadmap items.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) ☑ · [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) ☑ · [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐.
 
-**Relevant product-debt items.** [DEBT-16](../product/PRODUCT_DEBT.md#-debt-16--minimal-task-detail-model-richer-workflow-status-deferred--p3) ☑ (closed by TASKS-01) · [DEBT-27](../product/PRODUCT_DEBT.md#-debt-27--task-overdue-urgency-is-signalled-by-colour-alone--p1) ☑ · [DEBT-28](../product/PRODUCT_DEBT.md#-debt-28--task-priority-is-invisible-where-triage-happens-and-status-resolves-three-different-ways--p2) ☑ · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) ☐ · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3--the--half-resolved-2026-08-01) ☐ · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) ☐.
+**Relevant product-debt items.** [DEBT-16](../product/PRODUCT_DEBT.md#-debt-16--minimal-task-detail-model-richer-workflow-status-deferred--p3) ☑ (closed by TASKS-01) · [DEBT-27](../product/PRODUCT_DEBT.md#-debt-27--task-overdue-urgency-is-signalled-by-colour-alone--p1) ☑ · [DEBT-28](../product/PRODUCT_DEBT.md#-debt-28--task-priority-is-invisible-where-triage-happens-and-status-resolves-three-different-ways--p2) ☑ · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) ☑ (closed by TASKS-04) · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3--the--half-resolved-2026-08-01) ◐ · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) ☑.
 
 ## UX-01 usability pass (2026-07-28)
 
@@ -1090,6 +1090,21 @@ to P2. An agreed ABSENCE is a real shared value ("No priority"), not a mixture.
 **Reopen appears only when the selection actually contains completed work**, because a
 control that cannot apply to anything selected is worse than a missing one.
 
+**The bulk bound is stated, not discovered.** Every bulk mutation is validated against
+`MAX_PLAN_BATCH_SIZE` (100) server-side, deliberately: one bulk change is one bounded
+atomic transaction. `/tasks` pages at 50, so two presses of *Load more* put more rows on
+screen than one mutation may touch. The rule that keeps that honest is pure and lives
+beside the reducer (`boundBulkSelection` / `bulkSelectionOverBy`):
+
+- **"Select all" is capped at the bound** and labelled with what it will actually take
+  ("Select all 100"), with a line beside it saying how many are loaded and why the
+  offer stops where it does. It never builds a selection whose every action is
+  guaranteed to be refused.
+- **A selection past the bound** — reachable only by Shift-ranging across more than one
+  loaded page — replaces the toolbar with the bound and the remedy ("Deselect 37 to
+  continue") rather than offering eleven controls that each end in the same typed
+  validation error.
+
 `/tasks/bulk` gained four intents, all on the existing contract — validate the id list
 and the destination, resolve EVERY id, then ONE `D1Database.batch()`:
 
@@ -1311,9 +1326,10 @@ reviewable rather than re-derived:
 - **Ordinal monthly recurrence** ("first Monday of every month") is not expressible —
   [DEBT-109](../product/PRODUCT_DEBT.md). Deferred deliberately; the reasoning is in
   ADR-085 decision 11.
-- **The bulk bound is 100 tasks and no surface says so** —
-  [DEBT-110](../product/PRODUCT_DEBT.md). Not reachable in ordinary use, because
-  "Select all" only ever selects the loaded page.
+- **The bulk bound is 100 tasks, and the surface now says so before the action** —
+  [DEBT-110](../product/PRODUCT_DEBT.md). See *The bulk bound is stated, not
+  discovered* above. What remains open there is the E2E case that accumulates more
+  than one page, not the behaviour.
 - **Series scope applies to the DATE only.** Every other field is "this and future" by
   construction, because the successor is copied from the current occurrence. That is
   the contract, documented above and tested — not an oversight.
@@ -1323,7 +1339,8 @@ reviewable rather than re-derived:
 **Relevant product-debt items.**
 [DEBT-66](../product/PRODUCT_DEBT.md) ☑ (closed by TASKS-07) ·
 [DEBT-109](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-07) ·
-[DEBT-110](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-06) ·
+[DEBT-110](../product/PRODUCT_DEBT.md) ◐ (raised by TASKS-06; the behaviour landed
+2026-08-09, the E2E case is still owed) ·
 [DEBT-56](../product/PRODUCT_DEBT.md) ☐ (unchanged: an axe `label-title-only`
 false positive on one shared SelectField in the Tasks Drawer).
 
