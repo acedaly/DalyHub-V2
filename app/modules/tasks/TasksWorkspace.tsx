@@ -1422,7 +1422,10 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                     {
                       id: "plan-today",
                       label: "Plan for today",
-                      ariaLabel: planTodayAction.ariaLabel,
+                      // No `ariaLabel` naming the task: the MENU is already
+                      // "More actions for <title>", so repeating it on the item
+                      // makes a screen reader say the title twice and makes the
+                      // item's name unmatchable by the words on it.
                       onSelect: planTodayAction.onSelect,
                     },
                   ]
@@ -1926,6 +1929,9 @@ function GroupedBucket({
           it the space and the weight. */}
       <h2 className="dh-tasks-section__label">
         {section.title}
+        {/* An explicit space: without it the heading's accessible name is
+            "Overdue2", because the gap to the count is CSS margin and a screen
+            reader cannot see margin. */}{" "}
         <span className="dh-tasks-section__count">{section.count}</span>
       </h2>
       {section.cards.length > 0 ? (

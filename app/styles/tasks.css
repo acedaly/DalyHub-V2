@@ -1075,11 +1075,25 @@
   min-inline-size: 0;
 }
 
-/* The DUE date is the run's last item and is pinned to the trailing edge, so
- * the dates form a column whatever the Project names in front of them do. */
+/*
+ * The DUE date is the run's last item and is pinned to the trailing edge, so
+ * the dates form a column whatever the Project names in front of them do.
+ *
+ * It gets a floor as well as a position. Without one the column is only as wide
+ * as each row's own words, so a row reading "2 days ago" pushed the Project
+ * mark above it 25px to the left — and a context column that moves is not a
+ * column. A date longer than the floor still grows rather than clipping.
+ */
 .dh-collection--tasks .dh-card__meta[data-field="due"] {
   order: 2;
   margin-inline-start: auto;
+  min-inline-size: 5.5rem;
+}
+
+/* A two-character chip has nothing to give. Left shrinkable it was the item a
+ * crowded run took width from, and "P1" rendered as a clipped capsule. */
+.dh-collection--tasks .dh-card__meta[data-field="priority"] {
+  flex: none;
 }
 
 /*
@@ -1188,6 +1202,11 @@
 .dh-collection--tasks .dh-card__meta[data-field="parent"] {
   order: 1;
   margin-inline-start: auto;
+  /* `flex: none`, or the track is not a track: as a shrinkable item the column
+   * gave its width back to whichever title happened to be longest, so at 1280
+   * "Home" read "Ho…" with 200px of empty row beside it. The title is the part
+   * that gives way — it has an ellipsis and this column is 12rem wide. */
+  flex: none;
   inline-size: 12rem;
   min-inline-size: 0;
   overflow: hidden;
@@ -1256,6 +1275,12 @@
   .dh-collection--tasks .dh-card__meta[data-priority="low"],
   .dh-collection--tasks .dh-card__meta[data-priority="quiet"] {
     display: none;
+  }
+
+  /* The date column's floor goes with it: on a phone the row cannot spare
+   * 88px so that the word "Today" can sit in a column. */
+  .dh-collection--tasks .dh-card__meta[data-field="due"] {
+    min-inline-size: 0;
   }
 
   .dh-task-date {
@@ -1389,8 +1414,18 @@
 
 /* The parent's mark and name are ONE object, and the whole thing truncates
  * before the title does. */
+/*
+ * `flex`, not `inline-flex`, and it fills its track.
+ *
+ * As an inline-flex box it was sized to its CONTENT, so inside a 10rem track it
+ * simply overflowed and the track's `overflow: hidden` cut the Project's name
+ * off mid-word — "Kitchen renov" at 1024px, with no ellipsis, because the
+ * element being clipped was not the one carrying `text-overflow`. Filling the
+ * track makes the name the thing that shrinks, and the ellipsis rules below
+ * then apply to it.
+ */
 .dh-task-parent {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--app-space-2);
   min-inline-size: 0;
@@ -1400,20 +1435,62 @@
   flex: none;
 }
 
-/* The Project's name never wraps: a two-line chip makes one row taller than the
- * rest and breaks the column rhythm the marks and dates depend on. */
-.dh-collection--tasks .dh-card__meta[data-field="parent"] .dh-inline-select,
+/*
+ * The Project's name never wraps, and when it will not fit it ELLIPSISES.
+ *
+ * Every box between the track and the words has to agree, because
+ * `text-overflow` only truncates a block's own inline content — an overflowing
+ * CHILD BOX is hard-clipped instead. The inline editor nests
+ * `.dh-inline-select` → `.dh-inline-edit` → `button.dh-inline-edit__trigger` →
+ * `span.dh-inline-edit__value` → `span.dh-inline-select__value`, and the name
+ * lives in the last of those, so every box above it has to stop being sized to
+ * its own content and fill the track instead. Left content-sized, the editor
+ * reached its natural width, the 12rem track clipped it, and "Kitchen
+ * renovation" read "Kitchen renov" with nothing to mark that it had been cut.
+ *
+ * `inline-size: 100%` matters as much as the ellipsis. With `max-inline-size`
+ * alone the boxes still SHRANK to their content, and the trigger's 8px of
+ * padding then came out of the name: "Home" became "Ho…" inside a column with
+ * 140px to spare.
+ */
+/* The two spans that actually hold the words. `display: block` because
+ * `text-overflow` has no effect on an inline-level box; the caret is an inline
+ * SVG on the same line, so a name too long to fit takes the ellipsis and the
+ * caret with it, which is the honest reading — there is no room for either. */
 .dh-collection--tasks
   .dh-card__meta[data-field="parent"]
-  .dh-inline-select__value,
+  .dh-inline-edit__value,
 .dh-collection--tasks
   .dh-card__meta[data-field="parent"]
-  .dh-inline-select__value
-  > :first-child {
+  .dh-inline-select__value {
+  display: block;
   min-inline-size: 0;
+  max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * …and where the column is a TRACK, the editor fills it.
+ *
+ * Only above 46rem of list, because that is the tier with a fixed 12rem track
+ * to fill; below it the column is `auto` and `inline-size: 100%` against an
+ * auto-width parent is circular — at 1024px it turned 44px rows into 90px ones.
+ * Left content-sized at the wide tier, the boxes shrank to their own words and
+ * the trigger's 8px of padding then came out of the name: "Home" read "Ho…"
+ * inside a column with 140px to spare.
+ */
+@container tasks-list (min-width: 46rem) {
+  .dh-collection--tasks .dh-card__meta[data-field="parent"] .dh-inline-select,
+  .dh-collection--tasks .dh-card__meta[data-field="parent"] .dh-inline-edit,
+  .dh-collection--tasks
+    .dh-card__meta[data-field="parent"]
+    .dh-inline-edit__trigger {
+    inline-size: 100%;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
 }
 
 /*
@@ -1502,11 +1579,40 @@
     display: none;
   }
 
+  /*
+   * The `quiet` tier goes too — the editors for facts that are NOT SET.
+   *
+   * They are invisible until the row is engaged, but they still hold a column,
+   * and in a nowrap run with no room left they are the item that gets crushed:
+   * at 1024px the empty priority editor was squeezed to 8px and its label
+   * wrapped one letter per line, turning a 46px row into a 140px one. The
+   * affordance is not lost — every one of these fields is in the row's own
+   * "Priority, dates and repeat…" panel, which is the only way a touch device
+   * ever reached them.
+   */
+  .dh-collection--tasks .dh-card__meta[data-priority="quiet"] {
+    display: none;
+  }
+
   /* The Project column stops being a fixed track and simply takes what is left
    * after the title's floor and the date. */
   .dh-collection--tasks .dh-card__meta[data-field="parent"] {
     inline-size: auto;
     max-inline-size: 10rem;
+  }
+
+  /*
+   * A task row is ONE line at this width too.
+   *
+   * The shared list card wraps its parts when they no longer fit, which is
+   * right for a two-line record card and wrong here: at 1024px a row with a
+   * long Project name wrapped and rendered 90px tall next to 46px neighbours.
+   * The row already has three things that give way in order — the `low` tier,
+   * the status pill, then the title's ellipsis — so wrapping is never the
+   * answer it needs.
+   */
+  .dh-collection--tasks .dh-card-collection--list .dh-card {
+    flex-wrap: nowrap;
   }
 
   /* …and the title's floor comes down with the width it has to live in. */
@@ -1546,8 +1652,28 @@
    * quick-edit panel), which is the path a touch device has always used because
    * it has no hover, and all three are on the Task record a tap away.
    */
-  .dh-collection--tasks .dh-card__title {
+  /*
+   * Matched to the 46rem rule's selector on purpose. Both container queries are
+   * true in a phone-narrow list and the wider one is written later in this
+   * file, so a shorter selector here silently lost: the title kept an 8rem
+   * floor at 320px, the row could not fit title + date + overflow, and the date
+   * ran over the overflow button.
+   */
+  .dh-collection--tasks .dh-card-collection--list .dh-card__title {
     min-inline-size: 6ch;
+  }
+
+  /*
+   * …and the TITLE is the only part of the row allowed to give way.
+   *
+   * The date is `white-space: nowrap`, so squeezing its box does not truncate
+   * it, it spills — at 320px "11 days ago" ran straight over the row's own
+   * overflow button. Pinning the trailing run to its content width makes the
+   * title absorb the shrink instead, which is the right answer anyway: a title
+   * has an ellipsis and a date does not.
+   */
+  .dh-collection--tasks .dh-card-collection--list .dh-card__support {
+    flex: none;
   }
 
   .dh-collection--tasks .dh-card__metadata {
@@ -1608,17 +1734,52 @@
     align-items: center;
   }
 
-  .dh-collection--tasks .dh-collection__sticky > .dh-pane-header {
-    flex: 1 0 100%;
+  /*
+   * TWO bands on a phone, and the rail owns the second one outright.
+   *
+   * The first draft of this composition shared one row between the rail and the
+   * "Filter & sort" control. The rail is a scroll port, so what that produced at
+   * 390px was the CURRENT tab sliced in half against the button beside it —
+   * "All a…" — which is the one tab a phone owner needs to be able to read. Two
+   * scrolling things side by side is also simply hard to aim at.
+   *
+   * So: row one is the count, the overflow menu and "Filter & sort"; row two is
+   * the rail, edge to edge, scrolling against the screen's own edge, which is
+   * the only edge a horizontal rail should ever be cut by. `order` does the
+   * arrangement because the DOM order (header, rail, controls) belongs to the
+   * desktop composition and is correct there.
+   */
+  /*
+   * `.dh-collection--persistent-controls` is compounded onto these three
+   * selectors deliberately, and it is not decoration.
+   *
+   * `min-width: 48rem` and `max-width: 48rem` are BOTH true at exactly 768px —
+   * a boundary this file, `collection-layout.css` and the shell all share — so
+   * at that one width the desktop control row and the phone one are applied
+   * together. The desktop rules above are written as
+   * `.dh-collection--tasks.dh-collection--persistent-controls …`, which outranks
+   * a two-class phone selector, and the result at 768px was the header crushed
+   * to 50px with "Filter & sort" sitting on top of the count. Matching their
+   * specificity lets source order decide, and this block is the later one.
+   */
+  .dh-collection--tasks.dh-collection--persistent-controls
+    .dh-collection__sticky
+    > .dh-pane-header {
+    order: 1;
+    /* `flex-basis: 0`, and `inline-size: auto` to undo the shared header's own
+     * `inline-size: 100%` — with either left in place the header claims the
+     * whole row and pushes "Filter & sort" onto one of its own. */
+    flex: 1 1 0;
+    inline-size: auto;
+    min-inline-size: 0;
   }
 
-  /* `flex-basis: 0`, so the rail SHRINKS beside the filter control instead of
-   * asking for its full content width and wrapping it onto a second band. The
-   * rail scrolls sideways inside whatever it gets. */
-  .dh-collection--tasks .dh-collection__filters {
-    flex: 1 1 0;
+  .dh-collection--tasks.dh-collection--persistent-controls
+    .dh-collection__filters {
+    order: 3;
+    flex: 1 0 100%;
     min-inline-size: 0;
-    padding-inline-end: var(--app-space-2);
+    padding-inline-end: var(--app-page-padding);
   }
 
   /* The pane header is ONE line on a phone: the count, and the overflow. The
@@ -1626,6 +1787,7 @@
    * `PaneHeader`), which is why this band would otherwise be a tall box holding
    * a count and a menu button on separate rows. */
   .dh-collection--tasks .dh-pane-header.dh-pane-header--compact {
+    display: flex;
     flex-wrap: nowrap;
     align-items: center;
     padding-block: var(--app-space-2);
@@ -1656,30 +1818,36 @@
   }
 
   /*
-   * The shared control band shares the rail's row — until it has CHIPS.
+   * The shared control band rides the HEADER's row — until it has CHIPS.
    *
    * `min-inline-size: 0` is what lets it shrink below its content: a flex item
    * with `flex-basis: auto` is sized to max-content, and with a row of applied
    * filter chips inside it that was 772px of band on a 320px screen — 452px of
    * horizontal document overflow on the one surface that must never have any.
-   * When the chips ARE present the band takes a row of its own, because a
-   * wrapping list of removable filters is not a trailing control.
+   * When the chips ARE present the band takes a row of its own BELOW the rail,
+   * because a wrapping list of removable filters is not a trailing control —
+   * and because it describes the list, so it belongs against it.
    */
-  .dh-collection--tasks .dh-collection__mobile-controls {
+  .dh-collection--tasks.dh-collection--persistent-controls
+    .dh-collection__mobile-controls {
+    order: 2;
     flex: 0 1 auto;
     min-inline-size: 0;
+    padding-block: var(--app-space-2);
     padding-inline-start: 0;
     padding-inline-end: var(--app-page-padding);
     border-bottom: 0;
   }
 
-  .dh-collection--tasks .dh-collection__mobile-controls:has(.dh-filter-chips) {
+  .dh-collection--tasks.dh-collection--persistent-controls
+    .dh-collection__mobile-controls:has(.dh-filter-chips) {
+    order: 4;
     flex: 1 0 100%;
     padding-inline: var(--app-page-padding);
   }
 
-  /* The rail is the thing that scrolls, so it must clip INSIDE its own band and
-   * never run under the filter control beside it. */
+  /* The rail is the thing that scrolls, and it is the whole band, so it clips
+   * against the screen's own edge and nothing else. */
   .dh-collection--tasks .dh-tasks-views {
     min-inline-size: 0;
     flex-wrap: nowrap;
@@ -1691,9 +1859,19 @@
     display: none;
   }
 
-  /* The rail no longer scrolls on its own — it scrolls with the trigger and the
-   * manage menu beside it, as one rail. */
+  /*
+   * The rail no longer scrolls on its own — it scrolls with the trigger and the
+   * manage menu beside it, as one rail.
+   *
+   * `flex: none` is load-bearing, not tidiness. Inside a scroll container a
+   * shrinkable rail is sized to the space LEFT after the trigger (110px at
+   * 390px), and because it no longer clips, its 404px of pills then paint
+   * straight over the trigger — axe reported the trigger as "partially
+   * obscured", and a tap near the middle of it landed on a pill. Refusing to
+   * shrink is what makes the pills part of the scrollable run instead.
+   */
   .dh-collection--tasks .dh-tasks-views__rail {
     overflow: visible;
+    flex: none;
   }
 }

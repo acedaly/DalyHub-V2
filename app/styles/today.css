@@ -314,6 +314,15 @@
  * drawing out of this file so the second consumer could not fork it.
  */
 
+/*
+ * UIX-01 — ONE line, and an ellipsis rather than a wrap.
+ *
+ * A rail of rows is read down its left edge, and a list whose rows are 44px,
+ * 44px, 66px, 44px cannot be read that way — the eye stops at every tall one.
+ * The reference draws each focus row as a single line, and the Tasks collection
+ * already decided the same thing for the same reason. The whole title is still
+ * on the record, in the row's `title` attribute and in the Drawer a tap away.
+ */
 .dh-day-row__title {
   flex: 1 1 auto;
   min-inline-size: 0;
@@ -322,7 +331,9 @@
   line-height: var(--md-sys-typescale-body-medium-line-height);
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
   text-decoration: none;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dh-day-row__title:hover {
@@ -634,13 +645,21 @@
     letter-spacing: var(--md-sys-typescale-headline-small-tracking);
   }
 
-  /* A trailing fact stops competing for the row and drops below the title. */
+  /*
+   * The trailing fact stays ON the row.
+   *
+   * It used to wrap below the title, which cost a phone ~22px per row over a
+   * list of eight and gave the rail the ragged rhythm the one-line rule above
+   * exists to prevent. It is a short project name against an ellipsised title,
+   * so the title is the part that gives way — and it is capped so it can never
+   * take more than a third of the line.
+   */
   .dh-day-row {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .dh-day-row__meta {
-    max-inline-size: 100%;
+    max-inline-size: 33%;
   }
 }
 

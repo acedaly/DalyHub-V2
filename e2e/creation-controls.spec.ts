@@ -48,7 +48,13 @@ test.describe("the global capture control", () => {
       await gotoFixture(page, path);
       const fab = captureControl(page);
       await expect(fab).toBeVisible();
-      await expect(fab).toHaveAccessibleName(/capture/i);
+      // UIX-01 — the control is named "New", not "Capture". The word changed
+      // with the button: a violet action at the top of the frame, beside
+      // search and the account menu, is a Create — which is also what the
+      // redesign reference calls it. The phone bar's slot keeps "Capture",
+      // because there the label sits under a glyph in a navigation bar and
+      // "New" beside "Today"/"Tasks"/"Diary" would read as a destination.
+      await expect(fab).toHaveAccessibleName(/^New$/);
       await expectMinTouchTarget(fab);
     }
   });
@@ -144,24 +150,52 @@ test.describe("removed duplicates — the page header no longer repeats capture"
     // assertion is that nothing capture-shaped survives on the page rather than
     // that the widget the button used to focus is still there.
     await expect(page.getByTestId("today-capture-task")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Capture" })).toBeVisible();
+    // …and the ONE global control is still on the page (UIX-01: named "New",
+    // in the top app bar, where the reference and the rest of the utilities
+    // are — see the note on its accessible name above).
+    await expect(captureControl(page)).toBeVisible();
   });
 
-  test("Tasks has no header New task, and keeps Review Inbox", async ({
+  /*
+   * UIX-01 REVERSED half of this one, and the reversal is on the record.
+   *
+   * The header's "New task" was removed because it opened the GENERIC capture
+   * chooser — "what are you capturing?", on a page whose answer is never in
+   * doubt — which is the definition of a second door onto the same room. The
+   * one here opens the shared capture surface already ON its Task panel, which
+   * is a different control: one tap to a focused title field, on the page whose
+   * entire subject is tasks. It is the reference design's most prominent
+   * control and it was the honest gap.
+   *
+   * The rule this file encodes is unchanged, and the test still asserts it in
+   * both directions: exactly ONE create in the header, and it must reach the
+   * Task panel rather than the chooser.
+   */
+  test("Tasks has ONE header create, and it opens the Task panel", async ({
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    await expect(
-      paneHeader(page).getByRole("button", { name: /New task/ }),
-    ).toHaveCount(0);
+    const create = paneHeader(page).getByRole("button", { name: /New task/ });
+    await expect(create).toHaveCount(1);
     await expect(
       paneHeader(page).getByRole("link", { name: /New task/ }),
     ).toHaveCount(0);
+    await create.click();
+    const sheet = page.getByTestId("capture-sheet");
+    await expect(sheet).toBeVisible();
+    // Straight onto Task — never the chooser.
+    await expect(sheet.getByTestId("capture-choose-task")).toHaveCount(0);
+    await expect(sheet.getByLabel("Title")).toBeFocused();
+    await page.keyboard.press("Escape");
+
     // Review Inbox is not a creation control — it is the way into triage, and
-    // nothing in the capture menu does it.
+    // nothing in the capture menu does it. UIX-01 moved it into the header's
+    // shared overflow menu with the rest of the page's long tail.
+    await page.getByTestId("tasks-overflow").click();
     await expect(
-      paneHeader(page).getByRole("link", { name: "Review Inbox" }),
+      page.getByRole("menuitem", { name: "Review Inbox" }),
     ).toBeVisible();
+    await page.keyboard.press("Escape");
     // The header did not collapse or leave a gap behind it.
     await expect(
       paneHeader(page).getByRole("heading", { name: "Tasks" }),

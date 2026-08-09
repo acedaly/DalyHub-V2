@@ -282,10 +282,38 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       ? { config: selectedConfig, viewId: selectedId }
       : resolveFallbackConfig(defaultViewId, defaultPresentation, saved);
 
+  /*
+   * A URL that NAMES a built-in view's scope inherits THAT view.
+   *
+   * UIX-01 gave three built-ins a `due_state` grouping, which made the choice of
+   * fallback visible for the first time: `?system=waiting` used to be
+   * indistinguishable from the Waiting built-in, and with the fallback carrying
+   * All active's grouping it silently became "Waiting, grouped by due state" —
+   * a configuration that matches no view, reports itself as "Custom", and
+   * cannot be made the owner's default.
+   *
+   * So a `system` parameter that identifies exactly one unfiltered built-in
+   * resolves against that view's configuration; everything else still falls
+   * back to the selected view, the owner's default, or the standard workspace.
+   * A URL naming a scope means "this view", which is what a shared link is.
+   */
+  const namedSystem = url.searchParams.get(TASKS_PARAMS.systemView);
+  const namedView =
+    namedSystem === null
+      ? undefined
+      : TASK_SYSTEM_VIEW_DEFINITIONS.find(
+          (view) =>
+            view.config.systemView === namedSystem &&
+            Object.keys(view.config.filters).length === 0,
+        );
+
   // An explicit URL parameter ALWAYS wins over the selected view and over the
   // owner's default, so a deep link, a shared URL and Back/Forward stay
   // authoritative — a preference never overrides an address the user is looking at.
-  const config = configFromParams(url.searchParams, fallback.config);
+  const config = configFromParams(
+    url.searchParams,
+    namedView?.config ?? fallback.config,
+  );
   // When nothing is explicitly selected, recognise a configuration that MATCHES a
   // view and name it — a bare `/tasks` is the standard workspace, not a "Custom"
   // one, and the switcher should say what you are LOOKING AT rather than merely

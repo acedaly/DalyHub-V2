@@ -109,9 +109,16 @@ language built on MD3 foundations.**
 ### Today
 
 - The glance row is four **washed tonal cards** — violet tasks, blue meetings,
-  coral overdue, green progress — each with a tonal tile beside its label. The
-  ring moved into its own column, so a card with one is no taller than a card
-  without: ~137px became ~114px.
+  coral overdue, green progress — each led by a tonal tile in a column of its
+  own, with the label, the figure and the supporting line stacked beside it.
+  That is the reference's arrangement, and it puts the label and the figure on
+  one left edge. The ring has its own trailing column and is centred across
+  every row, so a card with one is no taller than a card without: ~137px became
+  ~96px.
+- On a phone the cards are two to a row, so the tile steps down to the compact
+  size, the label may take a second line rather than an ellipsis, and the
+  progress ring — the one redundant thing on the row, drawing what the figure
+  beside it already states — is not drawn.
 - The body is **three balanced regions** (Focus · Schedule · Needs attention)
   instead of one column and a 21rem rail, with **Goal progress across the full
   width** beneath them.
@@ -119,6 +126,9 @@ language built on MD3 foundations.**
   with a leading mark.
 - Rail rows lead with a tonal tile (attention) or the project's own persisted
   `AccentIcon` (Continue working); the per-project completion bar is gone.
+- Every row in every one of those lists is **one line** — the title takes an
+  ellipsis and the trailing fact stays beside it, at every width. A rail read
+  down its left edge cannot have rows of three different heights.
 - Overdue work on Today lost its tinted panel and kept its leading rule.
 
 ### Tasks
@@ -134,12 +144,22 @@ language built on MD3 foundations.**
 - The row: leading completion circle · dominant title · Project mark and name ·
   right-aligned relative date. One line, ~45px, no permanent action buttons, no
   urgency chip, no routine status pill, no priority capsule.
+- The Project and the date each have a **fixed track**, so both columns start at
+  the same x on every row whatever the words in them are.
+- The Project name **fills its track and ellipsises**, at every width. It used
+  to be hard-clipped mid-word with no ellipsis — "Kitchen renov" — because the
+  `text-overflow` was declared on ancestors of the span that actually holds the
+  words, and because the editor inside the track was sized to its own content
+  rather than to the track. Both are fixed, and every row in the list is 45px at
+  320, 375, 390, 430, 767, 768, 769, 1024, 1280, 1440 and 1920.
 - Dates read **Yesterday / Today / Tomorrow / Thu, 12 Jun**, and take the state
   colour when they have slipped.
 - The bulk-selection checkbox appears in selection **mode**.
 - Quick add is a borderless list row with a leading `+`.
-- On a phone: pill tabs, one band of chrome, and rows reduced to circle · title ·
-  date.
+- On a phone: **two bands** — the count, the overflow menu and "Filter & sort"
+  on one line, then the pill tab rail edge to edge on its own, scrolling against
+  the screen's edge rather than against the button beside it — and rows reduced
+  to circle · title · date.
 
 ### The phone capture sheet
 
@@ -164,6 +184,9 @@ glyph on its tile, is asserted in `contrast.test.ts` in both appearances.
 | A **notification bell** in the top bar | Nothing | DalyHub has no notification system. A bell that never rings is a decorative control (this is the clearest case in the pass where the product's truth has to win over the picture) |
 | **Focus time** and an **events/calendar engine** on Today | Meetings, which DalyHub actually has | The product has no focus-time tracking and no calendar integration. The composition adapts; the data is not invented |
 | A **Favorites** group and an **Inbox count** in the sidebar | Neither | There is no favourites feature, and Inbox is a Tasks view rather than a navigation destination. Adding either is an information-architecture change, not a visual one |
+| A **leading icon on each new-task sheet row** | The row's value and its field name, no glyph | The rows are the shared `SelectField`, which renders through three paths (combobox, phone option sheet, responsive). A decorative leading slot would have to be threaded through all three and would then exist on every form in the product for the sake of three rows. The sheet's structure, header and value-first reading all match the reference; the glyph is the part that costs a shared component an API |
+| An **icon on every view tab** | Text tabs with a 2px indicator | A built-in view is a name, a purpose and a config (`task-system-views.ts`) — it has no icon, and giving it one is a kernel change made for decoration. Five glyphs would also be the loudest thing on the calmest band of the screen |
+| A Project **pill** on every task row | A small Project mark and the name, unfilled | The brief asks for project identity that is *subtle*. A filled chip on every row of a 90-row list is the second-loudest object on the screen after the title; the mark carries the same recognition at a fraction of the ink |
 | Group headings **inside** one card | Headings on the canvas, one card per group | Equally clean, and it lets a group's own "View all N" link belong to the group |
 | A **TOMORROW** band | `TODAY`, `THIS WEEK`, `LATER` | These are the kernel's own due-state buckets. Inventing a fourth band would be a data-model change made for a heading |
 | Task rows ~31px | ~45px | 44px is the WCAG 2.2 target floor and the completion control is the row's leading control. The brief is explicit that a control must not be shrunk to match the picture |

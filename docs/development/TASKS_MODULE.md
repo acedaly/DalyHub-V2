@@ -1621,6 +1621,14 @@ future surface driving them needs to know which:
 
 A row is one line: completion circle · title · Project mark and name · due date.
 
+The Project and the date each have a **fixed track**, so both columns start at
+the same x on every row whatever the words in them are — without one, a row
+reading "2 days ago" pushed the Project mark above it 25px to the left, and a
+context column that moves is not a column. Below ~26rem of LIST the tracks go
+and the trailing run is pinned to its content width instead, so the title is the
+only part that gives way: the date is `nowrap`, so squeezing its box does not
+truncate it, it runs over the row's overflow button.
+
 Four things stopped being drawn on every row, and each is the same fact stated
 somewhere else on the same row:
 
@@ -1638,6 +1646,25 @@ somewhere else on the same row:
 Three editors follow the absence rule and are revealed on hover or focus (and
 are always visible on touch, which has no hover): priority with no priority, a
 due date with no due date, a parent with no parent.
+
+### The phone composition
+
+Two bands of chrome above the list, not four:
+
+1. the task count, the header's overflow menu, and "Filter & sort";
+2. the view rail, edge to edge, as pill tabs that scroll sideways.
+
+The rail owns its band outright. It shared one with "Filter & sort" first, and
+because a scroll port clips at its own edge that sliced the CURRENT tab in half
+against the button beside it ("All a…") — the one tab a phone owner must be able
+to read. Inside the scroller the rail is also `flex: none`: a shrinkable rail is
+sized to what is LEFT after the other-views trigger, stops clipping, and paints
+its pills straight over that trigger, which axe reports as an obscured target
+and a thumb finds as a mis-tap.
+
+When filters ARE applied the control band takes a full row of its own BELOW the
+rail, because a wrapping list of removable chips is not a trailing control — and
+because it describes the list, so it belongs against it.
 
 ### Evidence
 

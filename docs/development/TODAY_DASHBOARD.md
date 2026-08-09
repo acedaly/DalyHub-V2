@@ -428,9 +428,18 @@ may and may not carry, the honesty rules about zeros and fabricated metrics —
 and no loader, no route and no measurement changed. The composition did.
 
 - **The glance row** is the same `dayChips` model, drawn as four washed tonal
-  cards with a leading tile: violet tasks, blue meetings, coral overdue, green
-  daily progress. The conditional rules are untouched — a zero never paints, and
-  progress appears only once something is done.
+  cards, each led by a tile in a column of its own — violet tasks, blue
+  meetings, coral overdue, green daily progress — with the label, the figure and
+  the supporting line stacked beside it. The conditional rules are untouched — a
+  zero never paints, and progress appears only once something is done. On a
+  phone, where the cards are two to a row, the tile steps down to the compact
+  size, the label may wrap rather than truncate, and the progress RING is not
+  drawn: it is the one part of the card that repeats what the figure beside it
+  already states.
+- **Every row is one line.** Focus, Schedule, Needs attention and Continue
+  working all take an ellipsis on the title rather than wrapping, and keep the
+  trailing fact on the row at every width. A list read down its left edge cannot
+  have rows of three different heights.
 - **The body is three regions** — Focus · Schedule · Needs attention — where it
   was one column and a 21rem rail. `data-columns` on the body states how many
   actually rendered, so a day with no meetings is two regions rather than three

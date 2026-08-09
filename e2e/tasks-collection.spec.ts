@@ -126,6 +126,10 @@ test.describe("TASKS-03 — the primary workspace", () => {
         .getByRole("menuitem", { name: `${label} layout`, exact: true })
         .click();
       await expect(page.locator(marker).first()).toBeVisible();
+      // The presentation change revalidates the loader; the NEXT iteration
+      // opens the same menu, and a click dispatched into a re-rendering header
+      // is silently dropped.
+      await page.waitForLoadState("networkidle");
     }
     await expect(page).toHaveURL(/view=list|\/tasks$/);
   });
@@ -735,14 +739,20 @@ test.describe("TASKS-03 — phone", () => {
       // chips that explains the short list.
       await expectMinTouchTarget(page.getByTestId("collection-filter-trigger"));
       await expectMinTouchTarget(page.getByTestId("collection-reset-filters"));
-      // And a row's own quick edits: complete, plan today, and the overflow.
+      // And a row's own quick edits: complete and the overflow.
       const row = page.getByRole("article").first();
-      await expectMinTouchTarget(
-        row.getByRole("checkbox", { name: /^Complete / }),
-      );
-      await expectMinTouchTarget(
-        row.getByRole("button", { name: / for today$/ }),
-      );
+      /*
+       * UIX-01 — the 20px circle sits inside a 44px LABEL, which is the thing a
+       * thumb aims at. The reference draws a small circle and WCAG 2.2 (2.5.8)
+       * sizes the target, not the ink, so the label is what must measure up.
+       */
+      await expectMinTouchTarget(row.locator("label.dh-check-circle-target"));
+      /*
+       * "Plan for today" is no longer a permanent button on the row — UIX-01
+       * removed the standing action rail so the row is one scannable line. The
+       * action lives in the row's overflow menu and in the touch swipe tray
+       * (recorded in TASKS_MODULE.md), both of which are exercised elsewhere.
+       */
       await expectMinTouchTarget(
         row.getByRole("button", { name: /^More actions/ }),
       );

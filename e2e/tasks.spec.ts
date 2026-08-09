@@ -66,16 +66,18 @@ test.describe("TASKS-01 — desktop", () => {
      * UIX-01 — those words are now the DATE ITSELF ("9718 days ago"), and the
      * separate "Overdue" chip beside it is gone. The rule DEBT-28 records is
      * intact and is what this asserts: the row does not rely on the colour, it
-     * states the slip in language. The group heading above it says "OVERDUE"
-     * as well.
+     * states the slip in language.
+     *
+     * There is deliberately no "Overdue" band to look for here: the Overdue
+     * view is one due state, so UIX-01 left it FLAT while grouping All active,
+     * Inbox and Upcoming by due state. A single group under a heading repeating
+     * the view's own name is chrome, not structure.
      */
     const overdueCard = page.getByRole("article", {
       name: "Open Review the overdue signal",
     });
     await expect(overdueCard.getByText(/days ago/)).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Overdue" }).first(),
-    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Overdue" })).toHaveCount(0);
 
     // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
     // is no longer an absent/colour-free grey chip (DEBT-27).

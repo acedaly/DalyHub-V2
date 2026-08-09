@@ -9,14 +9,15 @@
  * Anatomy (UIX-01):
  *
  *     ┌─────────────────────────┐
- *     │ ▧  Tasks due today      │  a tonal tile BESIDE the label
- *     │ 6                    ◯  │  the figure, and an optional ring
- *     │ 2 overdue               │  ONE supporting line
+ *     │     Tasks due today     │  a tonal tile in its OWN leading column,
+ *     │ ▧   6                ◯  │  centred against the text block; the figure,
+ *     │     2 overdue           │  ONE supporting line, and an optional ring
  *     └─────────────────────────┘
  *
- * The tile shares the label's line rather than taking one of its own, which is
- * how the reference draws it and what keeps a four-card row about 90px tall
- * instead of 130 — the difference between a glance and a dashboard.
+ * Tile left, text right — which is how the reference draws it, and what puts
+ * the label and the figure on one left edge instead of stepping the figure back
+ * under the tile. The card stays about 112px tall in a four-card row: a glance,
+ * not a dashboard.
  *
  * ── UIX-01: the tone and the tile ────────────────────────────────────────────
  *
@@ -106,12 +107,14 @@ export function StatCard({
 }: StatCardProps) {
   const body = (
     <>
+      {/* A direct child of the card's grid, like the ring: its own column,
+       * centred across every row the card happens to have. */}
+      {icon ? (
+        <ToneIcon tone={accent} className="dh-stat__icon">
+          {icon}
+        </ToneIcon>
+      ) : null}
       <span className="dh-stat__head">
-        {icon ? (
-          <ToneIcon tone={accent} size="sm" className="dh-stat__icon">
-            {icon}
-          </ToneIcon>
-        ) : null}
         <span className="dh-stat__label">{label}</span>
       </span>
       <span className="dh-stat__figure">

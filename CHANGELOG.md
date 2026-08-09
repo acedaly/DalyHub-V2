@@ -57,6 +57,11 @@ screen.
 Ticking a task off is the circle at the start of the row. Everything else a row
 can do is still there, in its **…** menu.
 
+On a phone there are now two rows of controls above the list instead of four:
+the count and **Filter & sort**, then the view tabs across the full width. The
+Project and the date line up in columns, so you can run your eye down either
+one.
+
 ### Selecting several tasks is something you turn on
 
 Rows no longer carry a permanent checkbox. Choose **Select tasks** from the
@@ -134,6 +139,7 @@ mixed back toward the card — a palette instead of a rainbow.
 
 The bottom navigation is 60px instead of 80, with smaller glyphs, smaller labels and
 a compact selected state. Every destination is still the full height of the bar to tap.
+
 ## The Tasks list stops making you wait (TASKS-09)
 
 Ticking a task off used to take four round trips to the server before anything on
