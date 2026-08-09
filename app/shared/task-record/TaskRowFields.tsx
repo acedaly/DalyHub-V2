@@ -18,6 +18,12 @@
  * Every save posts to a canonical route through `task-inline-edit.ts` and reports the
  * SERVER's answer. A refusal keeps the previous value with the server's message beside
  * it; the caller revalidates on success. There is no list-only mutation here.
+ *
+ * TASKS-09 widened what a save REPORTS, not what it does. `onSaved` now carries the
+ * announcement, the canonical intent that produced it, and the {@link TaskListItemPatch}
+ * describing the change, so a host can paint the accepted value immediately and decide
+ * — from the intent — whether the list needs re-reading at all (ADR-086). It still
+ * fires only after the server has said yes.
  */
 
 import { useCallback } from "react";
@@ -34,7 +40,7 @@ import {
   taskPriorityLabel,
   taskRecurrenceLabel,
 } from "./task-view";
-import type { SerializedTaskListItem } from "./task-view";
+import type { SerializedTaskListItem, TaskListItemPatch } from "./task-view";
 
 /**
  * The REAL priority values only. The unset state is the shell's quiet empty label and
@@ -46,10 +52,25 @@ const PRIORITY_OPTIONS = TASK_PRIORITIES.map((priority) => ({
   label: taskPriorityLabel(priority),
 }));
 
+/**
+ * What an accepted inline row edit reports back. Everything in it is a FACT about a
+ * write the server has already accepted: the sentence to announce, the canonical
+ * intent that carried it, and the change itself.
+ */
+export interface TaskRowFieldSave {
+  readonly taskId: string;
+  /** The announcement, in the same past tense every other row mutation uses. */
+  readonly message: string;
+  /** The canonical intent posted — `set_priority`, `set_due`, `plan`, … */
+  readonly intent: string;
+  /** The accepted change, for a host that paints it without waiting for a re-read. */
+  readonly patch: TaskListItemPatch;
+}
+
 export interface TaskRowFieldProps {
   readonly taskId: string;
-  /** Called after the SERVER accepted the change, so the host can revalidate. */
-  readonly onSaved?: (message: string) => void;
+  /** Called after the SERVER accepted the change. Never called for a refusal. */
+  readonly onSaved?: (save: TaskRowFieldSave) => void;
   /** The task's title, used in the announcement so a row change is identifiable. */
   readonly title: string;
   readonly disabled?: boolean;
@@ -70,11 +91,17 @@ export function InlineTaskPriority({
         priority: next,
       });
       if (outcome.ok) {
-        onSaved?.(
-          next.length === 0
-            ? `Cleared the priority on ${title}.`
-            : `${title} set to ${taskPriorityLabel(next as TaskPriority)}.`,
-        );
+        onSaved?.({
+          taskId,
+          intent: "set_priority",
+          message:
+            next.length === 0
+              ? `Cleared the priority on ${title}.`
+              : `${title} set to ${taskPriorityLabel(next as TaskPriority)}.`,
+          patch: {
+            priority: next.length === 0 ? null : (next as TaskPriority),
+          },
+        });
       }
       return outcome;
     },
@@ -135,13 +162,18 @@ export function InlineTaskDate({
                 scheduledDate: next,
               });
       if (outcome.ok) {
-        onSaved?.(
-          next === null
-            ? `Cleared the ${kind === "due" ? "due" : "planned"} date on ${title}.`
-            : kind === "due"
-              ? `${title} is due ${formatCalendarDate(next) ?? next}.`
-              : `Planned ${title} for ${formatCalendarDate(next) ?? next}.`,
-        );
+        onSaved?.({
+          taskId,
+          intent:
+            kind === "due" ? "set_due" : next === null ? "clear_plan" : "plan",
+          message:
+            next === null
+              ? `Cleared the ${kind === "due" ? "due" : "planned"} date on ${title}.`
+              : kind === "due"
+                ? `${title} is due ${formatCalendarDate(next) ?? next}.`
+                : `Planned ${title} for ${formatCalendarDate(next) ?? next}.`,
+          patch: kind === "due" ? { dueDate: next } : { scheduledDate: next },
+        });
       }
       return outcome;
     },
@@ -207,7 +239,14 @@ export function InlineTaskParent({
           { intent: "set_parent", parentId: "", parentKind: "" },
           { field: "parentId" },
         );
-        if (outcome.ok) onSaved?.(`${title} moved to Inbox.`);
+        if (outcome.ok) {
+          onSaved?.({
+            taskId,
+            intent: "set_parent",
+            message: `${title} moved to Inbox.`,
+            patch: { parent: null },
+          });
+        }
         return outcome;
       }
       const chosen = options.find((option) => option.id === next);
@@ -222,7 +261,20 @@ export function InlineTaskParent({
         { intent: "set_parent", parentId: next, parentKind: chosen.kind },
         { field: "parentId" },
       );
-      if (outcome.ok) onSaved?.(`${title} filed under ${chosen.title}.`);
+      if (outcome.ok) {
+        onSaved?.({
+          taskId,
+          intent: "set_parent",
+          message: `${title} filed under ${chosen.title}.`,
+          patch: {
+            parent: {
+              kind: chosen.kind,
+              id: chosen.id,
+              title: chosen.title,
+            },
+          },
+        });
+      }
       return outcome;
     },
     [onSaved, options, taskId, title],

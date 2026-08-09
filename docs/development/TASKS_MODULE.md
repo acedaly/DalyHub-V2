@@ -1439,3 +1439,126 @@ loaded `/tasks` route chunk, the shared task-record chunk and token-only CSS. No
 was added to the app shell. (The shared `useCardLongPress` hook does reach the Card,
 which the shell does load — its cost is a media-query listener and a timer, and it is
 inert unless a consumer supplies `onLongPress`.)
+
+---
+
+## The latency contract (V2.2) — TASKS-09
+
+The V2.2 items above made Tasks correct and direct. This one is why it stops feeling
+slow while it is. The decision is
+[ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement),
+and it revises exactly one sentence of ADR-085 §3 for the list surface.
+
+### The rule, in one line
+
+> **Presentation may lead the server. Announcements, Activity and any claim of
+> success may not.**
+
+The old rule — *"the loader is revalidated after each change so a row reflects the
+server rather than an optimistic guess"* — conflated two questions and paid the
+expensive answer for both. What the client SHOWS while a write is in flight, and what
+the client CLAIMS happened, are different things; only the second needs the server.
+
+### What did NOT change
+
+Every write still goes where it went. Completion posts `intent=complete`/`reopen` to
+`POST /tasks/:taskId`; field changes go to `/tasks/bulk` with a single id; creation to
+`/tasks/new`; saved views to `/tasks/views`. There is no list-only mutation path, no
+new endpoint, and no client-side task cache. Validation, workspace scoping, atomicity
+and Activity are exactly where they were.
+
+### The patch, and why it patches the record
+
+`TaskListItemPatch` (`~/shared/task-record/task-view.ts`) is a narrow partial of
+`SerializedTaskListItem` — the fields a row can actually change. `task-optimistic.ts`
+holds a map of them keyed by task id and applies them to the loader's own records
+**before** `toTaskCardData` runs.
+
+That ordering is the whole design. The strike-through, the state pill, its tone and
+the urgency chip are all re-derived by the same pure functions that read the server's
+answer, so there is no display value an optimistic row can have and a reconciled one
+cannot, and no second derivation to keep in step.
+
+A patch is dropped when fresh loader data arrives, and reverted the instant a write is
+refused. **A server grouping's per-bucket count is never patched** — a count is the
+server's claim about records the client has never seen.
+
+### The revalidation predicate
+
+`task-revalidation.ts` answers one question from the `TaskViewConfig` alone: *could
+this change move the row out of — or reorder it inside — the configuration on screen?*
+
+| Where the sensitivity comes from | Mirrors |
+|---|---|
+| System view membership | `D1TaskRepository#appendViewClause` |
+| Filters | `toWorkspaceFilters` |
+| Grouping | `groupDimensionFor` |
+| Sort | `D1TaskRepository#workspaceSortSpec` |
+
+`TASK_MUTATION_EFFECTS` maps each canonical intent to what it changes, so a new row
+mutation declares its effects in one place. Three deliberate asymmetries:
+
+- **a delete, a restore and every recurrence-series operation always revalidate**,
+  because their consequences reach records the client has never seen;
+- **an unrecognised intent always revalidates.** Guessing "nothing moved" about a
+  write nobody has described is the one wrong direction to guess in;
+- **an `updated` sort or an `updatedWithin` filter makes everything revalidate**,
+  because every write moves `entities.updated_at`.
+
+A priority change on an unsorted, unfiltered list now revalidates nothing. A
+completion under a filter that excludes completed work still does, and
+`e2e/tasks-optimistic.spec.ts` asserts the row leaves the view.
+
+**Bulk keeps its unconditional revalidation** — a bulk change is a deliberate
+operation over a whole selection whose counts are the server's, and the same commit
+clears the selection, so there is no row left for a patch to belong to.
+
+### One request per write
+
+A router fetcher carries one in-flight request per hook instance, and a second
+submission supersedes the first. That was invisible while the surface blocked behind
+every write and is a lost write the moment it does not — so row mutations go through
+`task-inline-edit.ts` (extended with `postTaskBulkAction`) as independent `fetch`
+calls. The blanket `disabled` those controls carried while *any* mutation was in
+flight is gone with it.
+
+### Confirmation and undo are one affordance
+
+Completion and reopen raise `notifyUndo` **from the server's reply**, and its Undo
+posts the inverse canonical intent. The undo window is the notification's own DS-10
+timer (paused on hover and focus); no second timer exists. The Undo's own write is not
+itself undoable, so there is no chain. A refusal raises `notifyError` with the
+server's own wording — the same shape `useCompletionFailureFeedback` uses on Today —
+and reverts the row.
+
+Every live-region announcement that existed still exists and still fires on the
+server's answer, including the recurrence consequence appended to a completion. The
+cost is that a completion is now announced twice to assistive technology; that is
+recorded as [DEBT-115](../product/PRODUCT_DEBT.md) rather than papered over.
+
+### "Load more" survives the work done on it
+
+`useTaskPagination` used to reset on the identity of the loader's first page — fresh
+JSON on every revalidation — so any mutation collapsed three accumulated pages back to
+one. `task-pagination.ts` is now a pure reducer that resets on the **configuration**
+alone and merges a refreshed first page into the accumulator **by id**, first
+appearance winning.
+
+`initialCursor` seeds the accumulation and deliberately does not reset it: a keyset
+cursor is derived from page one's tail, so under any recency-ordered list it moves
+whenever a task is captured or completed. Keying the reset on it reintroduced the
+defect in a quieter form — 92 accumulated rows fell back to 50 after one capture, in
+the browser — before the rule was changed.
+
+### Evidence
+
+- `test/unit/tasks/task-revalidation.test.ts` — what may be skipped, and the longer
+  list of what may never be;
+- `test/unit/tasks/task-pagination.test.ts` — three loaded pages survive a
+  revalidation, and a moved first-page cursor is not a reset;
+- `test/unit/tasks/task-optimistic.test.ts` — display state is re-derived from the
+  patched record, and a bucket count is not patched;
+- `e2e/tasks-optimistic.spec.ts` — the completion POST is held open and the row is
+  already struck through with nothing yet announced; Undo restores it; a forced
+  refusal reverts and says why; a completion the view excludes still leaves it; and
+  accumulated pages survive a real revalidation.

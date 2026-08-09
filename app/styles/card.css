@@ -301,6 +301,19 @@
   cursor: default;
 }
 
+/*
+ * TASKS-09 — a finished record, drawn exactly as `RecordRow` has always drawn one:
+ * a text decoration AND a quieter colour together. Either alone would be
+ * colour-only or ambiguous, and the consumer states the fact in words as well.
+ *
+ * It reaches the title TEXT rather than the open control, so the hover underline
+ * and the focus ring on that control are untouched.
+ */
+.dh-card--completed .dh-card__title-text {
+  text-decoration: line-through;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
 .dh-card__subtitle {
   margin: 0;
   color: var(--md-sys-color-on-surface-variant);
