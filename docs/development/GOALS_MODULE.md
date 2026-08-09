@@ -676,3 +676,222 @@ the prose and the derived state share ONE region instead of stacking two.
 - Created and Updated are the band's trailing quiet line. A Goal has no Settings
   tab to demote them into; see **RECORD-02** in
   [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
+
+---
+
+# GOAL-02 — measurable Goals
+
+The change that made a Goal answer *am I actually getting there?* Before it, a
+Goal could state a target DATE and a definition of done; progress was only ever
+the proportion of contributing Projects completed, which answers "how much work
+is finished" and not "am I closer to 70 kg".
+
+The product principle it encodes:
+
+> **Goals describe measurable outcomes. Projects and Tasks are the work used to
+> achieve them.**
+
+## The measurement model
+
+Four strategies, one shape. Every one reduces to a **baseline**, a **current
+value**, a **target** and a **direction**, which is what lets a single pure
+evaluator serve all four without a branch per type.
+
+| Type | What it means | Baseline | Current | Target |
+|---|---|---|---|---|
+| `target_value` | Move from a starting value to a numeric target (85 kg → 70 kg) | the owner's | latest reading | the owner's |
+| `accumulation` | Work towards a total (24 books) | `0` | latest reading | the owner's |
+| `milestone` | Complete defined stages | `0` | completed weight | total weight |
+| `manual` | The owner states a percentage | `0` | latest reading | `100` |
+
+`measurementType = null` means **not measured** — the state every Goal created
+before GOAL-02 is in, and a first-class one. It is never rendered as 0%.
+
+**Direction is inferred, never chosen.** 85 → 70 decreases; 5,000 → 20,000
+increases (`inferGoalMeasurementDirection`). The owner is never asked about
+"ascending"; the inference is stated back in words in the setup sheet.
+
+**`manual` is a fallback, not a default.** It is offered last, and its own copy
+says that anything countable is worth counting instead. DalyHub has never stored
+a manually-entered Goal percentage, so there was no legacy data to migrate into
+it — see [Migration](#migration-safety) below.
+
+## Where each piece lives
+
+| Concern | Home |
+|---|---|
+| Domain, enums, units, validators | `app/kernel/goals/goal-measurement.ts` |
+| The progress evaluator (pure) | `app/kernel/goals/goal-progress-evaluator.ts` |
+| Configuration storage | `goal_details` (five additive columns) |
+| Readings + stages storage | `goal_measurements`, `goal_milestones` |
+| Repository contract | `app/kernel/goals/goal-measurement-repository.ts` |
+| D1 adapter | `app/platform/storage/d1/d1-goal-measurement-repository.ts` |
+| Shared vocabulary + components | `app/shared/goal-progress` |
+| Chart primitives | `app/shared/charts` (`TrendLine`, `ComparisonBars`) |
+| Record section | `app/modules/goals/GoalMeasurementPanel.tsx` |
+| Write endpoints | `POST /goals/:goalId/mutate` (`set_measurement`), `POST /goals/:goalId/measurements` |
+
+The measurement CONFIGURATION is Goal-owned detail state in exactly the sense
+the target date already is, so it joined `goal_details` rather than acquiring a
+second per-Goal table every read would have to join alongside the first. The
+READINGS are their own records with their own lifecycle, so they are their own
+table and their own repository: "correct last Tuesday's weigh-in" and "change
+the target to 68 kg" must not be the same operation.
+
+## History is the model
+
+A Goal's current value is **the latest row of `goal_measurements`**, never a
+column that gets overwritten. That is what makes a trend possible at all, and
+what makes correcting a mistyped reading a normal edit rather than a lost
+history.
+
+`measured_on` is an **owner-calendar date** (`YYYY-MM-DD`), never an instant: a
+weigh-in belongs to a day the way a Task's due date does, and a timestamp would
+land the same reading on a different day for a traveller. `created_at` breaks
+ties when two readings share a day, so "the latest measurement" is a total
+order.
+
+## The arithmetic, and what it refuses to compute
+
+One formula, for every type and both directions:
+
+```
+progress = (current - baseline) / (target - baseline)
+```
+
+For 85 → 79 → 70 that is `(79 - 85) / (70 - 85)` = **0.4**. Direction never
+appears in the arithmetic — it decides wording, and how "achieved" reads.
+
+The evaluator returns `null` rather than a plausible number whenever the data
+cannot support one, and every surface turns that into an honest sentence:
+
+| Situation | What it returns |
+|---|---|
+| No measurement configuration | `measured: false`, status `not_measured` |
+| Nothing recorded | `current: null` — **not** the baseline, so no 0% bar |
+| No target | no fraction, no remaining; the value and movement still shown |
+| Baseline equals target | no fraction (a journey with no distance) |
+| One reading | no trend |
+| Two readings less than 7 days apart | no trend, no projection |
+| Pace pointing away from the target | no projection |
+| Projection beyond 5 years | no projection |
+| Target date already passed | no required pace |
+
+Nothing it returns can be `NaN` or `Infinity`. `progressPercent` is clamped to
+0–100 for indicators; `progressFraction` keeps the true value, so exceeding a
+target reads as "Target achieved" instead of breaking a bar.
+
+### Trend and pace
+
+Deliberately the simplest defensible calculation — the gradient between the
+first and last reading of a window — rather than a regression, because two
+points and a span is something an owner can check by hand.
+
+- **Window:** 28 days, measured back from the LATEST reading (not from today), so
+  a Goal that has not been updated for a fortnight reports the pace it had
+  rather than one diluted by silence. `daysSinceLastMeasurement` is reported
+  separately, so the silence is never hidden.
+- **Minimum span:** 7 days. Below that the evaluator says it does not know —
+  this is the guard against two readings a day apart implying a yearly
+  projection.
+- **Basis:** `recent` when the window supported the pace, `overall` when the
+  whole history had to be used. Surfaces word these differently ("Recent pace"
+  vs "Average pace") so a figure never claims to be more current than it is.
+- **Required pace:** `(target - current) / days remaining × 7`, from today.
+- **Projection:** only when the pace moves towards the target and lands inside
+  five years.
+
+### Status
+
+Nine states, in a fixed precedence, each either a fact or a defensible
+comparison: `achieved` → `not_started` → `overdue` → `stale` → backwards
+movement → `in_progress` (no target date) → the schedule comparison
+(`ahead` / `on_track` / `needs_attention`).
+
+"On track" compares the fraction achieved against the fraction of the SCHEDULE
+elapsed — the straight line from the first reading (or the Goal's creation) to
+the target date — with a wide ±10-point margin so ordinary lumpy progress does
+not flip the word on every check-in.
+
+The language is calm by rule: **"Needs attention", never "Failing"; "No recent
+update", never "Abandoned"** (AGENTS.md §2). Only `needs_attention` and
+`overdue` are tinted, and both are facts the owner can act on.
+
+## Performance
+
+The record page is the only surface that reads a Goal's full history. Every
+collection reads the bounded summary instead:
+
+- `listMeasurementSummaries(ids, …)` — latest, earliest, the comparison reading
+  and a count for a WHOLE page of Goals, in two grouped statements per chunk of
+  50 ids (window functions, no N+1);
+- `listMilestoneSummaries(ids)` — completed/total weight, one grouped statement;
+- `goalDetails.listMany(ids)` — the configurations, one statement per chunk.
+
+`evaluateGoalFromSummary` hands those three readings to the SAME kernel
+evaluator the record uses, so a card can never disagree with a record about the
+same Goal.
+
+Today's 7-day workload trend is two bounded aggregate statements for the whole
+week (a `SUM(CASE …)` column per day), with the owner-calendar day boundaries
+computed by the caller and passed as UTC instant ranges — so the SQL carries no
+timezone assumption. Migration 0038 adds the `spine_records` completion index
+that read relies on.
+
+## Activity
+
+| Event | When |
+|---|---|
+| `goal.measurement_logged` | a reading was recorded |
+| `goal.measurement_corrected` | an existing reading was edited |
+| `goal.measurement_removed` | a reading was deleted |
+| `goal.target_reached` | a reading reached the target **for the first time** |
+| `goal.milestone_completed` / `goal.milestone_reopened` | a stage's completion changed |
+
+What is deliberately **absent**: there is no event for a recalculated
+percentage, and none for adding, renaming or reweighting a milestone. A
+derivation changing is not a change to the record, and editing the definition of
+a measurement is configuration rather than progress — recording either would be
+the Activity flooding this feature is explicitly told to avoid.
+
+`goal.target_reached` is a companion event written in the SAME transaction as
+the measurement that caused it (`recordAtomicMutation`'s `companions`), guarded
+on the primary event having been appended.
+
+## Migration safety
+
+`0038_goal_measurement.sql` is purely additive: five nullable columns on
+`goal_details`, two new tables with their indexes, and one index on
+`spine_records`. **No backfill, no reinterpretation.**
+
+- Every existing Goal keeps working: `measurement_type IS NULL` means "not
+  measured", which is exactly what was true of every Goal before it.
+- DalyHub has never stored a manually-entered Goal progress percentage (see
+  `0009_create_goal_details.sql` — the columns are `target_date` and
+  `definition_of_done` only), so there was no legacy percentage to map. `manual`
+  exists as a first-class CHOICE, not as a migration target.
+- Nothing is inferred from free text.
+- There is deliberately **no CHECK naming the measurement types** — the same
+  reasoning `0032` gave for icon keys, and the lesson `0031` had to rebuild a
+  table to learn. The controlled enum lives in `goal-measurement.ts`, and an
+  unrecognised stored value degrades to "not measured" rather than throwing.
+- Export and restore carry the new state: `goalDetails` gained its five fields
+  and two collections were added, both listed in
+  `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS`, so an archive written before GOAL-02
+  still validates and still restores.
+
+## Accessibility
+
+- Every progress bar carries the SAME sentence it prints
+  (`goalProgressSummaryText`) as `aria-valuetext` — "79 kg · 40% complete · 9 kg
+  remaining".
+- Both charts are `role="img"` with a generated summary naming every value; the
+  line chart also renders its sentence visibly, and the comparison chart prints
+  every number under its bars instead (a caption would be the same data three
+  times).
+- Status is always a WORD; only two states are tinted, and never colour alone.
+- The check-in's numeric field uses `inputMode="decimal"` (not `type="number"`,
+  which discards a partially-typed `-` or `79.`), and the sheet's Save lives in
+  the keyboard-safe sticky footer via the shared `Form`'s `id`.
+- The progress section carries a real (visually hidden) `<h2>`, so its `<h3>`
+  sub-headings do not break the record's heading order.

@@ -1,0 +1,213 @@
+/*
+ * GOAL-02 — the shared chart primitives added for measurable Goals.
+ *
+ * `TrendLine` (a dated series with an optional target reference) and
+ * `ComparisonBars` (two series over a handful of periods) live in
+ * `~/shared/charts` beside `ProgressRing` and `TrendBars`. Their styles are here
+ * rather than in a module stylesheet because they are design-system components:
+ * every surface that draws a Goal trend or a workload comparison must get the
+ * same chart, and there is exactly one place to change it.
+ *
+ * (`TrendBars`' own rules still live in `insights.css`, where REVIEW-03 left
+ * them. Moving them is a tidy-up for the stylesheet that owns them, not for this
+ * change — see PRODUCT_DEBT.)
+ *
+ * Rules every chart here follows:
+ *   - colour is never the only signal. Each series is named in a legend and its
+ *     values are printed as text beneath the plot;
+ *   - the plot fills its container and never exceeds it, so no chart can make a
+ *     page scroll sideways on a 320px phone;
+ *   - forced-colours mode gets explicit strokes, because SVG fills collapse
+ *     there and a chart that vanishes is worse than no chart.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* TrendLine                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-linechart {
+  display: grid;
+  gap: var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * The plot stretches to the container (`preserveAspectRatio="none"`), which is
+ * what lets one chart serve a desktop panel and a phone. Every stroke inside
+ * uses `vector-effect: non-scaling-stroke`, so the distortion never reaches the
+ * line weight or the readings' dots.
+ */
+.dh-linechart__plot {
+  inline-size: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.dh-linechart__line {
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 2;
+}
+
+.dh-linechart__point {
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 5;
+}
+
+/* The most recent reading is the one the page's headline states, so it carries
+ * a heavier dot — an emphasis, never the only way to find it. */
+.dh-linechart__point[data-latest="true"] {
+  stroke: var(--md-sys-color-on-surface);
+  stroke-width: 8;
+}
+
+/* The target: quiet, dashed, and always named in the caption beside it. */
+.dh-linechart__target {
+  stroke: var(--md-sys-color-outline);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.dh-linechart__axis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-1) var(--app-space-3);
+  justify-content: space-between;
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  min-inline-size: 0;
+}
+
+.dh-linechart__axis-dates {
+  display: flex;
+  gap: var(--app-space-3);
+}
+
+.dh-linechart__summary {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.dh-linechart__target-note {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+@media (forced-colors: active) {
+  .dh-linechart__line,
+  .dh-linechart__point {
+    stroke: CanvasText;
+  }
+  .dh-linechart__target {
+    stroke: GrayText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ComparisonBars                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-cbars {
+  display: grid;
+  gap: var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dh-cbars__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+  margin: 0;
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The legend swatch is a shape beside a WORD, never a swatch alone. */
+.dh-cbars__key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+.dh-cbars__key::before {
+  content: "";
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: currentcolor;
+}
+
+.dh-cbars__key--primary::before {
+  background: var(--md-sys-color-primary);
+}
+
+.dh-cbars__key--secondary::before {
+  background: var(--md-sys-color-tertiary);
+}
+
+.dh-cbars__plot {
+  inline-size: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.dh-cbars__bar--primary {
+  fill: var(--md-sys-color-primary);
+}
+
+.dh-cbars__bar--secondary {
+  fill: var(--md-sys-color-tertiary);
+}
+
+@media (forced-colors: active) {
+  .dh-cbars__bar {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1;
+  }
+  .dh-cbars__bar--primary {
+    fill: Highlight;
+  }
+}
+
+.dh-cbars__axis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--app-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.dh-cbars__axis li {
+  display: grid;
+  gap: 0;
+  min-inline-size: 0;
+  text-align: center;
+}
+
+.dh-cbars__values {
+  display: inline-flex;
+  justify-content: center;
+  gap: var(--app-space-1);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+}
+
+.dh-cbars__value--primary {
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-cbars__value--secondary {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-cbars__label {
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}

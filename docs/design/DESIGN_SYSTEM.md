@@ -2161,6 +2161,78 @@ Decision: [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insigh
 
 ---
 
+## Measurable progress (GOAL-02)
+
+The pattern for a record that carries a NUMBER moving towards a target — today
+that is a Goal, and the pieces are shared so the next one does not fork them.
+
+### The progress readout
+
+`GoalProgressReadout` (`~/shared/goal-progress`) is the one block that states
+where something measurable stands: the current value, the target beside it, the
+shared `ProgressTrack`, the percentage, what remains, and the status in words. It
+comes in two sizes — `compact` for a card or a Today row, `hero` for the record,
+where the current value is the page's largest number.
+
+- **It computes nothing.** Every figure is derived once, in the kernel, and
+  handed to it — the same deliberate limit `ProgressMeter` sets. One evaluator
+  means a card can never disagree with the record it links to.
+- **The bar announces the sentence the page prints.** `aria-valuetext` is the
+  same string ("79 kg · 40% complete · 9 kg remaining"), so what a screen reader
+  hears is what a sighted reader sees.
+- **Absence is a designed state, not a zero.** Nothing recorded renders "No
+  measurement yet" and NO bar. An empty 0% bar claims a journey has started.
+- **Status is a word.** Only the two states an owner can act on are tinted, and
+  the tint is never the only signal.
+
+### The check-in
+
+`GoalCheckInSheet` — three fields (value, date, optional note) in the shared
+[Sheet](#the-shared-sheet), which is a bottom sheet on a phone and a centred
+dialog above 768px.
+
+- The numeric field is `inputMode="decimal"` on a TEXT input, never
+  `type="number"`: it summons the decimal keypad while keeping a partially-typed
+  `-` or `79.` intact, and negative values stay legitimate.
+- The date defaults to the owner's calendar today, resolved server-side.
+- Save lives in the sheet's sticky footer — outside the form in the DOM, bound to
+  it with `form="<id>"` (the shared `Form` accepts an `id` for exactly this), so
+  the primary action stays above the phone keyboard.
+- Correcting an existing reading opens the SAME sheet with a different title. A
+  correction is the same three fields.
+
+### The line trend
+
+`TrendLine` (`~/shared/charts`) is the shared primitive for **a dated series**,
+beside `TrendBars`' "a handful of periods". Same rules as every DalyHub chart —
+hand-rolled SVG, design tokens, `role="img"` with a generated summary, no
+interactivity — plus two of its own:
+
+- **It stays crisp at any width.** The plot stretches a 100×100 space to its
+  container, and every stroke carries `vector-effect: non-scaling-stroke`; each
+  reading is drawn as a ZERO-LENGTH round-capped segment, which renders as a true
+  circle in screen space however the box is squashed.
+- **Two readings minimum, and the target is a quiet reference.** One reading is a
+  value, not a trend — the caller renders "More measurements needed" instead of a
+  flat line. The target is a dashed line only when it falls inside the plotted
+  range, and it is always named in text.
+
+### The two-series comparison
+
+`ComparisonBars` — paired bars for a handful of periods with two figures each
+(Today's created-versus-completed week). At 320px two overlapping lines are two
+scribbles; paired bars keep the series physically separate and print BOTH numbers
+under each period, which is why this one carries no visible caption: the values
+are already there, and a caption would be the same data three times.
+
+Reference implementation: [`app/kernel/goals/goal-progress-evaluator.ts`](../../app/kernel/goals/goal-progress-evaluator.ts)
+(the rules — pure, no React), [`app/shared/goal-progress/`](../../app/shared/goal-progress/)
+(the vocabulary and the components), [`app/shared/charts/`](../../app/shared/charts/)
+and [`app/styles/charts.css`](../../app/styles/charts.css) (tokens only).
+Decision: [ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044--measurable-goals-a-four-strategy-measurement-model-append-only-measurement-history-and-one-pure-progress-evaluator).
+
+---
+
 ## Motion & feedback timing
 
 - **Fast and few.** Transitions ~120–200ms, easing that feels natural. Motion shows causality (this became that, this came from there), never decoration.

@@ -17,6 +17,7 @@ import {
   createEntityLinkRepository,
   createEntityRepository,
   createGoalDetailsRepository,
+  createGoalMeasurementRepository,
   createGoalRepository,
   createMeetingRepository,
   createMeetingTaskConversionRepository,
@@ -40,6 +41,7 @@ import {
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
+  type D1GoalMeasurementRepositoryOptions,
   type D1NoteDetailsRepositoryOptions,
   type D1PersonRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
@@ -194,6 +196,17 @@ export function makeGoalDetailsRepository(
   options?: D1GoalDetailsRepositoryOptions,
 ) {
   return createGoalDetailsRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped D1-backed GoalMeasurementRepository over the
+ * isolated test database (GOAL-02: measurement history + milestone stages).
+ */
+export function makeGoalMeasurementRepository(
+  context: WorkspaceContext,
+  options?: D1GoalMeasurementRepositoryOptions,
+) {
+  return createGoalMeasurementRepository(env.DB, context, options);
 }
 
 /**
@@ -553,6 +566,14 @@ export async function countGoalDetailRows(): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** Count all rows in `goal_measurements` directly. */
+export async function countGoalMeasurementRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM goal_measurements",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 /** Count all rows in `note_details` directly. */
 export async function countNoteDetailRows(): Promise<number> {
   const row = await env.DB.prepare(
@@ -692,6 +713,9 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM spine_records").run();
   await env.DB.prepare("DELETE FROM task_details").run();
   await env.DB.prepare("DELETE FROM project_details").run();
+  // GOAL-02 children first: both reference entities ON DELETE RESTRICT.
+  await env.DB.prepare("DELETE FROM goal_measurements").run();
+  await env.DB.prepare("DELETE FROM goal_milestones").run();
   await env.DB.prepare("DELETE FROM goal_details").run();
   await env.DB.prepare("DELETE FROM area_details").run();
   await env.DB.prepare("DELETE FROM note_details").run();

@@ -100,6 +100,17 @@ interface GoalOverviewProps {
   readonly activityTab: ReactNode;
   /** The shared Universal Relationship System Linked Items section. */
   readonly linkedTab: ReactNode;
+  /**
+   * GOAL-02 — the measurable-progress section, rendered at the TOP of the
+   * Summary.
+   *
+   * A slot rather than a set of measurement props: this component composes the
+   * record and must not learn what a baseline is, and the route already owns the
+   * fetches and the sheets the section needs. It leads the Summary because "am I
+   * getting there?" is the question a measurable Goal exists to answer — the
+   * definition of done and the Project contribution explain HOW, and follow it.
+   */
+  readonly progressSlot?: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
 }
@@ -126,6 +137,7 @@ export function GoalOverview({
   onOpenTask,
   activityTab,
   linkedTab,
+  progressSlot,
   activeTabId,
   onTabChange,
 }: GoalOverviewProps) {
@@ -293,6 +305,7 @@ export function GoalOverview({
           facts: detailItems,
           description: (
             <div className="dh-goal-overview__summary">
+              {progressSlot}
               <div className="dh-goal-overview__definition">
                 <h2 className="dh-goal-overview__definition-heading">
                   Definition of done

@@ -26,6 +26,20 @@ export interface GoalDetailsRepository {
   get(id: string): Promise<GoalDetailsRecord | null>;
 
   /**
+   * The SAME read as {@link get}, batched over a bounded set of Goal ids — a
+   * fixed, small number of grouped queries, never one per Goal (mirrors
+   * `GoalRepository.listGoalProjectContributions`).
+   *
+   * GOAL-02 added it because every collection surface now needs each Goal's
+   * MEASUREMENT CONFIGURATION to derive its progress, and calling `get` per card
+   * would have made a page of twenty Goals twenty round trips — the N+1 the
+   * performance rules forbid. A Goal with no `goal_details` row still appears,
+   * with the default all-null/unmeasured shape; an id that is not an active Goal
+   * in this workspace is simply absent.
+   */
+  listMany(goalIds: readonly string[]): Promise<Map<string, GoalDetailsRecord>>;
+
+  /**
    * Update one or both detail fields. An omitted key leaves that field
    * unchanged; `null` clears it. A patch that changes nothing (after
    * normalisation) is an idempotent no-op: no write, no Activity. A genuine

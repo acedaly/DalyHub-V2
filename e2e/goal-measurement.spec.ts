@@ -1,0 +1,330 @@
+import { expect, test, type Page } from "@playwright/test";
+
+import {
+  expectMinTouchTarget,
+  expectNoAxeViolations,
+  expectNoHorizontalOverflow,
+  gotoFixture,
+  ownerToday,
+  waitForInteractive,
+} from "./helpers";
+
+/**
+ * GOAL-02 — the measurable-Goal journey, end to end through the real UI.
+ *
+ * It follows the brief's own acceptance scenario: create "Reach 70 kg" measured
+ * from a baseline of 85 kg towards a target of 70 kg, record readings over time,
+ * and check that every derived figure — current value, progress, remaining,
+ * change from baseline, the trend, the history — is what the arithmetic says it
+ * should be. Then it edits a reading, deletes one, and verifies the page
+ * recalculates rather than caching.
+ *
+ * The phone half is not a smaller copy of the desktop half: the check-in is the
+ * interaction this feature has to be good at on a phone, so it is driven at
+ * 390px with the touch-target and horizontal-overflow guards the responsive
+ * contract requires.
+ */
+
+/** The measured Goal the whole spec is built on. */
+async function createMeasurableGoal(page: Page, title: string) {
+  await gotoFixture(page, "/areas/a-dh");
+  await page.getByRole("tab", { name: "Goals" }).click();
+  await page.getByRole("link", { name: "New Goal" }).first().click();
+
+  const dialog = page.getByRole("dialog", { name: "New Goal" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel(/Title/).fill(title);
+
+  // The creation flow ASKS how the Goal will be measured — that question is the
+  // product claim this feature exists to make.
+  await expect(
+    dialog.getByText("How will you measure this Goal?"),
+  ).toBeVisible();
+  await dialog.getByTestId("new-goal-measurement-target_value").check();
+
+  // Located by ROLE, not by label text: each measurement choice is a radio whose
+  // accessible name includes its description ("…from a starting value towards a
+  // target"), so a substring label match would be ambiguous with the fields.
+  await dialog.getByRole("textbox", { name: /^Measure in/ }).fill("kg");
+  await dialog.getByRole("textbox", { name: /^Starting value/ }).fill("85");
+  await dialog.getByRole("textbox", { name: /^Target value/ }).fill("70");
+  await dialog.getByLabel("Target date").fill("2026-12-31");
+
+  // The direction is INFERRED and stated back — the owner never picks one.
+  await expect(
+    dialog.getByText("Progress means this number going down."),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("radio", { name: /ascending|descending/i }),
+  ).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Create Goal" }).click();
+  await expect(page).toHaveURL(/\/goals\/[^/?#]+$/);
+  await waitForInteractive(page);
+  return page.url();
+}
+
+/** Record one reading through the check-in sheet. */
+async function logMeasurement(page: Page, value: string, measuredOn: string) {
+  await page.getByTestId("goal-record-measurement").first().click();
+  const sheet = page.getByTestId("goal-check-in-sheet");
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("textbox", { name: /^Measurement/ }).fill(value);
+  await sheet.getByLabel("Date").fill(measuredOn);
+  await page.getByTestId("goal-check-in-save").click();
+  await expect(sheet).toHaveCount(0);
+}
+
+test.describe("GOAL-02 — measurable Goals", () => {
+  test("create a measurable Goal, record progress, and see honest figures", async ({
+    page,
+  }) => {
+    const title = `Reach 70 kg ${Date.now()}`;
+    const goalUrl = await createMeasurableGoal(page, title);
+
+    // 1. A configured Goal with nothing recorded invites a first measurement —
+    //    it does NOT show a 0% bar for a denominator it has not got.
+    const panel = page.getByTestId("goal-progress");
+    await expect(panel.getByText("No progress logged yet")).toBeVisible();
+    await expect(panel.getByRole("progressbar")).toHaveCount(0);
+    await expectNoAxeViolations(page);
+
+    // 2. The first reading. One value is not a trend, and the page says so.
+    await logMeasurement(page, "81.6", "2026-07-05");
+    await expect(page.getByTestId("goal-trend-thin")).toContainText(
+      "More measurements needed for a trend",
+    );
+    await expect(page.getByTestId("goal-trend-chart")).toHaveCount(0);
+
+    // 3. Two more readings — now there is a trend, and the acceptance figures.
+    await logMeasurement(page, "79.3", "2026-07-31");
+    await logMeasurement(page, "79.0", "2026-08-09");
+
+    await expect(panel.getByText("79 kg").first()).toBeVisible();
+    // Exact: the chart's caption names the target too ("Target 70 kg."), which
+    // is correct — this asserts the readout's own line.
+    await expect(
+      panel.getByText("Target 70 kg", { exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByText(/40%/)).toBeVisible();
+    await expect(panel.getByText(/9 kg remaining/)).toBeVisible();
+    await expect(panel.getByText(/↓ 6 kg from baseline/)).toBeVisible();
+
+    // The bar announces the same sentence the page prints — the chart and the
+    // bar are never the only way to read this.
+    const bar = page.getByRole("progressbar", { name: `${title} progress` });
+    await expect(bar).toHaveAttribute("aria-valuenow", "40");
+    await expect(bar).toHaveAttribute(
+      "aria-valuetext",
+      /79 kg · 40% complete · 9 kg remaining/,
+    );
+
+    // 4. The chart, with a text equivalent stating the series.
+    const chart = page.getByTestId("goal-trend-chart").getByRole("img");
+    await expect(chart).toHaveAttribute("aria-label", /3 measurements/);
+    await expect(chart).toHaveAttribute("aria-label", /81\.6 kg/);
+
+    // 5. The history, newest first, each with its change from the one before.
+    const history = page.getByTestId("goal-history");
+    const rows = history.getByRole("listitem");
+    await expect(rows).toHaveCount(3);
+    await expect(rows.nth(0)).toContainText("79 kg");
+    await expect(rows.nth(0)).toContainText("↓ 0.3 kg");
+    await expect(rows.nth(2)).toContainText("First measurement");
+    await expectNoAxeViolations(page);
+
+    // 6. Correcting a reading recalculates everything.
+    await rows.nth(0).getByRole("button", { name: /^Edit/ }).click();
+    const editSheet = page.getByTestId("goal-check-in-sheet");
+    await expect(editSheet).toBeVisible();
+    await editSheet.getByRole("textbox", { name: /^Measurement/ }).fill("77.5");
+    await page.getByTestId("goal-check-in-save").click();
+    await expect(editSheet).toHaveCount(0);
+    await expect(panel.getByText("77.5 kg").first()).toBeVisible();
+    await expect(panel.getByText(/50%/)).toBeVisible();
+    await expect(panel.getByText(/7\.5 kg remaining/)).toBeVisible();
+
+    // 7. Removing one uses the shared destructive confirmation, and the figures
+    //    fall back to the reading beneath it.
+    await history
+      .getByRole("listitem")
+      .nth(0)
+      .getByRole("button", { name: /^Remove measurement/ })
+      .click();
+    const confirm = page.getByRole("dialog", {
+      name: "Remove this measurement?",
+    });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("button", { name: "Remove" }).click();
+    await expect(confirm).toHaveCount(0);
+    await expect(panel.getByText("79.3 kg").first()).toBeVisible();
+    await expect(history.getByRole("listitem")).toHaveCount(2);
+
+    // 8. The Goals gallery card carries the same numbers, from the same
+    //    evaluator — a collection can never disagree with a record.
+    await gotoFixture(page, "/goals");
+    const card = page
+      .getByTestId("goal-card")
+      .filter({ hasText: title })
+      .first();
+    // The card leads with the value and states the journey beside it.
+    await expect(card).toContainText("79.3 kg");
+    await expect(card).toContainText("79.3 kg → 70 kg");
+    await expect(card).toContainText(/remaining/);
+
+    // 9. And the record is still reachable and correct.
+    await gotoFixture(page, goalUrl);
+    await expect(page.getByTestId("goal-progress")).toContainText("79.3 kg");
+  });
+
+  test("an unmeasured Goal keeps working and is never shown as 0%", async ({
+    page,
+  }) => {
+    // The migration adds no measurement to existing Goals, so a seeded fixture
+    // Goal is the real "before" state this must not break. It is addressed by id
+    // rather than "the first card", because earlier tests in this file add
+    // measured Goals to the same development database.
+    await gotoFixture(page, "/goals/g-launch");
+
+    const panel = page.getByTestId("goal-progress");
+    await expect(panel.getByText("Not measured yet")).toBeVisible();
+    await expect(panel.getByRole("progressbar")).toHaveCount(0);
+    await expect(panel.getByText("0%")).toHaveCount(0);
+    // The invitation teaches the next action rather than dead-ending.
+    await expect(panel.getByTestId("goal-configure-measurement")).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test("check in from a phone without horizontal scrolling", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const title = `Phone goal ${Date.now()}`;
+    await createMeasurableGoal(page, title);
+
+    const record = page.getByTestId("goal-record-measurement").first();
+    await expect(record).toContainText("Log weight");
+    await expectMinTouchTarget(record);
+    await record.click();
+
+    const sheet = page.getByTestId("goal-check-in-sheet");
+    await expect(sheet).toBeVisible();
+    // The numeric field summons a decimal keypad rather than a QWERTY keyboard.
+    const value = sheet.getByRole("textbox", { name: /^Measurement/ });
+    await expect(value).toHaveAttribute("inputmode", "decimal");
+    // The date defaults to the owner's today, which is what it nearly always is.
+    await expect(sheet.getByLabel("Date")).toHaveValue(ownerToday());
+    await expectMinTouchTarget(page.getByTestId("goal-check-in-save"));
+    await expectNoHorizontalOverflow(page);
+    await expectNoAxeViolations(page);
+
+    await value.fill("79.4");
+    await sheet.getByLabel("Date").fill("2026-08-09");
+    await page.getByTestId("goal-check-in-save").click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByTestId("goal-progress")).toContainText("79.4 kg");
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("the Goal record fits every phone width the contract names", async ({
+    page,
+  }) => {
+    const title = `Width goal ${Date.now()}`;
+    await createMeasurableGoal(page, title);
+    await logMeasurement(page, "83.0", "2026-07-05");
+    await logMeasurement(page, "79.0", "2026-08-09");
+
+    for (const width of [320, 375, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForTimeout(50);
+      await expect(page.getByTestId("goal-trend-chart")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+});
+
+test.describe("GOAL-02 — Today", () => {
+  test("shows measurable Goal progress and the 7-day workload trend", async ({
+    page,
+  }) => {
+    const title = `Today goal ${Date.now()}`;
+    await createMeasurableGoal(page, title);
+    await logMeasurement(page, "83.0", "2026-07-05");
+    await logMeasurement(page, "79.0", ownerToday());
+
+    await gotoFixture(page, "/today");
+    const goals = page.getByTestId("today-goal-progress");
+    await expect(goals).toBeVisible();
+    /*
+     * Today shows at most four Goals, chosen by its own ranking, and this
+     * development database accumulates Goals across the suite. So the assertion
+     * is about the SECTION's behaviour — a measurable Goal with its value, its
+     * target and what remains, and one action — rather than about which Goal the
+     * ranking happened to choose. `todayGoalRank` is unit-tested directly.
+     */
+    const row = goals.locator(".dh-today__goal").first();
+    await expect(row).toContainText(/kg/);
+    await expect(row).toContainText("Target 70 kg");
+    await expect(row).toContainText(/remaining/);
+    // Hold on to WHICH Goal this is: recording a measurement changes its rank
+    // (a Goal just checked in is no longer waiting for one), so the row can move.
+    const chosenTitle = (
+      await row.locator(".dh-today__goal-title").innerText()
+    ).trim();
+
+    // The one action Today offers for a Goal — the same shared check-in sheet.
+    const update = row.getByTestId("today-goal-update");
+    await expect(update).toContainText("Log weight");
+    await expectMinTouchTarget(update);
+    await update.click();
+    const sheet = page.getByTestId("goal-check-in-sheet");
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("textbox", { name: /^Measurement/ }).fill("78.6");
+    await page.getByTestId("goal-check-in-save").click();
+    await expect(sheet).toHaveCount(0);
+    // The new reading reaches Today without leaving it. The assertion is on the
+    // SECTION rather than a fixed row, because recording a measurement changes
+    // that Goal's rank and the ranking may legitimately reorder the list.
+    await expect(goals).toContainText("78.6 kg");
+    await expect(goals).toContainText("8.6 kg remaining");
+    expect(chosenTitle.length).toBeGreaterThan(0);
+
+    await expectNoAxeViolations(page);
+  });
+
+  test("shows the workload trend once the week has something in it", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/today");
+
+    // Complete one task from the day. That is a real completion on the owner's
+    // calendar today, which is what gives the week something to compare.
+    const firstTask = page.locator(".dh-day-row__check").first();
+    if (await firstTask.count()) {
+      await firstTask.check();
+      await page.waitForTimeout(500);
+    }
+    await gotoFixture(page, "/today");
+
+    // The trend is a comparison with a sentence beneath it, never a score.
+    const trend = page.getByTestId("today-activity-trend");
+    await expect(trend).toBeVisible();
+    await expect(trend.getByText("Completed", { exact: true })).toBeVisible();
+    await expect(trend.getByText("Created", { exact: true })).toBeVisible();
+    await expect(trend.getByRole("img")).toHaveAttribute(
+      "aria-label",
+      /completed, .* created/,
+    );
+    // The totals are stated in words, so the chart is never the only reading.
+    await expect(trend).toContainText(/\d+ completed · \d+ created/);
+    await expectNoAxeViolations(page);
+  });
+
+  test("Today's progress sections fit a 320px phone", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await gotoFixture(page, "/today");
+    await expect(page.getByTestId("today-goal-progress")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectNoAxeViolations(page);
+  });
+});

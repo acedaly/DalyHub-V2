@@ -98,4 +98,72 @@ export class D1ActivityRecorder {
     }
     return statements;
   }
+
+  /**
+   * GOAL-02 — the append statements for a COMPANION event in the same batch.
+   *
+   * A single domain write occasionally produces two genuinely distinct facts:
+   * recording 69.8 kg against a 70 kg Goal is both "logged a measurement" and
+   * "reached the target". Both belong in the same transaction as the insert that
+   * caused them, but only the FIRST event may be guarded on `changes()` —
+   * `changes()` after the primary event's own inserts refers to those inserts,
+   * not to the domain statement.
+   *
+   * So a companion is guarded on the EXISTENCE of the primary event instead,
+   * which is exactly the guard the subject inserts already use and gives the same
+   * property by a stronger route: the companion is appended iff the primary was,
+   * independent of where it sits in the batch.
+   */
+  buildCompanionAppendStatements(
+    workspaceId: string,
+    model: ActivityWriteModel,
+    primaryEventId: string,
+  ): D1PreparedStatement[] {
+    const payloadJson = serializeActivityPayload(model.payload);
+    const occurredAt = toStorageTimestamp(model.occurredAt);
+
+    const activityInsert = this.#db
+      .prepare(
+        `INSERT INTO activities
+           (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (
+                 SELECT 1 FROM activities WHERE workspace_id = ? AND id = ?
+               )`,
+      )
+      .bind(
+        model.id,
+        workspaceId,
+        model.type,
+        model.actor.type,
+        model.actor.id,
+        occurredAt,
+        payloadJson,
+        workspaceId,
+        primaryEventId,
+      );
+
+    const statements: D1PreparedStatement[] = [activityInsert];
+    for (const subject of model.subjects) {
+      statements.push(
+        this.#db
+          .prepare(
+            `INSERT INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+             SELECT ?, ?, ?, ?
+             WHERE EXISTS (
+                     SELECT 1 FROM activities WHERE workspace_id = ? AND id = ?
+                   )`,
+          )
+          .bind(
+            workspaceId,
+            model.id,
+            subject.entityId,
+            subject.role,
+            workspaceId,
+            model.id,
+          ),
+      );
+    }
+    return statements;
+  }
 }

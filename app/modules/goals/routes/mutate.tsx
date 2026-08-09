@@ -18,7 +18,11 @@ import {
   SpineParentUnavailableError,
   SpineValidationError,
 } from "~/kernel/spine";
-import { GoalDetailsValidationError } from "~/kernel/goals";
+import {
+  GoalDetailsValidationError,
+  GoalMeasurementValidationError,
+  validateGoalMeasurementPatch,
+} from "~/kernel/goals";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -61,6 +65,22 @@ export type GoalMutationResult =
   | { readonly kind: "set_definition_of_done"; readonly ok: true }
   | {
       readonly kind: "set_definition_of_done";
+      readonly ok: false;
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+    }
+  /**
+   * GOAL-02 — the Goal's measurement configuration.
+   *
+   * One intent for the whole slice rather than five field intents, because the
+   * five values are interdependent: a baseline means nothing without the target
+   * it is measured against, and changing the STRATEGY changes which of them
+   * exist. That is the case DESIGN_SYSTEM.md's "prefer a focused intent" rule
+   * explicitly excludes.
+   */
+  | { readonly kind: "set_measurement"; readonly ok: true }
+  | {
+      readonly kind: "set_measurement";
       readonly ok: false;
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
@@ -204,6 +224,42 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       return json({
         kind: intent,
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
+  if (intent === "set_measurement") {
+    try {
+      // Untrusted wire values become a domain patch through the KERNEL
+      // validators; the repository merges it over the current configuration and
+      // renormalises the whole thing, so no route decides what a coherent
+      // measurement looks like.
+      const measurement = validateGoalMeasurementPatch({
+        measurementType: form.get("measurementType"),
+        unit: form.get("unit"),
+        baselineValue: form.get("baselineValue"),
+        targetValue: form.get("targetValue"),
+        ...(form.get("direction") === null
+          ? {}
+          : { direction: form.get("direction") }),
+      });
+      await scope.goalDetails.update(goalId, { measurement });
+      return json({ kind: "set_measurement", ok: true });
+    } catch (cause) {
+      if (
+        cause instanceof GoalDetailsValidationError ||
+        cause instanceof GoalMeasurementValidationError
+      ) {
+        return json({
+          kind: "set_measurement",
+          ok: false,
+          fieldErrors: { [cause.field]: cause.message },
+        });
+      }
+      return json({
+        kind: "set_measurement",
         ok: false,
         formError: "That couldn’t be saved. Please try again.",
       });

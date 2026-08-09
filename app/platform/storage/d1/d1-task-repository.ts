@@ -113,6 +113,8 @@ import {
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
   type ListTasksInput,
+  type ListTaskActivityInput,
+  type TaskActivityDayCount,
   type ListWaitingTasksInput,
   type ListWorkspaceTaskGroupsInput,
   type ListWorkspaceTasksInput,
@@ -556,6 +558,16 @@ function delegationEquals(
     (a.note ?? null) === (b.note ?? null)
   );
 }
+
+/**
+ * The most days the workload trend will count in one call.
+ *
+ * Fourteen: Today asks for seven, and the bound exists so a caller cannot turn
+ * one statement into a hundred `SUM(CASE ...)` columns. Beyond a fortnight the
+ * question stops being "is my workload moving" and becomes reporting, which this
+ * feature is explicitly scoped out of.
+ */
+const TASK_ACTIVITY_MAX_DAYS = 14;
 
 export class D1TaskRepository implements TaskRepository {
   readonly #db: D1Database;
@@ -2940,6 +2952,75 @@ export class D1TaskRepository implements TaskRepository {
       },
       changed: true,
     };
+  }
+
+  /**
+   * GOAL-02 — the created/completed counts per owner-calendar day.
+   *
+   * TWO aggregate statements for the whole window, each one bounded by the
+   * window's outer instants so the `entities` and `spine_records` reads are
+   * index ranges rather than workspace scans (0038 adds the `spine_records`
+   * completion index this relies on). Every day is a `SUM(CASE ...)` column, so
+   * the counts come back in one row and no rows are shipped to be bucketed here.
+   *
+   * The boundaries are the caller's, computed in the owner's timezone — this
+   * method contains no timezone logic at all, which is what makes it exactly
+   * testable and what stops a second calendar rule appearing in SQL.
+   */
+  async countTaskActivityByDay(
+    input: ListTaskActivityInput,
+  ): Promise<readonly TaskActivityDayCount[]> {
+    const days = input.days.slice(0, TASK_ACTIVITY_MAX_DAYS);
+    if (days.length === 0) return [];
+
+    const windowStart = toStorageTimestamp(days[0]!.startsAt);
+    const windowEnd = toStorageTimestamp(days[days.length - 1]!.endsAt);
+    const bounds = days.flatMap((day) => [
+      toStorageTimestamp(day.startsAt),
+      toStorageTimestamp(day.endsAt),
+    ]);
+    const columns = (column: string) =>
+      days
+        .map(
+          (_day, index) =>
+            `SUM(CASE WHEN ${column} >= ? AND ${column} < ? THEN 1 ELSE 0 END) AS d${index}`,
+        )
+        .join(", ");
+
+    type CountRow = Record<string, number | null>;
+    try {
+      const [created, completed] = await Promise.all([
+        this.#db
+          .prepare(
+            `SELECT ${columns("created_at")}
+             FROM entities
+             WHERE workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+                   AND created_at >= ? AND created_at < ?`,
+          )
+          .bind(...bounds, this.#workspaceId, windowStart, windowEnd)
+          .first<CountRow>(),
+        this.#db
+          .prepare(
+            `SELECT ${columns("sr.completed_at")}
+             FROM spine_records sr
+             JOIN entities e
+               ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
+                  AND e.deleted_at IS NULL
+             WHERE sr.workspace_id = ? AND sr.kind = '${TASK}'
+                   AND sr.completed_at >= ? AND sr.completed_at < ?`,
+          )
+          .bind(...bounds, this.#workspaceId, windowStart, windowEnd)
+          .first<CountRow>(),
+      ]);
+
+      return days.map((day, index) => ({
+        dateIso: day.dateIso,
+        created: Number(created?.[`d${index}`] ?? 0),
+        completed: Number(completed?.[`d${index}`] ?? 0),
+      }));
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
   }
 
   async listWaitingTasks(

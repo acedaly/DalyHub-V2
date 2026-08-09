@@ -81,6 +81,9 @@ function day(overrides: Partial<TodayDayData> = {}): TodayDayData {
     completedToday: [],
     meetings: [],
     attention: [],
+    // GOAL-02 — a quiet day has no measurable Goals and no workload trend.
+    goals: [],
+    activityTrend: null,
     continueProjects: [],
     ...overrides,
   };
@@ -378,6 +381,14 @@ describe("the day timeline", () => {
       .map((node) => roles.find((role) => node.classList.contains(role)))
       .filter((role): role is string => role !== undefined);
     expect(blocks).toEqual(roles);
+    /*
+     * GOAL-02 — progress is the LAST thing in the day's own column, so it can
+     * never come between the figures and the first actionable row. The DOM order
+     * is what the phone layout stacks, so this is the hierarchy guard.
+     */
+    const main = surface.querySelector(".dh-today__main")!;
+    expect(main.firstElementChild?.className).toContain("dh-today__timeline");
+    expect(main.lastElementChild?.className).toContain("dh-today__progress");
     // The first row inside the day column is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");

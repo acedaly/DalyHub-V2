@@ -51,6 +51,14 @@ export interface RecordAtomicMutationInput {
   readonly domainStatement: D1PreparedStatement;
   readonly recorder: D1ActivityRecorder;
   readonly model: ActivityWriteModel;
+  /**
+   * GOAL-02 — further events produced by the SAME domain write, appended in the
+   * SAME transaction and guarded on `model` having been appended (see
+   * `D1ActivityRecorder.buildCompanionAppendStatements`). Used where one write
+   * genuinely produces two facts — a measurement that also reaches its Goal's
+   * target — and never to batch unrelated events together.
+   */
+  readonly companions?: readonly ActivityWriteModel[];
   /** Test-only deterministic failure injection; omit in production. */
   readonly fault?: AtomicMutationFault;
 }
@@ -93,6 +101,15 @@ export async function recordAtomicMutation<TRow>(
       batch.push(forcedFailure(input.db));
     }
   });
+  for (const companion of input.companions ?? []) {
+    batch.push(
+      ...input.recorder.buildCompanionAppendStatements(
+        input.workspaceId,
+        companion,
+        input.model.id,
+      ),
+    );
+  }
   if (input.fault === "after-subjects") {
     batch.push(forcedFailure(input.db));
   }

@@ -185,7 +185,37 @@ export function makeSnapshot(
         entityId: IDS.goal,
         targetDate: "2026-12-01",
         definitionOfDone: "Finish under two hours.",
+        // GOAL-02 — a measurable Goal, so the export/restore round trip is
+        // exercised with a real measurement configuration rather than all nulls.
+        measurementType: "target_value",
+        measurementUnit: "kg",
+        measurementDirection: "decrease",
+        baselineValue: 85,
+        targetValue: 70,
         updatedAt: T(2),
+      },
+    ],
+    goalMeasurements: [
+      {
+        id: "gm-01",
+        goalId: IDS.goal,
+        value: 79,
+        measuredOn: "2026-08-09",
+        note: "After the long run.",
+        createdAt: T(3),
+        updatedAt: T(3),
+      },
+    ],
+    goalMilestones: [
+      {
+        id: "gms-01",
+        goalId: IDS.goal,
+        title: "Book the race",
+        weight: 1,
+        position: 0,
+        completedAt: null,
+        createdAt: T(3),
+        updatedAt: T(3),
       },
     ],
     projectDetails: [

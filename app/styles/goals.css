@@ -69,3 +69,407 @@
 .dh-goal-not-found {
   min-inline-size: 0;
 }
+
+/* -------------------------------------------------------------------------- */
+/* GOAL-02 — measurable Goals                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The Goal record's progress section.
+ *
+ * It leads the Summary band, so it takes the tonal surface the band already
+ * owns rather than introducing a card inside a card (DS-02 — "a container is
+ * earned"). Its own internal rhythm is the shared spacing scale; nothing here
+ * hard-codes a pixel, a radius or a colour.
+ */
+.dh-goal-measure {
+  display: grid;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__head > .dh-goalprogress {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+/*
+ * Pace facts. A definition list, because each is genuinely a term and its
+ * value — and because that is what lets a screen reader pair them. It wraps to
+ * one column on a phone rather than shrinking the numbers.
+ */
+.dh-goal-measure__pace {
+  display: grid;
+  /* 7rem, so a 320px phone still fits TWO facts across rather than stacking
+     four rows of one — the difference between a compact band and a column. */
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--app-space-3);
+  margin: 0;
+  padding: var(--app-space-3);
+  border-radius: var(--app-shape-supporting);
+  background: var(--md-app-color-surface-sunken);
+}
+
+.dh-goal-measure__pace-item {
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__pace dt {
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-goal-measure__pace dd {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-measure__chart {
+  min-inline-size: 0;
+}
+
+/* The honest "not enough data" line — a sentence, never a flat fake line. */
+.dh-goal-measure__thin {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-goal-measure__empty {
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__history-heading {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-goal-measure__history,
+.dh-goal-measure__milestones {
+  display: grid;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__history-list,
+.dh-goal-measure__milestone-list {
+  display: grid;
+  gap: var(--app-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * One measurement row: the facts on the left, the controls on the right, at
+ * every width.
+ *
+ * The facts WRAP inside their own cell rather than stacking the controls
+ * underneath, so a 320px phone gets a two-line row instead of a three-line one
+ * and six readings stay a glance rather than a scroll. Nothing is squeezed below
+ * a 44px target and nothing scrolls sideways.
+ */
+.dh-goal-measure__history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding-block: var(--app-space-1);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__history-row:last-child {
+  border-block-end: none;
+}
+
+.dh-goal-measure__history-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__history-date {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
+}
+
+.dh-goal-measure__history-value {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-goal-measure__history-change {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
+}
+
+/* A note is its own line within the facts group — it is prose, not a figure. */
+.dh-goal-measure__history-note {
+  flex-basis: 100%;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-measure__history-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-1);
+}
+
+/* A labelled destructive control: the glyph is decorative and the word carries
+ * the meaning, so it is never an unlabelled bin. The error tone is on the TEXT,
+ * which is why the label has to be there. */
+.dh-goal-measure__remove {
+  gap: var(--app-space-1);
+  color: var(--md-sys-color-error);
+}
+
+/* The shared icon is already `aria-hidden` by default (`~/shared/icons`), so the
+ * label beside it is the control's whole accessible name. */
+.dh-goal-measure__remove .dh-icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+/* From tablet up the date gets its own column, so the values line up down the
+   list and the history reads as a table without being one. */
+@media (min-width: 40rem) {
+  .dh-goal-measure__history-facts {
+    display: grid;
+    grid-template-columns: 8rem auto minmax(0, 1fr);
+    align-items: baseline;
+  }
+
+  .dh-goal-measure__history-note {
+    grid-column: 2 / -1;
+  }
+}
+
+.dh-goal-measure__milestone {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__milestone-label {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-measure__milestone-weight {
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
+}
+
+.dh-goal-measure__milestone-add {
+  display: flex;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__milestone-add .dh-input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The shared progress readout                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-goalprogress {
+  display: grid;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-goalprogress__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * The current value is the number the page is about, so it gets display weight
+ * on the record and body weight in a card. Authored in rem so OS text scaling
+ * reaches it (AGENTS.md §15).
+ */
+.dh-goalprogress__current {
+  font-size: var(--md-sys-typescale-title-large-size);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-goalprogress[data-size="hero"] .dh-goalprogress__current {
+  font-size: var(--md-sys-typescale-display-small-size);
+}
+
+.dh-goalprogress__target {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-goalprogress__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  min-inline-size: 0;
+}
+
+.dh-goalprogress__fact-list {
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Measurement setup                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The four measurement strategies, as M3-Expressive choice cards over native
+ * radio semantics: one Tab stop for the group, arrow keys between options, and
+ * the selected state announced. The visual treatment is entirely CSS — there is
+ * no custom widget here to get wrong.
+ */
+.dh-measure-choices {
+  display: grid;
+  gap: var(--app-space-2);
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.dh-measure-choices__legend {
+  padding: 0;
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-measure-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: var(--app-space-3);
+  row-gap: var(--app-space-1);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--app-shape-card);
+  background: var(--md-app-color-surface-card);
+  cursor: pointer;
+  min-block-size: var(--app-touch-target-min);
+}
+
+/* Selection is a tinted surface AND a heavier border AND the radio's own
+ * checked state — never colour alone. */
+.dh-measure-choice[data-selected="true"] {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.dh-measure-choice:focus-within {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: var(--app-space-px);
+}
+
+/* The radio occupies the first column across both text rows, so the label and
+ * its description align to one another rather than to the control. */
+.dh-measure-choice input[type="radio"] {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.dh-measure-choice__label {
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-measure-choice__description {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-measure-choice[data-selected="true"] .dh-measure-choice__description {
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.dh-measure-units {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.dh-measure-unit {
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-label-large-size);
+  cursor: pointer;
+}
+
+.dh-measure-unit[data-selected="true"] {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/* The inferred direction, stated back in words so it can be checked without
+ * understanding the inference. */
+.dh-measure-inference {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}

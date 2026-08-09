@@ -12,7 +12,15 @@
  */
 
 import { defineModule } from "~/kernel/modules";
-import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
+import {
+  GOAL_DETAILS_UPDATED,
+  GOAL_MEASUREMENT_CORRECTED,
+  GOAL_MEASUREMENT_LOGGED,
+  GOAL_MEASUREMENT_REMOVED,
+  GOAL_MILESTONE_COMPLETED,
+  GOAL_MILESTONE_REOPENED,
+  GOAL_TARGET_REACHED,
+} from "~/kernel/goals";
 import {
   AREA,
   GOAL,
@@ -57,7 +65,47 @@ export default defineModule({
     {
       type: GOAL_DETAILS_UPDATED,
       label: "Goal details updated",
-      description: "A goal’s target date or definition of done changed.",
+      description:
+        "A goal’s target date, definition of done or measurement changed.",
+    },
+    /*
+     * GOAL-02 — progress events.
+     *
+     * A measurement is a real change to the record and earns an event; a
+     * RECALCULATED percentage does not, and none is recorded. Adding, renaming
+     * or reweighting a milestone is configuration and is likewise silent — only
+     * completing or reopening a stage is progress (AGENTS.md §9.6).
+     */
+    {
+      type: GOAL_MEASUREMENT_LOGGED,
+      label: "Logged goal measurement",
+      description: "A measurement was recorded against a goal.",
+    },
+    {
+      type: GOAL_MEASUREMENT_CORRECTED,
+      label: "Corrected goal measurement",
+      description: "An existing goal measurement was edited.",
+    },
+    {
+      type: GOAL_MEASUREMENT_REMOVED,
+      label: "Removed goal measurement",
+      description: "A goal measurement was deleted.",
+    },
+    {
+      type: GOAL_TARGET_REACHED,
+      label: "Goal reached its target",
+      description:
+        "A measurement reached the goal’s target for the first time.",
+    },
+    {
+      type: GOAL_MILESTONE_COMPLETED,
+      label: "Completed goal milestone",
+      description: "A defined stage of a goal was completed.",
+    },
+    {
+      type: GOAL_MILESTONE_REOPENED,
+      label: "Reopened goal milestone",
+      description: "A completed stage of a goal was reopened.",
     },
   ],
 });

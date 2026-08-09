@@ -27,7 +27,9 @@ import type {
   ListPlanningTasksInput,
   ListProjectTasksInput,
   ListTasksInput,
+  ListTaskActivityInput,
   ListWaitingTasksInput,
+  TaskActivityDayCount,
   ListWorkspaceTaskGroupsInput,
   ListWorkspaceTasksInput,
   MoveTaskOccurrenceInput,
@@ -270,6 +272,21 @@ export interface TaskRepository {
    * then longest-waiting, then due date, then id. Never an unbounded query.
    */
   listWaitingTasks(input?: ListWaitingTasksInput): Promise<WaitingTaskPage>;
+
+  /**
+   * GOAL-02 — the created-vs-completed counts for a handful of owner-calendar
+   * days, for Today's workload trend.
+   *
+   * TWO bounded aggregate queries for the WHOLE window — never one per day and
+   * never a row-by-row read the surface then buckets (AGENTS.md §16). The day
+   * boundaries are supplied as UTC instant ranges by the caller, so the SQL
+   * carries no timezone assumption of its own. Every requested day appears, with
+   * zeroes when nothing happened — an absent day would be indistinguishable from
+   * a quiet one.
+   */
+  countTaskActivityByDay(
+    input: ListTaskActivityInput,
+  ): Promise<readonly TaskActivityDayCount[]>;
 
   /**
    * Plan a task (TODAY-04): set its scheduled date to the owner's committed day

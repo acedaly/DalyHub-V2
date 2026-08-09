@@ -972,3 +972,46 @@ export type BulkFieldResult = {
   readonly changed: number;
   readonly unchanged: number;
 };
+
+/* -------------------------------------------------------------------------- */
+/* GOAL-02 — the workload trend                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One owner-calendar day of the workload trend, as a pair of counts.
+ *
+ * Today's question is not "how productive was I" — it is *is my active workload
+ * growing or shrinking?*, which only a COMPARISON can answer: five completed
+ * means one thing beside three created and the opposite beside nine.
+ */
+export type TaskActivityDayCount = {
+  /** The owner-calendar day, `YYYY-MM-DD`. */
+  readonly dateIso: string;
+  /** Tasks whose record was created within this day. */
+  readonly created: number;
+  /** Tasks completed within this day. Reflects the CURRENT completion state, so
+   * a task completed and later reopened is not counted. */
+  readonly completed: number;
+};
+
+/**
+ * The days to count, as explicit UTC instant ranges.
+ *
+ * The CALLER computes the boundaries, because only the caller knows the owner's
+ * timezone and only it can turn "Monday in Sydney" into a pair of instants
+ * (AUDIT-14 — the timezone is always an argument). The repository then counts
+ * inside ranges it is given, which keeps the SQL free of any timezone assumption
+ * and makes the whole thing exactly testable.
+ */
+export type TaskActivityDayWindow = {
+  readonly dateIso: string;
+  /** Inclusive lower bound. */
+  readonly startsAt: Date;
+  /** Exclusive upper bound. */
+  readonly endsAt: Date;
+};
+
+export type ListTaskActivityInput = {
+  /** Oldest first. Bounded by the repository to a small number of days. */
+  readonly days: readonly TaskActivityDayWindow[];
+};

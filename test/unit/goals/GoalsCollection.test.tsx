@@ -10,6 +10,11 @@ import {
   type SerializedGoalWithAlignment,
 } from "~/modules/goals/GoalsCollection";
 import type { GoalAlignment } from "~/kernel/alignment";
+import {
+  UNMEASURED_GOAL_PROGRESS,
+  evaluateGoalProgress,
+  normalizeGoalMeasurementConfig,
+} from "~/kernel/goals";
 
 /**
  * AREA-03 — the `/goals` Alignment collection component (ADR-040). Verifies
@@ -58,6 +63,9 @@ function goal(
       onHold: 0,
       archived: 0,
     },
+    // GOAL-02 — unmeasured by default, which is the state every Goal created
+    // before that change is in. A test asserting the measurable card opts in.
+    progress: UNMEASURED_GOAL_PROGRESS,
     ...over,
   };
 }
@@ -517,5 +525,76 @@ describe("Goals gallery grid (DS-16)", () => {
     expect(
       within(card).getByRole("button", { name: "Restore" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("a measurable Goal's card (GOAL-02)", () => {
+  /** The brief's acceptance Goal: 85 kg down to 70 kg, currently 79.0. */
+  function measured() {
+    return evaluateGoalProgress(
+      {
+        config: normalizeGoalMeasurementConfig({
+          type: "target_value",
+          unit: "kg",
+          baselineValue: 85,
+          targetValue: 70,
+        }),
+        targetDate: "2026-12-31",
+        measurements: [{ value: 79, measuredOn: "2026-08-09" }],
+        startedOn: "2026-06-10",
+      },
+      { todayIso: "2026-08-09" },
+    );
+  }
+
+  it("leads with the Goal's OWN reading rather than its Project contribution", () => {
+    renderCollection([
+      goal({
+        title: "Reach 70 kg",
+        progress: measured(),
+        contribution: contribution(1, 4),
+      }),
+    ]);
+    const card = screen.getByTestId("goal-card");
+    expect(within(card).getByText("79 kg")).toBeInTheDocument();
+    expect(within(card).getByText("79 kg → 70 kg")).toBeInTheDocument();
+    // The contribution bar is REPLACED, not joined: two bars would be two
+    // answers to "how far along?".
+    expect(within(card).queryByText("1 of 4 Projects complete")).toBeNull();
+  });
+
+  it("announces the same sentence the record's own bar announces", () => {
+    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
+    const bar = within(screen.getByTestId("goal-card")).getByRole(
+      "progressbar",
+    );
+    expect(bar.getAttribute("aria-valuetext")).toContain(
+      "79 kg · 40% complete · 9 kg remaining",
+    );
+  });
+
+  it("states its status in words, and what remains", () => {
+    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
+    const card = screen.getByTestId("goal-card");
+    expect(card.textContent).toMatch(/On track|Ahead|In progress/);
+    expect(within(card).getByText("9 kg remaining")).toBeInTheDocument();
+    expect(within(card).getByText("↓ 6 kg overall")).toBeInTheDocument();
+  });
+
+  it("leaves an UNMEASURED Goal's card exactly as M3X-02 built it", () => {
+    renderCollection([
+      goal({ title: "Learn Spanish", contribution: contribution(1, 4) }),
+    ]);
+    const card = screen.getByTestId("goal-card");
+    expect(
+      within(card).getByText("1 of 4 Projects complete"),
+    ).toBeInTheDocument();
+    expect(within(card).getByRole("progressbar")).toBeInTheDocument();
+  });
+
+  it("draws no bar at all for a Goal with neither a measurement nor Projects", () => {
+    renderCollection([goal({ title: "Learn Spanish" })]);
+    const card = screen.getByTestId("goal-card");
+    expect(within(card).queryByRole("progressbar")).toBeNull();
   });
 });

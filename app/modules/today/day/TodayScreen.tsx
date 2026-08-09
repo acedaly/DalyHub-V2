@@ -81,6 +81,12 @@ import {
   TaskIcon,
 } from "~/shared/icons";
 import { ProgressTrack } from "~/shared/progress";
+import { ComparisonBars } from "~/shared/charts";
+import {
+  GoalProgressReadout,
+  formatMeasurementChange,
+  goalCheckInLabel,
+} from "~/shared/goal-progress";
 
 import {
   bucketDay,
@@ -100,10 +106,23 @@ import {
   type ContinueProject,
 } from "./attention-view";
 import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
+import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
+import { activityTrendSummary, weekdayLabel } from "./trend-view";
 import type { DayMeeting, TodayDayData } from "./load";
 
 export type TodayScreenProps = {
   readonly data: TodayDayData;
+  /**
+   * GOAL-02 — open the check-in for a Goal, from Today.
+   *
+   * The route owns the sheet and the write, exactly as the Goal record does;
+   * this screen only says which Goal was pressed. Today never duplicates the
+   * Goal record — it offers the one action a Goal needs most often.
+   */
+  readonly onUpdateGoal?: (
+    goal: TodayGoal,
+    trigger: HTMLElement | null,
+  ) => void;
   /**
    * Persist a task's completion through the EXISTING task-completion path
    * (`POST /tasks/:id`), so ticking a row on Today writes the same record the
@@ -220,7 +239,11 @@ function MeetingRow({ meeting }: { readonly meeting: DayMeeting }) {
 /* The screen                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
+export function TodayScreen({
+  data,
+  onCompleteTask,
+  onUpdateGoal,
+}: TodayScreenProps) {
   const [searchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
 
@@ -543,6 +566,31 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
               </p>
             )}
           </section>
+
+          {/*
+            GOAL-02 — the two sections that answer "am I making progress?" and
+            "is my workload moving in the right direction?".
+
+            They live inside the DAY'S OWN COLUMN, beneath the timeline, rather
+            than as a row under the whole body: a separate row begins under the
+            TALLER of the two columns, which on a desktop left a screen of dead
+            space under a short "My day". Here they simply carry on where the
+            day's work ends, and the rail continues beside them.
+
+            Their DOM position keeps Today's hierarchy on a phone, where
+            everything is one column: immediate actions, then what needs a look,
+            then progress. Neither is a dashboard — Goal progress is at most four
+            Goals with the one action each needs, and the trend is a single
+            comparison with a sentence under it. Both disappear when they have
+            nothing to say.
+          */}
+          <div className="dh-today__progress">
+            <GoalProgressSection
+              goals={data.goals}
+              onUpdateGoal={onUpdateGoal}
+            />
+            <ActivityTrendSection trend={data.activityTrend} />
+          </div>
         </div>
 
         <div className="dh-today__rail">
@@ -670,5 +718,135 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Goal progress                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The measurable Goals worth a look today.
+ *
+ * Its empty state is a LINE, not a panel: an owner with no measurable Goals
+ * should not be shown a large empty analytics container every morning, but they
+ * should be told once that adding a target makes this section work.
+ */
+function GoalProgressSection({
+  goals,
+  onUpdateGoal,
+}: {
+  readonly goals: readonly TodayGoal[];
+  readonly onUpdateGoal?: (
+    goal: TodayGoal,
+    trigger: HTMLElement | null,
+  ) => void;
+}) {
+  return (
+    <section
+      className="dh-today__panel"
+      aria-labelledby="today-goals-heading"
+      data-testid="today-goal-progress"
+    >
+      <div className="dh-today__panel-head">
+        <h2 className="dh-today__panel-title" id="today-goals-heading">
+          Goal progress
+        </h2>
+      </div>
+      {goals.length === 0 ? (
+        <p className="dh-today__quiet">
+          No measurable Goals yet. Add a target to a{" "}
+          <Link to="/goals">Goal</Link> and your progress shows up here.
+        </p>
+      ) : (
+        <ul className="dh-today__goal-list">
+          {goals.map((goal) => {
+            const change = formatMeasurementChange(
+              goal.changeInWindow,
+              goal.progress.unit,
+            );
+            return (
+              <li className="dh-today__goal" key={goal.id}>
+                <div className="dh-today__goal-head">
+                  <Link
+                    className="dh-today__goal-title"
+                    to={`/goals/${encodeURIComponent(goal.id)}`}
+                  >
+                    {goal.title}
+                  </Link>
+                  <span className="dh-today__goal-area">{goal.areaTitle}</span>
+                </div>
+                <GoalProgressReadout
+                  progress={goal.progress}
+                  label={`${goal.title} progress`}
+                  trailing={change ? `${change} this month` : null}
+                />
+                {/* One action, and it is the one a Goal needs most often. The
+                    Goal record is a link away for everything else. */}
+                {onUpdateGoal && goal.progress.type !== "milestone" ? (
+                  <button
+                    type="button"
+                    className="dh-btn dh-btn--outlined dh-btn--sm"
+                    data-testid="today-goal-update"
+                    onClick={(event) => onUpdateGoal(goal, event.currentTarget)}
+                  >
+                    {goalCheckInLabel(goal.progress.type, goal.progress.unit)}
+                    <span className="dh-visually-hidden">{` for ${goal.title}`}</span>
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Workload trend                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Seven days of tasks created against tasks completed.
+ *
+ * Chosen over a productivity score because a score is a number nobody can check
+ * and this is two numbers everybody can. The sentence beneath states the week's
+ * totals, and it only claims the workload moved when the arithmetic supports it.
+ */
+function ActivityTrendSection({
+  trend,
+}: {
+  readonly trend: TodayActivityTrend | null;
+}) {
+  // A week with nothing in it is not a chart with no bars — it is no section.
+  if (trend === null) return null;
+
+  const summary = activityTrendSummary(trend);
+  return (
+    <section
+      className="dh-today__panel"
+      aria-labelledby="today-trend-heading"
+      data-testid="today-activity-trend"
+    >
+      <div className="dh-today__panel-head">
+        <h2 className="dh-today__panel-title" id="today-trend-heading">
+          This week
+        </h2>
+      </div>
+      <ComparisonBars
+        data-testid="today-trend-chart"
+        points={trend.days.map((day) => ({
+          key: day.dateIso,
+          label: weekdayLabel(day.dateIso),
+          primary: day.completed,
+          secondary: day.created,
+        }))}
+        primaryLabel="Completed"
+        secondaryLabel="Created"
+        summary={summary.accessible}
+      />
+      <p className="dh-today__trend-note">{summary.visible}</p>
+    </section>
   );
 }

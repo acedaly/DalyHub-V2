@@ -37,6 +37,14 @@ const routes: readonly RouteContribution[] = [
     file: "routes/mutate.tsx",
   },
   {
+    // GOAL-02 — measurement readings and milestone stages. Separate from
+    // `mutate` because it changes the READINGS taken against a Goal rather than
+    // the Goal record itself (see the route's own doc comment).
+    id: "goals.measurements",
+    path: "goals/:goalId/measurements",
+    file: "routes/measurements.tsx",
+  },
+  {
     id: "goals.activity",
     path: "goals/:goalId/activity",
     file: "routes/activity.tsx",

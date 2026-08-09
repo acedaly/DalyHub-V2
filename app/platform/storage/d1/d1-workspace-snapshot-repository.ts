@@ -61,12 +61,14 @@ function requiredText(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-/** A stored INTEGER value, normalised to `number | null`. */
+/** A stored numeric value (INTEGER or REAL), normalised to `number | null`. A
+ * non-finite value reads as absent rather than exporting `NaN`, which JSON
+ * cannot represent. */
 function integer(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/** A stored INTEGER value the schema guarantees is NOT NULL. */
+/** A stored numeric value the schema guarantees is NOT NULL. */
 function requiredInteger(value: unknown, fallback: number): number {
   const parsed = integer(value);
   return parsed === null ? fallback : parsed;
@@ -167,12 +169,52 @@ const COLLECTIONS: CollectionDescriptors = {
   },
   goalDetails: {
     table: "goal_details",
-    columns: "entity_id, target_date, definition_of_done, updated_at",
+    columns: `entity_id, target_date, definition_of_done, measurement_type,
+      measurement_unit, measurement_direction, baseline_value, target_value,
+      updated_at`,
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
       targetDate: text(row.target_date),
       definitionOfDone: text(row.definition_of_done),
+      // Verbatim, exactly as the Area/Project `iconKey` precedent: an export
+      // records what the database holds, so a measurement type this build no
+      // longer recognises still survives the round trip.
+      measurementType: text(row.measurement_type),
+      measurementUnit: text(row.measurement_unit),
+      measurementDirection: text(row.measurement_direction),
+      baselineValue: integer(row.baseline_value),
+      targetValue: integer(row.target_value),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  goalMeasurements: {
+    table: "goal_measurements",
+    columns: "id, entity_id, value, measured_on, note, created_at, updated_at",
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      goalId: requiredText(row.entity_id),
+      value: requiredInteger(row.value, 0),
+      measuredOn: requiredText(row.measured_on),
+      note: text(row.note),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  goalMilestones: {
+    table: "goal_milestones",
+    columns:
+      "id, entity_id, title, weight, position, completed_at, created_at, updated_at",
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      goalId: requiredText(row.entity_id),
+      title: requiredText(row.title),
+      weight: requiredInteger(row.weight, 1),
+      position: requiredInteger(row.position, 0),
+      completedAt: text(row.completed_at),
+      createdAt: requiredText(row.created_at),
       updatedAt: requiredText(row.updated_at),
     }),
   },

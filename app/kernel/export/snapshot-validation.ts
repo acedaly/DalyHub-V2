@@ -144,6 +144,8 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   spineRecords: (row: { entityId: string }) => row.entityId,
   areaDetails: (row: { entityId: string }) => row.entityId,
   goalDetails: (row: { entityId: string }) => row.entityId,
+  goalMeasurements: (row: { id: string }) => row.id,
+  goalMilestones: (row: { id: string }) => row.id,
   projectDetails: (row: { entityId: string }) => row.entityId,
   taskDetails: (row: { entityId: string }) => row.entityId,
   taskRecurrenceRules: (row: { entityId: string }) => row.entityId,
@@ -417,6 +419,36 @@ export function validateWorkspaceSnapshot(
   });
   records.assetEvents.forEach((row, index) => {
     requireDate(c, `records.assetEvents[${index}].eventDate`, row.eventDate);
+  });
+  records.goalDetails.forEach((row, index) => {
+    requireDate(c, `records.goalDetails[${index}].targetDate`, row.targetDate);
+  });
+  records.goalMeasurements.forEach((row, index) => {
+    const path = `records.goalMeasurements[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.id`, row.id);
+    requireDate(c, `${path}.measuredOn`, row.measuredOn);
+    if (typeof row.value !== "number" || !Number.isFinite(row.value)) {
+      c.add(`${path}.value`, "must be a finite number");
+    }
+    if (!entityIds.has(row.goalId)) {
+      c.add(`${path}.goalId`, "references a goal not in this snapshot");
+    }
+  });
+  records.goalMilestones.forEach((row, index) => {
+    const path = `records.goalMilestones[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.id`, row.id);
+    requireNonEmptyString(c, `${path}.title`, row.title);
+    if (!Number.isInteger(row.weight) || row.weight < 1) {
+      c.add(`${path}.weight`, "must be a whole number of at least 1");
+    }
+    requireInstant(c, `${path}.completedAt`, row.completedAt, {
+      nullable: true,
+    });
+    if (!entityIds.has(row.goalId)) {
+      c.add(`${path}.goalId`, "references a goal not in this snapshot");
+    }
   });
 
   /* Markdown-bearing fields must be strings, never re-rendered HTML -------- */

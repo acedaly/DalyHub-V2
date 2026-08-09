@@ -7,9 +7,19 @@
  * partial creation. Creation itself goes through the single
  * `SpineRepository.createGoal` authority, which is already atomic (entity,
  * spine row, the `goal.belongs_to_area` link and `entity.created` +
- * `entity_link.created` Activity all in one transaction). Collects only a
- * title — see `~/shared/goal-creation/NewGoalForm.tsx` for why target date and
- * definition of done are a post-creation edit, not part of this atomic step.
+ * `entity_link.created` Activity all in one transaction).
+ *
+ * GOAL-02 — creation now also accepts a target date and a measurement
+ * configuration. Those live on the Goal-owned `goal_details` slice, so they are
+ * applied by a SECOND call after the spine write. There is deliberately no
+ * cross-table transaction: the spine write is the one that must not be lost, and
+ * inventing a two-table creation transaction for two optional fields would be a
+ * kernel change this feature does not need.
+ *
+ * The consequence is reported rather than hidden. If the configuration write
+ * fails, the response is still `ok` (the Goal exists — refusing it would be a
+ * lie) with `configured: false`, and the owner lands on a record where every one
+ * of those fields is editable. Nothing is silently dropped.
  */
 
 import { env } from "cloudflare:workers";
@@ -18,13 +28,19 @@ import {
   SpineParentUnavailableError,
   SpineValidationError,
 } from "~/kernel/spine";
+import { validateGoalMeasurementPatch } from "~/kernel/goals";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/new";
 
 export type CreateGoalResult =
-  | { readonly ok: true; readonly goalId: string }
+  | {
+      readonly ok: true;
+      readonly goalId: string;
+      /** False when the Goal was created but its details could not be applied. */
+      readonly configured: boolean;
+    }
   | {
       readonly ok: false;
       readonly formError?: string;
@@ -69,7 +85,35 @@ export async function action({ request, context }: Route.ActionArgs) {
       });
     }
     const goal = await scope.spine.createGoal({ title, areaId });
-    return json({ ok: true, goalId: goal.id });
+
+    // The optional Goal-owned slice. Validation happens through the SAME kernel
+    // validators the record's own edits use, so a malformed target value is a
+    // field error here exactly as it would be there.
+    const targetDate = String(form.get("targetDate") ?? "");
+    const measurementType = form.get("measurementType");
+    const wantsDetails =
+      targetDate.trim().length > 0 || measurementType !== null;
+    if (!wantsDetails) {
+      return json({ ok: true, goalId: goal.id, configured: true });
+    }
+    try {
+      const measurement =
+        measurementType === null
+          ? undefined
+          : validateGoalMeasurementPatch({
+              measurementType,
+              unit: form.get("unit"),
+              baselineValue: form.get("baselineValue"),
+              targetValue: form.get("targetValue"),
+            });
+      await scope.goalDetails.update(goal.id, {
+        ...(targetDate.trim().length > 0 ? { targetDate } : {}),
+        ...(measurement ? { measurement } : {}),
+      });
+      return json({ ok: true, goalId: goal.id, configured: true });
+    } catch {
+      return json({ ok: true, goalId: goal.id, configured: false });
+    }
   } catch (cause) {
     if (cause instanceof SpineValidationError) {
       return json({ ok: false, fieldErrors: { title: cause.message } });
