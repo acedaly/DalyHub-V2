@@ -265,6 +265,27 @@
   max-block-size: 70vh;
 }
 
+/*
+ * M3X — the DESKTOP writing surface gets the same floor the phone and the
+ * no-JavaScript fallback already had.
+ *
+ * The fallback `<textarea>` has always opened at `max(40dvh, 16rem)` and the
+ * phone at `max(40dvh, 12rem)`, but the enhanced CodeMirror host on a desktop
+ * had no minimum at all — so a Note holding one paragraph opened as a 60px box
+ * with half a screen of empty page beneath it, and the surface that IS the page
+ * was the smallest thing on it. Writing into a box that has to grow before it
+ * looks like somewhere to write is the "clunky editor" the brief names.
+ *
+ * `40dvh` rather than a fixed height so it tracks the visible viewport (and the
+ * software keyboard on a touch laptop), floored at the comfortable minimum so a
+ * short window still gets a real surface. Compact density — an editor embedded
+ * in a record body, where the page already provides the frame — keeps its own
+ * shorter floor in the rule above and is excluded here.
+ */
+.dh-md-editor:not([data-density="compact"]) .dh-md-editor__cm .cm-editor {
+  min-block-size: max(40dvh, var(--app-editor-min-height));
+}
+
 .dh-md-editor__cm .cm-editor.cm-focused {
   outline: none; /* the wrapper carries the focus ring */
 }

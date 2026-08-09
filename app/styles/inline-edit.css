@@ -42,6 +42,33 @@
       var(--md-sys-motion-easing-standard);
 }
 
+/*
+ * M3X — a genuine MOUSE gets a smaller trigger.
+ *
+ * The 45px floor above is a touch floor, and it was being paid on every pointer.
+ * A DalyHub task row carries up to five inline-edit triggers in its supporting
+ * run, so on a laptop the floor was setting the height of the run — and through
+ * it the row: 88px per task, of which 21px was touch headroom no mouse needs.
+ * That is the single largest contributor to the density finding in the audit
+ * (§2, H4), and it costs roughly two visible tasks per laptop screen.
+ *
+ * `--app-control-height-sm` (28px) clears WCAG 2.2 §2.5.8's 24×24 minimum on its
+ * own, and the run's `space-1`/`space-3` gaps clear the spacing exception on top
+ * of that. The query is written as an OPT-OUT — a device must positively declare
+ * a fine pointer with hover to get the smaller target — so a touch device, a
+ * hybrid, a stylus and any browser that cannot answer all keep the 45px floor.
+ * The editing surfaces (`__input`, `__textarea`, `__edit`) are untouched: they
+ * are where the typing happens and comfort there is not headroom.
+ *
+ * This mirrors the existing `.dh-settings-danger-button`, which has always taken
+ * its 44px behind a pointer query rather than unconditionally.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .dh-inline-edit__trigger {
+    min-block-size: var(--app-control-height-sm);
+  }
+}
+
 /* Hover AND focus-visible get the SAME treatment. Hover-only would leave every
  * keyboard and touch user with no affordance at all (AGENTS.md §15).
  *

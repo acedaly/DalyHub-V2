@@ -69,6 +69,14 @@ export type {
  * so a module never forks one again.
  */
 export { DashboardCard, type DashboardCardProps } from "./DashboardCard";
+/** M3X — the one expressive surface a page is allowed. */
+export {
+  ExpressiveSummary,
+  MAX_SUMMARY_STATS,
+  type ExpressiveSummaryProps,
+  type SummaryRing,
+  type SummaryStat,
+} from "./ExpressiveSummary";
 export {
   MetricTile,
   MetricRow,

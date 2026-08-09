@@ -66,27 +66,34 @@ test.describe("Today — the day surface", () => {
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
 
-  test("every chip states a real count and links to the view holding it", async ({
+  test("every summary figure states a real count and links to the view holding it", async ({
     page,
   }) => {
     await page.goto("/today");
 
-    const chips = page.locator(".dh-today__chip");
-    const count = await chips.count();
+    // M3X: the assist-chip row became the expressive summary's figures. Same
+    // three facts, same rules, one surface.
+    const stats = page.locator(".dh-summary__stat-link");
+    const count = await stats.count();
+    expect(count).toBeGreaterThan(0);
     for (let index = 0; index < count; index += 1) {
-      const chip = chips.nth(index);
-      const label = (await chip.innerText()).trim();
-      // A chip never states a zero — that is the whole rule.
+      const stat = stats.nth(index);
+      const label = (await stat.innerText()).replace(/\s+/g, " ").trim();
+      // A figure never states a zero — that is the whole rule.
       expect(label).not.toMatch(/^0\b/);
-      const href = await chip.getAttribute("href");
+      const href = await stat.getAttribute("href");
       expect(href).toMatch(/^\/(tasks\?system=(today|overdue)|meetings)$/);
     }
 
-    // The overdue chip is the ONLY coloured one on the page.
-    const errorChips = page.locator('.dh-today__chip[data-tone="error"]');
-    expect(await errorChips.count()).toBeLessThanOrEqual(1);
-    if ((await errorChips.count()) === 1) {
-      await expect(errorChips).toHaveText(/overdue$/);
+    // Overdue work is the ONLY toned figure on the page.
+    const toned = page.locator(
+      '.dh-summary__stat-value[data-tone="attention"]',
+    );
+    expect(await toned.count()).toBeLessThanOrEqual(1);
+    if ((await toned.count()) === 1) {
+      await expect(
+        page.locator('.dh-summary__stat:has([data-tone="attention"])'),
+      ).toContainText("overdue");
     }
   });
 

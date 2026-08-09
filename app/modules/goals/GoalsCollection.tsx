@@ -32,7 +32,7 @@
 
 import { useCallback } from "react";
 
-import { EntityCard, EntityCardGrid } from "~/shared/card";
+import { EntityCard, EntityCardGrid, ExpressiveSummary } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -316,6 +316,31 @@ function alignmentSummary(
   return `${active} of ${open.length} open ${goalNoun} ${open.length === 1 ? "has" : "have"} had recent action.`;
 }
 
+/**
+ * The same counts `alignmentSummary` states in words, as numbers.
+ *
+ * Split out rather than derived twice so the summary surface and its note can
+ * never disagree — and so the ring's proportion is provably the proportion the
+ * sentence beneath it describes. Null when there is no open Goal, which is the
+ * same condition that suppresses the sentence: a page of completed Goals has
+ * nothing to be "working toward".
+ */
+function alignmentMomentum(goals: readonly SerializedGoalWithAlignment[]): {
+  readonly open: number;
+  readonly active: number;
+  readonly completed: number;
+} | null {
+  const open = goals.filter((goal) => goal.alignment.state !== "completed");
+  if (open.length === 0) {
+    return null;
+  }
+  return {
+    open: open.length,
+    active: open.filter((goal) => goal.alignment.state === "active").length,
+    completed: goals.length - open.length,
+  };
+}
+
 function GoalsCollection({
   goals,
   deletedGoals,
@@ -427,6 +452,7 @@ function GoalsCollection({
         ? "1 Goal"
         : `${count} Goals`;
   const summary = failed ? null : alignmentSummary(items);
+  const momentum = failed ? null : alignmentMomentum(items);
 
   return (
     <CollectionLayout
@@ -468,7 +494,53 @@ function GoalsCollection({
         />
       }
     >
-      {summary ? (
+      {/*
+       * M3X — Goals' one expressive surface.
+       *
+       * Every figure on it is a COUNT the module already had, and the ring is
+       * the proportion the recap sentence has always stated in words. There is
+       * deliberately no completion percentage, no score and no momentum
+       * gauge: a DalyHub Goal carries no numeric target, and inventing one to
+       * fill a hero would be exactly the fabricated precision
+       * PRODUCT_PRINCIPLES rules out. The sentence stays, as the surface's
+       * note, so nothing here depends on reading a ring.
+       */}
+      {momentum ? (
+        <ExpressiveSummary
+          className="dh-goals-summary"
+          data-testid="goals-summary"
+          eyebrow="Goals"
+          headline="What you are working toward"
+          ring={{
+            value: momentum.active / momentum.open,
+            label: `${momentum.active} of ${momentum.open} open Goals have had recent action`,
+            centre: `${momentum.active}/${momentum.open}`,
+          }}
+          stats={[
+            {
+              id: "open",
+              value: momentum.open,
+              label: momentum.open === 1 ? "open Goal" : "open Goals",
+            },
+            ...(momentum.completed > 0
+              ? [
+                  {
+                    id: "completed",
+                    value: momentum.completed,
+                    label: "completed",
+                  },
+                ]
+              : []),
+          ]}
+          /*
+           * The recap keeps its LIVE REGION. It is the sentence that changes
+           * when "Load more" brings another page of Goals in, and moving it
+           * onto the summary must not stop it being announced — the surface
+           * changed, the behaviour did not.
+           */
+          note={summary ? <span role="status">{summary}</span> : undefined}
+        />
+      ) : summary ? (
         <p className="dh-goals-alignment-summary" role="status">
           {summary}
         </p>

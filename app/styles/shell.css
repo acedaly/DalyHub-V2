@@ -248,27 +248,35 @@
  * heavier label. Never colour alone (AGENTS.md §15) — the filled pill is a
  * shape, so the selected row survives forced colours and monochrome.
  *
- * DELIBERATE DEVIATION from the M3 default. The specification pairs a navigation
- * drawer's active indicator with `secondary-container`; DalyHub uses
- * `primary-container` / `on-primary-container`.
+ * M3X RETIRED A DEVIATION HERE, and it is worth recording why rather than just
+ * changing the token.
  *
- * The reason is this scheme specifically. `SchemeVibrant` derives secondary from
- * the seed at low chroma, which lands `secondary-container` on a lavender
- * (`#e2dfff`) — the one visibly tinted surface left in a shell that was
- * deliberately neutralised, and reading as a leftover of the wash rather than as
- * a decision. `primary-container` (`#dbe1ff`) is the blue the reference design
- * uses for the selected destination, and it says the same thing the rest of the
- * product says with primary: this is the current one.
+ * The specification pairs a navigation drawer's active indicator with
+ * `secondary-container`. DalyHub used `primary-container` instead, for a reason
+ * that was entirely about the founding blue seed: `SchemeVibrant` derives
+ * secondary at low chroma, which landed `secondary-container` on a lavender
+ * (`#e2dfff`) — the one visibly tinted surface left in a shell that had been
+ * deliberately neutralised, reading as a leftover of the wash rather than as a
+ * decision.
+ *
+ * The M3X violet inverts that argument completely. The product IS violet now, so
+ * a soft lilac selection is the identity rather than a leftover of it — and
+ * `primary-container` in DARK is a tone-30 maximum-chroma violet, which made the
+ * selected destination the single most saturated object on a dark screen, in a
+ * sidebar the design brief explicitly says must not compete with the page.
+ * `secondary-container` is the muted plum in dark and the soft lilac in light:
+ * quieter in both, and the specification's own answer.
  *
  * Both pairs clear 4.5:1 by construction (M3 assigns container/on-container the
  * same tones for every group), and `test/unit/tokens/contrast.test.ts` asserts
- * the navigation pairing by name so this deviation cannot silently regress.
- * Recorded in DESIGN_SYSTEM.md and the ADR follow-up.
+ * the navigation pairing by name so it cannot silently regress. Selection is
+ * never colour alone regardless: the filled pill is a SHAPE, the label steps up
+ * a weight, and `aria-current` carries it semantically.
  */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
   font-weight: 600;
 }
 
@@ -977,6 +985,31 @@
   .dh-pane-header__views {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  /*
+   * M3X — SECONDARY actions get their own row too.
+   *
+   * The narrow composition above assumed the action cluster held one primary
+   * button. Tasks carries two secondary ones ("Select tasks", "Review Inbox"),
+   * and `grid-template-columns: minmax(0, 1fr) auto` gave both of them their
+   * full width out of the title's column: at 390px the count line was crushed
+   * into three wrapped words beside them. A secondary action is by definition
+   * not what the screen is about, so it yields the first row to the title and
+   * takes a row of its own beneath the view switcher.
+   *
+   * Scoped with `:has` so a header carrying only a primary action — every other
+   * collection — keeps the deliberate two-row shape documented above.
+   */
+  .dh-pane-header:has(.dh-pane-header__secondary) .dh-pane-header__actions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-start;
+  }
+
+  .dh-pane-header__actions,
+  .dh-pane-header__secondary {
+    flex-wrap: wrap;
   }
 }
 

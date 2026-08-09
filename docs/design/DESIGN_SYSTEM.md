@@ -30,12 +30,217 @@ This matters because it changes where design questions get answered. "What radiu
 
 ---
 
+## DalyHub Material 3 Expressive Direction
+
+> The M3X pass (2026-08). Everything below is an extension of the Material Design 3
+> foundation above, never a second design language beside it. Before-and-after
+> evidence: [`assets/m3x-2026-08/`](assets/m3x-2026-08/); the findings it answers:
+> [`M3_EXPRESSIVE_AUDIT_2026_08.md`](M3_EXPRESSIVE_AUDIT_2026_08.md).
+
+### The principle
+
+**Calm workspace. Expressive moments.**
+
+Roughly 75% restrained M3, 25% M3 Expressive. Expression is a budget, not a
+style: a page spends it in one place, and everything else in the product is
+quieter *because* that one place is louder. A product where every surface is
+expressive has emphasised nothing — which is precisely the state the audit found,
+with a hairline, a shadow, a 16px radius and 20px of padding on every box in the
+application at once.
+
+### Expressive surfaces
+
+Appropriate — and each of these gets **one** per page, at most:
+
+| Surface | Why it earns it |
+| --- | --- |
+| Today's summary | The day's state is the question the screen exists to answer |
+| Goals' summary | Momentum across open Goals, from real counts |
+| Progress | The answer to "how is this going?" on a Project, a Goal, a day |
+| Success and completion | A moment worth marking, once |
+| Quick capture | The interaction the product most wants to be easy |
+| Major empty states | The one place a page has nothing else to say |
+| Project and Area identity | Recognition before reading — the icon container |
+| A selected high-value datum | The one figure a surface is really about |
+
+### Quiet surfaces
+
+Restrained M3, always. No tint, no hero shape, no extra depth:
+
+forms · settings · the editor · every list and collection row · administration ·
+repeated data entry · navigation · filters · metadata
+
+### Shape hierarchy
+
+Five semantic names over the M3 corner scale, in `tokens.css`. A surface picks
+the name that matches its **weight in the page**; nesting always steps *down*, so
+an inner surface is never rounder than the one holding it.
+
+| Token | Value | Used by |
+| --- | --- | --- |
+| `--app-shape-hero` | `corner-extra-large` (28) | The page's one summary surface |
+| `--app-shape-entity-card` | `corner-large-increased` (20) | Project · Area · Goal · Asset cards |
+| `--app-shape-card` | `corner-large` (16) | Ordinary cards, panels, collection groups |
+| `--app-shape-supporting` | `corner-medium` (12) | A tinted run or inset list *inside* a card |
+| `--app-shape-control` | `corner-small` (8) | Chips, segments, small tiles |
+
+`corner-large-increased` and `corner-extra-large-increased` are **M3 Expressive's
+own rungs**, added to the scale rather than invented. Buttons, the FAB, the
+search bar, text fields, menus, dialogs and sheets keep the component assignments
+in [Shape, elevation, state and motion](#shape-elevation-state-and-motion) —
+nothing became a pill that was not one.
+
+### Typography hierarchy
+
+The correction M3X makes is: **emphasis is weight, not size.** M3 Expressive pairs
+each style with an `-emphasized` weight variant, and `tokens.css` carries them for
+the eight styles that genuinely have two voices. Roboto Flex is instanced to the
+`wght` axis, so these are real weights on the shipped font.
+
+| Surface | Style |
+| --- | --- |
+| Hero headline | `headline-medium` **emphasized** |
+| Hero figure / ring centre | `headline-small` **emphasized**, tabular |
+| Hero eyebrow, hero stat label | `label-large` / `body-small` |
+| Page title (collections) | `headline-small` |
+| Today's greeting | `headline-small` **emphasized** |
+| Entity card title | `title-medium` **emphasized**, clamped at 3 lines |
+| Entity card metric | `headline-small` **emphasized**, tabular |
+| Collection row title | `body-large` at the emphasized label weight |
+| Progress percentage | `label-large` **emphasized**, on-surface |
+| Card and widget titles | `title-medium` |
+| Metadata, supporting text | `body-small` |
+
+Two hard rules. **A page title fits one line at 1280.** And **nothing is made
+important by being made bigger** — if a heading needs more presence, it takes the
+emphasized weight.
+
+### Colour usage
+
+The seed is **violet `#6D4AE6`**. Colour is still generated and never authored
+(see [Colour is generated, never authored](#colour-is-generated-never-authored));
+the identity is restrained by *how little of the page it covers*, not by
+desaturating it.
+
+- **Violet is spent on action and on the one expressive surface.** Filled
+  buttons, the FAB, the capture affordance, progress fills, the hero tint.
+- **Selection is `secondary-container`** — the soft lilac in light, the muted
+  plum in dark — in the sidebar, the phone navigation bar, the settings rail and
+  the segmented control alike. M3X retired the old `primary-container`
+  navigation deviation: under a violet seed that role is a maximum-chroma tone-30
+  violet in dark, and a permanent navigation row is the last place that belongs.
+- **Blue is now semantic, not the brand**: chart series 1, Area accent 1, the
+  Project entity and priority P3. See `BLUE_HEX` in the generator for why each
+  one could not simply follow the seed.
+- **Status keeps the `state-*` roles.** Overdue work is `state-overdue`, never
+  `error` — a slipped task is a state of a record, not an application fault.
+- **Tinted surfaces mix by a generated STRENGTH, not by a fixed percentage.**
+  `--app-tint-strength-expressive` and `--app-tint-strength-state` are halved in
+  dark, because a container role that is a pale tone in light is a saturated
+  tone-30 in dark and the same mix produces a slab. This is the only thing in the
+  expressive layer that differs by appearance, and it is generated for that
+  reason.
+
+### Card vs list
+
+| Use a **card** for | Use a **list** for |
+| --- | --- |
+| Projects, Areas, Goals, Assets — things with identity | Tasks |
+| A page summary | Note, meeting and diary directories |
+| Focused grouped information | Activity and timeline feeds |
+| | Any repeated homogeneous content |
+
+**In a collection, the GROUP is the card and the row is a row** — that contract is
+unchanged. What M3X changed is that a card no longer draws a border *and* a
+shadow *and* a radius: separation is the surface step (the page canvas moved down
+to tone 97 to pay for it), and depth is reserved for the hero, for a hovered
+interactive card, and for things that genuinely float. A hairline inside a card,
+separating two kinds of content, is still correct — that is what a rule is for.
+
+Never card-inside-card. `.dh-card-collection--list` already stands its container
+down when it is nested, and Today's panels forbid it outright.
+
+### Desktop composition rules
+
+- **The sidebar does not compete.** Monochrome glyphs, a `secondary-container`
+  selection pill, and no entity colour down the rail.
+- **One page, one hero.** It is a full-width band above the content, never inside
+  a column.
+- **Surfaces are not all the same size.** Today is a hero band over an asymmetric
+  two-column body; a gallery is an `auto-fill` grid whose column count is a
+  consequence of one token, not a breakpoint table.
+- **Gallery rows share a height** (`align-items: stretch`) and card footers align
+  to the bottom, so a row reads as a row.
+- **One control row, not two.** A collection with persistent controls merges its
+  module filter slot and the shared control row onto one line from `md` up.
+- Collections keep the `--app-width-wide` measure; Today keeps the dashboard
+  measure. A wide monitor gets more columns, not longer lines.
+
+### Mobile composition rules
+
+- **A phone layout is composed, not collapsed.** The desktop dashboard is not
+  reproduced vertically.
+- **The first viewport answers the page's question.** On Today that is the
+  summary — counts, overdue, progress — above the fold, with the greeting
+  compact above it.
+- The hero drops to card padding and moves its figures to their own band under
+  the headline rather than competing for a 358px line.
+- Rows keep every fact (nothing is hidden by width); low-priority detail is
+  de-emphasised into the supporting run.
+- **Touch floors are touch floors.** The 44/45px minimum is unconditional except
+  where a rule positively detects `(hover: hover) and (pointer: fine)` — a genuine
+  mouse — in which case an inline-edit trigger falls back to 28px, which still
+  clears WCAG 2.2 §2.5.8's 24px with the run's spacing on top. A hybrid, a
+  stylus, a touch laptop and any browser that cannot answer all keep the floor.
+
+### Safe areas
+
+Unchanged and still load-bearing: `env(safe-area-inset-*)` on every fixed
+control, `--app-keyboard-inset` from the one Visual Viewport observer,
+`--app-bottomnav-height` reserved by every scrolling surface, `dvh` where the
+visible viewport matters. **No compensating pixel offsets, anywhere.**
+
+### FAB and bottom navigation
+
+Unchanged by M3X, and restated because the temptation to add a second capture
+control returns with every visual pass: the FAB exists only where the phone
+navigation **bar** does not, the bar's Capture slot is the single global
+affordance below `md`, and a module does not add its own "New" button where global
+Quick Capture already creates the same record.
+
+### Motion
+
+The expressive motion budget, in full:
+
+| Where | What |
+| --- | --- |
+| Interactive entity card, hover | Elevation to `--app-elevation-raised` + `translateY(-1px)`, `short3` |
+| Progress fill | Width, `medium2`, standard easing |
+| Selection, filters, tabs | The existing state-layer and container changes |
+| Sheets, drawers, the FAB | Their existing M3 transitions |
+
+Nothing animates on load. There is no parallax, no animated background, no
+decorative bounce and still no ripple. `prefers-reduced-motion` zeroes every
+transition through the one global rule in `base.css`, and no meaning is carried
+by motion alone.
+
+### Responsive behaviour
+
+Validated at 320 · 375 · 390–430 · tablet · 1024 · 1280 · 1440 · 1920. The
+laptop widths get the most attention, because that is where a title wraps, a
+gallery collapses a column early, or a control row doubles. Desktop and mobile
+are allowed genuinely different compositions — a split view against a dedicated
+screen, persistent filters against a sheet, a grid against a rich list — and that
+is the design, not a divergence to reconcile.
+
+---
+
 ## Colour is generated, never authored
 
 Every colour in the product comes out of [`scripts/generate-m3-scheme.mjs`](../../scripts/generate-m3-scheme.mjs), which runs the M3 tonal-palette algorithm over a single seed:
 
 ```
-SOURCE_COLOR = #2563EB
+SOURCE_COLOR = #6D4AE6   // M3X: violet. Was #2563EB.
 ```
 
 The script writes **both** the colour blocks in `tokens.css` and the typed mirror `app/shared/tokens/scheme.ts`, so the stylesheet and the tests cannot disagree. `pnpm run scheme:check` regenerates both in memory and byte-compares them; it runs inside `pnpm run verify`, so a hand-edited hex fails the build rather than surviving review.
@@ -89,7 +294,7 @@ Each entity type has one colour, and no two share one — an activity feed routi
 | --- | --- | --- |
 | Area | teal `#00897B` | `layers` |
 | Goal | purple `#8E24AA` | `flag` |
-| Project | seed blue `#2563EB` | `folder` |
+| Project | blue `#2563EB` (no longer the seed — see `BLUE_HEX`) | `folder` |
 | Task | green `#1B873F` | `check_circle` |
 | Note | amber `#B26A00` | `description` |
 | Meeting | magenta `#C2185B` | `groups` |
@@ -131,7 +336,7 @@ There are no density presets. Density is a typescale choice per surface, made wh
 
 ## Shape, elevation, state and motion
 
-**Shape.** `--md-sys-shape-corner-{none,extra-small,small,medium,large,extra-large,full}` = 0 / 4 / 8 / 12 / 16 / 28 / 9999px.
+**Shape.** `--md-sys-shape-corner-{none,extra-small,small,medium,large,large-increased,extra-large,extra-large-increased,full}` = 0 / 4 / 8 / 12 / 16 / 20 / 28 / 32 / 9999px. The two `-increased` rungs are M3 Expressive's, added by M3X; the five SEMANTIC names assigned over the scale are in [DalyHub Material 3 Expressive Direction](#dalyhub-material-3-expressive-direction).
 
 | Component | Corner |
 | --- | --- |
@@ -184,10 +389,10 @@ Both routes reach the same declarations. This is deliberately stricter than it w
 | **Buttons** | 40px visual height on a 44px target, `corner-full`, `label-large`, 24px inline (16px with a leading glyph), built-in state layer. Filled (`--primary`, one per surface), tonal (`--secondary`), outlined (`--outlined`), text (`--ghost`), error-filled (`--danger`). |
 | **Chips** | 32px, `corner-small`, `label-large`, on the role's container pair. The neutral absence chip keeps an outline. |
 | **Text fields** | M3 outlined: 56px, `corner-extra-small`, 1px `outline` → 2px `primary` focused, 2px `error` invalid, `body-small` supporting text. The label sits **above** the field rather than notched into the outline — a deliberate deviation, for accessible-name stability across ~100 instances. |
-| **Cards** | `--md-app-color-surface-card`, `corner-large`, elevation 1, no border, 16/24px padding. Interactive cards lift to elevation 2. |
+| **Cards** | `--md-app-color-surface-card`, `--app-shape-card`, **no border and no resting shadow** (M3X — separation is the surface step), 16/24px padding. Interactive cards lift to `--app-elevation-raised` on hover. An entity card takes `--app-shape-entity-card`; a page summary takes `--app-shape-hero` with the tinted expressive surface. |
 | **Lists** | 56px one-line, 16px inline padding, `outline-variant` hairline between rows only. |
 | **Menus** | `surface-container-high`, `corner-extra-small`, elevation 2, 48px `body-large` items. |
-| **Navigation drawer** | `surface`, no edge border, 12px inline padding; 56px `corner-full` items with a 24px glyph, 12px gap, `label-large` and a `secondary-container` active-indicator fill. |
+| **Navigation drawer** | `surface`, no edge border, 12px inline padding; 56px `corner-full` items with a 24px glyph, 12px gap, `label-large` and a `secondary-container` active-indicator fill (M3X returned this to the M3 default — see `shell.css`). |
 | **Top app bar** | Small variant: 64px, `surface`, no rule, `title-large`. |
 | **Search bar** | 56px, `corner-full`, `surface-container-high`, leading glyph. |
 | **Navigation bar** | 80px, `surface-container`, a 64×32 `secondary-container` active-indicator pill behind the glyph, `label-medium` labels always visible. |
@@ -195,7 +400,7 @@ Both routes reach the same declarations. This is deliberately stricter than it w
 | **Segmented buttons** | One 40px outlined container, `corner-full` ends, 1px dividers, `secondary-container` selected segment with a leading check glyph. |
 | **Snackbar** | `inverse-surface` pair, `corner-extra-small`, elevation 3, action text in `inverse-primary`. |
 | **Tooltip** | Plain variant: `inverse-surface` pair, `corner-extra-small`, elevation 2, `body-small`, 8px from its trigger and clamped to the viewport. Shown on hover **and** `:focus-visible`. |
-| **Progress** | Linear: 4px `corner-full`, `primary` on `secondary-container`. Circular: the shared `ProgressRing` in [`app/shared/charts`](../../app/shared/charts), same tokens, same 4px stroke. |
+| **Progress** | Linear: `--app-progress-bar-height` (6px since M3X) `corner-full`, `primary` on `secondary-container`. Circular: the shared `ProgressRing` in [`app/shared/charts`](../../app/shared/charts), same tokens; a hero ring passes a thicker stroke. |
 | **Bottom sheet** | Top corners `extra-large`, `surface-container-low`, elevation 1, 32×4 drag handle at `on-surface-variant` 40%. |
 | **Side drawer** | Leading edge `extra-large`, `surface-container-low`, elevation 1, scrim at `scrim` 32%. |
 

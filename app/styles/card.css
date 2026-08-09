@@ -262,10 +262,17 @@
   border-color: transparent;
 }
 
+/*
+ * M3X — the title takes the EMPHASIZED label weight.
+ *
+ * It is the one thing a list is scanned for, and the audit found it losing that
+ * scan to the six supporting facts beside it, all drawn at the same weight
+ * (§2, H4). Weight rather than size, so a dense list stays dense.
+ */
 .dh-card__title {
   margin: 0;
   font-size: var(--md-sys-typescale-body-large-size);
-  font-weight: 500;
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -352,12 +359,27 @@
 }
 
 /* Metadata */
+/*
+ * M3X — the supporting run sits CLOSER to its title and tighter within itself.
+ *
+ * The run belongs to the row above it, and `.dh-card__body` already puts a
+ * `space-1` gap there. The extra `space-1` top MARGIN on top of that gap was
+ * double-spacing every row in the product by four pixels and making a
+ * two-line run read as a second row of its own.
+ *
+ * The gaps INSIDE the run are unchanged, deliberately: the `space-1` row gap is
+ * what keeps a wrapped run's inline-edit triggers apart, and WCAG 2.2's target
+ * spacing rule (2.5.8) is satisfied here by spacing rather than by size (see
+ * the note on `.dh-card__body` below). Vertical density is never worth a target
+ * a thumb misses.
+ */
 .dh-card__metadata {
   list-style: none;
-  margin: var(--app-space-1) 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--app-space-1) var(--app-space-3);
   min-width: 0;
 }
@@ -692,12 +714,13 @@
  * `Card.tsx`), not edited.
  */
 
-/* The group: one M3 elevated card, no border. */
+/* The group: one card, no border, no resting shadow (M3X — separation is the
+ * surface step, and the page canvas moved down a tone to pay for it). */
 .dh-card-collection--list {
   background: var(--md-app-color-surface-card);
   border: none;
-  border-radius: var(--md-sys-shape-corner-large);
-  box-shadow: var(--md-sys-elevation-1);
+  border-radius: var(--app-shape-card);
+  box-shadow: var(--app-elevation-resting);
   padding-block: var(--app-space-2);
   padding-inline: var(--app-space-4);
   gap: 0;
@@ -747,10 +770,13 @@
  * invisible against it and the tray stays hidden until a finger moves it.
  */
 /* The M3 LIST ITEM's metrics: 56px on one line, 72px once a supporting line is
- * present, and 16px of inline padding. */
+ * present, and 16px of inline padding. M3X trims the inline gap between the
+ * row's columns from 16px to 12px — a task row carries a selection control, an
+ * identity mark, a body and an action rail, and four 16px gutters were 64px of
+ * a laptop row spent on nothing. */
 .dh-card-collection--list .dh-card {
   align-items: center;
-  gap: var(--app-space-4);
+  gap: var(--app-space-3);
   padding-block: var(--app-space-2);
   padding-inline: var(--app-space-4);
   min-block-size: 3.5rem;
