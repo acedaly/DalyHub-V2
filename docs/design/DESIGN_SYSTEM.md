@@ -68,7 +68,7 @@ Three levels, and every surface in the product is exactly one of them.
 
 | Level | What it is | Component | How many |
 | --- | --- | --- | --- |
-| **1 — Dominant** | The one surface answering the question the page exists to answer | `ExpressiveSummary` | **One** per page, at most |
+| **1 — Dominant** | The one surface answering the question the page exists to answer | `ExpressiveSummary` | **One** per page, at most — and **zero** is a legitimate answer |
 | **2 — Supporting expressive** | A short surface carrying identity, progress, a focus or a next action | `SupportingSurface`, the entity card's identity mark and progress | **A few** — two or three, not a gallery |
 | **3 — Quiet interface** | Everything the owner works *in* | panels, collection rows, forms, filters, navigation | The rest of the page |
 
@@ -92,11 +92,14 @@ card along in a grid.
 
 ### What earns Level 1
 
-One of these, per page, at most:
+One of these, per page, at most — and a page is allowed **none**. Today has
+none: its figures are a row of quiet `StatCard`s on the canvas, because a hero
+spends the page's largest type on a *headline* and leaves the numbers at label
+size beside it, on the one screen whose entire question is the numbers. Restraint
+is a design decision, not an omission.
 
 | Surface | Why it earns it |
 | --- | --- |
-| Today's summary | The day's state is the question the screen exists to answer |
 | Goals' summary | Momentum across open Goals, from real counts |
 | Success and completion | A moment worth marking, once |
 | Quick capture | The interaction the product most wants to be easy |
@@ -229,11 +232,10 @@ down when it is nested, and Today's panels forbid it outright.
 
 - **The sidebar does not compete.** Monochrome glyphs, a `secondary-container`
   selection pill, and no entity colour down the rail.
-- **One page, one DOMINANT surface.** Where it sits is a composition decision,
-  not a rule: Today's hero leads its main column with a supporting surface beside
-  it, because a full-width band above a short day column made the page's most
-  important region its emptiest. A collection's hero is still a band above the
-  grid, because there is no second column to balance it against.
+- **At most one DOMINANT surface, and often none.** Where it sits is a
+  composition decision, not a rule: a collection's hero is a band above the grid,
+  because there is no second column to balance it against. Today has no hero at
+  all — a `StatCard` row on the canvas, then two unequal columns.
 - **Supporting expressive surfaces sit where the hierarchy needs them**, and are
   subordinate on every axis (see [the hierarchy model](#the-hierarchy-model-m3x-02)).
 - **Surfaces are not all the same size.** Today is a hero band over an asymmetric

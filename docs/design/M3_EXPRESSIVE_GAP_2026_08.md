@@ -66,7 +66,7 @@ this pass does.
 | **Missing** | The screen never answers *what next?*. A meeting's time is a row in a list; the project the owner was last working in is the first of three interchangeable rows. |
 | **Desktop** | Symmetrical two-column dashboard; unequal columns and an asymmetric composition are what the direction asks for. |
 | **Mobile** | First viewport: greeting, hero, then the overdue run. Three of the four questions a phone glance asks are answered; *what next* is not. |
-| **This pass** | The hero moves into the main column and gains **Next up** beside it (Level 2, from a server-decided "has this meeting started?"); the rail gains **Current focus** (Level 2, the head of the existing ranked project list, with its persisted identity mark and its own task rollup). Three regions, unequal, DOM order == phone order. |
+| **This pass** | The hero is **removed**. The day's figures become a row of quiet `StatCard`s on the canvas — the same `dayChips` model, so every rule it held still lives in one pure, tested place — and the meetings card carries the next start time from the server-decided "has this started?". Meetings leave the day column for their own **Schedule** panel; the day column becomes **Focus**. Two unequal columns, DOM order == phone order. |
 
 ### Tasks
 

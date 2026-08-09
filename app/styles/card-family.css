@@ -1815,3 +1815,117 @@
     padding-inline-end: 0;
   }
 }
+
+/* ========================================================================== */
+/* StatCard — a page's figures, on the canvas                                 */
+/* ========================================================================== */
+
+/*
+ * Quiet cards in a row, directly on the page canvas.
+ *
+ * `auto-FILL`, not `auto-fit`, and the distinction is the whole behaviour: a row
+ * with two figures in it should be two cards and some canvas, not two cards each
+ * half the page wide. `auto-fit` collapses the empty tracks and lets the
+ * survivors balloon; `auto-fill` keeps them, so a card is the same size whether
+ * the day has two figures or four.
+ *
+ * The minimum is sized so a PHONE gets two across — four stacked cards would be
+ * most of a 390px first viewport spent on counting, which is the dashboard this
+ * replaced.
+ */
+.dh-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--app-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-stat-row__item {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.dh-stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+  padding: var(--app-card-padding-compact);
+  border: none;
+  border-radius: var(--app-shape-card);
+  background: var(--md-app-color-surface-card);
+  box-shadow: var(--app-elevation-resting);
+  color: var(--md-sys-color-on-surface);
+  text-decoration: none;
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.dh-stat--interactive:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+/* The label is read before the number, so it leads — and it stays quiet, because
+ * the figure under it is the thing being scanned for. */
+.dh-stat__label {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.dh-stat__figure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * `headline-medium` emphasized, tabular. This is the largest type on the page
+ * and it is spent on the figures — which is the whole argument for the row: the
+ * previous hero spent `headline-medium` on a headline ("Your day") and left the
+ * numbers at label size beside it.
+ */
+.dh-stat__value {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The ONE place a figure takes colour, and never alone — the label above it and
+ * the line beneath it both say what it is. */
+.dh-stat__value[data-tone="attention"],
+.dh-stat__supporting[data-tone="attention"] {
+  color: var(--md-sys-color-state-overdue);
+}
+
+.dh-stat__ring {
+  display: inline-flex;
+  flex: none;
+  line-height: 0;
+}
+
+.dh-stat__supporting {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .dh-stat {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+}

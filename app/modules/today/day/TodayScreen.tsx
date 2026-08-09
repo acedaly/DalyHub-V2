@@ -6,29 +6,33 @@
  *
  * ── WHAT IT IS ───────────────────────────────────────────────────────────────
  *
- *   greeting + date            page content on the canvas — no card, no widget
- *   ┌──────────────────────────────────────┬──────────────────────┐
- *   │ ◯72%  Today · Your day   8 tasks     │ NEXT UP              │  L1 + L2
- *   │       3 of 8 done today  2 overdue   │ Ops planning · 09:30 │
- *   │       [ Plan day ]                   ├──────────────────────┤
- *   ├──────────────────────────────────────┤ CURRENT FOCUS        │
- *   │ My day                               │ ⬤ Kitchen fit-out    │
- *   │  overdue (tinted)                    │ ▓▓▓▓░░░░  38%        │
- *   │  meetings                            ├──────────────────────┤
- *   │  due today                           │ Needs attention      │  L3
- *   │                                      │ Continue working     │
- *   └──────────────────────────────────────┴──────────────────────┘
+ *   greeting + date                                        [ Plan day ]
+ *   ┌────────────┐┌────────────┐┌────────────┐┌────────────┐
+ *   │ Tasks due  ││ Overdue    ││ Meetings   ││ Progress ◯ │  the day's figures
+ *   │ 6          ││ 2          ││ 2          ││ 68%        │  as quiet cards
+ *   └────────────┘└────────────┘└────────────┘└────────────┘
+ *   ┌───────────────────────────────────┐┌──────────────────┐
+ *   │ Focus                             ││ Schedule         │
+ *   │  overdue (tinted)                 ││  09:30 Standup   │
+ *   │  due today                        │├──────────────────┤
+ *   │                                   ││ Needs attention  │
+ *   │                                   │├──────────────────┤
+ *   └───────────────────────────────────┘│ Continue working │
+ *                                        └──────────────────┘
  *
- * ── THE THREE LEVELS (M3X-02) ────────────────────────────────────────────────
- *   L1  the summary — one dominant expressive surface, and the only tinted hero.
- *   L2  Next up and Current focus — supporting expressive surfaces: shaped and
- *       tonally distinct, deliberately smaller, no ring and no stat row.
- *   L3  everything else — quiet tonal panels of plain rows.
+ * ── WHY THERE IS NO HERO ─────────────────────────────────────────────────────
+ * There was one: a tinted, elevated summary carrying the same three counts. The
+ * approved direction replaced it with this row, and the trade is deliberate.
+ * A hero spends the page's largest type on a HEADLINE ("Your day") and leaves
+ * the figures at label size beside it; a row of stat cards spends it on the
+ * FIGURES, which is what the screen is actually asked. It is also calmer: four
+ * cards on the canvas instead of one violet band, which is the restraint the
+ * DalyHub design system asks for (DALYHUB_DESIGN_SYSTEM.md §1).
  *
- * The summary moved INTO the main column rather than banding the page, because a
- * full-width hero over a short left column left the rail taller than the thing it
- * supports (audit finding H1). The hero now leads the column it belongs to and
- * Next up balances it.
+ * The rules the hero held are unchanged and are still enforced in one pure,
+ * unit-tested place (`dayChips` / `dayProgress`): a zero never paints, every
+ * figure links to the canonical view that holds it, and slipped work is the one
+ * thing given a tone.
  *
  * ── WHAT IT DELIBERATELY IS NOT ──────────────────────────────────────────────
  * There is no search hero (search is an icon in the top app bar with `/`), no
@@ -47,11 +51,10 @@
  *     rows — and is banned from the rail, which holds only what the timeline
  *     does not show. M3X's summary REPLACED the assist-chip row for this reason;
  *     it did not join it.
- *   - **One DOMINANT expressive surface.** The summary is the page's only hero:
- *     the only ring, the only stat row, the only full-strength tint and the only
- *     resting elevation. Next up and Current focus are supporting expressive
- *     surfaces beneath it (M3X-02) and are subordinate on every one of those
- *     axes; everything below THEM is a quiet tonal panel.
+ *   - **No tinted surface at all.** Today is the product's calmest screen by
+ *     design: the figures lead, the day follows, and colour is spent only on
+ *     slipped work and on the progress ring. Every panel is one quiet tonal
+ *     surface.
  *   - **Tasks have no times.** A task is a date; a meeting is an instant. So
  *     there is no Morning/Afternoon grouping and no invented time beside a task.
  *   - **Tonal surfaces, not outlined cards.** Each column is ONE surface with
@@ -67,9 +70,9 @@ import { Link, useSearchParams } from "react-router";
 // so the Today route chunk does not eagerly pull the palette controller.
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 import type { AppAction } from "~/shared/commands/action";
-import { ExpressiveSummary, SupportingSurface } from "~/shared/card";
+import { StatCard, StatCardItem, StatCardRow } from "~/shared/card";
+import { ProgressRing } from "~/shared/charts";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
-import { AccentIcon } from "~/shared/entity";
 import {
   CheckCircleIcon,
   GoalIcon,
@@ -214,136 +217,6 @@ function MeetingRow({ meeting }: { readonly meeting: DayMeeting }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* M3X-02 — the two supporting expressive surfaces (hierarchy Level 2)          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * CURRENT FOCUS — the project the owner was last actually working in.
- *
- * It is `continueProjects[0]`: the SAME ranked list the "Continue working" panel
- * has always drawn, with its head promoted to a surface instead of being the
- * first of three identical rows. Nothing new is read and nothing is derived — the
- * progress figures are the project's own task rollup, the status word is the
- * shared health label, and the identity mark is the persisted icon and colour
- * rank the Projects gallery paints.
- *
- * Tone `identity` rather than `expressive`: the project already carries a
- * colour, in the mark. Tinting the surface violet as well would put two
- * identities on one object.
- */
-function CurrentFocus({ project }: { readonly project: ContinueProject }) {
-  return (
-    <SupportingSurface
-      className="dh-today__focus"
-      data-testid="today-focus"
-      tone="identity"
-      eyebrow="Current focus"
-      icon={
-        <AccentIcon
-          entityType="project"
-          iconKey={project.iconKey}
-          colourRank={project.colourRank}
-        />
-      }
-      title={project.title}
-      supporting={`${project.openCount} open ${
-        project.openCount === 1 ? "task" : "tasks"
-      } · ${project.statusLabel}`}
-      // Absent for a project with no tasks at all: an empty bar reads "nothing
-      // done" when the truth is "nothing planned", which is the same distinction
-      // the Project card makes.
-      progress={
-        project.taskTotal > 0
-          ? {
-              value: project.taskCompleted,
-              max: project.taskTotal,
-              valueText: `${project.taskCompleted} of ${project.taskTotal} tasks complete`,
-            }
-          : undefined
-      }
-      href={`/projects/${encodeURIComponent(project.id)}`}
-      openAriaLabel={`Open ${project.title}`}
-    />
-  );
-}
-
-/**
- * NEXT UP — the one thing the day is pointing at, from `nextUp`.
- *
- * A meeting opens its record; a task opens the SAME drawer the timeline rows
- * open, so "next" and "the row for it below" are one record and not two
- * behaviours. The overdue case says so in words — the surface never relies on
- * the tint to report that the next thing has already slipped.
- */
-function NextUp({
-  next,
-  taskHref,
-  onOpenTask,
-}: {
-  readonly next: NonNullable<ReturnType<typeof nextUp>>;
-  readonly taskHref: (id: string) => string;
-  readonly onOpenTask: (id: string) => void;
-}) {
-  if (next.kind === "meeting") {
-    return (
-      <SupportingSurface
-        className="dh-today__next"
-        data-testid="today-next"
-        eyebrow="Next up"
-        title={next.title}
-        supporting={next.context ?? "Meeting"}
-        metric={{ value: next.timeLabel }}
-        href={`/meetings/${encodeURIComponent(next.id)}`}
-        openAriaLabel={`Open ${next.title}`}
-      />
-    );
-  }
-  return (
-    <SupportingSurface
-      className="dh-today__next"
-      data-testid="today-next"
-      eyebrow="Next up"
-      title={next.title}
-      /*
-       * The one fact that qualifies the title, and nothing when there is none:
-       * a task that is due today and belongs to nothing needs no supporting
-       * line, because the surface it sits under has already said the day.
-       */
-      supporting={
-        next.overdue
-          ? next.parentTitle
-            ? `Overdue · ${next.parentTitle}`
-            : "Overdue"
-          : (next.parentTitle ?? undefined)
-      }
-      action={
-        // A real control above the surface link, because opening the task
-        // record is a DRAWER push rather than a navigation — the same
-        // href/onOpen pair every task row on this screen uses.
-        <a
-          className="dh-btn dh-btn--secondary dh-btn--sm"
-          href={taskHref(next.id)}
-          onClick={(event) => {
-            if (
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.button !== 0
-            ) {
-              return;
-            }
-            event.preventDefault();
-            onOpenTask(next.id);
-          }}
-        >
-          Open task
-        </a>
-      }
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /* The screen                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -414,35 +287,48 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
 
   /*
-   * The summary's figures ARE the chip model, rendered as figures. Splitting the
-   * count from its noun is the only difference, and `dayChips` supplies both, so
-   * the rules the chip row held — a zero never paints, every figure links to the
-   * canonical view that holds it, `error` is spent on slipped work alone — are
-   * still enforced in one pure, unit-tested place rather than re-derived here.
+   * The day's figures, as the stat-card row.
+   *
+   * They ARE the chip model — `dayChips` supplies the count, the noun, the tone
+   * and the destination — so every rule that model has always held is still
+   * enforced in one pure, unit-tested place rather than re-derived here: a zero
+   * never paints, every figure links to the canonical view that holds it, and
+   * `state-overdue` is spent on slipped work alone.
    */
-  const summaryStats = useMemo(
+  /*
+   * The one thing on the day that is still AHEAD, from the shared derivation.
+   *
+   * It is no longer a surface of its own — the approved direction answers "what
+   * next?" on the figure it belongs to, which is the meetings card. It is
+   * re-derived against the OPTIMISTIC buckets, so ticking a task off updates it
+   * without waiting for the loader.
+   */
+  const next = useMemo(
+    () => nextUp({ meetings: data.meetings, buckets }),
+    [data.meetings, buckets],
+  );
+
+  const stats = useMemo(
     () =>
       chips.map((chip) => ({
         id: chip.id,
-        value: chip.count,
-        label: chip.noun,
-        tone: chip.tone === "error" ? ("attention" as const) : undefined,
+        value: String(chip.count),
+        // "6 / Tasks due today" rather than "6 / tasks": a label above a figure
+        // is read as a heading for it, and a heading is not a plural noun.
+        label: chip.heading,
         href: chip.href,
+        tone: chip.tone === "error" ? ("attention" as const) : undefined,
+        // The meetings card carries the day's next START TIME, because that is
+        // the one figure on this row with something ahead of it. A meeting that
+        // has already begun is not "next", which is why the flag is decided on
+        // the server against the request instant.
+        supporting:
+          chip.id === "meetings" && next?.kind === "meeting"
+            ? `Next: ${next.timeLabel}`
+            : undefined,
       })),
-    [chips],
+    [chips, next],
   );
-
-  /*
-   * The summary's headline names the day in the owner's terms. It states what is
-   * actually true rather than always saying "today": a day with nothing on it
-   * says so, and a day whose only work has slipped does not claim to be busy.
-   */
-  const headline =
-    buckets.today.length > 0
-      ? "Your day"
-      : buckets.overdue.length > 0
-        ? "Nothing due today"
-        : "A clear day";
 
   const openTask = useCallback(
     (id: string) => openDrawer(`task:${id}`),
@@ -485,28 +371,13 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
     [searchParams],
   );
 
-  const hasDay =
-    buckets.overdue.length > 0 ||
-    data.meetings.length > 0 ||
-    buckets.today.length > 0;
-
   /*
-   * M3X-02 — the two supporting expressive surfaces, both DERIVED from rows this
-   * screen already holds. `next` re-derives against the optimistic buckets, so
-   * ticking the next task off promotes the one after it immediately rather than
-   * waiting for the loader.
+   * The Focus panel holds the day's TASKS. Meetings moved to their own Schedule
+   * panel — a meeting is something that happens to you at a time and a task is
+   * something you do on a date, and the approved direction draws them as two
+   * columns rather than as two bands of one list.
    */
-  const next = useMemo(
-    () => nextUp({ meetings: data.meetings, buckets }),
-    [data.meetings, buckets],
-  );
-  const focus = data.continueProjects[0] ?? null;
-  /*
-   * The panel keeps only what the focus surface did NOT promote. One project
-   * therefore renders as one surface, not as a surface and a panel restating it
-   * — which is Today's own "one fact, one place" rule applied to a record.
-   */
-  const continueRest = data.continueProjects.slice(1);
+  const hasDay = buckets.overdue.length > 0 || buckets.today.length > 0;
 
   return (
     <div className="dh-today">
@@ -514,101 +385,83 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
           screen's heading, not a widget with a label above it. It is compact by
           design: M3X moved the day's WEIGHT into the summary below it, so the
           greeting states who and when and then gets out of the way. */}
+      {/*
+       * The header block is PAGE CONTENT on the canvas — the greeting is the
+       * screen's heading, not a widget with a label above it. "Plan day" sits
+       * here now that there is no hero to carry it: it is a NAVIGATION to the
+       * canonical Tasks view of today's work, and the page header is where a
+       * page-level navigation belongs.
+       */}
       <header className="dh-today__head">
         <div className="dh-today__identity">
           <h1 className="dh-today__greeting">{greeting}</h1>
           <p className="dh-today__date">{data.dateLong}</p>
         </div>
+        <Link className="dh-btn dh-btn--secondary" to="/tasks?system=today">
+          Plan day
+        </Link>
       </header>
+
+      {/*
+       * The day's figures, as quiet cards on the canvas.
+       *
+       * Every card is conditional on its own count, exactly as the chip row and
+       * the hero before it were: a quiet day renders no row at all rather than a
+       * line of noughts, and the progress card appears only once something is
+       * done — a 0% ring first thing in the morning is a guilt meter rather than
+       * a measure (see `dayProgress`).
+       */}
+      {stats.length > 0 || progress ? (
+        <StatCardRow label="Today at a glance" data-testid="today-stats">
+          {stats.map((stat) => (
+            <StatCardItem key={stat.id}>
+              <StatCard
+                label={stat.label}
+                value={stat.value}
+                supporting={stat.supporting}
+                tone={stat.tone}
+                href={stat.href}
+                data-testid={`today-stat-${stat.id}`}
+              />
+            </StatCardItem>
+          ))}
+          {progress ? (
+            <StatCardItem>
+              <StatCard
+                label="Daily progress"
+                value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
+                supporting={`${progress.done} of ${progress.total} done today`}
+                data-testid="today-stat-progress"
+                ring={
+                  <ProgressRing
+                    value={progress.done / Math.max(1, progress.total)}
+                    label={`Today's progress: ${progress.done} of ${progress.total} done`}
+                    size={44}
+                    thickness={5}
+                    color="var(--md-sys-color-primary)"
+                  />
+                }
+              />
+            </StatCardItem>
+          ) : null}
+        </StatCardRow>
+      ) : null}
 
       <div className="dh-today__body">
         {/*
-         * The MAIN column: the day's dominant surface and the day itself.
-         *
-         * `dh-today__main` and `dh-today__rail` are `display: contents` on a
-         * phone, so the grid lays their children out directly and CSS `order`
-         * puts "Next up" straight under the summary — the phone's first
-         * viewport answers how much, how far and what next before a scroll.
-         * From `md` up the two become real columns.
+         * Two columns from `md` up, in DOM order at every width: the day itself,
+         * then the surfaces that qualify it. Nothing here is moved by CSS
+         * `order`, because `order` moves pixels and leaves the reading order and
+         * the tab order behind.
          */}
         <div className="dh-today__main">
-          {/*
-           * M3X — the day's ONE expressive surface, and the only place its figures
-           * are painted. It replaced the assist-chip row rather than joining it:
-           * two surfaces stating the same three counts would break Today's own
-           * "one fact, one place" rule, which is the rule that made this screen
-           * worth keeping.
-           *
-           * Everything on it is conditional, exactly as the chip row was. A quiet
-           * day renders the headline and nothing else; the ring appears only once
-           * something is done, because a 0% ring first thing in the morning is a
-           * guilt meter rather than a measure (see `dayProgress`).
-           */}
-          {summaryStats.length > 0 || progress ? (
-            <ExpressiveSummary
-              className="dh-today__summary"
-              data-testid="today-summary"
-              eyebrow="Today"
-              headline={headline}
-              supporting={
-                progress
-                  ? `${progress.done} of ${progress.total} done today`
-                  : undefined
-              }
-              ring={
-                progress
-                  ? {
-                      value: progress.done / Math.max(1, progress.total),
-                      label: `Today's progress: ${progress.done} of ${progress.total} done`,
-                      centre: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`,
-                    }
-                  : undefined
-              }
-              stats={summaryStats}
-              action={
-                /*
-                 * "Plan day" is a NAVIGATION, not a feature: DalyHub has no
-                 * dedicated planning flow, so it goes to the canonical Tasks view
-                 * of today's work — where planning already lives. Building a second
-                 * planning surface here is explicitly out of scope. It moved from
-                 * the day panel's header into the summary because the summary is
-                 * where the decision to plan is made.
-                 */
-                <Link
-                  className="dh-btn dh-btn--primary"
-                  to="/tasks?system=today"
-                >
-                  Plan day
-                </Link>
-              }
-            />
-          ) : null}
-
-          {/*
-           * M3X-02 — the first supporting expressive surface, and the reason
-           * this screen finally answers "what next?".
-           *
-           * It sits in the DOM exactly where it is read: after the day's state
-           * and before the day itself, at both widths. Nothing here is reordered
-           * by CSS, because `order` moves pixels and leaves the reading order and
-           * the tab order behind — which is the accessibility defect that makes a
-           * clever responsive grid unusable with a keyboard or a screen reader.
-           */}
-          {next ? (
-            <NextUp
-              next={next}
-              taskHref={taskHref}
-              onOpenTask={(id) => openTask(id)}
-            />
-          ) : null}
-
           <section
             className="dh-today__panel dh-today__timeline"
             aria-labelledby="today-day-heading"
           >
             <div className="dh-today__panel-head">
               <h2 className="dh-today__panel-title" id="today-day-heading">
-                My day
+                Focus
               </h2>
             </div>
 
@@ -652,17 +505,6 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
                   </ul>
                 ) : null}
 
-                {data.meetings.length > 0 ? (
-                  <div className="dh-day-section">
-                    <h3 className="dh-day-section__label">Meetings</h3>
-                    <ul className="dh-day-list">
-                      {data.meetings.map((meeting) => (
-                        <MeetingRow key={meeting.id} meeting={meeting} />
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
                 {buckets.today.length > 0 ? (
                   <div className="dh-day-section">
                     <h3 className="dh-day-section__label">Due today</h3>
@@ -704,14 +546,28 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
         </div>
 
         <div className="dh-today__rail">
-          {/*
-           * The rail leads with the second supporting expressive surface and
-           * then steps down to quiet panels — Level 2 above Level 3, which is
-           * what stops the rail reading as three interchangeable boxes.
-           * Conditional on its subject, like everything else here: a workspace
-           * with no active project draws no focus.
-           */}
-          {focus ? <CurrentFocus project={focus} /> : null}
+          {/* The day's timed events, in their own panel. Absent when the day
+              holds none — a "Schedule" heading over nothing is chrome. */}
+          {data.meetings.length > 0 ? (
+            <section
+              className="dh-today__panel"
+              aria-labelledby="today-schedule-heading"
+            >
+              <div className="dh-today__panel-head">
+                <h2
+                  className="dh-today__panel-title"
+                  id="today-schedule-heading"
+                >
+                  Schedule
+                </h2>
+              </div>
+              <ul className="dh-day-list">
+                {data.meetings.map((meeting) => (
+                  <MeetingRow key={meeting.id} meeting={meeting} />
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <section
             className="dh-today__panel"
@@ -755,10 +611,8 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
           </section>
 
           {/* Absent entirely when no project has open work — "continue working"
-              on a project with nothing left to do is not a suggestion — and
-              absent again when the ONLY such project is already the Current
-              focus surface above. */}
-          {continueRest.length > 0 ? (
+              on a project with nothing left to do is not a suggestion. */}
+          {data.continueProjects.length > 0 ? (
             <section
               className="dh-today__panel"
               aria-labelledby="today-continue-heading"
@@ -772,7 +626,7 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
                 </h2>
               </div>
               <ul className="dh-day-list">
-                {continueRest.map((project: ContinueProject) => (
+                {data.continueProjects.map((project: ContinueProject) => (
                   <li
                     className="dh-day-row dh-day-row--project"
                     key={project.id}

@@ -101,24 +101,24 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* The summary (M3X)                                                           */
+/* The day's figures                                                           */
 /* -------------------------------------------------------------------------- */
 
 /*
- * Today's one DOMINANT expressive surface (hierarchy Level 1). Its whole anatomy
- * lives with the shared component (`card-family.css` → ExpressiveSummary); the
- * only thing Today has an opinion about is where it sits — leading the main
- * column, with "Next up" beside it.
+ * A row of quiet stat cards on the canvas, where a tinted hero used to be.
  *
- * The assist-chip row this replaced is gone entirely, along with the header's
- * progress meter: both stated facts the summary now states once. That is the
- * screen's own "one fact, one place" rule applied to its own chrome.
+ * The whole anatomy lives with the shared component (`card-family.css` →
+ * StatCard); the only thing Today has an opinion about is that the row spans the
+ * page above the columns, and that it carries no surface of its own — the cards
+ * ARE the surfaces, and a container around them would be a card of cards.
  *
- * M3X-02 moved it INTO the main column. It banded the page before, which left a
- * 280px day column under it and a 700px rail beside it — the audit's H1 finding,
- * half-answered. It now leads the column it belongs to, with "Next up" beside it.
+ * Why the hero went: it spent the page's largest type on a headline ("Your day")
+ * and left the figures at label size beside it, on the one screen whose whole
+ * question is the figures. The row spends it on the numbers instead, and it does
+ * so without tinting a third of the first viewport
+ * (DALYHUB_DESIGN_SYSTEM.md §1 — calm workspace, expressive moments).
  */
-.dh-today__summary {
+.dh-today__stats {
   min-inline-size: 0;
 }
 
@@ -152,44 +152,22 @@
 }
 
 /*
- * From ~900px the page becomes two unequal columns, and the MAIN one becomes two
- * unequal columns of its own — three regions, not a symmetrical dashboard.
+ * From ~900px the page becomes two UNEQUAL columns: Focus, and the surfaces that
+ * qualify it.
  *
- *   ┌───────────────────┬─────────┐┌────────────┐
- *   │ summary (hero)    │ next up ││ focus      │
- *   ├───────────────────┴─────────┤│ attention  │
- *   │ my day                      ││ continue   │
+ *   ┌─────────────────────────────┐┌────────────┐
+ *   │ Focus                       ││ Schedule   │
+ *   │  overdue                    ││ attention  │
+ *   │  due today                  ││ continue   │
  *   └─────────────────────────────┘└────────────┘
  *
- * PR #144's full-width hero band left the audit's H1 finding half-answered: a
- * hero above a 280px day column and a 700px rail made the page's most important
- * region its emptiest. The hero now leads the column it belongs to, Next up
- * balances its row, and the rail carries surfaces rather than propping up a
- * short page.
+ * Unequal on purpose: the day is a list that wants length, and the rail is a
+ * stack of short panels that wants a floor and a ceiling. The figures span both,
+ * above.
  */
 @container today (min-width: 56rem) {
   .dh-today__body {
-    grid-template-columns: minmax(0, 1fr) minmax(16rem, 19rem);
-  }
-
-  .dh-today__main {
-    grid-template-columns: minmax(0, 1.6fr) minmax(11rem, 1fr);
-  }
-
-  .dh-today__summary {
-    grid-column: 1;
-  }
-
-  .dh-today__next {
-    grid-column: 2;
-    /* Top-aligned against the hero rather than stretched to its height: a
-     * supporting surface as tall as the hero is not supporting anything. */
-    align-self: start;
-  }
-
-  /* The day runs the full width of the main region, under both. */
-  .dh-today__timeline {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem);
   }
 }
 

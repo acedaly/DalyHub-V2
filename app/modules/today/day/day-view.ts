@@ -304,6 +304,15 @@ export interface DayChip {
   readonly count: number;
   /** What the figure counts, already pluralised against `count`. */
   readonly noun: string;
+  /**
+   * The figure's name as a HEADING — "Tasks due today", not "6 tasks".
+   *
+   * A stat card reads label-then-figure, and a heading over a number is not the
+   * same string as the number's own noun phrase: "6 tasks" above "6" says it
+   * twice, and "tasks" alone above "6" does not say *which* tasks. It lives here
+   * with the rest of the vocabulary so the row and the chip cannot drift.
+   */
+  readonly heading: string;
   /** The obvious filtered view this chip's number lives in. */
   readonly href: string;
   /** `error` is spent on slipped work ALONE; everything else is a plain fact. */
@@ -331,6 +340,7 @@ export function dayChips(input: {
     chips.push({
       id: "tasks",
       label: counted(input.taskCount, "task", "tasks"),
+      heading: "Tasks due today",
       count: input.taskCount,
       noun,
       href: "/tasks?system=today",
@@ -342,6 +352,7 @@ export function dayChips(input: {
     chips.push({
       id: "meetings",
       label: counted(input.meetingCount, "meeting", "meetings"),
+      heading: "Meetings today",
       count: input.meetingCount,
       noun,
       href: "/meetings",
@@ -352,6 +363,7 @@ export function dayChips(input: {
     chips.push({
       id: "overdue",
       label: `${input.overdueCount} overdue`,
+      heading: "Overdue",
       count: input.overdueCount,
       // Not pluralised: "overdue" is an adjective standing in for "overdue
       // tasks", and "1 overdues" is the failure mode of pluralising it blindly.

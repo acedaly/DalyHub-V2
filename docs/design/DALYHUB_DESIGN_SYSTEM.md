@@ -72,7 +72,7 @@ with the token for each rung, is in
 
 | Level | What it is | How many per page |
 | --- | --- | --- |
-| **1 — Dominant** | The surface answering the question the page exists to answer | One, at most |
+| **1 — Dominant** | The surface answering the question the page exists to answer | One, at most — **zero is a legitimate answer**, and Today's is zero |
 | **2 — Supporting expressive** | Identity, progress, a focus, a next action | Two or three — not a gallery |
 | **3 — Quiet interface** | Everything the owner works *in* | The rest |
 
@@ -112,6 +112,7 @@ specification does not, because the specification's answer was worse *here*.
 | D8 | **Below `md`, a mouse gets the touch layout** for the row action rail | `(hover: hover)` describes a pointer, not a window. A narrow window with a mouse got a 192px reserve out of a 263px run |
 | D9 | **An optional select is EMPTY, never "No priority"** | An absence is not a decision. It also stops the unset state taking the first slot in a menu, where the eye and the keyboard both start |
 | D10 | **No theme feature.** One light/dark pair, chosen by `prefers-color-scheme` or the owner's three-value appearance preference | A component styled once is correct in both. Nothing in the cascade branches on a theme |
+| D11 | **Today has no hero.** Its figures are a row of quiet cards on the canvas | A hero spends the page's largest type on a headline and leaves the numbers at label size beside it — on the one screen whose entire question is the numbers. The row spends it on the figures, and tints nothing |
 
 ## 6. Interaction principles
 

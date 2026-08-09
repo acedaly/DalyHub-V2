@@ -77,6 +77,17 @@ export {
   type SummaryRing,
   type SummaryStat,
 } from "./ExpressiveSummary";
+/**
+ * The STAT CARD row — a page's figures, on the canvas, as quiet cards. The
+ * restrained alternative to a tinted hero (DALYHUB_DESIGN_SYSTEM.md).
+ */
+export {
+  StatCard,
+  StatCardItem,
+  StatCardRow,
+  type StatCardProps,
+  type StatCardTone,
+} from "./StatCard";
 /** M3X-02 — hierarchy Level 2: the supporting expressive surfaces beneath it. */
 export {
   SupportingSurface,
