@@ -68,6 +68,20 @@ export interface SavedViewSwitcherProps {
   readonly deleteExplanation: string;
   /** Whether this collection supports an owner default view. */
   readonly supportsDefault?: boolean;
+  /**
+   * UIX-01 — the views promoted to a permanent TAB RAIL, in the order given.
+   *
+   * A collection with ten built-in views cannot show them all as tabs, and a
+   * collection whose everyday views are one menu-click away reads as an
+   * administrative tool rather than as a productivity one. Naming a handful
+   * here draws them as a quiet destination rail in front of the trigger; every
+   * view — pinned or not — stays in the panel behind it, so this is a second
+   * AFFORDANCE onto one model, never a second list to keep in step.
+   *
+   * An id that matches no view is ignored rather than rendered empty, so a
+   * collection can pin a view it only sometimes offers.
+   */
+  readonly pinnedViewIds?: readonly string[];
   /** BEM block, so an existing stylesheet keeps working unchanged. */
   readonly classPrefix: string;
   /** `data-testid` stem, so existing end-to-end selectors keep working. */
@@ -87,6 +101,7 @@ export function SavedViewSwitcher({
   newViewPlaceholder,
   deleteExplanation,
   supportsDefault = true,
+  pinnedViewIds,
   classPrefix,
   testIdPrefix,
 }: SavedViewSwitcherProps) {
@@ -103,6 +118,11 @@ export function SavedViewSwitcher({
   const nameId = useId();
 
   const active = views.find((view) => view.id === activeViewId) ?? null;
+  // The rail is built from the SAME `views` model the panel renders, in the
+  // order the collection pinned them — never from a second list.
+  const pinned = (pinnedViewIds ?? [])
+    .map((id) => views.find((view) => view.id === id))
+    .filter((view): view is SavedViewOption => view !== undefined);
   const systemViews = views.filter((view) => view.kind === "system");
   const userViews = views.filter((view) => view.kind === "user");
   const busy = fetcher.state !== "idle";
@@ -250,6 +270,33 @@ export function SavedViewSwitcher({
 
   return (
     <div className={classPrefix}>
+      {pinned.length > 0 ? (
+        /*
+         * The rail is a `nav`, because that is what it is: each tab is an
+         * ordinary link to the URL that IS the view, so it is shareable,
+         * middle-clickable and Back/Forward-correct with no extra machinery.
+         * The current one carries `aria-current`, so selection is semantic and
+         * never rests on the violet underline the stylesheet draws.
+         */
+        <nav
+          className={`${classPrefix}__rail`}
+          aria-label={collectionLabel}
+          data-testid={`${testIdPrefix}-rail`}
+        >
+          {pinned.map((view) => (
+            <Link
+              key={view.id}
+              to={`${basePath}?${view.query}`}
+              className={`${classPrefix}__tab`}
+              aria-current={view.id === activeViewId ? "page" : undefined}
+              preventScrollReset
+            >
+              {view.name}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+
       <button
         type="button"
         ref={triggerRef}

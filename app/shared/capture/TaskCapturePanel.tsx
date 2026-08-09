@@ -70,7 +70,16 @@ type TasksCreateResponse =
       readonly fieldErrors?: Record<string, string>;
     };
 
-/** Add-a-day helpers for the one-tap due-date chips (owner calendar, ISO dates). */
+/** The priority row's options. The empty value is a real choice, not a blank. */
+const PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "", label: "No priority" },
+  ...TASK_PRIORITIES.map((priority: TaskPriority) => ({
+    value: priority,
+    label: taskPriorityLabel(priority),
+  })),
+];
+
+/** Add-a-day helpers for the one-tap due-date options (owner calendar, ISO dates). */
 function shiftIso(iso: string, days: number): string {
   const [year, month, day] = iso.split("-").map(Number);
   const base = Date.UTC(year, (month ?? 1) - 1, day ?? 1);
@@ -82,6 +91,7 @@ export function TaskCapturePanel({
   firstFieldRef,
   onClose,
   captureContext,
+  formId,
 }: CapturePanelProps) {
   const { context, loading } = useCaptureContext();
   const parentSearch = useTaskParentSearch();
@@ -177,19 +187,13 @@ export function TaskCapturePanel({
 
   const titleField = form.field("title");
   const parentField = form.field("parentId");
-  /**
-   * The title of an explicitly CHOSEN destination, so the "Filing under …" line tracks
-   * the picker instead of contradicting it. Resolved from the picker's own known
-   * options — never a second source of truth for what a Project is called.
+  /*
+   * UIX-01 — the "Filing under …" sentence and the two chip rows are gone, and
+   * with them the three derived values that fed them. The Project row's own
+   * control now states the destination (its empty value reads "Inbox"), which
+   * is one place saying it rather than a sentence and a picker that could
+   * disagree.
    */
-  const selectedParentTitle =
-    parentField.value.length === 0
-      ? null
-      : (parentSearch
-          .withSelected(parentField.value)
-          .find((option) => option.value === parentField.value)?.label ?? null);
-  const priorityValue = form.values.priority;
-  const dueValue = form.values.dueDate;
 
   const addAnother = useCallback(() => {
     setSuccess(null);
@@ -201,9 +205,21 @@ export function TaskCapturePanel({
     window.requestAnimationFrame(() => firstFieldRef.current?.focus());
   }, [form, firstFieldRef]);
 
-  const dueChips = useMemo(() => {
+  /*
+   * The due-date row's options: the three days a quick capture actually uses,
+   * plus the empty value that means "no due date".
+   *
+   * An arbitrary calendar date is deliberately NOT here. This surface exists to
+   * get a task out of the owner's head in two taps; a date picker in it is the
+   * fuller form, and the fuller form is one link away at the top of the sheet
+   * with the typed title carried across. The deterministic quick-capture parser
+   * also still reads "next friday" straight out of the title, exactly as it does
+   * on `/tasks`.
+   */
+  const dueOptions = useMemo(() => {
     if (todayIso === null) return [];
     return [
+      { value: "", label: "No due date" },
       { value: todayIso, label: "Today" },
       { value: shiftIso(todayIso, 1), label: "Tomorrow" },
       { value: shiftIso(todayIso, 7), label: "Next week" },
@@ -222,10 +238,11 @@ export function TaskCapturePanel({
 
   return (
     <Form
+      id={formId}
       aria-label="Capture a task"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
-      className="dh-capture-form"
+      className="dh-capture-form dh-capture-form--task"
     >
       <FormErrorSummary
         formError={form.formError}
@@ -235,13 +252,24 @@ export function TaskCapturePanel({
         onFocusField={form.focusField}
       />
 
-      {/* A single-line capture field: Enter submits (the browser's implicit
-          submission for a lone text input in a form), which IS the fast path. */}
+      {/*
+        The TITLE, as the surface's own headline field.
+        
+        UIX-01 gives it the reference's large borderless treatment (see
+        `capture.css`) and hides its visible label: a phone sheet titled "New
+        task" with one large field under it does not need the word "Title" above
+        that field, and the label stays in the accessibility tree.
+
+        Enter still submits — the browser's implicit submission for a lone text
+        input — which IS the fast path the acceptance criteria name: open, type,
+        Enter. Nothing below is required to reach it.
+      */}
       <TextField
         label="Title"
         required
         maxLength={512}
         placeholder="What needs doing?"
+        className="dh-capture-title"
         {...titleField}
         controlRef={(node) => {
           firstFieldRef.current = node instanceof HTMLElement ? node : null;
@@ -249,89 +277,86 @@ export function TaskCapturePanel({
         }}
       />
 
-      {/* TASKS-04 — the sheet ALWAYS states where the task will be filed, because
-          "somewhere" is the one thing a trustworthy inbox may never be. With a fixed
-          or chosen destination that is the Project/Area; otherwise it is Inbox, which
-          is a real destination now rather than the absence of one. The optional picker
-          is progressive disclosure BELOW that line, never a blocker on the fast path. */}
-      {defaultParent ? (
-        <p className="dh-capture-parent">
-          Filing under <strong>{defaultParent.title}</strong>
-        </p>
-      ) : (
-        <>
-          <p className="dh-capture-parent">
-            Filing under <strong>{selectedParentTitle ?? "Inbox"}</strong>
-          </p>
-          {canChooseParent ? (
-            <SelectField
-              label="Project or Area"
-              help="Leave blank to keep this task in Inbox."
-              placeholder="Search Projects and Areas"
-              showOptionalCue={false}
-              options={parentSearch.withSelected(parentField.value)}
-              onSearch={parentSearch.search}
-              loading={parentSearch.loading}
-              emptyMessage="No matching Projects or Areas"
-              {...parentField}
-            />
-          ) : null}
-        </>
-      )}
+      {/*
+        UIX-01 — the optional classification, as METADATA ROWS.
+        
+        The reference draws a new-task sheet as a big title with a short list of
+        rows under it: a glyph, the current value, and the field's name. That is
+        what these are. Before this the same three facts were a "Filing under
+        Inbox" sentence, a searchable select, a row of four priority chips and a
+        row of three date chips — eleven controls under a one-line field, on the
+        surface whose entire purpose is speed.
+        
+        Every row is an ordinary labelled control, so each is one tap, keyboard
+        operable, and announced with its own name. NONE of them is required:
+        title-only capture is still type-and-Enter, and each row's own empty
+        state ("No due date", "No priority", "Inbox") is a real value rather
+        than a placeholder the owner must clear.
+      */}
+      <div className="dh-capture-rows">
+        {dueOptions.length > 0 ? (
+          <SelectField
+            label="Due date"
+            className="dh-capture-row"
+            showOptionalCue={false}
+            options={dueOptions}
+            {...form.field("dueDate")}
+          />
+        ) : null}
 
-      {/* Optional classification as one-tap chips — a priority or a date costs a
-          single additional tap, never a trip into a collapsed form section. */}
-      <div className="dh-capture-chips" role="group" aria-label="Priority">
-        <span className="dh-capture-chips__label">Priority</span>
-        <div className="dh-capture-chips__row">
-          {TASK_PRIORITIES.map((priority: TaskPriority) => {
-            const selected = priorityValue === priority;
-            return (
-              <button
-                key={priority}
-                type="button"
-                className="dh-capture-chip"
-                aria-pressed={selected}
-                onClick={() =>
-                  form.setValue("priority", selected ? "" : priority)
-                }
-              >
-                {taskPriorityLabel(priority)}
-              </button>
-            );
-          })}
-        </div>
+        <SelectField
+          label="Priority"
+          className="dh-capture-row"
+          showOptionalCue={false}
+          options={PRIORITY_OPTIONS}
+          {...form.field("priority")}
+        />
+
+        {/*
+          TASKS-04 — the sheet ALWAYS states where the task will be filed,
+          because "somewhere" is the one thing a trustworthy inbox may never be.
+          With a fixed destination (captured from a Project record) that is a
+          read-only row; otherwise it is the picker, whose empty value reads
+          "Inbox" — a real destination, not the absence of one.
+        */}
+        {defaultParent ? (
+          <p className="dh-capture-row dh-capture-row--fixed">
+            <span className="dh-capture-row__value">{defaultParent.title}</span>
+            <span className="dh-capture-row__name">Project</span>
+          </p>
+        ) : canChooseParent ? (
+          <SelectField
+            label="Project"
+            className="dh-capture-row"
+            placeholder="Inbox"
+            showOptionalCue={false}
+            options={parentSearch.withSelected(parentField.value)}
+            onSearch={parentSearch.search}
+            loading={parentSearch.loading}
+            emptyMessage="No matching Projects or Areas"
+            {...parentField}
+          />
+        ) : null}
       </div>
 
-      {dueChips.length > 0 ? (
-        <div className="dh-capture-chips" role="group" aria-label="Due date">
-          <span className="dh-capture-chips__label">Due</span>
-          <div className="dh-capture-chips__row">
-            {dueChips.map((chip) => {
-              const selected = dueValue === chip.value;
-              return (
-                <button
-                  key={chip.value}
-                  type="button"
-                  className="dh-capture-chip"
-                  aria-pressed={selected}
-                  onClick={() =>
-                    form.setValue("dueDate", selected ? "" : chip.value)
-                  }
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
-          </div>
+      {/*
+        The in-body submit stays, and it is not a duplicate of the sheet's
+        header Save: the header button only exists when this panel is hosted by
+        the capture SHEET (which passes a `formId` for it to target). Rendered
+        from the same form state, so the two can never disagree — and a panel
+        rendered anywhere else still has a submit.
+      */}
+      {formId === undefined ? (
+        <div className="dh-capture-actions">
+          <FormButton
+            type="submit"
+            variant="primary"
+            pending={form.isSubmitting}
+          >
+            Create task
+          </FormButton>
         </div>
       ) : null}
-
-      <div className="dh-capture-actions">
-        <FormButton type="submit" variant="primary" pending={form.isSubmitting}>
-          Create task
-        </FormButton>
-      </div>
     </Form>
   );
 }

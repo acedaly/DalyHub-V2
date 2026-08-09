@@ -79,6 +79,28 @@ Lock the current Tasks daily-driver behaviour before adding new Task features.
   ([DEBT-115](../product/PRODUCT_DEBT.md#-debt-115--a-completed-task-is-announced-twice-once-by-the-list-once-by-the-notification-centre--p3)).
 - **Non-goals:** new views, AI parsing, offline editing, subtasks or another Matrix.
 
+### ☑ UIX-01 - Product UI redesign against the supplied references — **DELIVERED 2026-08-09**
+
+Reproduce two supplied reference designs in the real product: the shell, Today and
+Tasks, at desktop and phone widths, in both appearances.
+
+- Added six generated **decorative accent** ramps (coral · blue · violet · green ·
+  amber · teal) and a per-appearance `wash` tint strength, with contrast asserted
+  for every accent's washed surface and every tonal tile's glyph in both schemes.
+- Retired the floating action button; Create is the top app bar's one violet
+  control on desktop and the navigation bar's central circle on a phone.
+- Redrew Today as three balanced regions with a full-width Goal progress row, and
+  its figures as washed tonal glance cards.
+- Redrew Tasks: due-state grouping by default on the three everyday views, a tab
+  rail of those views, a one-line ~45px row leading with a completion circle, and
+  relative dates in words in place of the urgency chip.
+- Redrew the phone Task capture sheet as `Cancel · New task · Save` over a big
+  title field and three metadata rows.
+- **Non-goals:** new features, new data, a second UI framework, module-by-module
+  redesign beyond the shared foundations (that is UIX-02), and any change to
+  TASKS-10 behaviour.
+- Record: [`UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.

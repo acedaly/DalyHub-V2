@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import {
+  enterTaskSelection,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -116,11 +117,18 @@ async function openRowMenu(page: Page, title: string) {
   await card.getByRole("button", { name: /^More actions for / }).click();
 }
 
+/**
+ * UIX-01 — a row's selection checkbox appears in bulk-selection MODE, so this
+ * enters the mode when it is not already open (see `enterTaskSelection`). The
+ * specs that already call `enterTaskSelection` explicitly are unaffected: the
+ * checkbox is there, and this finds it.
+ */
 async function selectTask(page: Page, title: string) {
-  await page
-    .getByRole("checkbox", { name: `Select ${title}` })
-    .first()
-    .check();
+  const box = page.getByRole("checkbox", { name: `Select ${title}` }).first();
+  if ((await box.count()) === 0) {
+    await enterTaskSelection(page);
+  }
+  await box.check();
 }
 
 /** Run a bulk action and wait for it to COMMIT (the bar clears its selection). */
@@ -171,7 +179,17 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
     const duePopover = page.getByRole("dialog", { name: "Edit due date" });
     await duePopover.getByLabel("Due date", { exact: true }).fill(TODAY);
     await duePopover.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(cardFor(page, title)).toContainText("Due today");
+    /*
+     * UIX-01 — the row states the due date as the WORD "Today", not as an
+     * "Due today" urgency chip beside it.
+     *
+     * The chip existed because a raw "9 Aug 2026" cannot say a date has passed or
+     * arrived; the date now reads "Yesterday"/"Today"/"Tomorrow" and takes the
+     * state colour when it has slipped, so the chip beside it was the same fact
+     * twice in a pill on every row. The fact under test is unchanged and still in
+     * words, scoped to the row.
+     */
+    await expect(cardFor(page, title)).toContainText("Today");
 
     // PROJECT, in place. ONE selection replaces the previous value — there is no
     // clear-then-save-then-reopen-then-choose sequence.
@@ -239,7 +257,7 @@ test.describe("TASKS-06 — bulk management", () => {
 
     // Selection mode is reachable by an ordinary, labelled control — not only by a
     // gesture and not only by a checkbox nobody notices.
-    await page.getByRole("button", { name: "Select tasks" }).click();
+    await enterTaskSelection(page);
     await expect(selectionPrompt(page)).toBeVisible();
 
     // Shift-range: pick the first, then Shift-click the fourth.
@@ -275,9 +293,8 @@ test.describe("TASKS-06 — bulk management", () => {
     // DATE.
     await selectTask(page, `E2E bulk ${stamp} 2`);
     await runBulk(page, () => chooseBulk(page, "Date", "Due today"));
-    await expect(cardFor(page, `E2E bulk ${stamp} 2`)).toContainText(
-      "Due today",
-    );
+    // See the note above: the row says the date, not an urgency chip.
+    await expect(cardFor(page, `E2E bulk ${stamp} 2`)).toContainText("Today");
   });
 
   test("bulk delete is reversible, says so, and restores from the Deleted view", async ({
@@ -290,7 +307,7 @@ test.describe("TASKS-06 — bulk management", () => {
     }
 
     // "Select all" acts on what is VISIBLE, never on "everything matching".
-    await page.getByRole("button", { name: "Select tasks" }).click();
+    await enterTaskSelection(page);
     await selectionPrompt(page)
       .getByRole("button", { name: /^Select all/ })
       .click();
@@ -336,7 +353,7 @@ test.describe("TASKS-06 — bulk management", () => {
       }),
     ).toHaveCount(0);
     await expect(
-      cardFor(page, `E2E delete ${stamp} 0`).getByRole("button", {
+      cardFor(page, `E2E delete ${stamp} 0`).getByRole("checkbox", {
         name: /^Complete /,
       }),
     ).toHaveCount(0);
@@ -379,7 +396,7 @@ test.describe("TASKS-06 — bulk management", () => {
     const loaded = await page.getByRole("article").count();
     expect(loaded).toBeGreaterThan(100);
 
-    await page.getByRole("button", { name: "Select tasks" }).click();
+    await enterTaskSelection(page);
     await expect(selectionPrompt(page)).toContainText(
       `${loaded} tasks are loaded.`,
     );
@@ -396,7 +413,17 @@ test.describe("TASKS-06 — bulk management", () => {
     await expect(bulkBar(page)).toContainText("100 selected");
     await expect(bulkBar(page)).not.toContainText("Deselect");
 
+    /*
+     * "Done" clears the selection AND leaves selection mode, so the next
+     * Shift-range starts from nothing — which is the point of the check below.
+     *
+     * UIX-01 — a row's selection checkbox is drawn IN selection mode (the row
+     * leads with its completion circle otherwise), so re-entering the mode is
+     * part of starting a second selection now. The bound, the range and the
+     * refusal it is testing are unchanged.
+     */
     await bulkBar(page).getByRole("button", { name: "Done" }).click();
+    await enterTaskSelection(page);
     const rowChecks = page
       .getByRole("article")
       .getByRole("checkbox", { name: /^Select / });
@@ -416,17 +443,6 @@ test.describe("TASKS-06 — bulk management", () => {
 
 test.describe("TASKS-07 — Recurrence 2.0", () => {
   test.describe.configure({ timeout: 120_000 });
-
-  /** Open a row's shared quick-edit panel, which hosts the recurrence editor. */
-  async function openQuickEdit(page: Page, title: string) {
-    await openRowMenu(page, title);
-    await page
-      .getByRole("menuitem", { name: "Repeat, sector and dates…" })
-      .click();
-    await expect(
-      page.getByRole("dialog", { name: "Quick edit" }),
-    ).toBeVisible();
-  }
 
   test("authors a CUSTOM after-completion interval, stated in plain language", async ({
     page,
@@ -526,6 +542,20 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
   });
 });
 
+/**
+ * Open a row's shared quick-edit panel — the surface that hosts priority, the
+ * dates, the sector and the recurrence editor. It is reached from the row's own
+ * overflow, which is the path a touch device has always used (there is no hover
+ * to reveal anything on a phone).
+ */
+async function openQuickEdit(page: Page, title: string) {
+  await openRowMenu(page, title);
+  await page
+    .getByRole("menuitem", { name: "Priority, dates and repeat…" })
+    .click();
+  await expect(page.getByRole("dialog", { name: "Quick edit" })).toBeVisible();
+}
+
 /* ========================================================================== */
 /* Scenario F — the phone                                                      */
 /* ========================================================================== */
@@ -542,15 +572,31 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     await quickAdd(page, `E2E phone ${stamp} 0`);
     await quickAdd(page, `E2E phone ${stamp} 1`);
 
-    // An inline priority edit is the same control at every width.
-    const card = cardFor(page, `E2E phone ${stamp} 0`);
-    await card.getByRole("button", { name: /^Priority/ }).click();
-    await page.getByRole("menuitemradio", { name: "P2 · High" }).click();
+    /*
+     * A priority edit from the row, at phone width.
+     *
+     * UIX-01 — the phone row is circle · title · date, and an UNSET priority is
+     * not drawn on it: at 390px a "No priority" control took ~70px out of a
+     * ~334px row, directly out of the title, to say that a dimension the owner
+     * has not used is not used. The capability did not move off the row — it
+     * moved into the row's own overflow → "Priority, dates and repeat…", which
+     * is the shared quick-edit panel and is already the phone's path for the
+     * sector and the recurrence (a phone has no hover to reveal anything).
+     *
+     * Once a task HAS a priority the row shows it at every width, which is what
+     * the assertion at the end of this block proves.
+     */
+    await openQuickEdit(page, `E2E phone ${stamp} 0`);
+    const quickEdit = page.getByRole("dialog", { name: "Quick edit" });
+    const priority = quickEdit.getByRole("combobox", { name: /^Priority/ });
+    await priority.click();
+    await quickEdit.getByRole("option", { name: "P2 · High" }).click();
+    await page.keyboard.press("Escape");
     await expect(cardFor(page, `E2E phone ${stamp} 0`)).toContainText("P2");
 
     // Multi-select through the EXPLICIT control (the touch hold is an accelerator,
     // and a gesture-only capability would have no keyboard equivalent).
-    await page.getByRole("button", { name: "Select tasks" }).click();
+    await enterTaskSelection(page);
     await expect(selectionPrompt(page)).toBeVisible();
     await selectTask(page, `E2E phone ${stamp} 0`);
     await selectTask(page, `E2E phone ${stamp} 1`);
@@ -577,7 +623,7 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     await page.mouse.wheel(0, -160);
     await openRowMenu(page, title);
     await page
-      .getByRole("menuitem", { name: "Repeat, sector and dates…" })
+      .getByRole("menuitem", { name: "Priority, dates and repeat…" })
       .click();
     const drawer = page.getByRole("dialog", { name: "Quick edit" });
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });

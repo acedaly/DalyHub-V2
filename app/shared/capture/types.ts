@@ -21,6 +21,15 @@ export type CapturePanelProps = {
   readonly onClose: () => void;
   /** Optional record context supplied by a meaningful originating surface. */
   readonly captureContext: CaptureContextContract | null;
+  /**
+   * UIX-01 — the DOM id the sheet's header Save button submits.
+   *
+   * A panel that wants its primary action in the sheet's header puts this on
+   * its `<Form id={…}>`; the header renders `<button type="submit" form={…}>`,
+   * which is the native way for a control outside a form to submit it. A panel
+   * that keeps its own in-body submit simply ignores it.
+   */
+  readonly formId?: string;
 };
 
 /** The three next steps every panel offers after a successful capture. */

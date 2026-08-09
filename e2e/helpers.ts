@@ -379,6 +379,41 @@ export function todayDayPanel(page: Page): Locator {
   return page.getByRole("region", { name: "Focus" });
 }
 
+/**
+ * UIX-01 — the DESKTOP global capture control.
+ *
+ * It was a floating action button in the bottom-right corner of every window
+ * (`button.dh-fab`). The redesign retired it: on a phone the navigation bar had
+ * already carried a labelled Capture slot in the same corner since CAPTURE-02,
+ * and on a desktop the action moved into the top app bar's violet "New" button,
+ * where the rest of the utilities are and where the reference design puts it.
+ *
+ * The surface it opens, the opener contract and the focus restoration are
+ * unchanged, which is why the specs that used the button only needed to be
+ * pointed at the new one.
+ */
+export function globalCaptureControl(page: Page): Locator {
+  return page.getByTestId("topbar-create");
+}
+
+/**
+ * UIX-01 — enter (or leave) the Tasks collection's bulk-selection MODE.
+ *
+ * "Select tasks" was a filled secondary button in the Tasks header until the
+ * UIX-01 redesign moved the header's long tail into the ONE shared overflow
+ * menu. It is the same command with the same wording and the same toggle
+ * semantics — the label still reads "Stop selecting" once the mode is on — it
+ * simply lives behind the header's ⋯ now.
+ *
+ * A helper rather than six copies of "open the menu, click the item": the
+ * specs that use it are testing bulk SELECTION, not where its entry point
+ * happens to be, and the next time that moves it should be one edit.
+ */
+export async function enterTaskSelection(page: Page): Promise<void> {
+  await page.getByTestId("tasks-overflow").click();
+  await page.getByRole("menuitem", { name: "Select tasks" }).click();
+}
+
 /** Assert the browser is on the Today screen, by URL and by that landmark. */
 export async function expectOnToday(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/today(?:[?#]|$)/);
@@ -416,6 +451,32 @@ export async function clickCardAction(
   await card.page().mouse.wheel(0, -160);
   await card.hover();
   await card.getByRole("button", { name }).click();
+}
+
+/**
+ * UIX-01 — complete (or reopen) a task from its row.
+ *
+ * The row's leading control is a completion CHECKBOX now, not a "Complete"
+ * button in the trailing action rail — a task's most frequent act moved to
+ * where every reference product puts it. The accessible NAME is unchanged
+ * ("Complete <title>" / "Reopen <title>"), so this is the same command reached
+ * through the same words on a different element.
+ */
+export async function completeTaskRow(
+  card: Locator,
+  title: string,
+): Promise<void> {
+  await card.scrollIntoViewIfNeeded();
+  await card.getByRole("checkbox", { name: `Complete ${title}` }).check();
+}
+
+/** The same control, the other way: reopen a completed task from its row. */
+export async function reopenTaskRow(
+  card: Locator,
+  title: string,
+): Promise<void> {
+  await card.scrollIntoViewIfNeeded();
+  await card.getByRole("checkbox", { name: `Reopen ${title}` }).uncheck();
 }
 
 /**

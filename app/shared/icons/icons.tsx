@@ -409,6 +409,32 @@ export const CheckCircleIcon = createIcon(
   <path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z" />,
 );
 
+/*
+ * UIX-01 added the three glyphs the redesigned surfaces genuinely needed and
+ * the set did not carry: a trajectory (the day's progress widget and a Goal's
+ * direction), a funnel (the Tasks utility cluster's Filter control) and a flag
+ * (priority, where the row shows it as a mark rather than a coloured pill).
+ * Same set, same provenance, same factory — never a second icon dependency.
+ */
+
+/** An upward trajectory — progress over time. Material Symbols `trending_up`. */
+export const TrendingUpIcon = createIcon(
+  "TrendingUpIcon",
+  <path d="m136-240-56-56 296-298 160 160 208-206H640v-80h240v240h-80v-104L536-320 376-480 136-240Z" />,
+);
+
+/** Narrowing a collection. Material Symbols `filter_alt`. */
+export const FilterIcon = createIcon(
+  "FilterIcon",
+  <path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z" />,
+);
+
+/** Priority, as a mark rather than a pill. Material Symbols `flag`. */
+export const FlagIcon = createIcon(
+  "FlagIcon",
+  <path d="M200-120v-680h360l16 80h224v400H520l-16-80H280v280h-80Zm300-370Zm86 130h134v-240H510l-16-80H280v240h290l16 80Z" />,
+);
+
 /* -------------------------------------------------------------------------- */
 /* Content-kind icons (Diary entry kinds, empty states).                      */
 /* -------------------------------------------------------------------------- */

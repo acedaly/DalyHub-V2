@@ -17,6 +17,66 @@ no version number to group them under.
 
 ---
 
+## A redesigned DalyHub (UIX-01)
+
+The biggest visual change since 2.0. Nothing moved in the product's structure —
+the same Areas, Goals, Projects and Tasks, in the same places, with the same
+meanings — but Today, Tasks and the frame around them have been redrawn against
+a new design.
+
+### Create is at the top, and it is the one violet thing on the screen
+
+The floating **+** in the bottom-right corner of every window is gone. On a
+computer, **New** now sits at the top with search and your account; on a phone,
+the **+** in the middle of the bottom bar is the same control it always was. One
+button, where the rest of the controls already are.
+
+### Today is three columns and a row of colour
+
+The day's figures are four small cards with coloured marks — your tasks, your
+meetings, anything overdue, and how the day is going. Underneath them the day
+reads across rather than down: what to do, what is scheduled, and what needs a
+look, side by side. Goal progress moved to the full width beneath, so four Goals
+fit where two did.
+
+Overdue work is no longer a pink panel at the top of the day. It is an ordinary
+row with a coral date beside it, which is what it is.
+
+### Tasks is a list again
+
+Tasks now opens **grouped by when things are due** — Overdue, Today, This week,
+Later — with the five views you actually use as tabs across the top: Inbox,
+Today, Upcoming, All active, Completed. Everything else is still one click away.
+
+A task is one line. A circle to tick it off, the title, its Project, and the
+date. Dates read **Yesterday**, **Today**, **Tomorrow** — not "7 Aug 2026" —
+and turn coral when something has slipped. The chips, badges and buttons that
+used to sit under every title are gone: about twice as many tasks now fit on a
+screen.
+
+Ticking a task off is the circle at the start of the row. Everything else a row
+can do is still there, in its **…** menu.
+
+### Selecting several tasks is something you turn on
+
+Rows no longer carry a permanent checkbox. Choose **Select tasks** from the
+**…** menu at the top (or hold a row on a phone) and the checkboxes appear, with
+the same range-select and the same 100-task limit as before.
+
+### Capturing a task on a phone
+
+The new-task sheet is **Cancel · New task · Save**, a big title field, and three
+quiet rows for the due date, the priority and the Project. Typing a title and
+pressing Enter is still all it takes; nothing below the title is required.
+
+### Dark mode
+
+Dark got the same treatment rather than an inversion of the light one: layered
+charcoal surfaces, quiet borders, and the same six accent colours at a strength
+chosen for a dark screen.
+
+---
+
 ## A quieter DalyHub (VIS-01)
 
 Nothing moved and nothing was renamed. This is the pass that takes the last of the

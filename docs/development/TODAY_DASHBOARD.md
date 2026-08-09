@@ -419,3 +419,37 @@ What survives, and where it lives:
   whole reproducible DAY (typical / morning / heavy / empty) into the local D1,
   parking the shared dev seed reversibly so a scenario is exactly what it says it
   is. [`e2e/today-shots.mjs`](../../e2e/today-shots.mjs) captures the evidence set.
+
+## The redesigned day (UIX-01, 2026-08-09)
+
+Today was **visually** redesigned against a supplied reference design. Every
+derivation in this document still holds — what "on today" means, what the rail
+may and may not carry, the honesty rules about zeros and fabricated metrics —
+and no loader, no route and no measurement changed. The composition did.
+
+- **The glance row** is the same `dayChips` model, drawn as four washed tonal
+  cards with a leading tile: violet tasks, blue meetings, coral overdue, green
+  daily progress. The conditional rules are untouched — a zero never paints, and
+  progress appears only once something is done.
+- **The body is three regions** — Focus · Schedule · Needs attention — where it
+  was one column and a 21rem rail. `data-columns` on the body states how many
+  actually rendered, so a day with no meetings is two regions rather than three
+  with a hole. The DOM order is still the phone composition and still the
+  reading order; nothing is moved by CSS `order`.
+- **Goal progress and This week** moved out of the day's column to a full-width
+  row beneath the body. Goal progress is a ROW of compact measures and now gets
+  the page's width — four across at 1280 instead of two.
+- **Identity marks.** A rail row leads with a tonal tile for its subject kind; a
+  "Continue working" row leads with the project's own persisted `AccentIcon`,
+  the same mark the Projects gallery and the Project record draw. The
+  per-project completion bar went with the redesign: the rail answers "which
+  project needs a look?", which the open count and the health word already
+  answer.
+- **Overdue** lost its tinted panel and kept its leading rule. Every overdue row
+  still says "Due 3 days ago" in words.
+- **The completion circle** is now the shared `.dh-check-circle`, which the
+  Tasks collection's rows also draw — one control, one meaning, one drawing.
+
+Full pass, including the design-language decision and the deliberate departures
+from the reference:
+[`docs/design/UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).

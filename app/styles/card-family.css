@@ -1880,13 +1880,23 @@
   min-inline-size: 0;
 }
 
+/*
+ * UIX-01 — a two-column grid, so the RING costs no height.
+ *
+ * It used to be a column with the ring inline beside the figure, which made the
+ * figure's row as tall as the ring (44px) and the whole card ~137px — half as
+ * tall again as the reference's. The ring now occupies its own trailing column
+ * and is centred across all three rows, so the card's height is decided by its
+ * TEXT and a card with a ring is exactly as tall as one without.
+ */
 .dh-stat {
-  display: flex;
+  display: grid;
   flex: 1;
-  flex-direction: column;
-  gap: var(--app-space-1);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: var(--app-space-1) var(--app-space-3);
   min-inline-size: 0;
-  padding: var(--app-card-padding-compact);
+  padding: var(--app-space-3) var(--app-space-4);
   border: none;
   /* VIS-01 — the FIGURE rung of the shape ladder. A stat card is one rung under
    * an ordinary card, because at a card's own radius a small tile is more
@@ -1903,26 +1913,82 @@
       var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
+/*
+ * UIX-01 — the WASHED figure card.
+ *
+ * A pale tint of the card's own tone, at the generated `wash` strength, plus a
+ * hairline of the same hue so the four cards in a row separate from each other
+ * and from the canvas without a shadow. The tint is the identity; everything
+ * that carries meaning on the card — the label, the figure, the supporting
+ * line — keeps its neutral, high-contrast colour.
+ *
+ * See `icons.css` for `--app-tone-wash` and the generator for the strengths.
+ */
+.dh-stat--washed {
+  background: var(--app-tone-wash);
+  box-shadow: none;
+  outline: var(--app-border-width-thin) solid
+    color-mix(in srgb, var(--app-tone) 12%, transparent);
+  outline-offset: calc(-1 * var(--app-border-width-thin));
+}
+
+/* The tile shares the label's line — see the component's anatomy note. */
+.dh-stat__head {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-stat__icon {
+  flex: none;
+}
+
 .dh-stat--interactive:hover {
   box-shadow: var(--app-elevation-raised);
   transform: translateY(-1px);
 }
 
+/*
+ * A washed card separates by TINT, so hovering it must not add a shadow that
+ * would break the row's flatness. It grows the ONE shared state layer over its
+ * own wash (`md-state-layer`, base.css) rather than re-mixing the tint here —
+ * there is exactly one hover fill in the product.
+ */
+.dh-stat--washed.dh-stat--interactive:hover {
+  box-shadow: none;
+}
+
 /* The label is read before the number, so it leads — and it stays quiet, because
  * the figure under it is the thing being scanned for. */
 .dh-stat__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
 }
 
+.dh-stat__head,
+.dh-stat__figure,
+.dh-stat__supporting {
+  grid-column: 1;
+}
+
 .dh-stat__figure {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
   min-inline-size: 0;
+}
+
+/* Centred across whatever rows the card has — one row or three. */
+.dh-stat__ring {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  align-self: center;
 }
 
 /*
@@ -1931,11 +1997,20 @@
  * previous hero spent `headline-medium` on a headline ("Your day") and left the
  * numbers at label size beside it.
  */
+/*
+ * UIX-01 — `headline-small` emphasized, one rung down.
+ *
+ * `headline-medium` was right when the card was label-above-figure with the
+ * whole width to itself. With the tile on the label's line the card is ~90px
+ * tall, and at that height the previous size made the number the only thing on
+ * it. It is still comfortably the largest thing IN the card, which is the rule
+ * that matters, and it is still the largest type on Today.
+ */
 .dh-stat__value {
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1948,7 +2023,6 @@
 
 .dh-stat__ring {
   display: inline-flex;
-  flex: none;
   line-height: 0;
 }
 

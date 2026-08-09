@@ -12,6 +12,24 @@ import { SavedViewSwitcher } from "~/shared/saved-views";
 
 import type { TasksViewOption } from "./tasks-contract";
 
+/**
+ * UIX-01 — the built-in views Tasks promotes to a permanent tab rail.
+ *
+ * The five an owner actually moves between during a day, in the order the
+ * redesign reference puts them: what has not been filed, what is on today, what
+ * is coming, everything actionable, and what is finished. The other five
+ * built-ins (Overdue, Waiting, Delegated, Someday, Deleted) and every saved
+ * view stay one click away in the same panel they were always in — this pins,
+ * it does not hide.
+ */
+const PINNED_VIEW_IDS = [
+  "inbox",
+  "today",
+  "upcoming",
+  "default",
+  "completed",
+] as const;
+
 export interface TasksViewSwitcherProps {
   readonly views: readonly TasksViewOption[];
   readonly activeViewId: string | null;
@@ -38,6 +56,7 @@ export function TasksViewSwitcher({
       shareUrl={shareUrl}
       basePath="/tasks"
       actionPath="/tasks/views"
+      pinnedViewIds={PINNED_VIEW_IDS}
       collectionLabel="Tasks views"
       defaultViewLabel="Tasks view"
       newViewPlaceholder="My tasks"

@@ -25,7 +25,6 @@ export {
 export { PrimaryNavigation } from "./PrimaryNavigation";
 export { SidebarBrand } from "./SidebarBrand";
 export { SidebarSearch } from "./SidebarSearch";
-export { CaptureFab } from "./CaptureFab";
 export { UserMenu, ACCESS_LOGOUT_PATH } from "./UserMenu";
 /**
  * APPEARANCE-01 — the ONE appearance control and its presentation registry. Both

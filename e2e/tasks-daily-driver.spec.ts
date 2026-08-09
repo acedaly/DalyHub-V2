@@ -3,6 +3,8 @@ import type { Page } from "@playwright/test";
 
 import {
   clickCardAction,
+  completeTaskRow,
+  reopenTaskRow,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -46,12 +48,23 @@ const FILING_PROJECT = "Daily driver filing project";
 const LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 const INBOX = "/tasks?view=list&system=inbox&sort=created&dir=desc";
 
-/** Capture a task through the in-workspace quick-add row. */
+/**
+ * Capture a task through the in-workspace quick-add row.
+ *
+ * It waits for the network to settle, not just for the field to clear. The
+ * field clears OPTIMISTICALLY, so returning there leaves the creation POST and
+ * the list revalidation it triggers still in flight — and a journey that
+ * navigates immediately afterwards can have that revalidation land on the NEXT
+ * screen and re-render a control it is halfway through typing into. That is a
+ * real race the suite has always had and only ever won on timing; the fix is
+ * for the helper to mean "the task exists" rather than "the box is empty".
+ */
 async function quickAdd(page: Page, text: string) {
   const field = page.getByTestId("tasks-quickadd-input");
   await field.fill(text);
   await field.press("Enter");
   await expect(field).toHaveValue("");
+  await page.waitForLoadState("networkidle");
 }
 
 /** The card for a task title, by its stable open-control accessible name. */
@@ -68,14 +81,37 @@ async function rowAction(page: Page, title: string, name: string | RegExp) {
   await clickCardAction(cardFor(page, title).first(), name);
 }
 
-/** Open a card's overflow menu and choose one item. */
+/**
+ * Open a card's overflow menu and choose one item.
+ *
+ * Scoped to the LAST open menu and matched exactly: UIX-01 put the collection's
+ * own long tail behind a header overflow as well, so "a menuitem on the page"
+ * is no longer unambiguously "an item of this row's menu".
+ */
 async function chooseOverflow(
   page: Page,
   title: string,
   item: string | RegExp,
 ) {
   await rowAction(page, title, new RegExp(`^More actions for `));
-  await page.getByRole("menuitem", { name: item }).click();
+  await page
+    .getByRole("menu")
+    .last()
+    .getByRole("menuitem", { name: item, exact: typeof item === "string" })
+    .click();
+}
+
+/**
+ * UIX-01 — Review Inbox moved into the Tasks header's shared overflow menu.
+ *
+ * It is the same link with the same words to the same route; the redesign took
+ * two filled secondary buttons out of the header, where the reference has a
+ * single quiet utility cluster.
+ */
+async function openReviewInbox(page: Page) {
+  await page.getByTestId("tasks-overflow").click();
+  await page.getByRole("menuitem", { name: "Review Inbox" }).click();
+  await page.waitForLoadState("networkidle");
 }
 
 test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
@@ -236,7 +272,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await page.keyboard.press("Escape");
 
     // Completing the occurrence creates exactly ONE successor, and says so.
-    await rowAction(page, title, `Complete ${title}`);
+    await completeTaskRow(cardFor(page, title).first(), title);
     await expect(
       page.locator("[role='status']").filter({ hasText: /next occurrence/i }),
     ).toBeAttached();
@@ -246,7 +282,17 @@ test.describe("TASKS-04 — persisted recurrence", () => {
       .getByRole("article", { name: `Open ${title}` })
       .filter({ hasNotText: "Completed" });
     await expect(open).toHaveCount(1);
-    await expect(open.first()).toContainText("Planned");
+    /*
+     * The successor carries the PLAN forward, and the row says so with the
+     * date rather than with a status pill.
+     *
+     * UIX-01 stopped a list row drawing a "Planned"/"Unscheduled" pill: on an
+     * ordinary open task that chip restated the presence or absence of the
+     * planned date sitting a few pixels along it, on every row in the list. The
+     * fact under test is unchanged and still visible — the successor is dated
+     * for the next occurrence, one day after the original's "tomorrow".
+     */
+    await expect(open.first()).toContainText(/Tomorrow|day|[A-Z][a-z]{2},/);
   });
 
   test("undo of a completion withdraws the untouched successor", async ({
@@ -256,13 +302,13 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow every day`);
 
-    await rowAction(page, title, `Complete ${title}`);
+    await completeTaskRow(cardFor(page, title).first(), title);
     await expect(
       page.locator("[role='status']").filter({ hasText: /next occurrence/i }),
     ).toBeAttached();
 
     await gotoFixture(page, "/tasks?view=list&system=completed&sort=updated");
-    await rowAction(page, title, `Reopen ${title}`);
+    await reopenTaskRow(cardFor(page, title).first(), title);
     await expect(
       page.locator("[role='status']").filter({ hasText: /withdrawn/i }),
     ).toBeAttached();
@@ -283,7 +329,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow`);
 
-    await chooseOverflow(page, title, "Repeat, sector and dates…");
+    await chooseOverflow(page, title, "Priority, dates and repeat…");
     const drawer = page.getByRole("dialog", { name: "Quick edit" });
     await expect(drawer).toBeVisible();
 
@@ -321,7 +367,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     // The panel is the row's quick edits on a phone too — a Task is triaged from a
     // pocket at least as often as from a desk.
     await page.setViewportSize({ width: 320, height: 720 });
-    await chooseOverflow(page, title, "Repeat, sector and dates…");
+    await chooseOverflow(page, title, "Priority, dates and repeat…");
     await expect(
       page.getByRole("dialog", { name: "Quick edit" }),
     ).toBeVisible();
@@ -363,7 +409,7 @@ test.describe("TASKS-04 — Review Inbox", () => {
     await quickAdd(page, `E2E review ${RUN}`);
 
     await gotoFixture(page, "/tasks");
-    await page.getByRole("link", { name: "Review Inbox" }).click();
+    await openReviewInbox(page);
     await expect(page).toHaveURL(/\/tasks\/review$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Review Inbox" }),

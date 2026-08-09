@@ -107,8 +107,22 @@ function resolveFallbackConfig(
   defaultPresentation: TaskDefaultView,
   saved: readonly TaskSavedView[],
 ): { config: TaskViewConfig; viewId: string | null } {
+  /*
+   * UIX-01 — the standard workspace IS the "All active" built-in view.
+   *
+   * It was `DEFAULT_TASK_VIEW_CONFIG` directly, which is the kernel's neutral
+   * floor rather than a view: the two happened to be identical, so a bare
+   * `/tasks` matched the built-in and the comment below could truthfully say "a
+   * bare /tasks is the standard workspace". The moment the built-in gained its
+   * due-state grouping they diverged, and a bare `/tasks` would have rendered
+   * an ungrouped list that reported itself as "Custom" while the All active tab
+   * beside it pointed somewhere else.
+   *
+   * Naming the view here keeps the two in step by construction: whatever "All
+   * active" means, that is what an owner with no default preference lands on.
+   */
   const standard: TaskViewConfig = {
-    ...DEFAULT_TASK_VIEW_CONFIG,
+    ...(findTaskSystemView("default")?.config ?? DEFAULT_TASK_VIEW_CONFIG),
     presentation: presentationForPreference(defaultPresentation),
   };
   if (defaultViewId === null) {

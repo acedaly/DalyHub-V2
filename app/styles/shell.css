@@ -12,7 +12,7 @@
  *   .dh-mobilebar    small top app bar             — 64px, `surface`
  *   .dh-topbar__search   search entry              — 44px, corner-full, bounded
  *   .dh-bottomnav    navigation bar                — 60px, compact indicator
- *   .dh-fab          floating action button        — 56px, corner-large
+ *   .dh-topbar__create   the one prominent action  — violet, compact (UIX-01)
  *
  * ── VIS-01 took the drawer and the bar off the specification's metrics ───────
  * Three of those five numbers are no longer M3's, and each is a deliberate
@@ -746,6 +746,54 @@
   text-align: center;
 }
 
+/* -------------------------------------------------------------------------- */
+/* UIX-01 — the top bar's CREATE action                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The one loud object in the shell.
+ *
+ * Everything else the frame paints is deliberately quiet — a neutral drawer, a
+ * neutral bar, a tinted selected row — precisely so that this control can be
+ * the product's colour without competing with anything. It is `primary`
+ * FILLED (not the container pair the retired floating button used): the
+ * reference's Create button is solid violet, and at 44px in a cluster of
+ * transparent glyphs a filled control is the difference between "an action" and
+ * "the action".
+ *
+ * `corner-full` is the exception the search capsule beside it also takes: a
+ * stadium is a button's shape, and this is the one place the product genuinely
+ * wants to say "press me".
+ *
+ * 44px tall so it is the same object as the search capsule and clears WCAG 2.2
+ * (2.5.8) without a separate hit area.
+ */
+.dh-topbar__create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  flex: none;
+  min-block-size: var(--app-control-height-lg);
+  padding-inline: var(--app-space-4) var(--app-space-5);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font: inherit;
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  cursor: pointer;
+}
+
+.dh-topbar__create-icon {
+  display: inline-flex;
+  font-size: 1.125rem;
+  line-height: 0;
+}
+
 /* An icon-only utility: 40px of visual control inside a 44px target, so the bar
  * stays 68px while every control still clears WCAG 2.2 (2.5.8). */
 .dh-topbar__utility {
@@ -1207,6 +1255,23 @@
     display: none;
   }
 
+  /*
+   * …unless the group IS a menu, in which case a scroll port would clip it.
+   *
+   * UIX-01 moved Tasks' secondary actions into the one shared overflow menu, and
+   * an absolutely-positioned panel inside an `overflow-x: auto` ancestor is
+   * clipped by it: at 390px the menu opened, reported itself visible, and was
+   * unreachable because the scroll port cropped every item below the trigger.
+   *
+   * The scroll rule exists for a group of two or three CHIPS that would
+   * otherwise wrap into stacked full-width rows. A lone menu trigger cannot
+   * wrap and cannot overflow, so it does not need a scroll port — and must not
+   * have one.
+   */
+  .dh-pane-header__secondary:has(> .dh-overflow-menu:only-child) {
+    overflow: visible;
+  }
+
   .dh-pane-header__secondary > * {
     flex: none;
   }
@@ -1407,22 +1472,57 @@
   white-space: nowrap;
 }
 
+/*
+ * UIX-01 — the current destination is VIOLET, and the indicator is a wash.
+ *
+ * The bar carried M3's filled `secondary-container` indicator, which put a
+ * lilac slab behind one glyph on the phone's most permanent surface. The
+ * reference marks the current destination the way the desktop rail already
+ * does: the glyph and its label step up to `primary` and to a heavier weight,
+ * over a tint quiet enough to read as emphasis rather than as a component.
+ *
+ * Still four signals and still never colour alone: `aria-current` carries it
+ * semantically, the indicator is a SHAPE (restored under forced colours
+ * below), and the label gains weight as well as colour.
+ */
 .dh-bottomnav__control[aria-current="page"] {
-  color: var(--md-sys-color-on-surface);
+  color: var(--md-sys-color-primary);
+}
+
+.dh-bottomnav__control[aria-current="page"] .dh-bottomnav__label {
+  font-weight: 600;
 }
 
 .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__indicator {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-app-color-surface-nav-selected);
 }
 
-/* Capture keeps its filled treatment on the bar: at phone widths it is the ONLY
- * global capture affordance (CAPTURE-02 hides the floating button here), and it
- * is painted with the same `primary-container` pair the button uses on a larger
- * window so the action reads the same wherever it appears. */
+/*
+ * Capture is the bar's one FILLED control, and the reference draws it as a
+ * violet circle that reads as the centre of the bar.
+ *
+ * It is `primary` filled rather than the `primary-container` pair the retired
+ * floating button used, for the same reason the desktop bar's New button is:
+ * this is the product's single most frequent creative act and the only place
+ * the phone shell spends solid colour. A circle rather than the destinations'
+ * rounded rectangle, because it is NOT a destination — the shape says so before
+ * the colour does, which is what keeps it legible under forced colours.
+ *
+ * It stays INSIDE the bar's own row (no negative offset, no floating): a 44px
+ * circle in a 60px bar is prominent without covering content, and it keeps the
+ * bar's height, its safe-area behaviour and its keyboard-hide unchanged.
+ */
 .dh-bottomnav__control--capture .dh-bottomnav__indicator {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+  inline-size: var(--app-bottomnav-capture-size);
+  block-size: var(--app-bottomnav-capture-size);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.dh-bottomnav__control--capture .dh-bottomnav__icon {
+  font-size: 1.5rem;
 }
 
 /* Forced colours: the indicator must survive when the accent is replaced. */
@@ -1438,100 +1538,29 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* The floating action button                                                  */
+/* UIX-01 — the floating action button was RETIRED                             */
 /* -------------------------------------------------------------------------- */
 
 /*
- * M3's standard FAB: 56px, `corner-large`, elevation 3, painted with the
- * `primary-container` pair (the specification's default, and the calmer of the
- * two choices — a `primary`-filled FAB shouts on a page whose primary action is
- * usually already visible).
+ * There is no `.dh-fab` any more, and this note is what stands where 60 lines
+ * of it did.
  *
- * CAPTURE-02 — it exists only where the bottom navigation bar does NOT. Below
- * `md` the bar carries a Capture slot in the same corner, and shipping both gave
- * a phone two global capture controls a thumb's width apart (recorded as
- * DEBT-96, confirmed by the August 2026 audit). The bar's slot wins there: it is
- * labelled, it is part of the navigation a phone user already reads, and it does
- * not float over the page. The button is hidden with `display: none` rather than
- * unmounted by a media-query hook, so there is no second responsive source of
- * truth and no hydration mismatch — and `display: none` genuinely removes it
- * from the Tab order and the accessibility tree, which visibility alone or a
- * transparent control would not.
+ * M3 gives an application one floating action button for its most frequent
+ * creative act, and DalyHub's was capture. CAPTURE-02 had already removed it
+ * from the phone, where the navigation bar's Capture slot carried the same
+ * action in the same corner with a label on it (DEBT-96). That left it on
+ * desktop only: a 56px elevated circle in the bottom-right of every window,
+ * floating over a canvas the design direction describes as calm, diagonally
+ * opposite the utility cluster it belongs to.
  *
- * It is anchored 24px from the bottom-right and clears, in order: the home
- * indicator (`env(safe-area-inset-bottom)`, folded into
- * `--app-bottomnav-height`), the phone navigation bar, and the on-screen
- * keyboard. All three are already-published tokens, so nothing here measures
- * anything.
+ * The reference design puts Create where the other utilities are, at the top,
+ * as the one violet object on the screen — and that is where it is now
+ * (`.dh-topbar__create`). The action, the surface it opens, its opener contract
+ * and its focus restoration are unchanged; only the button's home is different.
  *
- * `--app-fab-band` (tokens.css) describes the space this button spoke for at the
- * bottom of the window, and is consumed by the two surfaces that must reason
- * about it: the pane's reserved end band (above), and the notification region,
- * which stacks ABOVE the FAB rather than over it (`feedback.css`). Deliberately
- * NOT the document's `scroll-padding` — see the note in `base.css` for why a
- * corner must not be reserved as a full-width band. Two fixed controls in one corner is not a stacking-order
- * question — the notification layer is click-through, so a pointer reaches the
- * FAB either way, but an automated target-size audit sees a 56px control with
- * 8px of unobscured height and is right to fail it. They are given separate
- * space instead.
+ * `--app-fab-band` survives under its historical name and now measures the
+ * phone navigation bar alone; see its note in `tokens.css`.
  */
-.dh-fab {
-  position: fixed;
-  inset-inline-end: max(var(--app-fab-inset), env(safe-area-inset-right));
-  inset-block-end: calc(
-    var(--app-fab-inset) + var(--app-bottomnav-height, 0px)
-  );
-  z-index: var(--app-z-sticky);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--app-fab-size);
-  block-size: var(--app-fab-size);
-  border: none;
-  border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
-  box-shadow: var(--md-sys-elevation-3);
-  cursor: pointer;
-  transition:
-    box-shadow var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard);
-}
-
-.dh-fab:hover {
-  box-shadow: var(--md-sys-elevation-4);
-}
-
-.dh-fab__icon {
-  display: inline-flex;
-  font-size: 1.5rem;
-  line-height: 0;
-}
-
-/* The FAB rides the keyboard exactly as the navigation bar does, so it can never
- * cover a focused field. */
-.dh-fab {
-  transform: translateY(var(--app-keyboard-inset, 0px));
-}
-
-/* ...and it steps aside entirely while a bulk-action bar is on screen.
- *
- * The bar sits in normal flow at the end of the collection, so on a short phone
- * viewport the fixed FAB lands on top of the bar's trailing controls and
- * swallows their taps — Cancel, in the very corner the FAB occupies, could not
- * be pressed at all. `display: none` rather than a fade or an offset: while the
- * owner is acting on records that already exist, a button for creating a new one
- * is not competing for the corner, it is simply not part of the task. Removing
- * it also takes it out of the tab order and the accessibility tree, which a
- * merely transparent control would not do.
- *
- * `CollectionLayout` sets the flag whenever its selection slot is occupied, so
- * this holds for every collection with bulk actions, not just Today. */
-:root[data-selection-active="true"] .dh-fab {
-  display: none;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Responsive: collapse the rail into the phone shell below `md`.              */
@@ -1573,16 +1602,14 @@
    * `scrollIntoView` and keyboard focus never park an element beneath the bar.
    * Everything under `:root` — `.dh-app` included — still inherits it unchanged.
    *
-   * CAPTURE-02 — the FAB band is re-stated here for the same reason. There is no
-   * floating action button at these widths, so the space it would have spoken
-   * for is not reserved and the band describes the bar alone. Every consumer of
-   * the token (the pane, the notification region) therefore gets the phone
-   * answer without knowing anything about breakpoints. */
+   * UIX-01 — `--app-fab-band` is no longer re-stated here. With the floating
+   * button retired the band is the navigation bar at every width, so the one
+   * definition in `tokens.css` is correct everywhere and this override had
+   * nothing left to override. */
   :root {
     --app-bottomnav-height: calc(
       var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)
     );
-    --app-fab-band: var(--app-bottomnav-height);
   }
 
   .dh-app {
@@ -1599,12 +1626,6 @@
 
   .dh-bottomnav {
     display: block;
-  }
-
-  /* CAPTURE-02 — the bar's Capture slot is the ONE global capture affordance at
-   * phone widths, so the floating twin of it goes. See the FAB block above. */
-  .dh-fab {
-    display: none;
   }
 }
 

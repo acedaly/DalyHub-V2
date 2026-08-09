@@ -6,13 +6,32 @@
  * direction asks for: a short row of quiet cards, each holding exactly one
  * figure, sitting directly on the canvas above the working surface.
  *
- * Anatomy:
+ * Anatomy (UIX-01):
  *
  *     ┌─────────────────────────┐
- *     │ Tasks due today      ◯  │  label first, then the figure
- *     │ 6                    68%│  an optional ring at the trailing edge
+ *     │ ▧  Tasks due today      │  a tonal tile BESIDE the label
+ *     │ 6                    ◯  │  the figure, and an optional ring
  *     │ 2 overdue               │  ONE supporting line
  *     └─────────────────────────┘
+ *
+ * The tile shares the label's line rather than taking one of its own, which is
+ * how the reference draws it and what keeps a four-card row about 90px tall
+ * instead of 130 — the difference between a glance and a dashboard.
+ *
+ * ── UIX-01: the tone and the tile ────────────────────────────────────────────
+ *
+ * The redesign's glance row is the same component with two additions, both
+ * optional and both from the shared vocabulary rather than from the call site:
+ *
+ *   - `icon` + `tone` draw the tonal tile (`ToneIcon`), which is what makes a
+ *     row of four readable before any of the labels are;
+ *   - the card's surface becomes that tone's WASH — a very pale tint at the
+ *     generated `wash` strength, not a coloured card. The figures stay
+ *     high-contrast neutral, exactly as they were, because the tint is
+ *     identity and the number is the content.
+ *
+ * A caller that supplies neither gets the previous quiet white card, unchanged,
+ * which is what every non-Today consumer still renders.
  *
  * ── Why this is not `MetricTile` ─────────────────────────────────────────────
  *
@@ -43,6 +62,8 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { ToneIcon, type ToneName } from "~/shared/icons";
+
 /** How loud the figure is. `attention` is spent on slipped work alone. */
 export type StatCardTone = "default" | "attention";
 
@@ -54,6 +75,15 @@ export type StatCardProps = {
   /** One supporting line. A second one makes this a card in the other sense. */
   readonly supporting?: ReactNode;
   readonly tone?: StatCardTone;
+  /**
+   * UIX-01 — the card's decorative IDENTITY, from the shared tone vocabulary.
+   * It paints the icon tile and the card's wash. It is never status: `tone`
+   * above is what says a figure needs attention, and it says it in the figure's
+   * own colour with the words to match.
+   */
+  readonly accent?: ToneName;
+  /** UIX-01 — the glyph for the tonal tile. Decorative; the label carries the meaning. */
+  readonly icon?: ReactNode;
   /** A small proportion ring at the trailing edge. Information, not decoration. */
   readonly ring?: ReactNode;
   /** Whole-card destination — the canonical view this figure lives in. */
@@ -67,6 +97,8 @@ export function StatCard({
   value,
   supporting,
   tone = "default",
+  accent,
+  icon,
   ring,
   href,
   className,
@@ -74,33 +106,55 @@ export function StatCard({
 }: StatCardProps) {
   const body = (
     <>
-      <span className="dh-stat__label">{label}</span>
+      <span className="dh-stat__head">
+        {icon ? (
+          <ToneIcon tone={accent} size="sm" className="dh-stat__icon">
+            {icon}
+          </ToneIcon>
+        ) : null}
+        <span className="dh-stat__label">{label}</span>
+      </span>
       <span className="dh-stat__figure">
         <span className="dh-stat__value" data-tone={tone}>
           {value}
         </span>
-        {ring ? <span className="dh-stat__ring">{ring}</span> : null}
       </span>
       {supporting ? (
         <span className="dh-stat__supporting" data-tone={tone}>
           {supporting}
         </span>
       ) : null}
+      {/* A direct child of the card's grid, not of the figure line: the ring
+       * takes its own trailing column and is centred across every row, so it
+       * costs the card no height. */}
+      {ring ? <span className="dh-stat__ring">{ring}</span> : null}
     </>
   );
 
-  const classes = ["dh-stat", href ? "dh-stat--interactive" : null, className]
+  // `dh-tone` publishes the accent's custom properties for BOTH the tile inside
+  // and the card's own wash, so the two can never come from different hues.
+  const classes = [
+    "dh-stat",
+    "dh-tone",
+    // The ONE shared hover/focus/pressed fill (base.css). A washed card cannot
+    // separate itself on hover with a shadow (that would break the row's
+    // flatness), and it must not re-mix its own tint — so it becomes a host.
+    href ? "md-state-layer" : null,
+    accent ? "dh-stat--washed" : null,
+    href ? "dh-stat--interactive" : null,
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
 
   // A link when there is somewhere to go, and a plain region when there is not
   // — never a `div` with a click handler.
   return href ? (
-    <Link className={classes} to={href} data-testid={testId}>
+    <Link className={classes} data-tone={accent} to={href} data-testid={testId}>
       {body}
     </Link>
   ) : (
-    <div className={classes} data-testid={testId}>
+    <div className={classes} data-tone={accent} data-testid={testId}>
       {body}
     </div>
   );

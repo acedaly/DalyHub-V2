@@ -222,3 +222,180 @@
     flex: 1;
   }
 }
+
+/* ========================================================================== */
+/* UIX-01 — the Task capture sheet                                            */
+/* ========================================================================== */
+
+/*
+ * A big title, then a short list of rows. That is the whole surface.
+ *
+ * The reference's new-task sheet is one of the most specific pictures in the
+ * brief, and the shape of it is what makes capture feel instant: the field the
+ * owner is typing into is the largest thing on screen, and everything optional
+ * is a quiet row beneath it that can be ignored entirely.
+ */
+.dh-capture-form--task {
+  gap: var(--app-space-4);
+}
+
+/*
+ * The TITLE field: borderless, large, and the first thing the eye and the
+ * keyboard land on. Its label is hidden VISUALLY only — the sheet's own heading
+ * says "New task" directly above it, so the word "Title" on top of the field is
+ * the same fact twice; assistive technology still gets the label.
+ */
+.dh-capture-form .dh-capture-title .dh-field__label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dh-capture-form .dh-capture-title .dh-input {
+  padding-inline: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+}
+
+/* The shared focus ring is left exactly as it is — a borderless RESTING state
+ * must not become a borderless FOCUSED one (WCAG 2.4.11), and the product has
+ * one focus treatment. */
+
+/* -------------------------------------------------------------------------- */
+/* The metadata rows                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * One tonal surface holding a run of rows separated by hairlines — the
+ * "grouped list" shape every phone platform uses for exactly this, and the one
+ * the reference draws. It is ONE surface, not three cards: three rounded boxes
+ * for three facts is the card-inside-card clutter the redesign is removing.
+ */
+.dh-capture-rows {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--app-shape-supporting);
+  background: var(--md-app-color-surface-card-subtle);
+  overflow: hidden;
+}
+
+/*
+ * A row reads VALUE first and FIELD NAME second, which is the opposite of a
+ * form and the point of the arrangement: an owner scanning the sheet wants to
+ * know what the task will BE ("Tomorrow", "Medium priority", "No project"), not
+ * to be reminded what the three fields are called. The name stays a real
+ * `<label>`, so the control's accessible name is unchanged.
+ */
+.dh-capture-rows .dh-capture-row {
+  display: flex;
+  /* `.dh-field` is a column; a row is the whole point of this treatment. */
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 var(--app-space-3);
+  margin: 0;
+  padding-inline: var(--app-space-4);
+  min-block-size: var(--app-touch-target-min);
+}
+
+.dh-capture-rows .dh-capture-row + .dh-capture-row {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+/* The label is the row's trailing NAME. `SelectField` renders a label ROW and
+ * `TextField` a `<label>`; both are addressed so the two controls compose the
+ * same way. */
+.dh-capture-rows .dh-capture-row > .dh-field__label,
+.dh-capture-rows .dh-capture-row > .dh-field__label-row {
+  order: 2;
+  margin: 0;
+  flex: none;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 400;
+}
+
+/* …and the control is the row's leading VALUE, borderless and left-aligned.
+ * `flex-basis: 0`, not `auto`: an input's intrinsic width is wider than the
+ * space left beside the label, and a wrapping flex line places an item on a new
+ * line when its HYPOTHETICAL size exceeds the free space — before it considers
+ * shrinking. A zero basis makes the control ask for nothing and grow into what
+ * is left, which is what keeps the row a row. */
+.dh-capture-rows .dh-capture-row > .dh-field__control {
+  order: 1;
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+/* Help and error messages take the whole width beneath the row rather than
+ * squeezing the value — a validation message must never be truncated. */
+.dh-capture-rows .dh-capture-row > .dh-field__messages {
+  order: 3;
+  flex: 1 0 100%;
+}
+
+.dh-capture-rows .dh-capture-row > .dh-field__messages:empty {
+  display: none;
+}
+
+.dh-capture-rows
+  .dh-capture-row
+  :where(.dh-input, .dh-select, .dh-combobox__input),
+.dh-capture-rows .dh-capture-row .dh-combobox__field {
+  padding-inline: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* The value reads as text until it is engaged, which is the grouped-list idiom:
+ * a row states a fact, and touching it opens the way to change it. Focus is
+ * unmistakable regardless — the shared focus ring is untouched. */
+.dh-capture-rows .dh-capture-row .dh-input {
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-capture-rows .dh-capture-row--fixed {
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-capture-row__value {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-capture-row__name {
+  flex: none;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/*
+ * "Capture something else" — the type chooser, at the END of the sheet.
+ *
+ * It was a "Change type" control in the header's leading corner; UIX-01 gave
+ * that corner to Cancel. It is a quiet text control here because it is the
+ * rarest thing on the surface: an owner who opened Create and typed a task
+ * title is capturing a task.
+ */
+.dh-capture-change-type {
+  align-self: flex-start;
+  min-block-size: var(--app-touch-target-min);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font: inherit;
+  font-size: var(--md-sys-typescale-body-small-size);
+  cursor: pointer;
+}

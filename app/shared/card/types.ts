@@ -55,8 +55,22 @@ export type CardPresentation = "list" | "board" | "grid";
  * entity type: the module that knows what its record means decides what matters,
  * and the shared Card renders that decision the same way everywhere. Nothing is
  * removed at any width — de-prioritising is not hiding.
+ *
+ * UIX-01 adds a third tier. `quiet` is for a control that must stay on every row
+ * because it is how a field is EDITED, while having nothing to report — a task's
+ * priority editor on a task with no priority. On a pointer device it is held
+ * back until the row is hovered or something inside it is focused, which is the
+ * reference's "secondary actions appear on hover" behaviour. Three rules keep it
+ * honest, and all three are enforced in `card.css` rather than here:
+ *
+ *   - it is never `display: none`, so it is always in the accessibility tree and
+ *     always reachable by keyboard (focus inside the row reveals it);
+ *   - it is fully visible on any device without hover, because a phone must
+ *     never depend on one;
+ *   - a module uses it for a control with NOTHING TO SAY. A field with a value
+ *     is `high` or the default tier — never hidden behind a hover.
  */
-export type CardMetaPriority = "high" | "low";
+export type CardMetaPriority = "high" | "low" | "quiet";
 
 /** A small metadata entry shown on the card. */
 export interface CardMetaItem {
@@ -186,6 +200,22 @@ export interface CardProps {
    * the only thing distinguishing two records (brief §10).
    */
   readonly identity?: ReactNode;
+  /**
+   * UIX-01 — a control at the HEAD of the row that acts on the record itself.
+   *
+   * A task's completion circle is the only thing this is for so far, and the
+   * distinction it draws is the one that matters: `selection` acts on the LIST
+   * (which rows am I about to bulk-edit?), while this acts on the RECORD (this
+   * one is done). Every reference productivity application puts the second one
+   * first, because ticking a task off is the most frequent act in the product
+   * and the list-management control is not.
+   *
+   * A slot rather than a `completed`/`onToggle` pair, for the same reason
+   * `identity` is one: the Card must not learn what completing a Task means, or
+   * which route it posts to. The module supplies a real, labelled control and
+   * the row gives it a column.
+   */
+  readonly leadingControl?: ReactNode;
   /** Optional semantic entity accent (a tone) — a restrained type cue, not status. */
   readonly accent?: CardTone;
   /** The card title (required). Also the primary open target's accessible name. */

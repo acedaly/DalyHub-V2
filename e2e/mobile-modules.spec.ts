@@ -110,12 +110,18 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     // completed, and "the first card" is not the same thing as "an open task".
     const card = page
       .locator(".dh-card")
-      .filter({ has: page.getByRole("button", { name: /^Complete / }) })
+      .filter({ has: page.getByRole("checkbox", { name: /^Complete / }) })
       .first();
     await expect(card).toBeVisible();
-    const complete = card.getByRole("button", { name: /^Complete / });
+    const complete = card.getByRole("checkbox", { name: /^Complete / });
     await expect(complete).toBeVisible();
-    await expectMinTouchTarget(complete);
+    /*
+     * UIX-01 — the 20px circle sits inside a 44px LABEL, which is the target.
+     * The reference draws a small circle and WCAG 2.2 (2.5.8) sizes the thing a
+     * thumb aims at; a control is not made compliant by being drawn large, and
+     * it is not made non-compliant by being drawn small.
+     */
+    await expectMinTouchTarget(card.locator("label.dh-check-circle-target"));
 
     const taskTitle = (
       (await complete.getAttribute("aria-label")) ?? ""
@@ -125,13 +131,13 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     // The row reflects the SERVER after revalidation, not an optimistic guess.
     const row = page.locator(".dh-card").filter({ hasText: taskTitle });
     await expect(
-      row.getByRole("button", { name: `Reopen ${taskTitle}` }),
+      row.getByRole("checkbox", { name: `Reopen ${taskTitle}` }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Restore, so the other journeys see the seeded state.
-    await row.getByRole("button", { name: `Reopen ${taskTitle}` }).click();
+    await row.getByRole("checkbox", { name: `Reopen ${taskTitle}` }).uncheck();
     await expect(
-      row.getByRole("button", { name: `Complete ${taskTitle}` }),
+      row.getByRole("checkbox", { name: `Complete ${taskTitle}` }),
     ).toBeVisible({ timeout: 15_000 });
   });
 

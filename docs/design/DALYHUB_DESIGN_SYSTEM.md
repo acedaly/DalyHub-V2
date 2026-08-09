@@ -85,6 +85,7 @@ a coincidence, not a hierarchy.
 | Foundation | Where it lives | The rule |
 | --- | --- | --- |
 | **Colour** | `scripts/generate-m3-scheme.mjs` → `tokens.css` + `scheme.ts` | Generated from one violet seed, never authored. `scheme:check` fails the build on a hand-edited hex |
+| **Decorative identity** | `tokens.css` → `.dh-tone[data-tone]` | Six named widget accents (coral · blue · violet · green · amber · teal), published as `--app-tone*`. A surface declares WHICH identity it has; it never names a colour. Never status (D21) |
 | **Typography** | `tokens.css` | One family (Roboto Flex, `wght` axis). **Emphasis is weight, not size** |
 | **Shape** | `tokens.css` | Six semantic rungs — hero, entity-card, card, metric, supporting, control (20 · 16 · 16 · 12 · 12 · 8). Nesting always steps *down* |
 | **Spacing / sizing** | `tokens.css` (`--app-*`) | Structural values M3 does not own |
@@ -119,6 +120,10 @@ specification does not, because the specification's answer was worse *here*.
 | D15 | **The phone navigation bar is 60px** with a 40×26 indicator, not M3's 80px with a 64×32 capsule | The extra 20px exists to make room for the capsule, and the capsule was the most painted chrome on the phone's most permanent surface. Every destination is still a full-height target well over 44px |
 | D16 | **The writing surfaces have no box.** No outline, no fill, no corners — one hairline under the toolbar | A note is not a form field. The page is the paper; the toolbar is the only chrome the surface keeps besides its focus ring |
 | D17 | **The identity mark mixes its container toward the card by a generated strength** | D4 applied to identity: a gallery of nine tone-30 containers is a rainbow of coloured rectangles in dark and a soft palette in light. The mix is contrast-safe in both directions by construction, and asserted over all six ramps |
+| D18 | **A task list row is ONE line, ~45px, and carries no permanent action buttons** (UIX-01) | M3 has no opinion about a task row, and the row this replaced had eight facts at near-equal weight over two lines with "Complete" and "Today" under every title. The completion circle leads, the title is dominant, the Project mark and the date form two aligned trailing columns, and everything else is on hover, in the overflow, or on the record |
+| D19 | **The floating action button is gone** (UIX-01) | M3 gives an application one FAB for its most frequent creative act. DalyHub's was capture, and CAPTURE-02 had already removed it from the phone because the navigation bar carried the same action with a label on it. That left a 56px elevated circle floating over a calm desktop canvas, diagonally opposite the utilities it belongs with. Create is now the top app bar's one violet control |
+| D20 | **The sheet's primary action can live in its HEADER**, opposite a worded Cancel (UIX-01) | Every native platform draws a task-capture sheet as `Cancel · Title · Save`, and a sticky footer under a phone keyboard is a second bar competing with the one the OS already put there. `<button form="…">` submits a form it is not inside, so this is a slot rather than a second submit path |
+| D21 | **Decorative identity has its own colour ramp** (`accent-*`), separate from every semantic one (UIX-01) | A coral glance widget is "tasks due today", not a warning; an amber Goal mark is not "at risk". Painting decoration with `state-overdue` or `success` makes it impossible to change the semantic role later without repainting the decoration |
 
 ## 6. Measurable Goals — the visual language
 

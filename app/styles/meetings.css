@@ -321,20 +321,15 @@
   }
 
   /*
-   * Clear the global capture FAB.
+   * UIX-01 — the reservation for the global capture FAB is gone with the FAB.
    *
-   * The strip spans the full viewport and the FAB floats over its trailing end,
-   * so collapsing to one row put the strip's own Add button directly underneath
-   * the global +. Two capture affordances stacked on the same pixels is exactly
-   * the "global + and meeting capture must have clearly distinct purposes"
-   * confusion — and the nearer one was unclickable. The inset is derived from
-   * the FAB's own tokens, so it cannot drift if the FAB is resized.
+   * This used to reserve the button's whole corner so the strip's own Add
+   * control was not stacked underneath the global `+`. There is no floating
+   * button in the product any more (see `shell.css`), so the only thing left to
+   * clear is the device's own safe area.
    */
   .dh-meeting-capturebar {
-    padding-inline-end: max(
-      calc(var(--app-fab-inset) + var(--app-fab-size) + var(--app-fab-gap)),
-      env(safe-area-inset-right)
-    );
+    padding-inline-end: env(safe-area-inset-right);
   }
 
   /* The live region takes the full width so an announcement never squeezes the

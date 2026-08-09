@@ -252,9 +252,3 @@ export function rankContinueProjects(
     })
     .slice(0, CONTINUE_MAX);
 }
-
-/** The initial drawn in a project's tinted identity chip. */
-export function projectInitial(title: string): string {
-  const first = title.trim().charAt(0);
-  return first === "" ? "?" : first.toUpperCase();
-}

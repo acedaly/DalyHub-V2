@@ -29,6 +29,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  enterTaskSelection,
   expectMinTouchTarget,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -377,7 +378,7 @@ test.describe("larger windows — the floating button stays, and covers nothing"
     // TASKS-06 made multi-selection an explicit MODE, so the row checkboxes only
     // exist once it is entered. The toggle is the labelled, keyboard-reachable
     // way in — the same one a person uses.
-    await page.getByRole("button", { name: "Select tasks" }).click();
+    await enterTaskSelection(page);
     await page
       .getByRole("checkbox", { name: /^Select / })
       .first()

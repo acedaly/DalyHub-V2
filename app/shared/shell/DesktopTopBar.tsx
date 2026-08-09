@@ -37,14 +37,32 @@
  *   - the utilities that belong to the application rather than to a page — the
  *     command palette, help, and the account menu.
  *
+ * ── UIX-01: the bar gains the CREATE action ─────────────────────────────────
+ * The reference design's utility cluster is `search · New · notifications ·
+ * profile`, and "New" is the one violet object on the whole screen. DalyHub
+ * already had that action; it was just in the wrong place. Before this it was a
+ * 56px floating action button in the bottom-right corner of every desktop
+ * window — the most Material object left in the product, floating over a calm
+ * canvas, diagonally opposite the utilities it belongs with, and a long way
+ * from where a mouse already is.
+ *
+ * So the SAME shared Quick Capture surface is now opened by a compact violet
+ * button here, and the floating button is gone from the product entirely — a
+ * phone already had its Capture slot in the navigation bar, so with the desktop
+ * covered here there was nothing left for it to do. This is a relocation, not a
+ * second capture path: one provider, one sheet, one opener contract, one focus
+ * restoration. Every other entry point (`c`, the palette, the phone bar's
+ * Capture slot, every empty state) is untouched.
+ *
  * What it deliberately does NOT carry: a notification bell (DalyHub has no
- * notification system, and a bell that never rings is a decorative control), a
- * plan or billing entry (there is no plan concept), or a standing appearance
- * toggle. APPEARANCE-01 gives the owner a real System/Light/Dark choice, and puts
- * it INSIDE the account menu rather than beside these utilities: appearance is set
- * once and then forgotten, so a permanent sun/moon glyph in the bar would spend
- * top-level chrome — on every page, at every width — on a control that is used
- * about as often as Sign out.
+ * notification system, and a bell that never rings is a decorative control —
+ * the reference shows one, and this is the clearest place the product's truth
+ * has to win over the picture), a plan or billing entry (there is no plan
+ * concept), or a standing appearance toggle. APPEARANCE-01 gives the owner a real
+ * System/Light/Dark choice, and puts it INSIDE the account menu rather than
+ * beside these utilities: appearance is set once and then forgotten, so a
+ * permanent sun/moon glyph in the bar would spend top-level chrome — on every
+ * page, at every width — on a control that is used about as often as Sign out.
  *
  * Behaviour is UNCHANGED. The search control opens the same DS-08 Search surface
  * the sidebar entry opened, through the same `onOpenSearch` callback, passing the
@@ -68,11 +86,47 @@
  * only `role="search"` in the desktop shell now that the rail carries none.
  */
 
+import { useRef } from "react";
+
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
-import { CommandIcon, HelpIcon, SearchIcon } from "~/shared/icons";
+import { useCapture } from "~/shared/capture";
+import { CommandIcon, HelpIcon, PlusIcon, SearchIcon } from "~/shared/icons";
 import { Tooltip } from "~/shared/tooltip";
 
 import { UserMenu } from "./UserMenu";
+
+/**
+ * The bar's CREATE control, wired to the shared capture surface.
+ *
+ * A thin inner component because `useCapture()` must be read beneath the
+ * shell's own `CaptureProvider`, and `DesktopTopBar` is rendered inside it. The
+ * button hands itself to `openCapture` as the opener, so focus returns here
+ * when the surface closes — the same contract the floating button had.
+ */
+function TopBarCreate() {
+  const capture = useCapture();
+  const ref = useRef<HTMLButtonElement>(null);
+  return (
+    <button
+      type="button"
+      ref={ref}
+      className="dh-topbar__create md-state-layer"
+      data-testid="topbar-create"
+      onClick={() => {
+        if (ref.current) capture?.openCapture(undefined, ref.current);
+      }}
+    >
+      <span className="dh-topbar__create-icon" aria-hidden="true">
+        <PlusIcon />
+      </span>
+      {/* Real text, and the accessible name — never a visually-hidden name on
+       * a glyph. The reference's button says "New", a violet control this
+       * prominent must say what it does, and the word costs ~30px in a cluster
+       * that has the room at every width this bar is shown at. */}
+      <span className="dh-topbar__create-label">New</span>
+    </button>
+  );
+}
 
 export type DesktopTopBarProps = {
   /** The authenticated owner's verified email (safe display identity). */
@@ -126,6 +180,10 @@ export function DesktopTopBar({
             </span>
           </button>
         </div>
+
+        {/* UIX-01 — the one prominent action in the shell, next to Search
+         * exactly as the reference composes it. */}
+        <TopBarCreate />
 
         {/* M3-TIP — every utility here is icon-only, and none of them said what
          * it was to a pointer OR a keyboard before. The shared tooltip names them

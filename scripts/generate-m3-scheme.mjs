@@ -246,6 +246,48 @@ const CUSTOM_COLOR_GROUPS = [
       ["entity-review", "#827717"], // olive
     ],
   },
+  {
+    /*
+     * UIX-01 — the WIDGET ACCENT ramp.
+     *
+     * The redesign's supporting colour language: the six hues the reference
+     * spends on glance widgets, Goal identity and compact tonal icon tiles.
+     * They are IDENTITY, never status (DESIGN_SYSTEM.md → Identity is not
+     * status): a coral glance widget is "tasks due today", not a warning, and
+     * an amber Goal mark is not "at risk". The semantic roles above
+     * (`state-overdue`, `warning`, `error`) remain the only way to say a thing
+     * has gone wrong, and nothing here may be substituted for them.
+     *
+     * Why a ramp of its own rather than reuse. Four of the six hues DO already
+     * exist somewhere in the scheme — but each existing ramp already MEANS
+     * something: `state-overdue` is slipped work, `success` is a completed
+     * record, `chart-*` is a legend series whose separation is asserted, and
+     * `entity-*` is "this record is a Meeting". Painting a decorative widget
+     * with one of those makes it impossible to change the semantic role later
+     * without repainting the decoration, which is exactly the coupling the
+     * entity/status split exists to prevent. Six named identity roles cost 24
+     * generated tokens and buy a decorative language that can never be
+     * confused with a semantic one.
+     *
+     * `accent-coral` is the one genuinely NEW hue — a warm salmon that the
+     * scheme had nowhere: every existing red is either a crimson
+     * (`state-overdue`, `chart-4`) or a burnt orange (`priority-p2`). The
+     * source is a deep-orange rather than the literal salmon of the reference
+     * because `Blend.harmonize` rotates a design hue up to 15° TOWARD the
+     * violet seed, and from a salmon source that lands on a crimson
+     * indistinguishable from `state-overdue`. Starting 20° warmer lands the
+     * harmonised ramp on the coral the reference actually shows.
+     */
+    label: "Widget accent identity (UIX-01) — decorative, never status",
+    colors: [
+      ["accent-coral", "#FF7043"], // coral — tasks / due / attention identity
+      ["accent-blue", BLUE_HEX], // blue — schedule, time, calendar identity
+      ["accent-violet", SEED_HEX], // violet — focus, the product's own colour
+      ["accent-green", "#1B873F"], // green — progress and trajectory identity
+      ["accent-amber", "#B26A00"], // amber — a second warm identity
+      ["accent-teal", "#00897B"], // teal — a cool identity
+    ],
+  },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -429,6 +471,27 @@ const APP_SURFACE_TONES = {
  * three signals that were never the fill — the weight step, the `primary`
  * glyph and `aria-current` — carry exactly what they carried before.
  */
+/*
+ * UIX-01 adds `wash`.
+ *
+ * A glance widget in the reference is a very pale tinted panel — the hue is
+ * present but the surface is still, unmistakably, a card. That is a THIRD
+ * amount, below `supporting`, and it needs to be per-appearance for the same
+ * reason every other tint here does: a container role is a pale tone-90 in
+ * light and a saturated tone-30 in dark.
+ *
+ * In LIGHT the container is already near-white, so 40% of it over the card is a
+ * whisper of colour — which is exactly what four widgets side by side can carry
+ * without the row becoming a paint chart. In DARK a tone-30 at 40% would be a
+ * block of colour; even 20% put a saturated crimson panel on the dark Today
+ * screen, which is the "aggressively red everywhere" failure the Expressive
+ * audit named. 14% is enough to separate one widget from the next and to say
+ * which hue it is, and not enough to compete with the figure on it.
+ *
+ * The text on a washed surface is the ORDINARY `on-surface` pair, not the
+ * container's `on-` role — a wash is a tinted neutral, not a container.
+ * Asserted for all six accents, both appearances, in `contrast.test.ts`.
+ */
 const APP_TINT_STRENGTHS = {
   light: {
     expressive: "55%",
@@ -436,6 +499,7 @@ const APP_TINT_STRENGTHS = {
     selected: "34%",
     state: "45%",
     identity: "100%",
+    wash: "40%",
   },
   dark: {
     expressive: "28%",
@@ -443,6 +507,7 @@ const APP_TINT_STRENGTHS = {
     selected: "26%",
     state: "30%",
     identity: "48%",
+    wash: "8%",
   },
 };
 

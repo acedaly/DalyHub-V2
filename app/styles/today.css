@@ -146,8 +146,7 @@
  * in, at both widths — nothing on this screen is moved by CSS `order`, because
  * `order` moves pixels and leaves the reading order and the tab order behind.
  */
-.dh-today__main,
-.dh-today__rail {
+.dh-today__col {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--app-space-5);
@@ -156,22 +155,57 @@
 }
 
 /*
- * From ~900px the page becomes two UNEQUAL columns: Focus, and the surfaces that
- * qualify it.
+ * UIX-01 — THREE regions across the fold, not one column and a rail.
  *
- *   ┌─────────────────────────────┐┌────────────┐
- *   │ Focus                       ││ Schedule   │
- *   │  overdue                    ││ attention  │
- *   │  due today                  ││ continue   │
- *   └─────────────────────────────┘└────────────┘
+ *   ┌──────────────────┐┌──────────────┐┌──────────────┐
+ *   │ Focus            ││ Schedule     ││ Needs        │
+ *   │  overdue         ││              ││ attention    │
+ *   │  due today       ││              ││ continue     │
+ *   └──────────────────┘└──────────────┘└──────────────┘
  *
- * Unequal on purpose: the day is a list that wants length, and the rail is a
- * stack of short panels that wants a floor and a ceiling. The figures span both,
- * above.
+ * The reference's Today is three balanced regions, and the old two-column
+ * arrangement is why the product's did not read like it: a 21rem rail carrying
+ * three stacked panels beside a task list that is usually shorter than they are
+ * ends a 1440px window in a tall thin column next to empty canvas.
+ *
+ * Focus keeps a wider track (1.25fr against 1fr) because it is the actionable
+ * one and it is a list of titles; the other two are short runs of label-and-fact
+ * rows that read comfortably narrower. That ratio is the reference's own.
+ *
+ * The step to three happens in TWO stages, and both are container queries on the
+ * PANE rather than the viewport, so the layout is correct with the navigation
+ * drawer open, collapsed or in a narrow window:
+ *
+ *   ≥ 44rem   two regions — Focus, and whichever qualifies next
+ *   ≥ 58rem   three, when the day HAS three (see `data-columns`)
+ *
+ * 58rem is chosen against the PANE, not the window: at the 1280px review width
+ * the pane is ~64rem, so three regions arrive there rather than only on a wide
+ * monitor — which is the width the reference is drawn at.
+ *
+ * `data-columns` is written by the component from what actually rendered, so a
+ * day with no meetings is two full-width-sharing regions rather than three with
+ * a hole where Schedule would have been.
  */
-@container today (min-width: 56rem) {
+@container today (min-width: 44rem) {
   .dh-today__body {
-    grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem);
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+
+  /* With three regions to place and only room for two tracks, Focus takes the
+   * first row on its own — it is the one that wants the length. */
+  .dh-today__body[data-columns="3"] .dh-today__col--focus {
+    grid-column: 1 / -1;
+  }
+}
+
+@container today (min-width: 58rem) {
+  .dh-today__body[data-columns="3"] {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .dh-today__body[data-columns="3"] .dh-today__col--focus {
+    grid-column: auto;
   }
 }
 
@@ -274,81 +308,11 @@
 }
 
 /*
- * M3X-02 — the completion control is a CIRCLE.
- *
- * A square is the browser's checkbox and a circle is the productivity
- * convention for "done": every reference product the approved direction is drawn
- * from uses one, and it reads as *completing a thing* rather than as *selecting
- * a row* — which matters here, because DalyHub genuinely has both and the Tasks
- * collection's leading square IS a selection control. Two different acts now
- * look different.
- *
- * It stays a real `<input type="checkbox">`: the same element, the same
- * semantics, the same keyboard behaviour, the same accessible name. Only the
- * drawing is ours, and it is restored to the native drawing under forced
- * colours, where an authored shape would vanish.
+ * The completion control is the SHARED circle (`.dh-check-circle`,
+ * task-signals.css). Today's rows and the Tasks collection's rows draw exactly
+ * the same object because they mean exactly the same thing; UIX-01 moved the
+ * drawing out of this file so the second consumer could not fork it.
  */
-.dh-day-row__check {
-  flex: none;
-  appearance: none;
-  -webkit-appearance: none;
-  inline-size: 1.25rem;
-  block-size: 1.25rem;
-  margin: 0;
-  display: grid;
-  place-content: center;
-  border: var(--app-border-width-thick) solid
-    var(--md-sys-color-on-surface-variant);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: transparent;
-  cursor: pointer;
-  transition:
-    background-color var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    border-color var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard);
-}
-
-/* The tick is drawn, not a glyph: one clip-path, no font dependency, and it
- * scales with the control. */
-.dh-day-row__check::before {
-  content: "";
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  transform: scale(0);
-  transition: transform var(--md-sys-motion-duration-short3)
-    var(--md-sys-motion-easing-emphasized-decelerate);
-  background: var(--md-sys-color-on-primary);
-  clip-path: polygon(14% 44%, 0 60%, 39% 100%, 100% 16%, 85% 0, 39% 70%);
-}
-
-.dh-day-row__check:checked {
-  border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary);
-}
-
-.dh-day-row__check:checked::before {
-  transform: scale(1);
-}
-
-.dh-day-row__check:hover {
-  border-color: var(--md-sys-color-primary);
-}
-
-/* Forced colours strip authored fills, which would leave an empty ring in both
- * states. The native control draws itself correctly there, so it is handed back. */
-@media (forced-colors: active) {
-  .dh-day-row__check {
-    appearance: auto;
-    -webkit-appearance: auto;
-    border: revert;
-    border-radius: revert;
-  }
-
-  .dh-day-row__check::before {
-    display: none;
-  }
-}
 
 .dh-day-row__title {
   flex: 1 1 auto;
@@ -427,28 +391,25 @@
  * rather than a wash it survives the surface being quiet. Nothing here depends
  * on seeing colour: every row still says "Due 3 days ago" in words.
  */
+/*
+ * UIX-01 took the surface away and kept the marker.
+ *
+ * The block above records the wash as already-softened, and it was — but beside
+ * the reference it is still the loudest object on Today: a tinted panel with a
+ * coloured rule down its side, occupying the top of the day's own column, on a
+ * screen whose whole argument is calm. The reference marks slipped work the way
+ * Things and Todoist do — the row is an ordinary row, and its DATE is coral.
+ *
+ * So the wash is gone and the leading rule stays, at hairline weight. What
+ * carries the meaning is unchanged and was never the fill: the row prints "Due
+ * 3 days ago" in words, and the shared date treatment below paints it in the
+ * state colour. The rule is a shape, so it survives forced colours; the words
+ * survive everything.
+ */
 .dh-day-list--overdue {
-  border-radius: var(--app-shape-supporting);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-state-overdue-container) var(--app-tint-strength-state),
-    var(--md-app-color-surface-card)
-  );
   border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-state-overdue);
-  padding-inline: var(--app-space-3);
-}
-
-.dh-day-list--overdue .dh-day-row + .dh-day-row {
-  border-block-start-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 14%,
-    transparent
-  );
-}
-
-.dh-day-list--overdue .dh-day-row__title {
-  color: var(--md-sys-color-on-surface);
+  padding-inline-start: var(--app-space-3);
 }
 
 .dh-day-list--overdue .dh-day-row__check {
@@ -688,15 +649,17 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * The two progress sections are the LAST thing in the day's own column, beneath
- * the timeline, with the rail continuing beside them.
+ * UIX-01 — the two progress sections are a FULL-WIDTH row beneath the day.
  *
- * They are deliberately not a row under the whole body: a row begins below the
- * TALLER of the two columns, which on a desktop left a screen of dead space
- * under a short "My day". Sitting inside `.dh-today__main` they carry on exactly
- * where the day's work ends, and they need no grid placement of their own — the
- * column already orders them. The phone layout is the same markup unwrapped,
- * which is the rule the whole screen follows.
+ * They used to sit inside the day's own column, because a row under a
+ * two-column body begins below the TALLER column and left a screen of dead
+ * space under a short "My day". Three regions of comparable height removed that
+ * problem, and the reference's composition is the better one: Goal progress is
+ * a row of compact measures, and a row wants the page's width rather than a
+ * third of it — four Goals across at 1280 instead of two.
+ *
+ * The phone layout is the same markup unwrapped, which is the rule the whole
+ * screen follows.
  */
 .dh-today__progress {
   display: grid;
@@ -745,12 +708,18 @@
 }
 
 /*
- * One Goal, as a quiet tile on the panel's own surface.
+ * One Goal, as a quiet TONED tile on the panel's own surface.
  *
- * DS-02 bans a CARD inside a panel, and this is not one: it takes the
- * card-subtle surface a supporting run inside a card takes, at the figure
- * rung's radius, with no border and no shadow. What separates the four is the
- * grid gap, not four boxes.
+ * DS-02 bans a CARD inside a panel, and this is not one: no border, no shadow,
+ * the figure rung's radius, and separation carried by the grid gap rather than
+ * by four boxes. UIX-01 changes only what it is tinted with — the Goal's own
+ * tone at the generated `wash` strength instead of the neutral card-subtle
+ * surface — because the reference's Goal row is where Today spends most of its
+ * colour, and four identically grey tiles is what made ours the flattest thing
+ * on the page.
+ *
+ * The tint is very pale by construction (see `--app-tone-wash`), so the title,
+ * the measurement and the state word keep their ordinary high-contrast colours.
  */
 .dh-today__goal {
   display: grid;
@@ -758,8 +727,13 @@
   gap: var(--app-space-2);
   padding: var(--app-space-4);
   border-radius: var(--app-shape-metric);
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--app-tone-wash);
   min-inline-size: 0;
+}
+
+/* The mark leads the tile, above the title, as the reference draws it. */
+.dh-today__goal .dh-tone-icon {
+  margin-block-end: var(--app-space-1);
 }
 
 .dh-today__goal-title {

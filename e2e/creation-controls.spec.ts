@@ -18,6 +18,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   expectMinTouchTarget,
+  globalCaptureControl,
   expectNoHorizontalOverflow,
   gotoFixture,
   todayDayPanel,
@@ -25,7 +26,7 @@ import {
 
 /** The global capture control — the floating action button in the app shell. */
 function captureControl(page: Page) {
-  return page.locator("button.dh-fab");
+  return globalCaptureControl(page);
 }
 
 /** The pane header of the current collection, where a duplicate used to live. */

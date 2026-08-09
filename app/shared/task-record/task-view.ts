@@ -448,6 +448,95 @@ export function formatCalendarDate(value: string | null): string | null {
   return `${day} ${monthName} ${year}`;
 }
 
+/** How a relative date reads against the owner's day. Never a colour on its own. */
+export type RelativeDateUrgency = "overdue" | "today" | "soon" | "future";
+
+/**
+ * UIX-01 — a date-only value as the WORDS a list is scanned by.
+ *
+ * `formatCalendarDate` prints "7 Aug 2026", which is exact and unreadable at a
+ * glance: down a column of thirty rows, deciding which of them have passed
+ * means comparing three-part dates against a date you have to remember. Every
+ * reference productivity application answers this the same way, and so does the
+ * UIX-01 design: the near days get their names, and only the far ones get a
+ * date.
+ *
+ *     -1        Yesterday          (and further back: "3 days ago")
+ *      0        Today
+ *     +1        Tomorrow
+ *     +2 … +6   Thu               (this coming week — the weekday alone)
+ *     beyond    Thu, 12 Jun       (and "Thu, 12 Jun 2027" across a year)
+ *
+ * The `urgency` alongside is what a surface tints with. It is never the only
+ * signal: the label itself SAYS the state ("Yesterday", "Today"), which is why
+ * this function let the task row drop its separate urgency chip.
+ *
+ * Pure string arithmetic on the owner's calendar day (ADR-022) — no `Date`
+ * construction from a local clock, no timezone, hydration-safe. Returns `null`
+ * for a null or malformed value, exactly as `formatCalendarDate` does.
+ */
+export function relativeCalendarDate(
+  value: string | null,
+  todayIso: string,
+): { readonly label: string; readonly urgency: RelativeDateUrgency } | null {
+  const absolute = formatCalendarDate(value);
+  if (value === null || absolute === null) {
+    return null;
+  }
+  const days = calendarDayDifference(todayIso, value);
+  if (days === null) {
+    return { label: absolute, urgency: "future" };
+  }
+  if (days === 0) return { label: "Today", urgency: "today" };
+  if (days === 1) return { label: "Tomorrow", urgency: "soon" };
+  if (days === -1) return { label: "Yesterday", urgency: "overdue" };
+  if (days < -1) {
+    return { label: `${-days} days ago`, urgency: "overdue" };
+  }
+  const weekday = calendarWeekday(value);
+  if (weekday === null) {
+    return { label: absolute, urgency: "future" };
+  }
+  // Inside the coming week the weekday alone is unambiguous and shortest.
+  if (days <= 6) return { label: weekday, urgency: "soon" };
+  // Beyond it the weekday needs a date. `formatCalendarDate` already produced
+  // "12 Jun 2027"; the YEAR is dropped when the value is in the owner's current
+  // year, which is the only case where it disambiguates nothing.
+  const sameYear = value.slice(0, 4) === todayIso.slice(0, 4);
+  const dayAndMonth = absolute.slice(0, absolute.lastIndexOf(" "));
+  return {
+    label: `${weekday}, ${sameYear ? dayAndMonth : absolute}`,
+    urgency: "future",
+  };
+}
+
+/** Whole calendar days from `fromIso` to `toIso`, or null if either is malformed. */
+function calendarDayDifference(fromIso: string, toIso: string): number | null {
+  const utc = (iso: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    return match
+      ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      : null;
+  };
+  const from = utc(fromIso);
+  const to = utc(toIso);
+  return from === null || to === null
+    ? null
+    : Math.round((to - from) / 86_400_000);
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/** The short weekday name for a date-only ISO value, or null if malformed. */
+function calendarWeekday(iso: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return null;
+  const day = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  ).getUTCDay();
+  return WEEKDAYS[day] ?? null;
+}
+
 /**
  * The canonical task URGENCY signal (TASKS-02): what the task's dates say about
  * *when* it needs attention, as a self-describing chip. The distinction the

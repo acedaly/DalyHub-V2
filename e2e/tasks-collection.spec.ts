@@ -31,6 +31,27 @@ import {
 /** The name of the saved view this spec creates, deletes and recreates. */
 const SAVED_VIEW = "E2E deep work view";
 
+/**
+ * UIX-01 — plan a task for today from its ROW.
+ *
+ * "Today" was a visible button in the row's trailing action rail, revealed on
+ * hover on a pointer device and permanently present on touch. The redesign
+ * took every permanent action button off the row (they were most of why a phone
+ * task row was 230px tall); the command is now in the row's own overflow menu
+ * and on the touch swipe tray, so it is reachable by pointer, by keyboard and
+ * by gesture without occupying the row.
+ */
+async function planForToday(page: Page, title: string) {
+  const card = page.getByRole("article", { name: `Open ${title}` }).first();
+  await card.hover();
+  await card.getByRole("button", { name: /^More actions for / }).click();
+  await page
+    .getByRole("menu")
+    .last()
+    .getByRole("menuitem", { name: "Plan for today", exact: true })
+    .click();
+}
+
 /** Open the ONE shared collection sheet. */
 async function openSheet(page: Page) {
   await page.getByTestId("collection-filter-trigger").click();
@@ -85,13 +106,25 @@ test.describe("TASKS-03 — the primary workspace", () => {
   test("keeps every presentation one click away and URL-backed", async ({
     page,
   }) => {
+    /*
+     * UIX-01 — the layout is chosen from the header's shared overflow menu.
+     *
+     * List / Board / Sectors was a permanent three-segment control beside the
+     * title. It is a real choice and a rare one, and a control parked in the
+     * header's best space for a decision made once a week is what the redesign
+     * removed. Same `?view=` parameter, same three presentations, same one
+     * click — from the ⋯ instead of from a segment.
+     */
     await gotoFixture(page, "/tasks");
     for (const [label, marker] of [
       ["Sectors", ".dh-tasks-sectors"],
       ["Board", ".dh-tasks-board"],
       ["List", ".dh-card-collection"],
     ] as const) {
-      await page.getByRole("link", { name: label, exact: true }).click();
+      await page.getByTestId("tasks-overflow").click();
+      await page
+        .getByRole("menuitem", { name: `${label} layout`, exact: true })
+        .click();
       await expect(page.locator(marker).first()).toBeVisible();
     }
     await expect(page).toHaveURL(/view=list|\/tasks$/);
@@ -220,7 +253,8 @@ test.describe("TASKS-03 — sorting and grouping", () => {
     const overdue = page.getByRole("region", { name: "Overdue" });
     await expect(overdue).toBeVisible();
     const heading = await overdue.getByRole("heading").first().textContent();
-    const count = Number(/\((\d+)\)/.exec(heading ?? "")?.[1] ?? "0");
+    // UIX-01 — "OVERDUE 2", not "Overdue (2)". Same count, no brackets.
+    const count = Number(/(\d+)\s*$/.exec((heading ?? "").trim())?.[1] ?? "0");
     expect(count).toBeGreaterThan(0);
 
     // The bucket's own filtered list holds exactly the records the count promised.
@@ -271,13 +305,28 @@ test.describe("TASKS-03 — sorting and grouping", () => {
     const titles = async () =>
       page.getByRole("article").locator("h2, h3").allTextContents();
 
-    await gotoFixture(page, "/tasks?view=list&system=all&sort=title");
+    /*
+     * `group=none` is explicit here, and has to be.
+     *
+     * UIX-01 made due-state grouping the DEFAULT for the everyday views, and a
+     * URL that names only a sort still inherits the rest of the view it is a
+     * link into — exactly as it already inherited the presentation and the
+     * system view. A grouped list renders bounded per-bucket slices rather than
+     * one flat page, which is not what a sort-stability check is about.
+     */
+    await gotoFixture(
+      page,
+      "/tasks?view=list&system=all&sort=title&group=none",
+    );
     const asc = await titles();
     await page.reload();
     // Stability: the same query returns the same order, every time.
     expect(await titles()).toEqual(asc);
 
-    await gotoFixture(page, "/tasks?view=list&system=all&sort=title&dir=desc");
+    await gotoFixture(
+      page,
+      "/tasks?view=list&system=all&sort=title&dir=desc&group=none",
+    );
     const desc = await titles();
     expect(desc[0]).not.toBe(asc[0]);
   });
@@ -401,7 +450,7 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     // pointer-inert while concealed, so pointing at the row precedes the click,
     // exactly as a person performs it.
     await card.hover();
-    await card.getByRole("button", { name: `Complete ${title}` }).click();
+    await card.getByRole("checkbox", { name: `Complete ${title}` }).check();
 
     // The row reflects the SERVER, so the state pill becomes Completed and the
     // record itself agrees when opened in the canonical Drawer.
@@ -439,13 +488,15 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     const duePopover = page.getByRole("dialog", { name: "Edit due date" });
     await duePopover.getByLabel("Due date", { exact: true }).fill(ownerToday());
     await duePopover.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(card).toContainText("Due today");
+    // UIX-01 — the row states the due date as the word "Today". The separate
+    // "Due today" urgency chip is gone: a relative date says it itself.
+    await expect(card).toContainText("Today");
 
     // Then PLAN it for today. The due date is a deadline and the planned date is
     // a commitment (ADR-043 §3): setting one must never overwrite the other, so
     // the canonical record is asked directly.
     await card.hover();
-    await card.getByRole("button", { name: `Plan ${title} for today` }).click();
+    await planForToday(page, title);
     await expect(card).toBeVisible();
     await page.getByRole("link", { name: title }).first().click();
     const dialog = page.getByRole("dialog");
@@ -472,7 +523,7 @@ test.describe("TASKS-03 — Today integration", () => {
     // UIQ-002 — the rail reveals on hover; pointing at the row precedes the
     // click, exactly as a person performs it.
     await card.hover();
-    await card.getByRole("button", { name: `Plan ${title} for today` }).click();
+    await planForToday(page, title);
     await expect(card).toBeVisible();
 
     // Today reads the SAME canonical planning field — there is no second
@@ -623,7 +674,7 @@ test.describe("TASKS-03 — accessibility, keyboard and responsive", () => {
     const card = page.getByRole("article", { name: `Open ${title}` });
     // UIQ-002 — the rail reveals on hover; pointer users point before clicking.
     await card.hover();
-    await card.getByRole("button", { name: `Complete ${title}` }).click();
+    await card.getByRole("checkbox", { name: `Complete ${title}` }).check();
     await expect(
       page.locator("[role='status']").filter({ hasText: "Completed" }).first(),
     ).toBeAttached();
@@ -687,7 +738,7 @@ test.describe("TASKS-03 — phone", () => {
       // And a row's own quick edits: complete, plan today, and the overflow.
       const row = page.getByRole("article").first();
       await expectMinTouchTarget(
-        row.getByRole("button", { name: /^Complete / }),
+        row.getByRole("checkbox", { name: /^Complete / }),
       );
       await expectMinTouchTarget(
         row.getByRole("button", { name: / for today$/ }),

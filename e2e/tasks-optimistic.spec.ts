@@ -52,7 +52,7 @@ function cardFor(page: Page, title: string): Locator {
 async function completeFromRow(page: Page, title: string) {
   const card = cardFor(page, title);
   await card.hover();
-  await card.getByRole("button", { name: `Complete ${title}` }).click();
+  await card.getByRole("checkbox", { name: `Complete ${title}` }).check();
 }
 
 test.describe("TASKS-09 — an optimistic list, reconciled", () => {
@@ -92,7 +92,7 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
       "true",
     );
     await expect(
-      cardFor(page, title).getByRole("button", { name: `Reopen ${title}` }),
+      cardFor(page, title).getByRole("checkbox", { name: `Reopen ${title}` }),
     ).toBeAttached();
     // …and NOTHING has claimed success yet, because nothing has succeeded yet.
     await expect(
@@ -160,7 +160,7 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
       "true",
     );
     await expect(
-      cardFor(page, title).getByRole("button", { name: `Complete ${title}` }),
+      cardFor(page, title).getByRole("checkbox", { name: `Complete ${title}` }),
     ).toBeAttached();
 
     // The reason is both announced and visible, in the server's own words.
