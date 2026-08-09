@@ -86,7 +86,7 @@ a coincidence, not a hierarchy.
 | --- | --- | --- |
 | **Colour** | `scripts/generate-m3-scheme.mjs` → `tokens.css` + `scheme.ts` | Generated from one violet seed, never authored. `scheme:check` fails the build on a hand-edited hex |
 | **Typography** | `tokens.css` | One family (Roboto Flex, `wght` axis). **Emphasis is weight, not size** |
-| **Shape** | `tokens.css` | Five semantic rungs — hero, entity-card, card, supporting, control. Nesting always steps *down* |
+| **Shape** | `tokens.css` | Six semantic rungs — hero, entity-card, card, metric, supporting, control (20 · 16 · 16 · 12 · 12 · 8). Nesting always steps *down* |
 | **Spacing / sizing** | `tokens.css` (`--app-*`) | Structural values M3 does not own |
 | **Elevation** | `tokens.css` | Two names: `resting` (none) and `raised`. Separation is surface *value*; depth is for things that genuinely float |
 | **Motion** | `tokens.css` | M3 duration and easing tokens. Nothing animates on load |
@@ -113,8 +113,44 @@ specification does not, because the specification's answer was worse *here*.
 | D9 | **An optional select is EMPTY, never "No priority"** | An absence is not a decision. It also stops the unset state taking the first slot in a menu, where the eye and the keyboard both start |
 | D10 | **No theme feature.** One light/dark pair, chosen by `prefers-color-scheme` or the owner's three-value appearance preference | A component styled once is correct in both. Nothing in the cascade branches on a theme |
 | D11 | **Today has no hero.** Its figures are a row of quiet cards on the canvas | A hero spends the page's largest type on a headline and leaves the numbers at label size beside it — on the one screen whose entire question is the numbers. The row spends it on the figures, and tints nothing |
+| D12 | **The permanent navigation drawer is 216px**, outside M3's 232–248 band, and a destination is **44px of visual row** — the touch floor itself | 240 is the specification's figure for a drawer a user *opens*; DalyHub's is permanent, holds fourteen destinations and is on screen for the whole session. A painted row larger than the target it serves is mass without reach |
+| D13 | **A pill is reserved for a primary or destructive action.** Every other button takes `--app-shape-control` | `corner-full` on all five variants made shape say nothing about emphasis. A stadium means "this is the action" only when most things are not one |
+| D14 | **The segmented control is a sunken track with a soft raised chip**, not M3's outlined capsule with inter-segment dividers | Three pieces of chrome to say "one of these is chosen", in seven collection headers. The track and the lifted chip draw the same boundary the border and the dividers did |
+| D15 | **The phone navigation bar is 60px** with a 40×26 indicator, not M3's 80px with a 64×32 capsule | The extra 20px exists to make room for the capsule, and the capsule was the most painted chrome on the phone's most permanent surface. Every destination is still a full-height target well over 44px |
+| D16 | **The writing surfaces have no box.** No outline, no fill, no corners — one hairline under the toolbar | A note is not a form field. The page is the paper; the toolbar is the only chrome the surface keeps besides its focus ring |
+| D17 | **The identity mark mixes its container toward the card by a generated strength** | D4 applied to identity: a gallery of nine tone-30 containers is a rainbow of coloured rectangles in dark and a soft palette in light. The mix is contrast-safe in both directions by construction, and asserted over all six ramps |
 
-## 6. Interaction principles
+## 6. Measurable Goals — the visual language
+
+Shipped in GOAL-02. A Goal carries a **measurement**, and its representation is
+chosen from the measurement TYPE rather than reduced to a percentage:
+
+| Type | What the surface leads with | The visualisation |
+| --- | --- | --- |
+| **Target value** | the current value against the target — `79.3 kg`, `Target 70 kg` | the dated trend, with the target as a quiet reference line |
+| **Count** | `5 of 12 books` | a proportion bar |
+| **Milestones** | `2 of 4 stages` | the stage list; completion is the measure |
+| **Manual** | the owner's own percentage | a proportion bar, because a percentage is what was stated |
+| **Not measured** | "Not measured yet", and how to fix it | none — a Goal DalyHub has not been told how to measure is **not 0% done** |
+
+Three rules hold across every surface that draws one:
+
+1. **Progress is the OUTCOME, not the work.** Where a Goal has a measurement,
+   the measurement is its progress. A Goal's contributing Projects are still
+   shown — they are how the outcome is being pursued — but they are no longer
+   the progress figure, and they never overrule a recorded reading.
+2. **A reading is a fact, a percentage is a derivation.** The value is drawn
+   larger than the percentage everywhere, and the percentage is never drawn
+   without the value that produced it.
+3. **An absence is never drawn as a state.** No empty bar, no `0%`, no chip
+   announcing that something has not been configured.
+
+Density is by surface, and it is a ladder rather than one component at three
+sizes: Today shows a **glance** (title, value, one visualisation, one state);
+the gallery card shows a **choice** (identity, title, value, bar, one fact); the
+record shows the **whole thing** (hero figure, pace, trend, history, stages).
+
+## 7. Interaction principles
 
 - **Inline editing is the default.** Where a value can be safely changed in
   place, it is — a title, a priority, a date, a parent. Opening a form to change
@@ -136,7 +172,7 @@ specification does not, because the specification's answer was worse *here*.
   because `order` moves pixels and leaves the reading order and the tab order
   behind.
 
-## 7. Responsive behaviour
+## 8. Responsive behaviour
 
 Desktop and phone are allowed genuinely different **compositions** of the same
 data, the same routes and the same components. That is the design, not a
@@ -154,7 +190,7 @@ The laptop widths get the most attention, because that is where a title wraps or
 a gallery loses a column. **A title that wraps unnecessarily at a normal laptop
 width is a defect**, not a nuance.
 
-## 8. Accessibility
+## 9. Accessibility
 
 WCAG 2.2 AA, verified rather than assumed. Contrast is asserted over the
 *generated* scheme in both appearances, including the composed expressive
@@ -171,14 +207,17 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 
 | # | Decision | Why it is still outstanding |
 | --- | --- | --- |
-| A1 | **Measurable Goals.** A Goal should carry a baseline, a current value, a target and a unit — weight 85 → 70 kg, savings $5,000 → $15,000, books 3 → 12 — and choose its representation from the measurement type rather than reducing everything to a percentage | Needs a data-model change (migration, kernel contract, repository, forms, the record surface) and a product decision about which measurement types are first-class. Until then, a Goal's only honest measure is its Project contribution, which is what the card and the record draw |
-| A2 | **A quieter selected navigation destination.** The filled pill is the specification's answer and reads as the most Material object in the product | The pairing is asserted by name in `contrast.test.ts`; softening it needs a generated strength and a rewritten assertion, not a colour swap |
-| A3 | **A larger, calmer type scale for page and section titles** | A scale change touches every module's first viewport and must be re-QA'd at all ten widths in both appearances |
-| A4 | **The writing surfaces (Notes, Diary) drop their box.** Content-first, contextual toolbar, generous measure | The editor has its own geometry suite (`editor-geometry`, `doc-editor-responsive`); the change is safe only alongside those |
-| A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet |
+| A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet. VIS-01 quietened the two charts a Goal draws (a 1.5px line, smaller readings) without unifying the five |
 | A6 | **Component consolidation** across buttons, chips, tabs, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn |
-| A7 | **Calmer identity marks in DARK.** A container role is a pale tone-90 in light and a saturated tone-30 in dark, so a gallery of nine Project marks reads as a rainbow of colourful rounded rectangles in dark and as a soft palette in light | The fix is the one this system already uses for every other appearance-dependent amount — a generated strength mixing the container toward the card — but it changes the identity mark everywhere at once and needs a contrast pass over all six ramps and both `on-` pairs |
-| A8 | **The segmented control's outlined capsule.** The M3 segmented button, with its 1px container and inter-segment dividers, is one of the more component-demo objects left | Replacing it with a quiet sunken track and a soft selected chip is a shared-component change that reaches Tasks, Projects, Goals, Notes, Areas, Assets and Reviews at once |
+| A9 | **A Goal trend on Today.** A target-value Goal's card shows a bar where its shape would say more | Today loads a bounded per-Goal SUMMARY, not history (`goal-progress.ts`): a sparkline needs a series per Goal, which is a read change rather than a visual one, and the honesty rule that a section shows only what it has already measured applies to the picture as much as to the number |
+
+**Delivered since this section was written.** A1 (measurable Goals) shipped in
+GOAL-02 and is described in [§6](#6-measurable-goals--the-visual-language).
+VIS-01 delivered A2 (D12 — a soft wash and a rounded row, at a generated
+strength), A4 (D16), A7 (D17) and A8 (D14), and answered A3 by going the other
+way: the *hero* headline came DOWN a rung so it stops tying with the page title,
+rather than the page title going up. Hierarchy is size, space, tone and only
+then weight.
 
 ---
 

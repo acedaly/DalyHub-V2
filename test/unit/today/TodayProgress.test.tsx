@@ -89,18 +89,36 @@ function renderScreen(
 }
 
 describe("Goal progress on Today", () => {
-  it("shows a compact reading of each Goal — value, bar, remaining, status", () => {
+  /*
+   * VIS-01 narrowed what a GLANCE says, and the assertion narrowed with it.
+   *
+   * Today's Goal cards used to carry the Area, the value, the target, the
+   * percentage, the remainder, the month's movement and a filled status pill —
+   * seven facts on a surface whose job is a glance. Three of them went, each
+   * because it is stated somewhere the owner is already looking: the Area is on
+   * the Goal record and in the Goals gallery, and the remainder is the value
+   * against the target on the line above it.
+   *
+   * What is asserted here is what a glance must still answer: which Goal, where
+   * it stands, where it is going, and which way it is moving.
+   */
+  it("shows a glance of each Goal — value, target, bar, trend, state", () => {
     renderScreen(day({ goals: [weightGoal()] }));
     const section = screen.getByTestId("today-goal-progress");
     expect(within(section).getByText("Reach 70 kg")).toBeInTheDocument();
-    expect(within(section).getByText("Health & Fitness")).toBeInTheDocument();
     expect(within(section).getByText("79 kg")).toBeInTheDocument();
     expect(within(section).getByText("Target 70 kg")).toBeInTheDocument();
-    expect(within(section).getByText(/9 kg remaining/)).toBeInTheDocument();
     // The month's movement, as a signed figure with an arrow AND a magnitude.
     expect(
       within(section).getByText(/↓ 0.3 kg this month/),
     ).toBeInTheDocument();
+    // The state is a WORD, in its own tone — never a filled chip on a glance.
+    expect(
+      within(section).getByText(/On track|Ahead|In progress/),
+    ).toBeVisible();
+    // …and the facts a glance deliberately does NOT repeat.
+    expect(within(section).queryByText("Health & Fitness")).toBeNull();
+    expect(within(section).queryByText(/9 kg remaining/)).toBeNull();
   });
 
   it("announces the bar with the same sentence it prints", () => {

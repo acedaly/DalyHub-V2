@@ -100,29 +100,59 @@
   block-size: var(--app-entity-icon-size-sm);
 }
 
+/*
+ * VIS-01 — the identity mark takes its container at a GENERATED strength.
+ *
+ * This is Part 2 item A7 ("calmer identity marks in DARK") delivered by the
+ * mechanism the design system already uses for every other amount that differs
+ * between the appearances: one authored rule, one generated percentage, and no
+ * hand-edited dark hex anywhere. In LIGHT the strength is 100% and the mark is
+ * unchanged — a pale tone-90 square, which was never the problem. In DARK the
+ * container is a saturated tone-30, and a gallery of nine of them read as a
+ * rainbow of coloured rectangles rather than as identity; mixing it toward the
+ * card underneath lands it between the two.
+ *
+ * The mix can be ONE rule across all six ramps because it is contrast-safe by
+ * construction: the glyph is the container's own `on-` role, and moving a
+ * container toward the card always moves it AWAY from that role — darker under
+ * a light glyph in dark, lighter under a dark glyph in light. Asserted in
+ * `contrast.test.ts` over every ramp in both appearances.
+ *
+ * The mix target is the CARD, because that is where an identity mark almost
+ * always sits: a gallery card, a rail row, a record header.
+ */
+.dh-accent-icon[data-accent] {
+  background: color-mix(
+    in srgb,
+    var(--accent-icon-container) var(--app-tint-strength-identity),
+    var(--md-app-color-surface-card)
+  );
+  color: var(--accent-icon-on-container);
+}
+
 .dh-accent-icon[data-accent="1"] {
-  background: var(--md-sys-color-area-accent-1-container);
-  color: var(--md-sys-color-on-area-accent-1-container);
+  --accent-icon-container: var(--md-sys-color-area-accent-1-container);
+  --accent-icon-on-container: var(--md-sys-color-on-area-accent-1-container);
 }
 .dh-accent-icon[data-accent="2"] {
-  background: var(--md-sys-color-area-accent-2-container);
-  color: var(--md-sys-color-on-area-accent-2-container);
+  --accent-icon-container: var(--md-sys-color-area-accent-2-container);
+  --accent-icon-on-container: var(--md-sys-color-on-area-accent-2-container);
 }
 .dh-accent-icon[data-accent="3"] {
-  background: var(--md-sys-color-area-accent-3-container);
-  color: var(--md-sys-color-on-area-accent-3-container);
+  --accent-icon-container: var(--md-sys-color-area-accent-3-container);
+  --accent-icon-on-container: var(--md-sys-color-on-area-accent-3-container);
 }
 .dh-accent-icon[data-accent="4"] {
-  background: var(--md-sys-color-area-accent-4-container);
-  color: var(--md-sys-color-on-area-accent-4-container);
+  --accent-icon-container: var(--md-sys-color-area-accent-4-container);
+  --accent-icon-on-container: var(--md-sys-color-on-area-accent-4-container);
 }
 .dh-accent-icon[data-accent="5"] {
-  background: var(--md-sys-color-area-accent-5-container);
-  color: var(--md-sys-color-on-area-accent-5-container);
+  --accent-icon-container: var(--md-sys-color-area-accent-5-container);
+  --accent-icon-on-container: var(--md-sys-color-on-area-accent-5-container);
 }
 .dh-accent-icon[data-accent="6"] {
-  background: var(--md-sys-color-area-accent-6-container);
-  color: var(--md-sys-color-on-area-accent-6-container);
+  --accent-icon-container: var(--md-sys-color-area-accent-6-container);
+  --accent-icon-on-container: var(--md-sys-color-on-area-accent-6-container);
 }
 
 /*

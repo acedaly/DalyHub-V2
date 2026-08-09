@@ -49,7 +49,7 @@ import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 import {
   formatMeasurementChange,
   formatMeasurementValue,
-  goalCurrentAgainstTarget,
+  goalTargetLabel,
   goalProgressStatusLabel,
   goalProgressStatusTone,
   goalProgressSummaryText,
@@ -305,10 +305,6 @@ function GoalEntityCard({
 
   // A measured Goal's own reading replaces the contribution bar rather than
   // joining it: two bars on one card would be two answers to "how far along?".
-  const remaining =
-    !progress.achieved && progress.remaining !== null && progress.remaining > 0
-      ? `${formatMeasurementValue(progress.remaining, progress.unit)} remaining`
-      : null;
   const overall = formatMeasurementChange(progress.totalChange, progress.unit);
 
   return (
@@ -328,7 +324,10 @@ function GoalEntityCard({
                 progress.type === "milestone"
                   ? `${progress.current}/${progress.target ?? 0}`
                   : formatMeasurementValue(progress.current, progress.unit),
-              label: goalCurrentAgainstTarget(progress) ?? "current",
+              // VIS-01 — the TARGET, not the pair. The value is already the
+              // figure above this label; repeating it inside the label made the
+              // label the longer of the two strings.
+              label: goalTargetLabel(progress) ?? "current",
             }
           : undefined
       }
@@ -351,31 +350,42 @@ function GoalEntityCard({
               }
             : undefined
       }
+      /*
+       * VIS-01 — ONE state signal and ONE fact, and which they are depends on
+       * what the Goal actually is.
+       *
+       * This slot used to carry up to four things at once on a measured Goal: a
+       * status pill, an alignment pill, "9.3 kg remaining" and "↓ 5.7 kg
+       * overall". Every one of them is true and every one of them is somewhere
+       * else on the same card — the status is a state of the reading, the
+       * alignment is a state of the WORK, the remainder is the value against
+       * the target two lines above, and the overall change is the record's
+       * trend. Eleven facts is a card that documents a Goal; the job of a
+       * gallery card is to help choose one.
+       *
+       * So: a MEASURED Goal states its measurement status and its total change
+       * — the two things its number cannot say. An UNMEASURED one states its
+       * alignment, which is this collection's reason for existing (ADR-040 —
+       * the intention-to-action gap) and, for that Goal, genuinely the only
+       * story on the card.
+       */
       meta={
-        <>
-          {/* A measured Goal states its status in WORDS — the one derived signal
-              the bar cannot carry. */}
-          {measured ? (
+        measured ? (
+          <>
             <StatusPill tone={goalProgressStatusTone(progress.status)}>
               {goalProgressStatusLabel(progress.status)}
             </StatusPill>
-          ) : null}
-          {/* Alignment is this collection's REASON FOR EXISTING (ADR-040 — the
-              intention-to-action gap), so it stays on every card. Its reason is
-              spelled out only when nothing else on the card explains the Goal. */}
-          <AlignmentIndicator
-            alignment={goal.alignment}
-            showReason={!measured && !contribution.has}
-          />
-          {measured ? (
-            <>
-              {remaining ? <span>{remaining}</span> : null}
-              {overall ? <span>{`${overall} overall`}</span> : null}
-            </>
-          ) : contribution.has ? (
-            <span>{contribution.summary}</span>
-          ) : null}
-        </>
+            {overall ? <span>{`${overall} overall`}</span> : null}
+          </>
+        ) : (
+          <>
+            <AlignmentIndicator
+              alignment={goal.alignment}
+              showReason={!contribution.has}
+            />
+            {contribution.has ? <span>{contribution.summary}</span> : null}
+          </>
+        )
       }
       href={`/goals/${encodeURIComponent(goal.id)}`}
       openAriaLabel={`Open ${goal.title}`}

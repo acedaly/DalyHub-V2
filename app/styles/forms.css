@@ -999,8 +999,25 @@
   justify-content: center;
   gap: var(--app-space-2);
   min-block-size: var(--app-control-height-lg);
-  padding-inline: var(--app-space-6);
-  border-radius: var(--md-sys-shape-corner-full);
+  padding-inline: var(--app-space-5);
+  /*
+   * VIS-01 — a rounded rectangle by default; a PILL only where the action is
+   * primary or expressive.
+   *
+   * `corner-full` on every variant made the product a field of stadiums: a
+   * "Log weight" outlined button on a Goal card, a "Plan day" tonal button on
+   * Today and a "New Project" filled button in a collection header were all the
+   * same shape, so shape said nothing about emphasis and the pill stopped
+   * meaning "this is the action". Restricting the stadium to `--primary` and
+   * `--danger` gives it back its job, and the other three variants take
+   * `--app-shape-control`, which is the rung a compact control surface takes
+   * everywhere else in the product.
+   *
+   * Nothing about hierarchy rests on this alone — a filled button is filled, a
+   * tonal one is tonal, a text one has no container — so the change is
+   * additive: one more axis separating emphasis, not a replacement for one.
+   */
+  border-radius: var(--app-shape-control);
   border: var(--app-border-width-thin) solid transparent;
   font: inherit;
   font-size: var(--md-sys-typescale-label-large-size);
@@ -1025,8 +1042,9 @@
   padding-inline-start: var(--app-space-4);
 }
 
-/* FILLED — the one primary action. */
+/* FILLED — the one primary action, and one of the two that keeps the pill. */
 .dh-btn--primary {
+  border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
 }
@@ -1048,6 +1066,7 @@
 /* FILLED, on the error pair. Destructive actions always carry the word as well
  * as the colour (AGENTS.md §15). */
 .dh-btn--danger {
+  border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-error);
   color: var(--md-sys-color-on-error);
 }

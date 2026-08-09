@@ -552,14 +552,14 @@ export const DARK_SCHEME: SchemeColorMap = {
   "on-entity-review": "#3e2e00",
   "entity-review-container": "#5a4400",
   "on-entity-review-container": "#ffdf97",
-  "app-surface-page": "#141618",
-  "app-surface-navigation": "#181a1c",
-  "app-surface-app-bar": "#1a1c1e",
-  "app-surface-card": "#202225",
-  "app-surface-card-subtle": "#1c1e20",
-  "app-surface-raised": "#2d2e31",
-  "app-surface-sunken": "#101114",
-  "app-outline-hairline": "#38393c",
+  "app-surface-page": "#1a1c1e",
+  "app-surface-navigation": "#1e2023",
+  "app-surface-app-bar": "#202225",
+  "app-surface-card": "#252629",
+  "app-surface-card-subtle": "#202225",
+  "app-surface-raised": "#313236",
+  "app-surface-sunken": "#141618",
+  "app-outline-hairline": "#3a3b3e",
 };
 
 /** Both schemes, keyed by appearance. */

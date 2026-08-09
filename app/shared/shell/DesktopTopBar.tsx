@@ -1,15 +1,28 @@
 /**
  * The desktop top app bar.
  *
- * ── The search control is an ICON ────────────────────────────────────────────
- * It used to be a 56px pill spanning the start of the content region — the first
+ * ── The search control is a COMPACT CAPSULE ─────────────────────────────────
+ * It has been all three things a search affordance can be, and the third is the
+ * right one.
+ *
+ * It began as a 56px pill spanning the start of the content region — the first
  * and largest thing on every screen, on a product with one user who knows what
  * their own data contains. On Today that pill was the whole top of the page, and
- * the day's work started below it. Search is now a 40px icon control beside the
- * palette, help and account menu, keeping the SAME accessible name, the SAME
- * `role="search"` region and the SAME `/` shortcut — the surface shrank, the
- * capability did not. `/` still opens the full DS-08 Search surface through the
- * one shared dispatcher in `CommandShortcutLayer`, from every screen.
+ * the day's work started below it. M3-01 replaced it with a 40px glyph in the
+ * utility cluster, which fixed the size and lost the affordance: an icon says
+ * "there is a control here", it does not say "you can search your workspace".
+ *
+ * VIS-01 draws the middle answer the convergence reference uses — a control
+ * that LOOKS like a field, states what it searches, prints its shortcut, and is
+ * bounded: it sits in the utility cluster at the trailing end of the bar, at
+ * control height rather than 56px, and it never spans the content region. It
+ * collapses back to the glyph below `lg`, where a bounded capsule and a page
+ * title cannot both have the width.
+ *
+ * It is still a BUTTON that opens the DS-08 Search surface, not an input. A
+ * second real text field would be a second search implementation to keep in
+ * step with the first. The accessible name, the `role="search"` region and the
+ * `/` shortcut are the same ones the pill and the glyph had.
  *
  * Before this, DalyHub had no top app bar above the phone breakpoint at all: the
  * shell was a rail and a pane, so the primary search lived in the navigation
@@ -90,26 +103,28 @@ export function DesktopTopBar({
         {/* Search leads the utility cluster — it is the most-used of them, and
          * the tooltip carries the `/` shortcut the pill used to print. */}
         <div role="search" aria-label="Search DalyHub">
-          <Tooltip label="Search DalyHub" shortcut="/" placement="bottom">
-            {(tip) => (
-              <button
-                type="button"
-                ref={tip.ref}
-                className="dh-topbar__utility md-state-layer"
-                aria-describedby={tip.describedBy}
-                onClick={
-                  onOpenSearch
-                    ? (event) => onOpenSearch(event.currentTarget)
-                    : undefined
-                }
-              >
-                <span className="dh-topbar__utility-icon" aria-hidden="true">
-                  <SearchIcon />
-                </span>
-                <span className="dh-visually-hidden">Search DalyHub</span>
-              </button>
-            )}
-          </Tooltip>
+          <button
+            type="button"
+            className="dh-topbar__search md-state-layer"
+            onClick={
+              onOpenSearch
+                ? (event) => onOpenSearch(event.currentTarget)
+                : undefined
+            }
+          >
+            <span className="dh-topbar__search-icon" aria-hidden="true">
+              <SearchIcon />
+            </span>
+            {/* The label is REAL text, not a placeholder and not a visually
+             * hidden name on a glyph: a control that looks like a field has to
+             * say what searching it does, and this is the accessible name as
+             * well, so pointer and screen reader are told the same thing.
+             * `aria-hidden` on the hint keeps the shortcut out of that name. */}
+            <span className="dh-topbar__search-label">Search DalyHub</span>
+            <span className="dh-topbar__search-hint" aria-hidden="true">
+              /
+            </span>
+          </button>
         </div>
 
         {/* M3-TIP — every utility here is icon-only, and none of them said what

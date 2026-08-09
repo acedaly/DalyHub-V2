@@ -17,6 +17,63 @@ no version number to group them under.
 
 ---
 
+## A quieter DalyHub (VIS-01)
+
+Nothing moved and nothing was renamed. This is the pass that takes the last of the
+Material scaffolding off the outside of the product.
+
+### The navigation gets out of the way
+
+The sidebar is narrower, its destinations are tighter, and the one you are on is a
+soft wash rather than a filled lilac capsule. The three rules that grouped the
+destinations are gone — the space between the groups was already saying it. The
+glyphs are smaller, so the labels lead.
+
+### You can see where to search
+
+The top bar carries a compact search field again — **Search DalyHub**, with the
+`/` shortcut printed in it — instead of a magnifying glass you had to know about.
+It opens exactly what the glyph opened. On a narrower window it folds back into
+the glyph.
+
+### Today reads as one composition
+
+The day's figures are properly sized cards rather than small tiles stranded at the
+left of an empty row. **Goal progress** is now a row of glances — title, value,
+target, bar, and one word for how it is going — instead of a tall stack of full-width
+readouts, so three or four Goals fit where one used to. Each glance dropped the
+things you were already looking at somewhere else: the Area, the remainder, and the
+green pill saying what the word beside it said.
+
+### Cards stop shouting
+
+Corners are smaller and more varied — a figure card is rounder than a row and less
+round than a panel, which is the point of having a scale. A Goal card in the gallery
+carries five facts where it carried eleven; the ones that went are the ones the
+number above them already stated. Buttons are rounded rectangles now, and the pill
+shape is kept for the one action on a surface that is genuinely the action.
+
+### Filters look like filters
+
+The segmented control — Active/Deleted, List/Board/Sectors, All/Open/Completed — is a
+quiet recessed track with a soft chip on the chosen segment, instead of an outlined
+capsule with a rule between every option.
+
+### Notes is somewhere to write
+
+The writing surface has no box. No outline, no fill, no corners — just the document,
+with one hairline under the toolbar.
+
+### Dark is dark, not black
+
+Every surface came up off black onto a dark blue-grey, so a card reads as lifted
+rather than drawn, and the coloured identity marks on Projects, Areas and Goals are
+mixed back toward the card — a palette instead of a rainbow.
+
+### The phone bar is a bar, not a slab
+
+The bottom navigation is 60px instead of 80, with smaller glyphs, smaller labels and
+a compact selected state. Every destination is still the full height of the bar to tap.
 ## The Tasks list stops making you wait (TASKS-09)
 
 Ticking a task off used to take four round trips to the server before anything on

@@ -35,10 +35,19 @@ export interface GoalProgressReadoutProps {
   /** Names the bar for assistive tech, e.g. "Reach 70 kg progress". */
   readonly label: string;
   /**
-   * `compact` is the Today/card size: one value line, one bar, one fact line.
-   * `hero` is the record's, where the current value is the page's biggest number.
+   * The density ladder, and it is a ladder of WHAT IS SAID as well as of size:
+   *
+   * - `glance` — Today. Value, target, one visualisation, one state word. It
+   *   deliberately drops the remaining-to-target figure and the status PILL,
+   *   because a glance surface answers "how is this going?" and a chip announcing
+   *   a state the word beside it already states is the metadata the convergence
+   *   brief asks Today's Goal cards to stop carrying.
+   * - `compact` — a gallery card, where the extra fact helps choose between
+   *   Goals.
+   * - `hero` — the Goal record, where the current value is the page's biggest
+   *   number and every fact belongs.
    */
-  readonly size?: "compact" | "hero";
+  readonly size?: "glance" | "compact" | "hero";
   /** A trailing fact the surface wants on the fact line ("↓ 0.3 kg this week"). */
   readonly trailing?: string | null;
   readonly className?: string;
@@ -54,13 +63,14 @@ export function GoalProgressReadout({
   const summary = goalProgressSummaryText(progress);
   const against = goalCurrentAgainstTarget(progress);
   const statusLabel = goalProgressStatusLabel(progress.status);
+  const glance = size === "glance";
   const facts: string[] = [];
   if (progress.progressPercent !== null) {
     facts.push(`${progress.progressPercent}%`);
   }
   if (progress.achieved) {
     facts.push("Target reached");
-  } else if (progress.remaining !== null && progress.remaining > 0) {
+  } else if (!glance && progress.remaining !== null && progress.remaining > 0) {
     facts.push(
       `${formatMeasurementValue(progress.remaining, progress.unit)} remaining`,
     );
@@ -105,9 +115,22 @@ export function GoalProgressReadout({
             {facts.join(" · ")}
           </span>
         ) : null}
-        <StatusPill tone={goalProgressStatusTone(progress.status)}>
-          {statusLabel}
-        </StatusPill>
+        {/* At a glance the state is a WORD in its own tone, not a filled chip:
+            a green pill beside a violet bar on four cards at once is most of a
+            screen's colour spent on metadata. The tone is never the only
+            signal — the word is the signal, and the tone agrees with it. */}
+        {glance ? (
+          <span
+            className="dh-goalprogress__state"
+            data-tone={goalProgressStatusTone(progress.status)}
+          >
+            {statusLabel}
+          </span>
+        ) : (
+          <StatusPill tone={goalProgressStatusTone(progress.status)}>
+            {statusLabel}
+          </StatusPill>
+        )}
       </p>
     </div>
   );

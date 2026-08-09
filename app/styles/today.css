@@ -707,19 +707,37 @@
 }
 
 /*
- * Side by side only when BOTH fit at a comfortable measure. `auto-fit` means a
- * page showing only one of them gets the full column rather than half of it and
- * an empty half — the layout follows what there is to show.
+ * VIS-01 — one column, at every width.
+ *
+ * They used to sit side by side from 64rem, which halved the day column and
+ * left Goal progress ~380px wide: two Goal tiles across at best, and a
+ * seven-day comparison chart squeezed into the other half. Stacked, Goal
+ * progress gets the whole day column (three tiles at 1440, four at 1920) and
+ * the week's chart becomes the wide, thin band it wants to be — which is also
+ * the quiet chart geometry the convergence brief asks for. Nothing moved in the
+ * DOM; the grid simply stopped splitting the column.
  */
-@container today (min-width: 64rem) {
-  .dh-today__progress {
-    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
-  }
-}
 
+/*
+ * VIS-01 — a ROW of glances, not a stack of readouts.
+ *
+ * Four Goals as full-width rows separated by rules is ~130px of vertical space
+ * each and a section taller than the day's own work. The convergence reference
+ * puts the same four side by side at roughly 250px, which is exactly the width
+ * at which "79.3 kg / Target 70 kg / bar / On track" is comfortable — and it is
+ * a glance rather than a list, which is what the section is for.
+ *
+ * `auto-fit`, not `auto-fill`, and this is the opposite choice from the stat
+ * row above it deliberately: a stat card is one of a fixed set of the day's
+ * figures and should be the same size whether there are two or four, whereas
+ * Goals are a page of a collection — one Goal filling the width reads as "this
+ * is what you are working on", and one Goal at a quarter width with three empty
+ * tracks beside it reads as a broken grid.
+ */
 .dh-today__goal-list {
   display: grid;
-  gap: var(--app-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--app-space-3);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -727,34 +745,26 @@
 }
 
 /*
- * One Goal. Deliberately NOT a card inside a panel (DS-02 — no panel inside a
- * panel): it is a stack of rows separated by a rule, so four Goals stay compact
- * enough that the section never becomes a second collection.
+ * One Goal, as a quiet tile on the panel's own surface.
+ *
+ * DS-02 bans a CARD inside a panel, and this is not one: it takes the
+ * card-subtle surface a supporting run inside a card takes, at the figure
+ * rung's radius, with no border and no shadow. What separates the four is the
+ * grid gap, not four boxes.
  */
 .dh-today__goal {
   display: grid;
+  align-content: start;
   gap: var(--app-space-2);
-  padding-block-end: var(--app-space-4);
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
-  min-inline-size: 0;
-}
-
-.dh-today__goal:last-child {
-  padding-block-end: 0;
-  border-block-end: none;
-}
-
-.dh-today__goal-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
+  padding: var(--app-space-4);
+  border-radius: var(--app-shape-metric);
+  background: var(--md-app-color-surface-card-subtle);
   min-inline-size: 0;
 }
 
 .dh-today__goal-title {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
   font-weight: 500;
   color: var(--md-sys-color-on-surface);
   text-decoration: none;
@@ -765,16 +775,13 @@
   text-decoration: underline;
 }
 
-.dh-today__goal-area {
-  font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
-  overflow-wrap: anywhere;
-}
-
 /* The Goal's one action. Left-aligned and 44px, so it is a comfortable phone
- * target without becoming the row's visual centre. */
+ * target without becoming the tile's visual centre — and pulled back into the
+ * tile's own padding, because a text button's inline padding is chrome the tile
+ * has already paid for. */
 .dh-today__goal .dh-btn {
   justify-self: start;
+  margin-inline-start: calc(-1 * var(--app-space-3));
 }
 
 .dh-today__trend-note {
