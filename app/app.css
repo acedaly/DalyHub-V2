@@ -107,6 +107,10 @@
 @import "./styles/offline.css";
 /* AI-01 — the AI proposal, citation and Ask DalyHub surfaces. */
 @import "./styles/ai.css";
+/* EDIT-03 — the shared anchored-overlay layer, which every inline editor's menu
+ * and popover is portalled into. Here with the other overlays, and BEFORE the
+ * tooltip because a tooltip outranks it. */
+@import "./styles/anchored.css";
 /* M3-TIP — the ONE shared tooltip. Near the end of the cascade because it is an
  * overlay every other surface can raise, and it must sit above them all. */
 @import "./styles/tooltip.css";

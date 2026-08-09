@@ -1243,6 +1243,20 @@
   .dh-card:focus-within .dh-card__meta[data-priority="quiet"] {
     opacity: 1;
   }
+
+  /*
+   * EDIT-03 — and while its own editor is OPEN.
+   *
+   * `:focus-within` used to cover this: focus went into a menu that was a child
+   * of the row. The menu is now portalled into the overlay layer, so the row no
+   * longer contains the focused item and a quiet field faded out from under the
+   * menu it had just opened — the trigger disappearing while its own menu hangs
+   * beneath it. The trigger's `aria-expanded` is the honest question to ask, and
+   * it is on the element the row still owns.
+   */
+  .dh-card__meta[data-priority="quiet"]:has([aria-expanded="true"]) {
+    opacity: 1;
+  }
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,0 +1,55 @@
+/*
+ * EDIT-03 — the shared anchored-overlay layer (`~/shared/anchored`).
+ *
+ * Position is computed in `AnchoredSurface.tsx` (fixed, measured from the
+ * trigger, flipped and clamped against the viewport); this file owns only what
+ * the geometry cannot express — which layer the surface sits on, that it scrolls
+ * rather than overflows once clamped, and that it is invisible until it has been
+ * placed. Appearance belongs to the host's own class, so an inline select menu
+ * and a date popover keep looking like themselves.
+ */
+
+.dh-anchored {
+  position: fixed;
+  /*
+   * ABOVE the modal rung, deliberately.
+   *
+   * The surfaces that adopt this layer are opened from INSIDE other layers —
+   * the Task record Drawer (1200) edits its priority with one, and the Search
+   * overlay sits at the modal rung (1300). A dropdown-rung overlay (1000)
+   * portalled to `<body>` would render behind the very surface that opened it,
+   * which is the one way a portal can be worse than the clipped absolute box it
+   * replaced. Toasts (1400) and tooltips (1500) still win, and both should: a
+   * toast reports something that happened elsewhere, and a tooltip describes the
+   * control your pointer is on.
+   */
+  z-index: var(--app-z-anchored);
+  /* Clamped by the placement solver; the surface scrolls rather than spilling. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /*
+   * A ceiling for the natural width, so a long Project name cannot open a menu
+   * the width of a desktop. Now that the surface is measured against the
+   * VIEWPORT rather than against a 12rem column, this is the only width limit it
+   * has — and it must never exceed what the inline clamp can then fit.
+   */
+  max-inline-size: min(22rem, calc(100vw - 2 * var(--app-space-4)));
+}
+
+/*
+ * Measured but not yet placed (the first layout pass). Hidden where it stands
+ * rather than moved off-screen, so it can still be measured at its natural size.
+ *
+ * `opacity`, NOT `visibility: hidden` — and the difference is a real defect, not
+ * a preference. A `visibility: hidden` subtree is not focusable, and a menu
+ * moves focus onto its current item in the effect that follows the very commit
+ * this attribute is false in. With `visibility` the `.focus()` silently did
+ * nothing, focus stayed on the trigger, and the arrow keys then went to the
+ * trigger instead of the open menu — a keyboard-complete control turned into a
+ * mouse-only one by a one-frame paint guard.
+ */
+.dh-anchored[data-positioned="false"] {
+  opacity: 0;
+  /* It has no meaningful position yet, so it must not be clickable either. */
+  pointer-events: none;
+}

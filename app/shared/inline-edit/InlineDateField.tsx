@@ -20,14 +20,43 @@
  * closes and restores focus to the trigger, an outside press dismisses, Tab
  * leaves. It is a `dialog` rather than a `menu` because it contains a form
  * control and two commands, which is not a menu.
+ *
+ * ── EDIT-03 — the popover is in the OVERLAY LAYER ────────────────────────────
+ * It was `position: absolute` inside the field, which a Task row clips to 45px
+ * (see {@link AnchoredSurface} for why the row's clipping is load-bearing and
+ * cannot simply be opened up). The whole editor — the shortcuts, the input and
+ * the commands — was therefore invisible on the one surface it matters most on.
+ * Placement now comes from the shared anchored layer, and below the `md`
+ * breakpoint the same content is presented in the shared phone {@link Sheet}.
+ *
+ * ── EDIT-03 — the SHORTCUTS are the product's, not this component's ──────────
+ * A date editor that offers only a spinner asks the owner to do arithmetic for
+ * the two answers they give most often. The Task record's planning section has
+ * always offered Today / Tomorrow / Next week beside its dates; `shortcuts`
+ * lets a caller bring exactly those, from the ONE place that derives them
+ * (`taskDateShortcuts`), rather than this primitive inventing a second calendar
+ * vocabulary or reaching into a module for one. A caller with no honest "today"
+ * — the owner's day is a server fact (ADR-022), never the browser clock —
+ * passes none, and gets the input and the commands alone.
  */
 
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 
+import { AnchoredSurface } from "~/shared/anchored";
+import { Sheet } from "~/shared/sheet";
+import { useCompactViewport } from "~/shared/viewport";
+
 import { InlineEditShell } from "./InlineEditShell";
-import { useAnchoredAlignment } from "./use-anchored-alignment";
 import { useInlineEdit } from "./use-inline-edit";
 import type { InlineSaveOutcome } from "./inline-edit-model";
+
+/** A one-press date, named in the product's own words. */
+export interface InlineDateShortcut {
+  /** "Today", "Tomorrow", "Next week" — never a raw date. */
+  readonly label: string;
+  /** The ISO `YYYY-MM-DD` it commits. */
+  readonly value: string;
+}
 
 export interface InlineDateFieldProps {
   readonly label: string;
@@ -40,6 +69,11 @@ export interface InlineDateFieldProps {
   readonly readOnly?: boolean;
   /** Whether clearing is permitted (a required date hides the Clear command). */
   readonly clearable?: boolean;
+  /**
+   * One-press dates offered above the input. Supplied by the caller so the
+   * wording and the arithmetic stay the product's; see the note above.
+   */
+  readonly shortcuts?: readonly InlineDateShortcut[];
   readonly className?: string;
   readonly "data-testid"?: string;
 }
@@ -52,6 +86,7 @@ export function InlineDateField({
   emptyLabel = "Add a date",
   readOnly = false,
   clearable = true,
+  shortcuts,
   className,
   "data-testid": testId,
 }: InlineDateFieldProps) {
@@ -60,58 +95,122 @@ export function InlineDateField({
   const popoverId = `${generatedId}-popover`;
   const inputId = `${generatedId}-input`;
   const errorId = `${generatedId}-error`;
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const compact = useCompactViewport();
 
   const open = field.editing;
-  const alignment = useAnchoredAlignment(popoverRef, open);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    // The sheet owns its own initial focus (DS-03), so only the desktop popover
+    // reaches for the input.
+    if (open && !compact) inputRef.current?.focus();
+  }, [open, compact]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        field.cancel();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [open, field]);
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      field.cancel();
-      return;
-    }
-    if (event.key === "Enter" && event.target === inputRef.current) {
-      // Enter is a commit shortcut for the DATE INPUT only. Scoped to it,
-      // because the popover's own Save/Clear/Cancel buttons activate on Enter
-      // natively — intercepting here made Cancel persist the draft and Clear
-      // close without clearing, which is the exact opposite of both labels.
-      event.preventDefault();
-      field.submit();
-    }
+  const onSurfaceKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    field.cancel();
   };
 
+  // Enter is a commit shortcut for the DATE INPUT only, and it is bound to the
+  // input rather than to the surface. The popover's own Save/Clear/Cancel
+  // buttons activate on Enter natively; a surface-level handler intercepted
+  // those too, which made Cancel persist the draft and Clear close without
+  // clearing — the exact opposite of both labels. Binding it here also means
+  // the phone sheet, which has no surface handler of its own, behaves the same.
+  const onInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    field.submit();
+  };
+
+  /*
+   * The editor's contents, identical in the popover and in the sheet.
+   *
+   * One definition, because the two presentations are the same field: a phone
+   * that offered different shortcuts, or no Clear, would be a second date
+   * editor with the same name.
+   */
+  const editor = (
+    <>
+      {shortcuts && shortcuts.length > 0 ? (
+        <div
+          className="dh-inline-date__shortcuts"
+          role="group"
+          aria-label={`${label} shortcuts`}
+        >
+          {shortcuts.map((shortcut) => (
+            <button
+              key={shortcut.label}
+              type="button"
+              className="dh-btn dh-btn--secondary dh-btn--sm"
+              disabled={field.pending}
+              aria-pressed={value === shortcut.value}
+              onClick={() => field.submit(shortcut.value)}
+            >
+              {shortcut.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <label className="dh-inline-date__label" htmlFor={inputId}>
+        {label}
+      </label>
+      <input
+        id={inputId}
+        ref={inputRef}
+        type="date"
+        className="dh-input dh-inline-date__input"
+        value={field.draft ?? ""}
+        disabled={field.pending}
+        aria-invalid={field.error ? true : undefined}
+        aria-errormessage={field.error ? errorId : undefined}
+        onChange={(event) =>
+          field.change(event.target.value === "" ? null : event.target.value)
+        }
+        onKeyDown={onInputKeyDown}
+      />
+      <div className="dh-inline-date__actions">
+        <button
+          type="button"
+          className="dh-btn dh-btn--primary dh-btn--sm"
+          disabled={field.pending}
+          onClick={() => field.submit()}
+        >
+          Save
+        </button>
+        {clearable && value !== null ? (
+          <button
+            type="button"
+            className="dh-btn dh-btn--ghost dh-btn--sm"
+            disabled={field.pending}
+            onClick={() => field.submit(null)}
+          >
+            Clear
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="dh-btn dh-btn--ghost dh-btn--sm"
+          disabled={field.pending}
+          onClick={field.cancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </>
+  );
+
   return (
-    <div className="dh-inline-date" ref={containerRef}>
+    <div className="dh-inline-date">
       <InlineEditShell
         label={label}
         valueText={value ? (format ? format(value) : value) : emptyLabel}
         isEmpty={value === null}
         emptyLabel={emptyLabel}
         editing={false}
-        onActivate={field.begin}
+        onActivate={open ? field.cancel : field.begin}
         triggerRef={field.triggerRef}
         triggerProps={{
           "aria-haspopup": "dialog",
@@ -129,72 +228,38 @@ export function InlineDateField({
         {value ? (format ? format(value) : value) : null}
       </InlineEditShell>
 
-      {open ? (
+      {open && compact ? (
+        <Sheet
+          title={`Edit ${label.toLocaleLowerCase()}`}
+          opener={field.triggerRef.current}
+          onClose={field.cancel}
+          className="dh-inline-date-sheet"
+          data-testid={testId ? `${testId}-sheet` : undefined}
+        >
+          {editor}
+        </Sheet>
+      ) : null}
+
+      {open && !compact ? (
         /* Escape-to-dismiss and Enter-to-commit belong to the popover as a
          * whole; its focusable children (the date input and the three buttons)
          * are the operable controls, and the dialog merely lets the two keys
          * reach them from wherever focus currently sits. */
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-        <div
+        <AnchoredSurface
+          anchorRef={field.triggerRef}
+          onDismiss={field.cancel}
           className="dh-inline-date__popover"
           id={popoverId}
-          ref={popoverRef}
-          data-align={alignment}
           role="dialog"
           // "Edit due date", not "Due date": the dialog and the date input
           // inside it are two different things, and giving them the same
           // accessible name made "the due date" ambiguous to anything
           // navigating by name — including the tests that drove this out.
           aria-label={`Edit ${label.toLocaleLowerCase()}`}
-          onKeyDown={onKeyDown}
+          onKeyDown={onSurfaceKeyDown}
         >
-          <label className="dh-inline-date__label" htmlFor={inputId}>
-            {label}
-          </label>
-          <input
-            id={inputId}
-            ref={inputRef}
-            type="date"
-            className="dh-input dh-inline-date__input"
-            value={field.draft ?? ""}
-            disabled={field.pending}
-            aria-invalid={field.error ? true : undefined}
-            aria-errormessage={field.error ? errorId : undefined}
-            onChange={(event) =>
-              field.change(
-                event.target.value === "" ? null : event.target.value,
-              )
-            }
-          />
-          <div className="dh-inline-date__actions">
-            <button
-              type="button"
-              className="dh-btn dh-btn--primary dh-btn--sm"
-              disabled={field.pending}
-              onClick={() => field.submit()}
-            >
-              Save
-            </button>
-            {clearable && value !== null ? (
-              <button
-                type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm"
-                disabled={field.pending}
-                onClick={() => field.submit(null)}
-              >
-                Clear
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="dh-btn dh-btn--ghost dh-btn--sm"
-              disabled={field.pending}
-              onClick={field.cancel}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+          {editor}
+        </AnchoredSurface>
       ) : null}
     </div>
   );

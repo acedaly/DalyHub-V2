@@ -35,6 +35,7 @@ import { RepeatIcon } from "~/shared/icons";
 import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
 
 import { PriorityIndicator } from "./PriorityIndicator";
+import { taskDateShortcuts } from "./plan-targets";
 import { saveTaskBulkField, saveTaskRecordField } from "./task-inline-edit";
 import {
   formatCalendarDate,
@@ -217,6 +218,13 @@ export function InlineTaskDate({
       emptyLabel={kind === "due" ? "No due date" : "Not planned"}
       readOnly={disabled}
       clearable
+      // EDIT-03 — the row's date editor offers the SAME one-press dates the Task
+      // record's planning section does, from the same derivation. Only where the
+      // owner's day is known: a surface with no honest "today" shows the input
+      // and the commands alone rather than guessing from the browser clock.
+      {...(todayIso === undefined
+        ? {}
+        : { shortcuts: taskDateShortcuts(todayIso) })}
       className={
         // Only a DUE date carries urgency: a planned date is the owner's own
         // intention about when to work on something, and being "late" against

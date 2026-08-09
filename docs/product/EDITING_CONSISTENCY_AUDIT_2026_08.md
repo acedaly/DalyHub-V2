@@ -174,10 +174,14 @@ Four changes to the shared primitives came before any module moved:
    values only, an unset field renders its `emptyLabel` in the shell's quiet
    empty style, and clearing is one separated command at the end of the same
    roving list, present only when there is something to clear.
-3. **Anchored surfaces flip instead of overflowing** — `useAnchoredAlignment`
-   measures the menu/popover on open and anchors from the inline-end edge when a
-   start-anchored box would run past the viewport. Only the anchor changes, so
-   nothing reflows.
+3. **Anchored surfaces flip instead of overflowing** — the menu/popover measures
+   itself on open and re-anchors rather than running past the viewport edge.
+   *Superseded by EDIT-03 (2026-08-09):* measuring the box was necessary and not
+   sufficient. An anchored surface rendered INSIDE its field is still clipped by
+   any ancestor that hides its overflow, which on a Tasks row reduced all three
+   inline editors to a 45px sliver. Placement now belongs to the shared
+   [`~/shared/anchored`](../../app/shared/anchored) overlay layer — see
+   [ADR-087](../decisions/ARCHITECTURE_DECISIONS.md#adr-087-inline-editors-float-in-a-shared-overlay-layer-and-become-sheets-on-a-phone).
 4. **The writing surface gained a disabled state and a field wrapper** —
    `disabled` reconfigures the live view through a CodeMirror `Compartment`
    (no rebuild, so no lost undo history), and `MarkdownEditorField` wears the

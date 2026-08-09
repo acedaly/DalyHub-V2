@@ -269,9 +269,39 @@ const GLOBALLY_DISABLED_RULES = [
   "aria-required-children",
 ] as const;
 
+/**
+ * EDIT-03 — what the `region` rule counts as a top-layer surface.
+ *
+ * `region` asks that all page content sit inside a landmark, and axe already
+ * exempts the surfaces that cannot: its default matcher is
+ * `dialog, [role=dialog], [role=alertdialog], svg`. A transient popup rendered
+ * in DalyHub's overlay layer (`~/shared/anchored`) is the same kind of thing —
+ * it is portalled onto `<body>` precisely so no ancestor can clip it, it is
+ * owned by a trigger that IS inside a landmark, and it exists only while it is
+ * open. The inline DATE popover already passed this rule because it happens to
+ * be a `role="dialog"`; the inline SELECT menu did not, which is a difference in
+ * the popup's role rather than in its relationship to the page.
+ *
+ * So the layer is added to axe's own matcher rather than the rule being turned
+ * off: `region` stays fully enforced for everything else, including for any
+ * ordinary content that escapes a landmark.
+ */
+const REGION_MATCHER =
+  "dialog, [role=dialog], [role=alertdialog], svg, .dh-anchored";
+
 /** Build a WCAG 2.2 AA axe scan for the page. */
 export function buildAxeScan(page: Page, options: AxeScanOptions = {}) {
-  let builder = new AxeBuilder({ page }).withTags([...AXE_TAGS]);
+  let builder = new AxeBuilder({ page })
+    // Before `withTags`/`disableRules`, both of which extend this object rather
+    // than replacing it. `options()` itself replaces, so it has to come first.
+    //
+    // The cast is axe-core's own gap: `axe.run` reads per-CHECK options from
+    // `options.checks[id].options` (see `getCheckOption`), but `RunOptions` in
+    // the published types only describes the per-RULE `enabled` flag.
+    .options({
+      checks: { region: { options: { regionMatcher: REGION_MATCHER } } },
+    } as unknown as Parameters<AxeBuilder["options"]>[0])
+    .withTags([...AXE_TAGS]);
   if (options.include) {
     builder = builder.include(options.include);
   }

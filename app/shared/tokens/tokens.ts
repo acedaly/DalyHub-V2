@@ -195,6 +195,7 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "app-z-overlay",
     "app-z-drawer",
     "app-z-modal",
+    "app-z-anchored",
     "app-z-toast",
     "app-z-tooltip",
   ],
