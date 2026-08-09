@@ -7,6 +7,7 @@ import {
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  globalCaptureControl,
   gotoFixture,
 } from "./helpers";
 import {
@@ -591,7 +592,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     // test follows the path an owner actually has: focus the control, open it
     // with the keyboard, choose Note, type a title, submit — never touching the
     // mouse, and never leaving Notes to do it.
-    const capture = page.locator("button.dh-fab");
+    const capture = globalCaptureControl(page);
     await capture.focus();
     await page.keyboard.press("Enter");
 

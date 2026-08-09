@@ -109,11 +109,15 @@ test.describe("the Today screen on a phone", () => {
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    // The rail follows the day, "Needs attention" first — the same reading
-    // order the wide layout has, unwrapped.
-    const headings = await page
-      .locator(".dh-today__rail .dh-today__panel-title")
-      .allInnerTexts();
+    // UIX-01 — the day's supporting regions follow the Focus column in DOM
+    // order, "Needs attention" first: the same reading order the wide layout
+    // has, unwrapped. The two-column rail became three sibling regions, so the
+    // panels are read off the body rather than off a `__rail` wrapper.
+    const headings = (
+      await page
+        .locator(".dh-today__body .dh-today__panel-title")
+        .allInnerTexts()
+    ).filter((text) => text !== "Focus" && text !== "Schedule");
     if (headings.length > 1) {
       expect(headings[0]).toBe("Needs attention");
     }

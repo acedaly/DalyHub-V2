@@ -266,6 +266,32 @@
   --md-sys-color-entity-review-container: #ffdf97;
   --md-sys-color-on-entity-review-container: #251a00;
 
+  /* Widget accent identity (UIX-01) — decorative, never status. */
+  --md-sys-color-accent-coral: #ad3035;
+  --md-sys-color-on-accent-coral: #ffffff;
+  --md-sys-color-accent-coral-container: #ffdad8;
+  --md-sys-color-on-accent-coral-container: #410006;
+  --md-sys-color-accent-blue: #454ada;
+  --md-sys-color-on-accent-blue: #ffffff;
+  --md-sys-color-accent-blue-container: #e1e0ff;
+  --md-sys-color-on-accent-blue-container: #03006d;
+  --md-sys-color-accent-violet: #633edc;
+  --md-sys-color-on-accent-violet: #ffffff;
+  --md-sys-color-accent-violet-container: #e7deff;
+  --md-sys-color-on-accent-violet-container: #1d0061;
+  --md-sys-color-accent-green: #006c4b;
+  --md-sys-color-on-accent-green: #ffffff;
+  --md-sys-color-accent-green-container: #8ef7c7;
+  --md-sys-color-on-accent-green-container: #002114;
+  --md-sys-color-accent-amber: #974806;
+  --md-sys-color-on-accent-amber: #ffffff;
+  --md-sys-color-accent-amber-container: #ffdbc8;
+  --md-sys-color-on-accent-amber-container: #321300;
+  --md-sys-color-accent-teal: #00696c;
+  --md-sys-color-on-accent-teal: #ffffff;
+  --md-sys-color-accent-teal-container: #8ff2f6;
+  --md-sys-color-on-accent-teal-container: #002021;
+
   /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
   --md-app-color-surface-page: #f7f6fa;
   --md-app-color-surface-navigation: #fdfbff;
@@ -282,6 +308,7 @@
   --app-tint-strength-selected: 34%;
   --app-tint-strength-state: 45%;
   --app-tint-strength-identity: 100%;
+  --app-tint-strength-wash: 40%;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -469,6 +496,32 @@
     --md-sys-color-entity-review-container: #5a4400;
     --md-sys-color-on-entity-review-container: #ffdf97;
 
+    /* Widget accent identity (UIX-01) — decorative, never status. */
+    --md-sys-color-accent-coral: #ffb3b0;
+    --md-sys-color-on-accent-coral: #68000f;
+    --md-sys-color-accent-coral-container: #8b1721;
+    --md-sys-color-on-accent-coral-container: #ffdad8;
+    --md-sys-color-accent-blue: #bfc1ff;
+    --md-sys-color-on-accent-blue: #0800ab;
+    --md-sys-color-accent-blue-container: #2a2dc2;
+    --md-sys-color-on-accent-blue-container: #e1e0ff;
+    --md-sys-color-accent-violet: #cbbeff;
+    --md-sys-color-on-accent-violet: #330098;
+    --md-sys-color-accent-violet-container: #4b1bc3;
+    --md-sys-color-on-accent-violet-container: #e7deff;
+    --md-sys-color-accent-green: #71daac;
+    --md-sys-color-on-accent-green: #003825;
+    --md-sys-color-accent-green-container: #005138;
+    --md-sys-color-on-accent-green-container: #8ef7c7;
+    --md-sys-color-accent-amber: #ffb68a;
+    --md-sys-color-on-accent-amber: #522300;
+    --md-sys-color-accent-amber-container: #743400;
+    --md-sys-color-on-accent-amber-container: #ffdbc8;
+    --md-sys-color-accent-teal: #72d6da;
+    --md-sys-color-on-accent-teal: #003738;
+    --md-sys-color-accent-teal-container: #004f52;
+    --md-sys-color-on-accent-teal-container: #8ff2f6;
+
     /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
     --md-app-color-surface-page: #1a1c1e;
     --md-app-color-surface-navigation: #1e2023;
@@ -485,6 +538,7 @@
     --app-tint-strength-selected: 26%;
     --app-tint-strength-state: 30%;
     --app-tint-strength-identity: 48%;
+    --app-tint-strength-wash: 8%;
   }
 }
 
@@ -680,6 +734,32 @@
   --md-sys-color-entity-review-container: #5a4400;
   --md-sys-color-on-entity-review-container: #ffdf97;
 
+  /* Widget accent identity (UIX-01) — decorative, never status. */
+  --md-sys-color-accent-coral: #ffb3b0;
+  --md-sys-color-on-accent-coral: #68000f;
+  --md-sys-color-accent-coral-container: #8b1721;
+  --md-sys-color-on-accent-coral-container: #ffdad8;
+  --md-sys-color-accent-blue: #bfc1ff;
+  --md-sys-color-on-accent-blue: #0800ab;
+  --md-sys-color-accent-blue-container: #2a2dc2;
+  --md-sys-color-on-accent-blue-container: #e1e0ff;
+  --md-sys-color-accent-violet: #cbbeff;
+  --md-sys-color-on-accent-violet: #330098;
+  --md-sys-color-accent-violet-container: #4b1bc3;
+  --md-sys-color-on-accent-violet-container: #e7deff;
+  --md-sys-color-accent-green: #71daac;
+  --md-sys-color-on-accent-green: #003825;
+  --md-sys-color-accent-green-container: #005138;
+  --md-sys-color-on-accent-green-container: #8ef7c7;
+  --md-sys-color-accent-amber: #ffb68a;
+  --md-sys-color-on-accent-amber: #522300;
+  --md-sys-color-accent-amber-container: #743400;
+  --md-sys-color-on-accent-amber-container: #ffdbc8;
+  --md-sys-color-accent-teal: #72d6da;
+  --md-sys-color-on-accent-teal: #003738;
+  --md-sys-color-accent-teal-container: #004f52;
+  --md-sys-color-on-accent-teal-container: #8ff2f6;
+
   /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
   --md-app-color-surface-page: #1a1c1e;
   --md-app-color-surface-navigation: #1e2023;
@@ -696,6 +776,7 @@
   --app-tint-strength-selected: 26%;
   --app-tint-strength-state: 30%;
   --app-tint-strength-identity: 48%;
+  --app-tint-strength-wash: 8%;
 }
 
 /* @end generated by scripts/generate-m3-scheme.mjs */
@@ -1006,39 +1087,38 @@
    * 44px floor: the bar is 60px tall and a five-destination row on a 375px
    * phone is 75px wide per control.
    */
-  --app-bottomnav-bar-height: 3.75rem; /* 60 */
+  /*
+   * UIX-01 — 66px, up from 60.
+   *
+   * The six pixels buy the reference's central Create action: a 40px filled
+   * violet circle that sits INSIDE the bar's row rather than floating over the
+   * page, with its label still beneath it. It replaced a 56px floating button
+   * elsewhere on the screen, so the phone gets 6px taller chrome and stops
+   * carrying a second control entirely.
+   */
+  --app-bottomnav-bar-height: 4.125rem; /* 66 */
+  /** The central Create control's filled circle. */
+  --app-bottomnav-capture-size: 2.5rem; /* 40 */
 
-  /* CAPTURE-02 — the floating action button's anatomy, as tokens.
+  /*
+   * The band anchored to the BOTTOM of the window: everything a scroll
+   * container must reserve at its end so no content is ever trapped, and what
+   * the notification region stacks above (`feedback.css`).
    *
-   * The specification's standard FAB: 56px, anchored 24px from the corner, with
-   * a 16px gap above it. Stated here rather than as literals in `shell.css`
-   * because two other things have to reason about the space this button
-   * occupies — the pane's reserved end band and the notification region that
-   * stacks above it — and a button whose size is a literal in one file cannot be
-   * reserved for correctly in the others. */
-  --app-fab-size: 3.5rem; /* 56 */
-  --app-fab-inset: var(--app-space-6); /* 24 */
-  --app-fab-gap: var(--app-space-4); /* 16 */
-
-  /* The space the FAB spoke for at the bottom of the window, folding in the
-   * phone navigation bar beneath it — so one token describes "everything
-   * anchored to the bottom". It is what every scroll container reserves at its
-   * END (`shell.css`), so nothing is ever trapped under either, and what the
-   * notification region stacks above (`feedback.css`).
+   * ── UIX-01 retired the floating action button ────────────────────────────
+   * The name is historical. This token was introduced by CAPTURE-02 to describe
+   * a 56px floating capture button anchored 24px from the bottom-right corner
+   * PLUS the phone navigation bar beneath it. UIX-01 removed that button: on a
+   * phone the navigation bar's Capture slot already owned the action, and on a
+   * desktop the action moved into the top app bar's violet "New" control, where
+   * the reference design puts it and where the rest of the utilities already
+   * were. Nothing floats over the canvas any more, so the band is the phone
+   * navigation bar and nothing else, at every width.
    *
-   * It is deliberately NOT used for two things it looks like it should be, and
-   * both were tried and reverted: the document's `scroll-padding-block-end`
-   * (a corner reserved as a full-width band changes how far every
-   * `scrollIntoView` travels — see `base.css`), and an INLINE twin reserving the
-   * button's column on the pane (paid for by the entity galleries, at the cost
-   * of a whole column — see `shell.css`).
-   *
-   * Overridden at phone widths (`shell.css`) to the navigation bar alone, where
-   * there is no FAB and the bar's Capture slot owns the action instead. */
-  --app-fab-band: calc(
-    var(--app-bottomnav-height, 0px) + var(--app-fab-inset) +
-      var(--app-fab-size) + var(--app-fab-gap)
-  );
+   * It is deliberately NOT used for the document's `scroll-padding-block-end`
+   * — that was tried and reverted; see the note in `base.css`.
+   */
+  --app-fab-band: var(--app-bottomnav-height, 0px);
 
   --app-border-width-thin: 1px;
   --app-border-width-thick: 2px;
@@ -1135,7 +1215,15 @@
    * there is one.
    */
   --app-stat-track-phone: 10.5rem; /* 168 */
-  --app-stat-track-desktop: 15rem; /* 240 */
+  /*
+   * UIX-01 — 14rem, down from 15.
+   *
+   * `auto-fill` at 240px gave a 1280px window THREE tracks across a ~984px row
+   * and wrapped the fourth figure onto a line of its own, which is the one
+   * arrangement a glance row must never take. 224px fits four with room to
+   * spare at 1280 and still reads as a comfortable card at 1440 and 1920.
+   */
+  --app-stat-track-desktop: 14rem; /* 224 */
   /* Declared mobile-first here and stepped up in `base.css`, exactly as the
    * gutter and the dashboard gap are. */
   --app-stat-track: var(--app-stat-track-phone);
@@ -1435,6 +1523,80 @@
    */
   --app-elevation-resting: none;
   --app-elevation-raised: var(--md-sys-elevation-1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* UIX-01 — the widget accent TONE                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A tone is a NAMED IDENTITY, published as three custom properties.
+ *
+ * The redesign's glance widgets, compact Goal cards and non-entity icon tiles
+ * all need "be coral" / "be blue" to mean one thing in one place. `.dh-tone`
+ * resolves a `data-tone` name to the generated `accent-*` ramp and publishes:
+ *
+ *   --app-tone             the accent itself (a glyph, a bar fill, a small mark)
+ *   --app-tone-container   its container role
+ *   --app-tone-on-container the checked partner for text ON that container
+ *   --app-tone-wash        the very pale surface a widget paints with
+ *
+ * A consumer therefore never names a colour: it declares which identity it has
+ * and paints with the properties. Adding a seventh tone is one block here.
+ *
+ * The DEFAULT (no `data-tone`, or an unknown one) is the primary, which is the
+ * honest fallback: violet is the product's own colour, so "no particular
+ * identity" reads as DalyHub rather than as a random hue.
+ *
+ * These are DECORATIVE identities and never status. `state-overdue`,
+ * `warning` and `error` remain the only way to say something has gone wrong;
+ * see the generator's own note on the ramp.
+ */
+.dh-tone {
+  --app-tone: var(--md-sys-color-primary);
+  --app-tone-container: var(--md-sys-color-primary-container);
+  --app-tone-on-container: var(--md-sys-color-on-primary-container);
+  /*
+   * The wash is composed here rather than per consumer, so every washed
+   * surface in the product is the same operation at the same generated
+   * strength over the same base. See `APP_TINT_STRENGTHS.wash`.
+   */
+  --app-tone-wash: color-mix(
+    in srgb,
+    var(--app-tone-container) var(--app-tint-strength-wash),
+    var(--md-app-color-surface-card)
+  );
+}
+
+.dh-tone[data-tone="coral"] {
+  --app-tone: var(--md-sys-color-accent-coral);
+  --app-tone-container: var(--md-sys-color-accent-coral-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-coral-container);
+}
+.dh-tone[data-tone="blue"] {
+  --app-tone: var(--md-sys-color-accent-blue);
+  --app-tone-container: var(--md-sys-color-accent-blue-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-blue-container);
+}
+.dh-tone[data-tone="violet"] {
+  --app-tone: var(--md-sys-color-accent-violet);
+  --app-tone-container: var(--md-sys-color-accent-violet-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-violet-container);
+}
+.dh-tone[data-tone="green"] {
+  --app-tone: var(--md-sys-color-accent-green);
+  --app-tone-container: var(--md-sys-color-accent-green-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-green-container);
+}
+.dh-tone[data-tone="amber"] {
+  --app-tone: var(--md-sys-color-accent-amber);
+  --app-tone-container: var(--md-sys-color-accent-amber-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-amber-container);
+}
+.dh-tone[data-tone="teal"] {
+  --app-tone: var(--md-sys-color-accent-teal);
+  --app-tone-container: var(--md-sys-color-accent-teal-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-teal-container);
 }
 
 /* Text selection paints with the primary container pair. */

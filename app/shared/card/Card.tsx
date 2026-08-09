@@ -50,6 +50,7 @@ export function Card(props: CardProps) {
     typeLabel,
     icon,
     identity,
+    leadingControl,
     accent = "neutral",
     title,
     titleEditor,
@@ -232,6 +233,15 @@ export function Card(props: CardProps) {
         </div>
       ) : null}
 
+      {/* The record's own control comes FIRST — before identity and before the
+       * list's selection cell. `data-no-swipe` so a touch drag over it reveals
+       * the swipe tray rather than being eaten by the control. */}
+      {leadingControl ? (
+        <div className="dh-card__leading" data-no-swipe>
+          {leadingControl}
+        </div>
+      ) : null}
+
       {identity ? <div className="dh-card__identity">{identity}</div> : null}
 
       {selection ? (
@@ -351,6 +361,10 @@ export function Card(props: CardProps) {
                 <li
                   key={item.id}
                   className="dh-card__meta"
+                  // UIX-01 — the module's own field name, so a collection's
+                  // stylesheet can address one fact ("the Project mark drops
+                  // below 480px") without matching on its position in the run.
+                  data-field={item.id}
                   data-priority={item.priority ?? "high"}
                 >
                   {item.label ? (

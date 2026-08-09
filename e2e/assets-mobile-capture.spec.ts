@@ -27,6 +27,7 @@ import {
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  globalCaptureControl,
   gotoFixture,
 } from "./helpers";
 
@@ -394,8 +395,7 @@ test.describe("desktop is untouched", () => {
 
   test("capture offers Asset on the desktop surface too", async ({ page }) => {
     await gotoFixture(page, "/today");
-    const fab = page.locator("button.dh-fab");
-    await fab.click();
+    await globalCaptureControl(page).click();
     const sheet = page.getByTestId("capture-sheet");
     const changeType = sheet.getByTestId("capture-change-type");
     if (await changeType.isVisible()) {

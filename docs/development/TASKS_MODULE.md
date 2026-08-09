@@ -1574,3 +1574,101 @@ the browser — before the rule was changed.
   already struck through with nothing yet announced; Undo restores it; a forced
   refusal reverts and says why; a completion the view excludes still leaves it; and
   accumulated pages survive a real revalidation.
+
+## The redesigned workspace (UIX-01, 2026-08-09)
+
+The `/tasks` surface was **visually** redesigned against a supplied reference
+design. No route, no loader contract, no mutation and no view semantic changed;
+what changed is the composition, and the changes are recorded here because
+several of them moved where an existing command is reached from.
+
+The full pass — including the shell and Today, the design-language decision, the
+deliberate departures from the reference, and the before/after evidence — is
+[`docs/design/UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).
+
+### Grouping by due state is the DEFAULT
+
+`default` (All active), `inbox` and `upcoming` now carry `groupBy: "due_state"`
+in their built-in definitions, and a bare `/tasks` resolves to the `default`
+view's configuration rather than to the kernel's neutral floor — so the address
+bar, the tab rail and the list always agree about which view is applied.
+
+`today`, `overdue`, `waiting`, `someday`, `completed` and `deleted` stay FLAT:
+each is already one due state, one lifecycle state, or ordered by when it
+finished, so banding them by due state produces a single group under a redundant
+heading. A saved view stores its own grouping and is unaffected, and
+`?group=none` still returns the flat list.
+
+Group headings use `DUE_STATE_GROUP_HEADINGS` — the same buckets and the same
+keys as the filter vocabulary, worded for a heading (`TODAY`, not "Due today").
+
+### Where each command moved
+
+Nothing was removed. Several things are reached differently, and any spec or
+future surface driving them needs to know which:
+
+| Command | Was | Is |
+| --- | --- | --- |
+| Complete / reopen a task | a "Complete"/"Reopen" **button** in the row's trailing action rail | the row's leading completion **checkbox**, same accessible name (`e2e/helpers.ts` → `completeTaskRow`/`reopenTaskRow`) |
+| Plan for today | a "Today" button in the same rail | the row's overflow menu, and the touch swipe tray |
+| Select tasks | a filled button in the pane header | the header's overflow menu (`e2e/helpers.ts` → `enterTaskSelection`) |
+| Review Inbox | a filled link in the pane header | the header's overflow menu |
+| List / Board / Sectors | a segmented switcher in the pane header | the header's overflow menu (same `?view=` parameter) |
+| A row's bulk-selection checkbox | on every row, always | on every row **in selection mode** |
+| Priority, planned date, sector, repeat | inline on the row, plus the quick-edit panel | unchanged inline, plus the panel — now labelled "Priority, dates and repeat…" |
+
+### What a row draws, and what it does not
+
+A row is one line: completion circle · title · Project mark and name · due date.
+
+The Project and the date each have a **fixed track**, so both columns start at
+the same x on every row whatever the words in them are — without one, a row
+reading "2 days ago" pushed the Project mark above it 25px to the left, and a
+context column that moves is not a column. Below ~26rem of LIST the tracks go
+and the trailing run is pinned to its content width instead, so the title is the
+only part that gives way: the date is `nowrap`, so squeezing its box does not
+truncate it, it runs over the row's overflow button.
+
+Four things stopped being drawn on every row, and each is the same fact stated
+somewhere else on the same row:
+
+- the **urgency chip** — the due date now reads "Yesterday"/"Today"/"Tomorrow"
+  in words and takes the state colour when it has slipped
+  (`relativeCalendarDate`, `task-view.ts`);
+- the **`Planned`/`Unscheduled` status pill** — the presence or absence of the
+  planned date beside it. Completed, Cancelled, Waiting, On hold, Someday /
+  Maybe and In progress still paint, because for those the pill is the only
+  place the fact appears;
+- the **planned date when it equals the due date**;
+- the **entity glyph** before the title, which said "this is a task" on a page
+  of nothing but tasks, next to a check-shaped control that means something.
+
+Three editors follow the absence rule and are revealed on hover or focus (and
+are always visible on touch, which has no hover): priority with no priority, a
+due date with no due date, a parent with no parent.
+
+### The phone composition
+
+Two bands of chrome above the list, not four:
+
+1. the task count, the header's overflow menu, and "Filter & sort";
+2. the view rail, edge to edge, as pill tabs that scroll sideways.
+
+The rail owns its band outright. It shared one with "Filter & sort" first, and
+because a scroll port clips at its own edge that sliced the CURRENT tab in half
+against the button beside it ("All a…") — the one tab a phone owner must be able
+to read. Inside the scroller the rail is also `flex: none`: a shrinkable rail is
+sized to what is LEFT after the other-views trigger, stops clipping, and paints
+its pills straight over that trigger, which axe reports as an obscured target
+and a thumb finds as a mis-tap.
+
+When filters ARE applied the control band takes a full row of its own BELOW the
+rail, because a wrapping list of removable chips is not a trailing control — and
+because it describes the list, so it belongs against it.
+
+### Evidence
+
+- `e2e/uix-01-screenshots.spec.ts` — the before/after matrix at 1280, 1440 and
+  390, in both appearances.
+- The TASKS-10 journeys are unchanged in intent and updated only where they
+  drove a control that moved.

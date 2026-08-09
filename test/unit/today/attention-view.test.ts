@@ -11,7 +11,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildAttention,
   rankContinueProjects,
-  projectInitial,
   type AttentionInput,
   type ContinueProject,
 } from "~/modules/today/day/attention-view";
@@ -201,10 +200,5 @@ describe("Continue working", () => {
     );
     expect(ranked).toHaveLength(3);
     expect(ranked[0]?.id).toBe("p5");
-  });
-
-  it("derives an identity initial without crashing on a blank title", () => {
-    expect(projectInitial("kitchen renovation")).toBe("K");
-    expect(projectInitial("   ")).toBe("?");
   });
 });

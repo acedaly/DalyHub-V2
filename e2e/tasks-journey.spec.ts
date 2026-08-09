@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  enterTaskSelection,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -98,12 +99,21 @@ async function createJourneyTask(
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
 
-/** Select a task's card checkbox in the current collection view. */
+/**
+ * Select a task's card checkbox in the current collection view.
+ *
+ * UIX-01 — a row's checkbox appears in bulk-selection MODE, which the owner
+ * enters deliberately (the header menu's "Select tasks", or a touch
+ * long-press). Before that the row leads with its completion circle alone, so
+ * this enters the mode first when it is not already open. Entering it twice is
+ * a toggle, so the check is not optional.
+ */
 async function selectTask(page: Page, title: string): Promise<void> {
-  await page
-    .getByRole("checkbox", { name: `Select ${title}` })
-    .first()
-    .check();
+  const box = page.getByRole("checkbox", { name: `Select ${title}` }).first();
+  if ((await box.count()) === 0) {
+    await enterTaskSelection(page);
+  }
+  await box.check();
 }
 
 /** Run a bulk-bar action and wait until the mutation commits (the bar clears). */
@@ -201,7 +211,10 @@ test.describe("TASKS-01 — full journey", () => {
       p1Region.getByRole("link", { name: "Journey task Alpha" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /P1 · Urgent \(\d+\)/ }).first(),
+      // UIX-01 — a group heading reads "P1 · Urgent 3". The brackets went with
+      // the redesign: "(3)" beside a small-caps band label reads as a debugger
+      // printing a length, and the reference sets the count as a second figure.
+      page.getByRole("heading", { name: /P1 · Urgent \d+/ }).first(),
     ).toBeVisible();
 
     // Move P1 → P4 via a bulk action; it leaves the P1 band and joins P4.

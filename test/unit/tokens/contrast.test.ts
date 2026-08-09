@@ -94,6 +94,23 @@ const CUSTOM_GROUPS = [
   "entity-asset",
   "entity-diary",
   "entity-review",
+  // UIX-01 — the widget accent ramp. Same quartet, same guarantees.
+  "accent-coral",
+  "accent-blue",
+  "accent-violet",
+  "accent-green",
+  "accent-amber",
+  "accent-teal",
+] as const satisfies readonly SchemeRole[];
+
+/** UIX-01 — the six decorative widget identities, on their own. */
+const WIDGET_ACCENTS = [
+  "accent-coral",
+  "accent-blue",
+  "accent-violet",
+  "accent-green",
+  "accent-amber",
+  "accent-teal",
 ] as const satisfies readonly SchemeRole[];
 
 /** The seven surfaces the APPLICATION paints with, from the app-neutral palette. */
@@ -387,6 +404,51 @@ describe.each(SCHEMES)("M3X composed surfaces — %s scheme", (label, scheme) =>
       ratio,
       `${label} — on-primary-container on surface-expressive (${surface}) = ${ratio.toFixed(2)}:1`,
     ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /*
+   * UIX-01 — the WASHED widget surface, and the tonal tile on it.
+   *
+   * A glance widget paints `accent-*-container` at the generated `wash`
+   * strength over the card and then prints ordinary neutral text on it, and
+   * holds a tile that paints the same container at the `identity` strength with
+   * the accent itself as its glyph. None of that is a role pair the palette
+   * guarantees, and all of it is composed — the same reason the hero and the
+   * identity mark are checked here rather than assumed.
+   */
+  it("meets AA for ordinary text on every washed widget surface", () => {
+    const strength = tintStrength("wash")[appearance];
+    for (const accent of WIDGET_ACCENTS) {
+      const surface = mixSrgb(
+        scheme[`${accent}-container` as SchemeRole],
+        scheme["app-surface-card"],
+        strength,
+      );
+      for (const role of ["on-surface", "on-surface-variant"] as const) {
+        const ratio = contrastRatio(scheme[role], surface);
+        expect(
+          ratio,
+          `${label} — ${role} on the ${accent} wash (${surface}) = ${ratio.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps every tonal tile's glyph readable on its own tile", () => {
+    const strength = tintStrength("identity")[appearance];
+    for (const accent of WIDGET_ACCENTS) {
+      const tile = mixSrgb(
+        scheme[`${accent}-container` as SchemeRole],
+        scheme["app-surface-card"],
+        strength,
+      );
+      // A glyph is a non-text UI component: WCAG 1.4.11's 3:1, not 4.5:1.
+      const ratio = contrastRatio(scheme[accent], tile);
+      expect(
+        ratio,
+        `${label} — ${accent} glyph on its tile (${tile}) = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("meets AA for ordinary text on a supporting surface", () => {

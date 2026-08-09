@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  globalCaptureControl,
   gotoFixture,
 } from "./helpers";
 
@@ -131,7 +132,7 @@ test.describe("the shortcut boundary", () => {
     // title — Today has no field of its own. The rule under test ("letters reach
     // the field, they do not fire task shortcuts") is unchanged.
     await openToday(page);
-    await page.locator("button.dh-fab").click();
+    await globalCaptureControl(page).click();
     await page
       .getByRole("group", { name: "Capture type" })
       .getByRole("button", { name: /Task/ })

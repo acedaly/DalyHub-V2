@@ -165,3 +165,68 @@
     border: var(--app-border-width-thin) solid CanvasText;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* UIX-01 — the tonal icon TILE                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The widget accent TONE itself — `.dh-tone[data-tone]` and the four custom
+ * properties it publishes — lives in `tokens.css` with the rest of the token
+ * layer, because that is what it is: a named identity resolved to generated
+ * colour roles. This file draws the component that spends it.
+ */
+
+/*
+ * The tonal icon TILE — the reference's single most recognisable device.
+ *
+ * Same geometry as the entity identity mark above (one shape ladder, not two),
+ * and the same generated `identity` strength over the card, so a Project's mark
+ * and a glance widget's tile are visibly the same object at the same weight.
+ * What differs is the glyph colour: an entity mark uses `on-container` because
+ * it holds a record's own icon inside its Area's colour, while a tonal tile
+ * uses the ACCENT, because the tile IS the identity and the reference paints
+ * that glyph in the hue.
+ */
+.dh-tone-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: color-mix(
+    in srgb,
+    var(--app-tone-container) var(--app-tint-strength-identity),
+    var(--md-app-color-surface-card)
+  );
+  color: var(--app-tone);
+  font-size: var(--app-entity-icon-size);
+  line-height: 0;
+}
+
+.dh-tone-icon .dh-icon {
+  inline-size: var(--app-entity-icon-size);
+  block-size: var(--app-entity-icon-size);
+}
+
+.dh-tone-icon[data-size="sm"] {
+  inline-size: var(--app-entity-icon-container-size-sm);
+  block-size: var(--app-entity-icon-container-size-sm);
+  border-radius: var(--app-shape-control);
+  font-size: var(--app-entity-icon-size-sm);
+}
+
+.dh-tone-icon[data-size="sm"] .dh-icon {
+  inline-size: var(--app-entity-icon-size-sm);
+  block-size: var(--app-entity-icon-size-sm);
+}
+
+/* Same reasoning as the identity mark: forced colours drop the tint, so the
+ * tile survives as a shape rather than disappearing into the card. */
+@media (forced-colors: active) {
+  .dh-tone-icon {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+}

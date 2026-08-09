@@ -397,13 +397,20 @@ describe("the day timeline", () => {
       .filter((role): role is string => role !== undefined);
     expect(blocks).toEqual(roles);
     /*
-     * GOAL-02 — progress is the LAST thing in the day's own column, so it can
+     * GOAL-02 / UIX-01 — progress is the LAST block on the screen, so it can
      * never come between the figures and the first actionable row. The DOM order
      * is what the phone layout stacks, so this is the hierarchy guard.
+     *
+     * UIX-01 moved it OUT of the day's own column (which no longer exists — the
+     * body is three sibling regions) and made it a full-width row under the
+     * whole body. The guard is the same claim about the same order, read off the
+     * screen root rather than off a column that has been replaced.
      */
-    const main = surface.querySelector(".dh-today__main")!;
-    expect(main.firstElementChild?.className).toContain("dh-today__timeline");
-    expect(main.lastElementChild?.className).toContain("dh-today__progress");
+    expect(surface.lastElementChild?.className).toContain("dh-today__progress");
+    const focusColumn = surface.querySelector(".dh-today__col--focus")!;
+    expect(focusColumn.firstElementChild?.className).toContain(
+      "dh-today__timeline",
+    );
     // The first row inside the day column is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");
@@ -539,7 +546,7 @@ describe("the rail", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("states each project's open work, status and progress", () => {
+  it("states each project's open work and status in one line", () => {
     renderScreen(day({ continueProjects: [project()] }));
     const panel = screen
       .getByRole("heading", { name: "Continue working" })
@@ -547,11 +554,16 @@ describe("the rail", () => {
     expect(
       within(panel).getByText("2 open tasks · On track"),
     ).toBeInTheDocument();
-    expect(
-      within(panel).getByRole("progressbar", {
-        name: "Kitchen renovation progress",
-      }),
-    ).toHaveAttribute("aria-valuenow", "67");
+    /*
+     * UIX-01 — no per-row completion BAR.
+     *
+     * The rail answers "which project needs a look?", and it answers it with
+     * the open count and the health word above. "How far through is it?" is a
+     * different question that the Projects gallery and the Project record both
+     * answer properly; a 6px bar under each of three rows in a 21rem column
+     * answered it badly and cost the rail a third of its height.
+     */
+    expect(within(panel).queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "All projects" })).toHaveAttribute(
       "href",
       "/projects",

@@ -56,15 +56,28 @@ test.describe("TASKS-01 — desktop", () => {
   }) => {
     await gotoFixture(page, "/tasks?view=list&system=overdue");
 
-    // The dedicated non-mutated overdue task (`t-overdue-signal`, due 2000-01-01)
-    // shows the Overdue urgency chip — the WORD, not merely a red date (DEBT-28).
-    // The card is pinned to its exact-named title link so the locator is
-    // unambiguous and independent of the Project Health journey mutating
-    // `pht-overdue`.
+    /*
+     * The dedicated non-mutated overdue task (`t-overdue-signal`, due
+     * 2000-01-01) says it is overdue in WORDS, not merely with a red date
+     * (DEBT-28). The card is pinned to its exact-named title link so the
+     * locator is unambiguous and independent of the Project Health journey
+     * mutating `pht-overdue`.
+     *
+     * UIX-01 — those words are now the DATE ITSELF ("9718 days ago"), and the
+     * separate "Overdue" chip beside it is gone. The rule DEBT-28 records is
+     * intact and is what this asserts: the row does not rely on the colour, it
+     * states the slip in language.
+     *
+     * There is deliberately no "Overdue" band to look for here: the Overdue
+     * view is one due state, so UIX-01 left it FLAT while grouping All active,
+     * Inbox and Upcoming by due state. A single group under a heading repeating
+     * the view's own name is chrome, not structure.
+     */
     const overdueCard = page.getByRole("article", {
       name: "Open Review the overdue signal",
     });
-    await expect(overdueCard.getByText(/Overdue.*1 Jan 2000/)).toBeVisible();
+    await expect(overdueCard.getByText(/days ago/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Overdue" })).toHaveCount(0);
 
     // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
     // is no longer an absent/colour-free grey chip (DEBT-27).
@@ -129,8 +142,13 @@ test.describe("TASKS-01 — desktop", () => {
   });
 
   test("switching the primary view updates the URL", async ({ page }) => {
+    // UIX-01 — the layout is chosen from the header's shared overflow menu; the
+    // parameter it writes is unchanged.
     await gotoFixture(page, "/tasks?view=list&system=all");
-    await page.getByRole("link", { name: "Sectors", exact: true }).click();
+    await page.getByTestId("tasks-overflow").click();
+    await page
+      .getByRole("menuitem", { name: "Sectors layout", exact: true })
+      .click();
     await expect(page).toHaveURL(/view=sectors/);
     await expect(
       page.getByRole("heading", { name: /No sector/ }).first(),

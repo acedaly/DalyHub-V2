@@ -71,17 +71,22 @@ import { Link, useSearchParams } from "react-router";
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 import type { AppAction } from "~/shared/commands/action";
 import { StatCard, StatCardItem, StatCardRow } from "~/shared/card";
+import { AccentIcon } from "~/shared/entity";
 import { ProgressRing } from "~/shared/charts";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
   AssetIcon,
+  CalendarIcon,
   CheckCircleIcon,
   GoalIcon,
   ProjectIcon,
   ScheduleIcon,
   TaskIcon,
+  TrendingUpIcon,
+  ToneIcon,
+  toneForKey,
+  type ToneName,
 } from "~/shared/icons";
-import { ProgressTrack } from "~/shared/progress";
 import { ComparisonBars } from "~/shared/charts";
 import {
   GoalProgressReadout,
@@ -101,7 +106,6 @@ import {
   type DayTask,
 } from "./day-view";
 import {
-  projectInitial,
   type AttentionItem,
   type AttentionKind,
   type ContinueProject,
@@ -153,6 +157,49 @@ function AttentionGlyph({ kind }: { readonly kind: AttentionKind }) {
 }
 
 /**
+ * UIX-01 — the tonal identity of a rail row's SUBJECT KIND.
+ *
+ * A fixed map, not a hash: these five kinds are a closed set the product
+ * defines, so the same kind is the same colour on every visit and on every
+ * device. It is identity, never status — an amber Asset row does not mean the
+ * Asset is in trouble, and the row's own words say what needs doing.
+ */
+const ATTENTION_TONES: Readonly<Record<AttentionKind, ToneName>> = {
+  project: "blue",
+  goal: "green",
+  waiting: "amber",
+  asset: "teal",
+  inbox: "violet",
+};
+
+/**
+ * UIX-01 — the glance row's tonal identities, keyed by the chip model's id.
+ *
+ * Four figures, four hues, in the reference's own distribution: the day's work
+ * in the product's violet, slipped work in coral, the day's timed events in
+ * blue, and progress in green. Overdue's coral is IDENTITY; what says the
+ * figure needs attention is `tone="attention"` on the number itself, plus the
+ * word "Overdue" above it.
+ */
+const STAT_ACCENTS: Readonly<Record<string, ToneName>> = {
+  tasks: "violet",
+  meetings: "blue",
+  overdue: "coral",
+};
+
+/** The glyph each glance figure carries. Decorative; the label states the fact. */
+function statGlyph(id: string) {
+  switch (id) {
+    case "meetings":
+      return <CalendarIcon />;
+    case "overdue":
+      return <ScheduleIcon />;
+    default:
+      return <CheckCircleIcon />;
+  }
+}
+
+/**
  * One task row: a checkbox that completes, and a title that opens the record.
  *
  * The checkbox and the title are two separate controls on purpose — ticking is
@@ -179,7 +226,7 @@ function TaskRow({
     <li className="dh-day-row" data-done={done ? "true" : undefined}>
       <input
         type="checkbox"
-        className="dh-day-row__check"
+        className="dh-check-circle dh-day-row__check"
         checked={done}
         aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
         onChange={(event) => onToggle(event.currentTarget.checked)}
@@ -446,6 +493,8 @@ export function TodayScreen({
                 value={stat.value}
                 supporting={stat.supporting}
                 tone={stat.tone}
+                accent={STAT_ACCENTS[stat.id] ?? "violet"}
+                icon={statGlyph(stat.id)}
                 href={stat.href}
                 data-testid={`today-stat-${stat.id}`}
               />
@@ -457,6 +506,8 @@ export function TodayScreen({
                 label="Daily progress"
                 value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
                 supporting={`${progress.done} of ${progress.total} done today`}
+                accent="green"
+                icon={<TrendingUpIcon />}
                 data-testid="today-stat-progress"
                 ring={
                   <ProgressRing
@@ -464,7 +515,10 @@ export function TodayScreen({
                     label={`Today's progress: ${progress.done} of ${progress.total} done`}
                     size={44}
                     thickness={5}
-                    color="var(--md-sys-color-primary)"
+                    // The ring belongs to the card's own identity, not to the
+                    // brand: four figure cards each painting a violet ring is
+                    // how a glance row becomes monochrome.
+                    color="var(--md-sys-color-accent-green)"
                   />
                 }
               />
@@ -473,14 +527,36 @@ export function TodayScreen({
         </StatCardRow>
       ) : null}
 
-      <div className="dh-today__body">
-        {/*
-         * Two columns from `md` up, in DOM order at every width: the day itself,
-         * then the surfaces that qualify it. Nothing here is moved by CSS
-         * `order`, because `order` moves pixels and leaves the reading order and
-         * the tab order behind.
-         */}
-        <div className="dh-today__main">
+      {/*
+       * UIX-01 — THREE balanced regions, then progress across the full width.
+       *
+       *   ┌──────────────┐┌──────────┐┌──────────┐
+       *   │ Focus        ││ Schedule ││ Needs    │
+       *   │              ││          ││ attention│
+       *   └──────────────┘└──────────┘└──────────┘
+       *   ┌────────────────────────────────────────┐
+       *   │ Goal progress · This week              │
+       *   └────────────────────────────────────────┘
+       *
+       * The redesign's composition, and a real improvement on the two unequal
+       * columns it replaces: the rail used to stack Schedule, attention and
+       * Continue working into one 21rem strip beside a list that is usually
+       * shorter than they are, so a 1440px window ended in a tall thin column
+       * beside empty canvas. Three regions of comparable height fill the fold,
+       * and Goal progress — which is horizontal by nature, a row of compact
+       * measures — gets the width it always wanted underneath.
+       *
+       * `data-columns` states how many regions actually have content, so the
+       * grid never renders an empty track: a day with no meetings is two
+       * regions, not three with a hole in the middle. Nothing is moved by CSS
+       * `order` — the DOM order IS the phone composition (Focus, then the day's
+       * context, then progress), which is also the reading and tab order.
+       */}
+      <div
+        className="dh-today__body"
+        data-columns={data.meetings.length > 0 ? 3 : 2}
+      >
+        <div className="dh-today__col dh-today__col--focus">
           <section
             className="dh-today__panel dh-today__timeline"
             aria-labelledby="today-day-heading"
@@ -569,37 +645,13 @@ export function TodayScreen({
               </p>
             )}
           </section>
-
-          {/*
-            GOAL-02 — the two sections that answer "am I making progress?" and
-            "is my workload moving in the right direction?".
-
-            They live inside the DAY'S OWN COLUMN, beneath the timeline, rather
-            than as a row under the whole body: a separate row begins under the
-            TALLER of the two columns, which on a desktop left a screen of dead
-            space under a short "My day". Here they simply carry on where the
-            day's work ends, and the rail continues beside them.
-
-            Their DOM position keeps Today's hierarchy on a phone, where
-            everything is one column: immediate actions, then what needs a look,
-            then progress. Neither is a dashboard — Goal progress is at most four
-            Goals with the one action each needs, and the trend is a single
-            comparison with a sentence under it. Both disappear when they have
-            nothing to say.
-          */}
-          <div className="dh-today__progress">
-            <GoalProgressSection
-              goals={data.goals}
-              onUpdateGoal={onUpdateGoal}
-            />
-            <ActivityTrendSection trend={data.activityTrend} />
-          </div>
         </div>
 
-        <div className="dh-today__rail">
-          {/* The day's timed events, in their own panel. Absent when the day
-              holds none — a "Schedule" heading over nothing is chrome. */}
-          {data.meetings.length > 0 ? (
+        {/* The day's timed events, in their own region. Absent when the day
+            holds none — a "Schedule" heading over nothing is chrome, and
+            `data-columns` above drops its track with it. */}
+        {data.meetings.length > 0 ? (
+          <div className="dh-today__col">
             <section
               className="dh-today__panel"
               aria-labelledby="today-schedule-heading"
@@ -618,8 +670,10 @@ export function TodayScreen({
                 ))}
               </ul>
             </section>
-          ) : null}
+          </div>
+        ) : null}
 
+        <div className="dh-today__col">
           <section
             className="dh-today__panel"
             aria-labelledby="today-attention-heading"
@@ -639,13 +693,19 @@ export function TodayScreen({
                     className="dh-day-row dh-day-row--attention"
                     key={item.id}
                   >
-                    <span className="dh-day-row__glyph" aria-hidden="true">
+                    {/* UIX-01 — the subject KIND as a small tonal tile, which
+                        is what makes a mixed rail scannable before it is read.
+                        Decorative: the row's label and detail carry every fact,
+                        and the tone is identity, never a state. */}
+                    <ToneIcon size="sm" tone={ATTENTION_TONES[item.kind]}>
                       <AttentionGlyph kind={item.kind} />
+                    </ToneIcon>
+                    <span className="dh-day-row__stack">
+                      <Link className="dh-day-row__title" to={item.href}>
+                        {item.label}
+                      </Link>
+                      <span className="dh-day-row__meta">{item.detail}</span>
                     </span>
-                    <Link className="dh-day-row__title" to={item.href}>
-                      {item.label}
-                    </Link>
-                    <span className="dh-day-row__meta">{item.detail}</span>
                   </li>
                 ))}
               </ul>
@@ -682,9 +742,21 @@ export function TodayScreen({
                     className="dh-day-row dh-day-row--project"
                     key={project.id}
                   >
-                    <span className="dh-day-row__avatar" aria-hidden="true">
-                      {projectInitial(project.title)}
-                    </span>
+                    {/*
+                     * UIX-01 — the project's OWN persisted identity mark.
+                     *
+                     * It was a monochrome letter in a grey circle; it is now the
+                     * same `AccentIcon` the Projects gallery and the Project
+                     * record draw, from the same stored `iconKey`/`colourRank`.
+                     * Identity is recognition before reading, and one record
+                     * must not have two appearances.
+                     */}
+                    <AccentIcon
+                      entityType="project"
+                      iconKey={project.iconKey}
+                      colourRank={project.colourRank}
+                      size="sm"
+                    />
                     <span className="dh-day-row__stack">
                       <Link
                         className="dh-day-row__title"
@@ -692,21 +764,20 @@ export function TodayScreen({
                       >
                         {project.title}
                       </Link>
+                      {/*
+                       * ONE concise state line, as the reference draws it
+                       * ("3 tasks overdue" / "On track"). The 6px completion bar
+                       * that used to sit under it went with the redesign: a
+                       * three-row attention list is scanned for WHICH project
+                       * needs a look, and a per-row bar answers a question
+                       * ("how far through is it?") that the Project record and
+                       * the Projects gallery both already answer properly.
+                       */}
                       <span className="dh-day-row__meta">
                         {project.openCount} open{" "}
                         {project.openCount === 1 ? "task" : "tasks"} ·{" "}
                         {project.statusLabel}
                       </span>
-                      {project.taskTotal > 0 ? (
-                        <ProgressTrack
-                          className="dh-day-row__progress"
-                          label={`${project.title} progress`}
-                          percent={
-                            (project.taskCompleted / project.taskTotal) * 100
-                          }
-                          valueText={`${project.taskCompleted} of ${project.taskTotal} tasks`}
-                        />
-                      ) : null}
                     </span>
                   </li>
                 ))}
@@ -719,6 +790,26 @@ export function TodayScreen({
             </section>
           ) : null}
         </div>
+      </div>
+
+      {/*
+       * GOAL-02 / UIX-01 — "am I making progress?" and "is my workload moving
+       * in the right direction?", across the full width beneath the day.
+       *
+       * These used to live inside the day's own column, because the two-column
+       * body would otherwise have started them under the TALLER column and left
+       * dead space. With three regions of comparable height that argument is
+       * gone, and the reference's own composition is the better one: Goal
+       * progress is a ROW of compact measures, and a row wants the page's width,
+       * not a third of it.
+       *
+       * DOM position still keeps the phone's hierarchy — immediate actions, then
+       * what needs a look, then progress. Both sections disappear entirely when
+       * they have nothing to say.
+       */}
+      <div className="dh-today__progress">
+        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
+        <ActivityTrendSection trend={data.activityTrend} />
       </div>
     </div>
   );
@@ -769,7 +860,27 @@ function GoalProgressSection({
               goal.progress.unit,
             );
             return (
-              <li className="dh-today__goal" key={goal.id}>
+              <li
+                className="dh-today__goal dh-tone"
+                data-tone={toneForKey(goal.id)}
+                key={goal.id}
+              >
+                {/*
+                 * UIX-01 — a compact Goal card leads with a tonal mark.
+                 *
+                 * The reference's Goal row is the most colourful thing on
+                 * Today, and deliberately so: four measurable Goals are four
+                 * different pursuits, and colour is what tells them apart at a
+                 * glance. A Goal carries no persisted icon or colour of its own
+                 * (an Area does; a Goal does not), so the tone is derived
+                 * DETERMINISTICALLY from the Goal's id — stable across renders,
+                 * sessions and devices, and never from the title's words. It is
+                 * identity, not status: the state word beside the bar is what
+                 * says how the Goal is going.
+                 */}
+                <ToneIcon size="sm" tone={toneForKey(goal.id)}>
+                  <GoalIcon />
+                </ToneIcon>
                 {/*
                  * VIS-01 — the head is the TITLE, and nothing else.
                  *

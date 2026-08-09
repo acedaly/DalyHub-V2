@@ -146,3 +146,122 @@
   background: var(--md-app-color-surface-card);
   border-color: var(--md-sys-color-outline-variant);
 }
+
+/* ========================================================================== */
+/* UIX-01 — the completion CIRCLE                                             */
+/* ========================================================================== */
+
+/*
+ * The one "mark this done" control in DalyHub.
+ *
+ * A square is the browser's checkbox and a circle is the productivity
+ * convention for "done": every reference product this design is drawn from uses
+ * one, and it reads as *completing a thing* rather than as *selecting a row* —
+ * which matters here because DalyHub genuinely has both, and the Tasks
+ * collection's leading square IS a selection control. Two different acts look
+ * different.
+ *
+ * M3X-02 introduced this on Today's rows and UIX-01 moved it here, because the
+ * Tasks list now leads with the same control and two copies of one shape is how
+ * they drift. Today's row and a Tasks row are the same object.
+ *
+ * It stays a real `<input type="checkbox">`: the same element, the same
+ * semantics, the same keyboard behaviour, the same accessible name. Only the
+ * drawing is ours, and it is handed back to the native control under forced
+ * colours, where an authored shape would vanish.
+ *
+ * The visual circle is 20px and the TARGET is not: `.dh-check-circle--target`
+ * wraps it in a 44px hit area for the surfaces that need one (WCAG 2.2 §2.5.8),
+ * so matching the reference's small circle never costs a thumb its target.
+ */
+.dh-check-circle {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+  display: grid;
+  place-content: center;
+  border: var(--app-border-width-thick) solid
+    var(--md-sys-color-on-surface-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard);
+}
+
+/* The tick is drawn, not a glyph: one clip-path, no font dependency, and it
+ * scales with the control. */
+.dh-check-circle::before {
+  content: "";
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  transform: scale(0);
+  transition: transform var(--md-sys-motion-duration-short3)
+    var(--md-sys-motion-easing-emphasized-decelerate);
+  background: var(--md-sys-color-on-primary);
+  clip-path: polygon(14% 44%, 0 60%, 39% 100%, 100% 16%, 85% 0, 39% 70%);
+}
+
+.dh-check-circle:checked {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary);
+}
+
+.dh-check-circle:checked::before {
+  transform: scale(1);
+}
+
+.dh-check-circle:hover {
+  border-color: var(--md-sys-color-primary);
+}
+
+/*
+ * An OVERDUE task's circle takes the state colour.
+ *
+ * The reference draws slipped work as a coral ring, and it is the one place
+ * this control is ever coloured. It is never the only signal: the row's date
+ * says "Yesterday" beside it, and the group heading above it says "Overdue".
+ */
+.dh-check-circle[data-urgency="overdue"] {
+  border-color: var(--md-sys-color-state-overdue);
+}
+
+/* Forced colours strip authored fills, which would leave an empty ring in both
+ * states. The native control draws itself correctly there, so it is handed back. */
+@media (forced-colors: active) {
+  .dh-check-circle {
+    appearance: auto;
+    -webkit-appearance: auto;
+    border: revert;
+    border-radius: revert;
+  }
+
+  .dh-check-circle::before {
+    display: none;
+  }
+}
+
+/*
+ * The 44px hit area around a 20px circle.
+ *
+ * A `label` wrapping the input, so the whole area toggles it and the input
+ * keeps its own semantics and accessible name. The negative inline margin pulls
+ * the padding back out of the row's rhythm, so the row is laid out against the
+ * CIRCLE while a thumb still gets the full target.
+ */
+.dh-check-circle-target {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-touch-target-min);
+  block-size: var(--app-touch-target-min);
+  margin-inline: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
+  cursor: pointer;
+}

@@ -30,6 +30,7 @@ import { useCallback } from "react";
 
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { InlineDateField, InlineSelectField } from "~/shared/inline-edit";
+import { EntityIcon } from "~/shared/entity";
 import { RepeatIcon } from "~/shared/icons";
 import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
 
@@ -37,6 +38,7 @@ import { PriorityIndicator } from "./PriorityIndicator";
 import { saveTaskBulkField, saveTaskRecordField } from "./task-inline-edit";
 import {
   formatCalendarDate,
+  relativeCalendarDate,
   taskPriorityLabel,
   taskRecurrenceLabel,
 } from "./task-view";
@@ -142,11 +144,34 @@ export function InlineTaskDate({
   value,
   onSaved,
   disabled = false,
+  todayIso,
 }: TaskRowFieldProps & {
   readonly kind: "due" | "scheduled";
   readonly value: string | null;
+  /**
+   * UIX-01 — the OWNER's calendar day, which turns the field's absolute date
+   * into the relative words a list is actually scanned by.
+   *
+   * Optional, and the absolute format is the fallback: a surface that has no
+   * honest "today" (a record header rendered from a stored snapshot, say) must
+   * not guess one from the browser clock — the owner's day is a server fact
+   * (ADR-022), and a wrong "Today" on a date field is worse than a right
+   * "9 Aug 2026".
+   */
+  readonly todayIso?: string;
 }) {
   const label = kind === "due" ? "Due date" : "Planned date";
+  /*
+   * The list row's date reads "Yesterday", "Today", "Tomorrow" or "Thu, 12 Jun"
+   * — and takes the overdue colour when it has slipped.
+   *
+   * This is what let UIX-01 delete the urgency CHIP from every task row. A bare
+   * "7 Aug 2026" cannot say that a date has passed, so the row needed a second
+   * element beside it that could; a date that says "Yesterday" says it itself,
+   * in words, which is also what keeps the colour from being the only signal.
+   */
+  const relative =
+    todayIso === undefined ? null : relativeCalendarDate(value, todayIso);
   const save = useCallback(
     async (next: string | null): Promise<InlineSaveOutcome> => {
       const outcome =
@@ -184,10 +209,22 @@ export function InlineTaskDate({
       label={label}
       value={value}
       onSave={save}
-      format={(iso) => formatCalendarDate(iso) ?? iso}
+      format={(iso) =>
+        (todayIso === undefined
+          ? formatCalendarDate(iso)
+          : relativeCalendarDate(iso, todayIso)?.label) ?? iso
+      }
       emptyLabel={kind === "due" ? "No due date" : "Not planned"}
       readOnly={disabled}
       clearable
+      className={
+        // Only a DUE date carries urgency: a planned date is the owner's own
+        // intention about when to work on something, and being "late" against
+        // your own plan is not a state the product judges.
+        kind === "due" && relative !== null
+          ? `dh-task-date dh-task-date--${relative.urgency}`
+          : "dh-task-date"
+      }
       data-testid={`task-row-${kind}-date`}
     />
   );
@@ -228,7 +265,11 @@ export function InlineTaskParent({
   onSaved,
   disabled = false,
 }: TaskRowFieldProps & {
-  readonly parent: { readonly id: string; readonly title: string } | null;
+  readonly parent: {
+    readonly kind: "project" | "goal" | "area";
+    readonly id: string;
+    readonly title: string;
+  } | null;
   readonly options: readonly TaskParentOption[];
 }) {
   const save = useCallback(
@@ -294,17 +335,41 @@ export function InlineTaskParent({
   ];
 
   return (
-    <InlineSelectField
-      label="Project or Area"
-      value={parent?.id ?? ""}
-      options={selectOptions}
-      onSave={save}
-      emptyLabel="Unassigned"
-      clearable
-      clearLabel="Move to Inbox"
-      readOnly={disabled}
-      data-testid="task-row-parent"
-    />
+    /*
+     * UIX-01 — the parent's ENTITY MARK, beside its name.
+     *
+     * The redesign reference draws a task's Project as a small tinted tile and a
+     * short name, which is what makes a mixed list scannable by context without
+     * reading it. The mark is the shared `EntityIcon` badge in the entity type's
+     * own generated identity colour — a Project and an Area are visibly
+     * different — so it is the SAME mark the record, the gallery and search
+     * draw, not a colour invented for a row.
+     *
+     * It is `aria-hidden` by construction (`EntityIcon` is decorative) and it is
+     * outside the control, so the editor's accessible name, its keyboard
+     * behaviour and its test id are untouched. An unassigned task gets no mark
+     * — "Unassigned" is an absence, and an absence does not have an identity.
+     */
+    <span className="dh-task-parent">
+      {parent ? (
+        <EntityIcon
+          type={parent.kind}
+          variant="badge"
+          className="dh-task-parent__mark"
+        />
+      ) : null}
+      <InlineSelectField
+        label="Project or Area"
+        value={parent?.id ?? ""}
+        options={selectOptions}
+        onSave={save}
+        emptyLabel="Unassigned"
+        clearable
+        clearLabel="Move to Inbox"
+        readOnly={disabled}
+        data-testid="task-row-parent"
+      />
+    </span>
   );
 }
 

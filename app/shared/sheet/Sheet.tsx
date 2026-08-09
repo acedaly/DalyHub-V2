@@ -56,6 +56,32 @@ export type SheetProps = {
   readonly initialFocusRef?: RefObject<HTMLElement | null>;
   /** Optional leading control in the header (e.g. a Back button within the sheet). */
   readonly leading?: ReactNode;
+  /**
+   * UIX-01 — the sheet's PRIMARY action, in the header's trailing corner.
+   *
+   * A phone sheet that asks for something has a Cancel and a Save at the top,
+   * and every native platform puts them there. A `<button form="…">` submits a
+   * form it is not inside, so the action can live in the chrome while the form
+   * lives in the body, with no portal, no lifted state and no second submit
+   * path — which is what keeps this a slot rather than a feature.
+   *
+   * The sticky {@link SheetProps.footer} remains for sheets whose primary
+   * action genuinely belongs at the bottom (a long form the owner scrolls
+   * through). A sheet should use one or the other, never both.
+   */
+  readonly trailing?: ReactNode;
+  /**
+   * The close control's visible text. Omitted draws the ✕ glyph.
+   *
+   * A sheet whose header carries a Save reads better with a worded Cancel
+   * opposite it than with a glyph, and the reference draws exactly that. It is
+   * the SAME control either way — always present, always ≥44px, still the
+   * deterministic initial-focus target, still what Escape and the scrim run —
+   * so the accessibility contract in this file's header is unchanged.
+   */
+  readonly closeLabel?: string;
+  /** Which end of the header the close control sits at. Defaults to `trailing`. */
+  readonly closePlacement?: "leading" | "trailing";
   /** The sheet body — the only region that scrolls. */
   readonly children: ReactNode;
   /** A sticky, keyboard-safe footer for the sheet's primary action(s). */
@@ -89,6 +115,9 @@ export function Sheet({
   onClose,
   initialFocusRef,
   leading,
+  trailing,
+  closeLabel,
+  closePlacement = "trailing",
   children,
   footer,
   variant = "sheet",
@@ -151,6 +180,36 @@ export function Sheet({
     };
   }, []);
 
+  /*
+   * ONE close control, drawn as a glyph or as a word. Declared before the
+   * markup so both placements render the identical element — two copies in two
+   * branches is how a focus-restoration ref quietly starts pointing at the one
+   * that is not on screen.
+   */
+  const closeControl = (
+    <button
+      type="button"
+      className={
+        closeLabel === undefined
+          ? "dh-sheet__close"
+          : "dh-sheet__close dh-sheet__close--worded"
+      }
+      ref={closeButtonRef}
+      onClick={onClose}
+    >
+      {closeLabel === undefined ? (
+        <>
+          <span aria-hidden="true">
+            <CloseIcon />
+          </span>
+          <span className="dh-visually-hidden">Close</span>
+        </>
+      ) : (
+        closeLabel
+      )}
+    </button>
+  );
+
   return (
     <div
       className="dh-sheet-layer"
@@ -175,8 +234,9 @@ export function Sheet({
         {variant === "full" ? null : (
           <div className="dh-sheet__handle" aria-hidden="true" />
         )}
-        <div className="dh-sheet__header">
+        <div className="dh-sheet__header" data-close={closePlacement}>
           {leading ? <div className="dh-sheet__leading">{leading}</div> : null}
+          {closePlacement === "leading" ? closeControl : null}
           <div className="dh-sheet__heading">
             <h2 id={titleId} className="dh-sheet__title">
               {title}
@@ -187,17 +247,10 @@ export function Sheet({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            className="dh-sheet__close"
-            ref={closeButtonRef}
-            onClick={onClose}
-          >
-            <span aria-hidden="true">
-              <CloseIcon />
-            </span>
-            <span className="dh-visually-hidden">Close</span>
-          </button>
+          {trailing ? (
+            <div className="dh-sheet__trailing">{trailing}</div>
+          ) : null}
+          {closePlacement === "trailing" ? closeControl : null}
         </div>
 
         <div

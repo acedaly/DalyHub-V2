@@ -38,7 +38,12 @@ import {
 } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
-import type { CardMetaItem, CardProps, CardTone } from "~/shared/card";
+import type {
+  CardAction,
+  CardMetaItem,
+  CardProps,
+  CardTone,
+} from "~/shared/card";
 import {
   CollectionControls,
   CollectionLayout,
@@ -53,10 +58,12 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
+import { useCapture } from "~/shared/capture";
+import { OverflowMenu } from "~/shared/overflow-menu";
+import { PlusIcon } from "~/shared/icons";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
-import { ViewSwitcher } from "~/shared/view-switcher";
 import { useFeedback } from "~/shared/feedback";
 import {
   InlineTaskDate,
@@ -75,7 +82,6 @@ import {
   postTaskBulkAction,
   postTaskRecordAction,
 } from "~/shared/task-record/task-inline-edit";
-import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
   formatCalendarDate,
   taskPriorityLabel,
@@ -108,6 +114,7 @@ import {
   bulkSelectionOverBy,
   summariseBulkField,
   taskSelectionReducer,
+  type TaskSelectionAction,
 } from "./task-selection";
 import {
   NO_TASK_PATCHES,
@@ -133,6 +140,168 @@ import {
 
 /** The drawer key that opens the "New task" capture form. */
 const NEW_TASK_KEY = "new-task";
+
+/**
+ * UIX-01 — a task row's leading COMPLETION control.
+ *
+ * The reference's list is a column of circles, and ticking one is the single
+ * most frequent act on the page. Before this the row's leading control was the
+ * bulk-SELECTION checkbox and completing meant finding a "Complete" button in
+ * the trailing action group, revealed on hover — the frequent act behind the
+ * rare one.
+ *
+ * It is a real `<input type="checkbox">` with its own accessible name, inside a
+ * `label` that gives the 20px circle a 44px target (WCAG 2.2 §2.5.8), and it
+ * writes through the SAME optimistic completion path every other surface uses
+ * (`quick.setCompleted` → `POST /tasks/:id`, with the Undo the feedback layer
+ * already attaches). Nothing about the completion contract changed; it acquired
+ * a better-placed control.
+ */
+function TaskCompleteToggle({
+  card,
+  urgent,
+  onToggle,
+  disabled,
+}: {
+  readonly card: TaskCardData;
+  /** Whether the task has slipped — the one state that colours the ring. */
+  readonly urgent: boolean;
+  readonly onToggle: (complete: boolean) => void;
+  readonly disabled: boolean;
+}) {
+  return (
+    <label className="dh-check-circle-target">
+      <input
+        type="checkbox"
+        className="dh-check-circle"
+        checked={card.completed}
+        disabled={disabled}
+        data-urgency={urgent && !card.completed ? "overdue" : undefined}
+        aria-label={
+          card.completed ? `Reopen ${card.title}` : `Complete ${card.title}`
+        }
+        onChange={(event) => onToggle(event.currentTarget.checked)}
+        // The row's open link sits beside this; a click here must never open it.
+        onClick={(event) => event.stopPropagation()}
+      />
+    </label>
+  );
+}
+
+/**
+ * UIX-01 — the display states a list row does NOT draw a status pill for.
+ *
+ * Both are restatements of what the row already shows: `planned` is "there is a
+ * planned date" (and the row prints it), `inbox` is "there is not" (and the row
+ * prints nothing, which is the same claim). Every other state — Completed,
+ * Cancelled, Waiting, On hold, Someday / Maybe, In progress — appears nowhere
+ * else on the row, so its pill stays.
+ */
+const ROUTINE_TASK_STATES: ReadonlySet<string> = new Set(["planned", "inbox"]);
+
+/* -------------------------------------------------------------------------- */
+/* UIX-01 — the header's utility cluster                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The page's ONE create control.
+ *
+ * It opens the shared Quick Capture surface already on its Task panel — the
+ * same surface, the same canonical `POST /tasks/new`, the same title-only fast
+ * path, the same parser — rather than a Tasks-only form. On a phone that is the
+ * bottom sheet the redesign reference draws; on a desktop it is the same sheet
+ * over the page. One capture implementation, reached from one more door.
+ *
+ * `requestedType` is what makes this different from the generic global `+` a
+ * previous pass removed from here: that opened the chooser ("what are you
+ * capturing?") on a page whose answer is never in doubt.
+ */
+function NewTaskButton() {
+  const capture = useCapture();
+  const ref = useRef<HTMLButtonElement>(null);
+  return (
+    <button
+      type="button"
+      ref={ref}
+      className="dh-btn dh-btn--primary"
+      data-testid="tasks-new-task"
+      onClick={() => {
+        if (ref.current) capture?.openCapture("task", ref.current);
+      }}
+    >
+      <span className="dh-btn__icon" aria-hidden="true">
+        <PlusIcon />
+      </span>
+      New task
+    </button>
+  );
+}
+
+/**
+ * The header's long tail, in the ONE shared overflow menu.
+ *
+ * Three things live here, and each was previously a permanent control competing
+ * with the task list for the top of the page:
+ *
+ *   - **Select tasks** — TASKS-06/08's ordinary, discoverable, keyboard-reachable
+ *     way into multi-selection. The phone's hold gesture and the desktop's row
+ *     checkbox both still work; this is the labelled path, and its state is
+ *     announced by the item's own wording rather than implied by colour.
+ *   - **Review Inbox** — the way into triage. Not a creation control, and
+ *     nothing in capture does it, so it stays.
+ *   - **The layout** — List / Board / Sectors, writing the same `?view=`
+ *     parameter the sheet's Layout group writes. One control model, and now one
+ *     fewer permanent control.
+ */
+function TasksOverflow({
+  selection,
+  onSelectionChange,
+  presentation,
+}: {
+  readonly selection: { readonly mode: boolean };
+  readonly onSelectionChange: (action: TaskSelectionAction) => void;
+  readonly presentation: string;
+}) {
+  const [searchParams] = useSearchParams();
+  const layoutHref = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("drawer");
+    next.delete(TASKS_PARAMS.cursor);
+    next.set(TASKS_PARAMS.presentation, value);
+    return `/tasks?${next.toString()}`;
+  };
+  return (
+    <OverflowMenu
+      label="More task actions"
+      triggerClassName="dh-tasks-overflow"
+      data-testid="tasks-overflow"
+      items={[
+        {
+          id: "select",
+          label: selection.mode ? "Stop selecting" : "Select tasks",
+          description: "Act on several tasks at once.",
+          onSelect: () =>
+            onSelectionChange(
+              selection.mode ? { type: "reset" } : { type: "enter" },
+            ),
+        },
+        {
+          id: "review",
+          label: "Review Inbox",
+          description: "File everything that has no Project or Area.",
+          href: "/tasks/review",
+        },
+        ...TASK_PRESENTATIONS.map((value, index) => ({
+          id: `layout-${value}`,
+          label: `${PRESENTATION_LABELS[value]} layout`,
+          description: value === presentation ? "Currently shown." : undefined,
+          separatorBefore: index === 0,
+          href: layoutHref(value),
+        })),
+      ]}
+    />
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Provider + drawer wiring                                                    */
@@ -885,6 +1054,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     EMPTY_TASK_SELECTION,
   );
   const selected = selection.ids;
+  /**
+   * Whether rows draw their bulk-selection checkbox — see the row's own note.
+   * `selected.size > 0` as well as the mode flag, so a selection that survives a
+   * revalidation is never left un-clearable behind an absent control.
+   */
+  const selectionVisible = selection.mode || selected.size > 0;
   useEffect(() => {
     dispatchSelection({ type: "reset" });
   }, [resetKey]);
@@ -992,9 +1167,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
        * cards; M3X-02 stopped it being a phone-only idea, because a 1,400px row
        * with eight equal facts is no easier to scan than a 358px one.
        */
+      /*
+       * UIX-01 — priority is `quiet` when there is none to show.
+       *
+       * The editor is unchanged and is still on every row, which is what
+       * TASKS-05/TASKS-10 require: setting P1 is one click on the row. What
+       * changed is that a row with NO priority no longer spends a scanning slot
+       * on the words "No priority" — the tier below de-emphasises it and, on a
+       * pointer device, holds it back until the row is hovered or something
+       * inside it is focused. It is never hidden from the accessibility tree and
+       * never hidden on touch, where there is no hover to reveal it (see
+       * `card.css`). A row that HAS a priority always shows it.
+       */
       metadata.push({
         id: "priority",
-        priority: "high",
+        priority: card.priority === null ? "quiet" : "high",
         value: (
           <InlineTaskPriority
             taskId={card.id}
@@ -1005,34 +1192,23 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           />
         ),
       });
-      // The urgency CHIP is kept for the three states a raw date cannot express —
-      // Overdue, Due today, Scheduled today — and dropped otherwise, because the
-      // inline date field below already says "Due 12 Aug". Showing both for an
-      // ordinary future date would be the same fact twice.
-      if (
-        urgency !== null &&
-        (urgency.kind === "overdue" ||
-          urgency.kind === "due_today" ||
-          urgency.kind === "scheduled_today")
-      ) {
-        metadata.push({
-          id: "urgency",
-          priority: "high",
-          value: (
-            <UrgencyChip
-              task={{
-                completedAt: card.completed ? "done" : null,
-                dueDate: card.dueDate,
-                scheduledDate: card.scheduledDate,
-              }}
-              todayIso={data.todayIso}
-              // The date is the inline field two positions along. The chip says
-              // the STATE.
-              compact
-            />
-          ),
-        });
-      }
+      /*
+       * UIX-01 — the urgency CHIP is gone from the list row.
+       *
+       * It was kept for the three states a raw date could not express — Overdue,
+       * Due today, Scheduled today — because the date field beside it printed
+       * "7 Aug 2026" and a bare date cannot say it has passed. The date field
+       * now says exactly that, in words: it reads "Yesterday", "Today",
+       * "Tomorrow" or "Thu, 12 Jun" and takes the overdue colour when it has
+       * slipped (see `TaskRowFields`). With the words on the date itself, the
+       * chip beside it was the same fact twice, in a pill, on every row — and
+       * two coloured pills per row is most of what made this list read as an
+       * enterprise table rather than as the reference's.
+       *
+       * Nothing is conveyed by colour alone as a result: the word IS the state.
+       * The chip survives unchanged everywhere it is genuinely the only signal
+       * (the Task record, the drawer, search results).
+       */
       if (card.recurrence) {
         metadata.push({
           id: "repeat",
@@ -1040,51 +1216,78 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           priority: "low",
         });
       }
-      // No metadata `label` on the three inline fields: each one's own accessible
-      // name already says which field it edits ("Due date: 12 Aug"), and its empty
-      // state reads "No due date" / "Not planned" / "Unassigned" — so a visible
-      // prefix would state the field name twice on every row.
-      // The DUE date is what the chip beside it is about, so it keeps the middle
-      // tier; the PLANNED date is the owner's private intention about when to do
-      // it, which is detail rather than deadline.
-      metadata.push({
-        id: "due",
-        value: (
-          <InlineTaskDate
-            taskId={card.id}
-            title={card.title}
-            kind="due"
-            value={card.dueDate}
-            onSaved={quick.reportInlineSave}
-            disabled={card.completed || viewingDeleted}
-          />
-        ),
-      });
-      metadata.push({
-        id: "planned",
-        value: (
-          <InlineTaskDate
-            taskId={card.id}
-            title={card.title}
-            kind="scheduled"
-            value={card.scheduledDate}
-            onSaved={quick.reportInlineSave}
-            disabled={card.completed || viewingDeleted}
-          />
-        ),
-        priority: "low",
-      });
+      /*
+       * UIX-01 — the PLANNED date follows the same absence rule the sector has
+       * followed since M3X-02: it is drawn when there IS one.
+       *
+       * "Not planned" was on most rows in the product, in italics, saying that a
+       * dimension the owner had not used was not used — the exact placeholder
+       * the absence rule exists to remove, and one of the two facts that made
+       * every row two lines tall. Setting a planned date from the list did not
+       * become unreachable with it: the row's overflow → "Priority, dates and
+       * repeat…" opens the shared quick-edit panel, which is also the path a
+       * phone (with no hover) has always used, and the Task record is a click
+       * away. A row that HAS a planned date still edits it in place.
+       */
+      if (card.scheduledDate !== null && card.scheduledDate !== card.dueDate) {
+        metadata.push({
+          id: "planned",
+          value: (
+            <InlineTaskDate
+              taskId={card.id}
+              title={card.title}
+              kind="scheduled"
+              value={card.scheduledDate}
+              todayIso={data.todayIso}
+              onSaved={quick.reportInlineSave}
+              disabled={card.completed || viewingDeleted}
+            />
+          ),
+          priority: "low",
+        });
+      }
+      // No metadata `label` on the inline fields: each one's own accessible name
+      // already says which field it edits ("Due date: 12 Aug"), and its empty
+      // state reads "No due date" / "Unassigned" — so a visible prefix would
+      // state the field name twice on every row.
+      //
       // The parent is the row's one CONTEXT fact — "which project is this?" is
-      // the question asked immediately after "what is it?" — so it keeps the
-      // middle tier rather than dropping in with the detail.
+      // the question asked immediately after "what is it?" — so it comes first
+      // of the trailing pair. UIX-01 put the DUE date last and pinned it to the
+      // row's trailing edge: a date column only reads as a column when every
+      // date in it starts at the same x.
       metadata.push({
         id: "parent",
+        // Same absence rule again: "Unassigned" on every Inbox row is a column
+        // of italic text saying that a task has not been filed, which is what
+        // the Inbox view is FOR. The editor stays, revealed on hover/focus and
+        // always present on touch.
+        priority: card.parent === null ? "quiet" : "high",
         value: (
           <InlineTaskParent
             taskId={card.id}
             title={card.title}
             parent={card.parent}
             options={data.parents}
+            onSaved={quick.reportInlineSave}
+            disabled={card.completed || viewingDeleted}
+          />
+        ),
+      });
+      metadata.push({
+        id: "due",
+        // The same rule the priority editor takes: a task with no due date is
+        // usually IN a group called "No date", so the row saying "No due date"
+        // as well is the heading restated once per row. The editor stays on
+        // every row and appears on hover, on focus, and always on touch.
+        priority: card.dueDate === null ? "quiet" : "high",
+        value: (
+          <InlineTaskDate
+            taskId={card.id}
+            title={card.title}
+            kind="due"
+            value={card.dueDate}
+            todayIso={data.todayIso}
             onSaved={quick.reportInlineSave}
             disabled={card.completed || viewingDeleted}
           />
@@ -1097,7 +1300,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
        * clearest case of the brief's absence rule: a placeholder occupying a
        * scanning slot to say that a dimension the owner has not used is not used.
        * The field stays editable where it is edited (the row's overflow →
-       * "Repeat, sector and dates…", and the Task record), so nothing became
+       * "Priority, dates and repeat…", and the Task record), so nothing became
        * unreachable; it simply stopped being announced fifty times down a list.
        */
       if (card.sector !== null) {
@@ -1157,8 +1360,26 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 { scheduledDate: data.todayIso },
               ),
           };
-      // Nothing on a deleted row can be mutated, so nothing on it offers to.
-      const quickActions = viewingDeleted
+      /*
+       * UIX-01 — the row carries NO permanent action buttons.
+       *
+       * These two were rendered as visible 44px buttons on every row: revealed
+       * on hover on a pointer device, but permanently on touch — which is most
+       * of why a phone task row was 230px tall and carried "Complete" and
+       * "Today" under every title. The reference's rows carry none, and both
+       * actions are now better placed than they were:
+       *
+       *   - **Complete** is the leading circle, which is where the frequent act
+       *     belongs and where every reference product puts it;
+       *   - **Plan for today** is in the row's overflow menu (below) and on the
+       *     touch swipe tray, so it is reachable by pointer, by keyboard and by
+       *     gesture without occupying the row.
+       *
+       * The swipe tray still offers BOTH, because a gesture is an accelerator
+       * over affordances that exist elsewhere — never the only path.
+       */
+      const quickActions: CardAction[] = [];
+      const swipeActions = viewingDeleted
         ? []
         : [completeAction, planTodayAction].filter((action) => action !== null);
 
@@ -1196,6 +1417,19 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
               },
             ]
           : [
+              ...(planTodayAction
+                ? [
+                    {
+                      id: "plan-today",
+                      label: "Plan for today",
+                      // No `ariaLabel` naming the task: the MENU is already
+                      // "More actions for <title>", so repeating it on the item
+                      // makes a screen reader say the title twice and makes the
+                      // item's name unmatchable by the words on it.
+                      onSelect: planTodayAction.onSelect,
+                    },
+                  ]
+                : []),
               {
                 id: "rename",
                 label: "Rename",
@@ -1253,7 +1487,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 : []),
               {
                 id: "quick-edit",
-                label: "Repeat, sector and dates…",
+                label: "Priority, dates and repeat…",
                 separatorBefore: true,
                 onSelect: () => openDrawer(`task-quick:${card.id}`),
               },
@@ -1280,7 +1514,15 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             />
           ) : undefined,
         typeLabel: "Task",
-        icon: <EntityIcon type="task" />,
+        /*
+         * UIX-01 — no leading entity glyph on a task row.
+         *
+         * A small green check before every title, on a page called Tasks, in a
+         * list of nothing but tasks, said only "this is a task" — and it sat
+         * directly beside the completion circle, which is a check-shaped
+         * control that means something. Two checks per row, one of them inert.
+         * `typeLabel` stays, so a screen reader still hears "Task".
+         */
         headingLevel,
         // The row's own signal that the work is done, alongside the status pill and
         // the action that now reads "Reopen". Under an in-flight completion it is
@@ -1288,7 +1530,30 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         // instant (ADR-086) — the pill and the action come from the same patched
         // record, so the three can never disagree.
         completed: card.completed,
-        status: { label: card.stateLabel, tone: card.stateTone as CardTone },
+        leadingControl: viewingDeleted ? undefined : (
+          <TaskCompleteToggle
+            card={card}
+            urgent={urgency?.kind === "overdue"}
+            disabled={viewingDeleted}
+            onToggle={(complete) =>
+              quick.setCompleted(card.id, complete, card.title)
+            }
+          />
+        ),
+        /*
+         * UIX-01 — the status pill is drawn only when it says something.
+         *
+         * Every row carried one, and on an ordinary open task it read "Planned"
+         * or "Unscheduled" — which is the presence or absence of the planned
+         * date sitting a few pixels along, restated as a chip, on every row in
+         * the list. The five states that are NOT derivable from the rest of the
+         * row (Completed, Cancelled, Waiting, On hold, Someday / Maybe, In
+         * progress) still paint, because for those the pill genuinely is the
+         * only place the fact appears.
+         */
+        status: ROUTINE_TASK_STATES.has(card.stateKind)
+          ? undefined
+          : { label: card.stateLabel, tone: card.stateTone as CardTone },
         metadata,
         density,
         presentation: "list",
@@ -1297,26 +1562,43 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         openAriaLabel: `Open ${card.title}`,
         quickActions,
         overflowActions,
-        swipeActions: quickActions,
+        swipeActions,
         // TASKS-08 — a touch HOLD enters selection mode and selects the held row, so
         // multi-select on a phone costs one gesture. It is an accelerator: the checkbox
         // below and the "Select tasks" toggle in the header are the ordinary,
         // keyboard-and-screen-reader path, and the hold is inert on a non-touch device.
         onLongPress: () => dispatchSelection({ type: "enter", id: card.id }),
-        selection: {
-          selected: selected.has(card.id),
-          // Shift extends a RANGE from the last row toggled, in the order the rows are
-          // on screen — which is why the visible order is passed rather than inferred.
-          onSelectedChange: (on, modifiers) =>
-            dispatchSelection({
-              type: "toggle",
-              id: card.id,
-              selected: on,
-              shift: modifiers?.shift,
-              visibleIds: visibleIdsRef.current,
-            }),
-          label: `Select ${card.title}`,
-        },
+        /*
+         * UIX-01 — the bulk-SELECTION checkbox appears in selection MODE.
+         *
+         * A row now leads with its completion circle, and two leading controls
+         * on every row — one that finishes the task and one that adds it to a
+         * batch — is both the busiest thing on the page and a genuine
+         * mis-click risk. Selection is a mode the owner enters deliberately, and
+         * it has three entry points, none of which was ever the checkbox
+         * itself: "Select tasks" in the header menu (labelled, focusable,
+         * keyboard-reachable — TASKS-06/08's documented ordinary path), a touch
+         * long-press on a row, and Shift-click to extend once a mode is open.
+         * Inside the mode every row shows its checkbox exactly as before, with
+         * the same range behaviour and the same 100-row bound.
+         */
+        selection: !selectionVisible
+          ? undefined
+          : {
+              selected: selected.has(card.id),
+              // Shift extends a RANGE from the last row toggled, in the order the
+              // rows are on screen — which is why the visible order is passed
+              // rather than inferred.
+              onSelectedChange: (on, modifiers) =>
+                dispatchSelection({
+                  type: "toggle",
+                  id: card.id,
+                  selected: on,
+                  shift: modifiers?.shift,
+                  visibleIds: visibleIdsRef.current,
+                }),
+              label: `Select ${card.title}`,
+            },
       };
     },
     [
@@ -1325,6 +1607,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       searchParams,
       openDrawer,
       selected,
+      selectionVisible,
       quick,
       density,
       editingTitleId,
@@ -1399,6 +1682,11 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
   return (
     <CollectionLayout
+      // UIX-01 — names the surface so the redesigned task-row rules can scope
+      // to it. A task row leads with a completion control and ends with a date;
+      // applying that density to Notes, People and Assets at the same time
+      // would be a redesign of eleven modules made by accident.
+      className="dh-collection--tasks"
       isLoading={isReloading}
       title="Tasks"
       subtitle={subtitle}
@@ -1410,59 +1698,39 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // slot is the honest expression of that: promoting the next-most-likely
       // action into it would make "the primary action" mean something different
       // here than everywhere else.
+      /*
+       * UIX-01 — the header's UTILITY CLUSTER, in the redesign reference's own
+       * composition: everything that shapes the list, then the one create.
+       *
+       * What changed, and why each of them:
+       *
+       *   - **Two filled secondary buttons became an overflow menu.** "Select
+       *     tasks" and "Review Inbox" were the two most conspicuous objects on
+       *     the page, in tinted pills, above a list they are not part of. They
+       *     are both still here, both still labelled, both still keyboard
+       *     reachable — in the ONE shared overflow menu, which is where the
+       *     reference puts a page's long tail and where every other collection
+       *     in DalyHub already puts its secondary actions.
+       *   - **The layout switcher moved into that menu too.** List / Board /
+       *     Sectors is a real choice and a rare one; a three-segment control
+       *     permanently parked beside the title spends the header's best space
+       *     on a decision made once a week. It writes the same `?view=`
+       *     parameter through the same shared control model.
+       *   - **A page-level create came BACK.** A previous pass removed it
+       *     because it opened the generic capture chooser — a second door onto
+       *     the same room. This one opens the shared capture surface already ON
+       *     the Task panel, which is a different thing: one tap to a focused
+       *     title field on the page whose entire subject is tasks. It is the
+       *     reference's most prominent control and it was the honest gap.
+       */
       secondaryActions={
-        // APPEARANCE-01/shell cleanup: the header's "New task" button is gone. It
-        // opened the generic capture drawer with no context the global capture
-        // control does not already supply, so it was a second door onto the same
-        // room occupying the most valuable space on the screen. Creating a task
-        // has not moved anywhere the owner has to learn: the global `+` is on
-        // every page at every width, `c` opens it from the keyboard, and the
-        // empty state below still offers "New task" to someone with no tasks at
-        // all — which is the one moment a page-level create genuinely helps.
-        //
-        // Review Inbox STAYS. It is not a creation control: it is the way into
-        // triage, and nothing in the global capture menu does it.
-        <>
-          {/*
-           * TASKS-06/08 — the ORDINARY way into multi-selection, at every width.
-           *
-           * The phone gesture (hold a row) and the desktop habit (click a checkbox)
-           * both work, but neither is discoverable and neither is reachable by
-           * keyboard alone — so selection also has a real, labelled, focusable
-           * control. Its pressed state is announced, not implied by colour.
-           */}
-          <button
-            type="button"
-            className="dh-btn dh-btn--secondary"
-            aria-pressed={selection.mode}
-            onClick={() =>
-              dispatchSelection(
-                selection.mode ? { type: "reset" } : { type: "enter" },
-              )
-            }
-          >
-            {selection.mode ? "Stop selecting" : "Select tasks"}
-          </button>
-          <Link className="dh-btn dh-btn--secondary" to="/tasks/review">
-            Review Inbox
-          </Link>
-        </>
-      }
-      // The shared PX-02 view switcher stays in the pane header on desktop, so
-      // changing presentation is ONE click rather than a trip through the sheet.
-      // It writes the same `?view=` parameter the sheet's Layout group writes —
-      // one control model, two affordances, never two states.
-      viewSwitcher={
-        <ViewSwitcher
-          param={TASKS_PARAMS.presentation}
-          options={TASK_PRESENTATIONS.map((presentation) => ({
-            value: presentation,
-            label: PRESENTATION_LABELS[presentation],
-          }))}
-          value={config.presentation}
-          label="Task layout"
+        <TasksOverflow
+          selection={selection}
+          onSelectionChange={dispatchSelection}
+          presentation={config.presentation}
         />
       }
+      primaryAction={<NewTaskButton />}
       filterBar={
         <TasksViewSwitcher
           views={data.views}
@@ -1655,9 +1923,16 @@ function GroupedBucket({
   // reader announce the number twice.
   return (
     <section className={className} aria-label={section.title}>
+      {/* "OVERDUE 2" — the count as a quiet second figure, not "(2)". Brackets
+          around a number read as a debugger printing a length; the reference
+          sets it as a small-caps figure a space away, and the stylesheet gives
+          it the space and the weight. */}
       <h2 className="dh-tasks-section__label">
         {section.title}
-        <span className="dh-tasks-section__count"> ({section.count})</span>
+        {/* An explicit space: without it the heading's accessible name is
+            "Overdue2", because the gap to the count is CSS margin and a screen
+            reader cannot see margin. */}{" "}
+        <span className="dh-tasks-section__count">{section.count}</span>
       </h2>
       {section.cards.length > 0 ? (
         renderCollection(section.cards, `${section.title} tasks`, 3)

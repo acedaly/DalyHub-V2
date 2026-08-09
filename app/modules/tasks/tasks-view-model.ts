@@ -91,12 +91,30 @@ export interface TaskCardData {
   readonly priorityTag: string;
   readonly sector: TimeSector | null;
   readonly sectorLabel: string;
+  /**
+   * The display state's KIND, carried alongside its words so a surface can
+   * decide whether the state is worth drawing without matching on the label
+   * (UIX-01: a list row draws no pill for `planned`/`inbox`, which restate the
+   * planned date beside them).
+   */
+  readonly stateKind: string;
   readonly stateLabel: string;
   readonly stateTone: string;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
-  /** The structural parent, for the row's inline parent editor (TASKS-05). */
-  readonly parent: { readonly id: string; readonly title: string } | null;
+  /**
+   * The structural parent, for the row's inline parent editor (TASKS-05).
+   *
+   * UIX-01 carries the `kind` as well as the id and title: the row draws the
+   * parent's ENTITY MARK beside its name, and a Project and an Area are two
+   * different marks in two different identity colours. Deriving that from the
+   * title would be guessing.
+   */
+  readonly parent: {
+    readonly kind: "project" | "goal" | "area";
+    readonly id: string;
+    readonly title: string;
+  } | null;
   readonly parentLabel: string | null;
   readonly delegatedTo: string | null;
   readonly completed: boolean;
@@ -123,6 +141,7 @@ export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
     priorityTag: taskPriorityTag(item.priority),
     sector: item.timeSector,
     sectorLabel: timeSectorLabel(item.timeSector),
+    stateKind: state.kind,
     stateLabel: state.label,
     stateTone: state.tone,
     dueDate: item.dueDate,
@@ -130,7 +149,11 @@ export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
     parent:
       item.parent === null
         ? null
-        : { id: item.parent.id, title: item.parent.title },
+        : {
+            kind: item.parent.kind,
+            id: item.parent.id,
+            title: item.parent.title,
+          },
     parentLabel: item.parent?.title ?? null,
     delegatedTo: item.delegation?.to ?? null,
     completed: item.completedAt !== null,

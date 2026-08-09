@@ -9,6 +9,10 @@
 export { createIcon } from "./Icon";
 export type { IconProps } from "./Icon";
 
+/* UIX-01 — the widget accent tone and the tonal icon tile it paints. */
+export { ToneIcon, TONE_NAMES, toneForKey } from "./ToneIcon";
+export type { ToneIconProps, ToneName } from "./ToneIcon";
+
 export {
   // Entity icons
   AreaIcon,
@@ -71,6 +75,10 @@ export {
   RepeatIcon,
   ScheduleIcon,
   CheckCircleIcon,
+  // UIX-01 — trajectory, filtering and priority-as-a-mark
+  TrendingUpIcon,
+  FilterIcon,
+  FlagIcon,
   // Subtype glyphs (PX-05) — never an entity glyph re-used for a subtype
   ChatIcon,
   CalendarIcon,

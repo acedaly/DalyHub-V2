@@ -49,7 +49,7 @@ test.describe("visual system — Today reference layout", () => {
    * is the same contract measured against the arrangement that now expresses it:
    * a header block of page content, then two tonal columns.
    */
-  test("leads with page content, then the day with its rail beside it", async ({
+  test("leads with page content, then the day with its context beside it", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -57,7 +57,11 @@ test.describe("visual system — Today reference layout", () => {
 
     const header = page.locator(".dh-today__head");
     const day = page.locator(".dh-today__timeline");
-    const rail = page.locator(".dh-today__rail");
+    // UIX-01 — the rail became sibling REGIONS; "Needs attention" is the one
+    // that always renders, so it stands for the context column here.
+    const rail = page
+      .locator(".dh-today__col")
+      .filter({ has: page.getByRole("heading", { name: "Needs attention" }) });
     await expect(header).toBeVisible();
     await expect(day).toBeVisible();
     await expect(rail).toBeVisible();
@@ -123,7 +127,9 @@ test.describe("visual system — Today reference layout", () => {
 
     const headerTop = await boxTop(".dh-today__head")(page);
     const dayTop = await boxTop(".dh-today__timeline")(page);
-    const railTop = await boxTop(".dh-today__rail")(page);
+    const railTop = await boxTop(
+      ".dh-today__col:has(.dh-today__panel[aria-labelledby='today-attention-heading'])",
+    )(page);
     expect(headerTop).toBeLessThan(dayTop);
     expect(dayTop).toBeLessThan(railTop);
     await expectNoHorizontalOverflow(page);

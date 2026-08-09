@@ -286,13 +286,20 @@ control, `--app-keyboard-inset` from the one Visual Viewport observer,
 `--app-bottomnav-height` reserved by every scrolling surface, `dvh` where the
 visible viewport matters. **No compensating pixel offsets, anywhere.**
 
-### FAB and bottom navigation
+### The global create control, and bottom navigation
 
-Unchanged by M3X, and restated because the temptation to add a second capture
-control returns with every visual pass: the FAB exists only where the phone
-navigation **bar** does not, the bar's Capture slot is the single global
-affordance below `md`, and a module does not add its own "New" button where global
-Quick Capture already creates the same record.
+**There is no FAB.** UIX-01 retired it: on a phone the navigation bar's Capture
+slot had owned the action since CAPTURE-02, which left a 56px elevated circle
+floating over the desktop canvas, diagonally opposite the utilities it belongs
+with. Create is now the top app bar's one violet **New** button above `md` and
+the navigation bar's central violet circle below it.
+
+The rule the FAB section existed to state is unchanged, and is why this section
+is still here: there is ONE global capture affordance per viewport, and a module
+does not add its own "New" button where global Quick Capture already creates the
+same record. A page-level create is legitimate only when it opens capture
+already ON its own type — Tasks' "New task" does, which is what distinguishes it
+from the generic duplicate a previous pass removed.
 
 ### Motion
 
@@ -372,6 +379,21 @@ Feedback, priority, record state, chart series, Area identity and entity identit
 | Chart series | `chart-1` … `chart-6` |
 | Area identity | `area-accent-1` … `area-accent-6` (the chart ramp reused — an Area badge and a chart series never share a surface) |
 | Entity identity | one per entity type, table below |
+| Widget accent (UIX-01) | `accent-coral`, `accent-blue`, `accent-violet`, `accent-green`, `accent-amber`, `accent-teal` |
+
+**Widget accents are IDENTITY and never STATUS.** They exist for surfaces that
+have no Area to inherit from — a glance widget, a Goal card, a tonal tile — and
+they are a separate ramp from every semantic role on purpose: a coral glance
+widget is "tasks due today", not a warning, and an amber Goal mark is not "at
+risk". `state-overdue`, `warning` and `error` remain the only way to say
+something has gone wrong, and nothing decorative may be painted with them.
+
+A surface never names one of these tokens. It carries `.dh-tone` with a
+`data-tone` of `coral | blue | violet | green | amber | teal`, which publishes
+`--app-tone`, `--app-tone-container`, `--app-tone-on-container` and
+`--app-tone-wash` (the very pale surface, mixed at a generated per-appearance
+strength). `ToneIcon` draws the tile. Where a record HAS stored identity — an
+Area's colour rank — `AccentIcon` is still the answer and this is not.
 
 **Chart series carry a hard rule:** a legend is the one place in this product where colour genuinely *is* the signal, so no two series may sit within **25° of hue**. Two of the obvious source hues could not hold that after harmonisation and were replaced; a test asserts the separation so the collision cannot come back.
 

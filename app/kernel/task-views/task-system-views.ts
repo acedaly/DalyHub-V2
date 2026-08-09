@@ -51,14 +51,37 @@ function derived(
  */
 export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] =
   [
-    derived("default", "All active", "Everything actionable right now.", {}),
+    /*
+     * UIX-01 — the three everyday views open GROUPED BY DUE STATE.
+     *
+     * A flat list of every actionable task, ordered by a smart sort nobody can
+     * see, is the arrangement that made `/tasks` read as a database table: the
+     * owner's first question is always "what has slipped, and what is on
+     * today?", and answering it meant reading dates down the right-hand edge.
+     * Grouping is not new — the dimension, the server buckets, the counts and
+     * the per-bucket bounds have all existed since TASKS-03 — it was simply
+     * never the default, so the everyday path never got it.
+     *
+     * `today`, `overdue`, `waiting`, `someday`, `completed` and `deleted` are
+     * deliberately left FLAT: each is already a single due state, a single
+     * lifecycle state, or ordered by when it finished, so banding them by due
+     * state produces one group with a redundant heading over it.
+     *
+     * A saved view stores its own grouping and is unaffected, and `?group=none`
+     * still returns the flat list for anyone who prefers it.
+     */
+    derived("default", "All active", "Everything actionable right now.", {
+      groupBy: "due_state",
+    }),
     derived("inbox", "Inbox", "Unassigned active tasks.", {
       systemView: "inbox",
+      groupBy: "due_state",
     }),
     derived("today", "Today", "Planned for today.", { systemView: "today" }),
     derived("upcoming", "Upcoming", "Planned or due after today.", {
       systemView: "upcoming",
       sort: "scheduled_date",
+      groupBy: "due_state",
     }),
     derived("overdue", "Overdue", "Past its date and still open.", {
       systemView: "overdue",

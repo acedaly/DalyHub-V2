@@ -42,7 +42,13 @@
   /* The keyboard inset is subtracted from the available height, so the panel is
    * bounded by the space actually visible rather than by the layout viewport. */
   max-block-size: calc(92dvh - var(--app-keyboard-inset, 0px));
-  background: var(--md-sys-color-surface-container-low);
+  /* UIX-01 — the APP-neutral raised surface, not the system container ramp.
+   * `surface-container-low` is derived from the violet seed, so a full-height
+   * sheet over a white page was a visibly lilac panel — the one place in the
+   * product where the brand painted a whole surface. The app-neutral palette
+   * exists for exactly this (see `tokens.css` → APP_SURFACE_TONES), and it is
+   * what every other panel in the shell already paints with. */
+  background: var(--md-app-color-surface-raised);
   color: var(--md-sys-color-on-surface);
   /* The M3 bottom sheet rounds its TOP corners only. */
   border-top-left-radius: var(--md-sys-shape-corner-extra-large);
@@ -334,3 +340,81 @@
     transform: translate(-50%, -50%);
   }
 }
+
+/* ========================================================================== */
+/* UIX-01 — the ACTION HEADER                                                 */
+/* ========================================================================== */
+
+/*
+ * Cancel · Title · Save, on one line.
+ *
+ * The header wraps by default (see the note above it: a 100%-wide leading slot
+ * needs a wrapping row). An action header must NOT wrap — Cancel and Save are
+ * the two ends of one bar and they belong on the title's line — so a sheet that
+ * declares `data-close="leading"` opts into the single-line arrangement.
+ *
+ * The title is centred between them, which is what makes the arrangement read
+ * as a bar rather than as a heading with two buttons after it. It is still an
+ * `h2` and still the dialog's accessible name.
+ */
+.dh-sheet__header[data-close="leading"] {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.dh-sheet__header[data-close="leading"] .dh-sheet__heading {
+  text-align: center;
+}
+
+.dh-sheet__header[data-close="leading"] .dh-sheet__title {
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: 600;
+}
+
+/*
+ * The WORDED close.
+ *
+ * Same control, same target, same everything the glyph version has — it simply
+ * says "Cancel" instead of drawing an ✕. Text-coloured rather than primary, so
+ * the Save opposite it is unambiguously the action.
+ */
+.dh-sheet__close--worded {
+  padding-inline: var(--app-space-2);
+  font: inherit;
+  font-size: var(--md-sys-typescale-label-large-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The header's primary action.
+ *
+ * A text button, not a filled one: it sits in a 56px bar opposite a worded
+ * Cancel, and a violet capsule up there would be the loudest thing in a
+ * surface whose whole job is to get out of the way. The colour and the weight
+ * are what mark it as the action, and it clears the 44px target.
+ */
+.dh-sheet__trailing {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.dh-sheet__submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-2);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font: inherit;
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Hover/focus/pressed come from the ONE shared state layer — the component
+ * carries `.md-state-layer` rather than re-implementing the fill here. */

@@ -89,6 +89,29 @@ export const DUE_STATE_LABELS: Record<string, string> = {
 };
 
 /** The planned-state vocabulary, over the SCHEDULED date (not the due date). */
+/**
+ * UIX-01 — the same due states as GROUP HEADINGS.
+ *
+ * A filter option and a group heading are read in different places and want
+ * different words. An option in a list of sixteen dimensions has to disambiguate
+ * itself ("Due later this week" against "Due later"); a heading sits directly
+ * above the rows it describes, in small caps, with the count beside it, and the
+ * word "Due" on all five of them is five copies of a fact the column already
+ * states. So a heading says the WHEN and nothing else.
+ *
+ * The semantics are identical — same keys, same buckets, same server dimension.
+ * Only the wording is shorter, and the filter chip that put the rows there still
+ * reads in the fuller vocabulary.
+ */
+export const DUE_STATE_GROUP_HEADINGS: Record<string, string> = {
+  overdue: "Overdue",
+  due_past: "Was due earlier",
+  due_today: "Today",
+  due_this_week: "This week",
+  due_later: "Later",
+  no_due_date: "No date",
+};
+
 export const PLANNED_STATE_LABELS: Record<string, string> = {
   planned_today: "Planned today",
   planned_this_week: "Planned later this week",
@@ -168,7 +191,7 @@ export function groupBucketLabel(
     case "status":
       return key === "completed" ? "Completed" : (STATUS_LABELS[key] ?? key);
     case "due_state":
-      return DUE_STATE_LABELS[key] ?? key;
+      return DUE_STATE_GROUP_HEADINGS[key] ?? DUE_STATE_LABELS[key] ?? key;
     case "planned":
       return PLANNED_STATE_LABELS[key] ?? key;
     case "parent":

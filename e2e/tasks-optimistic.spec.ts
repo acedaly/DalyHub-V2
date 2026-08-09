@@ -48,11 +48,19 @@ function cardFor(page: Page, title: string): Locator {
   return page.getByRole("article", { name: `Open ${title}` });
 }
 
-/** Press the row's Complete button the way a person does — the rail reveals on hover. */
+/**
+ * Tick the row's completion circle the way a person does.
+ *
+ * `click`, deliberately, not `check`. UIX-01 made completion a CHECKBOX where
+ * it used to be a "Complete" button, and `check()` clicks and then asserts the
+ * box ended up checked — which is exactly what this suite exists to prove does
+ * NOT happen when the server refuses. A refusal rolls the guess back, so
+ * `check()` would fail on the one path under test rather than exercising it.
+ */
 async function completeFromRow(page: Page, title: string) {
   const card = cardFor(page, title);
   await card.hover();
-  await card.getByRole("button", { name: `Complete ${title}` }).click();
+  await card.getByRole("checkbox", { name: `Complete ${title}` }).click();
 }
 
 test.describe("TASKS-09 — an optimistic list, reconciled", () => {
@@ -92,7 +100,7 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
       "true",
     );
     await expect(
-      cardFor(page, title).getByRole("button", { name: `Reopen ${title}` }),
+      cardFor(page, title).getByRole("checkbox", { name: `Reopen ${title}` }),
     ).toBeAttached();
     // …and NOTHING has claimed success yet, because nothing has succeeded yet.
     await expect(
@@ -160,7 +168,7 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
       "true",
     );
     await expect(
-      cardFor(page, title).getByRole("button", { name: `Complete ${title}` }),
+      cardFor(page, title).getByRole("checkbox", { name: `Complete ${title}` }),
     ).toBeAttached();
 
     // The reason is both announced and visible, in the server's own words.

@@ -274,10 +274,14 @@ test.describe("Today — narrow widths", () => {
     await expect(greeting(page)).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
 
-    // "Needs attention" comes first in the rail stack, ahead of "Continue working".
-    const headings = await page
-      .locator(".dh-today__rail .dh-today__panel-title")
-      .allInnerTexts();
+    // UIX-01 — "Needs attention" comes before "Continue working" in the day's
+    // supporting regions. They were one `__rail` column and are now sibling
+    // regions, so the order is read off the body.
+    const headings = (
+      await page
+        .locator(".dh-today__body .dh-today__panel-title")
+        .allInnerTexts()
+    ).filter((text) => text !== "Focus" && text !== "Schedule");
     if (headings.length > 1) {
       expect(headings[0]).toBe("Needs attention");
     }

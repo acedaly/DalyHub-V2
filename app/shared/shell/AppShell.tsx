@@ -49,7 +49,6 @@ import { OfflineProvider } from "~/shared/offline/OfflineProvider";
 import { useKeyboardInset } from "~/shared/viewport";
 
 import { BottomNav } from "./BottomNav";
-import { CaptureFab } from "./CaptureFab";
 import { DesktopTopBar } from "./DesktopTopBar";
 import { MobileNav } from "./MobileNav";
 import { MobileTopBar } from "./MobileTopBar";
@@ -308,13 +307,12 @@ export function AppShell({
                   </main>
                 </div>
 
-                {/* M3-01 / CAPTURE-02: the one floating action button, wired to
-              the SAME shared capture surface every other entry point opens. It
-              is the global capture affordance for windows the phone shell does
-              not claim: below `md` the navigation bar's Capture slot owns the
-              action and this button is not shown (see `CaptureFab`). */}
-                <CaptureFab />
-
+                {/* UIX-01 — nothing floats over the canvas. The global capture
+              action is the top app bar's "New" control on desktop and the
+              navigation bar's Capture slot on a phone; both open the SAME
+              shared surface this provider mounts. The 56px floating button
+              that used to sit in the bottom-right corner of every desktop
+              window is gone (see `DesktopTopBar`). */}
                 {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
               desktop rail experience is byte-for-byte unchanged. */}
                 <ShellBottomNav

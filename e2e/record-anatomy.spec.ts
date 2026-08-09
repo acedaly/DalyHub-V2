@@ -299,6 +299,13 @@ test.describe("the Meeting capture strip", () => {
       .getByRole("button", { name: "Add" });
     await expect(save).toBeVisible();
 
+    /*
+     * UIX-01 — there is no floating capture button any more, so this can only
+     * ever find nothing. The guard below already tolerates that, and the check
+     * is kept rather than deleted: the meeting capture bar still spans the
+     * viewport's trailing edge, and the next control anchored there must not
+     * land on top of it either.
+     */
     const fab = page.locator(".dh-fab, [data-testid='global-capture']").first();
     if ((await fab.count()) > 0) {
       const [a, b] = await Promise.all([save.boundingBox(), fab.boundingBox()]);
