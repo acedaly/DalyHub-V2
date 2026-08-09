@@ -258,8 +258,13 @@ export function InlineSelectField({
         field.cancel();
         break;
       default:
+        // A printable character searches. Space is deliberately NOT one: in the
+        // menu pattern it ACTIVATES the focused item, and swallowing it into a
+        // typeahead buffer would take a standard way of choosing an option away
+        // from the keyboard. A leading space is not a search term either.
         if (
           event.key.length === 1 &&
+          event.key !== " " &&
           !event.metaKey &&
           !event.ctrlKey &&
           !event.altKey

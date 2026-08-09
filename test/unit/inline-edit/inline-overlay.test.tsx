@@ -232,6 +232,36 @@ describe("InlineSelectField — the menu escapes the row that clips it", () => {
       screen.getByRole("menuitemradio", { name: "Kitchen fit-out" }),
     ).toHaveFocus();
   });
+
+  it("leaves Space alone, because Space chooses the focused option", async () => {
+    // Typeahead must not eat a key the menu pattern already spends on
+    // activation — a keyboard user pressing Space on a highlighted option
+    // expects to have chosen it, not to have started a search for " ".
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineSelectField
+        label="Priority"
+        value="p2"
+        options={PRIORITIES}
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Priority: P2 · High" }),
+    );
+    const menu = screen.getByRole("menu");
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    const focused = screen.getByRole("menuitemradio", { name: "P3 · Normal" });
+    expect(focused).toHaveFocus();
+
+    // jsdom does not synthesise the click a real browser fires for Space on a
+    // button, so the contract asserted here is that the menu did not swallow
+    // the key into its typeahead and move focus somewhere else.
+    fireEvent.keyDown(menu, { key: " " });
+    expect(focused).toHaveFocus();
+    fireEvent.click(focused);
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("p3"));
+  });
 });
 
 describe("InlineSelectField — the phone presentation", () => {
