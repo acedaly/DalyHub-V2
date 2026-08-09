@@ -32,6 +32,12 @@ This matters because it changes where design questions get answered. "What radiu
 
 ## DalyHub Material 3 Expressive Direction
 
+> The philosophy this section implements — the relationship to Material, the
+> Apple and productivity-software influences, the decision rule, and the full
+> list of deliberate departures from stock Material guidance — is
+> [`DALYHUB_DESIGN_SYSTEM.md`](DALYHUB_DESIGN_SYSTEM.md). This section is the
+> mechanics.
+
 > The M3X pass (2026-08). Everything below is an extension of the Material Design 3
 > foundation above, never a second design language beside it. Before-and-after
 > evidence: [`assets/m3x-2026-08/`](assets/m3x-2026-08/); the findings it answers:
