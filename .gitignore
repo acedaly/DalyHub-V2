@@ -33,3 +33,8 @@ worker-configuration.d.ts
 
 # Claude Code local worktree/session state
 /.claude/
+
+# Scratch Playwright config for the opt-in screenshot passes: the DEV server
+# alone, reusing one that is already running. Not part of the gate —
+# `playwright.config.ts` is.
+scratch.playwright.config.ts

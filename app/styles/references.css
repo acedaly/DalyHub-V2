@@ -186,13 +186,23 @@
   gap: var(--app-space-1);
   margin: 0;
   min-width: 0;
-  /* Each field claims a sensible column on a wide viewport and the full row on
-   * a phone — no media query needed, and never a horizontal scrollbar. */
-  flex: 1 1 12rem;
+  /*
+   * M3X — a filter is a CONTROL, not a column.
+   *
+   * `1 1 12rem` let five selects and a search box each grow to a twelfth of the
+   * page, so Notes opened with a 150px band of chrome over a 200px list: the
+   * controls were bigger than the collection they filter, which is the exact
+   * inversion `.dh-collection__filters` documents one file over. A select
+   * holding "Any project" needs about nine characters of width and is given
+   * nine; the search field is the one control that earns the slack, and takes
+   * it through the `--grow` modifier below.
+   */
+  flex: 0 1 8rem;
 }
 
+/* The search field is the one control that earns the slack. */
 .dh-notes-filters__field--grow {
-  flex: 2 1 16rem;
+  flex: 2 1 14rem;
 }
 
 .dh-notes-filters__label {

@@ -214,7 +214,7 @@ describe("the generated application surfaces", () => {
   });
 
   it("keeps every application surface COOL rather than lilac", () => {
-    // The seed's HCT hue is 272°, on the magenta side of blue, so simply
+    // The seed's HCT hue is 295°, on the magenta side of blue, so simply
     // lowering the chroma of M3's own neutral ramp yields a faint lilac. The
     // generator rotates the app-neutral hue to the cool end; blue never being
     // below red is the cheap, unambiguous statement of that.

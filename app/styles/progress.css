@@ -46,9 +46,11 @@
 .dh-progress__track {
   position: relative;
   inline-size: 100%;
-  /* 4px — M3's linear progress height, and a meter rather than a bar: the
-     number beside it is the authority and the track illustrates it. */
-  block-size: 4px;
+  /* The product's ONE progress thickness, from the token — never a literal, so
+     a bar on Today and a bar on a Project card cannot drift apart. A meter
+     rather than a bar: the number beside it is the authority and the track
+     illustrates it. */
+  block-size: var(--app-progress-bar-height);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-secondary-container);
   overflow: hidden;

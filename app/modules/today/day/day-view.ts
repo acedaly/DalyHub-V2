@@ -284,10 +284,26 @@ export function dayProgress(buckets: DayBuckets): DayProgress | null {
 /* Chips                                                                       */
 /* -------------------------------------------------------------------------- */
 
-/** One informational chip above the day. Never a toggle — it states or it goes. */
+/**
+ * One informational figure about the day. Never a toggle — it states or it goes.
+ *
+ * The name is historical: until M3X these rendered as a row of assist chips
+ * above the day. They now render as the figures on Today's expressive summary,
+ * which is the same three facts in the one place the eye lands first. The MODEL
+ * did not change, which is why this stayed where it was rather than being
+ * rebuilt beside a hero.
+ *
+ * `count` and `noun` are the same information as `label`, split — a summary
+ * draws the number and its noun at different weights, and re-splitting a
+ * formatted string at the call site is how "1 tasks" happens.
+ */
 export interface DayChip {
   readonly id: "tasks" | "meetings" | "overdue";
   readonly label: string;
+  /** The figure alone. */
+  readonly count: number;
+  /** What the figure counts, already pluralised against `count`. */
+  readonly noun: string;
   /** The obvious filtered view this chip's number lives in. */
   readonly href: string;
   /** `error` is spent on slipped work ALONE; everything else is a plain fact. */
@@ -311,17 +327,23 @@ export function dayChips(input: {
 }): readonly DayChip[] {
   const chips: DayChip[] = [];
   if (input.taskCount > 0) {
+    const noun = input.taskCount === 1 ? "task" : "tasks";
     chips.push({
       id: "tasks",
       label: counted(input.taskCount, "task", "tasks"),
+      count: input.taskCount,
+      noun,
       href: "/tasks?system=today",
       tone: "neutral",
     });
   }
   if (input.meetingCount > 0) {
+    const noun = input.meetingCount === 1 ? "meeting" : "meetings";
     chips.push({
       id: "meetings",
       label: counted(input.meetingCount, "meeting", "meetings"),
+      count: input.meetingCount,
+      noun,
       href: "/meetings",
       tone: "neutral",
     });
@@ -330,6 +352,10 @@ export function dayChips(input: {
     chips.push({
       id: "overdue",
       label: `${input.overdueCount} overdue`,
+      count: input.overdueCount,
+      // Not pluralised: "overdue" is an adjective standing in for "overdue
+      // tasks", and "1 overdues" is the failure mode of pluralising it blindly.
+      noun: "overdue",
       href: "/tasks?system=overdue",
       tone: "error",
     });

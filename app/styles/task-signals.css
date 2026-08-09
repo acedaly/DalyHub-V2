@@ -103,18 +103,36 @@
   line-height: 1.2;
 }
 
-/* Overdue — past its due date. Its own token, not "danger": overdue work is late,
- * not broken, and a warm theme should be able to say that differently. */
+/*
+ * Overdue — past its due date. Its own token, not "danger": overdue work is
+ * late, not broken.
+ *
+ * M3X weakened the FILL and strengthened the TEXT, using the same tint strength
+ * Today's overdue block uses. A full `state-overdue-container` fill is a
+ * tone-90 pink in light and a tone-30 saturated crimson in DARK — and a task
+ * list where thirty rows are overdue was thirty saturated pills down a dark
+ * screen, which is the "aggressively red everywhere" failure the Expressive
+ * brief names. Painting the label in the full state colour over the weakened
+ * fill raises the chip's contrast rather than lowering it, in both appearances.
+ */
 .dh-urgency[data-tone="danger"] {
-  color: var(--md-sys-color-on-state-overdue-container);
-  background: var(--md-sys-color-state-overdue-container);
+  color: var(--md-sys-color-state-overdue);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-state-overdue-container) var(--app-tint-strength-state),
+    var(--md-app-color-surface-card)
+  );
   border-color: transparent;
   font-weight: 500;
 }
-/* Due soon — approaching, worth noticing, not yet late. */
+/* Due soon — approaching, worth noticing, not yet late. Same treatment. */
 .dh-urgency[data-tone="warning"] {
-  color: var(--md-sys-color-on-state-due-soon-container);
-  background: var(--md-sys-color-state-due-soon-container);
+  color: var(--md-sys-color-state-due-soon);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-state-due-soon-container) var(--app-tint-strength-state),
+    var(--md-app-color-surface-card)
+  );
   border-color: transparent;
   font-weight: 500;
 }

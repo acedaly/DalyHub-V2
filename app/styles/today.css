@@ -71,13 +71,23 @@
   min-inline-size: 0;
 }
 
+/*
+ * M3X — `headline-small` EMPHASIZED, down from `headline-large`.
+ *
+ * The audit's central typography finding was that the biggest string on Today
+ * was also the least actionable one (§5, H2). The greeting is still the screen's
+ * heading and still the first thing read; it is simply no longer the loudest
+ * thing on the page, because the summary beneath it now is. Weight rather than
+ * size keeps it feeling like a heading at a size that leaves the phone's first
+ * viewport to the day.
+ */
 .dh-today__greeting {
   margin: 0;
   color: var(--md-sys-color-on-surface);
-  font-size: var(--md-sys-typescale-headline-large-size);
-  line-height: var(--md-sys-typescale-headline-large-line-height);
-  font-weight: var(--md-sys-typescale-headline-large-weight);
-  letter-spacing: var(--md-sys-typescale-headline-large-tracking);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
   overflow-wrap: anywhere;
 }
 
@@ -89,62 +99,22 @@
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }
 
-/* The day's progress. Bounded so it reads as a meter beside the greeting rather
- * than a rule across the page, and present ONLY once something is done. */
-.dh-today__progress {
-  flex: 0 1 16rem;
-  min-inline-size: 10rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  padding-block-end: var(--app-space-1);
-}
-
-.dh-today__progress-label {
-  margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  font-variant-numeric: tabular-nums;
-}
-
 /* -------------------------------------------------------------------------- */
-/* Chip row                                                                    */
+/* The summary (M3X)                                                           */
 /* -------------------------------------------------------------------------- */
 
-/* Assist chips: 32px, `corner-small`, `label-large` — the shipped M3 chip
- * anatomy. The row wraps and never scrolls sideways; when no chip qualifies the
- * component renders no list at all, so there is no empty row holding a gap. */
-.dh-today__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dh-today__chip {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: 2rem;
-  padding-inline: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-}
-
-/* The ONE coloured chip on the page. */
-.dh-today__chip[data-tone="error"] {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
+/*
+ * Today's one expressive surface. Its whole anatomy lives with the shared
+ * component (`card-family.css` → ExpressiveSummary); the only thing Today has
+ * an opinion about is that it is a full-width band at the top of the page,
+ * above the two columns rather than inside either of them.
+ *
+ * The assist-chip row this replaced is gone entirely, along with the header's
+ * progress meter: both stated facts the summary now states once. That is the
+ * screen's own "one fact, one place" rule applied to its own chrome.
+ */
+.dh-today__summary {
+  min-inline-size: 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -183,7 +153,7 @@
   gap: var(--app-space-3);
   min-inline-size: 0;
   padding: var(--app-space-5);
-  border-radius: var(--md-sys-shape-corner-large);
+  border-radius: var(--app-shape-card);
   background: var(--md-app-color-surface-card);
 }
 
@@ -320,16 +290,38 @@
  * `error-container` surface with hairlines inside it, so three overdue tasks read
  * as one region rather than three red cards.
  */
+/*
+ * M3X softened the slab and gave it an edge.
+ *
+ * A filled `error-container` block was the single most aggressive thing in the
+ * product: in dark it painted `#900037` across a third of the first viewport,
+ * which is the "aggressively red everywhere" failure the Expressive brief names
+ * and a direct contradiction of DalyHub's own calm mandate
+ * (M3_EXPRESSIVE_AUDIT_2026_08 §4).
+ *
+ * What replaces it says exactly as much and shouts none of it: the container at
+ * a fraction of its strength over the card surface, plus a solid 3px leading
+ * RULE in the full-strength state colour. The rule is the signal — a marker in
+ * the margin, the way a proof-reader flags a line — and because it is a shape
+ * rather than a wash it survives the surface being quiet. Nothing here depends
+ * on seeing colour: every row still says "Due 3 days ago" in words.
+ */
 .dh-day-list--overdue {
-  border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-sys-color-error-container);
+  border-radius: var(--app-shape-supporting);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-state-overdue-container) var(--app-tint-strength-state),
+    var(--md-app-color-surface-card)
+  );
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-state-overdue);
   padding-inline: var(--app-space-3);
 }
 
 .dh-day-list--overdue .dh-day-row + .dh-day-row {
   border-block-start-color: color-mix(
     in srgb,
-    var(--md-sys-color-on-error-container) 20%,
+    var(--md-sys-color-on-surface) 14%,
     transparent
   );
 }
@@ -339,13 +331,15 @@
 }
 
 .dh-day-list--overdue .dh-day-row__check {
-  accent-color: var(--md-sys-color-error);
+  accent-color: var(--md-sys-color-state-overdue);
 }
 
-/* The age of the slip, in the container's own on-colour. */
+/* The age of the slip. It takes the state colour rather than the container's
+ * on-colour now that the surface behind it is a quiet tint rather than a filled
+ * block — and it is the words, not the colour, that carry the fact. */
 .dh-day-row__due {
   flex: none;
-  color: var(--md-sys-color-on-error-container);
+  color: var(--md-sys-color-state-overdue);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -361,7 +355,7 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--app-touch-target-min);
-  color: var(--md-sys-color-on-error-container);
+  color: var(--md-sys-color-state-overdue);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight);

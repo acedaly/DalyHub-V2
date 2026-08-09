@@ -24,10 +24,17 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * The standard card treatment for the whole product: the generated card surface,
- * `corner-large`, one hairline, and elevation 1. Not a heavy border — the
- * hairline exists because the card sits only 2.5 tones above the page, and tone
- * alone leaves the edge ambiguous at that distance.
+ * The standard card treatment for the whole product: the generated card surface
+ * and `--app-shape-card`.
+ *
+ * M3X removed the hairline AND the shadow. Both were bought to solve one
+ * problem — a card sitting only 2.5 tones above the page has an ambiguous edge —
+ * and the M3X canvas solves it at the source by taking the page down to tone 97,
+ * so the step is a full three tones. Spending a border, a shadow and a radius on
+ * every surface at once is what left the product with nothing to escalate with
+ * when a surface genuinely mattered (M3_EXPRESSIVE_AUDIT_2026_08 §3). Separation
+ * is now carried by surface VALUE; depth is reserved for the things that have
+ * it.
  *
  * No `min-height`. A card is as tall as what it holds; the fixed vertical
  * padding that made Today's hero 250px for six numbers is exactly what this
@@ -38,15 +45,31 @@
   flex-direction: column;
   min-inline-size: 0;
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
-  border-radius: var(--md-sys-shape-corner-large);
-  box-shadow: var(--md-sys-elevation-1);
+  border: none;
+  border-radius: var(--app-shape-card);
+  box-shadow: var(--app-elevation-resting);
 }
 
 .dh-dcard--subtle {
   background: var(--md-app-color-surface-card-subtle);
   box-shadow: none;
+}
+
+/*
+ * The EXPRESSIVE variant: the one surface on a page allowed to carry the brand.
+ *
+ * It steps up every rung at once — the hero shape, the hero padding, the tinted
+ * surface and its wash, and the one level of real depth on the screen — because
+ * a hero that is only slightly bigger than a card is not a hero, it is an
+ * inconsistency. Exactly one per page (DESIGN_SYSTEM.md → Expressive surfaces).
+ */
+.dh-dcard--expressive {
+  position: relative;
+  background: var(--app-hero-wash), var(--md-app-color-surface-expressive);
+  border-radius: var(--app-shape-hero);
+  box-shadow: var(--app-elevation-raised);
+  color: var(--md-app-color-on-surface-expressive);
+  overflow: hidden;
 }
 
 /*
@@ -516,7 +539,18 @@
     minmax(min(var(--app-entity-card-min-width), 100%), 1fr)
   );
   gap: var(--app-dashboard-gap);
-  align-items: start;
+  /*
+   * M3X: `stretch`, not `start`.
+   *
+   * `start` let every card be exactly as tall as its own content, which sounds
+   * like restraint and reads like debris: the audit found one Projects row
+   * holding a 220px, a 180px and a 230px card, so the gallery had a ragged
+   * bottom edge on every row and the eye had nothing to track along. Cards in a
+   * row now share a height and their footers line up, which is what makes a
+   * gallery scannable. The card's own `margin-block-start: auto` on the footer
+   * is what spends the extra height on air rather than on stretched text.
+   */
+  align-items: stretch;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -533,6 +567,13 @@
   min-inline-size: 0;
 }
 
+/*
+ * M3X — the entity card is the product's most RECOGNISABLE object, so it is the
+ * one that steps above the ordinary card in shape: `--app-shape-entity-card`
+ * (20px) against a card's 16px. Border and resting shadow are gone for the same
+ * reason they left `.dh-dcard`; what a Project or an Area has instead is its
+ * identity mark, which is a far stronger signal than an edge.
+ */
 .dh-ecard {
   position: relative;
   display: flex;
@@ -541,17 +582,25 @@
   min-inline-size: 0;
   padding: var(--app-card-padding);
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
-  border-radius: var(--md-sys-shape-corner-large);
-  box-shadow: var(--md-sys-elevation-1);
-  transition: box-shadow var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  border: none;
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
-/* Hover elevation ONLY when the card is actually interactive. */
+/*
+ * Hover elevation ONLY when the card is actually interactive — plus one pixel of
+ * lift, which is the whole of M3X's motion budget for a gallery. It is the
+ * smallest movement that reads as "this responds", and it is zeroed under
+ * `prefers-reduced-motion` by the global rule in `base.css`.
+ */
 .dh-ecard--interactive:hover {
-  box-shadow: var(--md-sys-elevation-2);
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
 }
 
 .dh-ecard--muted {
@@ -630,13 +679,36 @@
   flex: 1 1 8rem;
 }
 
+/*
+ * M3X — emphasized, and CLAMPED at three lines.
+ *
+ * The weight is the same correction the collection row's title got: a gallery is
+ * scanned by name, so the name leads.
+ *
+ * The clamp is what makes a gallery a gallery. `align-items: stretch` gives a
+ * row a shared height, and without a clamp that height is set by whichever card
+ * happens to hold a nine-word title — the audit's Projects grid had one card
+ * running to six lines and dragging its two neighbours' whole row with it
+ * (§2, H5). Three lines is roughly thirty words at the gallery's column width,
+ * which no scannable record title reaches.
+ *
+ * It is a VISUAL clamp only: the full title stays in the DOM and in the
+ * accessible name, so nothing is hidden from a screen reader, from search, or
+ * from the record the card opens. That is the same trade `.dh-ecard__summary`
+ * already makes two lines below.
+ */
 .dh-ecard__title {
   margin: 0;
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
-  font-weight: var(--md-sys-typescale-title-medium-weight);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
   letter-spacing: var(--md-sys-typescale-title-medium-tracking);
   color: var(--md-sys-color-on-surface);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
   /* `break-word`, not `anywhere`: an unbreakable string (a URL, a long id) still
    * breaks rather than overflowing the card, but an ordinary word is never
    * chopped mid-syllable just because the column is narrow. */
@@ -719,10 +791,13 @@
   gap: var(--app-space-2);
 }
 
+/* M3X — the card's one figure, at the emphasized headline weight. It is the
+ * answer the gallery is scanned for, so it is allowed to be the loudest thing
+ * on the card; everything else on the card is deliberately quieter than it. */
 .dh-ecard__metric-value {
-  font-size: var(--md-sys-typescale-title-large-size);
-  line-height: var(--md-sys-typescale-title-large-line-height);
-  font-weight: 500;
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight-emphasized);
   color: var(--md-sys-color-on-surface);
   font-variant-numeric: tabular-nums;
 }
@@ -758,11 +833,15 @@
   background: var(--md-sys-color-primary);
 }
 
+/* The percentage is the progress bar's authority, not its caption: it takes the
+ * on-surface colour and the emphasized label weight so it is legible at a glance
+ * and readable without the bar at all (AGENTS.md §15 — never colour alone). */
 .dh-ecard__progress-text {
   flex: none;
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
   font-variant-numeric: tabular-nums;
 }
 
@@ -814,10 +893,22 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * M3X — the footer is pushed to the BOTTOM of the card (`margin-block-start:
+ * auto`), which is what makes the gallery's new equal-height rows pay off: the
+ * footers of a row line up, and the extra height a short card gains is spent on
+ * air above the footer rather than on a stretched body.
+ *
+ * The hairline stays here and only here. Inside a card a rule is doing real
+ * work — it separates two kinds of content on ONE surface, which is the job a
+ * border is actually for — as opposed to drawing the card's own outline, which
+ * the surface value now does.
+ */
 .dh-ecard__footer {
   display: flex;
   align-items: center;
   gap: var(--app-space-2);
+  margin-block-start: auto;
   padding-block-start: var(--app-space-3);
   border-block-start: var(--app-border-width-thin) solid
     var(--md-app-color-outline-hairline);
@@ -986,4 +1077,210 @@
   grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
   gap: var(--app-dashboard-gap);
   margin-block-end: var(--app-space-8);
+}
+
+/* -------------------------------------------------------------------------- */
+/* ExpressiveSummary (M3X)                                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The page's ONE dominant surface. `.dh-dcard--expressive` above paints it —
+ * the hero shape, the tinted surface, the wash and the single level of real
+ * depth; this block is only its internal composition.
+ *
+ * The layout is deliberately NOT a grid of equal cells. A hero whose parts are
+ * all the same size is the same failure as a page whose cards are all the same
+ * size: the ring and the headline lead, the figures support, and the closing
+ * note is quiet. `flex-wrap` is what lets the same markup be one line on a
+ * laptop and three stacked bands on a phone, without a second arrangement.
+ */
+.dh-summary {
+  gap: var(--app-space-5);
+  padding: var(--app-card-padding-hero);
+}
+
+.dh-summary__lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-4) var(--app-space-6);
+  min-inline-size: 0;
+}
+
+.dh-summary__ring {
+  flex: none;
+  display: flex;
+}
+
+/* The figure inside the ring. `display-small` emphasized is the product's ONE
+ * hero-metric style — see DESIGN_SYSTEM.md → Typography hierarchy. */
+.dh-summary__ring-value {
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight-emphasized);
+  color: var(--md-app-color-on-surface-expressive);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-summary__identity {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-summary__eyebrow {
+  margin: 0;
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  /* Quieter than the headline but still on the expressive pair, so it never
+   * drops below AA on the tinted surface the way a `variant` role would. */
+  color: var(--md-app-color-on-surface-expressive);
+  opacity: 0.8;
+}
+
+/*
+ * The headline is `headline-medium` EMPHASIZED, not `headline-large`.
+ *
+ * This is the audit's central typography correction (§5): the product made
+ * things important by making them bigger, which is what let a greeting out-shout
+ * the day. Emphasis by WEIGHT keeps the hero commanding at a size that still
+ * fits one line on a laptop and does not eat a phone's first viewport.
+ */
+.dh-summary__headline {
+  margin: 0;
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  color: var(--md-app-color-on-surface-expressive);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.dh-summary__supporting {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-app-color-on-surface-expressive);
+  opacity: 0.86;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-summary__stats {
+  flex: 0 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--app-space-4) var(--app-space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-summary__stat {
+  min-inline-size: 0;
+}
+
+.dh-summary__stat-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--app-shape-control);
+}
+
+.dh-summary__stat-link:hover .dh-summary__stat-label {
+  text-decoration: underline;
+}
+
+.dh-summary__stat-value {
+  display: block;
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
+  color: var(--md-app-color-on-surface-expressive);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The ONE place the hero spends colour on a figure. `state-overdue` rather than
+ * `error`, because slipped work is a STATE of a record, not an application
+ * error — and the label beneath always says the word "overdue", so the colour is
+ * never the signal on its own.
+ */
+.dh-summary__stat-value[data-tone="attention"] {
+  color: var(--md-sys-color-state-overdue);
+}
+
+.dh-summary__stat-label {
+  display: block;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-app-color-on-surface-expressive);
+  opacity: 0.86;
+}
+
+.dh-summary__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3) var(--app-space-4);
+  min-inline-size: 0;
+}
+
+.dh-summary__action {
+  display: flex;
+  gap: var(--app-space-2);
+}
+
+.dh-summary__note {
+  margin: 0;
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-app-color-on-surface-expressive);
+  opacity: 0.86;
+}
+
+/*
+ * Phone: the hero is the first viewport, so it gets the compact padding and the
+ * figures move onto their own band under the headline rather than competing
+ * with it for a 358px line.
+ */
+@media (max-width: 48rem) {
+  .dh-summary {
+    gap: var(--app-space-4);
+    padding: var(--app-card-padding);
+  }
+
+  .dh-summary__lead {
+    gap: var(--app-space-4);
+  }
+
+  .dh-summary__identity {
+    flex-basis: 8rem;
+  }
+
+  .dh-summary__stats {
+    flex-basis: 100%;
+    gap: var(--app-space-4) var(--app-space-6);
+  }
+}
+
+/*
+ * Forced colours: the tinted surface and the wash are both discarded, so the
+ * hero would lose its boundary entirely. A border restores it — the same
+ * treatment the design system already gives modal surfaces.
+ */
+@media (forced-colors: active) {
+  .dh-dcard--expressive {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
 }

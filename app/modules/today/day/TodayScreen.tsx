@@ -7,8 +7,10 @@
  * ── WHAT IT IS ───────────────────────────────────────────────────────────────
  *
  *   greeting + date            page content on the canvas — no card, no widget
- *   ·············· progress    "N of M done today", only once N ≥ 1
- *   chips                      tasks · meetings · overdue, each conditional
+ *   ┌───────────────────────────────────────────────────────────┐
+ *   │ ◯72%  Today · Your day        8 tasks   2 overdue         │  the summary
+ *   │       3 of 8 done today                   [ Plan day ]    │  (expressive)
+ *   └───────────────────────────────────────────────────────────┘
  *   ┌──────────────────────┬──────────────────┐
  *   │ My day               │ Needs attention  │
  *   │  overdue (tinted)    │ Continue working │
@@ -25,11 +27,17 @@
  * with nothing to say is not painted at all.
  *
  * ── THE RULES THAT KEEP IT HONEST ────────────────────────────────────────────
- *   - **Zeros never render.** Every chip, the progress indicator, every timeline
+ *   - **Zeros never render.** Every figure, the progress ring, every timeline
  *     section and every rail row is conditional on its own count. A quiet day is
- *     a short page, not a page of noughts.
- *   - **One fact, one place.** Overdue work is a chip AND actionable rows — and
- *     is banned from the rail, which holds only what the timeline does not show.
+ *     a short page, not a page of noughts — and the summary itself does not
+ *     paint when it would have nothing to say.
+ *   - **One fact, one place.** Overdue work is a summary figure AND actionable
+ *     rows — and is banned from the rail, which holds only what the timeline
+ *     does not show. M3X's summary REPLACED the assist-chip row for this reason;
+ *     it did not join it.
+ *   - **One expressive surface.** The summary is the page's only tinted, shaped,
+ *     elevated object. Everything below it is a quiet tonal panel, which is what
+ *     makes the summary read as the answer rather than as another box.
  *   - **Tasks have no times.** A task is a date; a meeting is an instant. So
  *     there is no Morning/Afternoon grouping and no invented time beside a task.
  *   - **Tonal surfaces, not outlined cards.** Each column is ONE surface with
@@ -45,6 +53,7 @@ import { Link, useSearchParams } from "react-router";
 // so the Today route chunk does not eagerly pull the palette controller.
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 import type { AppAction } from "~/shared/commands/action";
+import { ExpressiveSummary } from "~/shared/card";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
   CheckCircleIcon,
@@ -249,6 +258,37 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
   const overdue = overdueSlice(buckets.overdue);
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
 
+  /*
+   * The summary's figures ARE the chip model, rendered as figures. Splitting the
+   * count from its noun is the only difference, and `dayChips` supplies both, so
+   * the rules the chip row held — a zero never paints, every figure links to the
+   * canonical view that holds it, `error` is spent on slipped work alone — are
+   * still enforced in one pure, unit-tested place rather than re-derived here.
+   */
+  const summaryStats = useMemo(
+    () =>
+      chips.map((chip) => ({
+        id: chip.id,
+        value: chip.count,
+        label: chip.noun,
+        tone: chip.tone === "error" ? ("attention" as const) : undefined,
+        href: chip.href,
+      })),
+    [chips],
+  );
+
+  /*
+   * The summary's headline names the day in the owner's terms. It states what is
+   * actually true rather than always saying "today": a day with nothing on it
+   * says so, and a day whose only work has slipped does not claim to be busy.
+   */
+  const headline =
+    buckets.today.length > 0
+      ? "Your day"
+      : buckets.overdue.length > 0
+        ? "Nothing due today"
+        : "A clear day";
+
   const openTask = useCallback(
     (id: string) => openDrawer(`task:${id}`),
     [openDrawer],
@@ -298,42 +338,63 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
   return (
     <div className="dh-today">
       {/* The header block is PAGE CONTENT on the canvas — the greeting is the
-          screen's heading, not a widget with a label above it. */}
+          screen's heading, not a widget with a label above it. It is compact by
+          design: M3X moved the day's WEIGHT into the summary below it, so the
+          greeting states who and when and then gets out of the way. */}
       <header className="dh-today__head">
         <div className="dh-today__identity">
           <h1 className="dh-today__greeting">{greeting}</h1>
           <p className="dh-today__date">{data.dateLong}</p>
         </div>
-        {progress ? (
-          <div className="dh-today__progress">
-            <p className="dh-today__progress-label">
-              {progress.done} of {progress.total} done today
-            </p>
-            <ProgressTrack
-              label="Today's progress"
-              percent={(progress.done / Math.max(1, progress.total)) * 100}
-              valueText={`${progress.done} of ${progress.total} done today`}
-            />
-          </div>
-        ) : null}
       </header>
 
-      {/* Informational, never toggles: each chip states a count and goes to the
-          view that holds it. A chip with a zero behind it is simply absent. */}
-      {chips.length > 0 ? (
-        <ul className="dh-today__chips">
-          {chips.map((chip) => (
-            <li key={chip.id}>
-              <Link
-                className="dh-today__chip"
-                data-tone={chip.tone}
-                to={chip.href}
-              >
-                {chip.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {/*
+       * M3X — the day's ONE expressive surface, and the only place its figures
+       * are painted. It replaced the assist-chip row rather than joining it:
+       * two surfaces stating the same three counts would break Today's own
+       * "one fact, one place" rule, which is the rule that made this screen
+       * worth keeping.
+       *
+       * Everything on it is conditional, exactly as the chip row was. A quiet
+       * day renders the headline and nothing else; the ring appears only once
+       * something is done, because a 0% ring first thing in the morning is a
+       * guilt meter rather than a measure (see `dayProgress`).
+       */}
+      {summaryStats.length > 0 || progress ? (
+        <ExpressiveSummary
+          className="dh-today__summary"
+          data-testid="today-summary"
+          eyebrow="Today"
+          headline={headline}
+          supporting={
+            progress
+              ? `${progress.done} of ${progress.total} done today`
+              : undefined
+          }
+          ring={
+            progress
+              ? {
+                  value: progress.done / Math.max(1, progress.total),
+                  label: `Today's progress: ${progress.done} of ${progress.total} done`,
+                  centre: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`,
+                }
+              : undefined
+          }
+          stats={summaryStats}
+          action={
+            /*
+             * "Plan day" is a NAVIGATION, not a feature: DalyHub has no
+             * dedicated planning flow, so it goes to the canonical Tasks view
+             * of today's work — where planning already lives. Building a second
+             * planning surface here is explicitly out of scope. It moved from
+             * the day panel's header into the summary because the summary is
+             * where the decision to plan is made.
+             */
+            <Link className="dh-btn dh-btn--primary" to="/tasks?system=today">
+              Plan day
+            </Link>
+          }
+        />
       ) : null}
 
       <div className="dh-today__body">
@@ -345,15 +406,6 @@ export function TodayScreen({ data, onCompleteTask }: TodayScreenProps) {
             <h2 className="dh-today__panel-title" id="today-day-heading">
               My day
             </h2>
-            {/*
-             * "Plan day" is a NAVIGATION, not a feature: DalyHub has no
-             * dedicated planning flow, so it goes to the canonical Tasks view
-             * of today's work — where planning already lives. Building a second
-             * planning surface here is explicitly out of scope.
-             */}
-            <Link className="dh-btn dh-btn--secondary" to="/tasks?system=today">
-              Plan day
-            </Link>
           </div>
 
           {hasDay ? (

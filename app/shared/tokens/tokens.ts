@@ -74,9 +74,22 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "md-sys-shape-corner-small",
     "md-sys-shape-corner-medium",
     "md-sys-shape-corner-large",
+    // M3 Expressive's two extra rungs, and the five SEMANTIC names DalyHub
+    // assigns over the scale (M3X). A surface picks a name, never a radius.
+    "md-sys-shape-corner-large-increased",
     "md-sys-shape-corner-extra-large",
+    "md-sys-shape-corner-extra-large-increased",
     "md-sys-shape-corner-full",
+    "app-shape-hero",
+    "app-shape-entity-card",
+    "app-shape-card",
+    "app-shape-supporting",
+    "app-shape-control",
   ],
+  /* M3X — the expressive layer's named depths. The two tint strengths are
+   * appearance-dependent and therefore GENERATED, so they are covered by the
+   * generated block rather than listed here. */
+  expressive: ["app-elevation-resting", "app-elevation-raised"],
   elevation: [
     "md-sys-elevation-1",
     "md-sys-elevation-2",
@@ -153,8 +166,10 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "app-dashboard-gap-desktop",
     "app-dashboard-gap-tablet",
     "app-dashboard-gap-mobile",
+    "app-card-padding-hero",
     "app-card-padding",
     "app-card-padding-compact",
+    "app-card-padding-tight",
     "app-card-header-gap",
     "app-list-row-height-one-line",
     "app-list-row-height-two-line",

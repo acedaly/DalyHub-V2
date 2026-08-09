@@ -113,17 +113,43 @@ describe("the header block", () => {
   });
 });
 
-describe("the chip row", () => {
+/*
+ * M3X replaced the assist-chip row with the expressive summary. The RULES the
+ * chips held are unchanged and are what these assert: a zero never paints, the
+ * surface does not render at all when it would have nothing to say, every
+ * figure links to the canonical view that holds it, and slipped work is the one
+ * thing given a tone.
+ */
+describe("the summary", () => {
   it("does not render at all on a quiet day", () => {
     const { container } = renderScreen(day());
-    expect(container.querySelector(".dh-today__chips")).toBeNull();
+    expect(container.querySelector(".dh-today__summary")).toBeNull();
   });
 
-  it("renders only the chips whose counts are non-zero", () => {
+  it("renders only the figures whose counts are non-zero", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(screen.getByRole("link", { name: "1 task" })).toBeInTheDocument();
     expect(screen.queryByText(/meeting/)).not.toBeInTheDocument();
     expect(screen.queryByText(/overdue/)).not.toBeInTheDocument();
+  });
+
+  it("gives the tone to slipped work and to nothing else", () => {
+    const { container } = renderScreen(
+      day({
+        overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
+        today: [task("a", "Alpha")],
+        meetings: [
+          { id: "m1", title: "Standup", timeLabel: "09:30", context: null },
+        ],
+      }),
+    );
+    const toned = container.querySelectorAll(
+      '.dh-summary__stat-value[data-tone="attention"]',
+    );
+    expect(toned).toHaveLength(1);
+    expect(toned[0].closest(".dh-summary__stat")?.textContent).toContain(
+      "overdue",
+    );
   });
 
   it("navigates each chip to the filtered view that holds its number", () => {
@@ -246,7 +272,7 @@ describe("the day timeline", () => {
 
   it("carries the day's first actionable row above the laptop fold", () => {
     /*
-     * A position guard, not a pixel test. The header block, the chip row and the
+     * A position guard, not a pixel test. The header block, the summary and the
      * panel heading are everything above the first row; if a band is ever added
      * back between them the count changes and this fails.
      */
@@ -257,10 +283,16 @@ describe("the day timeline", () => {
       }),
     );
     const surface = container.querySelector(".dh-today")!;
-    const blocks = [...surface.children].map((child) => child.className);
+    // The summary composes the shared card classes, so this compares the ROLE
+    // each block plays rather than its whole class list.
+    const blocks = [...surface.children].map((child) =>
+      ["dh-today__head", "dh-today__summary", "dh-today__body"].find((role) =>
+        child.classList.contains(role),
+      ),
+    );
     expect(blocks).toEqual([
       "dh-today__head",
-      "dh-today__chips",
+      "dh-today__summary",
       "dh-today__body",
     ]);
     // The first row inside the day column is the overdue one.

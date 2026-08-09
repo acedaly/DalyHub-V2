@@ -20,7 +20,23 @@
   background: var(--md-app-color-surface-page);
 }
 
+/*
+ * M3X — the filter slot is a wrapping ROW, not a block.
+ *
+ * It had no display of its own, so a module that rendered bare fields into it
+ * (Meetings: a search box and a sort select) got a vertical stack — two controls
+ * down the left edge of a 1000px pane with the whole right side empty, while the
+ * `max-inline-size: 18rem` cap below made sure neither could ever fill the row it
+ * had taken. Stating the row here fixes it for every module at once; a module
+ * that already wraps its controls in its own flex container is unaffected,
+ * because a flex row with one child lays out identically to a block with one
+ * child.
+ */
 .dh-collection__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--app-space-3);
   padding: var(--app-space-2) var(--app-page-padding) var(--app-space-3);
 }
 
@@ -124,6 +140,20 @@
 }
 
 /*
+ * M3X — a page-level summary placed in the content region is a BAND, and needs
+ * air beneath it.
+ *
+ * `.dh-collection__content` is a plain block flow with no gap: it worked because
+ * everything a module put there brought its own margins. The expressive summary
+ * deliberately brings none — it is a card, and a card does not decide its own
+ * place in a layout — so the rule is stated here, by the layout that owns the
+ * flow, rather than by each module that adopts a summary.
+ */
+.dh-collection__content > .dh-summary {
+  margin-block-end: var(--app-dashboard-gap);
+}
+
+/*
  * The pinned header's separation is a plain, always-on hairline.
  *
  * It was briefly a SCROLL-DRIVEN animation (`animation-timeline: scroll()`),
@@ -179,6 +209,59 @@
   padding: var(--app-space-3) var(--app-page-padding);
   border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
+}
+
+/*
+ * M3X — ONE control row, not two stacked ones.
+ *
+ * A collection with persistent controls renders two sibling bands: the module's
+ * own filter slot (Tasks' saved-view trigger) and the shared control row
+ * ("Filter & sort"). Stacked, they cost about 100px of vertical chrome above
+ * every list for two buttons that together occupy a third of one line — the
+ * "excessive empty space" and "filter wrapping" items on the visual review
+ * checklist, and the reason Tasks' first row started 300px down a laptop.
+ *
+ * They combine at `md` and above by making the sticky region a wrapping flex
+ * row: the pane header takes a full row of its own, and the two control bands
+ * flow beside each other. Below `md` nothing changes — a phone genuinely wants
+ * them stacked, and the shared control sheet is the one surface there.
+ *
+ * The rule under the controls moves onto the sticky region in this mode, so it
+ * spans both bands instead of underlining only the second.
+ */
+@media (min-width: 48rem) {
+  .dh-collection--persistent-controls .dh-collection__sticky {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 0;
+    border-bottom: var(--app-border-width-thin) solid
+      var(--md-sys-color-outline-variant);
+  }
+
+  .dh-collection--persistent-controls .dh-collection__sticky > .dh-pane-header {
+    flex: 1 0 100%;
+  }
+
+  .dh-collection--persistent-controls .dh-collection__filters {
+    flex: 0 1 auto;
+    padding-block: var(--app-space-3);
+    padding-inline-end: var(--app-space-3);
+  }
+
+  .dh-collection--persistent-controls .dh-collection__mobile-controls {
+    flex: 0 1 auto;
+    padding-inline-start: 0;
+    border-bottom: 0;
+  }
+
+  /* A collection with persistent controls but no module filter slot keeps the
+   * shared row against the page gutter rather than floating an unpadded button. */
+  .dh-collection--persistent-controls
+    .dh-collection__sticky
+    > .dh-collection__mobile-controls:first-of-type {
+    padding-inline-start: var(--app-page-padding);
+  }
 }
 
 /* The shared active-filter chips: every applied filter as a labelled, removable
