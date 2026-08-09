@@ -154,8 +154,12 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
     await expect(
       summaryCards(page).getByText("Total interactions"),
     ).toBeVisible();
+    // The STATE is on the record's header context line, for the same RECORD-01
+    // reason as in step 1: the panel states WHY, and only why.
     await expect(
-      stayInTouch(page).getByText("Recently connected"),
+      page
+        .getByRole("list", { name: "Record context" })
+        .getByText("Recently connected"),
     ).toBeVisible();
     // The state is TEXT, and its explanation is text too — never colour alone.
     await expect(

@@ -134,14 +134,33 @@ test.describe("visual system — surface hierarchy", () => {
   test("in-flow cards sit on the card plane, above the page plane", async ({
     page,
   }) => {
-    // Measured on a real CARD surface. Today's own columns are deliberately
-    // shadowless tonal regions (pinned above), so the elevation contract is
-    // asserted where the product genuinely uses a card.
+    /*
+     * Measured on a real CARD surface. Today's own columns are deliberately
+     * shadowless tonal regions (pinned above), so the plane contract is asserted
+     * where the product genuinely uses a card.
+     *
+     * WHICH card that is has changed. This used to read `.dh-card` — the shared
+     * record Card — off the Projects grid, and pin ADR-074's rule for a Card
+     * presented in a grid or on a board: the group's surface and hairline, and
+     * no shadow. That rule now has nothing to govern. Projects, Goals and Areas
+     * all moved their grids to `EntityCard`, and `CardCollection` is only ever
+     * constructed with `presentation="list"`, so `.dh-card-collection--grid`
+     * and `--board` have no consumer left and `/projects` carries no `.dh-card`
+     * at all.
+     *
+     * The in-flow card of the product is therefore `.dh-ecard`, and the contract
+     * it answers to is the card FAMILY's, stated in `card-family.css`: "the
+     * generated card surface, `corner-large`, one hairline, and elevation 1 …
+     * the hairline exists because the card sits only 2.5 tones above the page,
+     * and tone alone leaves the edge ambiguous at that distance." So all three
+     * treatments are still pinned; each is pinned to the value that file
+     * actually decides on, rather than to the one the retired grid rule did.
+     */
     await page.setViewportSize({ width: 1440, height: 900 });
     await gotoFixture(page, "/projects");
 
     const widgetStyle = await page
-      .locator(".dh-card")
+      .locator(".dh-ecard")
       .first()
       .evaluate((element) => {
         const style = getComputedStyle(element);
@@ -149,6 +168,7 @@ test.describe("visual system — surface hierarchy", () => {
         return {
           background: style.backgroundColor,
           borderStyle: style.borderTopStyle,
+          borderWidth: style.borderTopWidth,
           borderRadius: style.borderTopLeftRadius,
           boxShadow: style.boxShadow,
           card: root.getPropertyValue("--md-app-color-surface-card").trim(),
@@ -157,21 +177,12 @@ test.describe("visual system — surface hierarchy", () => {
         };
       });
 
-    /*
-     * ADR-074 replaced the bordered-card model this test used to pin. What
-     * separates a card from the page is now its own PLANE and its shape — not a
-     * hairline outline, and not a shadow either: `card.css` states outright that
-     * a grid or board card "takes the group's surface and hairline treatment …
-     * and still takes no shadow", and reserves elevation for surfaces that
-     * genuinely float (the palette, a drawer — asserted in the next test).
-     *
-     * So the shadow assertion is inverted rather than deleted, exactly as the
-     * border one already was, and for the same reason: the point of pinning it
-     * is that neither treatment can quietly come back.
-     */
-    expect(widgetStyle.borderStyle).toBe("none");
+    // One hairline, `corner-large`, and a real elevation-1 shadow — the three
+    // treatments the card family names, none of which may quietly disappear.
+    expect(widgetStyle.borderStyle).toBe("solid");
+    expect(parseFloat(widgetStyle.borderWidth)).toBeGreaterThan(0);
     expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(15);
-    expect(widgetStyle.boxShadow).toBe("none");
+    expect(widgetStyle.boxShadow).not.toBe("none");
 
     // The tokens resolve at all (a renamed token silently returns "").
     expect(widgetStyle.card).not.toBe("");

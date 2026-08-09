@@ -162,6 +162,35 @@ name** rather than by class ([AGENTS.md §23](../../AGENTS.md)); the tooltip cas
 the clearest — three tests had been hovering the wrong button and asserting the
 right tooltip name, and only failed once the cluster's order changed.
 
+A fifth, found while confirming the repairs: `visual-system.spec.ts` measured the
+card plane on `.dh-card` in the Projects grid. `CardCollection` is now only ever
+constructed with `presentation="list"`, and Projects, Goals and Areas all render
+`EntityCard` instead — so `.dh-card-collection--grid` and `--board` govern nothing,
+and `/projects` carries no `.dh-card` at all. The test now measures `.dh-ecard` and
+pins the treatment `card-family.css` actually decides on ("the generated card
+surface, `corner-large`, one hairline, and elevation 1") rather than the retired
+grid rule's. The orphaned CSS is [DEBT-113](PRODUCT_DEBT.md).
+
+### 3.8 The one shared switch cannot be driven by `check()`
+
+M3-INT's `Switch` is a real `<input type="checkbox" role="switch">` whose 44px
+pointer target is the `<label>` around the track; the input itself carries
+`pointer-events: none` so the target is the label and not the 32px graphic. That is
+correct, and it means Playwright's `check()`/`uncheck()` can never reach the input:
+the hit test resolves to the label, the call retries, and the test times out on a
+true statement about pointers. Two specs met it independently. `e2e/helpers.ts` now
+exports `setSwitch`, which drives the control the way its other real input method
+does — focus, Space — and reads the state back off the input.
+
+### 3.9 A fixture leak only a single-process run can see
+
+`mobile-capture-journeys.spec.ts` files real Diary entries **on today** and removed
+only the Tasks it created. `diary.spec.ts` opens the workspace anchored on today and
+asserts "Nothing recorded on this day"; its own cleanup reaches only titles prefixed
+`Diary e2e `. CI's 18-way shard split hides this completely — the two files land in
+different shards, each against a freshly seeded database — so it surfaces only in
+the single-process run this audit used. The describe now removes its own entries.
+
 ---
 
 ## 4. Stale tests: what the product deliberately changed

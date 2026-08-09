@@ -106,6 +106,34 @@ async function submitTaskCapture(
 }
 
 test.describe("MOBILE-01 Diary on a phone", () => {
+  /*
+   * These journeys file real Diary entries ON TODAY, and nothing used to remove
+   * them. `diary.spec.ts` opens the workspace anchored on today and asserts
+   * "Nothing recorded on this day"; its own cleanup only reaches titles prefixed
+   * "Diary e2e ", so every run of this file left that assertion a little more
+   * false. CI's 18-way shard split hid it (the two files land in different
+   * shards, each with a fresh database); a single-process run against a reused
+   * local database is where it surfaces.
+   *
+   * The title match deliberately omits this run's stamp, so the sweep also
+   * collects what earlier runs of this file left behind.
+   */
+  test.afterAll(() => {
+    const selection = `
+      SELECT id FROM entities
+      WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
+        AND type = 'diary'
+        AND title LIKE ${sqlLiteral("Phone diary entry%")}
+    `;
+    d1Execute([
+      `DELETE FROM activity_subjects WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+      `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+      `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
+      `DELETE FROM diary_entry_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+      `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${selection});`,
+    ]);
+  });
+
   /** The pane header's create action (the empty state offers its own copy). */
   const headerCreate = (page: Page) =>
     page.locator(".dh-pane-header").getByRole("button", {
@@ -245,6 +273,17 @@ test.describe("ADR-060 contextual capture on a phone", () => {
 
     await dialog.getByLabel(/Title/).fill(title);
     await dialog.getByRole("button", { name: "Add task" }).click();
+
+    /*
+     * Adding hands off to the new Task's own record, in the SAME shared Task
+     * Drawer the form was in — so the dialog never closes, it changes what it
+     * holds. Waiting for that hand-off is not politeness: Escape pressed during
+     * it lands between the two, the record drawer opens behind it, and the next
+     * assertion then measures a drawer nobody asked to keep open.
+     */
+    await expect(
+      page.getByRole("dialog", { name: "Task", exact: true }),
+    ).toBeVisible();
 
     // It landed in THIS project's list, under this project.
     await page.keyboard.press("Escape");

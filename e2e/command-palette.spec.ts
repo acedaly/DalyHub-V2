@@ -250,21 +250,39 @@ test.describe("DS-09 Command Palette — desktop", () => {
       .filter({ hasText: COMPLETE_TITLE });
     const toggle = row.getByRole("checkbox");
     await expect(toggle).not.toBeChecked();
+
+    /*
+     * Wait for the WRITE, not for the paint. The row flips optimistically the
+     * instant it is clicked, so reading the completion back from another route
+     * on the strength of that flip races the request that makes it true — a
+     * race a local run wins and a CI shard does not.
+     */
+    const written = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" && response.status() < 400,
+    );
     await toggle.check();
+    await written;
 
     /*
      * It PERSISTED, which is the whole claim — the row's checkbox IS the shared
      * `/tasks/:id` action the palette command and the Drawer post, not a local
      * paint.
      *
-     * Read back from the canonical Tasks surface rather than from Today. What a
-     * completed row does NEXT on Today is that screen's own presentation
-     * decision (it keeps its place, in the completed-today band), and pinning it
-     * here made this test fail on a timing difference between a local run and a
-     * CI shard while the completion itself was perfectly correct.
+     * Read back from the RECORD, on a fresh navigation. What a completed row
+     * does next on Today is that screen's own presentation decision, and which
+     * collection view lists it is that collection's — neither is this test's
+     * subject, and pinning either made it fail on a difference between a local
+     * run and a CI shard while the completion itself was perfectly correct. The
+     * record's own control is the one place the answer is unconditional.
      */
-    await gotoFixture(page, "/tasks?view=list&system=completed");
-    await expect(page.getByText(COMPLETE_TITLE).first()).toBeVisible();
+    await gotoFixture(page, "/today?drawer=task%3At-complete");
+    // The control is named for the STATE once it is finished ("Completed"), not
+    // for the action that would undo it, so the name and the checked state say
+    // the same thing and both are asserted.
+    await expect(
+      page.getByRole("dialog").getByRole("checkbox", { name: "Completed" }),
+    ).toBeChecked();
   });
 
   test("closes on Escape and restores focus to the trigger", async ({

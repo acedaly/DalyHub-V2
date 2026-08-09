@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  setSwitch,
 } from "./helpers";
 
 /**
@@ -69,10 +70,10 @@ async function setNotesModuleHidden(
   hidden: boolean,
 ): Promise<void> {
   await gotoFixture(page, "/settings?section=navigation");
-  // A `role="switch"`, not a checkbox — see `settings.spec.ts`.
-  const toggle = page.getByRole("switch", { name: "Notes" });
-  if (hidden) await toggle.uncheck();
-  else await toggle.check();
+  // A `role="switch"`, not a checkbox — see `settings.spec.ts`. `setSwitch`
+  // rather than `check`/`uncheck`: the input is `pointer-events: none` by
+  // design, so it is driven from the keyboard (see the helper).
+  await setSwitch(page.getByRole("switch", { name: "Notes" }), !hidden);
   /*
    * Wait on the EFFECT, not on the word "Saved": the section shows one status
    * per row, so a "Saved" left over from an earlier toggle would satisfy a text

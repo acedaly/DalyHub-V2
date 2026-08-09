@@ -127,6 +127,16 @@ test.afterEach(async ({ request }) => {
   }
 });
 
+/*
+ * The shared record Drawer is named for the TYPE it renders, not for the record
+ * — its heading is a plain "Task" and the title sits inside as the record's own
+ * editable heading. Naming it here keeps the three describes below from each
+ * inventing a different (and, for two of them, wrong) guess at that name.
+ */
+function taskDrawer(page: Page) {
+  return page.getByRole("dialog", { name: "Task", exact: true });
+}
+
 test.describe("EDIT-02 §3 — a selected value changes directly", () => {
   /** The seeded search fixture task: priority p1, due 2026-07-29. */
   const TASK_DRAWER = `/tasks?drawer=task:${SEEDED_TASK.id}`;
@@ -147,7 +157,7 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
    * not honour `inert`. The subject of these tests is the Drawer's own field, and
    * scoping is how the test says so.
    */
-  const drawerOf = (page: Page) => page.getByRole("dialog");
+  const drawerOf = taskDrawer;
 
   test("current → new in one action, with the current one announced", async ({
     page,
@@ -237,9 +247,7 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     await gotoFixture(page, `/tasks?drawer=task:${SEEDED_TASK.id}`);
     // Scoped to the RECORD Drawer — the Tasks rows behind it carry the same
     // shared inline date field since TASKS-05 (see §3's note).
-    const record = page.getByRole("dialog", {
-      name: new RegExp(SEEDED_TASK.title),
-    });
+    const record = taskDrawer(page);
     await expect(record).toBeVisible();
 
     const due = record.getByRole("button", { name: /^Due date: / });
@@ -282,9 +290,7 @@ test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () =>
     }) => {
       await page.setViewportSize({ width, height: 800 });
       await gotoFixture(page, `/tasks?drawer=task:${SEEDED_TASK.id}`);
-      const record = page.getByRole("dialog", {
-        name: new RegExp(SEEDED_TASK.title),
-      });
+      const record = taskDrawer(page);
       await expect(record).toBeVisible();
       await expectNoHorizontalOverflow(page);
 

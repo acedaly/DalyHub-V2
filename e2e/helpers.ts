@@ -410,3 +410,28 @@ export async function clickCardAction(
   await card.hover();
   await card.getByRole("button", { name }).click();
 }
+
+/**
+ * Set an M3-INT `Switch` (`~/shared/forms/Switch`) to `on`.
+ *
+ * `locator.check()` and `locator.uncheck()` cannot drive this control, and are
+ * right not to: the real `<input type="checkbox" role="switch">` is deliberately
+ * `pointer-events: none` (`switch.css`), because the 44px pointer target is the
+ * `<label>` around the track rather than the 32px graphic. A pointer therefore
+ * never reaches the input, Playwright's hit test says so, and it retries until
+ * the test times out — which is a true statement about the pointer, not a defect.
+ *
+ * So the switch is driven the way its OTHER real input method drives it: focus
+ * the control and press Space, which is exactly what the component's docstring
+ * promises the native element still gives away. State is read back from the
+ * input, which is where `:checked` actually lives.
+ *
+ * Already-in-the-wanted-state is a no-op, so a caller can assert an end state
+ * without first knowing the current one.
+ */
+export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
+  if ((await toggle.isChecked()) === on) return;
+  await toggle.focus();
+  await toggle.press(" ");
+  await expect(toggle).toBeChecked({ checked: on });
+}

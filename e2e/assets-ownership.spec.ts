@@ -438,14 +438,24 @@ test("completing the linked Task does not assert the work happened", async ({
   const taskLink = dueList.getByRole("link", { name: "Open task" });
   await expect(taskLink).toBeVisible();
 
-  // 2. Today shows the Task, NOT a duplicate obligation row — the dedup rule.
-  await gotoFixture(page, "/");
-  await expect(page.getByText("Nothing outstanding here")).toBeVisible();
+  /*
+   * 2. The dedup rule: ONE Task tracks this obligation, and the obligation stops
+   *    offering to create another.
+   *
+   *    This used to be read off Today, which said "1 asset obligation is already
+   *    tracked as a task in My day" beside an "Assets needing attention" list.
+   *    The Today redesign removed that list outright — Today now carries no
+   *    obligations at all, so there is nothing there left to duplicate and
+   *    nothing there left to assert. The gap is recorded as DEBT-111 rather than
+   *    rebuilt inside an E2E repair, and the rule itself is asserted where the
+   *    product still states it.
+   */
+  await expect(dueList.getByRole("link", { name: "Open task" })).toHaveCount(1);
   await expect(
-    page.getByText(
-      "1 asset obligation is already tracked as a task in My day.",
-    ),
-  ).toBeVisible();
+    dueList.getByRole("button", {
+      name: /^Create task for Book the annual service/,
+    }),
+  ).toHaveCount(0);
 
   // 3. Complete the Task.
   await page.goto(`${url}?tab=obligations`);

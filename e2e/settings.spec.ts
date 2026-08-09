@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   expectOnToday,
   gotoFixture,
+  setSwitch,
 } from "./helpers";
 import { d1Execute } from "./d1";
 
@@ -216,7 +217,9 @@ test.describe("SETTINGS-01A — application settings", () => {
      */
     const helpToggle = page.getByRole("switch", { name: "Help" });
     await expect(helpToggle).toBeChecked();
-    await helpToggle.uncheck();
+    // `setSwitch`, not `uncheck`: the input is `pointer-events: none` by design
+    // — the helper explains why, and why the keyboard is the honest way in.
+    await setSwitch(helpToggle, false);
     await expect(page.getByText("Saved").first()).toBeVisible();
     await page.reload();
     await expect(page.getByRole("switch", { name: "Help" })).not.toBeChecked();

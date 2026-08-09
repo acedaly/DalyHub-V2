@@ -29,7 +29,10 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { d1Execute, sqlLiteral } from "./d1";
+
 const PROD_BASE = "http://localhost:4174";
+const WORKSPACE_ID = "local-dev-workspace";
 
 /* -------------------------------------------------------------------------- */
 /* Deterministic waits over real browser state                                */
@@ -333,6 +336,56 @@ test.describe("PWA build artefacts", () => {
 test.describe("offline lifecycle", () => {
   test.beforeEach(async ({ context }) => {
     await context.setOffline(false);
+  });
+
+  /*
+   * The sync journey below queues a Task, a Note and a Diary entry and then
+   * proves the server accepted each — which means each is a REAL record, on
+   * today, that nothing used to remove. The Diary one is the expensive leak:
+   * `diary.spec.ts` opens the workspace anchored on today and asserts "Nothing
+   * recorded on this day", and its own cleanup reaches only titles prefixed
+   * "Diary e2e ". CI's shard split hides this (a fresh database per shard);
+   * a single-process run against a reused local database is where it shows.
+   *
+   * The match omits any run stamp, so the sweep also collects what earlier runs
+   * left behind.
+   */
+  test.afterAll(() => {
+    for (const [type, prefix] of [
+      ["task", "E2E offline task%"],
+      ["note", "E2E offline note%"],
+      ["diary", "E2E offline diary%"],
+    ] as const) {
+      const selection = `
+        SELECT id FROM entities
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
+          AND type = ${sqlLiteral(type)}
+          AND title LIKE ${sqlLiteral(prefix)}
+      `;
+      d1Execute([
+        `DELETE FROM activity_subjects WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+        `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+        `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
+        ...(type === "task"
+          ? [
+              `DELETE FROM task_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+              // Before the entity: `spine_records_entity_fk` is ON DELETE RESTRICT.
+              `DELETE FROM spine_records WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+            ]
+          : []),
+        ...(type === "note"
+          ? [
+              `DELETE FROM note_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+            ]
+          : []),
+        ...(type === "diary"
+          ? [
+              `DELETE FROM diary_entry_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${selection});`,
+            ]
+          : []),
+        `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${selection});`,
+      ]);
+    }
   });
 
   test("primes the worker and the offline database from an online session", async ({
