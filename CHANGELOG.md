@@ -74,6 +74,50 @@ mixed back toward the card — a palette instead of a rainbow.
 
 The bottom navigation is 60px instead of 80, with smaller glyphs, smaller labels and
 a compact selected state. Every destination is still the full height of the bar to tap.
+## The Tasks list stops making you wait (TASKS-09)
+
+Ticking a task off used to take four round trips to the server before anything on
+screen moved. Everything worked; it just never felt like it. That is fixed.
+
+### Changes show up when you make them
+
+Tick a task and it strikes through immediately. Set a priority, a date or a Project
+and the row updates as you choose it. DalyHub still sends every change to the same
+place it always did, and the server is still the only thing that decides whether a
+change is allowed — it just no longer makes you watch the round trip.
+
+If a change is refused, the row goes straight back to exactly how it was, and DalyHub
+tells you why in the server's own words. Nothing is ever left looking saved when it
+was not.
+
+### Completing a task now offers Undo
+
+Completing or reopening a task raises a short confirmation with an **Undo** button.
+It appears once DalyHub knows the change actually happened — never before — and it
+carries the same detail the list always announced, including what a repeating task's
+next occurrence did.
+
+### You can work faster than one task at a time
+
+The list used to disable its buttons while any change was in flight, so completing
+five tasks meant five pauses. Each change is now its own request; complete as fast as
+you like.
+
+### "Load more" keeps your place
+
+If you had loaded three pages of tasks and then changed anything at all, the list
+quietly collapsed back to the first fifty rows. It no longer does. Loaded pages stay
+loaded, and a task the server has just re-sorted moves to its new position rather
+than appearing twice.
+
+### And it re-reads the list only when it has to
+
+Changing a priority on an unfiltered list does not need DalyHub to go and ask the
+server what the list contains — it already knows. Completing a task in a view that
+hides completed work does, and it still does. The rule is deliberately cautious: when
+DalyHub cannot be sure a change left the row where it was, it checks.
+
+---
 
 ## Goals you can actually measure (GOAL-02)
 

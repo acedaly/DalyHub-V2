@@ -191,6 +191,37 @@ filter change; Today's completion and planning are optimistic with reconciliatio
 the shared forms declare their save mode. **No new findings.** Removing the dead
 Today fixture payload (F-05) is the one real payload reduction available.
 
+> **Correction — 2026-08-09 (TASKS-09).** *"No new findings"* was wrong, and the
+> original text above is left standing so the error is visible rather than tidied
+> away. It was true of **Today**, which the phase checked, and it was not true of
+> **Tasks**, which it generalised from Today without opening.
+>
+> At the audited commit `dab275c`, `/tasks` had **no optimistic path at all**, and
+> said so in its own comments: *"the loader is revalidated after each change so a row
+> reflects the server rather than an optimistic guess."* Every row mutation therefore
+> cost a POST, then an unconditional `revalidator.revalidate()` that re-ran the
+> app-shell loader and the tasks loader — four sequential hops and roughly a dozen
+> statements before a checkbox moved, against this document's own **&lt;100 ms**
+> interaction budget. The same rule disabled the quick-add input while a create was in
+> flight, and the record drawer fetched on open rather than seeding from the row
+> already in memory.
+>
+> The audit's method is where the miss came from, and it is the reusable lesson: a
+> speed phase that samples one module and reports the finding for the product will
+> keep missing the module that decided differently — and `/tasks` had decided
+> differently **on purpose**, which is exactly the kind of divergence an audit exists
+> to notice. The correct finding, had it been written, would have been a **P2**:
+> *the primary task surface has no optimistic path and pays a full revalidation for
+> every row change.*
+>
+> **Resolved 2026-08-09** by
+> [TASKS-09](../roadmap/ROADMAP_V2_2.md) /
+> [ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement),
+> which gave the list an optimistic presentation with server-authoritative
+> reconciliation and announcement, replaced the blanket revalidation with a tested
+> predicate, and fixed the pagination reset that was collapsing loaded pages on every
+> mutation.
+
 ---
 
 ## Phase 6 — Empty states

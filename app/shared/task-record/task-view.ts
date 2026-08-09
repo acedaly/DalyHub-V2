@@ -134,6 +134,36 @@ export interface SerializedTaskListItem {
   readonly waiting: SerializedTaskWaiting | null;
 }
 
+/**
+ * TASKS-09 — the fields of a list item a SURFACE may change in place, as a patch.
+ *
+ * It exists so an optimistic presentation can be expressed as data rather than as a
+ * second copy of the item: a row that has just been completed is
+ * `{ completedAt: "…" }` applied over the loader's record, and every derived display
+ * value (the state pill, the urgency chip, the strike-through) is re-derived from the
+ * result by the SAME pure functions that read the server's own answer. Nothing here is
+ * an authority — the patch describes what the server was ASKED to do, and it is
+ * discarded the moment the server's answer arrives.
+ *
+ * Deliberately narrow: only fields a row can edit, never `id`, `createdAt`,
+ * `updatedAt`, `recurrence` or `delegation`. A change the row cannot make is a change
+ * the row must not pretend to.
+ */
+export type TaskListItemPatch = Partial<
+  Pick<
+    SerializedTaskListItem,
+    | "title"
+    | "completedAt"
+    | "status"
+    | "priority"
+    | "dueDate"
+    | "scheduledDate"
+    | "timeSector"
+    | "commitmentState"
+    | "parent"
+  >
+>;
+
 /** Serialise a `TaskListItem` for a JSON loader response. */
 export function serializeTaskListItem(
   item: TaskListItem,

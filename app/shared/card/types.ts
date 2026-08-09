@@ -207,6 +207,16 @@ export interface CardProps {
    * caller owns the editing state; the Card just yields the slot.
    */
   readonly titleEditor?: ReactNode;
+  /**
+   * TASKS-09 — the record this card shows is DONE.
+   *
+   * It draws the same treatment `RecordRow` has always drawn for a finished item: a
+   * struck-through, quieter title. It is deliberately not colour alone and not
+   * decoration alone — and it is never the only statement of the fact, because a
+   * consumer that sets it also states completion in words (a status pill, an action
+   * that now reads "Reopen"). Opt-in, so no existing consumer changes.
+   */
+  readonly completed?: boolean;
   readonly status?: CardStatus;
   readonly metadata?: readonly CardMetaItem[];
   readonly progress?: CardProgress;
