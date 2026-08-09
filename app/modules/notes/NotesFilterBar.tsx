@@ -171,41 +171,6 @@ export function NotesFilterBar({
         </p>
 
         <Select
-          id="notes-filter-tag"
-          name="tag"
-          label="Tag"
-          value={filters.tag}
-          placeholder="Any tag"
-          options={tags}
-        />
-        <Select
-          id="notes-filter-project"
-          name="project"
-          label="Project"
-          value={filters.project}
-          placeholder="Any project"
-          options={projects}
-        />
-        <Select
-          id="notes-filter-area"
-          name="area"
-          label="Area"
-          value={filters.area}
-          placeholder="Any area"
-          options={areas}
-        />
-        <Select
-          id="notes-filter-links"
-          name="links"
-          label="Links"
-          value={filters.links === "all" ? "" : filters.links}
-          placeholder="Any"
-          options={[
-            { value: "linked", label: "Linked to something" },
-            { value: "unlinked", label: "Unlinked" },
-          ]}
-        />
-        <Select
           id="notes-filter-sort"
           name="sort"
           label="Sort"
@@ -213,6 +178,75 @@ export function NotesFilterBar({
           placeholder="Newest first"
           options={[{ value: "recent", label: "Recently updated" }]}
         />
+
+        {/*
+         * M3X-02 — the four NARROWING dimensions move behind a disclosure.
+         *
+         * Search and Sort are what a Notes directory is used with every time;
+         * Tag, Project, Area and link state are what it is used with
+         * occasionally. Six native selects in one band spent ~150px of the
+         * widest module in the product on controls that are usually all set to
+         * "Any" (audit H8), and on a phone it collapsed into a full viewport of
+         * chrome before the first note (M4).
+         *
+         * A native `<details>`, INSIDE the same form. That matters:
+         *   - a control inside a closed `<details>` is still submitted, so
+         *     "Apply" behaves identically and the no-JS path is untouched;
+         *   - it is keyboard-complete and screen-reader-announced with no ARIA
+         *     and no JavaScript, which is why it is not a bespoke popover;
+         *   - `open` is driven by the APPLIED filters, so a narrowed result set
+         *     never hides the reason it is narrowed.
+         */}
+        <details
+          className="dh-notes-filters__more"
+          open={
+            filters.tag !== "" ||
+            filters.project !== "" ||
+            filters.area !== "" ||
+            filters.links !== "all"
+          }
+        >
+          <summary className="dh-notes-filters__more-summary">
+            More filters
+          </summary>
+          <div className="dh-notes-filters__more-fields">
+            <Select
+              id="notes-filter-tag"
+              name="tag"
+              label="Tag"
+              value={filters.tag}
+              placeholder="Any tag"
+              options={tags}
+            />
+            <Select
+              id="notes-filter-project"
+              name="project"
+              label="Project"
+              value={filters.project}
+              placeholder="Any project"
+              options={projects}
+            />
+            <Select
+              id="notes-filter-area"
+              name="area"
+              label="Area"
+              value={filters.area}
+              placeholder="Any area"
+              options={areas}
+            />
+            <Select
+              id="notes-filter-links"
+              name="links"
+              label="Links"
+              value={filters.links === "all" ? "" : filters.links}
+              placeholder="Any"
+              options={[
+                { value: "linked", label: "Linked to something" },
+                { value: "unlinked", label: "Unlinked" },
+              ]}
+            />
+          </div>
+        </details>
 
         <p className="dh-notes-filters__actions">
           <button type="submit" className="dh-btn dh-btn--secondary">

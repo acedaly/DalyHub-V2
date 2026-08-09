@@ -367,11 +367,31 @@ const APP_SURFACE_TONES = {
  * what makes ONE authored surface correct in both appearances.
  *
  *   expressive  the page's one branded surface (`surface-expressive`)
+ *   supporting  a Level 2 supporting expressive surface (`surface-supporting`)
+ *   selected    the navigation drawer's selected destination
  *   state       a record-state tint — overdue work, a flagged run
+ *
+ * M3X-02 added `supporting`, and it is a GENERATED pair rather than a fraction
+ * of `expressive` for the same reason the other two are pairs. The intuition
+ * that a supporting surface should simply take half the hero's tint is a light
+ * -appearance intuition that does not survive contact with either appearance:
+ * in LIGHT the page canvas is already a very pale lilac (`#f7f6fa`), so half a
+ * pale container over a white card lands *between* the page and the card and
+ * loses its boundary entirely — the surface stops reading as a surface. In DARK
+ * the container is a saturated tone-30, and the level separation arrives long
+ * before the hero's own strength does. So light sits just under the hero (the
+ * level difference is carried by the wash, the elevation, the shape, the padding
+ * and the text colour, all of which the hero has and this does not) and dark
+ * sits well under it (where tone alone is enough).
  */
 const APP_TINT_STRENGTHS = {
-  light: { expressive: "55%", state: "45%" },
-  dark: { expressive: "28%", state: "30%" },
+  light: {
+    expressive: "55%",
+    supporting: "48%",
+    selected: "62%",
+    state: "45%",
+  },
+  dark: { expressive: "28%", supporting: "18%", selected: "42%", state: "30%" },
 };
 
 /* -------------------------------------------------------------------------- */

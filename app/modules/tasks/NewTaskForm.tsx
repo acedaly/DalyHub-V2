@@ -79,15 +79,29 @@ const FIELD_LABELS: Record<string, string> = {
   scheduledDate: "Scheduled date",
 };
 
-const PRIORITY_OPTIONS: readonly SelectOption[] = [
-  { value: "", label: "No priority" },
-  ...TASK_PRIORITIES.map((p) => ({ value: p, label: taskPriorityLabel(p) })),
-];
+/*
+ * DS-06 / DH-DS — the REAL values only. An unset optional field is EMPTY.
+ *
+ * These carried a first option labelled `No priority` / `No sector` with an
+ * empty value, and it did the two things EDIT-02 already removed from the
+ * inline selects for exactly the same reasons: it reads as a SELECTED DEFAULT
+ * (a task nobody has triaged is not "set to No priority" — the field has simply
+ * not been filled in), and it takes the first slot in the list, which is where
+ * both the eye and the keyboard start.
+ *
+ * The unset state is now the field's PLACEHOLDER, and clearing a value it does
+ * have is the combobox's own clear control — so an optional field lost nothing
+ * but the pretence that emptiness was a choice.
+ */
+const PRIORITY_OPTIONS: readonly SelectOption[] = TASK_PRIORITIES.map((p) => ({
+  value: p,
+  label: taskPriorityLabel(p),
+}));
 
-const SECTOR_OPTIONS: readonly SelectOption[] = [
-  { value: "", label: "No sector" },
-  ...TIME_SECTORS.map((s) => ({ value: s, label: timeSectorLabel(s) })),
-];
+const SECTOR_OPTIONS: readonly SelectOption[] = TIME_SECTORS.map((s) => ({
+  value: s,
+  label: timeSectorLabel(s),
+}));
 
 const COMMITMENT_OPTIONS: readonly SelectOption[] = COMMITMENT_STATES.map(
   (c) => ({ value: c, label: c === "someday" ? "Someday / Maybe" : "Active" }),
@@ -394,6 +408,7 @@ export function NewTaskForm({
       <SelectField
         label="Priority"
         help="Optional."
+        placeholder="No priority"
         options={PRIORITY_OPTIONS}
         {...form.field("priority")}
       />
@@ -403,6 +418,7 @@ export function NewTaskForm({
         <summary>More details</summary>
         <SelectField
           label="Time sector"
+          placeholder="No sector"
           options={SECTOR_OPTIONS}
           {...form.field("timeSector")}
         />

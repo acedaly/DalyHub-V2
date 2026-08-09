@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { gotoFixture } from "./helpers";
+
 /**
  * IDENT-01 — authenticated activity names the real user, end to end.
  *
@@ -47,10 +49,17 @@ test.describe("IDENT-01 — the activity feed names the person who acted", () =>
     // Fixture setup, not a UI assertion: the Notes header's duplicate "New Note"
     // button was removed by the shell cleanup, so this opens the SAME (untouched,
     // URL-backed) create drawer by its canonical URL.
-    await page.goto("/notes?drawer=new-note");
+    // `gotoFixture`, not a bare `goto`: the create Drawer is SERVER-rendered, so
+    // it is visible — and fillable — before React attaches. Typing into it in
+    // that window is silently discarded when hydration restores the field's
+    // server value, and the click that follows then fails validation on an empty
+    // title. Settling the document first removes the race.
+    await gotoFixture(page, "/notes?drawer=new-note");
     const dialog = page.getByRole("dialog", { name: "New Note" });
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel(/Title/).fill(`Identity check ${Date.now()}`);
+    const title = dialog.getByLabel(/Title/);
+    await title.fill(`Identity check ${Date.now()}`);
+    await expect(title).not.toHaveValue("");
     await dialog.getByRole("button", { name: "Create note" }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
 

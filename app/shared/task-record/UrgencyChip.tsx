@@ -26,6 +26,21 @@ export type UrgencyChipProps = {
   readonly todayIso?: string;
   /** A pre-evaluated urgency fact from a trusted projection, used by Search. */
   readonly urgency?: TaskUrgency;
+  /**
+   * M3X-02 — the STATE word alone, without the date the state is about.
+   *
+   * For a surface that already shows the date beside the chip. The Tasks row is
+   * exactly that surface: it carries an inline due-date field, so the full
+   * "Overdue · due 25 Jul 2026" printed the date twice, six pixels apart, at the
+   * loudest weight on the row — which is the audit's H4 finding ("eight elements
+   * at near-equal weight") in its most literal form.
+   *
+   * Only the `overdue` label carries a date among the kinds a row draws; the
+   * others are already state words, so this is a no-op for them. The chip's
+   * meaning is unchanged in every case, because the WORD was always what carried
+   * it (AGENTS.md §15).
+   */
+  readonly compact?: boolean;
   readonly className?: string;
   readonly "data-testid"?: string;
 };
@@ -94,6 +109,7 @@ export function UrgencyChip({
   task,
   todayIso,
   urgency,
+  compact = false,
   className,
   "data-testid": testId,
 }: UrgencyChipProps) {
@@ -107,6 +123,10 @@ export function UrgencyChip({
   }
   const scheduled =
     evaluated.kind === "scheduled" || evaluated.kind === "scheduled_today";
+  // The label up to its separator — "Overdue · due 25 Jul 2026" → "Overdue".
+  const label = compact
+    ? (evaluated.label.split(" · ")[0] ?? evaluated.label)
+    : evaluated.label;
   return (
     <span
       className={["dh-urgency", className].filter(Boolean).join(" ")}
@@ -115,7 +135,7 @@ export function UrgencyChip({
       data-testid={testId}
     >
       <UrgencyGlyph scheduled={scheduled} />
-      <span className="dh-urgency__label">{evaluated.label}</span>
+      <span className="dh-urgency__label">{label}</span>
     </span>
   );
 }

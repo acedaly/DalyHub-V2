@@ -101,6 +101,59 @@ nothing was inferred from what you had written.
 
 ---
 
+---
+
+## Expressive composition, and a phone layout of its own (M3X-02)
+
+The second Material 3 Expressive pass. The first one gave DalyHub its violet
+identity and gave every page one strong surface; this one is about everything
+_underneath_ that surface — and about the phone.
+
+### Today answers "what next?"
+
+Beside the day's summary there is now **Next up**: the meeting that has not
+started yet, or — when the day holds none — the next task due, or the oldest
+thing that has slipped. Under it, **Current focus** is the project you were last
+actually working in, with its own icon, its status and how far along it is.
+
+The summary itself moved into the day's own column, so the screen is three
+regions of different sizes rather than a banner over two matching boxes. On a
+phone the order is what a phone glance wants: how much is on, what is next, then
+the day.
+
+### Tasks are easier to scan
+
+A task row now has three weights instead of one. The title leads; the priority
+and the urgency sit beside it; the planned date, the time sector and a delegate
+step back. **Overdue** says _Overdue_ rather than repeating the due date printed
+next to it, and a task with no time sector no longer says "Sector: No sector".
+
+Nothing was hidden and nothing stopped being editable from the row.
+
+### Projects, Areas and Goals you can tell apart
+
+Their icons are bigger on a gallery card, progress is thicker and its percentage
+much larger, and three lines of metadata that did not help you choose anything —
+open/done counts, "No tasks yet", "Updated …" — are gone.
+
+**Goals now show a real measure**: how many of the Projects advancing a Goal are
+complete. That number was always there; it had just never been drawn. Open Goals
+have also stopped wearing a chip saying they are open.
+
+### Notes use the screen
+
+The directory is a gallery of note cards rather than one narrow column, so an
+excerpt is long enough to be worth reading. Search and Sort stay in view; Tag,
+Project, Area and link state moved behind **More filters**, which opens itself
+whenever one of them is set.
+
+### On an iPhone
+
+Projects, Areas and Goals are compact rows on a phone rather than the desktop
+card stacked — roughly twice as many records to a screen. A task row that used to
+run to six lines now runs to two. Both appearances were designed and reviewed,
+not recoloured.
+
 ## Tasks, as a daily driver (V2.2 — TASKS-05 · TASKS-06 · TASKS-07 · TASKS-08)
 
 The programme that makes Tasks the fastest thing in DalyHub. The whole point is one

@@ -238,6 +238,68 @@
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
+/*
+ * M3X-02 — the "More filters" disclosure.
+ *
+ * The summary is a CONTROL, so it takes the control shape and the touch floor;
+ * the fields it holds take the whole line beneath, because they are only ever
+ * seen deliberately and have no reason to compete for the band's width.
+ */
+.dh-notes-filters__more {
+  flex: 0 0 auto;
+  min-inline-size: 0;
+}
+
+.dh-notes-filters__more-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border-radius: var(--app-shape-control);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  cursor: pointer;
+  list-style: none;
+}
+
+.dh-notes-filters__more-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A disclosure needs a visible affordance that is not the word alone. */
+.dh-notes-filters__more-summary::after {
+  content: "";
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-inline-end: var(--app-border-width-thick) solid currentColor;
+  border-block-end: var(--app-border-width-thick) solid currentColor;
+  rotate: 45deg;
+  translate: 0 -0.125rem;
+  transition: rotate var(--md-sys-motion-duration-short3)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-notes-filters__more[open] .dh-notes-filters__more-summary::after {
+  rotate: -135deg;
+  translate: 0 0.125rem;
+}
+
+.dh-notes-filters__more-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--app-space-3);
+  padding-block-start: var(--app-space-3);
+}
+
+/* Once open, the disclosure needs the whole row — the four selects beside a
+ * search box would put them back in the band this took them out of. */
+.dh-notes-filters__more[open] {
+  flex: 1 0 100%;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Project Knowledge tab                                                      */
 /* -------------------------------------------------------------------------- */

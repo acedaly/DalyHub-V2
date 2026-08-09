@@ -106,8 +106,16 @@ describe("Projects collection", () => {
 
     expect(screen.getByText("DalyHub V2")).toBeInTheDocument();
     expect(screen.getAllByText("Career").length).toBeGreaterThan(0);
-    // The empty project shows "No tasks yet" rather than a 0% bar.
-    expect(screen.getByText("No tasks yet")).toBeInTheDocument();
+    /*
+     * M3X-02 — a Project with no tasks draws NO progress and says nothing about
+     * it. The "No tasks yet" line was the absence rule in miniature: a slot on
+     * every card of a freshly-created workspace, spent reporting that a
+     * dimension has not been used yet. The honest expression of "nothing to
+     * measure" is a shorter card.
+     */
+    expect(screen.queryByText("No tasks yet")).not.toBeInTheDocument();
+    const empty = screen.getByRole("article", { name: "Half-marathon plan" });
+    expect(within(empty).queryByRole("progressbar")).not.toBeInTheDocument();
     // The subtitle reflects the count.
     expect(screen.getByText("2 projects")).toBeInTheDocument();
     // The state segment and the New Project affordance are present.
@@ -298,12 +306,15 @@ describe("Projects collection", () => {
       "25% — 1 of 4 tasks complete",
     );
     expect(within(card).getByText("25%")).toBeInTheDocument();
-    // DS-16 — the run-on "1 of 4 tasks complete" sentence became a compact fact
-    // group. The complete phrasing survives where it is genuinely needed: on the
-    // progress bar's `aria-valuetext`, which is what assistive tech reads.
-    expect(within(card).getByText("3")).toBeInTheDocument();
-    expect(within(card).getByText("open tasks")).toBeInTheDocument();
-    expect(within(card).getByText("done")).toBeInTheDocument();
+    /*
+     * M3X-02 — the open/done fact pair is GONE from the card, and the bar is the
+     * whole story. Two counts the reader has to subtract said the same thing the
+     * proportion above them already says, at the same weight, on every card in
+     * the gallery. The complete phrasing survives where it is genuinely needed:
+     * on the progress bar's `aria-valuetext`, which is what assistive tech reads.
+     */
+    expect(within(card).queryByText("open tasks")).not.toBeInTheDocument();
+    expect(within(card).queryByText("done")).not.toBeInTheDocument();
     expect(within(card).getByRole("progressbar")).toHaveAttribute(
       "aria-valuetext",
       "25% — 1 of 4 tasks complete",
@@ -327,7 +338,8 @@ describe("Projects collection", () => {
     });
     const card = screen.getByRole("article", { name: "Nothing planned" });
     expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(within(card).getByText("No tasks yet")).toBeInTheDocument();
+    // …and it does not say so either: no bar, and no line reporting the absence.
+    expect(within(card).queryByText("No tasks yet")).not.toBeInTheDocument();
   });
 
   it("shows a fully completed roll-up accurately", () => {
@@ -353,11 +365,9 @@ describe("Projects collection", () => {
       "aria-valuenow",
       "100",
     );
-    // Nothing outstanding: the "open tasks" fact is OMITTED rather than
-    // rendered as "0 open tasks", and the completed count carries the story.
+    // The proportion carries the story on its own — 100% and a full bar.
+    expect(within(card).getByText("100%")).toBeInTheDocument();
     expect(within(card).queryByText("open tasks")).not.toBeInTheDocument();
-    expect(within(card).getByText("6")).toBeInTheDocument();
-    expect(within(card).getByText("done")).toBeInTheDocument();
     expect(within(card).getByRole("progressbar")).toHaveAttribute(
       "aria-valuetext",
       "100% — 6 of 6 tasks complete",
@@ -842,7 +852,8 @@ describe("Projects gallery grid (DS-16)", () => {
     expect(
       within(card).queryByTestId("entity-card-fact"),
     ).not.toBeInTheDocument();
-    expect(within(card).getByText("No tasks yet")).toBeInTheDocument();
+    // M3X-02 — and no line reporting what it does not have.
+    expect(within(card).queryByText("No tasks yet")).not.toBeInTheDocument();
     // And it is still a complete, navigable card.
     expect(
       within(card).getByRole("link", { name: "Open Just started" }),

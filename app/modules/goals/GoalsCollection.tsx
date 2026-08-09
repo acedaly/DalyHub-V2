@@ -56,13 +56,35 @@ import {
   type GoalProgressEvaluation,
 } from "~/shared/goal-progress";
 
-import { goalStateLabel } from "./goal-view";
-import type { SerializedGoalListItem } from "./goal-view";
+import { goalContributionProgress, isGoalComplete } from "./goal-view";
+import type {
+  SerializedGoalListItem,
+  SerializedGoalProjectContribution,
+} from "./goal-view";
 import type { GoalMutationResult } from "./routes/mutate";
 
 export type SerializedGoalWithAlignment = SerializedGoalListItem & {
   readonly alignment: GoalAlignment;
-  /** GOAL-02 — the derived measurable progress, or the unmeasured evaluation. */
+  /**
+   * M3X-02 — how many of the Projects advancing this Goal are complete.
+   *
+   * The Goal's measure when it has no measurement of its own, which was every
+   * Goal until GOAL-02 and is still every Goal that has not opted in. The
+   * collection loader has ALWAYS read it (it is an input to the alignment
+   * evaluation); until M3X-02 it was computed, used once, and thrown away before
+   * the card that most needed it.
+   */
+  readonly contribution: SerializedGoalProjectContribution;
+  /**
+   * GOAL-02 — the Goal's OWN measure, when it has one.
+   *
+   * M3X-02 reasoned that "a DalyHub Goal carries no numeric target and no unit,
+   * so the mockups' weight readings have nothing behind them". That was true of
+   * the product it was written against. A Goal can now carry a baseline, a
+   * target and a unit, so when it does, this is the better answer to the same
+   * question and the card leads with it. When it does not, `measured` is false
+   * and the card is exactly the M3X-02 card, unchanged.
+   */
   readonly progress: GoalProgressEvaluation;
 };
 
@@ -239,54 +261,66 @@ function useRestoreGoal() {
  * colour rank, so the neutral entity container applies rather than a colour that
  * would mean nothing; that is the same rule a Project with no Area follows.
  *
- * Alignment is the one derived signal on the card, and it is the EXISTING
- * `AlignmentIndicator` (ADR-040) — no new health score, no fabricated momentum.
+ * ── M3X-02: what this card is FOR ────────────────────────────────────────────
+ *
+ * The audit's H7 finding was that a Goal card was "a title, a chip and a
+ * sentence explaining what is ABSENT", and PR #144 answered it with a summary
+ * above the grid rather than in the grid. Three things changed here:
+ *
+ *   1. **The measure leads.** It is now the strongest element after the title,
+ *      through the same shared progress the Project card uses. It is DERIVED,
+ *      never stored, and it never implies the Goal itself is complete: that
+ *      stays `completedAt`.
+ *      - **GOAL-02 changed WHICH measure.** A Goal that states how it is
+ *        measured leads with its own reading — `79 kg`, `79 kg → 70 kg`, the
+ *        percentage of the distance covered — because that is what the owner set
+ *        out to move. A Goal with no measurement keeps Project contribution,
+ *        which is exactly the card M3X-02 built. Neither is ever a 0% bar for a
+ *        journey that has not started: an unmeasured Goal with no contributing
+ *        Projects still gets alignment's sentence and no bar at all.
+ *   2. **The "Open" chip is gone.** Every open Goal in the collection carried an
+ *      identical grey pill saying it was open, in the card's most valuable
+ *      corner, next to a heading that could not have meant anything else. Only
+ *      completion — the state that is genuinely news — takes a chip now.
+ *   3. **Alignment states its REASON only when the reason is the whole story.**
+ *      With a bar on the card, "Projects exist, but no recent Task activity was
+ *      found" is a second sentence about the same subject; without one, it is
+ *      the only thing that explains why there is nothing to measure.
+ *
+ * "Updated 19 Jul 2026" went for the reason it went from Projects and Areas: a
+ * fact about the row rather than about the Goal, drawn identically on every card.
  */
 function GoalEntityCard({
   goal,
 }: {
   readonly goal: SerializedGoalWithAlignment;
 }) {
-  // The label stays the SHARED one, so the word cannot drift from the Goal
-  // record's own chip. Only the tone is narrowed here: `goalStateLabel` speaks
-  // the Card family's wider `CardTone`, and the pill's vocabulary is a subset —
-  // narrowing at the boundary is honest, casting would hide a future mismatch.
-  const state = goalStateLabel(goal);
-  const tone = state.tone === "success" ? "success" : "neutral";
-  const updated = formatCalendarDate(goal.updatedAt.slice(0, 10));
+  const complete = isGoalComplete(goal);
+  // The SHARED derivations, so the card, the record and the Area tab can never
+  // disagree — about how far a Goal's Projects have got, or about where its own
+  // measurement stands.
+  const contribution = goalContributionProgress(goal.contribution);
   const { progress } = goal;
-  const measured = progress.measured;
+  const measured = progress.measured && progress.progressPercent !== null;
 
-  /*
-   * GOAL-02 — a measurable Goal's card leads with its NUMBER.
-   *
-   * The `EntityCard`'s existing `metric` and `progress` slots carry it, so this
-   * is the same card Areas and Projects use with data in two more of its
-   * openings — not a taller, Goal-specific tile. Nothing is added for an
-   * unmeasured Goal: it keeps exactly the card it had, because a Goal DalyHub
-   * has not been told how to measure is not a Goal that is 0% done.
-   *
-   * `target` is the card's ONE derived sentence, and it is deliberately short:
-   * a card answers "is this moving?", the record answers "how".
-   */
-  const targetLine = goalCurrentAgainstTarget(progress);
-  const overall = formatMeasurementChange(progress.totalChange, progress.unit);
+  // A measured Goal's own reading replaces the contribution bar rather than
+  // joining it: two bars on one card would be two answers to "how far along?".
   const remaining =
     !progress.achieved && progress.remaining !== null && progress.remaining > 0
       ? `${formatMeasurementValue(progress.remaining, progress.unit)} remaining`
       : null;
-  const targetDate = progress.targetDate
-    ? formatCalendarDate(progress.targetDate)
-    : null;
+  const overall = formatMeasurementChange(progress.totalChange, progress.unit);
 
   return (
     <EntityCard
       data-testid="goal-card"
-      icon={<AccentIcon entityType="goal" iconKey={null} />}
+      icon={<AccentIcon entityType="goal" iconKey={null} size="lg" />}
       title={goal.title}
       headingLevel={2}
       subtitle={goal.area.title}
-      status={<StatusPill tone={tone}>{state.label}</StatusPill>}
+      status={
+        complete ? <StatusPill tone="success">Completed</StatusPill> : undefined
+      }
       metric={
         measured && progress.current !== null
           ? {
@@ -294,47 +328,52 @@ function GoalEntityCard({
                 progress.type === "milestone"
                   ? `${progress.current}/${progress.target ?? 0}`
                   : formatMeasurementValue(progress.current, progress.unit),
-              label: targetLine ?? "current",
+              label: goalCurrentAgainstTarget(progress) ?? "current",
             }
           : undefined
       }
       progress={
-        measured && progress.progressPercent !== null
+        measured
           ? {
-              value: progress.progressPercent,
+              value: progress.progressPercent!,
               max: 100,
               label: `${progress.progressPercent}%`,
-              // The announced value is the SAME sentence the shared view model
-              // gives the record, so the bar shows a percentage and a screen
-              // reader hears the whole fact — one wording, two densities.
+              // The announced value is the SAME sentence the record's own bar
+              // announces, so one Goal has one wording everywhere.
               valueText: goalProgressSummaryText(progress),
             }
-          : undefined
+          : contribution.has
+            ? {
+                value: contribution.completed,
+                max: contribution.total,
+                label: `${contribution.percent}%`,
+                valueText: `${contribution.percent}% — ${contribution.summary}`,
+              }
+            : undefined
       }
       meta={
         <>
+          {/* A measured Goal states its status in WORDS — the one derived signal
+              the bar cannot carry. */}
           {measured ? (
-            <span className="dh-ecard__fact">
-              <StatusPill tone={goalProgressStatusTone(progress.status)}>
-                {goalProgressStatusLabel(progress.status)}
-              </StatusPill>
-            </span>
-          ) : (
-            <AlignmentIndicator alignment={goal.alignment} showReason />
-          )}
-          {remaining ? (
-            <span className="dh-ecard__fact">{remaining}</span>
+            <StatusPill tone={goalProgressStatusTone(progress.status)}>
+              {goalProgressStatusLabel(progress.status)}
+            </StatusPill>
           ) : null}
-          {overall && measured ? (
-            <span className="dh-ecard__fact">{`${overall} overall`}</span>
-          ) : null}
-          {targetDate ? (
-            <span className="dh-ecard__fact">{`Target ${targetDate}`}</span>
-          ) : updated ? (
-            <span className="dh-ecard__fact">
-              <HistoryIcon className="dh-ecard__fact-icon" aria-hidden="true" />
-              {`Updated ${updated}`}
-            </span>
+          {/* Alignment is this collection's REASON FOR EXISTING (ADR-040 — the
+              intention-to-action gap), so it stays on every card. Its reason is
+              spelled out only when nothing else on the card explains the Goal. */}
+          <AlignmentIndicator
+            alignment={goal.alignment}
+            showReason={!measured && !contribution.has}
+          />
+          {measured ? (
+            <>
+              {remaining ? <span>{remaining}</span> : null}
+              {overall ? <span>{`${overall} overall`}</span> : null}
+            </>
+          ) : contribution.has ? (
+            <span>{contribution.summary}</span>
           ) : null}
         </>
       }

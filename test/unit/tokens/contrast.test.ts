@@ -12,6 +12,9 @@
  * here is a statement about what the browser paints.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -187,38 +190,69 @@ describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
     /*
      * Asserted BY NAME so the pairing cannot drift.
      *
-     * M3X returned this to M3's own `secondary-container` /
-     * `on-secondary-container`. The previous `primary-container` deviation was
-     * argued from the founding blue seed, and the violet seed inverts every
-     * clause of that argument — see the full note in `shell.css`. The short
-     * version: under a violet product, `primary-container` in dark is a
-     * maximum-chroma tone-30 violet, and a permanent navigation row is the last
-     * place that belongs.
+     * M3X returned this to M3's own `secondary-container`; the previous
+     * `primary-container` deviation was argued from the founding blue seed, and
+     * the violet seed inverts every clause of it — see the full note in
+     * `shell.css`.
      *
-     * The label and the 24px glyph both take `on-secondary-container`, so one
-     * assertion covers both. Selection is never colour alone regardless: it is
-     * the filled pill (a shape), a heavier label, and `aria-current`.
+     * DH-DS then softened the FILL without changing the role: the container is
+     * mixed toward the navigation surface, and the label takes the ordinary
+     * `on-surface` rather than `on-secondary-container`, because the surface it
+     * sits on is now a tinted neutral rather than a container. Both halves are
+     * checked below against the mix the browser actually paints.
+     *
+     * Selection is never colour alone regardless: the pill is a SHAPE, the label
+     * steps up a weight, the glyph takes `primary`, and `aria-current` carries it
+     * semantically.
      */
-    expectRatio(
-      scheme,
-      label,
-      "on-secondary-container",
-      "secondary-container",
-      4.5,
+    const strength = tintStrength("selected")[label as "light" | "dark"];
+    const selected = mixSrgb(
+      scheme["secondary-container"],
+      scheme["app-surface-navigation"],
+      strength,
     );
+
+    const text = contrastRatio(scheme["on-surface"], selected);
+    expect(
+      text,
+      `${label} — on-surface on the selected row (${selected}) = ${text.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+
+    // The glyph is `primary` and is a 24px non-text UI component.
+    const glyph = contrastRatio(scheme.primary, selected);
+    expect(
+      glyph,
+      `${label} — primary glyph on the selected row (${selected}) = ${glyph.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+
     // And the pill has to be visible as a shape against the drawer it sits in.
-    expectRatio(
-      scheme,
-      label,
-      "secondary-container",
-      "app-surface-navigation",
-      1.1,
-    );
+    const pill = contrastRatio(selected, scheme["app-surface-navigation"]);
+    expect(
+      pill,
+      `${label} — the selected pill (${selected}) against the drawer = ${pill.toFixed(2)}:1`,
+    ).toBeGreaterThan(1.04);
   });
 
   it("meets 3:1 for progress fill against its track", () => {
     expectRatio(scheme, label, "primary", "secondary-container", 3);
     expectRatio(scheme, label, "success", "secondary-container", 3);
+  });
+
+  /*
+   * M3X-02 — an entity card's bar is painted in the RECORD's own identity
+   * accent, over the neutral `surface-sunken` track the gallery draws. Six new
+   * fills, and a bar is a non-text UI component whose extent carries meaning, so
+   * every one of them owes 3:1 against the track it sits in.
+   *
+   * The percentage beside the bar is the value in words either way — this is the
+   * shape staying legible, not the shape carrying the meaning.
+   */
+  it("meets 3:1 for every identity progress fill against the gallery track", () => {
+    for (const accent of CUSTOM_GROUPS.filter((name) =>
+      name.startsWith("area-accent-"),
+    )) {
+      expectRatio(scheme, label, accent, "app-surface-sunken", 3);
+    }
   });
 
   it("keeps every identity and series colour visible on card and page", () => {
@@ -281,6 +315,114 @@ describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
         ).toBeGreaterThanOrEqual(25);
       }
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* M3X-02 — the two COMPOSED surfaces                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The expressive layer's two tinted surfaces are `color-mix()` over generated
+ * roles rather than roles of their own, so they never reach `scheme.ts` and the
+ * sweep above cannot see them. They are still surfaces the product paints text
+ * on, in both appearances, at strengths that differ by appearance — which is
+ * precisely the combination that produces an unreadable dark surface if nobody
+ * checks. So the mix is reproduced here from its two real inputs: the generated
+ * roles, and the generated STRENGTHS read out of the stylesheet the browser
+ * actually loads.
+ */
+const TOKENS_CSS = readFileSync(
+  join(process.cwd(), "app", "styles", "tokens.css"),
+  "utf8",
+);
+
+/**
+ * The generated tint strengths, per appearance.
+ *
+ * `tokens.css` carries three blocks — `:root` (light), the
+ * `prefers-color-scheme: dark` media block, and the explicit
+ * `[data-appearance="dark"]` block — and the last two are identical by
+ * construction. Taking the FIRST occurrence as light and the LAST as dark
+ * therefore reads one value from each appearance without parsing the cascade.
+ */
+function tintStrength(name: string): { light: number; dark: number } {
+  const matches = [
+    ...TOKENS_CSS.matchAll(
+      new RegExp(`--app-tint-strength-${name}:\\s*(\\d+)%`, "g"),
+    ),
+  ].map((match) => Number(match[1]));
+  expect(
+    matches.length,
+    `--app-tint-strength-${name} should be generated into every appearance block`,
+  ).toBeGreaterThanOrEqual(2);
+  return { light: matches[0]!, dark: matches[matches.length - 1]! };
+}
+
+/** `color-mix(in srgb, top P%, bottom)` — the same operation the browser runs. */
+function mixSrgb(top: string, bottom: string, percent: number): string {
+  const a = parseHex(top);
+  const b = parseHex(bottom);
+  const ratio = percent / 100;
+  const channel = (index: number) =>
+    Math.round(a[index]! * ratio + b[index]! * (1 - ratio))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(0)}${channel(1)}${channel(2)}`;
+}
+
+describe.each(SCHEMES)("M3X composed surfaces — %s scheme", (label, scheme) => {
+  const appearance = label as "light" | "dark";
+
+  it("meets AA for the hero's own text colour on the hero surface", () => {
+    const strength = tintStrength("expressive")[appearance];
+    const surface = mixSrgb(
+      scheme["primary-container"],
+      scheme["app-surface-card"],
+      strength,
+    );
+    // `--md-app-color-on-surface-expressive` is `on-primary-container`.
+    const ratio = contrastRatio(scheme["on-primary-container"], surface);
+    expect(
+      ratio,
+      `${label} — on-primary-container on surface-expressive (${surface}) = ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("meets AA for ordinary text on a supporting surface", () => {
+    const strength = tintStrength("supporting")[appearance];
+    const surface = mixSrgb(
+      scheme["primary-container"],
+      scheme["app-surface-card"],
+      strength,
+    );
+    // A supporting surface is a tinted NEUTRAL, so it carries the ordinary text
+    // ramp — both ends of it, since its eyebrow and supporting line take the
+    // variant.
+    for (const role of ["on-surface", "on-surface-variant"] as const) {
+      const ratio = contrastRatio(scheme[role], surface);
+      expect(
+        ratio,
+        `${label} — ${role} on surface-supporting (${surface}) = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("keeps a supporting surface distinguishable from the page behind it", () => {
+    // Colour is not the only signal on these surfaces — each carries an eyebrow
+    // naming what it is — but a surface whose boundary is invisible has stopped
+    // being a level in the hierarchy, which is the whole point of the token.
+    const strength = tintStrength("supporting")[appearance];
+    const surface = mixSrgb(
+      scheme["primary-container"],
+      scheme["app-surface-card"],
+      strength,
+    );
+    const ratio = contrastRatio(surface, scheme["app-surface-page"]);
+    expect(
+      ratio,
+      `${label} — surface-supporting (${surface}) against the page (${scheme["app-surface-page"]}) = ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThan(1.04);
   });
 });
 

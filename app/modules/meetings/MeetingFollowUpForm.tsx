@@ -64,20 +64,22 @@ const FIELD_LABELS: Record<string, string> = {
   scheduledDate: "Scheduled date",
 };
 
-const PRIORITY_OPTIONS: readonly SelectOption[] = [
-  { value: "", label: "No priority" },
-  ...TASK_PRIORITIES.map((p) => ({ value: p, label: taskPriorityLabel(p) })),
-];
+/* DH-DS — the REAL values only; an unset optional field is the placeholder, not
+ * a first option that reads as a selected default (see `NewTaskForm`). */
+const PRIORITY_OPTIONS: readonly SelectOption[] = TASK_PRIORITIES.map((p) => ({
+  value: p,
+  label: taskPriorityLabel(p),
+}));
 const STATUS_OPTIONS: readonly SelectOption[] = TASK_STATUSES.map((s) => ({
   value: s,
   label: taskStatusLabel(s),
 }));
-const SECTOR_OPTIONS: readonly SelectOption[] = [
-  // TASKS-04 vocabulary: the absence of a Time Sector is "No sector". "Inbox" now
-  // means an UNASSIGNED Task, and a follow-up Task always has a parent.
-  { value: "", label: "No sector" },
-  ...TIME_SECTORS.map((s) => ({ value: s, label: timeSectorLabel(s) })),
-];
+// TASKS-04 vocabulary: the absence of a Time Sector is "No sector". "Inbox" now
+// means an UNASSIGNED Task, and a follow-up Task always has a parent.
+const SECTOR_OPTIONS: readonly SelectOption[] = TIME_SECTORS.map((s) => ({
+  value: s,
+  label: timeSectorLabel(s),
+}));
 const COMMITMENT_OPTIONS: readonly SelectOption[] = COMMITMENT_STATES.map(
   (c) => ({ value: c, label: c === "someday" ? "Someday / Maybe" : "Active" }),
 );
@@ -216,6 +218,7 @@ export function MeetingFollowUpForm({
       />
       <SelectField
         label="Priority"
+        placeholder="No priority"
         options={PRIORITY_OPTIONS}
         {...form.field("priority")}
       />
@@ -231,6 +234,7 @@ export function MeetingFollowUpForm({
         <DateField label="Scheduled date" {...form.field("scheduledDate")} />
         <SelectField
           label="Time sector"
+          placeholder="No sector"
           options={SECTOR_OPTIONS}
           {...form.field("timeSector")}
         />

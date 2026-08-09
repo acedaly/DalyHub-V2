@@ -44,7 +44,7 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
-import { GoalIcon, HistoryIcon, ProjectIcon } from "~/shared/icons";
+import { GoalIcon, ProjectIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
@@ -156,16 +156,21 @@ function AreaEntityCard({
     <>
       <EntityCard
         data-testid="area-card"
+        /* M3X-02 — the large identity rung. An Area is the most permanent thing
+         * in the product and the one most often navigated to by recognition
+         * rather than by reading, so its mark leads the card. */
         icon={
           <AccentIcon
             entityType="area"
             iconKey={card.iconKey}
             colourRank={card.colourRank}
+            size="lg"
           />
         }
         title={card.title}
         headingLevel={2}
         subtitle={card.workSummary}
+        accent={card.colourRank}
         /*
          * The one figure that matters for a permanent domain of life is how much
          * is waiting in it. Shown whenever the Area has ANY active work — a "0
@@ -199,18 +204,19 @@ function AreaEntityCard({
                 label={card.openGoals === 1 ? "Goal" : "Goals"}
               />
             ) : null}
+            {/*
+             * The one absence worth stating, because it is ACTIONABLE: an Area
+             * with no Project is an Area waiting for its first one, and saying so
+             * is how the gallery avoids a dead end (AGENTS.md §6).
+             *
+             * M3X-02 removed the "Updated 19 Jul 2026" line beneath it. On a
+             * gallery of nine Areas that was nine identical grey lines carrying
+             * the least decision-relevant fact on the card — a fact about the
+             * ROW, not about the part of life it stands for.
+             */}
             {card.hasActiveWork ? null : (
               <span>Ready for its first Project</span>
             )}
-            {card.updatedLabel ? (
-              <span className="dh-ecard__fact">
-                <HistoryIcon
-                  className="dh-ecard__fact-icon"
-                  aria-hidden="true"
-                />
-                {card.updatedLabel}
-              </span>
-            ) : null}
           </>
         }
         overflow={

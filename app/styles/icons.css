@@ -69,6 +69,37 @@
   block-size: var(--app-entity-icon-size);
 }
 
+/*
+ * M3X-02 — the mark's three rungs. The container steps up with the glyph AND
+ * with the radius: a 56px square at `corner-medium` reads as a rounded rectangle
+ * rather than as an identity tile, so the large rung takes the shape scale's
+ * next rung too. This is the shape hierarchy applied to the identity mark, not
+ * a second scale beside it.
+ */
+.dh-accent-icon[data-size="lg"] {
+  inline-size: var(--app-entity-icon-container-size-lg);
+  block-size: var(--app-entity-icon-container-size-lg);
+  border-radius: var(--app-shape-supporting);
+  font-size: var(--app-entity-icon-size-lg);
+}
+
+.dh-accent-icon[data-size="lg"] .dh-icon {
+  inline-size: var(--app-entity-icon-size-lg);
+  block-size: var(--app-entity-icon-size-lg);
+}
+
+.dh-accent-icon[data-size="sm"] {
+  inline-size: var(--app-entity-icon-container-size-sm);
+  block-size: var(--app-entity-icon-container-size-sm);
+  border-radius: var(--app-shape-control);
+  font-size: var(--app-entity-icon-size-sm);
+}
+
+.dh-accent-icon[data-size="sm"] .dh-icon {
+  inline-size: var(--app-entity-icon-size-sm);
+  block-size: var(--app-entity-icon-size-sm);
+}
+
 .dh-accent-icon[data-accent="1"] {
   background: var(--md-sys-color-area-accent-1-container);
   color: var(--md-sys-color-on-area-accent-1-container);

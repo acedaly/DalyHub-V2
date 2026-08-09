@@ -9,6 +9,11 @@
 
 import { env } from "cloudflare:workers";
 
+import { addDaysToIsoDate } from "~/kernel/alignment";
+import {
+  EMPTY_GOAL_PROJECT_CONTRIBUTION,
+  UNMEASURED_GOAL,
+} from "~/kernel/goals";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 import {
   composeGoalAlignmentFacts,
@@ -17,10 +22,8 @@ import {
 } from "~/shared/alignment";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { evaluateGoalFromSummary } from "~/shared/goal-progress";
-import { UNMEASURED_GOAL } from "~/kernel/goals";
-import { addDaysToIsoDate } from "~/kernel/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { evaluateGoalFromSummary } from "~/shared/goal-progress";
 
 import { GoalsCollectionView } from "../GoalsCollection";
 import type {
@@ -29,6 +32,7 @@ import type {
 } from "../GoalsCollection";
 import {
   serializeGoalListItem,
+  serializeGoalProjectContribution,
   type SerializedGoalListItem,
 } from "../goal-view";
 import type { SerializedGoalWithAlignment } from "../GoalsCollection";
@@ -122,11 +126,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const ids = page.items.map((item) => item.id);
 
     /*
-     * GOAL-02 — the page's measurable state, in a FIXED number of grouped
-     * queries.
+     * GOAL-02 — the page's MEASURABLE state, in a fixed number of grouped
+     * queries beside the two this loader already made.
      *
-     * `listMeasurementSummaries` returns three readings and a count per Goal,
-     * never a history, and `goalDetails.listMany` the configurations — so a page
+     * `listMeasurementSummaries` returns three readings and a count per Goal —
+     * never a history — and `goalDetails.listMany` the configurations, so a page
      * of twenty Goals costs a handful of statements rather than twenty
      * (AGENTS.md §16). The comparison window is a month, which is the period the
      * card's "since" figure describes.
@@ -149,26 +153,30 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ]);
 
     const goals: SerializedGoalWithAlignment[] = page.items.map((item) => {
+      // The SAME contribution the alignment evaluation reads. M3X-02 carries it
+      // through to the card as well, because it is the Goal's one real measure
+      // and it was already in hand — computing it twice, or reading it again for
+      // the card, would be the N+1 this loader has always avoided.
+      const contribution =
+        contributions.get(item.id) ?? EMPTY_GOAL_PROJECT_CONTRIBUTION;
       const facts = composeGoalAlignmentFacts({
         goalId: item.id,
         completedAt: item.completedAt,
-        contribution: contributions.get(item.id) ?? {
-          total: 0,
-          completed: 0,
-          incomplete: 0,
-          active: 0,
-          planned: 0,
-          onHold: 0,
-          archived: 0,
-        },
+        contribution,
         activity: activityFacts.get(item.id),
       });
       const details = detailsById.get(item.id);
       return {
         ...serializeGoalListItem(item),
         alignment: evaluateGoalAlignment(facts, evaluation),
-        // Derived with the SAME kernel evaluator the Goal record uses, from the
-        // bounded summary rather than the full series.
+        contribution: serializeGoalProjectContribution(contribution),
+        /*
+         * GOAL-02 — derived with the SAME kernel evaluator the Goal record uses,
+         * from the bounded summary rather than the full series, so a card can
+         * never disagree with the record it links to. A Goal with no measurement
+         * configuration evaluates to the unmeasured shape and the card keeps the
+         * M3X-02 Project-contribution presentation unchanged.
+         */
         progress: evaluateGoalFromSummary({
           config: details?.measurement ?? UNMEASURED_GOAL,
           targetDate: details?.targetDate ?? null,
