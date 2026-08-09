@@ -408,6 +408,38 @@ describe.each(SCHEMES)("M3X composed surfaces — %s scheme", (label, scheme) =>
     }
   });
 
+  /*
+   * VIS-01 — the identity MARK is composed the same way, and must clear the
+   * same bar.
+   *
+   * `.dh-accent-icon[data-accent]` mixes the Area accent's container toward the
+   * card by `--app-tint-strength-identity`, so a gallery of identity marks in
+   * DARK is a soft palette rather than a rainbow of saturated rectangles (the
+   * design system's Part 2, item A7). The glyph inside keeps the container's own
+   * `on-` role, and the whole argument for one mix serving all six ramps is that
+   * moving a container toward the card always moves it AWAY from that role.
+   * "Always" is a claim, so it is asserted — over every ramp, in both
+   * appearances.
+   */
+  it("meets AA for every identity glyph on its composed identity mark", () => {
+    const strength = tintStrength("identity")[appearance];
+    for (const rank of [1, 2, 3, 4, 5, 6] as const) {
+      const surface = mixSrgb(
+        scheme[`area-accent-${rank}-container` as SchemeRole],
+        scheme["app-surface-card"],
+        strength,
+      );
+      const ratio = contrastRatio(
+        scheme[`on-area-accent-${rank}-container` as SchemeRole],
+        surface,
+      );
+      expect(
+        ratio,
+        `${label} — on-area-accent-${rank}-container on its mark (${surface}) = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("keeps a supporting surface distinguishable from the page behind it", () => {
     // Colour is not the only signal on these surfaces — each carries an eyebrow
     // naming what it is — but a surface whose boundary is invisible has stopped

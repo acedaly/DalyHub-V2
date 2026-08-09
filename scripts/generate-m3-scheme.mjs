@@ -442,7 +442,7 @@ const APP_TINT_STRENGTHS = {
     supporting: "18%",
     selected: "26%",
     state: "30%",
-    identity: "56%",
+    identity: "48%",
   },
 };
 

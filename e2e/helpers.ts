@@ -364,12 +364,19 @@ export function postSameOrigin(
  * were still waiting for `heading level 1 "Today"` and timing out on a page that
  * had rendered perfectly.
  *
- * "My day" is the screen's own labelled region and is the same at every hour, so
- * it is what the suite asks for now. Asserting a landmark rather than a class also
- * keeps the check on the accessibility tree, where the product's contract lives.
+ * The screen's own labelled region is what the suite asks for instead, because it
+ * is the same at every hour. Asserting a landmark rather than a class also keeps
+ * the check on the accessibility tree, where the product's contract lives.
+ *
+ * It is **Focus**. It was "My day" until M3X-02 (#145) renamed the heading the
+ * region is labelled by, and this helper was not renamed with it — so from that
+ * merge onwards `todayDayPanel()` resolved to nothing and every spec that waited
+ * on it waited out its timeout. Fixed here rather than worked around at the four
+ * call sites: a landmark helper that names a landmark the product does not have
+ * is one bug, not four.
  */
 export function todayDayPanel(page: Page): Locator {
-  return page.getByRole("region", { name: "My day" });
+  return page.getByRole("region", { name: "Focus" });
 }
 
 /** Assert the browser is on the Today screen, by URL and by that landmark. */

@@ -143,8 +143,21 @@
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-card);
   box-shadow: var(--app-elevation-raised);
-  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
 }
+
+/*
+ * The selected segment deliberately does NOT step up a weight.
+ *
+ * It was the obvious fourth signal to add once the fill got quieter, and
+ * `collection-header.spec.ts` is right to refuse it: a heavier label is a WIDER
+ * label, so selecting a different view moved every segment after it by most of
+ * a pixel — the exact "no layout movement when state changes" contract that
+ * reserving the check glyph's box was introduced to satisfy. Selection is
+ * already a shape (the reserved check, revealed), a surface (the chip lifted
+ * out of the track), a tone step (`on-surface-variant` → `on-surface`) and a
+ * semantic (`aria-current`/`aria-pressed`). A fifth is not worth a control that
+ * shifts under the pointer.
+ */
 
 .dh-segmented__option[aria-current="true"]::before,
 .dh-segmented__option[aria-pressed="true"]::before {

@@ -8,15 +8,28 @@
  * rather than a DalyHub invention:
  *
  *   .dh-sidebar      navigation drawer (standard)  — `surface`, no border
- *   .dh-nav__link    navigation drawer item        — 56px, corner-full pill
+ *   .dh-nav__link    navigation drawer item        — 44px, soft rounded row
  *   .dh-mobilebar    small top app bar             — 64px, `surface`
- *   .dh-sidebar__search-entry   search bar         — 56px, corner-full
- *   .dh-bottomnav    navigation bar                — 80px, active-indicator pill
+ *   .dh-topbar__search   search entry              — 44px, corner-full, bounded
+ *   .dh-bottomnav    navigation bar                — 60px, compact indicator
  *   .dh-fab          floating action button        — 56px, corner-large
  *
+ * ── VIS-01 took the drawer and the bar off the specification's metrics ───────
+ * Three of those five numbers are no longer M3's, and each is a deliberate
+ * departure recorded with the rule it breaks:
+ *
+ *   - the drawer is 216px, not 232–248. M3's figure is for a drawer a user
+ *     OPENS; DalyHub's is permanent and on screen for the whole session;
+ *   - a destination is 44px of visual row rather than 48 or 56, which is the
+ *     touch floor itself — a painted row larger than the target it serves is
+ *     mass without reach;
+ *   - the phone navigation bar is 60px rather than 80, because the 64×32 filled
+ *     active-indicator capsule that 80 makes room for is exactly the piece of
+ *     chrome this pass removed.
+ *
  * Active navigation is still conveyed SEMANTICALLY (`aria-current`) and
- * reinforced by shape — M3's active-indicator pill — and by weight, never by
- * colour alone (AGENTS.md §15). Interactive rows grow the one shared
+ * reinforced by shape, by a weight step and by the glyph taking `primary`,
+ * never by colour alone (AGENTS.md §15). Interactive rows grow the one shared
  * `.md-state-layer` (base.css) rather than swapping their container colour.
  */
 
@@ -68,8 +81,9 @@
  * region. A full-height rule would put an enterprise navigation panel back
  * beside the application, which is what DS-14 spent a milestone removing.
  *
- * 12px of inline padding is the specification's figure, and it is what lets the
- * 56px item pills sit inside the drawer rather than run edge to edge.
+ * 12px of inline padding is the specification's figure, and it is what lets a
+ * destination's own rounded row sit inside the drawer rather than run edge to
+ * edge.
  */
 .dh-sidebar {
   display: flex;
