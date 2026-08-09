@@ -335,6 +335,36 @@ describe("InlineDateField — the full date-selection interface", () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-08-10"));
   });
 
+  it("leaves exactly ONE thing in the popover named for the field", async () => {
+    /*
+     * The shortcuts row was first given `aria-label="Due date shortcuts"`,
+     * which put a second element whose name contains the field's name beside
+     * the field's own input — so "the due date" had two candidates, for
+     * assistive technology and for a test locator alike. The row carries no
+     * name of its own now, and this is the guard.
+     */
+    render(
+      <InlineDateField
+        label="Due date"
+        value="2026-08-09"
+        shortcuts={[
+          { label: "Today", value: "2026-08-09" },
+          { label: "Tomorrow", value: "2026-08-10" },
+        ]}
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Due date: 2026-08-09" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
+    const named = within(dialog)
+      .queryAllByLabelText(/Due date/)
+      .filter((node) => node.tagName !== "LABEL");
+    expect(named).toHaveLength(1);
+    expect(named[0]).toBe(dialog.querySelector('input[type="date"]'));
+  });
+
   it("marks the shortcut that matches the stored date", () => {
     render(
       <InlineDateField

@@ -135,11 +135,19 @@ export function InlineDateField({
   const editor = (
     <>
       {shortcuts && shortcuts.length > 0 ? (
-        <div
-          className="dh-inline-date__shortcuts"
-          role="group"
-          aria-label={`${label} shortcuts`}
-        >
+        /*
+         * No `role="group"` and no label of its own.
+         *
+         * The obvious `aria-label={`${label} shortcuts`}` gave the wrapper the
+         * accessible name "Due date shortcuts", which is a SECOND thing in the
+         * popover whose name contains the field's — and the field's own input is
+         * the first. Anything resolving a control by that name (assistive
+         * technology and `getByLabel` alike) then has two candidates for "the
+         * due date". The popover is already named "Edit due date" and each
+         * button says which day it commits, so the grouping bought nothing that
+         * the naming collision did not cost.
+         */
+        <div className="dh-inline-date__shortcuts">
           {shortcuts.map((shortcut) => (
             <button
               key={shortcut.label}
