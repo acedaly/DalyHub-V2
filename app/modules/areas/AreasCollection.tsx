@@ -1,28 +1,37 @@
 /**
- * AREA-01 / Gate D — the Areas collection, on the shared entity-card family.
+ * The Areas index — a calm list of the permanent domains of a life.
  *
- * The audit found this surface rendering the one generic full-width row card:
- * Area identity carried by an 8px dot and a generic diamond glyph, a "Permanent"
- * chip on every row (every Area is permanent), and four of nine rows repeating
- * "Goals: No goals yet · Projects: No Projects yet · Tasks: No tasks yet" —
- * three absence messages saying one thing.
+ * ── UIX-02 (the current design) ──────────────────────────────────────────────
  *
- * What replaced it:
+ * Areas were a gallery of `EntityCard`s, which is the SAME component and the
+ * same grid Projects used. Two consequences, both bad:
  *
- *   - `EntityCard` in `EntityCardGrid` — a 3/2/1-column responsive grid, not a
- *     stack of 1400px rows with a title at one end and a chip at the other.
- *   - The owner's CHOSEN icon on the Area's own accent (`AccentIcon`), which is
- *     the identity treatment the reference uses.
- *   - One concise work-state line, and one "No active work" where there is
- *     none.
- *   - No status chip. "Permanent" on every Area is a fact about Areas, not
- *     about this Area; a state is only worth surfacing when it is an exception,
- *     and `listAreas` does not return archived Areas at all.
+ * 1. **An Area was a Project with renamed fields.** Identical mark, identical
+ *    card, identical layout, one big figure where a Project had its percentage.
+ *    With the labels hidden nothing distinguished the two most different
+ *    records in the spine — a finite body of work, and a part of life that
+ *    never ends.
+ * 2. **The cards were mostly empty.** An Area has no description, no
+ *    completion, no due date and no progress. Four facts in a 260px card is a
+ *    lot of whitespace, and six of them tiled across a 1440 was a page of air
+ *    with words in the corners.
  *
- * There is no progress bar on an Area card. Areas never complete (AGENTS.md §4),
- * so a completion bar would be answering a question the entity does not have —
- * and it was the source of the audit's "ragged alignment where some rows have
- * progress bars and some don't".
+ * So Areas are now `EntityRow` in `EntityRowList`: one surface, hairlines
+ * between, a column of identity marks down the left edge. That is the reference
+ * design's own Areas composition, it is the design system's stated rule for a
+ * record too sparse to fill a gallery card, and it makes the two modules
+ * distinguishable by STRUCTURE rather than by reading the labels.
+ *
+ * What did NOT change, and must not:
+ *
+ *   - **No progress, anywhere.** Areas never complete (AGENTS.md §4), so a
+ *     completion bar answers a question the entity does not have. The row has
+ *     nowhere to put one by construction.
+ *   - **No status chip.** "Permanent" on every Area is a fact about Areas, not
+ *     about this Area, and `listAreas` does not return archived ones at all.
+ *   - **No invented health.** There is no Area score, no traffic light and no
+ *     "at risk". What the row states is what is in the Area.
+ *   - The owner's CHOSEN icon on the Area's own stable accent.
  *
  * The component holds no server imports; loaders hand it JSON-safe summaries.
  */
@@ -30,7 +39,7 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import { CardMetaFact, EntityCard, EntityCardGrid } from "~/shared/card";
+import { EntityRow, EntityRowList } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -44,7 +53,6 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
-import { GoalIcon, ProjectIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
@@ -154,70 +162,47 @@ function AreaEntityCard({
 
   return (
     <>
-      <EntityCard
+      <EntityRow
         data-testid="area-card"
-        /* M3X-02 — the large identity rung. An Area is the most permanent thing
-         * in the product and the one most often navigated to by recognition
-         * rather than by reading, so its mark leads the card. */
+        /*
+         * The mark leads, at the compact rung. An Area is the most permanent
+         * thing in the product and the one most often navigated to by
+         * recognition rather than by reading — but a row does not need the
+         * gallery's 56px square to say so, and a column of them down the left
+         * edge is the whole point of drawing this as a list.
+         */
         icon={
           <AccentIcon
             entityType="area"
             iconKey={card.iconKey}
             colourRank={card.colourRank}
-            size="lg"
+            size="md"
           />
         }
         title={card.title}
         headingLevel={2}
-        subtitle={card.workSummary}
         accent={card.colourRank}
         /*
-         * The one figure that matters for a permanent domain of life is how much
-         * is waiting in it. Shown whenever the Area has ANY active work — a "0
-         * open tasks" on an Area with three Projects is genuinely "all clear",
-         * not noise, and it keeps every working Area's card the same shape.
+         * The relationships, on one line — what is LIVING in this part of life.
+         *
+         * A count of zero is omitted rather than rendered as "0 Projects": an
+         * absent dimension is not a fact worth a line on every row, and three
+         * of them stacked ("No goals yet · No Projects yet · No tasks yet") is
+         * the placeholder ladder the AREA-01 audit removed. The one absence
+         * that survives is the ACTIONABLE one — an Area with nothing in it is
+         * an Area waiting for its first Project, and saying so is how the list
+         * avoids a dead end (AGENTS.md §6).
          */
-        metric={
-          card.hasActiveWork
-            ? {
-                value: String(card.openTasks),
-                label: card.openTasks === 1 ? "open task" : "open tasks",
-              }
-            : undefined
-        }
-        meta={
-          <>
-            {/* A count of zero is omitted, not rendered as "0 Projects". An
-             * absent dimension is not a fact worth a row on every card — that
-             * is precisely the placeholder ladder this replaced. */}
-            {card.activeProjects > 0 ? (
-              <CardMetaFact
-                icon={ProjectIcon}
-                value={card.activeProjects}
-                label={card.activeProjects === 1 ? "Project" : "Projects"}
-              />
-            ) : null}
-            {card.openGoals > 0 ? (
-              <CardMetaFact
-                icon={GoalIcon}
-                value={card.openGoals}
-                label={card.openGoals === 1 ? "Goal" : "Goals"}
-              />
-            ) : null}
-            {/*
-             * The one absence worth stating, because it is ACTIONABLE: an Area
-             * with no Project is an Area waiting for its first one, and saying so
-             * is how the gallery avoids a dead end (AGENTS.md §6).
-             *
-             * M3X-02 removed the "Updated 19 Jul 2026" line beneath it. On a
-             * gallery of nine Areas that was nine identical grey lines carrying
-             * the least decision-relevant fact on the card — a fact about the
-             * ROW, not about the part of life it stands for.
-             */}
-            {card.hasActiveWork ? null : (
-              <span>Ready for its first Project</span>
-            )}
-          </>
+        facts={areaRelationshipLine(card)}
+        /*
+         * The one trailing figure: how much is waiting here. NOT a proportion —
+         * an Area never completes, so there is no percentage to state and this
+         * row deliberately has nowhere to put one.
+         */
+        figure={
+          card.openTasks > 0
+            ? `${card.openTasks} open ${card.openTasks === 1 ? "task" : "tasks"}`
+            : null
         }
         overflow={
           <OverflowMenu
@@ -231,6 +216,43 @@ function AreaEntityCard({
       {lifecycle.dialogs}
     </>
   );
+}
+
+/**
+ * The Area's relationship line — "2 Projects · 3 Goals", or the one absence
+ * worth stating.
+ *
+ * Deliberately plain nouns rather than the "2 active Projects · 3 open Goals"
+ * the card's subtitle used: on a list where every row says it, the qualifiers
+ * are six words per row restating what the collection already means, and the
+ * counts are what the eye is actually comparing down the column.
+ */
+function areaRelationshipLine(card: AreaCardData): string | null {
+  const parts: string[] = [];
+  if (card.activeProjects > 0) {
+    parts.push(
+      `${card.activeProjects} ${card.activeProjects === 1 ? "Project" : "Projects"}`,
+    );
+  }
+  if (card.openGoals > 0) {
+    parts.push(`${card.openGoals} ${card.openGoals === 1 ? "Goal" : "Goals"}`);
+  }
+  if (parts.length > 0) {
+    return parts.join(" · ");
+  }
+  /*
+   * The fallback is only honest when the Area is genuinely EMPTY.
+   *
+   * An Area with no Projects and no Goals but a handful of loose tasks filed
+   * directly in it is not "ready for its first Project" — it is being used, and
+   * telling its owner to start something would be the product misreading its
+   * own data. That Area draws no relationship line at all: the trailing figure
+   * beside it already says "3 open tasks", which is the whole truth about it.
+   *
+   * This is the same distinction `areaWorkSummary` drew, and the reason it
+   * checked the task count before reporting an absence.
+   */
+  return card.openTasks > 0 ? null : "Ready for its first Project";
 }
 
 /**
@@ -312,7 +334,7 @@ function AreasCollection({
       title="Areas"
       subtitle={subtitle}
       entityType="area"
-      presentation="grid"
+      presentation="list"
       primaryAction={
         <DrawerTrigger
           drawerKey={NEW_AREA_KEY}
@@ -346,7 +368,7 @@ function AreasCollection({
         />
       }
     >
-      <EntityCardGrid label="Areas">
+      <EntityRowList label="Areas">
         {cards.map((card) => (
           <AreaEntityCard
             key={card.id}
@@ -354,7 +376,7 @@ function AreasCollection({
             onArchived={() => revalidator.revalidate()}
           />
         ))}
-      </EntityCardGrid>
+      </EntityRowList>
       {!failed && hasMore ? (
         <LoadMore
           loading={loading}

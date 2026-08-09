@@ -20,6 +20,7 @@ import type { SerializedAreaOverview } from "~/modules/areas/area-view";
 const ACTIVE_OVERVIEW: SerializedAreaOverview = {
   id: "a1",
   title: "Career",
+  colourRank: 0,
   createdAt: "2026-07-18T09:00:00.000Z",
   updatedAt: "2026-07-20T10:00:00.000Z",
   archivedAt: null,

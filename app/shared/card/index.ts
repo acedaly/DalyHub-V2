@@ -103,6 +103,20 @@ export {
 } from "./MetricTile";
 export { RecordRow, RecordRowList, type RecordRowProps } from "./RecordRow";
 export { EntityCard, EntityCardGrid, type EntityCardProps } from "./EntityCard";
+/**
+ * UIX-02 — the two surfaces the spine's two most different records are drawn
+ * as. A Project is a body of work being moved forward (a gallery card with a
+ * measure); an Area is a permanent domain of life (a calm row with its
+ * relationships). Both live here rather than in a module because an Area's
+ * record renders Project cards and a Project's renders its Area, and a module
+ * must not reach into another's internals (AGENTS.md §9).
+ */
+export {
+  ProjectCard,
+  type ProjectCardProps,
+  type ProjectCardTone,
+} from "./ProjectCard";
+export { EntityRow, EntityRowList, type EntityRowProps } from "./EntityRowList";
 export { CardMetaFact, type CardMetaFactProps } from "./CardMetaFact";
 export {
   Timeline,

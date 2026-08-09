@@ -64,6 +64,8 @@ export type SerializedAreaListItem = {
 export type SerializedAreaOverview = {
   readonly id: string;
   readonly title: string;
+  /** The Area's stable identity colour rank — see the kernel type. */
+  readonly colourRank: number;
   readonly createdAt: string;
   readonly updatedAt: string;
   /** AREA-05: ISO archival timestamp, or `null` when the Area is active. */
@@ -197,6 +199,7 @@ export function serializeAreaOverview(
   return {
     id: overview.id,
     title: overview.title,
+    colourRank: overview.colourRank,
     createdAt: overview.createdAt.toISOString(),
     updatedAt: overview.updatedAt.toISOString(),
     archivedAt: overview.archivedAt ? overview.archivedAt.toISOString() : null,

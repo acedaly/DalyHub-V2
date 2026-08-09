@@ -194,6 +194,43 @@ const CHART_HUES = [
   "#C2185B", // magenta
 ];
 
+/**
+ * The six DECORATIVE identity hues — UIX-01's widget accent ramp, and from
+ * UIX-02 the source of record identity (`area-accent-*`) as well.
+ *
+ * They are the same six sources the `accent-*` quartets below are generated
+ * from, declared once here so a record's identity mark and a glance widget's
+ * tonal tile can never drift into being two palettes that merely look alike.
+ * A surface picks a slot; it never picks a colour.
+ */
+const IDENTITY_HUES = [
+  "#1B873F", // green
+  BLUE_HEX, // blue
+  "#B26A00", // amber
+  SEED_HEX, // violet — the product's own colour
+  "#00897B", // teal
+  /*
+   * Cyan, and NOT the widget ramp's coral — the one place the two lists differ,
+   * for a reason that is about where each is drawn.
+   *
+   * `Blend.harmonize` rotates every design hue up to 15° toward the violet seed,
+   * and from any warm-red source that lands inside the scheme's alarm band:
+   * `accent-coral` arrives at HCT hue 20.3 against `state-overdue`'s 8.5 and
+   * `priority-p2`'s 32.5, with a tone-40 of #ad3035. As a WASH under a glance
+   * widget that is exactly right — coral is UIX-01's "tasks due today" identity,
+   * and a pale tint beside a worded label cannot be mistaken for a state. As a
+   * full-strength fill on a Project's progress bar it is a brick red sitting one
+   * line under an attention line drawn in the real overdue colour, and the
+   * gallery then says "this Project is in trouble" about a Project that is on
+   * track — purely because of where its Area happened to sort.
+   *
+   * Cyan is the one hue with genuinely empty space around it: 26° from teal,
+   * 57° from blue, and clear of every semantic role. Identity therefore avoids
+   * the alarm band by construction rather than by hoping nobody notices.
+   */
+  "#00ACC1", // cyan
+];
+
 const CUSTOM_COLOR_GROUPS = [
   {
     label: "Feedback",
@@ -227,9 +264,40 @@ const CUSTOM_COLOR_GROUPS = [
     colors: CHART_HUES.map((hex, index) => [`chart-${index + 1}`, hex]),
   },
   {
+    /*
+     * UIX-02 — record identity is the WIDGET ACCENT ramp, not the chart ramp.
+     *
+     * These six slots are what an Area's and a Project's stable colour rank
+     * (ADR-068 §5) resolves to: the identity mark, the gallery card's progress
+     * bar, the Area dot and the Area pill. Until UIX-02 they were
+     * `CHART_HUES` reused — a ramp whose hues are chosen so a LEGEND stays
+     * separable, with 25° of HCT hue asserted between any two.
+     *
+     * That is the wrong optimisation for identity, and it showed. A legend
+     * needs maximum separation over six swatches the eye compares side by
+     * side; a gallery needs six calm colours that can sit under a title
+     * without shouting. The chart ramp put an olive (#827717), a magenta
+     * (#C2185B) and a crimson (#ba182e) on Project progress bars, and the
+     * crimson in particular read as a STATE — a Project whose bar was the
+     * colour of overdue work, purely because of where its Area sorted.
+     *
+     * So identity now resolves to the ramp UIX-01 generated for exactly this
+     * purpose: six decorative hues that are deliberately NOT semantic roles
+     * (D21). The token NAMES are unchanged, so every consumer — `data-accent`
+     * in CSS, `scheme.ts`, the contrast assertions — keeps working; only the
+     * hue behind each slot moves. The chart ramp keeps its own separation
+     * guarantee for the surface that actually needs it.
+     *
+     * The ORDER is the ramp's, chosen so the first Areas in a workspace get
+     * the most distinct pair (green, blue) and the product's own violet sits
+     * late enough that a small workspace's gallery is not mostly primary.
+     */
     label:
-      "Area identity — the chart ramp reused; an Area badge and a chart series never share a surface",
-    colors: CHART_HUES.map((hex, index) => [`area-accent-${index + 1}`, hex]),
+      "Area and Project identity (UIX-02) — the widget accent ramp, never the chart ramp",
+    colors: IDENTITY_HUES.map((hex, index) => [
+      `area-accent-${index + 1}`,
+      hex,
+    ]),
   },
   {
     label: "Entity identity",
@@ -280,12 +348,19 @@ const CUSTOM_COLOR_GROUPS = [
      */
     label: "Widget accent identity (UIX-01) — decorative, never status",
     colors: [
+      // Five of these ARE `IDENTITY_HUES`, referenced rather than repeated, so
+      // a widget's declared tone and a record's ranked one are the same
+      // palette. A widget says which identity it has ("coral"); a record
+      // resolves its identity from a stored rank. Two ways of choosing, one
+      // set of colours. Coral and cyan are the pair that differ — see the note
+      // on `IDENTITY_HUES`.
       ["accent-coral", "#FF7043"], // coral — tasks / due / attention identity
-      ["accent-blue", BLUE_HEX], // blue — schedule, time, calendar identity
-      ["accent-violet", SEED_HEX], // violet — focus, the product's own colour
-      ["accent-green", "#1B873F"], // green — progress and trajectory identity
-      ["accent-amber", "#B26A00"], // amber — a second warm identity
-      ["accent-teal", "#00897B"], // teal — a cool identity
+      ["accent-blue", IDENTITY_HUES[1]], // blue — schedule, time, calendar
+      ["accent-violet", IDENTITY_HUES[3]], // violet — focus, the product's own
+      ["accent-green", IDENTITY_HUES[0]], // green — progress and trajectory
+      ["accent-amber", IDENTITY_HUES[2]], // amber — a second warm identity
+      ["accent-teal", IDENTITY_HUES[4]], // teal — a cool identity
+      ["accent-cyan", IDENTITY_HUES[5]], // cyan — the sixth ranked identity
     ],
   },
 ];

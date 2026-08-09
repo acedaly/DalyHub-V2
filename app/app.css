@@ -62,6 +62,10 @@
 @import "./styles/tasks.css";
 @import "./styles/views.css";
 @import "./styles/segmented-filter.css";
+/* UIX-02 — the shared view TAB RAIL (`.dh-viewtabs`), drawn by both `ViewTabs`
+ * and the saved-view rail. After the segmented control because they are the two
+ * halves of the same decision and this is the newer, quieter one. */
+@import "./styles/view-tabs.css";
 @import "./styles/task-drawer.css";
 @import "./styles/task-signals.css";
 @import "./styles/projects.css";

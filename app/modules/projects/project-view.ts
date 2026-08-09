@@ -18,6 +18,7 @@ import {
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
 import { isProjectHealthVisible } from "~/kernel/project-health";
+import type { HealthReason, HealthTone } from "~/kernel/project-health";
 import type { ProjectHealth } from "~/shared/project-health";
 // Imported from the module rather than the barrel: this file is deliberately
 // React-free, and `~/shared/project-health` re-exports two components.
@@ -77,6 +78,8 @@ export interface SerializedProjectListItem {
 export interface SerializedProjectOverview {
   readonly id: string;
   readonly title: string;
+  /** The Project's stable identity colour rank — see the kernel type. */
+  readonly colourRank: number;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
@@ -139,6 +142,7 @@ export function serializeProjectOverview(
     iconKey,
     id: overview.id,
     title: overview.title,
+    colourRank: overview.colourRank,
     createdAt: overview.createdAt.toISOString(),
     updatedAt: overview.updatedAt.toISOString(),
     completedAt: overview.completedAt
@@ -326,6 +330,144 @@ export function projectCardStatus(project: {
   };
 }
 
+/**
+ * UIX-02 — the ONE attention line a Project card carries.
+ *
+ * The gallery card used to state its condition twice: a filled status chip
+ * beside the title ("At risk", "Stale", "Blocked") and, three lines below it, a
+ * supporting sentence explaining the chip ("2 tasks past their due date"). Two
+ * objects, one fact, and the chip was the loudest thing on a card whose job is
+ * to be recognised by its identity mark.
+ *
+ * So the chip is gone and the sentence is promoted. It is drawn ONCE, in words,
+ * with a small state dot beside it — which means nothing on the card is carried
+ * by colour alone, and a card can say "3 overdue" without needing a pill to say
+ * "At risk" as well.
+ *
+ * The compact wording comes from the reason's own STRUCTURED count, never from
+ * re-deciding anything: `overdue` with `count: 3` reads "3 overdue" here and "3
+ * tasks past their due date" in the accessible detail, and both are the same
+ * number the evaluator produced. Where a reason has no count the evaluator's own
+ * calm sentence is used unchanged.
+ */
+export interface ProjectAttention {
+  /** The compact line the card draws — "3 overdue", "On track", "On hold". */
+  readonly text: string;
+  /**
+   * The state dot's tone. Decorative — `text` always carries the meaning.
+   *
+   * `HealthTone`, not the wider `PillTone`: an attention line is either a
+   * health signal or a lifecycle state, and neither can be `accent`. Identity
+   * is not status (D21), so the one tone that means "this is a decorative
+   * identity colour" must not be reachable from here.
+   */
+  readonly tone: HealthTone;
+  /**
+   * The full sentence, for the accessible name and for surfaces with room. It
+   * is the evaluator's own phrasing, so nothing is lost by the compact form.
+   */
+  readonly detail: string;
+  /** True when this line is a health signal rather than a lifecycle state. */
+  readonly fromHealth: boolean;
+}
+
+/** The compact phrasing for one health reason, from its structured fields. */
+function compactReason(reason: HealthReason): string {
+  const count = reason.count;
+  switch (reason.code) {
+    case "overdue":
+      return typeof count === "number" ? `${count} overdue` : reason.summary;
+    case "slipped":
+      return typeof count === "number" ? `${count} past plan` : reason.summary;
+    case "upcoming_due":
+      return typeof count === "number" ? `${count} due soon` : reason.summary;
+    case "upcoming_scheduled":
+      return typeof count === "number"
+        ? `${count} planned soon`
+        : reason.summary;
+    case "blocked":
+      // The evaluator's own sentence is "All N open tasks are waiting on
+      // something else" — the WORD is the fact here, not the number.
+      return "All open work waiting";
+    case "waiting":
+      return typeof count === "number" ? `${count} waiting` : reason.summary;
+    case "long_waiting":
+      return typeof reason.days === "number"
+        ? `Waiting ${reason.days} days`
+        : reason.summary;
+    // "No progress in 24 days" is precise and long; the card wants the fact,
+    // and the exact figure survives in `detail` and on the record.
+    case "stale":
+      return "No recent activity";
+    case "no_tasks":
+      return "No tasks yet";
+    case "on_track":
+      return "On track";
+    default:
+      return reason.summary;
+  }
+}
+
+/**
+ * Build a Project card's attention line.
+ *
+ * Lifecycle wins over health, and for the same reason `projectCardStatus`
+ * branches that way: an archived or completed Project is not "at risk", and a
+ * Planned or On-hold Project is deliberately not being worked, so a staleness
+ * warning about it would be the product inventing a problem. That is the SHARED
+ * `isProjectHealthVisible` rule, applied here through the same
+ * `healthVisible` flag every other surface reads.
+ */
+export function projectAttention(project: {
+  readonly completedAt: string | null;
+  readonly archivedAt: string | null;
+  readonly status: ProjectWorkflowStatus;
+  readonly health: ProjectHealth;
+  readonly healthVisible: boolean;
+}): ProjectAttention {
+  if (isProjectArchived(project)) {
+    return {
+      text: "Archived",
+      tone: "neutral",
+      detail: "This Project is archived.",
+      fromHealth: false,
+    };
+  }
+  if (isProjectComplete(project)) {
+    return {
+      text: "Completed",
+      tone: "success",
+      detail: "This Project is complete.",
+      fromHealth: false,
+    };
+  }
+  if (!project.healthVisible) {
+    // Planned / On hold — the workflow status IS the most useful thing to say.
+    const label = projectWorkflowStatusLabel(project.status);
+    return {
+      text: label,
+      tone: "neutral",
+      detail: `This Project is ${label.toLowerCase()}.`,
+      fromHealth: false,
+    };
+  }
+  const primary = project.health.reasons[0];
+  if (!primary) {
+    return {
+      text: project.health.label,
+      tone: project.health.tone,
+      detail: project.health.label,
+      fromHealth: true,
+    };
+  }
+  return {
+    text: compactReason(primary),
+    tone: primary.tone,
+    detail: healthReasonText(primary),
+    fromHealth: true,
+  };
+}
+
 /** The display data for one project Card (pure derivation, unit-tested). */
 export interface ProjectCardData {
   readonly id: string;
@@ -368,6 +510,8 @@ export interface ProjectCardData {
    * something the label does not. Never a second copy of the state.
    */
   readonly statusDetail: string | null;
+  /** UIX-02 — the ONE attention line the gallery card draws. */
+  readonly attention: ProjectAttention;
   readonly progress: ProjectProgress;
   /** e.g. "Updated 21 Jul 2026", or null when it doesn't genuinely help. */
   readonly updatedLabel: string | null;
@@ -464,6 +608,7 @@ export function toProjectCardData(
       status.fromHealth && reasonText !== null && reasonText !== status.label
         ? reasonText
         : null,
+    attention: projectAttention(item),
     progress: projectProgress(item.taskCompleted, item.taskTotal),
     updatedLabel: updated ? `Updated ${updated}` : null,
     health: item.health,

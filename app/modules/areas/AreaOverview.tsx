@@ -12,12 +12,15 @@ import type { ReactNode } from "react";
 import {
   Card,
   CardCollection,
+  MetricRow,
+  MetricRowItem,
+  MetricTile,
   type CardMetaItem,
   type CardProps,
 } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
-import { EntityIcon, RecordIcon } from "~/shared/entity";
+import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
 import { RecordLayout } from "~/shared/record-layout";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
@@ -222,6 +225,129 @@ function projectCard(
   };
 }
 
+/**
+ * UIX-02 — the Area Overview tab.
+ *
+ * Three counts and the recent activity. That is the whole budget, and the
+ * restraint is the design: the brief's own warning about this surface is that
+ * an overview becomes "six meaningless stat widgets", and an Area is precisely
+ * the record where a dashboard would be least honest.
+ *
+ * Every figure is a COUNT OF LIVING THINGS — open Goals, active Projects, open
+ * Tasks — never a proportion, a score or a health rating. An Area does not
+ * complete, so there is nothing here to express as a percentage, and the one
+ * derived judgement the product does make about an Area (its momentum) is
+ * already stated once in the band above rather than repeated as a tile.
+ *
+ * Each tile is a way into the section that holds those records, so the overview
+ * answers "what is here?" and then hands the owner somewhere to go.
+ */
+function AreaOverviewTab({
+  rollup,
+  projects,
+  openTasks,
+  onSelectTab,
+  activityTab,
+}: {
+  readonly rollup: SerializedAreaRollup;
+  readonly projects: readonly SerializedAreaProjectItem[];
+  readonly openTasks: number;
+  readonly onSelectTab?: (tabId: string) => void;
+  readonly activityTab: ReactNode;
+}) {
+  const openGoals = Math.max(0, rollup.goals.total - rollup.goals.completed);
+  const activeProjects = projects.filter(
+    (project) => project.completedAt === null && project.archivedAt === null,
+  ).length;
+  const empty =
+    rollup.goals.total === 0 && rollup.projects.total === 0 && openTasks === 0;
+
+  return (
+    <div className="dh-area-overview">
+      <h2 className="dh-visually-hidden">Overview</h2>
+
+      {empty ? (
+        /*
+         * A brand-new Area gets one sentence, not three tiles reading zero.
+         * "An absence is never drawn as a state" is the design system's rule
+         * for Goals and it holds just as well here.
+         */
+        <EmptyState
+          size="inline"
+          headingLevel={3}
+          title="Nothing running in this Area yet."
+          description="Goals, Projects and Tasks you file here will show up in this overview."
+        />
+      ) : (
+        <MetricRow data-testid="area-overview-metrics">
+          <MetricRowItem>
+            <MetricTile
+              value={String(openGoals)}
+              label={openGoals === 1 ? "open Goal" : "open Goals"}
+              supporting={
+                <button
+                  type="button"
+                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  onClick={() => onSelectTab?.("goals")}
+                >
+                  View Goals
+                </button>
+              }
+            />
+          </MetricRowItem>
+          <MetricRowItem>
+            <MetricTile
+              value={String(activeProjects)}
+              label={
+                activeProjects === 1 ? "active Project" : "active Projects"
+              }
+              supporting={
+                <button
+                  type="button"
+                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  onClick={() => onSelectTab?.("projects")}
+                >
+                  View Projects
+                </button>
+              }
+            />
+          </MetricRowItem>
+          <MetricRowItem>
+            <MetricTile
+              value={String(openTasks)}
+              // Across this Area's Projects AND its direct tasks — the SAME
+              // roll-up definition the spine uses everywhere else, in the label
+              // itself so the figure cannot be misread as "tasks I filed here".
+              // It is not a `supporting` line because that slot is drawn as a
+              // link, and this is a scope note with nowhere to go: an Area has
+              // no Tasks tab to send anyone to.
+              label={
+                openTasks === 1
+                  ? "open task in this Area"
+                  : "open tasks in this Area"
+              }
+            />
+          </MetricRowItem>
+        </MetricRow>
+      )}
+
+      {/*
+       * The activity feed itself, not a second copy of it: the same component
+       * the Activity tab renders. An Area's recent events are the most useful
+       * thing an overview can carry, and rendering them here rather than
+       * summarising them means there is one implementation to keep honest.
+       */}
+      <section
+        className="dh-area-overview__activity"
+        aria-label="Recent activity"
+      >
+        <h3 className="dh-area-overview__heading">Recent activity</h3>
+        {activityTab}
+      </section>
+    </div>
+  );
+}
+
 function BoundedNote({
   kind,
   nextCursor,
@@ -264,6 +390,13 @@ export function AreaOverviewView({
 }: AreaOverviewViewProps) {
   const state = areaStateLabel(archived);
   const tasksProgress = rollupProgress(rollup.tasks, "task");
+  /*
+   * Open tasks across the Area — its Projects' and its own. The SAME roll-up
+   * definition the spine uses everywhere else, expressed as a count of what is
+   * outstanding rather than as a proportion of what is finished. See the
+   * summary band below for why the proportion is gone.
+   */
+  const openTasks = Math.max(0, rollup.tasks.total - rollup.tasks.completed);
   /*
    * RECORD-01 — an Area's header carries NO context line.
    *
@@ -319,14 +452,37 @@ export function AreaOverviewView({
             data-testid="area-title-edit"
           />
         }
-        // RECORD-01 — no `typeLabel`: the breadcrumb above already says "Areas".
-        //
-        // The record's OWN icon, not merely its type's: `RecordIcon` renders
-        // the chosen glyph and falls back to the Area default when there is
-        // none (or when the stored key is one this build cannot resolve).
-        icon={<RecordIcon entityType="area" iconKey={overview.iconKey} />}
+        /*
+         * RECORD-01 — no `typeLabel`: the breadcrumb above already says "Areas".
+         *
+         * UIX-02 — the record's own icon on the record's own ACCENT, at the
+         * same geometry the gallery draws. It was a bare monochrome glyph, so
+         * the one screen dedicated to a single Area was the one screen where
+         * that Area had no identity: an owner arriving from a list of coloured
+         * marks landed on a grey outline of the same shape. `AccentIcon` is the
+         * component the Areas list uses, resolving the same stored key and the
+         * same stable rank — recognition survives the navigation.
+         */
+        icon={
+          <AccentIcon
+            entityType="area"
+            iconKey={overview.iconKey}
+            colourRank={overview.colourRank}
+            size="md"
+          />
+        }
         breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
-        status={{ label: state.label, tone: state.tone }}
+        /*
+         * UIX-02 — a chip only when there is an EXCEPTION to report.
+         *
+         * The header carried "● Permanent" on every active Area, which is a
+         * fact about Areas rather than about this Area — the same reasoning the
+         * Areas gallery used when it dropped the chip in AREA-01, applied to
+         * the record that kept it. What remains is "Archived", which is
+         * genuinely exceptional, genuinely about this record, and the one state
+         * that changes what the owner can do here.
+         */
+        status={archived ? { label: state.label, tone: state.tone } : undefined}
         overflowActions={lifecycle.overflowActions}
         /*
          * RECORD-01 — the momentum card becomes the summary band, and a dormant
@@ -339,28 +495,30 @@ export function AreaOverviewView({
          * the header above having already said "Goals: No goals yet · Projects:
          * No Projects yet". After: one sentence.
          */
+        /*
+         * UIX-02 — the Area's band carries NO progress meter.
+         *
+         * It used to open with "Tasks — 3 of 6 tasks complete" over a full-width
+         * violet bar: a COMPLETION PROPORTION, on the one entity in the spine
+         * that by definition never completes (AGENTS.md §4). The Areas gallery
+         * had never drawn one, and its own source file explains at length why —
+         * but the record did, so the product said both things about the same
+         * entity on two screens.
+         *
+         * It was also, quietly, a fabricated figure. An Area's task roll-up
+         * spans every Project under it plus its direct tasks, so "50%" moved
+         * whenever an unrelated Project finished something, and a mature Area
+         * with years of completed work would sit near 100% for ever — reading
+         * as "nearly done" about a part of someone's life.
+         *
+         * What survives is the momentum the kernel actually evaluates: a state
+         * in one word, and the reasons behind it. Those are real, and they are
+         * about activity rather than about completeness.
+         */
         summaryBar={{
           note: archived
             ? "This Area is archived. It is hidden from your active Areas and creation pickers and is read-only. Restore it from the Settings tab to make changes."
             : undefined,
-          /*
-           * A dormant Area has nothing to measure, so it states its momentum
-           * and nothing else: the chip (the state, in one word) and the one
-           * sentence explaining it — the same chip-plus-explanation shape every
-           * other record uses. A meter measuring nothing and a reason list
-           * repeating the sentence are what made the same absence appear four
-           * times on one screen.
-           */
-          progress: dormant
-            ? undefined
-            : {
-                label: "Tasks",
-                percent: tasksProgress.percent,
-                summary: tasksProgress.has
-                  ? `${tasksProgress.summary} complete`
-                  : "No active tasks yet.",
-                available: tasksProgress.has,
-              },
           state: <MomentumChip momentum={momentum} />,
           signals: dormant
             ? [{ id: "dormant", text: momentum.summary }]
@@ -372,6 +530,34 @@ export function AreaOverviewView({
         activeTabId={activeTabId}
         onTabChange={onTabChange}
         tabs={[
+          /*
+           * UIX-02 — an Area record opens on an OVERVIEW.
+           *
+           * It used to open on Goals, so the first thing an owner saw when they
+           * opened a part of their life was one of its five sections, chosen
+           * because it happened to be first in the list. An Area's question is
+           * "what is going on here?", and the answer to that is the shape of
+           * the whole thing rather than any one of its children.
+           *
+           * The tab holds exactly what the Area already knows: the counts its
+           * own roll-up carries, and the activity its own feed records. No
+           * score, no percentage, no traffic light — every figure here is a
+           * count of living things, and each one links to the section that
+           * holds them so the overview is a way IN rather than a dead end.
+           */
+          {
+            id: "overview",
+            label: "Overview",
+            content: (
+              <AreaOverviewTab
+                rollup={rollup}
+                projects={projects}
+                openTasks={openTasks}
+                onSelectTab={onTabChange}
+                activityTab={activityTab}
+              />
+            ),
+          },
           {
             id: "goals",
             label: "Goals",

@@ -180,6 +180,13 @@ export type ProjectOverview = {
   readonly id: string;
   readonly workspaceId: WorkspaceId;
   readonly title: string;
+  /**
+   * UIX-02 — the Project's own stable identity colour rank, the SAME rank
+   * `ProjectListItem` carries and by the SAME ADR-068 rule. The record draws
+   * its identity mark from it, so an owner arriving from the gallery lands on
+   * the colour they clicked rather than on a neutral glyph.
+   */
+  readonly colourRank: number;
   readonly createdAt: Date;
   /** The authoritative PRESENTATION timestamp — see {@link ProjectListItem.updatedAt}. */
   readonly updatedAt: Date;

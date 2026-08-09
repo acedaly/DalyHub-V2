@@ -1,39 +1,49 @@
 /**
- * PROJ-01 / Gate D — the Projects collection, on the shared entity-card family.
+ * The Projects gallery — a grid of active workspaces.
  *
- * The audit found this surface "identical to Tasks and Areas — the same generic
- * card list": no Project icon, an unlabelled progress bar ("1 of 2 tasks", no
- * percentage), a run-on metadata line putting six facts at one weight, a
- * duplicated "Updated: Updated 19 Jul 2026", and two competing status systems —
- * a state chip on the right and a health chip inline.
+ * ── UIX-02 (the current design) ──────────────────────────────────────────────
  *
- * What replaced it:
+ * Projects and Areas both rendered through the one generic `EntityCard` until
+ * this pass, which meant the two most DIFFERENT records in the spine — a finite
+ * body of work being moved forward, and a permanent domain of life — were drawn
+ * as the same object with different words in it. Hiding the labels left nothing
+ * to tell them apart.
  *
- *   - `EntityCard` in `EntityCardGrid` — a 3/2/1-column responsive grid.
- *   - The owner's CHOSEN icon on the Project's OWN accent (`AccentIcon`). This
- *     was the Area's accent until #130: inheriting made a grid group visually
- *     by Area, but it also meant a Project had no identity of its own, several
- *     Projects in one Area were indistinguishable at a glance, and a Project
- *     with no Area got the neutral container — no identity at all. The Project
- *     now carries its own stable rank (the SAME ADR-068 mechanism Areas use,
- *     generalised rather than duplicated), and the Area stays named in the
- *     card's context line, which is where it was always legible as text.
- *   - ONE status chip (`projectCardStatus`), never a chip plus an inline health
- *     pill. The health REASON survives as supporting text, because it explains
- *     the chip rather than restating it.
- *   - Progress as a thin bar WITH its percentage, and a zero-task Project shown
- *     as "No tasks yet" rather than an implied 0%.
+ * So a Project has `ProjectCard`: identity at the top, the measure pinned to the
+ * bottom, and one attention line between them. Four things changed on the way:
+ *
+ *   - **One attention line replaces a chip plus a sentence.** The card used to
+ *     carry a filled status pill beside the title ("At risk") AND, three rows
+ *     below, the health reason explaining it ("2 tasks past their due date").
+ *     One fact, two objects, and the pill was the loudest thing on a card whose
+ *     job is to be recognised by its mark. Now: a small state dot and the words,
+ *     drawn once (`projectAttention`).
+ *   - **The identity ramp moved off the CHART hues.** A Project's accent
+ *     resolves through the same six-slot rank it always did, but those slots are
+ *     now the UIX-01 widget accents rather than the chart-series ramp, whose
+ *     hues are chosen so a LEGEND stays separable. That ramp was putting an
+ *     olive, a magenta and a crimson on Project progress bars — and the crimson
+ *     read as a state, purely because of where its Area sorted.
+ *   - **The lifecycle mode is a tab rail**, the same one Tasks has had since
+ *     UIX-01, rather than a fourth segmented capsule across the top.
+ *   - **Every card ends at the same baseline**, so a row of bars is comparable.
+ *
+ * What is unchanged, and deliberately so: the owner's CHOSEN icon on the
+ * Project's OWN stable rank (#130 — inheriting the Area's meant several
+ * Projects in one Area were indistinguishable, and a Project with no Area had no
+ * identity at all); the Area staying named in the context line; and progress
+ * being ABSENT rather than 0% for a Project with no tasks.
  *
  * Split from the route so it can be unit-tested without the `cloudflare:workers`
- * loader (mirroring TodayDashboard). Each card opens its project overview
- * through NORMAL client navigation (a real router link), never an inaccessible
- * clickable container.
+ * loader (mirroring TodayDashboard). Each card opens its project through NORMAL
+ * client navigation (a real router link), never an inaccessible clickable
+ * container.
  */
 
 import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import { EntityCard, EntityCardGrid } from "~/shared/card";
+import { EntityCardGrid, ProjectCard } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -51,8 +61,7 @@ import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
-import { StatusPill } from "~/shared/pill";
-import { ViewSwitcher } from "~/shared/view-switcher";
+import { ViewTabs } from "~/shared/view-switcher";
 
 import { NewProjectForm } from "./NewProjectForm";
 import {
@@ -62,6 +71,12 @@ import {
 } from "./project-view";
 
 export type ProjectState = "open" | "completed" | "archived" | "all";
+
+/**
+ * The one wording for "this Project has no tasks", so the attention line and
+ * the card's trailing fact can be compared rather than both spelling it.
+ */
+const NO_TASKS_TEXT = "No tasks yet";
 
 /** The drawer key hosting the create form. */
 const NEW_PROJECT_KEY = "new-project";
@@ -224,15 +239,17 @@ function ProjectEntityCard({
     onRestore: () => post("restore"),
   });
 
+  const open = card.progress.total - card.progress.completed;
+
   return (
     <>
-      <EntityCard
+      <ProjectCard
         data-testid="project-card"
         /*
-         * M3X-02 — the LARGE identity rung. A Project is the record this product
-         * most wants to be recognisable before it is read, and a gallery card is
-         * where the mark has room to lead the composition rather than sit beside
-         * the title as a 40px afterthought.
+         * The LARGE identity rung. A Project is the record this product most
+         * wants to be recognisable before it is read, and a gallery card is
+         * where the mark has room to lead rather than sit beside the title as a
+         * 40px afterthought.
          */
         icon={
           <AccentIcon
@@ -244,42 +261,59 @@ function ProjectEntityCard({
         }
         title={card.title}
         headingLevel={2}
-        subtitle={card.parentLabel}
+        context={card.parentLabel}
         // The SAME rank the mark above is painted with, so the bar and the mark
         // are one identity rather than two colour decisions.
         accent={card.colourRank}
-        status={
-          <StatusPill tone={card.status.tone}>{card.status.label}</StatusPill>
-        }
+        /*
+         * UIX-02 — ONE attention line, replacing the filled status chip AND the
+         * supporting health sentence beneath it.
+         *
+         * The chip said "At risk" and the line three rows below said "2 tasks
+         * past their due date": one fact, two objects, and the chip was the
+         * loudest thing on a card whose job is to be recognised by its mark. The
+         * line now carries both — the compact wording is built from the
+         * evaluator's own structured count, and the full sentence rides along
+         * for assistive tech.
+         */
+        attention={{
+          text: card.attention.text,
+          tone: card.attention.tone,
+          detail: card.attention.detail,
+        }}
+        /*
+         * Progress is deliberately ABSENT for a Project with no tasks: an empty
+         * bar at 0% reads as "nothing done yet" when the truth is "nothing
+         * planned yet", and the two are different facts.
+         */
         progress={
           card.progress.has
             ? {
-                value: card.progress.completed,
-                max: card.progress.total,
-                // Compact beside the bar, complete for assistive tech — both
-                // derived from the same completed/total pair.
-                label: `${card.progress.percent}%`,
+                percent: card.progress.percent,
                 valueText: `${card.progress.percent}% — ${card.progress.summary} complete`,
               }
             : undefined
         }
         /*
-         * M3X-02 — the card carries the facts that help someone DECIDE, and
-         * nothing else.
-         *
-         * Three lines went: "1 open task · 0 done" (the progress bar above it
-         * already carries the same pair, and does it as a proportion rather than
-         * as two numbers to subtract), "No tasks yet" (absence, stated where
-         * simply being shorter says it better), and "Updated 19 Jul 2026" (a
-         * fact about the record's row, not about the work — and on a gallery of
-         * twelve it was twelve identical-looking grey lines carrying the least
-         * decision-relevant thing on the card).
-         *
-         * What remains is the health REASON, which is the one supporting fact
-         * that explains the status chip rather than restating it — "no progress
-         * in 18 days" is why the chip says Stale.
+         * The one trailing fact: what is still to do. It complements the
+         * percentage rather than restating it — "63%" answers how far along,
+         * "3 open" answers how much is left — and a Project with everything
+         * done says so instead of printing "0 open".
          */
-        meta={card.statusDetail ? <span>{card.statusDetail}</span> : undefined}
+        fact={
+          card.progress.has
+            ? open > 0
+              ? `${open} open`
+              : "All done"
+            : // A Project with no tasks says so ONCE. When health is speaking it
+              // has already said it on the attention line above ("No tasks
+              // yet"), and repeating it in the foot is the same absence stated
+              // twice on one card — which is the exact defect this pass removed
+              // from the status chip.
+              card.attention.text === NO_TASKS_TEXT
+              ? null
+              : NO_TASKS_TEXT
+        }
         overflow={
           <OverflowMenu
             items={lifecycle.overflowActions}
@@ -401,17 +435,31 @@ function ProjectsCollection({
           New Project
         </DrawerTrigger>
       }
-      // UIQ-013 — the lifecycle segment is the collection's principal MODE (one
-      // of the four is always active, and each is a different collection of
-      // Projects rather than a narrowing of one), so it moves from the filter
-      // row into the shared header view slot. Same control, same URL contract,
-      // one consistent place.
-      viewSwitcher={
-        <ViewSwitcher
+      /*
+       * UIX-02 — the lifecycle mode is a TAB RAIL under the title, not a
+       * segmented capsule beside it.
+       *
+       * It is still the collection's principal MODE (one of the four is always
+       * active, and each is a different collection of Projects rather than a
+       * narrowing of one), and the URL contract is untouched. What changed is
+       * the drawing: `ViewSwitcher` is an outlined 44px capsule with a filled
+       * segment, hairline dividers and a check glyph, and four of those across
+       * the top of the gallery was the heaviest object on the calmest band of
+       * the page — while the reference draws exactly this control as text with
+       * a 2px indicator. Tasks has had that rail since UIX-01; UIX-02 shares it
+       * rather than copying it (`~/shared/view-switcher` → `ViewTabs`).
+       *
+       * On a phone the same rail becomes a scrolling row of pills, which is
+       * both the reference's phone treatment and a better thumb target than an
+       * underline. Neither is a second control to keep in step.
+       */
+      filterBar={
+        <ViewTabs
           param="state"
           options={STATE_OPTIONS}
           value={state}
           label="Project views"
+          defaultValue="all"
         />
       }
       error={

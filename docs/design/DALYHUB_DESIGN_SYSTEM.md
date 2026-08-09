@@ -124,6 +124,39 @@ specification does not, because the specification's answer was worse *here*.
 | D19 | **The floating action button is gone** (UIX-01) | M3 gives an application one FAB for its most frequent creative act. DalyHub's was capture, and CAPTURE-02 had already removed it from the phone because the navigation bar carried the same action with a label on it. That left a 56px elevated circle floating over a calm desktop canvas, diagonally opposite the utilities it belongs with. Create is now the top app bar's one violet control |
 | D20 | **The sheet's primary action can live in its HEADER**, opposite a worded Cancel (UIX-01) | Every native platform draws a task-capture sheet as `Cancel · Title · Save`, and a sticky footer under a phone keyboard is a second bar competing with the one the OS already put there. `<button form="…">` submits a form it is not inside, so this is a slot rather than a second submit path |
 | D21 | **Decorative identity has its own colour ramp** (`accent-*`), separate from every semantic one (UIX-01) | A coral glance widget is "tasks due today", not a warning; an amber Goal mark is not "at risk". Painting decoration with `state-overdue` or `success` makes it impossible to change the semantic role later without repainting the decoration |
+| D22 | **A record's identity ramp is the WIDGET accent ramp, not the chart ramp** (UIX-02) | `area-accent-*` was `chart-*` reused, and chart hues are chosen so a LEGEND stays separable — 25° of asserted HCT separation over six swatches the eye compares side by side. That is the wrong optimisation for a colour drawn under a title: it put an olive, a magenta and a crimson on Project progress bars, and the crimson read as a STATE purely because of where its Area sorted |
+| D23 | **The sixth identity slot is a cyan where the widget ramp's is a coral** (UIX-02) | The one place the two lists differ, and it is about where each is drawn. Harmonisation rotates every design hue up to 15° toward the seed, so any warm-red source lands at HCT hue ~20 against `state-overdue`'s 8.5. As a pale WASH under a worded label that is fine; as a full-strength fill on a progress bar, one line under an attention line drawn in the real overdue colour, it is a Project claiming to be in trouble. Cyan is the one hue with genuinely empty space around it — 26° from teal, 57° from blue, clear of every semantic role |
+| D24 | **A Project card states its condition ONCE, as a line rather than a chip** (UIX-02) | The gallery carried a filled status pill beside the title *and* the health reason explaining it three rows below: one fact, two objects, and the pill was the loudest thing on a card whose job is to be recognised by its mark. A dot and the words say it once, and the compact wording is built from the evaluator's own structured count |
+| D25 | **An Area is drawn as a ROW; only a Project gets a gallery card** (UIX-02) | They shared one component, so the two most different records in the spine were the same object with different words in it — and an Area has no description, no completion, no due date and no progress, so most of each card was empty. The difference is now structural, which is what makes them distinguishable with the labels hidden |
+
+## 5a. Projects and Areas — related, and deliberately not alike
+
+Shipped in UIX-02. The spine's two middle rungs answer different questions, so
+they are drawn as different objects:
+
+| | **Project** | **Area** |
+| --- | --- | --- |
+| The question | How is this going, and does it need me? | What part of my life is this, and what is happening there? |
+| The surface | A gallery card (`ProjectCard`) | A row in one list (`EntityRow` / `EntityRowList`) |
+| Leads with | The mark, then the measure | The mark, then the relationships |
+| Carries a proportion | **Yes** — an 8px bar in the record's own accent, with its percentage | **Never.** An Area does not complete (§4), so there is nothing to express as one |
+| Condition | ONE attention line, from the health evaluator | Its **momentum**, on the record only, in the evaluator's own words |
+| Density | 3 columns at 1280, 4 at 1440 | One row each, at one height |
+
+Three rules hold across both:
+
+1. **Identity is never status.** The mark and the bar take the record's stable
+   rank (ADR-068 §5); the attention line takes the health tone. A Project with a
+   violet identity that is running late stays violet and says "3 overdue" beside
+   it — the two never repaint each other.
+2. **An absence is not a zero.** A Project with no tasks draws no bar and no
+   percentage; it says "No tasks yet" once, in the space the bar would have
+   taken. An Area with nothing in it says "Ready for its first Project" — but an
+   Area holding only loose tasks is *being used*, and says nothing at all,
+   because the figure beside it already does.
+3. **No Area health is invented.** There is no score, no traffic light and no
+   percentage. The Areas index states what is IN each Area; the Area record
+   states the momentum the kernel actually evaluates, and nothing more.
 
 ## 6. Measurable Goals — the visual language
 
@@ -186,7 +219,8 @@ divergence to reconcile.
 | | Desktop | Phone |
 | --- | --- | --- |
 | Today | Three unequal regions | One priority stream |
-| Projects · Areas | Gallery | Compact rows, same DOM |
+| Projects | Gallery | Compact rows, same DOM |
+| Areas | One row list | The same rows, tighter |
 | Notes | Gallery + persistent compact filters | Clean list + a disclosure |
 | Collections | Persistent controls | Sheets and scrolling rails |
 
@@ -213,7 +247,7 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 | # | Decision | Why it is still outstanding |
 | --- | --- | --- |
 | A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet. VIS-01 quietened the two charts a Goal draws (a 1.5px line, smaller readings) without unifying the five |
-| A6 | **Component consolidation** across buttons, chips, tabs, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn |
+| A6 | **Component consolidation** across buttons, chips, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn. UIX-02 took the **tabs** out of this list: the view rail is now one shared `.dh-viewtabs`, drawn once and consumed by both the saved-view switcher and `ViewTabs` |
 | A9 | **A Goal trend on Today.** A target-value Goal's card shows a bar where its shape would say more | Today loads a bounded per-Goal SUMMARY, not history (`goal-progress.ts`): a sparkline needs a series per Goal, which is a read change rather than a visual one, and the honesty rule that a section shows only what it has already measured applies to the picture as much as to the number |
 
 **Delivered since this section was written.** A1 (measurable Goals) shipped in
@@ -222,7 +256,8 @@ VIS-01 delivered A2 (D12 — a soft wash and a rounded row, at a generated
 strength), A4 (D16), A7 (D17) and A8 (D14), and answered A3 by going the other
 way: the *hero* headline came DOWN a rung so it stops tying with the page title,
 rather than the page title going up. Hierarchy is size, space, tone and only
-then weight.
+then weight. UIX-02 delivered the **tabs** half of A6, and consolidated the two
+overlapping identity ramps into one (D22).
 
 ---
 

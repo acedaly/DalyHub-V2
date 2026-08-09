@@ -223,6 +223,7 @@ describe("serialisation", () => {
       id: "p1",
       workspaceId: WS,
       title: "P",
+      colourRank: 0,
       createdAt: new Date("2026-07-18T09:00:00.000Z"),
       updatedAt: new Date("2026-07-20T10:00:00.000Z"),
       completedAt: new Date("2026-07-21T00:00:00.000Z"),

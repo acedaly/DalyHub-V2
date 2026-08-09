@@ -66,7 +66,8 @@ const AREA_CHILD_PAGE_SIZE = 50;
  */
 const HEALTH_FACTS_BATCH_SIZE = 100;
 
-type AreaTab = "goals" | "projects" | "linked" | "activity" | "settings";
+type AreaTab =
+  "overview" | "goals" | "projects" | "linked" | "activity" | "settings";
 
 export function meta() {
   return [{ title: "Area · DalyHub" }];
@@ -273,13 +274,23 @@ function NewGoalDrawerHost({ areaId }: { readonly areaId: string }) {
   );
 }
 
+/**
+ * UIX-02 — the default tab is OVERVIEW, not Goals.
+ *
+ * An Area record used to open on whichever section happened to be first. Its
+ * actual question is "what is going on in this part of my life?", which no
+ * single section answers, so the overview is the landing tab and carries no
+ * `?tab=` param — the same "the default view has a clean URL" contract every
+ * other record follows.
+ */
 function parseTab(value: string | null): AreaTab {
-  return value === "projects" ||
+  return value === "goals" ||
+    value === "projects" ||
     value === "linked" ||
     value === "activity" ||
     value === "settings"
     ? value
-    : "goals";
+    : "overview";
 }
 
 async function postAreaMutation(
@@ -311,7 +322,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (tabId === "goals") {
+          if (tabId === "overview") {
             next.delete("tab");
           } else {
             next.set("tab", tabId);

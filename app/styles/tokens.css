@@ -198,31 +198,31 @@
   --md-sys-color-chart-6-container: #ffd8e8;
   --md-sys-color-on-chart-6-container: #3c0028;
 
-  /* Area identity — the chart ramp reused; an Area badge and a chart series never share a surface. */
-  --md-sys-color-area-accent-1: #454ada;
+  /* Area and Project identity (UIX-02) — the widget accent ramp, never the chart ramp. */
+  --md-sys-color-area-accent-1: #006c4b;
   --md-sys-color-on-area-accent-1: #ffffff;
-  --md-sys-color-area-accent-1-container: #e1e0ff;
-  --md-sys-color-on-area-accent-1-container: #03006d;
-  --md-sys-color-area-accent-2: #00696c;
+  --md-sys-color-area-accent-1-container: #8ef7c7;
+  --md-sys-color-on-area-accent-1-container: #002114;
+  --md-sys-color-area-accent-2: #454ada;
   --md-sys-color-on-area-accent-2: #ffffff;
-  --md-sys-color-area-accent-2-container: #8ff2f6;
-  --md-sys-color-on-area-accent-2-container: #002021;
-  --md-sys-color-area-accent-3: #8034c9;
+  --md-sys-color-area-accent-2-container: #e1e0ff;
+  --md-sys-color-on-area-accent-2-container: #03006d;
+  --md-sys-color-area-accent-3: #974806;
   --md-sys-color-on-area-accent-3: #ffffff;
-  --md-sys-color-area-accent-3-container: #f0dbff;
-  --md-sys-color-on-area-accent-3-container: #2c0051;
-  --md-sys-color-area-accent-4: #ba182e;
+  --md-sys-color-area-accent-3-container: #ffdbc8;
+  --md-sys-color-on-area-accent-3-container: #321300;
+  --md-sys-color-area-accent-4: #633edc;
   --md-sys-color-on-area-accent-4: #ffffff;
-  --md-sys-color-area-accent-4-container: #ffdad8;
-  --md-sys-color-on-area-accent-4-container: #410007;
-  --md-sys-color-area-accent-5: #775a00;
+  --md-sys-color-area-accent-4-container: #e7deff;
+  --md-sys-color-on-area-accent-4-container: #1d0061;
+  --md-sys-color-area-accent-5: #00696c;
   --md-sys-color-on-area-accent-5: #ffffff;
-  --md-sys-color-area-accent-5-container: #ffdf97;
-  --md-sys-color-on-area-accent-5-container: #251a00;
-  --md-sys-color-area-accent-6: #b4047e;
+  --md-sys-color-area-accent-5-container: #8ff2f6;
+  --md-sys-color-on-area-accent-5-container: #002021;
+  --md-sys-color-area-accent-6: #006782;
   --md-sys-color-on-area-accent-6: #ffffff;
-  --md-sys-color-area-accent-6-container: #ffd8e8;
-  --md-sys-color-on-area-accent-6-container: #3c0028;
+  --md-sys-color-area-accent-6-container: #bbe9ff;
+  --md-sys-color-on-area-accent-6-container: #001f29;
 
   /* Entity identity. */
   --md-sys-color-entity-area: #00696c;
@@ -291,6 +291,10 @@
   --md-sys-color-on-accent-teal: #ffffff;
   --md-sys-color-accent-teal-container: #8ff2f6;
   --md-sys-color-on-accent-teal-container: #002021;
+  --md-sys-color-accent-cyan: #006782;
+  --md-sys-color-on-accent-cyan: #ffffff;
+  --md-sys-color-accent-cyan-container: #bbe9ff;
+  --md-sys-color-on-accent-cyan-container: #001f29;
 
   /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
   --md-app-color-surface-page: #f7f6fa;
@@ -428,31 +432,31 @@
     --md-sys-color-chart-6-container: #8a0060;
     --md-sys-color-on-chart-6-container: #ffd8e8;
 
-    /* Area identity — the chart ramp reused; an Area badge and a chart series never share a surface. */
-    --md-sys-color-area-accent-1: #bfc1ff;
-    --md-sys-color-on-area-accent-1: #0800ab;
-    --md-sys-color-area-accent-1-container: #2a2dc2;
-    --md-sys-color-on-area-accent-1-container: #e1e0ff;
-    --md-sys-color-area-accent-2: #72d6da;
-    --md-sys-color-on-area-accent-2: #003738;
-    --md-sys-color-area-accent-2-container: #004f52;
-    --md-sys-color-on-area-accent-2-container: #8ff2f6;
-    --md-sys-color-area-accent-3: #dcb8ff;
-    --md-sys-color-on-area-accent-3: #490081;
-    --md-sys-color-area-accent-3-container: #660daf;
-    --md-sys-color-on-area-accent-3-container: #f0dbff;
-    --md-sys-color-area-accent-4: #ffb3b1;
-    --md-sys-color-on-area-accent-4: #680012;
-    --md-sys-color-area-accent-4-container: #92001d;
-    --md-sys-color-on-area-accent-4-container: #ffdad8;
-    --md-sys-color-area-accent-5: #eac25c;
-    --md-sys-color-on-area-accent-5: #3e2e00;
-    --md-sys-color-area-accent-5-container: #5a4400;
-    --md-sys-color-on-area-accent-5-container: #ffdf97;
-    --md-sys-color-area-accent-6: #ffafd6;
-    --md-sys-color-on-area-accent-6: #620043;
-    --md-sys-color-area-accent-6-container: #8a0060;
-    --md-sys-color-on-area-accent-6-container: #ffd8e8;
+    /* Area and Project identity (UIX-02) — the widget accent ramp, never the chart ramp. */
+    --md-sys-color-area-accent-1: #71daac;
+    --md-sys-color-on-area-accent-1: #003825;
+    --md-sys-color-area-accent-1-container: #005138;
+    --md-sys-color-on-area-accent-1-container: #8ef7c7;
+    --md-sys-color-area-accent-2: #bfc1ff;
+    --md-sys-color-on-area-accent-2: #0800ab;
+    --md-sys-color-area-accent-2-container: #2a2dc2;
+    --md-sys-color-on-area-accent-2-container: #e1e0ff;
+    --md-sys-color-area-accent-3: #ffb68a;
+    --md-sys-color-on-area-accent-3: #522300;
+    --md-sys-color-area-accent-3-container: #743400;
+    --md-sys-color-on-area-accent-3-container: #ffdbc8;
+    --md-sys-color-area-accent-4: #cbbeff;
+    --md-sys-color-on-area-accent-4: #330098;
+    --md-sys-color-area-accent-4-container: #4b1bc3;
+    --md-sys-color-on-area-accent-4-container: #e7deff;
+    --md-sys-color-area-accent-5: #72d6da;
+    --md-sys-color-on-area-accent-5: #003738;
+    --md-sys-color-area-accent-5-container: #004f52;
+    --md-sys-color-on-area-accent-5-container: #8ff2f6;
+    --md-sys-color-area-accent-6: #64d4fd;
+    --md-sys-color-on-area-accent-6: #003545;
+    --md-sys-color-area-accent-6-container: #004d63;
+    --md-sys-color-on-area-accent-6-container: #bbe9ff;
 
     /* Entity identity. */
     --md-sys-color-entity-area: #72d6da;
@@ -521,6 +525,10 @@
     --md-sys-color-on-accent-teal: #003738;
     --md-sys-color-accent-teal-container: #004f52;
     --md-sys-color-on-accent-teal-container: #8ff2f6;
+    --md-sys-color-accent-cyan: #64d4fd;
+    --md-sys-color-on-accent-cyan: #003545;
+    --md-sys-color-accent-cyan-container: #004d63;
+    --md-sys-color-on-accent-cyan-container: #bbe9ff;
 
     /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
     --md-app-color-surface-page: #1a1c1e;
@@ -666,31 +674,31 @@
   --md-sys-color-chart-6-container: #8a0060;
   --md-sys-color-on-chart-6-container: #ffd8e8;
 
-  /* Area identity — the chart ramp reused; an Area badge and a chart series never share a surface. */
-  --md-sys-color-area-accent-1: #bfc1ff;
-  --md-sys-color-on-area-accent-1: #0800ab;
-  --md-sys-color-area-accent-1-container: #2a2dc2;
-  --md-sys-color-on-area-accent-1-container: #e1e0ff;
-  --md-sys-color-area-accent-2: #72d6da;
-  --md-sys-color-on-area-accent-2: #003738;
-  --md-sys-color-area-accent-2-container: #004f52;
-  --md-sys-color-on-area-accent-2-container: #8ff2f6;
-  --md-sys-color-area-accent-3: #dcb8ff;
-  --md-sys-color-on-area-accent-3: #490081;
-  --md-sys-color-area-accent-3-container: #660daf;
-  --md-sys-color-on-area-accent-3-container: #f0dbff;
-  --md-sys-color-area-accent-4: #ffb3b1;
-  --md-sys-color-on-area-accent-4: #680012;
-  --md-sys-color-area-accent-4-container: #92001d;
-  --md-sys-color-on-area-accent-4-container: #ffdad8;
-  --md-sys-color-area-accent-5: #eac25c;
-  --md-sys-color-on-area-accent-5: #3e2e00;
-  --md-sys-color-area-accent-5-container: #5a4400;
-  --md-sys-color-on-area-accent-5-container: #ffdf97;
-  --md-sys-color-area-accent-6: #ffafd6;
-  --md-sys-color-on-area-accent-6: #620043;
-  --md-sys-color-area-accent-6-container: #8a0060;
-  --md-sys-color-on-area-accent-6-container: #ffd8e8;
+  /* Area and Project identity (UIX-02) — the widget accent ramp, never the chart ramp. */
+  --md-sys-color-area-accent-1: #71daac;
+  --md-sys-color-on-area-accent-1: #003825;
+  --md-sys-color-area-accent-1-container: #005138;
+  --md-sys-color-on-area-accent-1-container: #8ef7c7;
+  --md-sys-color-area-accent-2: #bfc1ff;
+  --md-sys-color-on-area-accent-2: #0800ab;
+  --md-sys-color-area-accent-2-container: #2a2dc2;
+  --md-sys-color-on-area-accent-2-container: #e1e0ff;
+  --md-sys-color-area-accent-3: #ffb68a;
+  --md-sys-color-on-area-accent-3: #522300;
+  --md-sys-color-area-accent-3-container: #743400;
+  --md-sys-color-on-area-accent-3-container: #ffdbc8;
+  --md-sys-color-area-accent-4: #cbbeff;
+  --md-sys-color-on-area-accent-4: #330098;
+  --md-sys-color-area-accent-4-container: #4b1bc3;
+  --md-sys-color-on-area-accent-4-container: #e7deff;
+  --md-sys-color-area-accent-5: #72d6da;
+  --md-sys-color-on-area-accent-5: #003738;
+  --md-sys-color-area-accent-5-container: #004f52;
+  --md-sys-color-on-area-accent-5-container: #8ff2f6;
+  --md-sys-color-area-accent-6: #64d4fd;
+  --md-sys-color-on-area-accent-6: #003545;
+  --md-sys-color-area-accent-6-container: #004d63;
+  --md-sys-color-on-area-accent-6-container: #bbe9ff;
 
   /* Entity identity. */
   --md-sys-color-entity-area: #72d6da;
@@ -759,6 +767,10 @@
   --md-sys-color-on-accent-teal: #003738;
   --md-sys-color-accent-teal-container: #004f52;
   --md-sys-color-on-accent-teal-container: #8ff2f6;
+  --md-sys-color-accent-cyan: #64d4fd;
+  --md-sys-color-on-accent-cyan: #003545;
+  --md-sys-color-accent-cyan-container: #004d63;
+  --md-sys-color-on-accent-cyan-container: #bbe9ff;
 
   /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
   --md-app-color-surface-page: #1a1c1e;
@@ -1597,6 +1609,13 @@
   --app-tone: var(--md-sys-color-accent-teal);
   --app-tone-container: var(--md-sys-color-accent-teal-container);
   --app-tone-on-container: var(--md-sys-color-on-accent-teal-container);
+}
+/* UIX-02 — the sixth RANKED identity. See `IDENTITY_HUES` in the generator for
+ * why record identity takes a cyan here where a widget takes the coral. */
+.dh-tone[data-tone="cyan"] {
+  --app-tone: var(--md-sys-color-accent-cyan);
+  --app-tone-container: var(--md-sys-color-accent-cyan-container);
+  --app-tone-on-container: var(--md-sys-color-on-accent-cyan-container);
 }
 
 /* Text selection paints with the primary container pair. */

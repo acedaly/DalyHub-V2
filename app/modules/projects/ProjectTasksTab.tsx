@@ -1,16 +1,47 @@
 /**
- * PROJ-01 — the project overview's Tasks tab.
+ * The Project record's Tasks tab.
  *
- * The project's real child tasks using the shared DS-04 Card and the shared task
- * semantics (completion = the spine's `completedAt`; waiting = the TODAY-03 state;
- * scheduled vs due kept distinct). A restrained open/completed/all filter (URL
- * `?tasks=`) and an "Add task" affordance that opens the shared create Drawer. A task
- * Card opens the SAME shared Task Drawer used on Today (`?drawer=task:<id>`), so the
- * project stays behind the Drawer and the task is edited the one canonical way.
+ * ── UIX-02 — the rows are TASKS rows now ─────────────────────────────────────
+ *
+ * The brief's rule for this surface is blunt: tasks inside a Project must reuse
+ * the Tasks design language, and there must not be a Project-specific task card.
+ * There was one. While UIX-01 rebuilt the Tasks list into a single ~45px line —
+ * a leading completion circle, a dominant title, a right-aligned relative date,
+ * and nothing else permanent — this tab kept the old two-line card: a green
+ * check GLYPH that could not be clicked, a "P1" pill, an "Overdue · due 7 Aug
+ * 2026" pill and an "Unscheduled" pill on the right of every row.
+ *
+ * So it now builds the SAME `Card` props Tasks builds, from the same shared
+ * pieces:
+ *
+ *   - `leadingControl` is the shared `.dh-check-circle`, and it WORKS — a task
+ *     can be completed from the Project it belongs to, through the same
+ *     canonical `/tasks/bulk` route the Tasks list and the bulk bar use, so
+ *     there is one authority and one Activity trail for completion.
+ *   - the date is `InlineTaskDate`, which reads "Yesterday / Today / Tomorrow /
+ *     Thu, 12 Jun" and takes the overdue colour when it has slipped. That is
+ *     what let UIX-01 delete the urgency chip, and deleting it here too is what
+ *     makes these rows the same object.
+ *   - the routine status pills are gone for the same reason they went from
+ *     Tasks: "Unscheduled" is the absence of a planned date restated as a chip,
+ *     on every row. The states that appear nowhere else — Waiting, On hold,
+ *     Cancelled — still paint.
+ *   - the Project MARK is not drawn. Every row in this list belongs to the
+ *     Project whose record it is being read on, so a per-row Project column
+ *     would be the page title repeated once per task.
+ *
+ * Unchanged: the open/completed/all filter (URL `?tasks=`), the "Add task"
+ * Drawer, and opening a row into the SAME shared Task Drawer used on Today
+ * (`?drawer=task:<id>`), so a task is edited the one canonical way.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useLocation, useSearchParams } from "react-router";
+import {
+  useFetcher,
+  useLocation,
+  useRevalidator,
+  useSearchParams,
+} from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
@@ -18,12 +49,14 @@ import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
-import { SegmentedFilter } from "~/shared/segmented-filter";
+import { ViewTabs } from "~/shared/view-switcher";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
-import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
+import { InlineTaskDate } from "~/shared/task-record/TaskRowFields";
+import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
 import {
   isTaskWaiting,
   taskDisplayState,
+  taskUrgency,
   waitingSubjectLabel,
 } from "~/shared/task-record/task-view";
 
@@ -217,10 +250,61 @@ function useProjectTaskPagination(
   };
 }
 
+/**
+ * UIX-01's rule, applied here: a list row draws a status pill only when it says
+ * something the rest of the row does not. `planned` is "there is a planned date"
+ * and `inbox` is "there is not", and both are restatements — on the old Project
+ * card every single row carried one of them as an "Unscheduled" chip.
+ */
+const ROUTINE_TASK_STATES: ReadonlySet<string> = new Set(["planned", "inbox"]);
+
+/**
+ * The row's leading COMPLETION control — the shared `.dh-check-circle`, the same
+ * one Today and Tasks lead with.
+ *
+ * It replaces a decorative green check glyph that looked like a completion
+ * control and was not one: the only way to finish a task from a Project was to
+ * open the drawer first. Completing posts to the canonical `/tasks/bulk` route,
+ * so the Project's list, the Tasks list and the bulk bar all complete a task the
+ * same way and produce the same Activity.
+ */
+function ProjectTaskCompleteToggle({
+  task,
+  urgent,
+  disabled,
+  onToggle,
+}: {
+  readonly task: SerializedProjectTask;
+  readonly urgent: boolean;
+  readonly disabled: boolean;
+  readonly onToggle: (complete: boolean) => void;
+}) {
+  const completed = task.completedAt !== null;
+  return (
+    <label className="dh-check-circle-target">
+      <input
+        type="checkbox"
+        className="dh-check-circle"
+        checked={completed}
+        disabled={disabled}
+        data-urgency={urgent && !completed ? "overdue" : undefined}
+        aria-label={
+          completed ? `Reopen ${task.title}` : `Complete ${task.title}`
+        }
+        onChange={(event) => onToggle(event.currentTarget.checked)}
+        // The row's open link sits beside this; a click here must never open it.
+        onClick={(event) => event.stopPropagation()}
+      />
+    </label>
+  );
+}
+
 function toTaskCardProps(
   task: SerializedProjectTask,
   todayIso: string,
   openProps: (key: string) => { href: string; onOpen: () => void },
+  onToggleComplete: (task: SerializedProjectTask, complete: boolean) => void,
+  archived: boolean,
 ): CardProps {
   const waiting = isTaskWaiting(task);
   // The ONE canonical display-state evaluator (TASKS-02 retired the legacy
@@ -234,21 +318,23 @@ function toTaskCardProps(
     scheduledDate: task.scheduledDate,
     waiting: task.waiting,
   });
+  const urgency = taskUrgency(task, todayIso);
+  const completed = task.completedAt !== null;
 
-  // Priority ≠ urgency ≠ display-state as three separable slots (TASKS-02): the
-  // shared coloured indicators render on the Project's task cards too, not only in
-  // Tasks, so priority is no longer absent from this surface (DEBT-28).
   const metadata: CardMetaItem[] = [];
+  /*
+   * Priority stays, because it is a fact about the task that appears nowhere
+   * else on the row — but as the shared INLINE editor rather than as a static
+   * "P1" pill, so it is the same control, editable in the same way, as the one
+   * on the Tasks list. A task with no priority draws nothing (the absence rule):
+   * "No priority" under every row is a column of italics saying a dimension was
+   * not used.
+   */
   if (task.priority) {
     metadata.push({
       id: "priority",
       value: <PriorityIndicator priority={task.priority} />,
-    });
-  }
-  if (task.dueDate || task.scheduledDate) {
-    metadata.push({
-      id: "urgency",
-      value: <UrgencyChip task={task} todayIso={todayIso} />,
+      priority: "low",
     });
   }
   if (waiting && task.waiting) {
@@ -267,16 +353,53 @@ function toTaskCardProps(
       ),
     });
   }
+  /*
+   * The DUE date last and pinned to the row's trailing edge, which is what makes
+   * it a column: a date column only reads as one when every date in it starts at
+   * the same x. It reads "Yesterday / Today / Tomorrow / Thu, 12 Jun" and takes
+   * the overdue colour when it has slipped — the words are what let UIX-01
+   * delete the urgency chip that used to sit beside it here.
+   */
+  metadata.push({
+    id: "due",
+    priority: task.dueDate === null ? "quiet" : "high",
+    value: (
+      <InlineTaskDate
+        taskId={task.id}
+        title={task.title}
+        kind="due"
+        value={task.dueDate}
+        todayIso={todayIso}
+        disabled={completed || archived}
+      />
+    ),
+  });
 
   return {
     id: task.id,
     title: task.title,
     typeLabel: "Task",
-    icon: <EntityIcon type="task" />,
+    /*
+     * No leading entity glyph. On a list of nothing but tasks a small check
+     * before every title said only "this is a task" — and it sat directly beside
+     * the completion circle, which is a check-shaped control that means
+     * something. `typeLabel` stays, so a screen reader still hears "Task".
+     */
     // h3 under the tab's section h2 (record h1 → section h2 → card h3): a
     // non-skipping outline on the bare project record (DEBT-21).
     headingLevel: 3,
-    status: { label: status.label, tone: status.tone },
+    completed,
+    leadingControl: (
+      <ProjectTaskCompleteToggle
+        task={task}
+        urgent={urgency?.kind === "overdue"}
+        disabled={archived}
+        onToggle={(complete) => onToggleComplete(task, complete)}
+      />
+    ),
+    status: ROUTINE_TASK_STATES.has(status.kind)
+      ? undefined
+      : { label: status.label, tone: status.tone },
     metadata,
     density: "comfortable",
     presentation: "list",
@@ -295,6 +418,8 @@ export function ProjectTasksTab({
 }: ProjectTasksTabProps) {
   const { openDrawer } = useDrawer();
   const [searchParams] = useSearchParams();
+  const revalidator = useRevalidator();
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const { items, hasMore, loading, loadFailed, loadMore } =
     useProjectTaskPagination(projectId, tasks, nextCursor, taskState);
 
@@ -303,15 +428,75 @@ export function ProjectTasksTab({
     onOpen: () => openDrawer(key),
   });
 
+  /*
+   * Completing from the Project record.
+   *
+   * The canonical `/tasks/bulk` route, which is the SAME authority the Tasks
+   * list, the row quick-edit and the bulk bar all post to — so completion has
+   * one server-side rule, one recurrence behaviour and one Activity entry
+   * wherever it is done from.
+   *
+   * No optimistic patch here, deliberately. The Tasks list has one (ADR-086)
+   * because it is the surface an owner completes ninety rows on and the
+   * latency is the product; a Project's task list is read far less often and
+   * its roll-up, its progress bar and its health all have to move with the
+   * change. Revalidating means every one of those comes back from the server
+   * agreeing with the row, rather than a bar that says 63% next to a list that
+   * says otherwise until the next load.
+   */
+  const onToggleComplete = useCallback(
+    (task: SerializedProjectTask, complete: boolean) => {
+      setCompletionError(null);
+      void postTaskBulkAction(
+        [task.id],
+        { intent: complete ? "complete" : "reopen" },
+        {
+          fallback: complete
+            ? "That task couldn’t be completed. Please try again."
+            : "That task couldn’t be reopened. Please try again.",
+        },
+      ).then((outcome) => {
+        if (outcome.ok) {
+          revalidator.revalidate();
+        } else {
+          setCompletionError(outcome.message);
+        }
+      });
+    },
+    [revalidator],
+  );
+
   return (
-    <div className="dh-project-tasks">
+    /*
+     * `dh-tasklist` is the OPT-IN that gives this list the Tasks row treatment
+     * (see `tasks.css`): one ~45px line, the leading completion circle, the
+     * title dominant, the date right-aligned in its own track. Declaring it is
+     * how a surface asks for that language rather than inheriting it by
+     * accident.
+     */
+    <div className="dh-project-tasks dh-tasklist">
       <h2 className="dh-visually-hidden">Tasks</h2>
+      {/* A refusal is reported where the action was taken, and politely: the
+       * row keeps its previous state because nothing was written optimistically. */}
+      {completionError ? (
+        <p className="dh-project-tasks__error" role="alert">
+          {completionError}
+        </p>
+      ) : null}
       <div className="dh-record-toolbar">
-        <SegmentedFilter
+        {/*
+         * UIX-02 — the shared TAB RAIL, the same control the Projects gallery
+         * and the Tasks list take. The sunken segmented track it replaces was
+         * the heaviest object in the tab panel, sitting directly under the
+         * record's own tab strip: two rows of chrome, in two different visual
+         * languages, before the first task.
+         */}
+        <ViewTabs
           param="tasks"
           options={TASK_STATE_OPTIONS}
           value={taskState}
           label="Filter tasks by state"
+          defaultValue="open"
         />
         {/*
          * RECORD-01 — the ONE local creation action on this record.
@@ -374,7 +559,15 @@ export function ProjectTasksTab({
             presentation="list"
             density="comfortable"
             renderCard={(task) => (
-              <Card {...toTaskCardProps(task, todayIso, openProps)} />
+              <Card
+                {...toTaskCardProps(
+                  task,
+                  todayIso,
+                  openProps,
+                  onToggleComplete,
+                  archived,
+                )}
+              />
             )}
           />
           {hasMore ? (
