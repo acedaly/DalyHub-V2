@@ -100,6 +100,13 @@ function firstRow(page: Page): Locator {
  * The title is unique per test so the order the tests run in cannot matter, and
  * each one COMPLETES its task afterwards, which takes it out of every active
  * view rather than leaving a stray Inbox row for the next journey to count.
+ *
+ * It is captured into {@link PROBE_VIEW} rather than the default view, and that
+ * is load-bearing rather than tidy: the default groups by due state and pages at
+ * fifty, so a freshly captured task with no date lands in a "No date" group past
+ * the end of page one and is not in the document at all. A flat list ordered by
+ * most-recently-updated puts the probe at the top and — because every edit below
+ * updates it — keeps it there.
  */
 async function captureProbe(page: Page, suffix: string): Promise<string> {
   const title = `EDIT-03 overlay probe ${suffix}`;
@@ -172,10 +179,13 @@ async function settle(page: Page) {
   await page.waitForLoadState("networkidle");
 }
 
+/** A flat list, newest edit first — see {@link captureProbe}. */
+const PROBE_VIEW = "/tasks?group=none&sort=updated&dir=desc";
+
 test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await gotoFixture(page, "/tasks");
+    await gotoFixture(page, PROBE_VIEW);
   });
 
   test("Priority offers every priority, unclipped, and changes directly", async ({
