@@ -85,10 +85,14 @@
 .dh-today__greeting {
   margin: 0;
   color: var(--md-sys-color-on-surface);
-  font-size: var(--md-sys-typescale-headline-small-size);
-  line-height: var(--md-sys-typescale-headline-small-line-height);
-  font-weight: var(--md-sys-typescale-headline-small-weight-emphasized);
-  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  /* `headline-medium`, matching every other page title in the product — Today
+   * is a page, and its greeting is its heading. It keeps the emphasized weight
+   * it took when it had to compete with a hero; with the hero gone that weight
+   * is simply what a personal greeting reads best at. */
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
   overflow-wrap: anywhere;
 }
 

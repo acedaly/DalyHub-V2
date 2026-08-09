@@ -279,6 +279,7 @@
   /* M3X tint strengths — see APP_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
   --app-tint-strength-supporting: 48%;
+  --app-tint-strength-selected: 62%;
   --app-tint-strength-state: 45%;
 }
 
@@ -480,6 +481,7 @@
     /* M3X tint strengths — see APP_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 28%;
     --app-tint-strength-supporting: 18%;
+    --app-tint-strength-selected: 42%;
     --app-tint-strength-state: 30%;
   }
 }
@@ -689,6 +691,7 @@
   /* M3X tint strengths — see APP_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 28%;
   --app-tint-strength-supporting: 18%;
+  --app-tint-strength-selected: 42%;
   --app-tint-strength-state: 30%;
 }
 
@@ -1280,6 +1283,34 @@
     in srgb,
     var(--md-sys-color-primary-container) var(--app-tint-strength-supporting),
     var(--md-app-color-surface-card)
+  );
+
+  /*
+   * DH-DS — the navigation drawer's SELECTED destination.
+   *
+   * The specification pairs it with a filled `secondary-container`, and M3X
+   * returned DalyHub to that after a blue-seed deviation. It is the correct
+   * ROLE and it was the wrong AMOUNT: a full-strength container across a
+   * 240px-wide, 48px-tall row made the selected destination the most saturated
+   * object on most screens, in the one region the design direction says must not
+   * compete with the page. It is also the single most "Material component demo"
+   * thing in the product.
+   *
+   * The role is unchanged; the strength is not. The container is mixed toward
+   * the navigation surface, so the selection reads as a soft tint rather than a
+   * slab — and the SIGNAL is not weakened, because it never rested on the fill:
+   * the pill is a shape (so it survives forced colours), the label steps up a
+   * weight, the glyph takes `primary`, and `aria-current` carries it
+   * semantically. Four signals, one of which got quieter.
+   *
+   * Generated per appearance for the same reason every other tint is: a pale
+   * tone-90 in light and a muted plum in dark do not need the same percentage to
+   * read as the same amount of colour.
+   */
+  --md-app-color-surface-nav-selected: color-mix(
+    in srgb,
+    var(--md-sys-color-secondary-container) var(--app-tint-strength-selected),
+    var(--md-app-color-surface-navigation)
   );
 
   /*

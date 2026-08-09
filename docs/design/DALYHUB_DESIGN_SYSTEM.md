@@ -177,6 +177,8 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 | A4 | **The writing surfaces (Notes, Diary) drop their box.** Content-first, contextual toolbar, generous measure | The editor has its own geometry suite (`editor-geometry`, `doc-editor-responsive`); the change is safe only alongside those |
 | A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet |
 | A6 | **Component consolidation** across buttons, chips, tabs, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn |
+| A7 | **Calmer identity marks in DARK.** A container role is a pale tone-90 in light and a saturated tone-30 in dark, so a gallery of nine Project marks reads as a rainbow of colourful rounded rectangles in dark and as a soft palette in light | The fix is the one this system already uses for every other appearance-dependent amount — a generated strength mixing the container toward the card — but it changes the identity mark everywhere at once and needs a contrast pass over all six ramps and both `on-` pairs |
+| A8 | **The segmented control's outlined capsule.** The M3 segmented button, with its 1px container and inter-segment dividers, is one of the more component-demo objects left | Replacing it with a quiet sunken track and a soft selected chip is a shared-component change that reaches Tasks, Projects, Goals, Notes, Areas, Assets and Reviews at once |
 
 ---
 

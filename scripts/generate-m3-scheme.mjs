@@ -368,6 +368,7 @@ const APP_SURFACE_TONES = {
  *
  *   expressive  the page's one branded surface (`surface-expressive`)
  *   supporting  a Level 2 supporting expressive surface (`surface-supporting`)
+ *   selected    the navigation drawer's selected destination
  *   state       a record-state tint — overdue work, a flagged run
  *
  * M3X-02 added `supporting`, and it is a GENERATED pair rather than a fraction
@@ -384,8 +385,13 @@ const APP_SURFACE_TONES = {
  * sits well under it (where tone alone is enough).
  */
 const APP_TINT_STRENGTHS = {
-  light: { expressive: "55%", supporting: "48%", state: "45%" },
-  dark: { expressive: "28%", supporting: "18%", state: "30%" },
+  light: {
+    expressive: "55%",
+    supporting: "48%",
+    selected: "62%",
+    state: "45%",
+  },
+  dark: { expressive: "28%", supporting: "18%", selected: "42%", state: "30%" },
 };
 
 /* -------------------------------------------------------------------------- */

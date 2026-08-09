@@ -190,33 +190,47 @@ describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
     /*
      * Asserted BY NAME so the pairing cannot drift.
      *
-     * M3X returned this to M3's own `secondary-container` /
-     * `on-secondary-container`. The previous `primary-container` deviation was
-     * argued from the founding blue seed, and the violet seed inverts every
-     * clause of that argument — see the full note in `shell.css`. The short
-     * version: under a violet product, `primary-container` in dark is a
-     * maximum-chroma tone-30 violet, and a permanent navigation row is the last
-     * place that belongs.
+     * M3X returned this to M3's own `secondary-container`; the previous
+     * `primary-container` deviation was argued from the founding blue seed, and
+     * the violet seed inverts every clause of it — see the full note in
+     * `shell.css`.
      *
-     * The label and the 24px glyph both take `on-secondary-container`, so one
-     * assertion covers both. Selection is never colour alone regardless: it is
-     * the filled pill (a shape), a heavier label, and `aria-current`.
+     * DH-DS then softened the FILL without changing the role: the container is
+     * mixed toward the navigation surface, and the label takes the ordinary
+     * `on-surface` rather than `on-secondary-container`, because the surface it
+     * sits on is now a tinted neutral rather than a container. Both halves are
+     * checked below against the mix the browser actually paints.
+     *
+     * Selection is never colour alone regardless: the pill is a SHAPE, the label
+     * steps up a weight, the glyph takes `primary`, and `aria-current` carries it
+     * semantically.
      */
-    expectRatio(
-      scheme,
-      label,
-      "on-secondary-container",
-      "secondary-container",
-      4.5,
+    const strength = tintStrength("selected")[label as "light" | "dark"];
+    const selected = mixSrgb(
+      scheme["secondary-container"],
+      scheme["app-surface-navigation"],
+      strength,
     );
+
+    const text = contrastRatio(scheme["on-surface"], selected);
+    expect(
+      text,
+      `${label} — on-surface on the selected row (${selected}) = ${text.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+
+    // The glyph is `primary` and is a 24px non-text UI component.
+    const glyph = contrastRatio(scheme.primary, selected);
+    expect(
+      glyph,
+      `${label} — primary glyph on the selected row (${selected}) = ${glyph.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+
     // And the pill has to be visible as a shape against the drawer it sits in.
-    expectRatio(
-      scheme,
-      label,
-      "secondary-container",
-      "app-surface-navigation",
-      1.1,
-    );
+    const pill = contrastRatio(selected, scheme["app-surface-navigation"]);
+    expect(
+      pill,
+      `${label} — the selected pill (${selected}) against the drawer = ${pill.toFixed(2)}:1`,
+    ).toBeGreaterThan(1.04);
   });
 
   it("meets 3:1 for progress fill against its track", () => {

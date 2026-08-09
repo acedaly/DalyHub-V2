@@ -43,7 +43,7 @@
 }
 
 /*
- * M3X — a genuine MOUSE gets a smaller trigger.
+ * M3X — a genuine MOUSE gets a smaller trigger, inside a list row.
  *
  * The 45px floor above is a touch floor, and it was being paid on every pointer.
  * A DalyHub task row carries up to five inline-edit triggers in its supporting
@@ -52,36 +52,32 @@
  * That is the single largest contributor to the density finding in the audit
  * (§2, H4), and it costs roughly two visible tasks per laptop screen.
  *
- * `--app-control-height-sm` (28px) clears WCAG 2.2 §2.5.8's 24×24 minimum on its
- * own, and the run's `space-1`/`space-3` gaps clear the spacing exception on top
- * of that. The query is written as an OPT-OUT — a device must positively declare
- * a fine pointer with hover to get the smaller target — so a touch device, a
- * hybrid, a stylus and any browser that cannot answer all keep the 45px floor.
  * The editing surfaces (`__input`, `__textarea`, `__edit`) are untouched: they
  * are where the typing happens and comfort there is not headroom.
  *
  * This mirrors the existing `.dh-settings-danger-button`, which has always taken
  * its 44px behind a pointer query rather than unconditionally.
+ *
+ * The density argument is real and it is NARROW. A task row carries five of
+ * these — priority, two dates, a parent — and a 45px floor on each of them is
+ * what made a one-line task 88px tall, fifty times down a list.
+ *
+ * It does NOT extend past that run, and M3X-02 narrowed it back after the
+ * repository's own assertions found where it had reached: a record drawer's
+ * priority field measured 30px and a record title 42px, both against the 44px
+ * `e2e/editing-consistency.spec.ts` requires of them. Neither is in a list; each
+ * is one control on a page, so neither was ever buying the density this was
+ * written for.
+ *
+ * `--app-control-height-sm` (28px) clears WCAG 2.2 §2.5.8's 24×24 on its own,
+ * and the run's `space-1`/`space-3` gaps clear the spacing exception on top of
+ * that. The query is an OPT-OUT — a device must positively declare a fine
+ * pointer WITH hover — so a touch device, a hybrid, a stylus and any browser
+ * that cannot answer both keep the floor.
  */
 @media (hover: hover) and (pointer: fine) {
-  .dh-inline-edit__trigger {
+  .dh-card__metadata .dh-inline-edit__trigger {
     min-block-size: var(--app-control-height-sm);
-  }
-
-  /*
-   * …EXCEPT the record title, which keeps the full floor on every device.
-   *
-   * The 28px fallback exists so a task ROW does not grow to fit five inline
-   * fields — a real, measured cost paid fifty times down a list. A record's
-   * title is the opposite case: one control, once per page, and the page's
-   * primary editing affordance. Given the `headline-small` line box it lands at
-   * 42px on a mouse, which is under the 44px this repository asserts for a
-   * control of that standing (`e2e/editing-consistency.spec.ts` measures it on
-   * all seven record types) — so the exemption bought two pixels on the one
-   * control that had least to gain from it.
-   */
-  .dh-inline-edit[data-variant="heading"] .dh-inline-edit__trigger {
-    min-block-size: var(--app-touch-target-min);
   }
 }
 
