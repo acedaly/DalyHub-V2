@@ -12,12 +12,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_TASK_SELECTION,
+  boundBulkSelection,
   bulkFieldLabel,
+  bulkSelectionOverBy,
   summariseBulkField,
   taskSelectionReducer,
   type TaskSelectionAction,
   type TaskSelectionState,
 } from "~/modules/tasks/task-selection";
+import { MAX_PLAN_BATCH_SIZE } from "~/kernel/tasks";
 
 const VISIBLE = ["a", "b", "c", "d", "e"] as const;
 
@@ -231,5 +234,58 @@ describe("mixed-value summaries", () => {
     expect(
       bulkFieldLabel({ value: null, mixed: false }, label, "No priority"),
     ).toBe("No priority");
+  });
+});
+
+/**
+ * DEBT-110 — the bulk bound is STATED before the action, never discovered as a
+ * refusal after it.
+ *
+ * `/tasks` pages at 50 and every bulk mutation is validated against
+ * `MAX_PLAN_BATCH_SIZE` server-side, so two presses of "Load more" put more rows on
+ * screen than one mutation may touch. Before this rule, "Select all 150" built a
+ * selection whose every action ended in the same typed validation error with nothing
+ * having said so beforehand.
+ */
+describe("the bulk selection bound", () => {
+  const loaded = (count: number) =>
+    Array.from({ length: count }, (_, index) => `t-${index}`);
+
+  it("offers every visible row while the list is within the bound", () => {
+    const visible = loaded(MAX_PLAN_BATCH_SIZE);
+    const bound = boundBulkSelection(visible);
+    expect(bound.selectableIds).toEqual(visible);
+    expect(bound.capped).toBe(false);
+  });
+
+  it("caps Select all at the bound, in display order, once the list outruns it", () => {
+    const bound = boundBulkSelection(loaded(MAX_PLAN_BATCH_SIZE + 50));
+    expect(bound.capped).toBe(true);
+    expect(bound.selectableIds).toHaveLength(MAX_PLAN_BATCH_SIZE);
+    // The FIRST n on screen, so what is selected is what the owner was looking at.
+    expect(bound.selectableIds[0]).toBe("t-0");
+    expect(bound.selectableIds.at(-1)).toBe(`t-${MAX_PLAN_BATCH_SIZE - 1}`);
+  });
+
+  it("asks for nothing to be deselected while the selection can be acted on", () => {
+    expect(bulkSelectionOverBy(0)).toBe(0);
+    expect(bulkSelectionOverBy(1)).toBe(0);
+    expect(bulkSelectionOverBy(MAX_PLAN_BATCH_SIZE)).toBe(0);
+  });
+
+  it("says exactly how many to deselect when a range outran the bound", () => {
+    // Only a Shift-range across more than one loaded page reaches here.
+    expect(bulkSelectionOverBy(MAX_PLAN_BATCH_SIZE + 1)).toBe(1);
+    expect(bulkSelectionOverBy(MAX_PLAN_BATCH_SIZE + 37)).toBe(37);
+  });
+
+  it("agrees with the reducer: selecting the capped list stays within the bound", () => {
+    const bound = boundBulkSelection(loaded(MAX_PLAN_BATCH_SIZE + 50));
+    const state = taskSelectionReducer(EMPTY_TASK_SELECTION, {
+      type: "select_visible",
+      visibleIds: [...bound.selectableIds],
+    });
+    expect(state.ids.size).toBe(MAX_PLAN_BATCH_SIZE);
+    expect(bulkSelectionOverBy(state.ids.size)).toBe(0);
   });
 });

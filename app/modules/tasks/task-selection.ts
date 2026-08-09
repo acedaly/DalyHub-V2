@@ -27,6 +27,8 @@
  * mutates — the workspace passes the resulting id list to `/tasks/bulk`.
  */
 
+import { MAX_PLAN_BATCH_SIZE } from "~/kernel/tasks";
+
 /** The selection state of the Tasks workspace. */
 export interface TaskSelectionState {
   /**
@@ -172,6 +174,51 @@ export function summariseBulkField<TItem, TValue>(
     if (read(items[index]!) !== first) return { value: null, mixed: true };
   }
   return { value: first, mixed: false };
+}
+
+/**
+ * TASKS-06 / DEBT-110 — the SELECTION BOUND, stated before the action.
+ *
+ * Every bulk mutation is validated against `MAX_PLAN_BATCH_SIZE` server-side,
+ * deliberately: one bulk change is one bounded atomic transaction, and an unbounded
+ * "act on everything" is neither fast nor safely rollback-able. `/tasks` pages at 50,
+ * so two presses of "Load more" put more rows on screen than one mutation may touch —
+ * and until this rule existed, "Select all 150" built a selection whose every action
+ * ended in the same typed validation error, with nothing on the surface having said
+ * so beforehand.
+ *
+ * The rule is pure and lives here rather than in the bar's JSX because it is the part
+ * worth asserting: what may be selected, whether that was capped, and how many must
+ * be deselected before the selection can be acted on at all.
+ */
+export interface BulkSelectionBound {
+  /** The ids "Select all" may take — never more than the bound. */
+  readonly selectableIds: readonly string[];
+  /** True when more rows are loaded than one bulk mutation may touch. */
+  readonly capped: boolean;
+}
+
+export function boundBulkSelection(
+  visibleIds: readonly string[],
+  max: number = MAX_PLAN_BATCH_SIZE,
+): BulkSelectionBound {
+  return {
+    selectableIds:
+      visibleIds.length <= max ? visibleIds : visibleIds.slice(0, max),
+    capped: visibleIds.length > max,
+  };
+}
+
+/**
+ * How many must be deselected before a selection can be acted on at all. Zero
+ * whenever it is within the bound. Only a Shift-range across more than one loaded
+ * page can make it positive, because {@link boundBulkSelection} caps "Select all".
+ */
+export function bulkSelectionOverBy(
+  selectedCount: number,
+  max: number = MAX_PLAN_BATCH_SIZE,
+): number {
+  return Math.max(0, selectedCount - max);
 }
 
 /** The plain-English current value of a bulk field: a label, "Mixed", or "None". */

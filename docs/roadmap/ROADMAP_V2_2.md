@@ -75,6 +75,12 @@ EntityLinks the one relationship model and Activity the one audit stream.
 - **Bulk delete is reversible.** A soft delete, a calm confirmation naming the count and
   the consequence, and a new built-in **Deleted** view to restore from. Permanent
   destruction is not reachable from a toolbar.
+- **Follow-on, 2026-08-09:** the 100-task bulk bound is now **stated before the action**
+  rather than met as a refusal after it — "Select all" is capped and says what it takes,
+  and a selection past the bound shows the bound and the remedy instead of a toolbar of
+  controls that would all be rejected. The rule is pure and unit-tested; the E2E case
+  that accumulates more than one page is still owed
+  ([DEBT-110](../product/PRODUCT_DEBT.md)).
 
 ---
 

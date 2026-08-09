@@ -69,6 +69,12 @@ them from there. Nothing is destroyed by a toolbar button.
 Every bulk action says what it did — "18 tasks deleted", not "18 tasks updated" — and
 says it somewhere a screen reader will still be listening after the selection clears.
 
+One bulk change is one bounded, all-or-nothing operation, and it works on up to 100
+tasks at a time so it stays fast and cannot half-apply. If you have loaded more than
+that, **Select all** takes the first 100 and says so beside itself — and a selection
+that has run past the limit tells you how many to deselect, rather than offering
+buttons that would all be refused.
+
 ### Repeats that mean what you meant
 
 A repeat is now one of two things, and DalyHub asks which:
