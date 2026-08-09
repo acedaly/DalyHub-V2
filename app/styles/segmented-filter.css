@@ -31,9 +31,34 @@
   overflow-y: hidden;
   scrollbar-width: none;
   overscroll-behavior-inline: contain;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: transparent;
+  /*
+   * VIS-01 — a QUIET TRACK, not an outlined capsule.
+   *
+   * This is Part 2 item A8 delivered. The M3 segmented button draws a 1px
+   * `outline` capsule with 1px dividers between the segments and fills the
+   * selected one with `secondary-container`: three separate pieces of chrome to
+   * say "one of these is chosen", on a control that appears in the header of
+   * seven collections. It was, by the design system's own admission, the most
+   * component-demo object left in the product.
+   *
+   * What replaces it is the sunken track the reference uses — one recessed
+   * surface, no border, no dividers — with a soft raised chip on the selected
+   * segment. It is quieter in every direction and it loses no signal: the
+   * selected segment still carries `aria-current`/`aria-pressed`, still shows
+   * the leading check GLYPH (which is what survives forced colours), still
+   * steps up a weight, and now also sits on a surface that is visibly lifted
+   * out of the track. Four signals, as before.
+   *
+   * The geometry is unchanged where it matters: the control is the SAME 44px
+   * tall it was (it is now 44 rather than 44-plus-two-borders), every segment
+   * is still a full-height 44px target, and the chip fills that height rather
+   * than being inset — so the quieter drawing costs nothing in reach. Track and
+   * chip share `--app-shape-control` so the chip's corners land exactly on the
+   * track's at the two ends.
+   */
+  border: none;
+  border-radius: var(--app-shape-control);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-segmented::-webkit-scrollbar {
@@ -52,8 +77,9 @@
   min-height: var(--app-touch-target-min);
   min-inline-size: 0;
   flex: none;
-  padding-inline: var(--app-space-3);
-  color: var(--md-sys-color-on-surface);
+  padding-inline: var(--app-space-4);
+  border-radius: var(--app-shape-control);
+  color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight);
@@ -68,12 +94,14 @@
     var(--md-sys-motion-easing-standard);
 }
 
-/* The divider between segments is a border on the segment itself, so a wrapped
- * row never grows a stray leading rule. */
-.dh-segmented__option + .dh-segmented__option {
-  border-inline-start: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline);
-}
+/*
+ * VIS-01 — there is no divider.
+ *
+ * A divider exists to separate two segments that share one flat container edge.
+ * The recessed track and the lifted selected chip both draw that boundary
+ * already, so a hairline between every pair was a third statement of it — and
+ * at seven collections' worth of headers, the most visible one.
+ */
 
 /* Hover, focus and pressed are the shared state layer (M3-INT, `base.css`). The
  * segment states only its SELECTED container below, which is a real colour
@@ -112,8 +140,10 @@
  * itself with `aria-current`, a client-state one with `aria-pressed`. */
 .dh-segmented__option[aria-current="true"],
 .dh-segmented__option[aria-pressed="true"] {
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
+  box-shadow: var(--app-elevation-raised);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
 }
 
 .dh-segmented__option[aria-current="true"]::before,
@@ -204,7 +234,7 @@
  * appearances, so subordinate never means illegible.
  */
 .dh-segmented--subtle {
-  border-color: var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-card-subtle);
 }
 
 .dh-segmented--subtle .dh-segmented__option {
@@ -215,14 +245,10 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.dh-segmented--subtle .dh-segmented__option + .dh-segmented__option {
-  border-inline-start-color: var(--md-sys-color-outline-variant);
-}
-
 .dh-segmented--subtle .dh-segmented__option[aria-current="true"],
 .dh-segmented--subtle .dh-segmented__option[aria-pressed="true"] {
   color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--md-app-color-surface-card);
 }
 
 /* The check reserves a smaller box here, in proportion with the smaller label. */

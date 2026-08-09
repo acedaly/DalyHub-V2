@@ -67,6 +67,7 @@ html {
   :root {
     --app-page-padding: var(--app-page-padding-tablet);
     --app-dashboard-gap: var(--app-dashboard-gap-tablet);
+    --app-stat-track: var(--app-stat-track-desktop);
   }
 }
 

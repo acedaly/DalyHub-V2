@@ -46,6 +46,7 @@ export {
   goalCheckInDue,
   goalCheckInLabel,
   goalCurrentAgainstTarget,
+  goalTargetLabel,
   goalDaysToTarget,
   goalLastUpdatedText,
   goalNeedsAttention,

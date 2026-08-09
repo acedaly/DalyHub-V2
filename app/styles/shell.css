@@ -231,7 +231,17 @@
   gap: var(--app-space-3);
   min-height: var(--app-nav-row-height);
   padding-inline: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-full);
+  /*
+   * VIS-01 — a soft rounded row, not a capsule.
+   *
+   * `corner-full` on a 216px-wide, 44px-tall row is a stadium, and a stadium is
+   * a BUTTON's shape: it says "press me", fourteen times, down the side of
+   * every screen. `--app-shape-supporting` is the shape a quiet surface inside
+   * something else takes, which is what a destination in a drawer is. The
+   * selected row is still a SHAPE (so it survives forced colours), it is simply
+   * no longer a pill.
+   */
+  border-radius: var(--app-shape-supporting);
   text-decoration: none;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-large-size);
@@ -332,9 +342,18 @@
 
 /* 24px, the M3 icon size for a drawer item — set here rather than inherited so
  * the glyph does not shrink with the label's `label-large`. */
+/*
+ * VIS-01 — 20px, down from M3's 24px drawer glyph.
+ *
+ * A navigation glyph orients; it does not decorate. At 24px beside a 14px
+ * label the glyph is the larger object in every row, which is backwards for a
+ * region whose job is to be read and then ignored — and fourteen 24px glyphs
+ * in a column is most of the visual mass of the drawer. At 20px the label
+ * leads and the glyph confirms, which is the balance the reference has.
+ */
 .dh-nav__icon {
   display: inline-flex;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   line-height: 0;
 }
 
@@ -354,15 +373,27 @@
  * 3:1 because something depends on seeing it — spending it on four decorative
  * rules put four hard rules down the side of every screen. The group gap does
  * most of the work; the line only confirms it. */
+/*
+ * VIS-01 — the grouping is SPACE, and the rule is gone.
+ *
+ * The comment above already said "the group gap does most of the work; the line
+ * only confirms it". Having compared the drawer with the reference, the line
+ * does not confirm it — it competes with it: three full-width rules down a
+ * 216px column read as structure the owner has to parse, on a region that
+ * should be scanned. The gap that replaces each one is larger than the gap it
+ * had, so the grouping is if anything more legible.
+ *
+ * The element stays (it is a real `<hr>` a screen reader announces as a
+ * separator between groups the registry genuinely defines) — it simply draws
+ * nothing.
+ */
 .dh-nav__divider {
-  margin-block: var(--app-space-2);
+  margin-block: var(--app-space-3);
   padding-inline: var(--app-space-3);
 }
 
 .dh-nav__divider hr {
   border: none;
-  border-top: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
   margin: 0;
 }
 
@@ -590,15 +621,115 @@
 .dh-topbar__utilities {
   display: flex;
   align-items: center;
-  gap: var(--app-space-1);
+  /* VIS-01 — 8px rather than 4px, so the search capsule reads as its own
+   * object rather than as the first of five touching controls. */
+  gap: var(--app-space-2);
   margin-inline-start: auto;
   flex: none;
+  min-inline-size: 0;
 }
 
 /* The `role="search"` wrapper is a landmark, not a box: it must not introduce a
  * flex item between the cluster and its buttons. */
 .dh-topbar__utilities > [role="search"] {
   display: contents;
+}
+
+/* -------------------------------------------------------------------------- */
+/* VIS-01 — the top bar's search capsule                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A control that LOOKS like a field and behaves like a button.
+ *
+ * The three numbers that keep it from becoming the pill this bar spent a
+ * milestone removing: it is `--app-control-height-lg` tall (44px — the target
+ * floor) rather than 56; it is capped at 18rem rather than spanning the content
+ * region; and it lives in the trailing utility CLUSTER, so the page's own title
+ * still starts at the top-left of the pane. It is the quietest surface the
+ * shell paints — `surface-card-subtle` on the app bar, no border, no shadow.
+ *
+ * It keeps `corner-full`, and that is deliberate rather than inconsistent with
+ * the pass's general retreat from pills: a search field is one of the two
+ * things (with a chip) that the reference itself draws as a stadium, because
+ * the shape is what identifies it as a field at a glance.
+ */
+.dh-topbar__search {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  min-block-size: var(--app-control-height-lg);
+  /* Below `lg` the SAME control is a 44px circle: the bar there has to hold the
+   * utilities and still leave the pane its width. One button at every width —
+   * one accessible name, one `role="search"` region, one shortcut — that draws
+   * itself as a field when there is room for one. */
+  inline-size: var(--app-touch-target-min);
+  padding-inline: 0;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font: inherit;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-topbar__search-label,
+.dh-topbar__search-hint {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .dh-topbar__search {
+    justify-content: flex-start;
+    inline-size: 18rem;
+    max-inline-size: 100%;
+    padding-inline: var(--app-space-4) var(--app-space-3);
+    background: var(--md-app-color-surface-card-subtle);
+  }
+
+  .dh-topbar__search-label {
+    display: block;
+  }
+
+  .dh-topbar__search-hint {
+    display: block;
+  }
+}
+
+.dh-topbar__search-icon {
+  display: inline-flex;
+  flex: none;
+  font-size: 1.125rem;
+  line-height: 0;
+}
+
+@media (min-width: 64rem) {
+  .dh-topbar__search-label {
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* The shortcut, as a quiet trailing affordance rather than a control. */
+.dh-topbar__search-hint {
+  flex: none;
+  min-inline-size: 1.25rem;
+  padding-block: 0;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-page);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: 1.25rem;
+  text-align: center;
 }
 
 /* An icon-only utility: 40px of visual control inside a 44px target, so the bar
@@ -1190,8 +1321,6 @@
   padding: 0;
   display: flex;
   align-items: stretch;
-  /* 80px is the M3 navigation bar's height, and it is what makes room for the
-   * 32px active-indicator pill with its label beneath. */
   min-block-size: var(--app-bottomnav-bar-height);
 }
 
@@ -1211,7 +1340,10 @@
   gap: var(--app-space-1);
   min-block-size: var(--app-touch-target-min);
   min-inline-size: var(--app-touch-target-min);
-  padding-block: var(--app-space-3);
+  /* VIS-01 — 4px rather than 12px. The control still fills the bar's full
+   * height and its full share of the width, so the TARGET is unchanged; what
+   * shrank is the empty band above and below the glyph. */
+  padding-block: var(--app-space-1);
   padding-inline: var(--app-space-1);
   border: none;
   background: transparent;
@@ -1222,18 +1354,22 @@
 }
 
 /*
- * The M3 ACTIVE-INDICATOR: a 64×32 pill that sits BEHIND the glyph. It is
- * present on every destination so the metrics never shift, and it is filled
- * only on the current one — which makes selection a shape as well as a tone, so
- * it survives forced colours and monochrome (AGENTS.md §15).
+ * The ACTIVE-INDICATOR, at VIS-01's size: a 40×26 soft rectangle behind the
+ * glyph rather than M3's 64×32 capsule.
+ *
+ * It is still present on every destination so the metrics never shift, still
+ * filled only on the current one, and still a SHAPE as well as a tone — which
+ * is what carries selection under forced colours and in monochrome
+ * (AGENTS.md §15). It is simply no longer the largest painted object on a
+ * phone's most permanent surface.
  */
 .dh-bottomnav__indicator {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 4rem;
-  block-size: 2rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  inline-size: 2.5rem;
+  block-size: 1.625rem;
+  border-radius: var(--app-shape-supporting);
   background: transparent;
   transition: background-color var(--md-sys-motion-duration-short2)
     var(--md-sys-motion-easing-standard);
@@ -1241,16 +1377,16 @@
 
 .dh-bottomnav__icon {
   display: inline-flex;
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   line-height: 0;
 }
 
 /* The label is ALWAYS visible — no icon-only targets in primary navigation. */
 .dh-bottomnav__label {
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
   font-weight: var(--md-sys-typescale-label-medium-weight);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
   max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -557,7 +557,10 @@ describe("a measurable Goal's card (GOAL-02)", () => {
     ]);
     const card = screen.getByTestId("goal-card");
     expect(within(card).getByText("79 kg")).toBeInTheDocument();
-    expect(within(card).getByText("79 kg → 70 kg")).toBeInTheDocument();
+    // VIS-01 — the label under the figure is the TARGET, not the pair. Printing
+    // "79 kg → 70 kg" beneath "79 kg" said the current value twice and made the
+    // label the longer of the two strings.
+    expect(within(card).getByText("Target 70 kg")).toBeInTheDocument();
     // The contribution bar is REPLACED, not joined: two bars would be two
     // answers to "how far along?".
     expect(within(card).queryByText("1 of 4 Projects complete")).toBeNull();
@@ -573,12 +576,22 @@ describe("a measurable Goal's card (GOAL-02)", () => {
     );
   });
 
-  it("states its status in words, and what remains", () => {
+  /*
+   * VIS-01 — ONE state signal and ONE fact.
+   *
+   * A measured Goal's card carried four things in its fact run at once: a
+   * status pill, an alignment pill, "9 kg remaining" and "↓ 6 kg overall". The
+   * remainder is the value against the target two lines above it, and the
+   * alignment is a state of the WORK on a card that is now leading with a state
+   * of the OUTCOME. Both went; the status and the total change stayed, because
+   * they are the two things the number itself cannot say.
+   */
+  it("states its measurement status in words, and its total change", () => {
     renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
     const card = screen.getByTestId("goal-card");
     expect(card.textContent).toMatch(/On track|Ahead|In progress/);
-    expect(within(card).getByText("9 kg remaining")).toBeInTheDocument();
     expect(within(card).getByText("↓ 6 kg overall")).toBeInTheDocument();
+    expect(within(card).queryByText("9 kg remaining")).toBeNull();
   });
 
   it("leaves an UNMEASURED Goal's card exactly as M3X-02 built it", () => {

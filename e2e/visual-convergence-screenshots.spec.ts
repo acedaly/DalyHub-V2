@@ -95,9 +95,9 @@ async function createGoal(
   await dialog.getByLabel(/Title/).fill(options.title);
   await dialog.getByTestId(`new-goal-measurement-${options.type}`).check();
   if (options.unit !== undefined) {
-    await dialog.getByRole("textbox", { name: /^Measure in/ }).fill(
-      options.unit,
-    );
+    await dialog
+      .getByRole("textbox", { name: /^Measure in/ })
+      .fill(options.unit);
   }
   if (options.baseline !== undefined) {
     await dialog
@@ -207,7 +207,9 @@ async function seedMeasurableGoals(page: Page): Promise<string> {
   for (const stage of stages) {
     await milestones.getByRole("textbox", { name: "New stage" }).fill(stage);
     await milestones.getByRole("button", { name: "Add" }).click();
-    await expect(milestones.getByRole("checkbox", { name: stage })).toBeVisible();
+    await expect(
+      milestones.getByRole("checkbox", { name: stage }),
+    ).toBeVisible();
   }
   for (const stage of stages.slice(0, 2)) {
     // Clicked rather than `check()`ed: completing a stage posts to the canonical

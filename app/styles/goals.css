@@ -364,6 +364,46 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * VIS-01 — the GLANCE state: a word in its own tone, where the other two sizes
+ * draw a filled pill.
+ *
+ * The tones are the pill's own semantic set, read as text rather than as a
+ * container, so nothing new is authored and the two presentations can never
+ * disagree about what "Ahead" means. `neutral` deliberately takes no colour at
+ * all: a state with nothing to report should not be the thing the eye lands on.
+ */
+.dh-goalprogress__state {
+  flex: none;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
+}
+
+.dh-goalprogress__state[data-tone="success"] {
+  color: var(--md-sys-color-success);
+}
+
+.dh-goalprogress__state[data-tone="warning"] {
+  color: var(--md-sys-color-warning);
+}
+
+.dh-goalprogress__state[data-tone="danger"] {
+  color: var(--md-sys-color-state-overdue);
+}
+
+.dh-goalprogress__state[data-tone="accent"],
+.dh-goalprogress__state[data-tone="info"] {
+  color: var(--md-sys-color-primary);
+}
+
+/* The glance value is a card's headline, not a record's: one rung down from the
+ * `title-large` a compact readout takes, so four of them in a row read as a row
+ * of figures rather than as four small heroes. */
+.dh-goalprogress[data-size="glance"] .dh-goalprogress__current {
+  font-size: var(--md-sys-typescale-title-medium-size);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Measurement setup                                                           */
 /* -------------------------------------------------------------------------- */

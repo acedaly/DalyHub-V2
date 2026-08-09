@@ -767,26 +767,34 @@ function GoalProgressSection({
             );
             return (
               <li className="dh-today__goal" key={goal.id}>
-                <div className="dh-today__goal-head">
-                  <Link
-                    className="dh-today__goal-title"
-                    to={`/goals/${encodeURIComponent(goal.id)}`}
-                  >
-                    {goal.title}
-                  </Link>
-                  <span className="dh-today__goal-area">{goal.areaTitle}</span>
-                </div>
+                {/*
+                 * VIS-01 — the head is the TITLE, and nothing else.
+                 *
+                 * The Area used to sit beside it. It is the definition of
+                 * metadata already visible elsewhere: the Goal record states
+                 * it, the Goals gallery states it, and on a glance surface it
+                 * competed with the title for the one line a compact card has.
+                 */}
+                <Link
+                  className="dh-today__goal-title"
+                  to={`/goals/${encodeURIComponent(goal.id)}`}
+                >
+                  {goal.title}
+                </Link>
                 <GoalProgressReadout
+                  size="glance"
                   progress={goal.progress}
                   label={`${goal.title} progress`}
                   trailing={change ? `${change} this month` : null}
                 />
                 {/* One action, and it is the one a Goal needs most often. The
-                    Goal record is a link away for everything else. */}
+                    Goal record is a link away for everything else. It is a TEXT
+                    button here: an outlined pill on four cards at once made the
+                    least-used thing on each card its most conspicuous. */}
                 {onUpdateGoal && goal.progress.type !== "milestone" ? (
                   <button
                     type="button"
-                    className="dh-btn dh-btn--outlined dh-btn--sm"
+                    className="dh-btn dh-btn--ghost dh-btn--sm"
                     data-testid="today-goal-update"
                     onClick={(event) => onUpdateGoal(goal, event.currentTarget)}
                   >

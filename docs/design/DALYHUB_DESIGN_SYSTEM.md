@@ -114,7 +114,37 @@ specification does not, because the specification's answer was worse *here*.
 | D10 | **No theme feature.** One light/dark pair, chosen by `prefers-color-scheme` or the owner's three-value appearance preference | A component styled once is correct in both. Nothing in the cascade branches on a theme |
 | D11 | **Today has no hero.** Its figures are a row of quiet cards on the canvas | A hero spends the page's largest type on a headline and leaves the numbers at label size beside it — on the one screen whose entire question is the numbers. The row spends it on the figures, and tints nothing |
 
-## 6. Interaction principles
+## 6. Measurable Goals — the visual language
+
+Shipped in GOAL-02. A Goal carries a **measurement**, and its representation is
+chosen from the measurement TYPE rather than reduced to a percentage:
+
+| Type | What the surface leads with | The visualisation |
+| --- | --- | --- |
+| **Target value** | the current value against the target — `79.3 kg`, `Target 70 kg` | the dated trend, with the target as a quiet reference line |
+| **Count** | `5 of 12 books` | a proportion bar |
+| **Milestones** | `2 of 4 stages` | the stage list; completion is the measure |
+| **Manual** | the owner's own percentage | a proportion bar, because a percentage is what was stated |
+| **Not measured** | "Not measured yet", and how to fix it | none — a Goal DalyHub has not been told how to measure is **not 0% done** |
+
+Three rules hold across every surface that draws one:
+
+1. **Progress is the OUTCOME, not the work.** Where a Goal has a measurement,
+   the measurement is its progress. A Goal's contributing Projects are still
+   shown — they are how the outcome is being pursued — but they are no longer
+   the progress figure, and they never overrule a recorded reading.
+2. **A reading is a fact, a percentage is a derivation.** The value is drawn
+   larger than the percentage everywhere, and the percentage is never drawn
+   without the value that produced it.
+3. **An absence is never drawn as a state.** No empty bar, no `0%`, no chip
+   announcing that something has not been configured.
+
+Density is by surface, and it is a ladder rather than one component at three
+sizes: Today shows a **glance** (title, value, one visualisation, one state);
+the gallery card shows a **choice** (identity, title, value, bar, one fact); the
+record shows the **whole thing** (hero figure, pace, trend, history, stages).
+
+## 7. Interaction principles
 
 - **Inline editing is the default.** Where a value can be safely changed in
   place, it is — a title, a priority, a date, a parent. Opening a form to change
@@ -136,7 +166,7 @@ specification does not, because the specification's answer was worse *here*.
   because `order` moves pixels and leaves the reading order and the tab order
   behind.
 
-## 7. Responsive behaviour
+## 8. Responsive behaviour
 
 Desktop and phone are allowed genuinely different **compositions** of the same
 data, the same routes and the same components. That is the design, not a
@@ -154,7 +184,7 @@ The laptop widths get the most attention, because that is where a title wraps or
 a gallery loses a column. **A title that wraps unnecessarily at a normal laptop
 width is a defect**, not a nuance.
 
-## 8. Accessibility
+## 9. Accessibility
 
 WCAG 2.2 AA, verified rather than assumed. Contrast is asserted over the
 *generated* scheme in both appearances, including the composed expressive
@@ -171,7 +201,6 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 
 | # | Decision | Why it is still outstanding |
 | --- | --- | --- |
-| A1 | **Measurable Goals.** A Goal should carry a baseline, a current value, a target and a unit — weight 85 → 70 kg, savings $5,000 → $15,000, books 3 → 12 — and choose its representation from the measurement type rather than reducing everything to a percentage | Needs a data-model change (migration, kernel contract, repository, forms, the record surface) and a product decision about which measurement types are first-class. Until then, a Goal's only honest measure is its Project contribution, which is what the card and the record draw |
 | A2 | **A quieter selected navigation destination.** The filled pill is the specification's answer and reads as the most Material object in the product | The pairing is asserted by name in `contrast.test.ts`; softening it needs a generated strength and a rewritten assertion, not a colour swap |
 | A3 | **A larger, calmer type scale for page and section titles** | A scale change touches every module's first viewport and must be re-QA'd at all ten widths in both appearances |
 | A4 | **The writing surfaces (Notes, Diary) drop their box.** Content-first, contextual toolbar, generous measure | The editor has its own geometry suite (`editor-geometry`, `doc-editor-responsive`); the change is safe only alongside those |

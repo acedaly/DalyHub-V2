@@ -20,14 +20,21 @@
 }
 
 /* ------------------------------------------------------------------------- *
- * EDIT-01 — the editor reads as ONE surface, not as a toolbar panel stacked on
- * a text panel.
+ * VIS-01 — the writing surface has no BOX. (Part 2, item A4.)
  *
- * The bar and the writing surface share a single outline: the bar carries the
- * top corners and no bottom edge, the surface carries the bottom corners, and
- * the hairline between them is the bar's own rule. That is the difference
- * between "a formatting palette is sitting on my note" and "my note has a
- * toolbar" — and it is why the gap between the two is 0.
+ * EDIT-01 made the bar and the text read as one surface by giving them one
+ * shared outline — which was the right fix for "a formatting palette is sitting
+ * on my note" and left the wrong object behind: a bordered, filled, rounded
+ * rectangle with a toolbar strip on top, which is a rich-text FIELD embedded in
+ * a settings page. A note is not a field. The page is the paper.
+ *
+ * So the outline, the fill and the corners all go, from the bar and from the
+ * writing surface alike, and one hairline stays under the toolbar — the single
+ * quiet line that says "controls above, document below". Everything EDIT-01
+ * bought is kept: the gap between bar and text is still 0, the toolbar's first
+ * control still lines up with the first character, and Read mode still starts
+ * on the same left edge as Write mode (`editor-geometry.spec.ts` asserts all
+ * three).
  * ------------------------------------------------------------------------- */
 .dh-md-editor__bar {
   display: flex;
@@ -36,12 +43,10 @@
   gap: var(--app-space-2);
   min-inline-size: 0;
   padding: var(--app-space-1) var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: none;
   border-block-end: var(--app-border-width-thin) solid
     var(--md-app-color-outline-hairline);
-  border-start-start-radius: var(--md-sys-shape-corner-medium);
-  border-start-end-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
+  background: transparent;
 }
 
 .dh-md-editor__bar-end {
@@ -203,11 +208,8 @@
   inline-size: 100%;
   min-block-size: max(40dvh, var(--app-editor-min-height));
   padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-block-start: none;
-  border-end-start-radius: var(--md-sys-shape-corner-medium);
-  border-end-end-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-page);
+  border: none;
+  background: transparent;
   color: var(--md-sys-color-on-surface);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
@@ -243,18 +245,18 @@
 /* CodeMirror host. The library injects its own structural CSS; we override only
  * the design surface here, all through tokens. */
 .dh-md-editor__cm {
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-block-start: none;
-  border-end-start-radius: var(--md-sys-shape-corner-medium);
-  border-end-end-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-page);
+  background: transparent;
   overflow: hidden;
 }
 
+/* The focus indicator is the one piece of chrome the surface keeps, because
+ * WCAG 2.4.7 is not a stylistic preference. With no box to thicken it is drawn
+ * as the product's own ring, offset off the text rather than sitting on a
+ * border that is no longer there. */
 .dh-md-editor__cm:focus-within {
   outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
-  outline-offset: var(--app-border-width-thin);
-  border-color: var(--md-sys-color-outline);
+  outline-offset: var(--app-space-1);
+  border-radius: var(--app-shape-supporting);
 }
 
 .dh-md-editor__cm .cm-editor {

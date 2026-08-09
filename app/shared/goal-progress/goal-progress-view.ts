@@ -373,6 +373,28 @@ export function goalCurrentAgainstTarget(
   )}`;
 }
 
+/**
+ * VIS-01 — the TARGET alone, for a surface that has already printed the current
+ * value immediately above it.
+ *
+ * `goalCurrentAgainstTarget` states both, which is right where the pair IS the
+ * reading ("11 / 24 books"). A gallery card prints the current value as its
+ * metric and then labels it, and labelling `79.3 kg` with `79.3 kg → 70 kg` says
+ * the current value twice and makes the label the longer of the two strings —
+ * exactly the metadata density the convergence pass is reducing.
+ *
+ * `null` for a milestone Goal (whose reading is already `2 / 4`) and for a
+ * manual one (whose target is the number 100, which is not a target anyone set).
+ */
+export function goalTargetLabel(
+  progress: GoalProgressEvaluation,
+): string | null {
+  if (!progress.measured) return null;
+  if (progress.type === "milestone" || progress.type === "manual") return null;
+  if (progress.target === null) return null;
+  return `Target ${formatMeasurementValue(progress.target, progress.unit)}`;
+}
+
 /** The chart's required text equivalent, stating direction and span in words. */
 export function goalTrendSummaryText(
   progress: GoalProgressEvaluation,

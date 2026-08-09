@@ -44,21 +44,34 @@
   overflow: visible;
 }
 
+/*
+ * VIS-01 — a thinner line and quieter readings.
+ *
+ * At 2px, with a 5px dot on every reading and an 8px dot on the last, a Goal's
+ * trend read as an analytics chart: the DOTS were the drawing and the line was
+ * what joined them. A weight going down is a shape, and the shape is the point.
+ * 1.5px is still comfortably visible at any width (`non-scaling-stroke` keeps it
+ * exact however the plot is stretched), and the readings drop to a size that
+ * marks where a measurement was taken without competing with the curve.
+ *
+ * The latest reading keeps its emphasis, because it is the number the page's
+ * headline states — it is simply no longer twice the line's own weight.
+ */
 .dh-linechart__line {
   stroke: var(--md-sys-color-primary);
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .dh-linechart__point {
   stroke: var(--md-sys-color-primary);
-  stroke-width: 5;
+  stroke-width: 3;
 }
 
 /* The most recent reading is the one the page's headline states, so it carries
  * a heavier dot — an emphasis, never the only way to find it. */
 .dh-linechart__point[data-latest="true"] {
   stroke: var(--md-sys-color-on-surface);
-  stroke-width: 8;
+  stroke-width: 5;
 }
 
 /* The target: quiet, dashed, and always named in the caption beside it. */

@@ -1247,9 +1247,20 @@
  * note is quiet. `flex-wrap` is what lets the same markup be one line on a
  * laptop and three stacked bands on a phone, without a second arrangement.
  */
+/*
+ * VIS-01 — the hero spends less HEIGHT and keeps all of its weight.
+ *
+ * On a gallery the hero's own figure is the least decision-relevant number on
+ * the page, and at 24px of padding, 20px of internal gap and a
+ * `headline-medium` headline it pushed the first row of cards past 380px on a
+ * 1440 laptop — the reference's first card row starts at about half that. The
+ * card padding rung and a 16px gap take ~30px out of it without touching any of
+ * the four things that make it dominant: the tint, the wash, the elevation and
+ * the shape.
+ */
 .dh-summary {
-  gap: var(--app-space-5);
-  padding: var(--app-card-padding-hero);
+  gap: var(--app-space-4);
+  padding: var(--app-card-padding);
 }
 
 .dh-summary__lead {
@@ -1296,19 +1307,23 @@
 }
 
 /*
- * The headline is `headline-medium` EMPHASIZED, not `headline-large`.
+ * The headline is `title-large` EMPHASIZED.
  *
- * This is the audit's central typography correction (§5): the product made
- * things important by making them bigger, which is what let a greeting out-shout
- * the day. Emphasis by WEIGHT keeps the hero commanding at a size that still
- * fits one line on a laptop and does not eat a phone's first viewport.
+ * It was `headline-medium` emphasized — the audit's own correction from
+ * `headline-large`, made for the right reason and stopped one rung early. At
+ * `headline-medium` the hero's headline is the SAME size as the page title
+ * three inches above it, so a page has two 28px strings and neither is the
+ * heading. One more rung down puts the hero's own words below the page's, which
+ * is where the reading order already puts them, and takes nothing off the
+ * surface's dominance — that is carried by the tint, the wash, the depth, the
+ * shape, the padding and the ring, none of which any other surface has.
  */
 .dh-summary__headline {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
   color: var(--md-app-color-on-surface-expressive);
   text-wrap: balance;
   overflow-wrap: anywhere;
@@ -1833,9 +1848,27 @@
  * most of a 390px first viewport spent on counting, which is the dashboard this
  * replaced.
  */
+/*
+ * VIS-01 — the track is `--app-stat-track`, banded like the gutter.
+ *
+ * `auto-fill` at a single 9.5rem minimum was tuned for the phone (two across)
+ * and never re-read on a desktop, where it produced NINE tracks across a 1136px
+ * row: a day with one figure worth painting rendered a 150px tile stranded at
+ * the far left, and a day with four rendered four small tiles and 600px of
+ * canvas. The convergence reference's figure cards are ~254px at 1440.
+ *
+ * `auto-fill` is still the right function — the tracks stay put, so a figure
+ * card is the same size whether the day has two figures or four — it simply now
+ * has a desktop-sized track on a desktop. The two values and the band live in
+ * `tokens.css`/`base.css` with the gutter and the dashboard gap, because a
+ * value that changes with the breakpoint is page rhythm, not card anatomy.
+ */
 .dh-stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, var(--app-stat-track)), 1fr)
+  );
   gap: var(--app-space-3);
   margin: 0;
   padding: 0;
@@ -1855,7 +1888,10 @@
   min-inline-size: 0;
   padding: var(--app-card-padding-compact);
   border: none;
-  border-radius: var(--app-shape-card);
+  /* VIS-01 — the FIGURE rung of the shape ladder. A stat card is one rung under
+   * an ordinary card, because at a card's own radius a small tile is more
+   * corner than face. */
+  border-radius: var(--app-shape-metric);
   background: var(--md-app-color-surface-card);
   box-shadow: var(--app-elevation-resting);
   color: var(--md-sys-color-on-surface);

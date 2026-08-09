@@ -332,15 +332,34 @@ const APP_SURFACE_TONES = {
     "surface-sunken": 94,
     "outline-hairline": 92,
   },
+  /*
+   * VIS-01 lifted the whole dark ladder off black.
+   *
+   * It ran 5 · 7 · 9 · 10 · 11 · 13 · 19, and at tone 7 the page is
+   * effectively black: the card above it does not read as a surface that has
+   * been LIFTED, it reads as a grey rectangle that has been drawn, and every
+   * tint, identity mark and state colour on top of it becomes the brightest
+   * thing on the screen because it has nothing to compete with. That is the
+   * "dark mode is light mode with black substituted" failure the convergence
+   * brief names.
+   *
+   * Three tones up across the board is the fix, and it costs nothing: the
+   * app-neutral palette is already rotated to the cool end (see
+   * APP_NEUTRAL_HUE_ROTATION), so the raised floor reads as a dark blue-grey
+   * rather than as a lighter black — which is exactly the "dark neutral/navy,
+   * not pure black" the brief asks for. Every ordering the ladder test asserts
+   * is preserved, and the page→card step is 5 tones where it was 6, which is
+   * the "modest difference between page and card" half of the same rule.
+   */
   dark: {
-    "surface-page": 7,
-    "surface-navigation": 9,
-    "surface-app-bar": 10,
-    "surface-card": 13,
-    "surface-card-subtle": 11,
-    "surface-raised": 19,
-    "surface-sunken": 5,
-    "outline-hairline": 24,
+    "surface-page": 10,
+    "surface-navigation": 12,
+    "surface-app-bar": 13,
+    "surface-card": 15,
+    "surface-card-subtle": 13,
+    "surface-raised": 21,
+    "surface-sunken": 7,
+    "outline-hairline": 25,
   },
 };
 
@@ -384,14 +403,47 @@ const APP_SURFACE_TONES = {
  * and the text colour, all of which the hero has and this does not) and dark
  * sits well under it (where tone alone is enough).
  */
+/*
+ * VIS-01 adds `identity` and quietens `selected`.
+ *
+ * `identity` is Part 2 item A7 delivered — "calmer identity marks in dark" —
+ * and it is delivered as a STRENGTH rather than as a new colour, for the reason
+ * this whole block exists: an entity's container role is a pale tone-90 in
+ * light and a saturated tone-30 in dark, so nine Project marks in a gallery are
+ * a soft palette in one appearance and a rainbow of coloured rectangles in the
+ * other. Light takes the container at full strength (nothing changes there);
+ * dark takes just over half of it over the card beneath, which lands the mark
+ * between the card and the accent instead of on top of both.
+ *
+ * It is contrast-SAFE in both directions by construction, which is why it can
+ * be one mix rather than a per-ramp table: the glyph inside a mark is the
+ * container's own `on-` role, and mixing a container TOWARD the card always
+ * moves the background away from that role — darker under a light-on-dark
+ * glyph, lighter under a dark-on-light one. Asserted over all ten ramps in
+ * `contrast.test.ts`.
+ *
+ * `selected` is Part 2 item A2 finished. DH-DS already mixed the navigation
+ * drawer's active indicator toward the drawer surface; at 62% in light it was
+ * still a filled lilac capsule 216px wide, which is the single most "Material
+ * component demo" object left in the frame. At 34% it is a soft wash, and the
+ * three signals that were never the fill — the weight step, the `primary`
+ * glyph and `aria-current` — carry exactly what they carried before.
+ */
 const APP_TINT_STRENGTHS = {
   light: {
     expressive: "55%",
     supporting: "48%",
-    selected: "62%",
+    selected: "34%",
     state: "45%",
+    identity: "100%",
   },
-  dark: { expressive: "28%", supporting: "18%", selected: "42%", state: "30%" },
+  dark: {
+    expressive: "28%",
+    supporting: "18%",
+    selected: "26%",
+    state: "30%",
+    identity: "56%",
+  },
 };
 
 /* -------------------------------------------------------------------------- */
