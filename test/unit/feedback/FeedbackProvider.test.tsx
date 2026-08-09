@@ -152,6 +152,19 @@ describe("DS-10 FeedbackProvider", () => {
     );
   });
 
+  it("can show a notification without duplicating a caller-owned announcement", () => {
+    const { container } = renderProvider();
+    act(() => {
+      api.notifySuccess("Completed inbox task.", { announce: false });
+    });
+    expect(
+      screen.getByRole("group", { name: "Completed inbox task." }),
+    ).toBeInTheDocument();
+    expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent(
+      "",
+    );
+  });
+
   describe("undo", () => {
     it("runs the undo handler on Undo and does not commit", async () => {
       renderProvider();
@@ -168,6 +181,23 @@ describe("DS-10 FeedbackProvider", () => {
       expect(
         screen.queryByRole("group", { name: "Deleted “Draft”" }),
       ).not.toBeInTheDocument();
+    });
+
+    it("can keep the visible Undo affordance without a feedback live-region write", () => {
+      const { container } = renderProvider();
+      act(() => {
+        api.notifyUndo("Completed “Draft”.", {
+          announce: false,
+          onUndo: vi.fn(),
+        });
+      });
+      expect(
+        screen.getByRole("group", { name: "Completed “Draft”." }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+      expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent(
+        "",
+      );
     });
 
     it("commits (onExpire) when the undo window elapses", async () => {

@@ -107,6 +107,11 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
         .locator("[role='status']")
         .filter({ hasText: `Completed ${title}.` }),
     ).toBeAttached();
+    await expect(
+      page
+        .locator('.dh-feedback-live[aria-live="polite"]')
+        .filter({ hasText: `Completed ${title}.` }),
+    ).toHaveCount(0);
 
     // The confirmation IS the way back: one affordance, not two.
     const toast = page.getByRole("group", { name: `Completed ${title}.` });

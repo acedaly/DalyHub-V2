@@ -64,17 +64,18 @@ Make Today truthful enough to remain the daily entry point.
 - **Non-goals:** weather/calendar, push notifications, a metrics dashboard, or a
   broader Today redesign.
 
-### ☐ TASKS-10 - Daily-driver verification and capture polish
+### ☑ TASKS-10 - Daily-driver verification and capture polish — **DELIVERED 2026-08-09**
 
 Lock the current Tasks daily-driver behaviour before adding new Task features.
 
-- Add the missing >100 selection/bulk-bound E2E coverage recorded in
+- Added the missing >100 selection/bulk-bound E2E coverage recorded in
   [DEBT-110](../product/PRODUCT_DEBT.md#-debt-110--the-100-task-bulk-bound-has-unit-coverage-but-no-e2e-journey-that-accumulates-more-than-one-page--p3).
-- Re-run and preserve the phone acceptance matrix for capture, list editing, bulk
+- Re-ran and preserved the phone acceptance matrix for capture, list editing, bulk
   actions and recurrence at 320, 375, 390 and 430px.
-- Review the full create form against the title-first composer contract, without
-  slowing the existing quick-add/global capture paths.
-- Either fix or explicitly retain the completed-task double-announcement debt
+- Revalidated the full create form against the title-first composer contract: the
+  full Drawer still focuses title first, accepts title-only Inbox capture, and leaves
+  the faster quick-add/global capture paths unchanged.
+- Fixed the completed-task double-announcement debt
   ([DEBT-115](../product/PRODUCT_DEBT.md#-debt-115--a-completed-task-is-announced-twice-once-by-the-list-once-by-the-notification-centre--p3)).
 - **Non-goals:** new views, AI parsing, offline editing, subtasks or another Matrix.
 
@@ -267,9 +268,10 @@ which revises one sentence of ADR-085 §3 for the list surface and leaves
   the identity of the loader's first page — fresh JSON on every revalidation — so any
   mutation collapsed three loaded pages back to one. It now resets on the
   configuration alone and merges a refreshed first page by id.
-- **Recorded honestly:** a completion is now announced twice to assistive technology
-  (the workspace's live region and the notification centre's). Converging them needs
-  an opt-out on the shared notify API — [DEBT-115](../product/PRODUCT_DEBT.md).
+- **TASKS-10 follow-on:** a completion is now announced once. The workspace live
+  region carries the committed completion and any recurrence consequence, while the
+  visible Undo notification opts out of its own duplicate feedback live-region write
+  through the shared DS-10 notify API.
 
 ---
 

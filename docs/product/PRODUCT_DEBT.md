@@ -1233,17 +1233,19 @@ authority now.)
 - **Closing condition.** A rule authored as "last Friday of every month" survives a complete/reopen/complete cycle, clamps correctly in a month with four Fridays and one with five, and reads identically in the editor, on the row, in the Drawer and on Today.
 - **Related roadmap item.** [TASKS-07](../roadmap/ROADMAP_V2_2.md#-tasks-07--recurrence-20--delivered-2026-08-08) (follow-on).
 
-### ◐ DEBT-110 — Bulk operations are bounded at 100 tasks with no surface that says so — P3 — **BEHAVIOUR DELIVERED 2026-08-09, E2E CASE STILL OWED**
+### ☑ DEBT-110 — Bulk operations are bounded at 100 tasks with no surface that says so — P3 — **RESOLVED 2026-08-09**
 
 - **Original issue.** Every bulk mutation validates its id list through `validateTaskIdList`, which caps at `MAX_PLAN_BATCH_SIZE` (100) — deliberately, so one transaction stays small and predictable. The bulk bar's "Select all" only ever selects what is VISIBLE (one loaded page), so the cap is not reachable in ordinary use, but nothing on the surface stated either fact. An owner who loads several pages and then selects everything would meet a typed validation error rather than a bound they had been told about.
 - **Impact.** Small and latent: a refusal that is correct but unexplained, on the one operation where the owner is acting on many records at once.
 - **What was fixed.** The bound is now stated BEFORE the action, and the rule is pure and tested rather than inline in the bar's JSX ([`task-selection.ts`](../../app/modules/tasks/task-selection.ts) — `boundBulkSelection` and `bulkSelectionOverBy`, covered by [`test/unit/tasks/task-selection.test.ts`](../../test/unit/tasks/task-selection.test.ts)):
   - **"Select all" is capped at the bound** and says what it will take ("Select all 100"), with a line beside it stating how many rows are loaded and why the offer stops there. It can no longer build a selection whose every action is guaranteed to be refused.
   - **A selection past the bound** — now reachable only by Shift-ranging across more than one loaded page — replaces the toolbar with the bound and the remedy ("Deselect 37 to continue"), instead of offering eleven controls that each end in the same typed validation error.
-- **What is still owed.** The **E2E** half of the original closing condition. Proving it through the browser needs 101+ open tasks in the default view, and `e2e/seed-tasks.sql` is shared by the whole suite — adding a hundred rows to it perturbs the counts, the Inbox-is-empty assumptions and the pagination journeys that the [E2E regression audit](E2E_REGRESSION_AUDIT_2026_08_09.md) had just finished stabilising. Fixture bleed was one of that audit's eight causes; re-introducing it to assert a P3 bound would be a bad trade.
-- **How it would be done, so the path is not re-derived.** Give the case its OWN seeded workspace (or a dedicated view whose filter isolates a generated block of rows) rather than adding to the shared seed, load two pages, and assert the stated bound and the capped "Select all" count.
-- **Closing condition (unchanged).** An E2E case that accumulates more than 100 rows, selects all, and sees a stated bound rather than a rejection.
-- **Related roadmap item.** [TASKS-06](../roadmap/ROADMAP_V2_2.md#-tasks-06--bulk-management--delivered-2026-08-08) (follow-on).
+- **Resolved by TASKS-10.** The owed E2E case now generates an isolated block of
+  105 tasks through the canonical `/tasks/new` route, loads more than one page in
+  the real Tasks UI, and proves both bound surfaces: "Select all" is capped at 100,
+  and a Shift-range selection of 101 rows replaces the toolbar with "Deselect 1 to
+  continue." See [`e2e/tasks-v22-daily-driver.spec.ts`](../../e2e/tasks-v22-daily-driver.spec.ts).
+- **Related roadmap item.** [TASKS-10](../roadmap/ROADMAP_V2_2.md#-tasks-10---daily-driver-verification-and-capture-polish--delivered-2026-08-09).
 
 ### ☑ DEBT-111 — Today lost its Assets section, so an obligation with no linked Task reaches the owner nowhere outside the Assets module — P2 — RESOLVED 2026-08-09
 
@@ -1293,16 +1295,20 @@ authority now.)
 - **Closing condition.** `grep -n "dh-trend" app/styles/insights.css` returns nothing, and `charts.css` documents why the ring is elsewhere.
 - **Related.** [`app/shared/charts/`](../../app/shared/charts/) · [`app/styles/charts.css`](../../app/styles/charts.css) · [`app/styles/insights.css`](../../app/styles/insights.css) · ADR-044.
 
-### ☐ DEBT-115 — A completed task is announced twice: once by the list, once by the notification centre — P3
+### ☑ DEBT-115 — A completed task is announced twice: once by the list, once by the notification centre — P3 — RESOLVED 2026-08-09
 
 - **Status: raised 2026-08-09 by TASKS-09,** which put the second announcement there deliberately and is recording it rather than leaving it undocumented.
 - **Current issue.** Completing a task from the `/tasks` list now produces two polite live-region announcements of the same event. The workspace's own `role="status"` region says *"Completed Draft the brief. The next occurrence is scheduled for 16 Aug."*; the DS-10 notification centre's `aria-live="polite"` region says *"Completed Draft the brief."* a moment later, because `notifyUndo` announces every notification it raises. A screen-reader user hears the completion twice for every tick.
 - **Why both exist.** They are not duplicates by accident — each carries something the other does not. The list's region carries the **recurrence consequence**, which is the richer sentence and the one the accessibility gate asserts (`e2e/tasks-daily-driver.spec.ts`, `e2e/tasks-collection.spec.ts`). The notification carries the **Undo**, which is the only way back and must be discoverable to a screen-reader user too. Suppressing either one loses a real thing.
 - **Impact.** Low but genuinely irritating on the surface most likely to be used with a screen reader in a burst. It is verbosity, not a WCAG failure: both regions are polite, neither is wrong, and nothing is announced that did not happen.
-- **Desired future state.** ONE announcement per completion, carrying both facts. The shape that gets there is an opt-out on the shared notify API — `NotifyOptions.announce?: boolean`, defaulting true — so a caller that has already announced the outcome itself can raise a VISIBLE notification without a second live-region write. The list would then announce the full sentence once, and the toast would be the visible, focusable Undo beside it.
-- **Why it was not done here.** It is a change to the shared DS-10 contract with five other consumers, and TASKS-09's own scope rule was that a shared component gains a capability only when the change needs it and every consumer has been considered. Adding an announcement opt-out deserves that consideration on its own, not as a footnote to a Tasks change (AGENTS.md §13).
-- **Closing condition.** Completing a task from `/tasks` writes to exactly one live region, that region's text still names the recurrence consequence, and the Undo is still reachable and named by keyboard and screen reader — asserted in `e2e/tasks-optimistic.spec.ts`.
-- **Related.** [ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) (which accepts it) · [`app/shared/feedback/FeedbackProvider.tsx`](../../app/shared/feedback/FeedbackProvider.tsx) · [`app/shared/feedback/feedback-context.ts`](../../app/shared/feedback/feedback-context.ts) · [`app/modules/tasks/TasksWorkspace.tsx`](../../app/modules/tasks/TasksWorkspace.tsx) · [TASKS-09](../roadmap/ROADMAP_V2_2.md).
+- **Resolved by TASKS-10.** DS-10 feedback now has `announce?: boolean`, defaulting
+  true. Tasks completion keeps the visible, focusable Undo notification, but opts
+  that toast out of its duplicate feedback live-region write because the workspace
+  already announces the committed outcome and recurrence consequence. Unit coverage
+  asserts the shared API contract; `e2e/tasks-optimistic.spec.ts` asserts completion
+  writes to the Tasks live region without duplicating the same text in
+  `.dh-feedback-live`.
+- **Related.** [ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) · [`app/shared/feedback/FeedbackProvider.tsx`](../../app/shared/feedback/FeedbackProvider.tsx) · [`app/shared/feedback/feedback-context.ts`](../../app/shared/feedback/feedback-context.ts) · [`app/modules/tasks/TasksWorkspace.tsx`](../../app/modules/tasks/TasksWorkspace.tsx) · [TASKS-10](../roadmap/ROADMAP_V2_2.md#-tasks-10---daily-driver-verification-and-capture-polish--delivered-2026-08-09).
 
 ### ☑ DEBT-116 — Today labels scheduled-today work as "Due today" — P2 — RESOLVED 2026-08-09
 

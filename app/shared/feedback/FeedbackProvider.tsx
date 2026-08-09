@@ -13,7 +13,8 @@
  *     and its commit handler on expiry/dismissal (dismissing an optimistic action
  *     commits it — Gmail-style);
  *   - the ARIA live regions that announce feedback to assistive tech (polite for
- *     success/info, assertive for warning/error).
+ *     success/info, assertive for warning/error), unless a caller explicitly owns an
+ *     equivalent module-level live-region announcement for the same outcome.
  *
  * Modules see none of this — they call `useFeedback()` (see `feedback-context`).
  * The clock and id generation live HERE (the pure model stays deterministic).
@@ -159,7 +160,9 @@ export function FeedbackProvider({
         ...overrides,
       };
       setQueue((prev) => pushNotification(prev, record));
-      announce(record);
+      if (options?.announce !== false) {
+        announce(record);
+      }
       return record.id;
     },
     [announce],
@@ -224,6 +227,7 @@ export function FeedbackProvider({
           message: options.message,
           duration,
           action,
+          announce: options.announce,
         },
         { id },
       );

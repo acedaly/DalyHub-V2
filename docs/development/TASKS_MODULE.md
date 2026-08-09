@@ -1339,8 +1339,8 @@ reviewable rather than re-derived:
   ADR-085 decision 11.
 - **The bulk bound is 100 tasks, and the surface now says so before the action** —
   [DEBT-110](../product/PRODUCT_DEBT.md). See *The bulk bound is stated, not
-  discovered* above. What remains open there is the E2E case that accumulates more
-  than one page, not the behaviour.
+  discovered* above. TASKS-10 added the browser journey that accumulates more than
+  one page and proves the capped selection and over-bound remedy.
 - **Series scope applies to the DATE only.** Every other field is "this and future" by
   construction, because the successor is copied from the current occurrence. That is
   the contract, documented above and tested — not an oversight.
@@ -1350,8 +1350,7 @@ reviewable rather than re-derived:
 **Relevant product-debt items.**
 [DEBT-66](../product/PRODUCT_DEBT.md) ☑ (closed by TASKS-07) ·
 [DEBT-109](../product/PRODUCT_DEBT.md) ☐ (raised by TASKS-07) ·
-[DEBT-110](../product/PRODUCT_DEBT.md) ◐ (raised by TASKS-06; the behaviour landed
-2026-08-09, the E2E case is still owed) ·
+[DEBT-110](../product/PRODUCT_DEBT.md) ☑ (closed by TASKS-10) ·
 [DEBT-56](../product/PRODUCT_DEBT.md) ☐ (unchanged: an axe `label-title-only`
 false positive on one shared SelectField in the Tasks Drawer).
 
@@ -1544,8 +1543,10 @@ and reverts the row.
 
 Every live-region announcement that existed still exists and still fires on the
 server's answer, including the recurrence consequence appended to a completion. The
-cost is that a completion is now announced twice to assistive technology; that is
-recorded as [DEBT-115](../product/PRODUCT_DEBT.md) rather than papered over.
+visible Undo notification remains, but Tasks opts it out of the shared feedback
+live-region write because the workspace has already announced the committed outcome.
+That closes [DEBT-115](../product/PRODUCT_DEBT.md) without making the Undo less
+discoverable.
 
 ### "Load more" survives the work done on it
 

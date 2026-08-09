@@ -53,6 +53,38 @@ async function quickAdd(page: Page, text: string) {
   await expect(field).toHaveValue("");
 }
 
+/**
+ * Seed a scale journey through the same resource route the UI uses. Typing 105
+ * rows through the composer makes the test about keyboard latency, not the product
+ * rule being protected here.
+ */
+async function createTasksThroughRoute(
+  page: Page,
+  prefix: string,
+  count: number,
+) {
+  await page.evaluate(
+    async ({ prefix: innerPrefix, count: innerCount }) => {
+      for (let index = 0; index < innerCount; index += 1) {
+        const body = new FormData();
+        body.set("title", `${innerPrefix} ${String(index).padStart(3, "0")}`);
+        const response = await fetch("/tasks/new", {
+          method: "POST",
+          body,
+        });
+        const result = (await response.json()) as {
+          readonly ok?: boolean;
+          readonly formError?: string;
+        };
+        if (!response.ok || !result.ok) {
+          throw new Error(result.formError ?? "Task create failed");
+        }
+      }
+    },
+    { prefix, count },
+  );
+}
+
 function cardFor(page: Page, title: string): Locator {
   return page.getByRole("article", { name: `Open ${title}` });
 }
@@ -175,7 +207,7 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
     // …not in the DOM…
     await expect(page.locator(".dh-tasks-matrix")).toHaveCount(0);
     // …and not in the Command Palette, which offers the grouped list instead.
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const palette = page.getByRole("combobox", { name: /Command|Search/ });
     await expect(palette).toBeVisible();
     await palette.fill("matrix");
@@ -326,6 +358,55 @@ test.describe("TASKS-06 — bulk management", () => {
     await expect(bulkBar(page)).toContainText("1 selected");
     await gotoFixture(page, INBOX);
     await expect(bulkBar(page)).toHaveCount(0);
+  });
+
+  test("states and enforces the 100-task bulk bound after loading multiple pages", async ({
+    page,
+  }) => {
+    const prefix = `E2E bulk bound ${RUN}`;
+    await gotoFixture(page, LIST);
+    await createTasksThroughRoute(page, prefix, 105);
+    await gotoFixture(page, LIST);
+
+    while ((await page.getByRole("article").count()) <= 100) {
+      const before = await page.getByRole("article").count();
+      await page.getByRole("button", { name: "Load more tasks" }).click();
+      await expect
+        .poll(async () => page.getByRole("article").count())
+        .toBeGreaterThan(before);
+    }
+
+    const loaded = await page.getByRole("article").count();
+    expect(loaded).toBeGreaterThan(100);
+
+    await page.getByRole("button", { name: "Select tasks" }).click();
+    await expect(selectionPrompt(page)).toContainText(
+      `${loaded} tasks are loaded.`,
+    );
+    await expect(selectionPrompt(page)).toContainText(
+      "Bulk actions work on up to 100 at a time",
+    );
+    await expect(
+      selectionPrompt(page).getByRole("button", { name: "Select all 100" }),
+    ).toBeVisible();
+
+    await selectionPrompt(page)
+      .getByRole("button", { name: "Select all 100" })
+      .click();
+    await expect(bulkBar(page)).toContainText("100 selected");
+    await expect(bulkBar(page)).not.toContainText("Deselect");
+
+    await bulkBar(page).getByRole("button", { name: "Done" }).click();
+    const rowChecks = page
+      .getByRole("article")
+      .getByRole("checkbox", { name: /^Select / });
+    await rowChecks.nth(0).check();
+    await rowChecks.nth(100).click({ modifiers: ["Shift"] });
+    await expect(bulkBar(page)).toContainText("101 selected");
+    await expect(bulkBar(page)).toContainText("Deselect 1 to continue.");
+    await expect(
+      bulkBar(page).getByRole("button", { name: /^Complete$/ }),
+    ).toHaveCount(0);
   });
 });
 
