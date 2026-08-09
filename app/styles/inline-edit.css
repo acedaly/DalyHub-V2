@@ -67,6 +67,22 @@
   .dh-inline-edit__trigger {
     min-block-size: var(--app-control-height-sm);
   }
+
+  /*
+   * …EXCEPT the record title, which keeps the full floor on every device.
+   *
+   * The 28px fallback exists so a task ROW does not grow to fit five inline
+   * fields — a real, measured cost paid fifty times down a list. A record's
+   * title is the opposite case: one control, once per page, and the page's
+   * primary editing affordance. Given the `headline-small` line box it lands at
+   * 42px on a mouse, which is under the 44px this repository asserts for a
+   * control of that standing (`e2e/editing-consistency.spec.ts` measures it on
+   * all seven record types) — so the exemption bought two pixels on the one
+   * control that had least to gain from it.
+   */
+  .dh-inline-edit[data-variant="heading"] .dh-inline-edit__trigger {
+    min-block-size: var(--app-touch-target-min);
+  }
 }
 
 /* Hover AND focus-visible get the SAME treatment. Hover-only would leave every

@@ -1,8 +1,9 @@
 /*
  * TODAY-DAY — the Today screen (design tokens only).
  *
- * The surface is FOUR things and nothing else: a header block on the page canvas,
- * a conditional chip row, and two tonal columns — the day, and the rail beside it.
+ * The surface is a header block on the page canvas and three regions: the day's
+ * dominant summary, the day itself, and the rail of supporting surfaces beside
+ * them (M3X-02's hierarchy Levels 1, 3 and 2 respectively).
  * There is no widget chrome here any more, because there are no widgets: the old
  * surface was fourteen cards with disclosure carets, a customise toolbar and three
  * copies of the same counts, and the layout rules that supported all of that went
@@ -104,14 +105,18 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * Today's one expressive surface. Its whole anatomy lives with the shared
- * component (`card-family.css` → ExpressiveSummary); the only thing Today has
- * an opinion about is that it is a full-width band at the top of the page,
- * above the two columns rather than inside either of them.
+ * Today's one DOMINANT expressive surface (hierarchy Level 1). Its whole anatomy
+ * lives with the shared component (`card-family.css` → ExpressiveSummary); the
+ * only thing Today has an opinion about is where it sits — leading the main
+ * column, with "Next up" beside it.
  *
  * The assist-chip row this replaced is gone entirely, along with the header's
  * progress meter: both stated facts the summary now states once. That is the
  * screen's own "one fact, one place" rule applied to its own chrome.
+ *
+ * M3X-02 moved it INTO the main column. It banded the page before, which left a
+ * 280px day column under it and a 700px rail beside it — the audit's H1 finding,
+ * half-answered. It now leads the column it belongs to, with "Next up" beside it.
  */
 .dh-today__summary {
   min-inline-size: 0;
@@ -129,21 +134,63 @@
 }
 
 /*
- * Below ~900px the rail stacks UNDER the day, "Needs attention" first — which is
- * the DOM order, so the narrow layout is the wide one unwrapped rather than a
- * second arrangement to keep in step.
+ * M3X-02 — the PHONE composition, which is the DOM order and nothing else.
+ *
+ * The phone's priority is: how much is on (the summary), what is next (the
+ * supporting surface), the day itself, and only then the surfaces that are about
+ * the week rather than the hour. That is exactly the order the markup is written
+ * in, at both widths — nothing on this screen is moved by CSS `order`, because
+ * `order` moves pixels and leaves the reading order and the tab order behind.
+ */
+.dh-today__main,
+.dh-today__rail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--app-space-5);
+  align-content: start;
+  min-inline-size: 0;
+}
+
+/*
+ * From ~900px the page becomes two unequal columns, and the MAIN one becomes two
+ * unequal columns of its own — three regions, not a symmetrical dashboard.
+ *
+ *   ┌───────────────────┬─────────┐┌────────────┐
+ *   │ summary (hero)    │ next up ││ focus      │
+ *   ├───────────────────┴─────────┤│ attention  │
+ *   │ my day                      ││ continue   │
+ *   └─────────────────────────────┘└────────────┘
+ *
+ * PR #144's full-width hero band left the audit's H1 finding half-answered: a
+ * hero above a 280px day column and a 700px rail made the page's most important
+ * region its emptiest. The hero now leads the column it belongs to, Next up
+ * balances its row, and the rail carries surfaces rather than propping up a
+ * short page.
  */
 @container today (min-width: 56rem) {
   .dh-today__body {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 22.5rem);
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 19rem);
   }
-}
 
-.dh-today__rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-5);
-  min-inline-size: 0;
+  .dh-today__main {
+    grid-template-columns: minmax(0, 1.6fr) minmax(11rem, 1fr);
+  }
+
+  .dh-today__summary {
+    grid-column: 1;
+  }
+
+  .dh-today__next {
+    grid-column: 2;
+    /* Top-aligned against the hero rather than stretched to its height: a
+     * supporting surface as tall as the hero is not supporting anything. */
+    align-self: start;
+  }
+
+  /* The day runs the full width of the main region, under both. */
+  .dh-today__timeline {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ONE tonal surface per region. No outline — the tone separates it from the page. */
@@ -192,16 +239,25 @@
   gap: var(--app-space-1);
 }
 
-/* A quiet section label — sentence case, never coloured, never a heading in
- * disguise. "Meetings" and "Due today" name a band; they do not compete with
- * "My day" above them. */
+/*
+ * A quiet section label. It names a BAND — it does not compete with "My day"
+ * above it, and it is never coloured.
+ *
+ * M3X-02 took it from `title-small` to an uppercase, letter-spaced
+ * `label-medium`. A small-caps rule reads as a divider rather than as a heading,
+ * which is exactly what it is; at title weight it was a third heading level on a
+ * screen that already has two. It is also the treatment the approved direction
+ * uses for every band label in the product, so Today, Tasks and the phone
+ * sections now agree.
+ */
 .dh-day-section__label {
   margin: 0;
   color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-title-small-size);
-  line-height: var(--md-sys-typescale-title-small-line-height);
-  font-weight: var(--md-sys-typescale-title-small-weight);
-  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -235,13 +291,81 @@
     var(--md-app-color-outline-hairline);
 }
 
+/*
+ * M3X-02 — the completion control is a CIRCLE.
+ *
+ * A square is the browser's checkbox and a circle is the productivity
+ * convention for "done": every reference product the approved direction is drawn
+ * from uses one, and it reads as *completing a thing* rather than as *selecting
+ * a row* — which matters here, because DalyHub genuinely has both and the Tasks
+ * collection's leading square IS a selection control. Two different acts now
+ * look different.
+ *
+ * It stays a real `<input type="checkbox">`: the same element, the same
+ * semantics, the same keyboard behaviour, the same accessible name. Only the
+ * drawing is ours, and it is restored to the native drawing under forced
+ * colours, where an authored shape would vanish.
+ */
 .dh-day-row__check {
   flex: none;
-  inline-size: 1.125rem;
-  block-size: 1.125rem;
+  appearance: none;
+  -webkit-appearance: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
   margin: 0;
-  accent-color: var(--md-sys-color-primary);
+  display: grid;
+  place-content: center;
+  border: var(--app-border-width-thick) solid
+    var(--md-sys-color-on-surface-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
   cursor: pointer;
+  transition:
+    background-color var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard);
+}
+
+/* The tick is drawn, not a glyph: one clip-path, no font dependency, and it
+ * scales with the control. */
+.dh-day-row__check::before {
+  content: "";
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  transform: scale(0);
+  transition: transform var(--md-sys-motion-duration-short3)
+    var(--md-sys-motion-easing-emphasized-decelerate);
+  background: var(--md-sys-color-on-primary);
+  clip-path: polygon(14% 44%, 0 60%, 39% 100%, 100% 16%, 85% 0, 39% 70%);
+}
+
+.dh-day-row__check:checked {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary);
+}
+
+.dh-day-row__check:checked::before {
+  transform: scale(1);
+}
+
+.dh-day-row__check:hover {
+  border-color: var(--md-sys-color-primary);
+}
+
+/* Forced colours strip authored fills, which would leave an empty ring in both
+ * states. The native control draws itself correctly there, so it is handed back. */
+@media (forced-colors: active) {
+  .dh-day-row__check {
+    appearance: auto;
+    -webkit-appearance: auto;
+    border: revert;
+    border-radius: revert;
+  }
+
+  .dh-day-row__check::before {
+    display: none;
+  }
 }
 
 .dh-day-row__title {
@@ -274,7 +398,22 @@
 }
 
 /* A completed row reads as done from its strike-through and its dimming — the
- * checkbox state carries it for assistive tech, so nothing rests on colour. */
+ * checkbox state carries it for assistive tech, so nothing rests on colour.
+ *
+ * M3X-02 gives the change a duration. Ticking a task is the single most
+ * frequent act on this screen and it happened instantly and invisibly: the row
+ * simply *was* different the next frame, which reads as a glitch rather than as
+ * a consequence. `short4` on the colour is the smallest movement that says "that
+ * happened, and it happened because you did it" — motion communicating causality,
+ * which is the only kind this product spends (AGENTS.md §6). Zeroed with every
+ * other transition under `prefers-reduced-motion` by the global rule in
+ * `base.css`, and no meaning is lost when it is: the strike-through and the
+ * checkbox are the state. */
+.dh-day-row__title {
+  transition: color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
+}
+
 .dh-day-row[data-done="true"] .dh-day-row__title {
   color: var(--md-sys-color-on-surface-variant);
   text-decoration: line-through;
@@ -385,6 +524,43 @@
   font-size: 1.125rem;
   line-height: 0;
   color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * M3X-02 — the meeting marker.
+ *
+ * It stands exactly where a task's completion circle stands, at the same width,
+ * so the day reads as one column of events with two kinds in it rather than as
+ * two lists that happen to be adjacent. It is the Meeting entity's own colour,
+ * and it is decorative: the row is a link to a Meeting record, its accessible
+ * name is the meeting's title, and its time and location are text beside it.
+ */
+.dh-day-row--meeting {
+  align-items: start;
+}
+
+.dh-day-row__dot {
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  /* Optically centred against the title's first line box, since the row is
+   * top-aligned to keep the time on the title's line. */
+  margin-block-start: 0.4375rem;
+  margin-inline: calc((1.25rem - 0.5rem) / 2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-entity-meeting);
+}
+
+@media (forced-colors: active) {
+  .dh-day-row__dot {
+    background: CanvasText;
+  }
+}
+
+.dh-day-row--meeting .dh-day-row__meta {
+  flex: none;
+  max-inline-size: none;
+  white-space: normal;
 }
 
 /* -------------------------------------------------------------------------- */

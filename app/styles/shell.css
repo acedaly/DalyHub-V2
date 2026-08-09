@@ -1007,9 +1007,34 @@
     justify-content: flex-start;
   }
 
-  .dh-pane-header__actions,
-  .dh-pane-header__secondary {
+  .dh-pane-header__actions {
     flex-wrap: wrap;
+  }
+
+  /*
+   * M3X-02 — the secondary row SCROLLS rather than wraps.
+   *
+   * Wrapping turned Tasks' two secondary actions into two stacked full-width
+   * rows on a 390px screen, which cost the first viewport ~50px before a single
+   * task. One scrolling line is the same M3 pattern the view switcher above it
+   * already uses, so the phone header reads as two scrollable rails rather than
+   * as a pile of buttons — and every control stays reachable, in the same DOM
+   * order, at the same touch size.
+   */
+  .dh-pane-header__secondary {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* The focus ring on the last chip must not be clipped by the scroll port. */
+    padding-block: var(--app-space-px);
+  }
+
+  .dh-pane-header__secondary::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dh-pane-header__secondary > * {
+    flex: none;
   }
 }
 

@@ -79,6 +79,17 @@ export interface DayMeeting {
   readonly timeLabel: string;
   /** Location or mode — the one supporting fact, or null. */
   readonly context: string | null;
+  /**
+   * M3X-02 — whether the meeting has NOT started yet, decided against the
+   * request instant on the SERVER.
+   *
+   * "What is next?" is the one question Today's supporting surface answers, and
+   * it cannot be answered in the browser: `timeLabel` is formatted in the
+   * MEETING's own timezone, so comparing it to the owner's clock is wrong the
+   * moment the two differ. The comparison is made once, here, against the same
+   * `now` every other section on this screen was read with.
+   */
+  readonly upcoming: boolean;
 }
 
 /** Everything the Today screen renders. JSON-safe (no `Date`s). */
@@ -177,6 +188,7 @@ const MEETING_MODE_LABELS: Record<string, string> = {
  */
 async function loadMeetings(
   scope: WorkspaceScope,
+  now: Date,
   todayIso: string,
   timezone: string,
 ): Promise<readonly DayMeeting[]> {
@@ -200,6 +212,7 @@ async function loadMeetings(
     context:
       meeting.location?.trim() ||
       (meeting.mode ? (MEETING_MODE_LABELS[meeting.mode] ?? null) : null),
+    upcoming: meeting.startsAt.getTime() > now.getTime(),
   }));
 }
 
@@ -268,6 +281,8 @@ async function loadProjects(
         statusLabel: health?.label ?? projectWorkflowStatusLabel("active"),
         needsAttention,
         lastActivityIso: health?.summary.lastActivityIso ?? null,
+        iconKey: item.iconKey,
+        colourRank: item.colourRank,
       },
     };
   });
@@ -358,7 +373,7 @@ export async function loadTodayDay(
       buckets: { overdue: [], today: [], completedToday: [] },
       inboxCount: 0,
     }),
-    safely(() => loadMeetings(scope, todayIso, timezone), []),
+    safely(() => loadMeetings(scope, now, todayIso, timezone), []),
     safely(() => loadWaiting(scope, todayIso, timezone), {
       count: 0,
       oldestDays: null,

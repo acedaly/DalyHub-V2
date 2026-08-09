@@ -9,6 +9,7 @@
 
 import { env } from "cloudflare:workers";
 
+import { EMPTY_GOAL_PROJECT_CONTRIBUTION } from "~/kernel/goals";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 import {
   composeGoalAlignmentFacts,
@@ -25,6 +26,7 @@ import type {
 } from "../GoalsCollection";
 import {
   serializeGoalListItem,
+  serializeGoalProjectContribution,
   type SerializedGoalListItem,
 } from "../goal-view";
 import type { SerializedGoalWithAlignment } from "../GoalsCollection";
@@ -122,23 +124,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ]);
 
     const goals: SerializedGoalWithAlignment[] = page.items.map((item) => {
+      // The SAME contribution the alignment evaluation reads. M3X-02 carries it
+      // through to the card as well, because it is the Goal's one real measure
+      // and it was already in hand — computing it twice, or reading it again for
+      // the card, would be the N+1 this loader has always avoided.
+      const contribution =
+        contributions.get(item.id) ?? EMPTY_GOAL_PROJECT_CONTRIBUTION;
       const facts = composeGoalAlignmentFacts({
         goalId: item.id,
         completedAt: item.completedAt,
-        contribution: contributions.get(item.id) ?? {
-          total: 0,
-          completed: 0,
-          incomplete: 0,
-          active: 0,
-          planned: 0,
-          onHold: 0,
-          archived: 0,
-        },
+        contribution,
         activity: activityFacts.get(item.id),
       });
       return {
         ...serializeGoalListItem(item),
         alignment: evaluateGoalAlignment(facts, evaluation),
+        contribution: serializeGoalProjectContribution(contribution),
       };
     });
 

@@ -33,7 +33,7 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import { CardMetaFact, EntityCard, EntityCardGrid } from "~/shared/card";
+import { EntityCard, EntityCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -47,7 +47,6 @@ import {
 } from "~/shared/drawer";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
-import { CheckCircleIcon, HistoryIcon, TaskIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
@@ -217,10 +216,6 @@ function ProjectEntityCard({
     [card.id, onLifecycleChange],
   );
 
-  // Derived from the SAME completed/total pair the progress bar reads, so the
-  // count beside the bar and the bar itself can never tell different stories.
-  const openTasks = Math.max(0, card.progress.total - card.progress.completed);
-
   const lifecycle = useRecordLifecycle({
     entityType: "project",
     title: card.title,
@@ -233,16 +228,26 @@ function ProjectEntityCard({
     <>
       <EntityCard
         data-testid="project-card"
+        /*
+         * M3X-02 — the LARGE identity rung. A Project is the record this product
+         * most wants to be recognisable before it is read, and a gallery card is
+         * where the mark has room to lead the composition rather than sit beside
+         * the title as a 40px afterthought.
+         */
         icon={
           <AccentIcon
             entityType="project"
             iconKey={card.iconKey}
             colourRank={card.colourRank}
+            size="lg"
           />
         }
         title={card.title}
         headingLevel={2}
         subtitle={card.parentLabel}
+        // The SAME rank the mark above is painted with, so the bar and the mark
+        // are one identity rather than two colour decisions.
+        accent={card.colourRank}
         status={
           <StatusPill tone={card.status.tone}>{card.status.label}</StatusPill>
         }
@@ -258,38 +263,23 @@ function ProjectEntityCard({
               }
             : undefined
         }
-        meta={
-          <>
-            {card.progress.has ? (
-              <>
-                {openTasks > 0 ? (
-                  <CardMetaFact
-                    icon={TaskIcon}
-                    value={openTasks}
-                    label={openTasks === 1 ? "open task" : "open tasks"}
-                  />
-                ) : null}
-                <CardMetaFact
-                  icon={CheckCircleIcon}
-                  value={card.progress.completed}
-                  label="done"
-                />
-              </>
-            ) : (
-              <span>No tasks yet</span>
-            )}
-            {card.statusDetail ? <span>{card.statusDetail}</span> : null}
-            {card.updatedLabel ? (
-              <span className="dh-ecard__fact">
-                <HistoryIcon
-                  className="dh-ecard__fact-icon"
-                  aria-hidden="true"
-                />
-                {card.updatedLabel}
-              </span>
-            ) : null}
-          </>
-        }
+        /*
+         * M3X-02 — the card carries the facts that help someone DECIDE, and
+         * nothing else.
+         *
+         * Three lines went: "1 open task · 0 done" (the progress bar above it
+         * already carries the same pair, and does it as a proportion rather than
+         * as two numbers to subtract), "No tasks yet" (absence, stated where
+         * simply being shorter says it better), and "Updated 19 Jul 2026" (a
+         * fact about the record's row, not about the work — and on a gallery of
+         * twelve it was twelve identical-looking grey lines carrying the least
+         * decision-relevant thing on the card).
+         *
+         * What remains is the health REASON, which is the one supporting fact
+         * that explains the status chip rather than restating it — "no progress
+         * in 18 days" is why the chip says Stale.
+         */
+        meta={card.statusDetail ? <span>{card.statusDetail}</span> : undefined}
         overflow={
           <OverflowMenu
             items={lifecycle.overflowActions}

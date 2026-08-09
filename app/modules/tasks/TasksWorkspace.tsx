@@ -756,8 +756,29 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         },
         data.todayIso,
       );
+      /*
+       * M3X-02 — the row's THREE TIERS.
+       *
+       * The audit's H4 finding was a row carrying eight elements at near-equal
+       * weight, with the one thing being scanned for — the title — quieter than
+       * several of them. Nothing is removed here (every field stays inline-
+       * editable, which is TASKS-05's whole point); what changes is that the run
+       * now DECLARES its tiers and the stylesheet draws them:
+       *
+       *   `high`     the two signals a list is triaged by — priority and urgency.
+       *              Ordered first, at the run's full weight.
+       *   (default)  what qualifies the task — its due date and its parent.
+       *   `low`      detail that is true but rarely the reason to act — the
+       *              planned date, the sector, a delegate, a waiting subject.
+       *              De-emphasised at every width, hidden at none.
+       *
+       * `data-priority` is the SAME mechanism MOBILE-01 introduced for narrow
+       * cards; M3X-02 stopped it being a phone-only idea, because a 1,400px row
+       * with eight equal facts is no easier to scan than a 358px one.
+       */
       metadata.push({
         id: "priority",
+        priority: "high",
         value: (
           <InlineTaskPriority
             taskId={card.id}
@@ -780,6 +801,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       ) {
         metadata.push({
           id: "urgency",
+          priority: "high",
           value: (
             <UrgencyChip
               task={{
@@ -788,6 +810,9 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 scheduledDate: card.scheduledDate,
               }}
               todayIso={data.todayIso}
+              // The date is the inline field two positions along. The chip says
+              // the STATE.
+              compact
             />
           ),
         });
@@ -796,12 +821,16 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         metadata.push({
           id: "repeat",
           value: <RecurrenceChip recurrence={card.recurrence} />,
+          priority: "low",
         });
       }
       // No metadata `label` on the three inline fields: each one's own accessible
       // name already says which field it edits ("Due date: 12 Aug"), and its empty
       // state reads "No due date" / "Not planned" / "Unassigned" — so a visible
       // prefix would state the field name twice on every row.
+      // The DUE date is what the chip beside it is about, so it keeps the middle
+      // tier; the PLANNED date is the owner's private intention about when to do
+      // it, which is detail rather than deadline.
       metadata.push({
         id: "due",
         value: (
@@ -814,7 +843,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             disabled={card.completed || viewingDeleted}
           />
         ),
-        priority: "low",
       });
       metadata.push({
         id: "planned",
@@ -830,6 +858,9 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         ),
         priority: "low",
       });
+      // The parent is the row's one CONTEXT fact — "which project is this?" is
+      // the question asked immediately after "what is it?" — so it keeps the
+      // middle tier rather than dropping in with the detail.
       metadata.push({
         id: "parent",
         value: (
@@ -842,17 +873,25 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             disabled={card.completed || viewingDeleted}
           />
         ),
-        priority: "low",
       });
-      // The module declares what a small card leads with: priority and urgency are
-      // the SIGNALS a user scans for; the sector, the delegate and the waiting
-      // subject are supporting detail — de-emphasised, never hidden.
-      metadata.push({
-        id: "sector",
-        label: "Sector",
-        value: card.sectorLabel,
-        priority: "low",
-      });
+      /*
+       * The sector is drawn only when there IS one.
+       *
+       * "Sector: No sector" was on every untriaged row in the product — the
+       * clearest case of the brief's absence rule: a placeholder occupying a
+       * scanning slot to say that a dimension the owner has not used is not used.
+       * The field stays editable where it is edited (the row's overflow →
+       * "Repeat, sector and dates…", and the Task record), so nothing became
+       * unreachable; it simply stopped being announced fifty times down a list.
+       */
+      if (card.sector !== null) {
+        metadata.push({
+          id: "sector",
+          label: "Sector",
+          value: card.sectorLabel,
+          priority: "low",
+        });
+      }
       if (card.delegatedTo) {
         metadata.push({
           id: "delegated",

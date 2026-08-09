@@ -321,14 +321,25 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expect(activeCard).toBeVisible();
     await expect(activeCard.getByText("Recently active")).toBeVisible();
 
+    /*
+     * The seeded neglected Goal HAS a contributing Project, so M3X-02 draws its
+     * measure and lets the measure explain the state: the alignment word stays,
+     * and its long reason sentence — which restates what the bar beside it
+     * already shows — does not. A Goal nothing advances still gets the sentence,
+     * because there the sentence is the only explanation available.
+     */
     const neglectedCard = page.getByRole("article", { name: "Learn Spanish" });
     await expect(neglectedCard).toBeVisible();
     await expect(neglectedCard.getByText("No recent action")).toBeVisible();
+    await expect(neglectedCard.getByRole("progressbar")).toBeVisible();
+    await expect(
+      neglectedCard.getByText(/of \d+ Projects? complete/),
+    ).toBeVisible();
     await expect(
       neglectedCard.getByText(
         "Projects exist, but no recent Task activity was found.",
       ),
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     // 14. Keyboard operation: focus + Enter opens the active Goal (no pointer).
     const openActiveLink = activeCard.getByRole("link", {

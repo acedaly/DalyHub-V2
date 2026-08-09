@@ -421,7 +421,22 @@
   opacity: 1;
 }
 
-@media (hover: hover) and (pointer: fine) {
+/*
+ * M3X-02 — the reveal-on-hover rail is a WIDE-ROW arrangement, so this query
+ * asks about the pointer AND about the room.
+ *
+ * `(hover: hover) and (pointer: fine)` describes a mouse, not a wide window. A
+ * mouse-driven browser narrowed to a phone width got the whole arrangement:
+ * actions concealed (but still holding their band of layout, so every row
+ * carried ~60px of blank space) and 192px reserved out of a 263px supporting
+ * run — which collapsed the run to the width of its widest single item, putting
+ * every fact on a task row on its own line, wrapped mid-phrase.
+ *
+ * Below `md` a mouse now gets the same arrangement touch has always had: the
+ * rail is in flow and always visible, nothing is concealed and nothing is
+ * reserved. Above it, everything below is unchanged.
+ */
+@media (hover: hover) and (pointer: fine) and (min-width: 48rem) {
   /* UIQ-002 — concealed actions cannot be CLICKED, but stay keyboard- and
    * AT-reachable. Opacity alone left the invisible rail hit-testable, so a
    * click in the row's empty trailing space could activate an unseen
@@ -679,14 +694,38 @@
 
   .dh-card__meta[data-priority="low"] {
     font-size: var(--md-sys-typescale-label-small-size);
-    color: var(--md-sys-color-on-surface-variant);
   }
+}
 
-  /* High-priority signals sort ahead of supporting detail without the module
-   * having to order the array by hand. */
-  .dh-card__meta[data-priority="high"] {
-    order: -1;
-  }
+/* ========================================================================== */
+/* M3X-02 — the metadata run's THREE TIERS, at every width                    */
+/* ========================================================================== */
+
+/*
+ * MOBILE-01 introduced `data-priority` and applied it only below 48rem, on the
+ * reasoning that a narrow card is where a run runs out of room. The audit's H4
+ * finding is that a WIDE row runs out of hierarchy: at 1,400px a task row fitted
+ * eight facts on one line and therefore drew all eight at one weight, which is
+ * the harder problem — nothing wrapped, so nothing signalled that some of it
+ * mattered more.
+ *
+ *   high      the signals a list is triaged by. Ordered first, full weight.
+ *   default   what qualifies the record.
+ *   low       true, rarely the reason to act. Smaller, quieter, LAST.
+ *
+ * Nothing is hidden at any width, and nothing is reordered in the DOM: `order`
+ * moves a chip within one wrapped run that a screen reader reads as one run, and
+ * every item in it carries its own accessible name.
+ */
+.dh-card__meta[data-priority="high"] {
+  order: -1;
+}
+
+.dh-card__meta[data-priority="low"] {
+  order: 1;
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.86;
 }
 
 /* ========================================================================== */
@@ -926,12 +965,21 @@
   border: 0;
 }
 
+/*
+ * M3X-02 — the row title takes the EMPHASIZED label weight.
+ *
+ * The typography map has said "collection row title — `body-large` at the
+ * emphasized label weight" since PR #144; the row was still drawing 500. On a
+ * task list the title is the one thing being scanned for, and it was lighter
+ * than the priority chip beside it. Weight, not size: the row's height is
+ * unchanged.
+ */
 .dh-card__title {
   flex: 1 1 auto;
   min-width: 0;
   min-inline-size: 12ch;
   font-size: var(--md-sys-typescale-body-large-size);
-  font-weight: 500;
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
   line-height: 1.35;
 }
 

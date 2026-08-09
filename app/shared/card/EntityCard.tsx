@@ -41,7 +41,14 @@
 import { Children, type ReactNode } from "react";
 import { Link } from "react-router";
 
+import { areaAccentForRank } from "~/shared/pill";
+
 import { normaliseProgress, type CardProgress } from "./types";
+
+/** The identity ramp slot for a stable rank — the SAME mapping `AccentIcon` uses. */
+function accentSlot(rank: number): number {
+  return areaAccentForRank(rank);
+}
 
 export type EntityCardProps = {
   /** The identity mark — a rendered icon in its container. Decorative. */
@@ -57,6 +64,20 @@ export type EntityCardProps = {
   readonly metric?: { readonly value: string; readonly label: string };
   /** Bounded progress, rendered as a 4px bar with its percentage beside it. */
   readonly progress?: CardProgress;
+  /**
+   * M3X-02 — the record's stable identity RANK, so its progress bar is painted
+   * in its own accent rather than in the application's action colour.
+   *
+   * A gallery of twelve identical violet bars is a gallery the eye cannot track
+   * down; a gallery of bars in each record's own colour is scannable by the same
+   * signal the identity mark already teaches, one line below the mark that
+   * taught it. It is the SAME rank the caller passes to `AccentIcon` — never a
+   * second colour decision, and never a colour chosen per render.
+   *
+   * `undefined` keeps the primary fill, which is what a record with no identity
+   * colour (a Goal, whose list projection carries no rank) should have.
+   */
+  readonly accent?: number | null;
   /** Supporting facts, laid out as one wrapping row rather than a run-on line. */
   readonly meta?: ReactNode;
   /** A footer action or note, separated from the body. */
@@ -81,6 +102,7 @@ export function EntityCard({
   status,
   metric,
   progress,
+  accent,
   meta,
   footer,
   overflow,
@@ -113,7 +135,18 @@ export function EntityCard({
     // heading's only child is the whole-card link, whose own accessible name is
     // "Open <title>", so referencing it would name the card "Open Website
     // relaunch" instead of "Website relaunch".
-    <article className={classes} aria-label={title} data-testid={testId}>
+    <article
+      className={classes}
+      aria-label={title}
+      // Decorative: the accent repeats the identity mark's colour, and every
+      // fact it decorates is stated in words beside it.
+      data-accent={
+        accent === undefined || accent === null
+          ? undefined
+          : String(accentSlot(accent))
+      }
+      data-testid={testId}
+    >
       <div className="dh-ecard__header">
         {icon ? (
           <span className="dh-ecard__icon" aria-hidden="true">
@@ -169,9 +202,18 @@ export function EntityCard({
           ) : null}
 
           {resolved ? (
+            /*
+             * M3X-02 — the VALUE leads and the bar follows it.
+             *
+             * The bar is decorative; the percentage is the value, so progress is
+             * never carried by a shape alone. Putting the value first is both
+             * the reading order that follows from that and the approved
+             * direction's own composition: on a gallery card the figure sits
+             * above a bar running the card's full width, which is what makes a
+             * grid of records comparable at a glance.
+             */
             <div className="dh-ecard__progress">
-              {/* The bar is decorative; the percentage beside it is the value,
-               * so progress is never carried by a shape alone. */}
+              <span className="dh-ecard__progress-text">{resolved.text}</span>
               <span
                 className="dh-ecard__progress-track"
                 role="progressbar"
@@ -186,7 +228,6 @@ export function EntityCard({
                   style={{ inlineSize: `${resolved.percent}%` }}
                 />
               </span>
-              <span className="dh-ecard__progress-text">{resolved.text}</span>
             </div>
           ) : null}
 

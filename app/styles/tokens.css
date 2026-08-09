@@ -278,6 +278,7 @@
 
   /* M3X tint strengths — see APP_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
+  --app-tint-strength-supporting: 48%;
   --app-tint-strength-state: 45%;
 }
 
@@ -478,6 +479,7 @@
 
     /* M3X tint strengths — see APP_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 28%;
+    --app-tint-strength-supporting: 18%;
     --app-tint-strength-state: 30%;
   }
 }
@@ -686,6 +688,7 @@
 
   /* M3X tint strengths — see APP_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 28%;
+  --app-tint-strength-supporting: 18%;
   --app-tint-strength-state: 30%;
 }
 
@@ -1094,6 +1097,15 @@
   --app-entity-icon-size: 1.25rem; /* 20 */
   --app-entity-icon-container-size: 2.5rem; /* 40 */
 
+  /* M3X-02 — the identity mark's SIZE HIERARCHY (`AccentIcon`'s `size` prop).
+   * The default pair above is the `md` rung; these are the two either side of
+   * it, so a desktop gallery card and a compact phone row can differ by design
+   * rather than by a pixel value invented at a call site. */
+  --app-entity-icon-size-lg: 1.75rem; /* 28 */
+  --app-entity-icon-container-size-lg: 3.5rem; /* 56 */
+  --app-entity-icon-size-sm: 1.125rem; /* 18 */
+  --app-entity-icon-container-size-sm: 2rem; /* 32 */
+
   /* Chart heights, so a sparkline on Today and a sparkline on a record are the
    * same object. */
   --app-chart-height-compact: 3rem; /* 48 */
@@ -1108,6 +1120,10 @@
    * (M3_EXPRESSIVE_AUDIT_2026_08 §2, H6). It is still ONE thickness: a bar on
    * Today, a bar on a Project card and a bar in a record are the same object. */
   --app-progress-bar-height: 0.375rem; /* 6 */
+  /* M3X-02 — the entity gallery's bar. The one place the product steps off the
+   * thickness above, because on a Project/Goal card the proportion IS the
+   * content: a 6px rule at gallery width is read as a divider, not a measure. */
+  --app-progress-bar-height-entity: 0.5rem; /* 8 */
 
   /* ---------------------------------------------------------------------- */
   /* Writing surface (EDIT-01)                                              */
@@ -1127,10 +1143,19 @@
    * `auto-fill`/`minmax`, never a breakpoint table). Chosen against real Area
    * and Project content: an Area name plus a work-summary line, or a Project
    * title plus its Area, a status chip and a progress bar, all without a
-   * two-word title wrapping to three lines. At the collection's own measure it
-   * yields roughly four columns on an ordinary desktop and five on a wide one,
-   * degrading to three, two and one as the width falls. */
-  --app-entity-card-min-width: 16.5rem; /* 264 */
+   * two-word title wrapping to three lines.
+   *
+   * M3X-02 took it from 16.5rem to 15.5rem, and stopped there DELIBERATELY.
+   * The audit's §8.5 finding asked for four columns at 1280; four were captured
+   * and rejected by eye. At 1280 with the navigation open a collection has
+   * ~976px, so four columns are 229px each, and at 229px a Project card's title
+   * breaks mid-word ("Kitchen fit- / out", "Consolidat / e every"), its Area line
+   * runs to six lines and the identity mark takes a quarter of the row. Three
+   * comfortable columns is the better answer at that width; 15.5rem is what makes
+   * the FOURTH column arrive as soon as the width genuinely supports it — from
+   * roughly 1400 up — and a fifth and sixth on a wide monitor, without a
+   * breakpoint table. */
+  --app-entity-card-min-width: 15.5rem; /* 248 */
 
   /* Breakpoints (reference + container queries) and z-index layers. */
   --app-breakpoint-sm: 30rem; /* 480 */
@@ -1185,7 +1210,7 @@
    * page — never a radius chosen at the call site. Nesting always steps DOWN,
    * so an inner surface is never rounder than the one holding it. */
 
-  /** A page's dominant summary surface. One per page, at most. */
+  /** A page's DOMINANT summary surface (Level 1). One per page, at most. */
   --app-shape-hero: var(--md-sys-shape-corner-extra-large);
   /** An entity card in a gallery — a Project, an Area, a Goal, an Asset. */
   --app-shape-entity-card: var(--md-sys-shape-corner-large-increased);
@@ -1231,6 +1256,30 @@
   );
   --md-app-color-on-surface-expressive: var(
     --md-sys-color-on-primary-container
+  );
+
+  /*
+   * M3X-02 — the SUPPORTING surface: hierarchy Level 2.
+   *
+   * The same composition technique as the hero above, one rung down, over the
+   * card rather than beside it. Its STRENGTH is generated per appearance
+   * (`APP_TINT_STRENGTHS`) for the same reason the hero's is: a container role
+   * is a pale tone in light and a saturated tone-30 in dark, and one percentage
+   * cannot serve both. See the generator for why "half the hero" is the wrong
+   * intuition in each appearance for a different reason.
+   *
+   * What makes this SUBORDINATE to the hero is everything the hero has and this
+   * does not: the radial wash, the resting elevation, the extra-large shape, the
+   * hero padding, the `on-primary-container` text colour, the ring and the stat
+   * row. The tint is the family resemblance; those are the hierarchy.
+   *
+   * The `on-*` role stays the ORDINARY on-surface — this is a tinted neutral,
+   * not a container. Asserted in `contrast.test.ts`.
+   */
+  --md-app-color-surface-supporting: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container) var(--app-tint-strength-supporting),
+    var(--md-app-color-surface-card)
   );
 
   /*

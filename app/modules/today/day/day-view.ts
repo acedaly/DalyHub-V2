@@ -387,3 +387,96 @@ export function overdueSlice(overdue: readonly DayTask[]): {
     hidden: Math.max(0, overdue.length - OVERDUE_SHOWN),
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* M3X-02 — the day's NEXT thing                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The one thing the day is pointing at right now.
+ *
+ * Today's phone viewport has to answer four questions before a scroll — how much
+ * is on, how much has slipped, how far through, and *what next* — and the fourth
+ * had no answer anywhere on the screen: it was buried somewhere in a list of
+ * three sections. This is that answer, and it is a DERIVATION of rows the screen
+ * already holds, never a new read and never a new fact.
+ *
+ * The precedence is the order a day actually happens in:
+ *
+ *   1. **a meeting still ahead** — the only thing on this screen with a TIME, and
+ *      the only thing that will happen whether or not the owner acts;
+ *   2. **the first unfinished task due today** — the day's own work;
+ *   3. **the oldest overdue task** — when nothing is due, the thing most owed.
+ *
+ * `null` when the day holds none of the three, in which case nothing is drawn:
+ * a "next up" surface saying "nothing" is the zeros-never-paint failure with a
+ * bigger radius.
+ */
+export type DayNext =
+  | {
+      readonly kind: "meeting";
+      readonly id: string;
+      readonly title: string;
+      /** The meeting's start time, in its own timezone. */
+      readonly timeLabel: string;
+      /** Location or mode, when the meeting carries one. */
+      readonly context: string | null;
+    }
+  | {
+      readonly kind: "task";
+      readonly id: string;
+      readonly title: string;
+      /** True when the task is being surfaced because it has already slipped. */
+      readonly overdue: boolean;
+      /** The owning Project or Area, when the task has one. */
+      readonly parentTitle: string | null;
+    };
+
+/** The minimal meeting facts `nextUp` reads. */
+export interface DayNextMeeting {
+  readonly id: string;
+  readonly title: string;
+  readonly timeLabel: string;
+  readonly context: string | null;
+  readonly upcoming: boolean;
+}
+
+export function nextUp(input: {
+  readonly meetings: readonly DayNextMeeting[];
+  readonly buckets: DayBuckets;
+}): DayNext | null {
+  // Meetings arrive in start order, so the first one still ahead IS the next one.
+  const meeting = input.meetings.find((entry) => entry.upcoming);
+  if (meeting) {
+    return {
+      kind: "meeting",
+      id: meeting.id,
+      title: meeting.title,
+      timeLabel: meeting.timeLabel,
+      context: meeting.context,
+    };
+  }
+  const due = input.buckets.today.find((task) => !task.completed);
+  if (due) {
+    return {
+      kind: "task",
+      id: due.id,
+      title: due.title,
+      overdue: false,
+      parentTitle: due.parent?.title ?? null,
+    };
+  }
+  // `bucketDay` orders overdue work oldest-first, so the head is the thing most
+  // owed — the same row the timeline draws at the top of its overdue run.
+  const overdue = input.buckets.overdue.find((task) => !task.completed);
+  if (overdue) {
+    return {
+      kind: "task",
+      id: overdue.id,
+      title: overdue.title,
+      overdue: true,
+      parentTitle: overdue.parent?.title ?? null,
+    };
+  }
+  return null;
+}

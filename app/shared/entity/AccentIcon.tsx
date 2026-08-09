@@ -38,6 +38,19 @@ export type AccentIconProps = {
    * an Area this is its own rank; for a Project it is its Area's.
    */
   readonly colourRank?: number | null;
+  /**
+   * M3X-02 — the identity mark's SIZE HIERARCHY.
+   *
+   * The mark is the product's recognition-before-reading device, and one size
+   * for every context is why a gallery card and a 44px list row previously
+   * carried the same 36px square. Three rungs, and a surface picks the one that
+   * matches its weight in the page — never a pixel value at the call site:
+   *
+   *   `lg` a desktop gallery card, where the mark leads the composition
+   *   `md` the default — a record header, a supporting surface, a wide row
+   *   `sm` a compact row, where the mark identifies without dominating
+   */
+  readonly size?: "sm" | "md" | "lg";
   readonly className?: string;
 };
 
@@ -45,6 +58,7 @@ export function AccentIcon({
   entityType,
   iconKey,
   colourRank = null,
+  size = "md",
   className,
 }: AccentIconProps) {
   const accent =
@@ -53,6 +67,7 @@ export function AccentIcon({
     <span
       className={["dh-accent-icon", className].filter(Boolean).join(" ")}
       data-accent={accent}
+      data-size={size}
       aria-hidden="true"
     >
       {/* `tone="inherit"` so the glyph takes the container's on-accent colour

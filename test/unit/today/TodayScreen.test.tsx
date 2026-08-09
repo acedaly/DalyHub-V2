@@ -36,6 +36,39 @@ function task(
   };
 }
 
+/**
+ * A meeting on the day. `upcoming` defaults to FALSE so a fixture that does not
+ * care about "what is next" does not accidentally opt into the Next up surface —
+ * every test that asserts about it says so.
+ */
+function meeting(
+  id: string,
+  title: string,
+  timeLabel: string,
+  overrides: Partial<TodayDayData["meetings"][number]> = {},
+): TodayDayData["meetings"][number] {
+  return { id, title, timeLabel, context: null, upcoming: false, ...overrides };
+}
+
+/** A project with open work, as the rail's focus surface and panel read it. */
+function project(
+  overrides: Partial<TodayDayData["continueProjects"][number]> = {},
+): TodayDayData["continueProjects"][number] {
+  return {
+    id: "p1",
+    title: "Kitchen renovation",
+    openCount: 2,
+    taskTotal: 6,
+    taskCompleted: 4,
+    statusLabel: "On track",
+    needsAttention: false,
+    lastActivityIso: "2026-08-07T00:00:00.000Z",
+    iconKey: null,
+    colourRank: 0,
+    ...overrides,
+  };
+}
+
 /** A quiet day, so each test opts INTO the thing it is asserting about. */
 function day(overrides: Partial<TodayDayData> = {}): TodayDayData {
   return {
@@ -70,6 +103,19 @@ function renderScreen(
     { initialEntries: ["/today"] },
   );
   return render(<RouterProvider router={router} />);
+}
+
+/**
+ * The day column, located by its heading.
+ *
+ * M3X-02 added a "Next up" supporting surface that names the SAME record the
+ * timeline's first row names — deliberately, since it is a pointer at that row
+ * rather than a second fact. Assertions about the timeline therefore scope to
+ * the timeline instead of searching the whole screen for a title that now
+ * legitimately appears twice.
+ */
+function timelineSection() {
+  return screen.getByRole("heading", { name: "My day" }).closest("section")!;
 }
 
 /** The rail section that holds "Needs attention", located by its heading. */
@@ -138,9 +184,7 @@ describe("the summary", () => {
       day({
         overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
         today: [task("a", "Alpha")],
-        meetings: [
-          { id: "m1", title: "Standup", timeLabel: "09:30", context: null },
-        ],
+        meetings: [meeting("m1", "Standup", "09:30")],
       }),
     );
     const toned = container.querySelectorAll(
@@ -156,9 +200,7 @@ describe("the summary", () => {
     renderScreen(
       day({
         today: [task("a", "Alpha")],
-        meetings: [
-          { id: "m1", title: "Standup", timeLabel: "09:30", context: null },
-        ],
+        meetings: [meeting("m1", "Standup", "09:30")],
         overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
       }),
     );
@@ -188,7 +230,9 @@ describe("the day timeline", () => {
 
   it("omits the Meetings section entirely when there are none", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
-    expect(screen.getByText("Due today")).toBeInTheDocument();
+    expect(
+      within(timelineSection()).getByText("Due today"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
   });
 
@@ -196,13 +240,8 @@ describe("the day timeline", () => {
     renderScreen(
       day({
         meetings: [
-          {
-            id: "m1",
-            title: "Design review",
-            timeLabel: "09:30",
-            context: "Studio",
-          },
-          { id: "m2", title: "1:1", timeLabel: "11:00", context: null },
+          meeting("m1", "Design review", "09:30", { context: "Studio" }),
+          meeting("m2", "1:1", "11:00"),
         ],
       }),
     );
@@ -218,7 +257,7 @@ describe("the day timeline", () => {
 
   it("never prints a time beside a task", () => {
     const { container } = renderScreen(day({ today: [task("a", "Alpha")] }));
-    const row = screen.getByText("Alpha").closest("li")!;
+    const row = within(timelineSection()).getByText("Alpha").closest("li")!;
     expect(row.querySelector(".dh-day-row__time")).toBeNull();
     expect(container.textContent).not.toMatch(/Morning|Afternoon/);
   });
@@ -238,7 +277,7 @@ describe("the day timeline", () => {
         ),
       }),
     );
-    expect(screen.getAllByText(/^Late /)).toHaveLength(3);
+    expect(within(timelineSection()).getAllByText(/^Late /)).toHaveLength(3);
     expect(
       screen.getByRole("link", { name: "+3 more overdue" }),
     ).toHaveAttribute("href", "/tasks?system=overdue");
@@ -272,9 +311,11 @@ describe("the day timeline", () => {
 
   it("carries the day's first actionable row above the laptop fold", () => {
     /*
-     * A position guard, not a pixel test. The header block, the summary and the
-     * panel heading are everything above the first row; if a band is ever added
-     * back between them the count changes and this fails.
+     * A position guard, not a pixel test. M3X-02 moved the summary INSIDE the
+     * main column (it led a full-width band before), so what this asserts is the
+     * READING ORDER the phone gets: greeting, summary, what is next, the day.
+     * If a band is ever added back between them, the sequence changes and this
+     * fails.
      */
     const { container } = renderScreen(
       day({
@@ -283,18 +324,20 @@ describe("the day timeline", () => {
       }),
     );
     const surface = container.querySelector(".dh-today")!;
-    // The summary composes the shared card classes, so this compares the ROLE
+    // The surfaces compose the shared card classes, so this compares the ROLE
     // each block plays rather than its whole class list.
-    const blocks = [...surface.children].map((child) =>
-      ["dh-today__head", "dh-today__summary", "dh-today__body"].find((role) =>
-        child.classList.contains(role),
-      ),
-    );
-    expect(blocks).toEqual([
+    const roles = [
       "dh-today__head",
       "dh-today__summary",
-      "dh-today__body",
-    ]);
+      "dh-today__next",
+      "dh-today__timeline",
+    ];
+    const blocks = [...surface.querySelectorAll("*")]
+      .map((node) => roles.find((role) => node.classList.contains(role)))
+      .filter((role): role is string => role !== undefined);
+    expect(blocks).toEqual(roles);
+    // Nothing on this screen is moved by CSS `order`, so the sequence above is
+    // also the visual sequence at every width.
     // The first row inside the day column is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");
@@ -365,7 +408,7 @@ describe("the rail", () => {
     ).toHaveAttribute("href", "/tasks?system=inbox");
   });
 
-  it("omits 'Continue working' entirely when no project has open work", () => {
+  it("shows no project surface at all when no project has open work", () => {
     renderScreen(day());
     expect(
       screen.queryByRole("heading", { name: "Continue working" }),
@@ -373,29 +416,58 @@ describe("the rail", () => {
     expect(
       screen.queryByRole("link", { name: "All projects" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Current focus")).not.toBeInTheDocument();
   });
 
-  it("states each project's open work, status and progress", () => {
-    renderScreen(
-      day({
-        continueProjects: [
-          {
-            id: "p1",
-            title: "Kitchen renovation",
-            openCount: 2,
-            taskTotal: 6,
-            taskCompleted: 4,
-            statusLabel: "On track",
-            needsAttention: false,
-            lastActivityIso: "2026-08-07T00:00:00.000Z",
-          },
-        ],
-      }),
-    );
+  /*
+   * M3X-02 — the HEAD of the ranked list is promoted to the Current focus
+   * supporting surface, and the panel keeps only what it did not take. The facts
+   * are unchanged (open work, status, progress from the project's own rollup);
+   * what changed is which surface states them, and that one project no longer
+   * renders as a surface AND a panel restating it.
+   */
+  it("states the leading project's open work, status and progress on the focus surface", () => {
+    renderScreen(day({ continueProjects: [project()] }));
+    expect(screen.getByText("Current focus")).toBeInTheDocument();
     expect(screen.getByText("2 open tasks · On track")).toBeInTheDocument();
     expect(
       screen.getByRole("progressbar", { name: "Kitchen renovation progress" }),
     ).toHaveAttribute("aria-valuenow", "67");
+    expect(
+      screen.getByRole("link", { name: "Open Kitchen renovation" }),
+    ).toHaveAttribute("href", "/projects/p1");
+  });
+
+  it("does not restate the focus project in a panel beneath it", () => {
+    renderScreen(day({ continueProjects: [project()] }));
+    expect(
+      screen.queryByRole("heading", { name: "Continue working" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the projects the focus surface did not take, in a quiet panel", () => {
+    renderScreen(
+      day({
+        continueProjects: [
+          project(),
+          project({
+            id: "p2",
+            title: "Solo",
+            openCount: 1,
+            statusLabel: "Stale",
+          }),
+        ],
+      }),
+    );
+    const panel = screen
+      .getByRole("heading", { name: "Continue working" })
+      .closest("section")!;
+    expect(
+      within(panel).getByRole("link", { name: "Solo" }),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).queryByRole("link", { name: "Kitchen renovation" }),
+    ).toBeNull();
     expect(screen.getByRole("link", { name: "All projects" })).toHaveAttribute(
       "href",
       "/projects",
@@ -406,20 +478,69 @@ describe("the rail", () => {
     renderScreen(
       day({
         continueProjects: [
-          {
-            id: "p1",
+          project({
+            id: "p9",
             title: "Solo",
             openCount: 1,
-            taskTotal: 2,
-            taskCompleted: 1,
             statusLabel: "Stale",
-            needsAttention: true,
-            lastActivityIso: null,
-          },
+          }),
         ],
       }),
     );
     expect(screen.getByText("1 open task · Stale")).toBeInTheDocument();
+  });
+});
+
+/*
+ * M3X-02 — the day's second question, "what next?", which had no answer anywhere
+ * on the screen before this pass. The precedence and the conditionality are the
+ * contract: a meeting still ahead outranks the day's work, the day's work
+ * outranks slipped work, and a day holding none of the three draws nothing.
+ */
+describe("Next up", () => {
+  it("does not render when the day holds nothing ahead", () => {
+    renderScreen(day());
+    expect(screen.queryByText("Next up")).not.toBeInTheDocument();
+  });
+
+  it("prefers a meeting that has not started, with its time", () => {
+    renderScreen(
+      day({
+        today: [task("a", "Alpha")],
+        meetings: [
+          meeting("m0", "Already started", "08:00"),
+          meeting("m1", "Ops planning", "09:30", { upcoming: true }),
+        ],
+      }),
+    );
+    const surface = screen.getByTestId("today-next");
+    expect(within(surface).getByText("Ops planning")).toBeInTheDocument();
+    expect(within(surface).getByText("09:30")).toBeInTheDocument();
+  });
+
+  it("falls back to the first unfinished task due today", () => {
+    renderScreen(
+      day({
+        today: [
+          task("a", "Alpha", {
+            parent: { id: "p", kind: "project", title: "Kitchen" },
+          }),
+        ],
+        meetings: [meeting("m0", "Already started", "08:00")],
+      }),
+    );
+    const surface = screen.getByTestId("today-next");
+    expect(within(surface).getByText("Alpha")).toBeInTheDocument();
+    expect(within(surface).getByText("Kitchen")).toBeInTheDocument();
+  });
+
+  it("falls back to slipped work, and says that it has slipped", () => {
+    renderScreen(
+      day({ overdue: [task("o", "Late", { dueDate: "2026-08-01" })] }),
+    );
+    const surface = screen.getByTestId("today-next");
+    expect(within(surface).getByText("Late")).toBeInTheDocument();
+    expect(within(surface).getByText("Overdue")).toBeInTheDocument();
   });
 });
 

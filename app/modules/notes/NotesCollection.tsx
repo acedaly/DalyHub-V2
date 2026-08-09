@@ -153,6 +153,27 @@ function NewNoteFormHost({
   return <NewNoteForm onCreated={onCreated} onCancel={closeDrawer} />;
 }
 
+/*
+ * M3X-02 — a note is a DOCUMENT, and a directory of documents is a gallery.
+ *
+ * The audit's H8 finding was that the widest module in the product used its
+ * width worst: a full-bleed filter band over a 200px list with ~500px of empty
+ * canvas beneath. PR #144 tightened the band and left the list a single column,
+ * so at 1440 two notes occupied the top eighth of the screen and nothing
+ * occupied the rest.
+ *
+ * The presentation is now a gallery of note tiles, which is the composition
+ * every product that holds documents converges on for exactly this reason — an
+ * excerpt is worth reading, and reading it wants a column, not a line. The
+ * collection collapses to ONE column below `md`, where a phone gets the clean
+ * list the brief asks for. Same DOM, same cards, same links.
+ *
+ * The metadata run went with it. "Links: None" was on every note in the product
+ * — an absence given a slot on every card — and "Tags:"/"Updated:" prefixes
+ * spent half of a narrow tile's supporting line saying which field followed.
+ * What is left is the date, the tags where there are any, and the archived state
+ * in words.
+ */
 function toCardProps(
   note: SerializedNoteListItem,
   onOpenNote: (id: string) => void,
@@ -160,20 +181,25 @@ function toCardProps(
   const metadata: CardMetaItem[] = [];
   const updated = formatCalendarDate(note.effectiveUpdatedAt.slice(0, 10));
   if (updated) {
-    metadata.push({ id: "updated", label: "Updated", value: updated });
+    metadata.push({ id: "updated", value: updated });
   }
   if (note.tags.length > 0) {
     metadata.push({
       id: "tags",
-      label: "Tags",
       value: note.tags.join(", "),
+      priority: "low",
     });
   }
-  metadata.push({
-    id: "links",
-    label: "Links",
-    value: note.linkCount === 0 ? "None" : String(note.linkCount),
-  });
+  // Only when there ARE links. A count of zero is the absence rule: it takes a
+  // slot on every card to report that a dimension is unused.
+  if (note.linkCount > 0) {
+    metadata.push({
+      id: "links",
+      label: "Links",
+      value: String(note.linkCount),
+      priority: "low",
+    });
+  }
   // Archive is state, not decoration — it is stated in WORDS, never by colour
   // or a glyph alone, so it survives forced-colours and a screen reader.
   if (note.archived) {
@@ -191,7 +217,7 @@ function toCardProps(
     ...(note.excerpt ? { subtitle: note.excerpt } : {}),
     metadata,
     density: "comfortable",
-    presentation: "list",
+    presentation: "grid",
     href: `/notes/${encodeURIComponent(note.id)}`,
     onOpen: () => onOpenNote(note.id),
     openAriaLabel: `Open ${note.title}`,
@@ -231,7 +257,7 @@ function toDeletedCardProps(
     headingLevel: 2,
     metadata,
     density: "comfortable",
-    presentation: "list",
+    presentation: "grid",
     quickActions: [restoreAction],
   };
 }
@@ -471,7 +497,7 @@ function NotesCollection({
               ? "Archived notes"
               : "Notes"
         }
-        presentation="list"
+        presentation="grid"
         density="comfortable"
         renderCard={(note) =>
           state === "deleted" ? (

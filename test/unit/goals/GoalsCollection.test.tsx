@@ -46,7 +46,35 @@ function goal(
     completedAt: null,
     area: { id: "a1", title: "Health" },
     alignment: alignment(),
+    // No contributing Projects by default, so a test that cares about the card's
+    // MEASURE has to say so — the same "opt into what you are asserting" rule
+    // the rest of these fixtures follow.
+    contribution: {
+      total: 0,
+      completed: 0,
+      incomplete: 0,
+      active: 0,
+      planned: 0,
+      onHold: 0,
+      archived: 0,
+    },
     ...over,
+  };
+}
+
+/** A contribution with `completed` of `total` Projects done. */
+function contribution(
+  completed: number,
+  total: number,
+): SerializedGoalWithAlignment["contribution"] {
+  return {
+    total,
+    completed,
+    incomplete: total - completed,
+    active: total - completed,
+    planned: 0,
+    onHold: 0,
+    archived: 0,
   };
 }
 
@@ -395,6 +423,78 @@ describe("Goals gallery grid (DS-16)", () => {
     expect(
       within(card).getByText("Contributing Task activity was recorded today."),
     ).toBeInTheDocument();
+  });
+
+  /*
+   * M3X-02 — a Goal card's MEASURE.
+   *
+   * DalyHub's Goal model carries no numeric target and no unit, so the one thing
+   * a Goal genuinely measures is how far the Projects advancing it have got.
+   * These tests hold the honest boundary: the measure is drawn when the Goal has
+   * contributing Projects, and NOTHING is drawn — no bar, no implied zero — when
+   * it has none.
+   */
+  describe("the Goal's measure", () => {
+    it("draws Project contribution as the card's progress", () => {
+      renderCollection([
+        goal({
+          title: "Run a half-marathon",
+          contribution: contribution(3, 8),
+        }),
+      ]);
+      const card = screen.getByRole("article", { name: /Run a half-marathon/ });
+      const bar = within(card).getByRole("progressbar");
+      expect(bar).toHaveAttribute("aria-valuenow", "38");
+      expect(bar).toHaveAttribute(
+        "aria-valuetext",
+        "38% — 3 of 8 Projects complete",
+      );
+      expect(within(card).getByText("38%")).toBeInTheDocument();
+      expect(
+        within(card).getByText("3 of 8 Projects complete"),
+      ).toBeInTheDocument();
+    });
+
+    it("draws no bar, and no zero, for a Goal nothing advances", () => {
+      renderCollection([goal({ title: "Learn to sail" })]);
+      const card = screen.getByRole("article", { name: /Learn to sail/ });
+      expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
+      expect(within(card).queryByText("0%")).not.toBeInTheDocument();
+    });
+
+    it("states the alignment REASON only when there is no measure to read", () => {
+      renderCollection([
+        goal({ title: "Measured", contribution: contribution(1, 2) }),
+      ]);
+      const measured = screen.getByRole("article", { name: /Measured/ });
+      expect(within(measured).getByText("Recently active")).toBeInTheDocument();
+      expect(
+        within(measured).queryByText(
+          "Contributing Task activity was recorded today.",
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    it("chips only COMPLETION — an open Goal wears no pill saying it is open", () => {
+      renderCollection([
+        goal({ id: "open", title: "Still going" }),
+        goal({
+          id: "done",
+          title: "Finished",
+          completedAt: "2026-07-01T00:00:00.000Z",
+        }),
+      ]);
+      expect(
+        within(
+          screen.getByRole("article", { name: /Still going/ }),
+        ).queryByText("Open"),
+      ).toBeNull();
+      expect(
+        within(screen.getByRole("article", { name: /Finished/ })).getByText(
+          "Completed",
+        ),
+      ).toBeInTheDocument();
+    });
   });
 
   it("uses the same grid for the Deleted view, with Restore and no open target", () => {

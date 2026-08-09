@@ -21,9 +21,15 @@
  *
  * ── The rules, all load-bearing ──────────────────────────────────────────────
  *
- *   - **One per page.** A page with two tinted heroes has emphasised nothing.
- *     This is the whole reason the tint is a token used in one place rather than
- *     a variant every card can opt into.
+ *   - **One per page.** A page with two tinted, ringed, elevated heroes has
+ *     emphasised nothing. This is the whole reason the tint is a token used in
+ *     one place rather than a variant every card can opt into.
+ *
+ *     M3X-02 did NOT relax this. What it added is hierarchy Level 2
+ *     (`SupportingSurface`) beneath it — a smaller, quieter, less shaped surface
+ *     with no ring and no stat row — so a page can have a second and a third
+ *     level without having a second hero. See DESIGN_SYSTEM.md → the hierarchy
+ *     model.
  *   - **It states facts, it does not decorate them.** Every figure passed in is
  *     a real number the page already had. The component invents nothing, and it
  *     renders no stat whose value is absent — a hero of dashes is worse than a
