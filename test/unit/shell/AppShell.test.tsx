@@ -65,11 +65,7 @@ function renderShell(initialPath = "/") {
   // shell contract under test is unchanged.
   const Placeholder = () => (
     <div>
-      <PaneHeader
-        title="Areas"
-        entityType="area"
-        subtitle="Permanent domains of life."
-      />
+      <PaneHeader title="Areas" subtitle="Permanent domains of life." />
       <div className="dh-pane-body" />
     </div>
   );

@@ -22,15 +22,11 @@
 
 import { useId } from "react";
 
-import type { EntityType } from "~/shared/entity";
-
 import { PaneHeader } from "./PaneHeader";
 
 export type ModuleComingSoonProps = {
   /** The module's display name (the user's noun, e.g. "Notes"). */
   readonly name: string;
-  /** Optional entity type, to show the module's identity glyph in the header. */
-  readonly entityType?: EntityType;
   /** One sentence: what the module will become (the Pane Header subtitle). */
   readonly summary: string;
   /** One short paragraph: where the module fits in DalyHub's model. */
@@ -43,7 +39,6 @@ export type ModuleComingSoonProps = {
 
 export function ModuleComingSoon({
   name,
-  entityType,
   summary,
   fit,
   roadmapStatus,
@@ -53,7 +48,7 @@ export function ModuleComingSoon({
 
   return (
     <div className="dh-module-placeholder dh-coming-soon-page">
-      <PaneHeader title={name} entityType={entityType} subtitle={summary} />
+      <PaneHeader title={name} subtitle={summary} />
       <div className="dh-pane-body">
         <p className="lead">{fit}</p>
 

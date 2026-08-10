@@ -56,9 +56,6 @@
 
 import type { ReactNode } from "react";
 
-import type { EntityType } from "~/shared/entity";
-import { EntityIcon } from "~/shared/entity";
-
 import { useSetMobileTopBar } from "./mobile-top-bar-context";
 
 export type PaneHeaderProps = {
@@ -66,12 +63,22 @@ export type PaneHeaderProps = {
   readonly title: string;
   /** Optional heading level for a correct document outline (default 1). */
   readonly headingLevel?: 1 | 2 | 3;
-  /** Optional entity type — renders the type's identity glyph beside the title. */
-  readonly entityType?: EntityType;
   /**
-   * A rendered identity node that REPLACES the `entityType` glyph — a record's
-   * chosen icon in its accent container, say. The header does not resolve icons;
-   * it only gives one a place to sit.
+   * A rendered identity node beside the title — a RECORD's chosen icon in its
+   * own accent container. The header does not resolve icons; it only gives one
+   * a place to sit.
+   *
+   * ── UIX-06 — a COLLECTION passes nothing here, and that is the rule ────────
+   * The band used to draw a generic type badge from an `entityType` prop, which
+   * produced three different page origins across the product: a collection's
+   * title started 40px right of Today's and Analytics', because those two have
+   * no entity type to badge. It was also the same glyph the sidebar was already
+   * showing, highlighted, 200px to the left — one icon, twice, for one route.
+   *
+   * The documented anatomy (DESIGN_SYSTEM.md → the collection-header anatomy)
+   * has always shown the title leading, and every root reference draws it that
+   * way. A record keeps its icon because a record's mark carries its Area's
+   * identity accent (D22/§6.2), which is information rather than decoration.
    */
   readonly icon?: ReactNode;
   /** A short context label above the title ("Project", "Area · Health"). */
@@ -102,7 +109,6 @@ export type PaneHeaderProps = {
 export function PaneHeader({
   title,
   headingLevel = 1,
-  entityType,
   icon,
   eyebrow,
   subtitle,
@@ -131,14 +137,7 @@ export function PaneHeader({
   return (
     <div className={classes}>
       <div className="dh-pane-header__lead">
-        {icon ??
-          (entityType ? (
-            <EntityIcon
-              type={entityType}
-              variant="badge"
-              className="dh-pane-header__icon"
-            />
-          ) : null)}
+        {icon}
         <div className="dh-pane-header__titles">
           {eyebrow ? (
             <p className="dh-pane-header__eyebrow">{eyebrow}</p>

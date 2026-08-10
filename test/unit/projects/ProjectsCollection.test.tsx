@@ -122,7 +122,7 @@ describe("Projects collection", () => {
     expect(within(empty).queryByRole("progressbar")).not.toBeInTheDocument();
     expect(within(empty).getByText("No tasks yet")).toBeInTheDocument();
     // The subtitle reflects the count.
-    expect(screen.getByText("2 projects")).toBeInTheDocument();
+    expect(screen.getByText("2 Projects")).toBeInTheDocument();
     // UIX-02 — the lifecycle mode is a tab RAIL of links under the title, not
     // a segmented capsule beside it, so it announces as navigation.
     expect(
@@ -755,8 +755,8 @@ describe("Projects collection", () => {
     );
 
     // While a page remains, the subtitle must NOT present the loaded count as total.
-    await screen.findByText("1 project loaded");
-    expect(screen.queryByText("1 project")).not.toBeInTheDocument();
+    await screen.findByText("1 Project loaded");
+    expect(screen.queryByText("1 Project")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Load more projects" }));
 
@@ -769,7 +769,7 @@ describe("Projects collection", () => {
     expect(
       screen.queryByRole("button", { name: "Load more projects" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("2 projects")).toBeInTheDocument();
+    expect(screen.getByText("2 Projects")).toBeInTheDocument();
   });
 
   it("shows a retryable error when a page fails to load", async () => {

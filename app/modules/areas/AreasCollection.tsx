@@ -42,6 +42,7 @@ import { useNavigate, useRevalidator } from "react-router";
 import { EntityRow, EntityRowList } from "~/shared/card";
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -294,8 +295,7 @@ function areaId(area: SerializedAreaListItem): string {
  * loaded", which is what the previous copy produced.
  */
 export function areasCountLabel(count: number, hasMore: boolean): string {
-  const noun = count === 1 ? "Area" : "Areas";
-  return hasMore ? `${count} ${noun} loaded` : `${count} ${noun}`;
+  return collectionCountLabel(count, "Area", "Areas", { hasMore });
 }
 
 function AreasCollection({
@@ -333,7 +333,6 @@ function AreasCollection({
       isLoading={isReloading}
       title="Areas"
       subtitle={subtitle}
-      entityType="area"
       presentation="list"
       primaryAction={
         <DrawerTrigger

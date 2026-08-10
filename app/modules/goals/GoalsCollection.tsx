@@ -41,6 +41,7 @@ import {
 import { Sparkline } from "~/shared/charts";
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -643,7 +644,6 @@ function GoalsCollection({
                 ? "1 deleted Goal"
                 : `${deleted.length} deleted Goals`
         }
-        entityType="goal"
         presentation="grid"
         viewSwitcher={
           <ViewSwitcher
@@ -702,13 +702,7 @@ function GoalsCollection({
   const count = items.length;
   const subtitle = failed
     ? "We couldn’t load your Goals."
-    : hasMore
-      ? count === 1
-        ? "1 Goal loaded"
-        : `${count} Goals loaded`
-      : count === 1
-        ? "1 Goal"
-        : `${count} Goals`;
+    : collectionCountLabel(count, "Goal", "Goals", { hasMore });
   const summary = failed ? null : alignmentSummary(items);
   /*
    * The view counts, over the Goals LOADED — the same per-page honesty the
@@ -729,7 +723,6 @@ function GoalsCollection({
       isLoading={isReloading}
       title="Goals"
       subtitle={subtitle}
-      entityType="goal"
       presentation="grid"
       // UIQ-013 — Active/Deleted is the collection's principal mode (the two
       // are different collections of Goals, not a narrowing of one), so it sits

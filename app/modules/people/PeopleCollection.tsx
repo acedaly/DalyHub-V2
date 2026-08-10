@@ -51,6 +51,7 @@ import { PersonRow, PersonRowList, type PersonRowTone } from "~/shared/card";
 import {
   CollectionControls,
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
   type CollectionControlGroup,
 } from "~/shared/collection-layout";
@@ -546,11 +547,7 @@ function PeopleCollection({
       ? bounded
         ? `${count} of ${items.length} loaded — load more to keep looking`
         : `${count} of ${items.length}`
-      : hasMore
-        ? `${count} ${noun} loaded`
-        : count === 1
-          ? `1 ${noun.replace(/people$/, "person")}`
-          : `${count} ${noun}`;
+      : collectionCountLabel(count, "Person", "People", { hasMore });
 
   const quickAdd = canQuickAdd ? (
     <DrawerTrigger
@@ -675,7 +672,6 @@ function PeopleCollection({
       isLoading={isReloading}
       title={title}
       subtitle={subtitle}
-      entityType="person"
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
       mobileControls={mobileControls}

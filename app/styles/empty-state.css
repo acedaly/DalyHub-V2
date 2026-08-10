@@ -27,8 +27,12 @@
   gap: var(--app-space-3);
   padding: var(--app-space-10) var(--app-page-padding);
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  /* UIX-06 — D1: a card is separated by its surface step, not by a hairline.
+   * The empty state is the one card in the product that still drew a border, so
+   * on Diary, Meetings, Analytics and Reviews the emptiest screens were also the
+   * only ones with an outlined box on them. */
+  border: none;
+  border-radius: var(--app-shape-card);
 }
 
 /* The measure applies to the TEXT, not to the card: a 42rem-wide card centred in

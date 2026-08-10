@@ -87,7 +87,6 @@ function ViewsWorkspaceInner({ data }: ViewsWorkspaceProps) {
   return (
     <CollectionLayout
       title={data.title}
-      entityType="note"
       subtitle={subtitle}
       persistentControls
       viewSwitcher={

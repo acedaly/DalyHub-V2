@@ -46,6 +46,7 @@ import { useNavigate, useRevalidator } from "react-router";
 import { EntityCardGrid, ProjectCard } from "~/shared/card";
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -383,8 +384,7 @@ function projectId(project: SerializedProjectListItem): string {
  * rather than left as the previous "1 projects loaded".
  */
 export function projectsCountLabel(count: number, hasMore: boolean): string {
-  const noun = count === 1 ? "project" : "projects";
-  return hasMore ? `${count} ${noun} loaded` : `${count} ${noun}`;
+  return collectionCountLabel(count, "Project", "Projects", { hasMore });
 }
 
 function ProjectsCollection({
@@ -425,7 +425,6 @@ function ProjectsCollection({
       isLoading={isReloading}
       title="Projects"
       subtitle={subtitle}
-      entityType="project"
       presentation="grid"
       primaryAction={
         <DrawerTrigger

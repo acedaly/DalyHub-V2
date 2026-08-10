@@ -14,6 +14,7 @@ import { Link, useSearchParams } from "react-router";
 
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -95,12 +96,10 @@ export function MeetingsCollection({
   });
 
   const subtitle = failed
-    ? "We couldn’t load your meetings."
+    ? "We couldn’t load your Meetings."
     : pagination.hasMore
       ? `${pagination.items.length} of ${total} loaded`
-      : total === 1
-        ? "1 meeting"
-        : `${total} meetings`;
+      : collectionCountLabel(total, "Meeting", "Meetings");
 
   const updateParam = useCallback(
     (name: string, value: string) => {
@@ -134,7 +133,6 @@ export function MeetingsCollection({
     <CollectionLayout
       isLoading={isReloading}
       title="Meetings"
-      entityType="meeting"
       subtitle={subtitle}
       // Shell cleanup: the header's "New meeting" button is gone. It navigated to
       // the generic `/new/meeting` form with no context the global capture

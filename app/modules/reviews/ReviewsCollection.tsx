@@ -42,6 +42,7 @@ import {
 import { EntityCardGrid, ReviewCard, type ReviewCardTone } from "~/shared/card";
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -87,11 +88,10 @@ function reviewCount(
   view: ReviewView,
   hasMore: boolean,
 ): string {
-  const noun = loaded === 1 ? "Review" : "Reviews";
-  const scope = VIEW_NOUNS[view];
-  return hasMore
-    ? `${loaded} ${scope} ${noun} loaded`
-    : `${loaded} ${scope} ${noun}`;
+  return collectionCountLabel(loaded, "Review", "Reviews", {
+    hasMore,
+    scope: VIEW_NOUNS[view],
+  });
 }
 
 function hrefFor(
@@ -304,7 +304,6 @@ export function ReviewsCollectionView({
     <CollectionLayout
       isLoading={isReloading}
       title="Reviews"
-      entityType="review"
       /*
        * A COUNT, not a sentence.
        *

@@ -244,15 +244,16 @@
   font-weight: 500;
 }
 
+/* The clause builder's dense controls. UIX-06: `background-color` rather than
+ * the `background` shorthand, which would clear the chevron the shared control
+ * baseline draws on a `<select>`. */
 .dh-filter-editor__select,
 .dh-filter-value__input {
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--md-sys-typescale-body-medium-size);
   color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-raised);
+  background-color: var(--md-app-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--app-shape-control);
   max-width: 100%;
 }
 

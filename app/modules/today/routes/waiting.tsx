@@ -154,7 +154,6 @@ function WaitingCollection({
     <CollectionLayout
       title="Waiting"
       subtitle={subtitle}
-      entityType="task"
       error={
         failed ? (
           <EmptyState

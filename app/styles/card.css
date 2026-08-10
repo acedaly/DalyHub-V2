@@ -66,7 +66,21 @@
   background: var(--md-app-color-surface-card);
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
-  box-shadow: var(--md-sys-elevation-1);
+  /*
+   * UIX-06 — D1, applied to the card that predates it.
+   *
+   * "A card draws no border and no resting shadow; separation is the surface
+   * step alone" (DALYHUB_DESIGN_SYSTEM.md D1). Every record family built since —
+   * `.dh-pcard`, `.dh-gcard`, `.dh-acard`, `.dh-rcard`, `.dh-erow` — follows it,
+   * and this generic card did not, so a Today panel sat on a soft drop shadow
+   * two inches from a Project card that did not. The canvas already moved to
+   * tone 97 to pay for the separation this shadow was drawing.
+   *
+   * The HOVER lift below is untouched: elevation that answers a pointer is a
+   * claim the surface does something, which is exactly what D1 reserves depth
+   * for.
+   */
+  box-shadow: var(--app-elevation-resting);
   transition:
     box-shadow var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard),
@@ -1325,16 +1339,17 @@
  * these are stated once against the M3 card and list specifications rather than
  * derived from a region's declared type.
  *
- * `.dh-region-card` is the M3 elevated card: the card plane at `corner-large`,
- * elevation 1, no border. `.dh-region-row` is the M3 list item: 56px, a 16px
- * gap, and a hairline BETWEEN rows only — never before the first or after the
- * last, so the card's own edge is the only boundary at its ends.
+ * `.dh-region-card` is the card plane at `corner-large`, with no border and — as
+ * of UIX-06 — no resting shadow either, which is D1. `.dh-region-row` is the M3
+ * list item: 56px, a 16px gap, and a hairline BETWEEN rows only — never before
+ * the first or after the last, so the card's own edge is the only boundary at
+ * its ends.
  */
 .dh-region-card {
   background: var(--md-app-color-surface-card);
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
-  box-shadow: var(--md-sys-elevation-1);
+  box-shadow: var(--app-elevation-resting);
   padding-block: var(--app-space-5);
   padding-inline: var(--app-space-6);
 }

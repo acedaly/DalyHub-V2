@@ -38,7 +38,6 @@
 import { useEffect, useId } from "react";
 import type { ReactNode } from "react";
 
-import type { EntityType } from "~/shared/entity";
 import { PaneHeader } from "~/shared/shell/PaneHeader";
 import { CollectionSkeleton } from "~/shared/skeleton";
 
@@ -89,7 +88,6 @@ export type CollectionLayoutProps = {
   /* -- Pane header -- */
   readonly title: string;
   readonly headingLevel?: 1 | 2 | 3;
-  readonly entityType?: EntityType;
   readonly subtitle?: ReactNode;
   /**
    * UIQ-013 — the ONE `~/shared/view-switcher` control, changing the
@@ -161,7 +159,6 @@ export type CollectionLayoutProps = {
 export function CollectionLayout({
   title,
   headingLevel = 1,
-  entityType,
   subtitle,
   viewSwitcher,
   secondaryActions,
@@ -216,7 +213,6 @@ export function CollectionLayout({
           title={title}
           titleId={titleId}
           headingLevel={headingLevel}
-          entityType={entityType}
           subtitle={subtitle}
           viewSwitcher={viewSwitcher}
           secondaryActions={secondaryActions}
