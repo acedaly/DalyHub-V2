@@ -18,10 +18,15 @@
   gap: var(--app-space-5);
 }
 
+/* UIX-06 — the page-title rung, like every other page in the product. This drew
+ * `headline-small` (24px) with a hand-written weight where the shared title is
+ * `headline-medium` (28px). */
 .dh-ask__title {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-headline-small-size);
-  font-weight: 500;
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
   color: var(--md-sys-color-on-surface);
 }
 
@@ -29,8 +34,12 @@
 .dh-ask__note,
 .dh-ask__budget {
   margin: 0;
+  /* UIX-06 — a MEASURE. The lead ran the full 980px of the pane at `body-small`,
+   * which is the "overly wide prose" §12 rules out; every other page's
+   * supporting line is capped and sits at the subtitle rung. */
+  max-inline-size: var(--app-width-prose);
   color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--md-sys-typescale-body-medium-size);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -78,7 +87,8 @@
   gap: var(--app-space-3);
   padding: var(--app-space-4);
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
+  border: none;
   border-radius: var(--md-sys-shape-corner-large);
 }
 
@@ -139,7 +149,8 @@
   align-items: center;
   gap: var(--app-space-3);
   padding: var(--app-space-3) var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
+  border: none;
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-sunken);
 }
@@ -302,7 +313,8 @@
   gap: var(--app-space-2);
   padding: var(--app-space-4);
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
+  border: none;
   border-radius: var(--md-sys-shape-corner-medium);
   min-width: 0;
 }
