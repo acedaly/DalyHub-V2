@@ -335,22 +335,66 @@ body {
   select,
   textarea
 ) {
-  min-block-size: var(--app-control-height-md);
-  padding: var(--app-space-1) var(--app-space-3);
+  /*
+   * UIX-06 — the floor is the CONTROL rung, not a smaller one of its own.
+   *
+   * DS-14 set this at 36px/4px, which is the size and shape of nothing else in
+   * the product: `.dh-btn` is 45px on `--app-shape-control` (8px), and so is
+   * every segment, filter trigger and overflow control. A collection header
+   * therefore drew a 36px 4px-cornered search field beside a 45px 8px-cornered
+   * "Filter & sort" pill, on five modules, and the mismatch read as two
+   * different design systems sharing a row — which is exactly what §15 rules
+   * out ("mismatched radii on adjacent controls"). 45px is also the target
+   * floor this product commits to (AGENTS.md §15), and an input is a target.
+   */
+  min-block-size: var(--app-control-height-lg);
+  padding: var(--app-space-2) var(--app-space-3);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--md-sys-typescale-body-medium-size);
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--app-shape-control);
 }
 
+/*
+ * UIX-06 — a `<select>` stops looking like a browser.
+ *
+ * DS-14 left the user-agent arrow in place, reasoning that removing it would
+ * break the platform picker on touch. It does not: `appearance: none` changes
+ * only how the closed control is PAINTED. Tapping still opens the iOS wheel and
+ * the Android dialog, the keyboard behaviour is the native one, the element is
+ * still a `<select>` to assistive tech, and a no-JS form still submits it. What
+ * it does remove is the one thing that made Notes, Meetings, People and Reviews
+ * read as unfinished: a Windows/macOS chevron, at the user agent's own size and
+ * colour, inside a product that draws every other disclosure itself.
+ *
+ * The replacement chevron is a background gradient pair rather than an SVG, so
+ * it takes `currentColor` — it is correct in both appearances and in forced
+ * colours by construction, with no second asset to keep in step.
+ */
 :where(select) {
-  /* A select keeps its native disclosure arrow (drawing our own would break the
-   * platform picker on touch); the inline-end inset just stops the value text
-   * colliding with it. */
-  padding-inline-end: var(--app-space-2);
+  appearance: none;
+  /* Room for the drawn chevron, which sits `--app-space-4` from the edge. */
+  padding-inline-end: var(--app-space-8);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - var(--app-space-4) - 5px) center,
+    calc(100% - var(--app-space-4)) center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
   cursor: pointer;
+}
+
+/* A multiple/sized select is a LIST, not a closed control — it has no chevron
+ * to draw and no room to reserve for one. */
+:where(select[multiple], select[size]:not([size="1"])) {
+  padding-inline-end: var(--app-space-3);
+  background-image: none;
 }
 
 :where(textarea) {

@@ -126,27 +126,20 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
-/* UIQ-009 — ONE control height across the filter row. The selects were styled
- * here while the text inputs kept the 56px standalone-field default, so one row
- * held three different control heights and the tag field read as a bare box.
- * Every field in the bar shares the selects' height, border and surface. */
-.dh-assets-filters select,
+/*
+ * UIQ-009 gave the Assets filter row ONE control height, because the selects
+ * were styled here and the text inputs were not.
+ *
+ * UIX-06 removed the rule rather than updating it: the control baseline in
+ * `base.css` now states the height, the surface, the border, the corner and the
+ * drawn chevron for EVERY native control in the product, so this block was a
+ * local copy that had already drifted from it (4px corners, a 2px focus outline
+ * where the shared ring is the product's, and zero inline padding, which leaves
+ * no room for the chevron). A module-local copy of a shared value is the debt
+ * §56 exists to remove; the row keeps only what is genuinely about Assets.
+ */
 .dh-assets-filters .dh-input {
-  min-height: var(--app-control-height-lg);
-  min-block-size: var(--app-control-height-lg);
-  padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
-  font: inherit;
   max-inline-size: 100%;
-}
-
-.dh-assets-filters select:focus-visible,
-.dh-assets-filters .dh-input:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
-  outline-offset: 2px;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -499,22 +492,11 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/* The height, surface, border, corner and chevron come from the shared control
+ * baseline (`base.css`); the only thing genuinely local here is the 320px cap. */
 .dh-asset-obligations__filter select,
 .dh-asset-history__filter select {
-  min-height: var(--app-control-height-lg);
-  padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
-  /* Never wider than its column at 320px. */
   max-width: 100%;
-}
-
-.dh-asset-obligations__filter select:focus-visible,
-.dh-asset-history__filter select:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
-  outline-offset: 2px;
 }
 
 .dh-asset-obligations__group {

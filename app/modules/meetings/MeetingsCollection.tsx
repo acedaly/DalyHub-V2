@@ -37,10 +37,15 @@ const VIEW_LINKS = [
   { id: "archived", label: "Archived", href: "/meetings/archived" },
 ] as const;
 
+/*
+ * UIX-06 — each option names its own dimension, so the control needs no visible
+ * label beside it and the band stays one row at one baseline. Same wording as
+ * People, Notes and Reviews.
+ */
 const SORT_LABELS = {
-  start: "Start date",
-  updated: "Updated date",
-  title: "Title",
+  start: "Sort: Start date",
+  updated: "Sort: Updated date",
+  title: "Sort: Title",
 } as const;
 
 export function MeetingsCollection({
@@ -182,7 +187,9 @@ export function MeetingsCollection({
             />
           </label>
           <label className="dh-field dh-meetings-sort">
-            <span className="dh-field__label-text">Sort</span>
+            <span className="dh-field__label-text dh-visually-hidden">
+              Sort
+            </span>
             <select
               className="dh-input"
               value={sort}

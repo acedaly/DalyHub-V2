@@ -120,16 +120,16 @@
   min-inline-size: 0;
 }
 
-.dh-people-filters__input,
-.dh-people-filters__select {
+/*
+ * LAYOUT only (UIX-06). The height, padding, border, corner, surface, font and
+ * — for the select — the drawn chevron all come from the shared control
+ * baseline in `base.css`. This rule used to restate them, and had drifted: a
+ * 36px control on 4px corners beside a 44px 8px-cornered toggle in the same
+ * row, which is the mismatch §15 names. The select also keeps its intrinsic
+ * width rather than `inline-size: 100%`, so its longest option is never clipped.
+ */
+.dh-people-filters__input {
   inline-size: 100%;
-  min-block-size: var(--app-control-height-md);
-  padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
-  font: inherit;
 }
 
 .dh-people-filters__sort {
@@ -151,9 +151,11 @@
   align-items: center;
   gap: var(--app-space-2);
   flex: none;
-  min-block-size: var(--app-control-height-md);
+  /* The same rung as the select and the search field beside it (UIX-06), and
+   * the product's touch floor. */
+  min-block-size: var(--app-control-height-lg);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--app-shape-control);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
