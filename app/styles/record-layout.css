@@ -623,6 +623,14 @@
  * hairline, no shadow, and the Collection preset's inset so a row list inside it
  * lands on the same inline rhythm as a routed collection. */
 .record-tabs__panel,
+.record-layout__content {
+  min-width: 0;
+  padding: var(--app-space-5);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+}
+
 /*
  * UIX-03 — the record WORKSPACE region.
  *
@@ -630,19 +638,15 @@
  * and whatever fills it brings its own composition. Giving it a card here would
  * recreate the very nesting the slot exists to remove — a Goal's chart would be
  * back inside a container inside the record.
+ *
+ * It has its OWN rule rather than joining the two selectors above, which is the
+ * whole point: those two ARE the contained working surface, and this one must
+ * not be.
  */
 .record-layout__feature {
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.record-layout__content {
-  min-width: 0;
-  padding: var(--app-space-5);
-  background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
 }
 
 /*

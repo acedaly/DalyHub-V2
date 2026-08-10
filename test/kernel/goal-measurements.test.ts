@@ -375,6 +375,72 @@ describe("the batched summary read", () => {
     expect(series.get(b.id)).toEqual([{ value: 5, measuredOn: "2026-08-01" }]);
   });
 
+  it("keeps same-day readings in creation order, so the endpoint is the newest", async () => {
+    /*
+     * `measured_on` is a DATE, and the repository permits two readings on one.
+     * The window ranks by `measured_on DESC, created_at DESC` to CHOOSE rows,
+     * so the ascending result has to carry the same tie-break or SQLite is free
+     * to return the pair either way round — which puts an arbitrary one of them
+     * at the series' end, and the sparkline's end marker and direction would
+     * then disagree with the card's metric (which comes from the summary's
+     * genuinely-newest reading).
+     */
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const repo = measurements();
+
+    await repo.createMeasurement(goal.id, {
+      value: 80,
+      measuredOn: "2026-08-01",
+    });
+    // Three on ONE day, written in a known order.
+    await repo.createMeasurement(goal.id, {
+      value: 79.5,
+      measuredOn: "2026-08-08",
+    });
+    await repo.createMeasurement(goal.id, {
+      value: 79.2,
+      measuredOn: "2026-08-08",
+    });
+    await repo.createMeasurement(goal.id, {
+      value: 78.9,
+      measuredOn: "2026-08-08",
+    });
+
+    const series = (
+      await repo.listMeasurementSeries([goal.id], {
+        perGoalLimit: 12,
+      })
+    ).get(goal.id);
+
+    expect(series?.map((point) => point.value)).toEqual([80, 79.5, 79.2, 78.9]);
+    // The one that matters: the LAST point is the last one written.
+    expect(series?.[series.length - 1]?.value).toBe(78.9);
+  });
+
+  it("caps to the newest readings even when the cap falls inside one day", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Weigh in", areaId: area.id });
+    const repo = measurements();
+    for (const value of [90, 89, 88, 87]) {
+      await repo.createMeasurement(goal.id, {
+        value,
+        measuredOn: "2026-08-08",
+      });
+    }
+
+    const series = (
+      await repo.listMeasurementSeries([goal.id], {
+        perGoalLimit: 2,
+      })
+    ).get(goal.id);
+
+    // The two NEWEST of four same-day readings, still oldest-first.
+    expect(series?.map((point) => point.value)).toEqual([88, 87]);
+  });
+
   it("omits a Goal with no readings rather than inventing an empty series", async () => {
     const goal = await seedGoal();
     const series = await measurements().listMeasurementSeries([goal.id], {

@@ -601,12 +601,28 @@ export class D1GoalMeasurementRepository implements GoalMeasurementRepository {
           const marks = placeholders(idChunk.length);
           const result = await this.#db
             .prepare(
+              /*
+               * The outer ORDER BY carries the SAME tie-breakers the window
+               * ranked by, reversed.
+               *
+               * Two readings can share a day — the repository permits it, and
+               * `measured_on` is a date, not an instant. Ordering the result by
+               * `measured_on` alone leaves SQLite free to return those two in
+               * either order, which puts an arbitrary one of them at the
+               * series' end: the sparkline's end marker, and the direction its
+               * tone is derived from, would then disagree with the card's
+               * metric, which comes from the summary's genuinely-newest
+               * reading. `created_at` is the same tie-break `measured_on DESC,
+               * created_at DESC` uses to CHOOSE the rows, and `id` makes the
+               * order total even for two rows written in the same millisecond.
+               */
               `SELECT entity_id, value, measured_on
                  FROM (
                         SELECT m.entity_id, m.value, m.measured_on,
+                               m.created_at AS created_at, m.id AS id,
                                ROW_NUMBER() OVER (
                                  PARTITION BY m.entity_id
-                                 ORDER BY m.measured_on DESC, m.created_at DESC
+                                 ORDER BY m.measured_on DESC, m.created_at DESC, m.id DESC
                                ) AS rn
                         FROM goal_measurements m
                         JOIN entities e
@@ -615,7 +631,7 @@ export class D1GoalMeasurementRepository implements GoalMeasurementRepository {
                         WHERE m.workspace_id = ? AND m.entity_id IN (${marks})
                       )
                  WHERE rn <= ?
-                 ORDER BY entity_id ASC, measured_on ASC`,
+                 ORDER BY entity_id ASC, measured_on ASC, created_at ASC, id ASC`,
             )
             .bind(this.#workspaceId, ...idChunk, perGoal)
             .all<SeriesRow>();
