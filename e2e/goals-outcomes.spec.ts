@@ -290,6 +290,20 @@ test.describe("UIX-03 — phone and accessibility", () => {
   });
 });
 
+/*
+ * The project matrix plus 1920.
+ *
+ * `RESPONSIVE_VIEWPORTS` runs 320 → 2560 and brackets 1920 without landing on
+ * it. The UIX-03 brief names 1920 explicitly, and it is the width at which the
+ * gallery reaches its widest column count, so it is added HERE rather than to
+ * the shared list — widening the shared matrix would add a width to every spec
+ * in the suite, which is a suite-wide decision and not this pass's to make.
+ */
+const GOAL_VIEWPORTS = [
+  ...RESPONSIVE_VIEWPORTS,
+  { label: "desktop-1920", width: 1920, height: 1080 },
+] as const;
+
 test.describe("UIX-03 — the responsive matrix", () => {
   /*
    * The gallery and the record across every width the contract names — 320
@@ -300,7 +314,7 @@ test.describe("UIX-03 — the responsive matrix", () => {
   test("the Goals gallery never scrolls sideways at any supported width", async ({
     page,
   }) => {
-    for (const viewport of RESPONSIVE_VIEWPORTS) {
+    for (const viewport of GOAL_VIEWPORTS) {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
@@ -326,7 +340,7 @@ test.describe("UIX-03 — the responsive matrix", () => {
     await logMeasurement(page, "300", "2026-06-01");
     await logMeasurement(page, "720", "2026-07-01");
 
-    for (const viewport of RESPONSIVE_VIEWPORTS) {
+    for (const viewport of GOAL_VIEWPORTS) {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,

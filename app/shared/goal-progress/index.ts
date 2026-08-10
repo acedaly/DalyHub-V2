@@ -45,7 +45,6 @@ export {
   formatPacePerWeek,
   goalCheckInDue,
   goalCheckInLabel,
-  goalCurrentAgainstTarget,
   goalTargetLabel,
   goalDaysToTarget,
   goalLastUpdatedText,

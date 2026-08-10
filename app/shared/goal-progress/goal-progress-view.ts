@@ -350,38 +350,15 @@ export function goalProgressSummaryText(
   return parts.length > 0 ? parts.join(" · ") : "No progress logged yet";
 }
 
-/** "11 / 24 books" and "$6,850 / $10,000" — the count-style reading. */
-export function goalCurrentAgainstTarget(
-  progress: GoalProgressEvaluation,
-): string | null {
-  if (!progress.measured) return null;
-  if (progress.type === "milestone") {
-    const total = progress.target ?? 0;
-    if (total <= 0) return null;
-    return `${progress.current ?? 0} / ${total}`;
-  }
-  if (progress.current === null || progress.target === null) return null;
-  if (progress.type === "accumulation") {
-    return `${formatMeasurementValue(progress.current, null)} / ${formatMeasurementValue(
-      progress.target,
-      progress.unit,
-    )}`;
-  }
-  return `${formatMeasurementValue(progress.current, progress.unit)} → ${formatMeasurementValue(
-    progress.target,
-    progress.unit,
-  )}`;
-}
-
 /**
  * VIS-01 — the TARGET alone, for a surface that has already printed the current
  * value immediately above it.
  *
- * `goalCurrentAgainstTarget` states both, which is right where the pair IS the
- * reading ("11 / 24 books"). A gallery card prints the current value as its
- * metric and then labels it, and labelling `79.3 kg` with `79.3 kg → 70 kg` says
- * the current value twice and makes the label the longer of the two strings —
- * exactly the metadata density the convergence pass is reducing.
+ * Labelling `79.3 kg` with `79.3 kg → 70 kg` says the current value twice and
+ * makes the label the longer of the two strings — exactly the metadata density
+ * the convergence pass reduced. Today uses this; the gallery card uses
+ * `goalJourneyLabel` instead, which states the START rather than repeating the
+ * reading (UIX-03).
  *
  * `null` for a milestone Goal (whose reading is already `2 / 4`) and for a
  * manual one (whose target is the number 100, which is not a target anyone set).

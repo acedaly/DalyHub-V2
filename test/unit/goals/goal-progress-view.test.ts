@@ -25,7 +25,6 @@ import {
   formatPacePerWeek,
   goalCheckInDue,
   goalCheckInLabel,
-  goalCurrentAgainstTarget,
   goalNeedsAttention,
   goalPaceLabel,
   goalProgressStatusLabel,
@@ -104,28 +103,6 @@ describe("the summary sentence — every bar's text equivalent", () => {
       { todayIso: TODAY },
     );
     expect(goalProgressSummaryText(progress)).toBe("No measurement configured");
-  });
-
-  it("reads a count Goal as a count, not as a journey", () => {
-    const progress = evaluateGoalProgress(
-      {
-        config: normalizeGoalMeasurementConfig({
-          type: "accumulation",
-          unit: "books",
-          targetValue: 24,
-        }),
-        targetDate: null,
-        measurements: [{ value: 11, measuredOn: TODAY }],
-      },
-      { todayIso: TODAY },
-    );
-    expect(goalCurrentAgainstTarget(progress)).toBe("11 / 24 books");
-  });
-
-  it("reads a target-value Goal as a journey", () => {
-    expect(
-      goalCurrentAgainstTarget(weightGoal([{ value: 79, measuredOn: TODAY }])),
-    ).toBe("79 kg → 70 kg");
   });
 });
 
