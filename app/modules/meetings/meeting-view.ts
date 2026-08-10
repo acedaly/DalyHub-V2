@@ -97,18 +97,38 @@ const MONTH_NAMES = [
 ] as const;
 
 /**
- * UIX-04 §25 — the meeting's own calendar day, `YYYY-MM-DD`, in ITS timezone.
+ * UIX-04 §25 — an instant's calendar day, `YYYY-MM-DD`, in a NAMED timezone.
  *
  * The collection groups by this rather than by the UTC prefix of `startsAt`.
  * They are not the same day: a 9am Sydney meeting is 23:00 UTC the day BEFORE,
  * so slicing the ISO string put it in the previous day's group and then labelled
- * that group with the heading of whichever meeting opened it. Every day boundary
- * in this module is resolved in the meeting's zone; this is that rule, exported
- * so the grouping and the heading cannot disagree about which day it is.
+ * that group with the heading of whichever meeting opened it.
+ *
+ * Which zone is passed is the caller's decision and it matters: the collection
+ * passes the OWNER's, because grouping and the relative headings above are one
+ * question ("where does this sit in my week?") and must be answered in one
+ * frame. The record passes the meeting's, because a start time is stated in the
+ * zone it was scheduled in.
  */
 export function meetingDayKey(iso: string, timezone: string): string {
   const parts = partsInTimeZone(new Date(iso), timezone);
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+/**
+ * UIX-04 §25 — the short, hydration-stable name of a meeting's own zone.
+ *
+ * The collection groups by the OWNER's calendar day (see `formatMeetingDayGroup`)
+ * but shows each time in the MEETING's zone, which is MEET-01's rule and the
+ * only time an attendee would recognise. When those two zones differ the two
+ * facts can look contradictory — "9:00 am" under "Tomorrow" — so the row names
+ * the zone the time belongs to. Derived from the IANA identifier's own last
+ * segment rather than from `Intl`'s zone names, because this renders on the
+ * server and hydrates in the browser and the two must agree byte for byte.
+ */
+export function meetingZoneLabel(timezone: string): string {
+  const segment = timezone.split("/").pop() ?? timezone;
+  return segment.replace(/_/g, " ");
 }
 
 /**
@@ -119,6 +139,14 @@ export function meetingDayKey(iso: string, timezone: string): string {
  * the relative words are computed against the OWNER's day rather than the
  * browser's — a meeting at 9am Sydney must not read as "Yesterday" because the
  * page was opened from London.
+ *
+ * `timezone` is therefore the OWNER's zone, not the meeting's: both sides of the
+ * comparison have to be resolved in ONE zone or the arithmetic is meaningless.
+ * Reading them in different zones is exactly the defect this parameter's name
+ * used to hide — a meeting still dated the 10th in New York, for an owner whose
+ * day is the 11th in Sydney, came out as "Yesterday" in a list of UPCOMING
+ * meetings. A schedule is the owner's schedule; the meeting's own zone belongs
+ * to the TIME (see `meetingZoneLabel`), which is a different question.
  */
 export function formatMeetingDayGroup(
   iso: string,

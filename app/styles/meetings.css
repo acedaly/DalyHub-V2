@@ -723,6 +723,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The meeting's own zone, under its time, and ONLY when that zone is not the
+ * owner's (see `MeetingsList`). It sits inside the time column so the two facts
+ * read as one — a time and the clock it is on — rather than as another piece of
+ * row metadata competing with the title.
+ */
+.dh-meetings-list__zone {
+  display: block;
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  overflow-wrap: anywhere;
+}
+
 .dh-meetings-list__main {
   display: block;
   flex: 1 1 auto;
@@ -774,5 +787,15 @@
     inline-size: auto;
     margin-block-end: var(--app-space-px);
     font-size: var(--md-sys-typescale-body-small-size);
+  }
+
+  /* The time line is now full width, so the zone rides beside it rather than
+   * spending a second line on two words. */
+  .dh-meetings-list__zone {
+    display: inline;
+  }
+
+  .dh-meetings-list__zone::before {
+    content: " · ";
   }
 }

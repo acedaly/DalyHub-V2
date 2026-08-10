@@ -267,6 +267,25 @@ leading time column, the title dominating, the place beneath it, and the status
 shown **only** when it is not what the view already implies. The filter row got the
 styles it never had.
 
+**One frame for the days, the meeting's own for the times.** Both sides of that
+relative comparison are resolved in the **owner's** zone: the day boundaries the
+rows are grouped on, and the `todayKey` they are compared against. Reading them in
+different zones is not a rounding error — a meeting still dated the 10th in New
+York, for an owner whose day is the 11th in Sydney, came out as "Yesterday" in a
+list of *upcoming* meetings. A schedule is the owner's schedule. The **time** on the
+row is still the meeting's own (MEET-01, and the only time an attendee would
+recognise), so when the two zones differ the row names the zone the time belongs
+to — from the IANA identifier's last segment, not from `Intl`, because this renders
+on the server and hydrates in the browser and the two must agree byte for byte.
+
+**An archived notebook is a document, not a form.** The repository refuses every
+write to an archived meeting, and §26 made the Notebook the tab an archived meeting
+*opens* on — which would have put two live autosaving editors at the top of a record
+that cannot be saved. Archived Agenda and Notes bodies render through the one FND-08
+sink instead, wearing the editor's own Read-view classes and publishing the same
+named `group`, so the body reads identically whether the meeting is live-and-toggled
+or archived.
+
 Attendees are deliberately **not** on collection rows: the only way to resolve them
 for a page of meetings today is one `listForEntity` call per row, and adding a
 batched link read to the kernel to answer "with whom" a second time is not what

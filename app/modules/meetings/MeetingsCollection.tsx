@@ -51,6 +51,7 @@ export function MeetingsCollection({
   nextCursor,
   hasMore,
   todayKey,
+  ownerTimezone,
 }: {
   meetings: readonly SerializedMeeting[];
   view: string;
@@ -60,6 +61,8 @@ export function MeetingsCollection({
   hasMore: boolean;
   /** The owner's calendar day, for the list's relative day headings (§25). */
   todayKey: string;
+  /** The owner's timezone — the one frame those day boundaries are read in. */
+  ownerTimezone: string;
 }) {
   const isReloading = useCollectionLoading();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -223,6 +226,7 @@ export function MeetingsCollection({
             meetings={pagination.items}
             ariaLabel={`${view} meetings`}
             todayKey={todayKey}
+            ownerTimezone={ownerTimezone}
             view={view}
           />
           {pagination.hasMore ? (

@@ -32,7 +32,9 @@ import {
   formatMeetingDayGroup,
   formatMeetingTime,
   meetingDayKey,
+  meetingModeLabel,
   meetingStatusLabel,
+  meetingZoneLabel,
   type SerializedMeeting,
 } from "./meeting-view";
 
@@ -41,6 +43,16 @@ export interface MeetingsListProps {
   readonly ariaLabel: string;
   /** The owner's calendar day, `YYYY-MM-DD`, for the relative group headings. */
   readonly todayKey: string;
+  /**
+   * The owner's IANA timezone — the frame the whole schedule is read in.
+   *
+   * Both the day boundaries and the relative headings are resolved in it, so a
+   * meeting scheduled in another zone lands on the owner's day rather than on
+   * its own (which is what makes "Today"/"Tomorrow" mean anything). The TIME on
+   * the row is still the meeting's own; the row names that zone when the two
+   * differ.
+   */
+  readonly ownerTimezone: string;
   /** Which lifecycle view this is, so the row can suppress its implied status. */
   readonly view: string;
 }
@@ -63,13 +75,20 @@ type MeetingGroup = {
 function groupByDay(
   meetings: readonly SerializedMeeting[],
   todayKey: string,
+  ownerTimezone: string,
 ): readonly MeetingGroup[] {
   const groups: MeetingGroup[] = [];
   for (const meeting of meetings) {
-    // The meeting's OWN calendar day, never the UTC prefix of `startsAt`: a 9am
-    // Sydney meeting is 23:00 UTC the day before, so slicing the ISO string put
-    // it in the previous day's group under that day's heading.
-    const key = meetingDayKey(meeting.startsAt, meeting.timezone);
+    // A real calendar day, never the UTC prefix of `startsAt`: a 9am Sydney
+    // meeting is 23:00 UTC the day before, so slicing the ISO string put it in
+    // the previous day's group under that day's heading.
+    //
+    // And the OWNER's day, not the meeting's. `todayKey` is the owner's, so a
+    // meeting resolved in its own zone was being compared against a day
+    // resolved in a different one — which is how a meeting still dated the 10th
+    // in New York could read "Yesterday" to an owner whose day was the 11th in
+    // Sydney, in a list of UPCOMING meetings.
+    const key = meetingDayKey(meeting.startsAt, ownerTimezone);
     const last = groups[groups.length - 1];
     if (last && last.key === key) {
       (last.meetings as SerializedMeeting[]).push(meeting);
@@ -78,7 +97,7 @@ function groupByDay(
         key,
         heading: formatMeetingDayGroup(
           meeting.startsAt,
-          meeting.timezone,
+          ownerTimezone,
           todayKey,
         ),
         meetings: [meeting],
@@ -98,9 +117,10 @@ export function MeetingsList({
   meetings,
   ariaLabel,
   todayKey,
+  ownerTimezone,
   view,
 }: MeetingsListProps) {
-  const groups = groupByDay(meetings, todayKey);
+  const groups = groupByDay(meetings, todayKey, ownerTimezone);
 
   return (
     <div className="dh-meetings-list" aria-label={ariaLabel}>
@@ -114,7 +134,20 @@ export function MeetingsList({
                 : meeting.status === IMPLIED_STATUS[view]
                   ? null
                   : meetingStatusLabel(meeting.status);
-              const where = meeting.location ?? meeting.mode;
+              // The stored mode is an enum (`in_person` / `phone` / `online`),
+              // so it is put through the same formatter the record header uses
+              // rather than printed raw — the collection said "in_person" to a
+              // person for every meeting without a location.
+              const where =
+                meeting.location && meeting.location.length > 0
+                  ? meeting.location
+                  : meetingModeLabel(meeting.mode);
+              // Only when it is not the owner's own zone: naming the zone on
+              // every row of a schedule that is entirely in one zone is noise.
+              const zone =
+                meeting.timezone === ownerTimezone
+                  ? null
+                  : meetingZoneLabel(meeting.timezone);
               const joinable =
                 meeting.meetingUrl !== null &&
                 meeting.meetingUrl.length > 0 &&
@@ -137,6 +170,9 @@ export function MeetingsList({
                       dateTime={meeting.startsAt}
                     >
                       {formatMeetingTime(meeting.startsAt, meeting.timezone)}
+                      {zone ? (
+                        <span className="dh-meetings-list__zone">{zone}</span>
+                      ) : null}
                     </time>
                     <span className="dh-meetings-list__main">
                       <span className="dh-meetings-list__title">

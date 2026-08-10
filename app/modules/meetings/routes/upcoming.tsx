@@ -42,6 +42,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
       todayKey,
+      ownerTimezone: timezone,
       failed: false,
     };
   } catch {
@@ -51,6 +52,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       nextCursor: null,
       hasMore: false,
       todayKey: toLocalDayKey(new Date(), DEFAULT_APP_PREFERENCES.timezone),
+      ownerTimezone: DEFAULT_APP_PREFERENCES.timezone,
       failed: true,
     };
   }

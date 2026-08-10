@@ -6,6 +6,7 @@ import { MeetingsList } from "~/modules/meetings/MeetingsList";
 import {
   formatMeetingDayGroup,
   formatMeetingTime,
+  meetingZoneLabel,
   type SerializedMeeting,
 } from "~/modules/meetings/meeting-view";
 
@@ -48,6 +49,7 @@ function renderList(
   meetings: readonly SerializedMeeting[],
   view = "upcoming",
   todayKey = TODAY,
+  ownerTimezone = SYDNEY,
 ) {
   const router = createMemoryRouter(
     [
@@ -58,6 +60,7 @@ function renderList(
             meetings={meetings}
             ariaLabel="upcoming meetings"
             todayKey={todayKey}
+            ownerTimezone={ownerTimezone}
             view={view}
           />
         ),
@@ -103,6 +106,43 @@ describe("MeetingsList", () => {
     renderList([meeting()]);
     // 04:30Z is 14:30 in Sydney. A reader in London must still see 2:30 pm.
     expect(screen.getByText("2:30 pm")).toBeInTheDocument();
+    // …and says nothing about the zone, because it IS the owner's zone.
+    expect(screen.queryByText("Sydney")).not.toBeInTheDocument();
+  });
+
+  it("names the zone only when the meeting is not in the owner's", () => {
+    // 04:30Z is 00:30 in New York and 14:30 in Sydney: same instant, two very
+    // different clocks, and a bare "12:30 am" under a Sydney owner's "Today"
+    // would be a row that contradicts its own heading without saying why.
+    renderList([meeting({ timezone: "America/New_York" })]);
+    expect(screen.getByText("12:30 am")).toBeInTheDocument();
+    expect(screen.getByText("New York")).toBeInTheDocument();
+  });
+
+  it("groups a foreign-zone meeting on the OWNER's day", () => {
+    // 2026-08-10T22:00Z is still the 10th in New York and already the 11th in
+    // Sydney. For a Sydney owner whose today is the 11th that is TODAY — read
+    // in the meeting's own zone it came out as "Yesterday", in a list of
+    // upcoming meetings.
+    renderList(
+      [
+        meeting({
+          startsAt: "2026-08-10T22:00:00.000Z",
+          timezone: "America/New_York",
+        }),
+      ],
+      "upcoming",
+      "2026-08-11",
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Today" }),
+    ).toBeInTheDocument();
+  });
+
+  it("formats the mode when a meeting has no location", () => {
+    renderList([meeting({ location: null, mode: "in_person" })]);
+    expect(screen.getByText("In person")).toBeInTheDocument();
+    expect(screen.queryByText("in_person")).not.toBeInTheDocument();
   });
 
   it("suppresses the status the view already implies, and shows one that contradicts it", () => {
@@ -167,11 +207,16 @@ describe("the meeting day/time formatters", () => {
     expect(formatMeetingDayGroup(at, SYDNEY, "2026-08-09")).toBe("Tomorrow");
   });
 
-  it("resolves the day in the MEETING's zone, so a late instant is not the wrong date", () => {
+  it("resolves the day in the GIVEN zone, so a late instant is not the wrong date", () => {
     // 22:00 UTC on the 10th is 08:00 on the 11th in Sydney.
     const at = "2026-08-10T22:00:00.000Z";
     expect(formatMeetingDayGroup(at, SYDNEY, "2026-08-11")).toBe("Today");
     expect(formatMeetingTime(at, SYDNEY)).toBe("8:00 am");
+    // The SAME instant, read in New York, is still the 10th — which is why the
+    // collection passes the owner's zone here and the meeting's to the time.
+    expect(formatMeetingDayGroup(at, "America/New_York", "2026-08-11")).toBe(
+      "Yesterday",
+    );
   });
 
   it("formats midnight and noon without a zero or a 24th hour", () => {
@@ -181,5 +226,11 @@ describe("the meeting day/time formatters", () => {
     expect(formatMeetingTime("2026-08-10T02:00:00.000Z", SYDNEY)).toBe(
       "12:00 pm",
     );
+  });
+
+  it("names a zone from its IANA identifier, without Intl", () => {
+    expect(meetingZoneLabel("America/New_York")).toBe("New York");
+    expect(meetingZoneLabel("Australia/Sydney")).toBe("Sydney");
+    expect(meetingZoneLabel("UTC")).toBe("UTC");
   });
 });

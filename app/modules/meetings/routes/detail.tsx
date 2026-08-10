@@ -684,6 +684,7 @@ function MeetingRecord({
                         label="Agenda"
                         initial={m.agendaMarkdown}
                         onSaved={() => r.revalidate()}
+                        readOnly={readOnly}
                       />
                       {itemSection("agenda", "Agenda items")}
                     </section>
@@ -696,6 +697,7 @@ function MeetingRecord({
                         label="Notes"
                         initial={m.notesMarkdown}
                         onSaved={() => r.revalidate()}
+                        readOnly={readOnly}
                       />
                     </section>
 
@@ -868,22 +870,32 @@ function MeetingRecord({
             },
           ]}
         />
-      </div>
 
-      {/*
-       * MOBILE-01 — the sticky capture bar, shown only while the Meeting tab is
-       * open (that IS the live-meeting workspace; a bar over the Settings tab
-       * would be chrome). It saves through the canonical authorities and leaves
-       * the user exactly where they were, so capturing several items during a
-       * meeting never means switching tabs or opening a drawer.
-       */}
-      {active === "meeting" ? (
-        <MeetingCaptureBar
-          readOnly={readOnly}
-          onAddItem={(kind, body) => post({ intent: "add_item", kind, body })}
-          onAppendNote={appendNote}
-        />
-      ) : null}
+        {/*
+         * MOBILE-01 — the sticky capture bar, shown only while the Notebook tab
+         * is open (that IS the live-meeting workspace; a bar over the Settings
+         * tab would be chrome). It saves through the canonical authorities and
+         * leaves the user exactly where they were, so capturing several items
+         * during a meeting never means switching tabs or opening a drawer.
+         *
+         * It is a SIBLING of the record, inside the same wrapper, and must stay
+         * one: `meetings.css` reserves the bar's height on the record with
+         * `.record-layout:has(~ .dh-meeting-capturebar)`, so anything that comes
+         * between them silently stops the reservation and the record's last
+         * control ends up underneath the bar. (UIX-04's `.dh-writing-record`
+         * wrapper did exactly that until the bar moved inside it —
+         * `record-anatomy.spec.ts` caught it.) The bar is `position: fixed` and
+         * the wrapper establishes no containing block, so nesting changes
+         * nothing about where it is painted.
+         */}
+        {active === "meeting" ? (
+          <MeetingCaptureBar
+            readOnly={readOnly}
+            onAddItem={(kind, body) => post({ intent: "add_item", kind, body })}
+            onAppendNote={appendNote}
+          />
+        ) : null}
+      </div>
 
       {lifecycle.dialogs}
     </>
