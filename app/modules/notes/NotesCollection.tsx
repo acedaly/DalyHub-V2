@@ -20,13 +20,6 @@ import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import {
-  Card,
-  CardCollection,
-  type CardAction,
-  type CardMetaItem,
-  type CardProps,
-} from "~/shared/card";
-import {
   CollectionLayout,
   useCollectionLoading,
 } from "~/shared/collection-layout";
@@ -42,9 +35,9 @@ import { ViewSwitcher } from "~/shared/view-switcher";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
-import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NewNoteForm } from "./NewNoteForm";
+import { NotesList } from "./NotesList";
 import {
   NOTE_STATE_OPTIONS,
   NotesFilterBar,
@@ -131,7 +124,6 @@ export function NotesCollectionView({
         filters={filters}
         options={options}
         failed={failed}
-        onOpenNote={(id) => navigate(`/notes/${encodeURIComponent(id)}`)}
       />
     </DrawerProvider>
   );
@@ -151,115 +143,6 @@ function NewNoteFormHost({
 }) {
   const { closeDrawer } = useDrawer();
   return <NewNoteForm onCreated={onCreated} onCancel={closeDrawer} />;
-}
-
-/*
- * M3X-02 — a note is a DOCUMENT, and a directory of documents is a gallery.
- *
- * The audit's H8 finding was that the widest module in the product used its
- * width worst: a full-bleed filter band over a 200px list with ~500px of empty
- * canvas beneath. PR #144 tightened the band and left the list a single column,
- * so at 1440 two notes occupied the top eighth of the screen and nothing
- * occupied the rest.
- *
- * The presentation is now a gallery of note tiles, which is the composition
- * every product that holds documents converges on for exactly this reason — an
- * excerpt is worth reading, and reading it wants a column, not a line. The
- * collection collapses to ONE column below `md`, where a phone gets the clean
- * list the brief asks for. Same DOM, same cards, same links.
- *
- * The metadata run went with it. "Links: None" was on every note in the product
- * — an absence given a slot on every card — and "Tags:"/"Updated:" prefixes
- * spent half of a narrow tile's supporting line saying which field followed.
- * What is left is the date, the tags where there are any, and the archived state
- * in words.
- */
-function toCardProps(
-  note: SerializedNoteListItem,
-  onOpenNote: (id: string) => void,
-): CardProps {
-  const metadata: CardMetaItem[] = [];
-  const updated = formatCalendarDate(note.effectiveUpdatedAt.slice(0, 10));
-  if (updated) {
-    metadata.push({ id: "updated", value: updated });
-  }
-  if (note.tags.length > 0) {
-    metadata.push({
-      id: "tags",
-      value: note.tags.join(", "),
-      priority: "low",
-    });
-  }
-  // Only when there ARE links. A count of zero is the absence rule: it takes a
-  // slot on every card to report that a dimension is unused.
-  if (note.linkCount > 0) {
-    metadata.push({
-      id: "links",
-      label: "Links",
-      value: String(note.linkCount),
-      priority: "low",
-    });
-  }
-  // Archive is state, not decoration — it is stated in WORDS, never by colour
-  // or a glyph alone, so it survives forced-colours and a screen reader.
-  if (note.archived) {
-    metadata.push({ id: "state", label: "State", value: "Archived" });
-  }
-
-  return {
-    id: note.id,
-    title: note.title,
-    typeLabel: "Note",
-    icon: <EntityIcon type="note" />,
-    headingLevel: 2,
-    // The excerpt is the shared analyser's syntax-free reading of the body, so a
-    // card never shows `##` or half a code fence (§5).
-    ...(note.excerpt ? { subtitle: note.excerpt } : {}),
-    metadata,
-    density: "comfortable",
-    presentation: "grid",
-    href: `/notes/${encodeURIComponent(note.id)}`,
-    onOpen: () => onOpenNote(note.id),
-    openAriaLabel: `Open ${note.title}`,
-  };
-}
-
-/**
- * A DELETED Note's Card: no open target (its canonical route 404s — deleted
- * entities read as "not found" everywhere), just identity + a "Restore" quick
- * action. `pending`/`restoredIds` let the collection show one row settling
- * while its POST is in flight and hide a row the moment it is confirmed
- * restored, without waiting for a full page reload.
- */
-function toDeletedCardProps(
-  note: SerializedNoteListItem,
-  onRestore: (id: string, title: string) => void,
-  pending: boolean,
-): CardProps {
-  const metadata: CardMetaItem[] = [];
-  const updated = formatCalendarDate(note.updatedAt.slice(0, 10));
-  if (updated) {
-    metadata.push({ id: "updated", label: "Deleted", value: updated });
-  }
-
-  const restoreAction: CardAction = {
-    id: "restore",
-    label: "Restore",
-    pending,
-    onSelect: () => onRestore(note.id, note.title),
-  };
-
-  return {
-    id: note.id,
-    title: note.title,
-    typeLabel: "Note",
-    icon: <EntityIcon type="note" />,
-    headingLevel: 2,
-    metadata,
-    density: "comfortable",
-    presentation: "grid",
-    quickActions: [restoreAction],
-  };
 }
 
 /**
@@ -353,7 +236,6 @@ function NotesCollection({
   filters,
   options,
   failed,
-  onOpenNote,
 }: {
   readonly notes: readonly SerializedNoteListItem[];
   readonly nextCursor: string | null;
@@ -361,7 +243,6 @@ function NotesCollection({
   readonly filters: NoteFilterValues;
   readonly options: NoteFilterOptions;
   readonly failed: boolean;
-  readonly onOpenNote: (id: string) => void;
 }) {
   const filterKey = filterQueryKey(filters);
   const { items, hasMore, loading, loadFailed, loadMore } = useNotePagination(
@@ -487,9 +368,8 @@ function NotesCollection({
         />
       }
     >
-      <CardCollection
-        items={visibleItems}
-        getItemId={(note) => note.id}
+      <NotesList
+        notes={visibleItems}
         ariaLabel={
           state === "deleted"
             ? "Deleted notes"
@@ -497,17 +377,7 @@ function NotesCollection({
               ? "Archived notes"
               : "Notes"
         }
-        presentation="grid"
-        density="comfortable"
-        renderCard={(note) =>
-          state === "deleted" ? (
-            <Card
-              {...toDeletedCardProps(note, restore, pendingIds.has(note.id))}
-            />
-          ) : (
-            <Card {...toCardProps(note, onOpenNote)} />
-          )
-        }
+        {...(state === "deleted" ? { onRestore: restore, pendingIds } : {})}
       />
       {!failed && hasMore ? (
         <LoadMore

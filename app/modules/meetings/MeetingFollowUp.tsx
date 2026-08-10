@@ -182,8 +182,18 @@ export function MeetingItemsSection({
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   return (
-    <section className="dh-record-section">
-      <h2>{heading}</h2>
+    /*
+     * UIX-04 §26 — inside the notebook this is a LIST under a section heading
+     * the notebook already drew, so it renders no `<h2>` of its own: "AGENDA"
+     * immediately followed by a second, larger "Agenda items" was the same word
+     * twice at two sizes. The heading survives as the list's accessible name, so
+     * a screen-reader user still knows which of the four lists they are in.
+     *
+     * `.dh-record-section` is dropped with it: that class draws the record-editor
+     * card, and five of them stacked down a page is the composition §26 is
+     * getting away from.
+     */
+    <section className="dh-meeting-items-section" aria-label={heading}>
       {rows.length === 0 ? (
         <p className="dh-follow-up-empty">No {label}s yet.</p>
       ) : (

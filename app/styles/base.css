@@ -579,11 +579,28 @@ pre {
  * onto the title styles and gets its space from the rhythm rather than from a
  * browser default.
  */
+/*
+ * UIX-04 — a document heading LADDER, not three names for the same size.
+ *
+ * This block used to map h1 → `title-large` (22), h2 → `title-medium` (16) and
+ * h3–h6 → `body-large` (16). Two of those are the size of the paragraph beneath
+ * them, so a note with `##` sections and `###` sub-sections rendered as an
+ * undifferentiated wall: the outline the author wrote was invisible to the
+ * reader. The four `--app-writing-h*` sizes step properly (28/22/18/16), and the
+ * bottom rung earns its distinction from weight and colour rather than from a
+ * size the scale does not have.
+ *
+ * Space above a heading is larger than space below it, so a heading belongs to
+ * the text that FOLLOWS it rather than floating between two blocks — the single
+ * most reliable cue that a document has structure.
+ */
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--md-ref-typeface-plain);
-  font-weight: 500;
-  line-height: 1.35;
-  margin-block: var(--app-space-6) var(--app-space-2);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin-block: var(--app-space-8) var(--app-space-2);
+  text-wrap: balance;
 }
 
 .markdown-content :is(h1, h2, h3, h4, h5, h6):first-child {
@@ -591,17 +608,27 @@ pre {
 }
 
 .markdown-content h1 {
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--app-writing-h1-size);
 }
 .markdown-content h2 {
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--app-writing-h2-size);
 }
-.markdown-content :is(h3, h4, h5, h6) {
-  font-size: var(--md-sys-typescale-body-large-size);
+.markdown-content h3 {
+  font-size: var(--app-writing-h3-size);
+}
+.markdown-content :is(h4, h5, h6) {
+  font-size: var(--app-writing-h4-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
+/*
+ * Paragraph rhythm is expressed in `em`, so it tracks the reader's own text
+ * size: a paragraph gap fixed in rem grows out of proportion the moment OS text
+ * scaling is on (AGENTS.md §15). The same token feeds the live editor, so
+ * toggling Read/Write does not reflow the document.
+ */
 .markdown-content p {
-  margin-block: 0 var(--app-space-4);
+  margin-block: 0 var(--app-writing-paragraph-gap);
 }
 
 .markdown-content > :last-child {
@@ -620,13 +647,48 @@ pre {
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/*
+ * UIX-04 — a list is a set of paragraphs, and it is spaced like one.
+ *
+ * The previous rule gave adjacent items 4px and nested content nothing, so a
+ * numbered list of multi-sentence points (the shape most working notes take)
+ * ran together into a block the eye could not separate. Items now carry the same
+ * rhythm as paragraphs, a paragraph INSIDE an item keeps its own spacing, and a
+ * nested list tightens rather than compounding the gap.
+ */
 .markdown-content :is(ul, ol) {
-  margin-block: 0 var(--app-space-4);
+  margin-block: 0 var(--app-writing-paragraph-gap);
   padding-inline-start: var(--app-space-5);
 }
 
 .markdown-content li + li {
-  margin-block-start: var(--app-space-1);
+  margin-block-start: 0.4em;
+}
+
+.markdown-content li > p {
+  margin-block-end: 0.4em;
+}
+
+.markdown-content li > :last-child {
+  margin-block-end: 0;
+}
+
+/* A nested list belongs to the item above it — no double gap at the seam. */
+.markdown-content li :is(ul, ol) {
+  margin-block: 0.4em 0;
+}
+
+/* GFM task lists: the checkbox is part of the line, not an indent of its own. */
+.markdown-content li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-inline-start: calc(-1 * var(--app-space-5));
+  padding-inline-start: var(--app-space-5);
+}
+
+.markdown-content li > input[type="checkbox"] {
+  margin-inline-start: calc(-1 * var(--app-space-5));
+  margin-inline-end: var(--app-space-2);
+  accent-color: var(--md-sys-color-primary);
 }
 
 .markdown-content hr {
@@ -636,14 +698,67 @@ pre {
     var(--md-sys-color-outline-variant);
 }
 
+/*
+ * UIX-04 §46 — a link is visible without being loud.
+ *
+ * The design token, never the browser blue, and an underline offset far enough
+ * from the baseline that descenders are not struck through — so the link reads
+ * as text with an attribute rather than as a button in a sentence. Meaning is
+ * never colour-only: the underline is always there (AGENTS.md §15).
+ */
 .markdown-content a {
   color: var(--md-sys-color-primary);
+  text-decoration: underline;
+  text-decoration-thickness: var(--app-border-width-thin);
+  text-underline-offset: 0.2em;
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--md-sys-color-primary) 45%,
+    transparent
+  );
+  /* A pasted URL must wrap rather than push the whole column sideways. */
+  overflow-wrap: anywhere;
+}
+
+.markdown-content a:hover {
+  text-decoration-color: currentcolor;
 }
 
 /* Code is sans-adjacent chrome inside prose: monospace, and never the serif. */
 .markdown-content :is(code, pre) {
   font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
+}
+
+/*
+ * UIX-04 §47 — inline code and fenced blocks.
+ *
+ * Inline code gets a quiet container so it is legible mid-sentence without
+ * becoming a second colour in the paragraph. A fence is a block the reader
+ * scans, so it sits on the sunken surface and scrolls INSIDE itself: a long
+ * line of code must never widen the document (the failure that puts a
+ * horizontal scrollbar on the whole page at 390px).
+ */
+.markdown-content :not(pre) > code {
+  padding: 0.1em 0.32em;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+}
+
+.markdown-content pre {
+  margin-block: var(--app-space-4);
+  padding: var(--app-space-3) var(--app-space-4);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-sunken);
+  overflow-x: auto;
+  line-height: 1.55;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-content pre > code {
+  padding: 0;
+  background: none;
 }
 
 /* A table inside prose is a COLLECTION — it is scanned, not read — so it drops

@@ -75,8 +75,10 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
       page.getByRole("heading", { level: 1, name: "Diary" }),
     ).toBeVisible();
     await expect(page.getByRole("group", { name: "Diary view" })).toBeVisible();
+    // UIX-04 §18 — the day navigator is the week strip: a `navigation`
+    // landmark of day links, not a `group` of prev/next steppers.
     await expect(
-      page.getByRole("group", { name: "Selected day" }),
+      page.getByRole("navigation", { name: "Select a day" }),
     ).toBeVisible();
     await expect(page.getByRole("form", { name: "Quick capture" })).toHaveCount(
       0,
@@ -292,15 +294,31 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
     ).toBeVisible();
 
-    // Previous day has no seeded entry.
-    await page.getByRole("button", { name: "Previous day" }).click();
+    /*
+     * UIX-04 §18 — days are chosen from the week strip, by their full date.
+     *
+     * 2026-06-01 is a Monday, so its strip runs Mon 1 → Sun 7 and the PREVIOUS
+     * day (Sunday 31 May) is in the week before it. Reaching it is what the
+     * "previous week" control is for, and getting back is one tap on the 1st —
+     * which is exactly the interaction the strip exists to make cheap.
+     */
+    await page.getByRole("link", { name: "Previous week" }).click();
+    await expect(page).toHaveURL(/date=2026-05-25/);
+    await page.getByRole("link", { name: "Sunday, 31 May 2026" }).click();
     await expect(page).toHaveURL(/date=2026-05-31/);
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
     ).toHaveCount(0);
 
-    // Next day returns to the seeded day.
-    await page.getByRole("button", { name: "Next day" }).click();
+    /*
+     * Back to the seeded day. 31 May is itself a Sunday, so its strip is the
+     * week that ENDS on it (25–31 May) and 1 June is in the next one — which is
+     * the strip's own boundary behaviour, stated here so a future change to the
+     * first day of the week fails this test rather than passing quietly.
+     */
+    await page.getByRole("link", { name: "Next week" }).click();
+    await expect(page).toHaveURL(/date=2026-06-07/);
+    await page.getByRole("link", { name: "Monday, 1 June 2026" }).click();
     await expect(page).toHaveURL(/date=2026-06-01/);
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
@@ -310,11 +328,15 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     // (2026-06-01 → 2026-05-31 → 2026-06-01) rather than skipping out of Diary,
     // and Forward replays them.
     await page.goBack();
+    await expect(page).toHaveURL(/date=2026-06-07/);
+    await page.goBack();
     await expect(page).toHaveURL(/date=2026-05-31/);
+    await page.goBack();
+    await expect(page).toHaveURL(/date=2026-05-25/);
     await page.goBack();
     await expect(page).toHaveURL(/date=2026-06-01/);
     await expect(page).toHaveURL(/\/diary/);
     await page.goForward();
-    await expect(page).toHaveURL(/date=2026-05-31/);
+    await expect(page).toHaveURL(/date=2026-05-25/);
   });
 });

@@ -181,8 +181,8 @@ test.describe("AI-01 — AI is off by default and says so", () => {
     ).toBeVisible();
 
     // The rest of the Meeting is untouched — the AI tab is purely additive.
-    await page.getByRole("tab", { name: "Overview" }).click();
-    await expect(page.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+    await page.getByRole("tab", { name: "Details" }).click();
+    await expect(page.getByRole("tab", { name: "Details" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -551,7 +551,7 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
 
     // The Meeting itself records the action item, and offers to OPEN the task
     // rather than create a second one.
-    await page.getByRole("tab", { name: "Meeting" }).click();
+    await page.getByRole("tab", { name: "Notebook" }).click();
     const item = page.locator(".dh-meeting-item", {
       hasText: "Send the draft to Vaughn",
     });
@@ -661,7 +661,7 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
     await expect(
       page.getByRole("heading", { name: "No follow-up tasks yet" }),
     ).toBeVisible();
-    await page.getByRole("tab", { name: "Meeting" }).click();
+    await page.getByRole("tab", { name: "Notebook" }).click();
     await expect(page.locator(".dh-meeting-item")).toHaveCount(0);
   });
 
@@ -744,7 +744,7 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
 
     // Nothing was written to the archived Meeting.
     await page.reload();
-    await page.getByRole("tab", { name: "Meeting" }).click();
+    await page.getByRole("tab", { name: "Notebook" }).click();
     await expect(page.locator(".dh-meeting-item")).toHaveCount(0);
   });
 
@@ -866,7 +866,7 @@ test.describe("AI-01 — responsive and accessible across the phone matrix", () 
 
     // Reach the tablist by keyboard, then move along it with the arrow keys the
     // Record Layout's roving tabindex provides — no mouse anywhere.
-    await page.getByRole("tab", { name: "Overview" }).focus();
+    await page.getByRole("tab", { name: "Details" }).focus();
     for (let step = 0; step < 8; step += 1) {
       const selected = page.getByRole("tab", { selected: true });
       if ((await selected.getAttribute("aria-label")) === "AI") break;

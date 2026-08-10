@@ -87,10 +87,15 @@
 @import "./styles/settings.css";
 @import "./styles/help.css";
 @import "./styles/markdown-editor.css";
+/* UIX-04 — the shared writing-surface composition (the document column, its
+ * title and its one context line). After the editor, because it sets the column
+ * the editor's bands align to. */
+@import "./styles/writing.css";
 /* DS-16 — the shared inline-editing surfaces. After the editor because the
  * inline long-form field embeds it, and after forms.css because its editing
  * controls reuse the shared button and input treatments. */
 @import "./styles/inline-edit.css";
+@import "./styles/notes.css";
 @import "./styles/diary.css";
 @import "./styles/people.css";
 @import "./styles/entity-link.css";

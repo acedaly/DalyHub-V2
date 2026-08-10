@@ -15,13 +15,22 @@
  * visible selected treatment.
  */
 
+import { NOTE_ENTRY } from "~/kernel/diary";
+
 import type { DiaryMode } from "./routes/index";
 import { entryTypeIcon } from "./diary-icons";
 import type { SerializedDayGroup, SerializedDiaryEntry } from "./diary-view";
 import { diaryDayHeading } from "./occurred-time";
 
-/** How many characters of the body to show as the row's one-line excerpt. */
-const EXCERPT_CHARS = 140;
+/**
+ * How many characters of the body the row previews.
+ *
+ * UIX-04 §19 puts the entry BODY among the things a Diary row should prioritise,
+ * and 140 characters clipped almost every real reflection mid-clause. The row
+ * shows two lines now (the CSS clamps it), so the budget is the two lines' worth
+ * — still a preview, never the full entry, which belongs to the panel.
+ */
+const EXCERPT_CHARS = 260;
 
 export interface DiaryTimelineBodyProps {
   readonly groups: readonly SerializedDayGroup[];
@@ -119,8 +128,38 @@ function DiaryEntryRow({
         {excerpt !== null ? (
           <p className="dh-diary-entry__excerpt">{excerpt}</p>
         ) : null}
+        {/*
+          UIX-04 §19 — the entry TYPE is named once per row, not twice.
+
+          The row carried a filled type badge under the excerpt AND the same
+          subtype glyph on its timeline node, so every entry in a diary of notes
+          said "Note" twice. The glyph is decorative (`aria-hidden`), so the
+          badge is what carries the type to assistive tech and it stays — as
+          plain text in the meta line rather than as a chip, because a chip on
+          every row of a chronology is a column of pills where the eye wants a
+          column of prose.
+
+          Backdating is different and keeps its emphasis: it is the one thing on
+          a row that contradicts where the row is SITTING.
+        */}
         <div className="dh-diary-entry__meta">
-          <span className="dh-diary-entry__type">{entry.entryTypeLabel}</span>
+          {/*
+            "NOTE" on every row of a diary of notes is a word that never varies,
+            and a chronology reads worse for it. The NEUTRAL default type is
+            therefore announced but not drawn; every other type — Meeting,
+            Decision, Reflection, Travel — is genuinely distinguishing and is
+            shown. Nothing is lost to assistive tech either way, which matters
+            because the timeline node's glyph is decorative.
+          */}
+          <span
+            className={
+              entry.entryType === NOTE_ENTRY
+                ? "dh-diary-entry__type dh-visually-hidden"
+                : "dh-diary-entry__type"
+            }
+          >
+            {entry.entryTypeLabel}
+          </span>
           {entry.backdated ? (
             <span className="dh-diary-entry__backdated">Backdated</span>
           ) : null}

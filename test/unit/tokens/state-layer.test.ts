@@ -52,8 +52,9 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   "card.css: .dh-card-collection--list .dh-card:hover",
   "card.css: .dh-card__reorder-handle:hover:not(:disabled)",
   "diary.css: .dh-diary-capture__chip:hover",
-  "diary.css: .dh-diary-datenav__step:hover:not(:disabled)",
-  "diary.css: .dh-diary-datenav__today:hover:not(:disabled)",
+  // UIX-04 retired `.dh-diary-datenav` entirely — the Day-mode navigator is now
+  // the week strip, whose hover fills are ordinary surface tokens rather than a
+  // hand-rolled `color-mix` layer. Two entries off the ratchet.
   "diary.css: .dh-diary-entry:hover",
   "diary.css: .dh-diary-entry__edit:hover",
   "diary.css: .dh-diary-filter__option:hover",

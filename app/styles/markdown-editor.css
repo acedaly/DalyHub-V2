@@ -20,6 +20,32 @@
 }
 
 /* ------------------------------------------------------------------------- *
+ * UIX-04 — the editor as a PAGE, not as a field that happens to be big.
+ *
+ * EDIT-02 capped the writing measure on `.cm-content` and left the surface
+ * itself full-bleed, so the toolbar spanned the whole record while the text
+ * stopped a quarter of the way from the right edge, and the gap between them
+ * was permanently empty. Both bands now share ONE column: the cap and the
+ * centring move up onto the editor's own children, which are ordinary block
+ * items in a column flex container, so `margin-inline: auto` centres them
+ * without going anywhere near `.cm-scroller`'s flex layout — the mechanism that
+ * produced the EDIT-02 "caret in the middle of an empty note" defect and that
+ * `editor-geometry.spec.ts` still pins.
+ *
+ * `.cm-content` therefore keeps NO cap of its own (below) and simply fills the
+ * column it is given, which is why the empty-document case cannot regress: there
+ * is no max-content box left to centre.
+ *
+ * Compact density — an editor embedded in a form, where the surrounding field
+ * already sets the width — is excluded throughout. It is a control, not a page.
+ * ------------------------------------------------------------------------- */
+.dh-md-editor:not([data-density="compact"]) > * {
+  inline-size: 100%;
+  max-inline-size: var(--app-width-editor);
+  margin-inline: auto;
+}
+
+/* ------------------------------------------------------------------------- *
  * VIS-01 — the writing surface has no BOX. (Part 2, item A4.)
  *
  * EDIT-01 made the bar and the text read as one surface by giving them one
@@ -47,6 +73,26 @@
   border-block-end: var(--app-border-width-thin) solid
     var(--md-app-color-outline-hairline);
   background: transparent;
+}
+
+/*
+ * UIX-04 §44 — the controls stay with the document.
+ *
+ * A note long enough to scroll used to scroll its own toolbar off the top, so
+ * formatting a paragraph three screens down meant scrolling back up for a
+ * button. The strip sticks to the top of the writing surface instead — the same
+ * behaviour Docs and Notes have, and the reason neither of them needs a taller
+ * toolbar. It carries the page colour only while it is stuck, so on a document
+ * that fits there is no band at all.
+ *
+ * `z-index` is the shared sticky-chrome level: below the app bar and the
+ * overlays, above the text it is covering.
+ */
+.dh-md-editor:not([data-density="compact"]) .dh-md-editor__bar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--app-z-sticky);
+  background: var(--md-app-color-surface-page);
 }
 
 .dh-md-editor__bar-end {
@@ -301,26 +347,25 @@
  * EDIT-02 (PR #127) — the editor SURFACE and the writing MEASURE are two
  * different things, and the defect was treating them as one.
  *
- * The surface is the full width of whatever hosts the editor, left-aligned and
- * flush with the record's content edge. The measure is `--app-width-editor`
- * (90ch) — still a readable cap, deliberately wider than the 65ch READING
- * measure because Markdown source is not prose — applied so that the unused
- * width falls AFTER the text. The only inline space before the first character
- * is this padding, which is what lines it up with the toolbar's first icon.
+ * NEVER add `margin-inline: auto` here, and never let a cap be the only thing
+ * holding the column. `.cm-scroller` is a flex container and `.cm-content` is a
+ * flex item, so auto margins do not merely centre a capped column — they
+ * suppress `flex-grow` entirely and centre the item's own max-content box. On
+ * an EMPTY document that box is a few pixels wide, which is how the caret and
+ * the `Start writing…` placeholder ended up near the middle of a 1044px surface
+ * (measured on a Note at 1440px before the fix: content x=522 in a scroller at
+ * x=294).
  *
- * NEVER add `margin-inline: auto` here, and never let the cap be the only
- * thing holding the column. `.cm-scroller` is a flex container and
- * `.cm-content` is a flex item, so auto margins do not merely centre a capped
- * column — they suppress `flex-grow` entirely and centre the item's own
- * max-content box. On an EMPTY document that box is a few pixels wide, which is
- * how the caret and the `Start writing…` placeholder ended up near the middle
- * of a 1044px surface (measured on a Note at 1440px before the fix: content
- * x=522 in a scroller at x=294).
+ * UIX-04 keeps that rule and removes the cap that made it tempting: the measure
+ * is now held by the editor's own children (see the top of this file), so
+ * `.cm-content` fills whatever column it is handed and there is nothing here
+ * for the flex layout to misinterpret. The inline padding is what lines the
+ * first character up with the toolbar's first icon; the block padding gives the
+ * document air at the top of the page rather than starting it against the rule.
  */
 .dh-md-editor__cm .cm-content {
-  padding: var(--app-space-4);
+  padding: var(--app-space-5) var(--app-space-4) var(--app-space-10);
   caret-color: var(--md-sys-color-primary);
-  max-inline-size: var(--app-width-editor);
 }
 
 .dh-md-editor__cm .cm-cursor,
@@ -340,30 +385,43 @@
 
 /* --- Live-preview construct styling (applied to source ranges) ------------ */
 
+/*
+ * UIX-04 — the SAME four heading sizes the rendered read view uses.
+ *
+ * These were the chrome typescale, where `title-medium` is 16px — identical to
+ * `body-large` — so `###` looked exactly like a bold paragraph and a structured
+ * note lost its outline while it was being written. They are now the shared
+ * `--app-writing-h*` ladder, which `base.css` gives `.markdown-content` too, so
+ * pressing Read does not resize a single heading.
+ */
 .dh-md-editor__cm .cm-dh-heading {
-  font-weight: 500;
-  line-height: 1.5;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 .dh-md-editor__cm .cm-dh-h1 {
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--app-writing-h1-size);
 }
 .dh-md-editor__cm .cm-dh-h2 {
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--app-writing-h2-size);
 }
 .dh-md-editor__cm .cm-dh-h3 {
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--app-writing-h3-size);
 }
 .dh-md-editor__cm .cm-dh-h4 {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--app-writing-h4-size);
 }
 .dh-md-editor__cm .cm-dh-h5,
 .dh-md-editor__cm .cm-dh-h6 {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--app-writing-h4-size);
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/* Bold means bold. 500 against a 400 body is a weight difference the eye reads
+ * as "possibly a different font", not as emphasis — and the read view renders
+ * `<strong>` at the browser's 700, so the two surfaces disagreed. */
 .dh-md-editor__cm .cm-dh-strong {
-  font-weight: 500;
+  font-weight: 700;
 }
 .dh-md-editor__cm .cm-dh-em {
   font-style: italic;
@@ -492,12 +550,20 @@
  * `--app-space-4` padding, started from the same place, so switching Read/Write
  * changes where the line ENDS and never where it begins.
  * ------------------------------------------------------------------------- */
+/*
+ * UIX-04 §34 — Read and Write are ONE column.
+ *
+ * EDIT-02 gave reading the 65ch prose measure and writing the 90ch source
+ * measure, on the reasoning that Markdown source is not prose. That reasoning
+ * went with the 90ch measure: the live editor styles the document as it is
+ * typed, so what is on screen in Write mode already IS the rendered document,
+ * and reflowing every line of it on the way to Read mode is a jump with nothing
+ * behind it. Both modes now take the writing column (set on the editor's
+ * children at the top of this file), so pressing Read re-renders the same text
+ * at the same width in the same place.
+ */
 .dh-md-editor__reading {
-  max-inline-size: var(--app-width-prose);
-  padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-page);
+  padding: var(--app-space-5) var(--app-space-4) var(--app-space-10);
   overflow-wrap: anywhere;
 }
 
@@ -712,18 +778,22 @@
  * measure exists for — but it is LEFT-ALIGNED in its region (EDIT-02): a
  * centred reading column and a left-aligned writing surface would move the
  * first character sideways every time the Read toggle is pressed. */
+/*
+ * UIX-04 — reading a Note is not reading it inside a card.
+ *
+ * This used to paint the read view onto the card surface with a large radius,
+ * which put a filled, rounded rectangle around a document on a page that has no
+ * other box on it — the exact "note wrapped in form chrome" §8 rules out, and
+ * jarring next to Write mode, which has no box at all. The read view now shares
+ * the page with the editor and differs from it only where it should: a shorter
+ * measure, because reading wants a shorter line than writing does.
+ *
+ * The heading override is gone with it. It forced every heading back to weight
+ * 500, which would flatten the shared `--app-writing-h*` ladder the moment Read
+ * was pressed.
+ */
 .dh-note-body .dh-md-editor__reading {
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
-  max-inline-size: var(--app-width-prose);
-  border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
-}
-
-/* Headings inside the column stay serif — they are part of the prose, not
- * chrome — but never take the removed `bold` weight. */
-.dh-note-body .dh-md-editor__reading :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--md-ref-typeface-plain);
-  font-weight: 500;
 }

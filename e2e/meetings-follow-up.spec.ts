@@ -42,7 +42,7 @@ async function addItem(
   kindLabel: string,
   body: string,
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   // The field names the noun and the button names the act, so each control can
   // be asked for unambiguously — they used to share one accessible name.
   await page.getByRole("textbox", { name: `New ${kindLabel}` }).fill(body);
@@ -127,20 +127,27 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await createMeeting(page, title);
 
   // Attendee (seeded person).
-  await page.getByRole("tab", { name: "Overview" }).click();
+  await page.getByRole("tab", { name: "Details" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill("Sarah Chen");
   await page.getByRole("option", { name: "Sarah Chen" }).click();
   await page.getByRole("button", { name: "Add selected" }).click();
-  await expect(page.getByRole("link", { name: /Sarah Chen/ })).toBeVisible();
+  // Scoped to the tab that was just used: UIX-04 §27 put the attendees on the
+  // record's context line as well, so an unscoped attendee link now matches
+  // twice. Adding one is a Details-tab act, and this asserts it landed there.
+  await expect(
+    page
+      .getByRole("tabpanel", { name: "Details" })
+      .getByRole("link", { name: /Sarah Chen/ }),
+  ).toBeVisible();
 
   await addItem(page, "agenda item", "Agenda: confirm the budget");
   await addItem(page, "decision", "Decision: proceed with vendor A");
   await addItem(page, "outcome", "Outcome: publish the recap");
 
   // Convert the agenda item, editing title + priority.
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await convertItem(page, "Agenda: confirm the budget", {
     title: "Confirm the FY budget",
     parent: "Website relaunch",
@@ -149,7 +156,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await closeDrawer(page);
 
   // The item now offers "Open task"; opening restores focus to that control.
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   const openButton = page
     .locator(".dh-meeting-item", { hasText: "Agenda: confirm the budget" })
     .getByRole("button", { name: "Open task" });
@@ -161,12 +168,12 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await expect(openButton).toBeFocused();
 
   // Convert the decision and outcome too.
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await convertItem(page, "Decision: proceed with vendor A", {
     parent: "Website relaunch",
   });
   await closeDrawer(page);
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await convertItem(page, "Outcome: publish the recap", {
     parent: "Launch checklist",
   });
@@ -198,7 +205,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await expect(page.getByRole("heading", { name: /Open \(4\)/ })).toBeVisible();
 
   // Duplicate conversion is prevented: the agenda item shows Open task, not Create.
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await expect(openButton).toBeVisible();
   await expect(
     page
@@ -221,7 +228,7 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
   const title = uniqueMeetingTitle("archived");
   await createMeeting(page, title);
   await addItem(page, "decision", "Decision: keep the venue");
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await convertItem(page, "Decision: keep the venue", {
     parent: "Website relaunch",
   });
@@ -239,12 +246,22 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
   await expect(
     page.getByRole("button", { name: "Add follow-up task" }),
   ).toHaveCount(0);
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await expect(
     page
       .locator(".dh-meeting-item", { hasText: "Decision: keep the venue" })
       .getByRole("button", { name: "Create task" }),
   ).toHaveCount(0);
+  // UIX-04 — and the prose bodies with them. The repository refuses every write
+  // to an archived meeting, so an autosaving editor on the tab this record now
+  // OPENS on would be an invitation to type and then be told no. Both bodies are
+  // still there, still named, and no longer writable.
+  for (const body of ["Agenda", "Notes"]) {
+    const region = page.getByRole("group", { name: body, exact: true });
+    await expect(region).toBeVisible();
+    await expect(region.getByRole("textbox")).toHaveCount(0);
+    await expect(region.getByRole("toolbar")).toHaveCount(0);
+  }
   await page
     .locator(".dh-meeting-item", { hasText: "Decision: keep the venue" })
     .getByRole("button", { name: "Open task" })
@@ -258,7 +275,7 @@ test("browser Back/Forward and refresh preserve the tab and Drawer", async ({
   const title = uniqueMeetingTitle("history");
   const url = await createMeeting(page, title);
   await addItem(page, "decision", "Decision: schedule the review");
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await convertItem(page, "Decision: schedule the review", {
     parent: "Website relaunch",
   });
@@ -295,7 +312,7 @@ test("an item of the same kind can still be added after removing a non-last one"
 
   // Remove the FIRST of three — the sequence that used to leave the agenda kind
   // permanently un-addable.
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   const removed = page.locator(".dh-meeting-item", {
     hasText: "Agenda: confirm the budget",
   });
@@ -309,7 +326,7 @@ test("an item of the same kind can still be added after removing a non-last one"
   // The survivors are untouched and the new item sorts last — after a reload, so
   // this is the persisted order and not an optimistic client render.
   await page.reload();
-  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("tab", { name: "Notebook" }).click();
   await expect(
     page.locator(".dh-meeting-item", { hasText: "Agenda: " }),
   ).toHaveText([
@@ -347,7 +364,7 @@ for (const width of [390, 320]) {
     );
     await page.getByRole("tab", { name: "Follow-up" }).click();
     await expectNoHorizontalOverflow(page);
-    await page.getByRole("tab", { name: "Meeting" }).click();
+    await page.getByRole("tab", { name: "Notebook" }).click();
     await expectNoHorizontalOverflow(page);
   });
 }

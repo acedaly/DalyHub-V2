@@ -1230,3 +1230,45 @@ paint is suppressed. Every editor behaviour from EDIT-01/EDIT-02 is unchanged.
 
 Measured at 1280×800: the editor moved from 360px to 253px, with ~10 lines of
 prose visible.
+
+## UIX-04 — the writing workspace (August 2026)
+
+The Notes module was redesigned as part of [UIX-04](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+Routes, persistence, the READ projection and every mutation are unchanged; the
+composition is not.
+
+**The collection is a list of documents, not a gallery of tiles.**
+`NotesList` replaces the `CardCollection` grid M3X-02 introduced. One row per
+note: the title dominating on its own line, a one-line preview on the left, and
+the effective updated date as a right-hand column the eye can run down, with tags
+between them where there are any. The entity glyph, the "Note" type label and the
+link count are gone — all identical or uninteresting on every row of a page called
+Notes. The archived state stays, in words. The DELETED view keeps its "no open
+target, Restore only" shape, because a deleted entity's canonical route 404s.
+
+Rows are named for the note, not for the affordance: the accessible name is the
+title, where the Card's was `Open ${title}` on every row.
+
+**A rail sits beside the open note.** `routes/detail.tsx` loads one bounded page
+(`RAIL_LIMIT = 40`) of the same `scope.notes.list` projection the collection uses,
+ordered by the effective updated moment, and `NotesRail` renders it at ≥1024px.
+Rows are ordinary links, so Back, middle-click and prefetch work with no client
+state; the open note carries `aria-current="page"` plus a filled container. A rail
+read failure degrades to no rail — the writing surface must open even when the
+list query does not — and the rail is not rendered when there is nothing to list.
+Below `lg` it is not rendered at all: a phone gets list screen → note screen.
+
+**The document owns the page.** The record header is capped to the same column as
+the text (`--app-width-editor`), so the breadcrumb, title, context line, tab strip
+and prose form one column. The title takes the document title size; the entity
+glyph is gone from the header (the breadcrumb says "Notes", and on a wrapping
+title the glyph claimed a line of its own above it).
+
+**Filters got shorter, not fewer.** Same GET form, same native controls, same URL
+contract. Labels moved beside their controls, the search field's label became
+`dh-visually-hidden` behind an identical placeholder, and the field stopped
+growing past the shared 18rem control cap that governs every collection filter.
+
+**Phone.** The breadcrumb is hidden (the phone top bar carries "Notes" and Back)
+and the header's action row no longer claims a full-width band for one overflow
+trigger, so the first word of a note sits ~110px higher than it did.

@@ -1,0 +1,473 @@
+/**
+ * UIX-04 — the Notes module's own composition.
+ *
+ * Notes shares the writing SURFACE with Diary and Meetings (`writing.css`,
+ * `markdown-editor.css`) and differs from them in COMPOSITION, which is what
+ * lives here: a list rail beside the open document on the desktop, a document
+ * list on the collection, and the small set of overrides that turn the shared
+ * record scaffold into something that reads as a page of writing rather than as
+ * a database record with a big text field on it.
+ *
+ * Everything is a DS-01 token.
+ */
+
+/* -------------------------------------------------------------------------- *
+ * The collection: a list of documents                                         *
+ * -------------------------------------------------------------------------- */
+
+/*
+ * §5/§6 — rows, not tiles.
+ *
+ * The list takes a measure of its own. It is NOT the writing measure: a row is
+ * scanned rather than read, and its two halves (title + preview on the left, the
+ * date on the right) need enough width to sit on one line each. It is also not
+ * the full page: a 1300px row puts the date so far from the title that they stop
+ * reading as one record. `--app-width-content` is the measure the product
+ * already uses for dense record content, and it is the right one here.
+ */
+.dh-notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-inline-size: var(--app-width-content);
+  min-inline-size: 0;
+}
+
+/*
+ * A hairline BETWEEN rows, not a box around each.
+ *
+ * Rows this close together do not need containers to be told apart — a rule is
+ * enough, and it keeps the page reading as one list rather than as a stack of
+ * cards. Nothing is drawn above the first row or below the last, so the list has
+ * no border of its own.
+ */
+.dh-notes-list__row + .dh-notes-list__row {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+.dh-notes-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-notes-list__item {
+  display: block;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  padding: var(--app-space-3) var(--app-space-3);
+  margin-inline: calc(-1 * var(--app-space-3));
+  border-radius: var(--md-sys-shape-corner-medium);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-notes-list__item:hover {
+  background: var(--md-app-color-surface-sunken);
+}
+
+.dh-notes-list__item--static:hover {
+  background: none;
+}
+
+/* §6 — the title DOMINATES. One line: a list of wrapped titles is a list of
+ * paragraphs, and the preview underneath already carries the sense. */
+.dh-notes-list__title {
+  display: block;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Preview on the left, metadata on the right, on ONE line. */
+.dh-notes-list__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-4);
+  margin-block-start: var(--app-space-px);
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.dh-notes-list__excerpt {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-notes-list__excerpt--empty {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.dh-notes-list__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-3);
+  flex: 0 0 auto;
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-notes-list__tags {
+  color: var(--md-sys-color-on-surface-variant);
+  max-inline-size: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Lifecycle is state, so it is stated in WORDS — never a colour or a glyph
+ * alone (AGENTS.md §15). */
+.dh-notes-list__state {
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 500;
+}
+
+.dh-notes-list__restore {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 47.999rem) {
+  /* On a phone the row's second line has no room for both halves, so the
+   * metadata drops beneath the preview rather than squeezing it to nothing. */
+  .dh-notes-list__line {
+    display: block;
+  }
+
+  /*
+   * The excerpt has to become a BLOCK when its parent stops being a flex row.
+   *
+   * `text-overflow: ellipsis` needs a block-level box with a constrained width;
+   * on an inline span it does nothing at all, so a 900-word note's opening
+   * sentence rendered as one 1112px line and pushed the whole document sideways
+   * at 320px — a page-level horizontal scroll, which §55 rules out.
+   */
+  .dh-notes-list__excerpt {
+    display: block;
+    max-inline-size: 100%;
+  }
+
+  .dh-notes-list__meta {
+    margin-block-start: var(--app-space-px);
+  }
+
+  .dh-notes-list__tags {
+    max-inline-size: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- *
+ * The workspace: rail + document                                              *
+ * -------------------------------------------------------------------------- */
+
+.dh-note-workspace {
+  display: block;
+  min-inline-size: 0;
+}
+
+/*
+ * §5/§4 — the two-column workspace, from `xl` up.
+ *
+ * The rail only appears where BOTH columns fit properly. A first draft opened it
+ * at `lg` (1024) and the measurement said no: 1024 less the shell rail (216) less
+ * the notes rail (304) less the page gutters leaves a 392px line — a third of the
+ * writing measure, which is the "overly narrow content column" §4 rules out. The
+ * rail is worth having only when the document beside it is still comfortable, and
+ * that is 1280 up (a 664px column against a 618px measure).
+ *
+ * Below it the rail is not rendered at all: §13 is explicit that a phone gets
+ * list screen → note screen, not a split-pane squeezed onto 390px, and the same
+ * reasoning covers a tablet.
+ */
+@media (min-width: 80rem) {
+  .dh-note-workspace[data-rail] {
+    display: grid;
+    grid-template-columns: var(--app-notes-rail-width) minmax(0, 1fr);
+    align-items: start;
+    min-block-size: 100%;
+  }
+}
+
+/* -------------------------------------------------------------------------- *
+ * The rail                                                                    *
+ * -------------------------------------------------------------------------- */
+
+.dh-notes-rail {
+  display: none;
+}
+
+@media (min-width: 80rem) {
+  /*
+   * The rail scrolls independently of the document and stays put while a long
+   * note scrolls past it — the behaviour that makes a list column worth having,
+   * rather than a header that leaves the screen.
+   *
+   * The viewport height it fills is the visible one less the shell's own top
+   * bar, stated with the shell's token rather than measured.
+   */
+  .dh-notes-rail {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    inset-block-start: 0;
+    block-size: calc(100dvh - var(--app-shell-topbar-height));
+    min-inline-size: 0;
+    padding-block: var(--app-space-6);
+    padding-inline: var(--app-space-3) 0;
+    border-inline-end: var(--app-border-width-thin) solid
+      var(--md-app-color-outline-hairline);
+  }
+}
+
+.dh-notes-rail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  padding-inline: var(--app-space-3);
+  padding-block-end: var(--app-space-2);
+}
+
+.dh-notes-rail__heading {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dh-notes-rail__list {
+  flex: 1 1 auto;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--app-space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/*
+ * §6 — a rail row is a title, a date and a preview. Nothing else.
+ *
+ * The title is `body-medium` at 600 rather than a heading size: it has to
+ * dominate its own row without competing with the document title beside it,
+ * which is the largest thing on the page and should stay that way.
+ */
+.dh-notes-rail__item {
+  display: block;
+  padding: var(--app-space-2) var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-medium);
+  color: inherit;
+  text-decoration: none;
+  min-inline-size: 0;
+}
+
+.dh-notes-rail__title {
+  display: block;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  font-weight: 600;
+  line-height: 1.35;
+  /* §6/§52 — one line. A rail of three-line titles is a list of paragraphs. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The date and the preview share ONE line, the way every list of documents from
+ * Mail to Notes writes it: the date is fixed and the preview takes the rest. */
+.dh-notes-rail__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  margin-block-start: var(--app-space-px);
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-notes-rail__date {
+  flex: 0 0 auto;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-notes-rail__excerpt {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-notes-rail__excerpt--empty {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.dh-notes-rail__item:hover {
+  background: var(--md-app-color-surface-sunken);
+}
+
+/*
+ * §5 — the SELECTED note, stated strongly.
+ *
+ * A filled container plus `aria-current="page"`, never a tint alone: the row
+ * that is open has to be obvious at a glance across a column of forty, and it
+ * has to be obvious to a screen reader too (AGENTS.md §15).
+ */
+.dh-notes-rail__item[aria-current="page"] {
+  background: var(--md-sys-color-secondary-container);
+}
+
+.dh-notes-rail__item[aria-current="page"] .dh-notes-rail__title {
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/*
+ * The selected row's SUPPORTING text takes the container's own `on-` colour at
+ * full strength.
+ *
+ * A first draft mixed it to 78% for hierarchy and axe caught it immediately:
+ * `on-secondary-container` is chosen to clear 4.5:1 against
+ * `secondary-container` exactly, so ANY transparency takes it under (AGENTS.md
+ * §15). The hierarchy inside the row is carried by size and weight, which cost
+ * no contrast at all.
+ */
+.dh-notes-rail__item[aria-current="page"] .dh-notes-rail__line,
+.dh-notes-rail__item[aria-current="page"] .dh-notes-rail__date,
+.dh-notes-rail__item[aria-current="page"] .dh-notes-rail__excerpt {
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+@media (forced-colors: active) {
+  .dh-notes-rail__item[aria-current="page"] {
+    outline: var(--app-border-width-thick) solid Highlight;
+  }
+}
+
+.dh-notes-rail__all {
+  flex: 0 0 auto;
+  padding: var(--app-space-2) var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  color: var(--md-sys-color-primary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.dh-notes-rail__all:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- *
+ * The document                                                                *
+ * -------------------------------------------------------------------------- */
+
+/*
+ * §8 / §4 — the record's header aligns to the DOCUMENT COLUMN.
+ *
+ * The writing surface centres its column at the writing measure. Left alone,
+ * the record header above it stays full-bleed, so the title sat 150px to the
+ * left of the first character it names — the "awkward centring" §4 calls out,
+ * arrived at from the opposite direction. Capping the record to the same measure
+ * makes the breadcrumb, the title, the context line, the tab strip and the text
+ * one column, which is the whole difference between a document and a form with
+ * a document in it.
+ *
+ * Scoped to the Notes workspace so no other record's layout changes.
+ */
+.dh-note-workspace .record-layout {
+  max-inline-size: none;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.dh-note-workspace .record-header,
+.dh-note-workspace .record-tabs,
+.dh-note-workspace .record-tabs__panel > .dh-note-body {
+  inline-size: 100%;
+  max-inline-size: var(--app-width-editor);
+  margin-inline: auto;
+}
+
+/*
+ * §11 — the Note title is the document's title.
+ *
+ * The shared record heading is sized for a record that lives in a list of
+ * records; a document's title is the largest thing on its own page. It also
+ * stops wrapping unnecessarily (§4): `text-wrap: balance` breaks a long title
+ * into even lines rather than leaving one word alone on the second.
+ */
+.dh-note-workspace .record-title,
+.dh-note-workspace .record-title .dh-inline-edit__trigger {
+  font-size: var(--app-writing-title-size);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+@media (max-width: 47.999rem) {
+  .dh-note-workspace .record-title,
+  .dh-note-workspace .record-title .dh-inline-edit__trigger {
+    font-size: var(--app-writing-title-size-mobile);
+  }
+}
+
+/*
+ * §8 — no giant form chrome above the words.
+ *
+ * The record's tab strip is real navigation (Backlinks, Links, AI, Activity are
+ * separate surfaces, not decoration), so it stays — but it stops being a band
+ * with a rule under it spanning a width the document does not use, and it stops
+ * shouting. What the writer sees between the title and the first paragraph is
+ * one quiet line of context and one quiet row of controls.
+ */
+.dh-note-workspace .record-layout {
+  gap: var(--app-space-3);
+}
+
+.dh-note-workspace .dh-note-body {
+  min-inline-size: 0;
+}
+
+/* The editor already centres its own bands at the writing measure; inside the
+ * workspace the column is set once, above, so the editor simply fills it. */
+.dh-note-workspace .dh-md-editor:not([data-density="compact"]) > * {
+  max-inline-size: none;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Phone                                                                       *
+ * -------------------------------------------------------------------------- */
+
+@media (max-width: 79.999rem) {
+  /*
+   * §13 — no rail, and no trace of one. The workspace collapses to the single
+   * document column it always was on a phone, and the record keeps the shell's
+   * ordinary page padding.
+   */
+  .dh-note-workspace[data-rail] {
+    display: block;
+  }
+}
+
+@container record (max-width: 30rem) {
+  .dh-note-workspace .record-layout {
+    padding-inline: var(--app-space-4);
+  }
+}
