@@ -24,7 +24,23 @@ const EDGE_MARGIN = 8;
 
 /** Every collection that renders the shared header with a view switcher. */
 const SWITCHER_SURFACES = [
-  { name: "Tasks", path: "/tasks", group: "Task layout" },
+  /*
+   * UIX-06 — Tasks is no longer in this list either, for the same kind of
+   * reason Projects is not.
+   *
+   * UIX-01 moved the List / Board / Sectors switcher OFF the header and into
+   * the collection's overflow menu, and said why in `TasksWorkspace.tsx`: "a
+   * three-segment control permanently parked beside the title spends the
+   * header's best space on a decision made once a week". It writes the same
+   * `?view=` parameter through the same shared control model, so the UIQ-013
+   * contract this file asserts is intact — the control simply is not in the
+   * header slot any more.
+   *
+   * The list was never updated, so this test has asserted a control the
+   * product deliberately removed ever since: it fails identically on the UIX-05
+   * commit this pass branched from. `tasks.spec.ts` asserts the switcher's own
+   * behaviour where it now lives.
+   */
   /*
    * UIX-02 — Projects is no longer in this list.
    *
@@ -60,11 +76,23 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     }
   });
 
+  /*
+   * UIX-06 — measured on ASSETS rather than on Tasks.
+   *
+   * The contract under test is the shared switcher's, not any one module's:
+   * a 44px target, and geometry that does not move when the selected view
+   * changes because every segment reserves its check's box. Tasks stopped
+   * being able to demonstrate it when UIX-01 moved its switcher into the
+   * overflow menu (see the note on SWITCHER_SURFACES), so the test moved to a
+   * collection that still renders one in the header slot. Assets' five scopes
+   * are the widest switcher in the product, which is the hardest case for the
+   * "geometry does not move" half.
+   */
   test("the switcher holds the 44px target and does not move when the view changes", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks");
-    const group = page.getByRole("group", { name: "Task layout" });
+    await gotoFixture(page, "/assets");
+    const group = page.getByRole("group", { name: "Asset views" });
     const before = await group.boundingBox();
     expect(before).not.toBeNull();
     expect(before!.height).toBeGreaterThanOrEqual(44);
@@ -74,11 +102,10 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
       optionsBefore.map(async (option) => (await option.boundingBox())!.width),
     );
 
-    await group.getByRole("link", { name: "Board" }).click();
-    await expect(group.getByRole("link", { name: "Board" })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
+    await group.getByRole("link", { name: "Service due" }).click();
+    await expect(
+      group.getByRole("link", { name: "Service due" }),
+    ).toHaveAttribute("aria-current", "true");
 
     // UIQ-013's "no layout movement when state changes": the check's box is
     // reserved in every segment, so selecting a different view leaves every
@@ -143,14 +170,25 @@ test.describe("UIQ-013 — the header uses the laptop's width", () => {
     }) => {
       test.slow();
       await page.setViewportSize(viewport);
-      for (const path of ["/tasks", "/reviews", "/assets", "/people"]) {
+      /*
+       * UIX-06 — `/tasks` is gone from this list, and the guard below now asks
+       * whether the element EXISTS before measuring it.
+       *
+       * Tasks has had no header switcher since UIX-01 moved it into the
+       * overflow menu. The `if (!views) continue` was written expecting
+       * `boundingBox()` to return null for a missing element; it does not — it
+       * WAITS for one. So this test did not skip Tasks, it hung on it for the
+       * full 90-second slow timeout, at both widths, on every run since. It
+       * fails the same way on the UIX-05 commit this pass branched from.
+       */
+      for (const path of ["/reviews", "/assets", "/people"]) {
         await gotoFixture(page, path);
         const lead = await page.locator(".dh-pane-header__lead").boundingBox();
-        const views = await page
-          .locator(".dh-pane-header__views")
-          .boundingBox();
         expect(lead, path).not.toBeNull();
-        if (!views || !lead) continue;
+        const viewsLocator = page.locator(".dh-pane-header__views");
+        if ((await viewsLocator.count()) === 0 || !lead) continue;
+        const views = await viewsLocator.boundingBox();
+        if (!views) continue;
 
         // One row: the switcher's vertical centre is within the title block's
         // band. A wrapped switcher sits entirely beneath it, which is the
@@ -196,7 +234,16 @@ test.describe("UIQ-013 — the narrow composition is intentional", () => {
     // Tasks is deliberately absent: it opts into the MOBILE-01 persistent
     // control sheet, which REPLACES the header switcher at phone widths, so
     // there is no switcher there to wrap.
-    for (const path of ["/reviews", "/assets", "/people"]) {
+    //
+    // UIX-06 — and so are Assets and People, for exactly the same reason. The
+    // rule is `.dh-collection--has-mobile-controls .dh-pane-header__views {
+    // display: none }` in `collection-layout.css`: ANY collection that supplies
+    // a mobile control row hides its header switcher on a phone. Assets has had
+    // one since UIX-05 and People gained one in the same pass, so this list has
+    // been asserting a hidden element ever since — it fails identically on the
+    // UIX-05 commit this pass branched from. Reviews is the collection that
+    // still renders a header switcher at 390, which is what this test is for.
+    for (const path of ["/reviews"]) {
       await gotoFixture(page, path);
       const switcher = page.locator(".dh-pane-header__views .dh-segmented");
       await expect(switcher.first()).toBeVisible();
