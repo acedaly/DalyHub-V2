@@ -50,7 +50,24 @@ test.beforeAll(() => {
   mkdirSync(OUT, { recursive: true });
 });
 
+/**
+ * Shoot, once every entry animation has finished.
+ *
+ * The BEFORE run caught the command palette MID-RISE and produced a
+ * semi-transparent panel with Today legible through it — which looks exactly
+ * like a real dark-mode overlay defect and is not one (`.dh-command__panel` is
+ * opaque `surface-raised`). Evidence that can be mistaken for a bug is worse
+ * than no evidence, so the capture waits for the animations rather than for a
+ * guessed number of milliseconds.
+ */
 async function shoot(page: Page, name: string) {
+  await page
+    .evaluate(() =>
+      Promise.all(
+        document.getAnimations().map((a) => a.finished.catch(() => undefined)),
+      ).then(() => undefined),
+    )
+    .catch(() => undefined);
   await page.screenshot({ path: join(OUT, `${PREFIX}${name}.png`) });
 }
 
