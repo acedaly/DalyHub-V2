@@ -163,6 +163,42 @@ and the dark appearance.
   notifications, analytics, or any change to domain rules.
 - Record: [`UIX_02_PROJECTS_AREAS_2026_08.md`](../design/UIX_02_PROJECTS_AREAS_2026_08.md).
 
+### ☑ UIX-03 - Goals product UI redesign — **DELIVERED 2026-08-10**
+
+Turn the Goals experience from a collection of project-shaped cards with
+percentages into a personal progress system: the gallery, the record, the trend
+chart, both phone compositions and the dark appearance.
+
+- **Gave Goals a card of their own** (`GoalCard` / `.dh-gcard`), the third
+  family in the shared grid after UIX-02's `ProjectCard`. It leads with the
+  READING rather than the percentage, states the whole journey
+  (`from 85 kg → 70 kg`) so the percentage is checkable by eye, and carries one
+  visual chosen by the data.
+- **Gave Goals identity.** A Goal inherits its AREA's accent and glyph — the
+  rule Projects already follow — resolved in every Goal read. Every Goal in the
+  gallery previously drew the same neutral grey flag, and Today derived a tone
+  from a hash of the Goal's id.
+- **Put the target on the trend chart's scale.** `TrendLine` scaled to the
+  readings and drew the target only if it happened to land inside them, so the
+  product's own acceptance Goal (85 kg → 79.3 kg, target 70 kg) never showed its
+  target: the chart answered "have I moved?" and refused "am I getting there?".
+- **Made the Goal record a progress workspace.** The measurement section moved
+  out of the summary band's `description` — a chart inside a summary card inside
+  a record — into a new top-level `feature` region of the shared Record Layout,
+  above the band. It opens with a labelled **Start · Now · Target · Remaining**
+  strip in place of one run-on sentence.
+- **Added `Sparkline`** to `~/shared/charts` and the batched
+  `listMeasurementSeries` read that feeds it: one grouped statement per page of
+  Goals, capped per Goal inside the window function.
+- **Added status views** (All / On track / Needs attention / Completed) over
+  statuses the kernel evaluator already produces, and retired the alignment
+  ring that dominated the gallery — the recap sentence stays as a quiet note.
+- **Non-goals:** no new measurement type, no unit conversion, no forecasting
+  engine, no auto-generated milestones, no change to the GOAL-02 progress
+  arithmetic, and no schema change — the domain shipped in GOAL-02 was already
+  correct, including inverse direction and the baseline-relative formula.
+- Record: [`UIX_03_GOALS_2026_08.md`](../design/UIX_03_GOALS_2026_08.md).
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.

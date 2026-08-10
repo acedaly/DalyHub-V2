@@ -32,7 +32,13 @@
 
 import { useCallback } from "react";
 
-import { EntityCard, EntityCardGrid, ExpressiveSummary } from "~/shared/card";
+import {
+  EntityCard,
+  EntityCardGrid,
+  GoalCard,
+  type GoalCardTone,
+} from "~/shared/card";
+import { Sparkline } from "~/shared/charts";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -42,17 +48,27 @@ import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
-import { StatusPill } from "~/shared/pill";
+import { SegmentedFilter } from "~/shared/segmented-filter";
 import { ViewSwitcher, type ViewSwitcherOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
-import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 import {
-  formatMeasurementChange,
+  alignmentReasonText,
+  type AlignmentTone,
+  type GoalAlignment,
+} from "~/shared/alignment";
+import {
+  GOAL_COLLECTION_VIEWS,
+  GOAL_COLLECTION_VIEW_LABELS,
   formatMeasurementValue,
-  goalTargetLabel,
+  goalAbsenceNote,
+  goalJourneyLabel,
+  goalMatchesCollectionView,
+  goalOverTargetLabel,
   goalProgressStatusLabel,
   goalProgressStatusTone,
   goalProgressSummaryText,
+  goalRemainingLabel,
+  type GoalCollectionView,
   type GoalProgressEvaluation,
 } from "~/shared/goal-progress";
 
@@ -86,6 +102,20 @@ export type SerializedGoalWithAlignment = SerializedGoalListItem & {
    * and the card is exactly the M3X-02 card, unchanged.
    */
   readonly progress: GoalProgressEvaluation;
+  /**
+   * UIX-03 — the recent readings, for the card's sparkline and nothing else.
+   *
+   * Deliberately separate from `progress`: every FIGURE on the card comes from
+   * the evaluation (which is derived from the bounded summary), and this is
+   * only the shape. Keeping them apart is what guarantees the drawing can never
+   * imply a different number from the one printed beside it.
+   */
+  readonly series?: readonly {
+    readonly value: number;
+    readonly measuredOn: string;
+  }[];
+  /** The Goal's definition of done — the CONTENT of a Goal with no number. */
+  readonly definitionOfDone?: string | null;
 };
 
 /** A soft-deleted Goal, as the honest "Deleted" view shows it: identity only. */
@@ -108,6 +138,8 @@ export interface GoalsCollectionViewProps {
   readonly deletedGoals?: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
   readonly state?: GoalCollectionState;
+  /** UIX-03 — the status view (`?view=`), narrowing the loaded Goals. */
+  readonly view?: GoalCollectionView;
   readonly failed: boolean;
 }
 
@@ -128,6 +160,7 @@ export function GoalsCollectionView({
   deletedGoals = [],
   nextCursor,
   state = "active",
+  view = "all",
   failed,
 }: GoalsCollectionViewProps) {
   return (
@@ -136,6 +169,7 @@ export function GoalsCollectionView({
       deletedGoals={deletedGoals}
       nextCursor={nextCursor}
       state={state}
+      view={view}
       failed={failed}
     />
   );
@@ -253,42 +287,58 @@ function useRestoreGoal() {
 }
 
 /**
- * One Goal card.
+ * Alignment's own tone vocabulary, mapped onto the card's.
  *
- * The Goal's own accent is its AREA's, exactly as a Project card inherits its
- * Area's — a grid of Goals then groups visually by the part of life they serve
- * without needing a heading. `SerializedGoalListItem` does not carry the Area's
- * colour rank, so the neutral entity container applies rather than a colour that
- * would mean nothing; that is the same rule a Project with no Area follows.
+ * `AlignmentTone` is deliberately narrower than the card's — it excludes
+ * `warning` and `danger`, because a Goal receiving no recent attention is not a
+ * missed deadline (ADR-040 §40.5). The map is written out rather than cast so
+ * that narrowing stays visible here: the card CAN paint a warning, and
+ * alignment must never ask it to.
+ */
+function alignmentPillTone(tone: AlignmentTone): GoalCardTone {
+  switch (tone) {
+    case "success":
+      return "success";
+    case "info":
+      return "info";
+    default:
+      return "neutral";
+  }
+}
+
+/**
+ * One Goal card — UIX-03.
  *
- * ── M3X-02: what this card is FOR ────────────────────────────────────────────
+ * The M3X-02 card led with a percentage and a bar, because that was the only
+ * measure a Goal had. GOAL-02 gave Goals a real one, and this card is built
+ * around it: the READING is the card's largest element, the journey that makes
+ * it checkable sits under it, and the percentage is demoted to a small figure on
+ * a thin bar. A Goal is an outcome, and the card now looks like one — which is
+ * also what stops the Goals gallery reading as a second Projects gallery.
  *
- * The audit's H7 finding was that a Goal card was "a title, a chip and a
- * sentence explaining what is ABSENT", and PR #144 answered it with a summary
- * above the grid rather than in the grid. Three things changed here:
+ * ── What each Goal shows, and why it differs ────────────────────────────────
  *
- *   1. **The measure leads.** It is now the strongest element after the title,
- *      through the same shared progress the Project card uses. It is DERIVED,
- *      never stored, and it never implies the Goal itself is complete: that
- *      stays `completedAt`.
- *      - **GOAL-02 changed WHICH measure.** A Goal that states how it is
- *        measured leads with its own reading — `79 kg`, `79 kg → 70 kg`, the
- *        percentage of the distance covered — because that is what the owner set
- *        out to move. A Goal with no measurement keeps Project contribution,
- *        which is exactly the card M3X-02 built. Neither is ever a 0% bar for a
- *        journey that has not started: an unmeasured Goal with no contributing
- *        Projects still gets alignment's sentence and no bar at all.
- *   2. **The "Open" chip is gone.** Every open Goal in the collection carried an
- *      identical grey pill saying it was open, in the card's most valuable
- *      corner, next to a heading that could not have meant anything else. Only
- *      completion — the state that is genuinely news — takes a chip now.
- *   3. **Alignment states its REASON only when the reason is the whole story.**
- *      With a bar on the card, "Projects exist, but no recent Task activity was
- *      found" is a second sentence about the same subject; without one, it is
- *      the only thing that explains why there is nothing to measure.
+ * A MEASURED Goal states its reading, its journey, its bar, its status, what
+ * remains and its target date. A Goal with a history also gets a sparkline —
+ * one visual, never two, and never a flat line drawn from a single point.
  *
- * "Updated 19 Jul 2026" went for the reason it went from Projects and Areas: a
- * fact about the row rather than about the Goal, drawn identically on every card.
+ * An UNMEASURED Goal states the absence in words and gets NO bar. Its story is
+ * the WORK underneath it, so it keeps what this collection was built for
+ * (ADR-040 — the intention-to-action gap): the alignment state is its one state
+ * word, and its facts carry the Project contribution and, when there is no
+ * contribution to state, alignment's own reason.
+ *
+ * A MEASURED Goal does not show alignment, and that is the one thing UIX-03
+ * takes away. Its measurement status ("On track") and its alignment
+ * ("Recently active") are two different state words about two different
+ * subjects — the outcome and the work — and a card carrying both makes the
+ * reader decide which one answers "how is this going?". The measurement is the
+ * Goal's own answer, so it wins; the record still explains alignment in full.
+ *
+ * Identity is the AREA's, resolved server-side (`SerializedGoalArea`) and
+ * applied once — the mark, the tint behind the reading, the bar and the
+ * sparkline all take the same rank. Before UIX-03 every Goal in the gallery drew
+ * the same neutral grey flag.
  */
 function GoalEntityCard({
   goal,
@@ -296,97 +346,173 @@ function GoalEntityCard({
   readonly goal: SerializedGoalWithAlignment;
 }) {
   const complete = isGoalComplete(goal);
-  // The SHARED derivations, so the card, the record and the Area tab can never
-  // disagree — about how far a Goal's Projects have got, or about where its own
-  // measurement stands.
   const contribution = goalContributionProgress(goal.contribution);
   const { progress } = goal;
-  const measured = progress.measured && progress.progressPercent !== null;
+  const measured = progress.measured && progress.current !== null;
+  const absence = goalAbsenceNote(progress);
 
-  // A measured Goal's own reading replaces the contribution bar rather than
-  // joining it: two bars on one card would be two answers to "how far along?".
-  const overall = formatMeasurementChange(progress.totalChange, progress.unit);
+  /*
+   * The reading. A milestone Goal counts stages ("2 of 5"), everything else
+   * states its value in its own unit — the two are different sentences and
+   * flattening them into one would make "2" read as a weight.
+   */
+  const value = measured
+    ? progress.type === "milestone"
+      ? `${progress.current} of ${progress.target ?? 0}`
+      : formatMeasurementValue(progress.current, progress.unit)
+    : null;
+
+  /*
+   * The state line's trailing facts, in the order a chooser needs them: how far
+   * is left, then by when. `goalOverTargetLabel` replaces the remainder once the
+   * target is passed, because "0 kg to go" is a worse sentence than "113% of
+   * target" and only one of the two is news.
+   */
+  const facts: string[] = [];
+  const over = goalOverTargetLabel(progress);
+  const remaining = goalRemainingLabel(progress);
+  if (over) {
+    facts.push(over);
+  } else if (remaining) {
+    facts.push(remaining);
+  }
+  if (progress.targetDate && !complete) {
+    const formatted = formatCalendarDate(progress.targetDate);
+    if (formatted) facts.push(`by ${formatted}`);
+  }
+  /*
+   * An unmeasured Goal has no reading to qualify, so its facts are the WORK
+   * beneath it. The alignment reason joins them only when there is no
+   * contribution to state — with "2 of 3 Projects complete" on the card,
+   * "Projects exist, but no recent Task activity was found" is a second
+   * sentence about the same subject; without it, it is the whole story.
+   */
+  if (!measured) {
+    if (contribution.has) {
+      facts.push(contribution.summary);
+    } else {
+      for (const reason of goal.alignment.reasons) {
+        facts.push(alignmentReasonText(reason));
+      }
+    }
+  }
+
+  /*
+   * The sparkline, and ONLY when the history genuinely supports one. Two
+   * readings is the floor: one point has no direction, and drawing a flat line
+   * through it would assert the Goal is steady when nobody has said so.
+   */
+  const sparkPoints = (goal.series ?? []).map((point) => ({
+    key: `${goal.id}-${point.measuredOn}-${point.value}`,
+    date: point.measuredOn,
+    value: point.value,
+  }));
 
   return (
-    <EntityCard
+    <GoalCard
       data-testid="goal-card"
-      icon={<AccentIcon entityType="goal" iconKey={null} size="lg" />}
+      icon={
+        <AccentIcon
+          entityType="goal"
+          iconKey={goal.area.iconKey}
+          colourRank={goal.area.colourRank}
+          size="lg"
+        />
+      }
       title={goal.title}
       headingLevel={2}
-      subtitle={goal.area.title}
-      status={
-        complete ? <StatusPill tone="success">Completed</StatusPill> : undefined
-      }
+      context={goal.area.title}
+      accent={goal.area.colourRank}
       metric={
-        measured && progress.current !== null
-          ? {
-              value:
-                progress.type === "milestone"
-                  ? `${progress.current}/${progress.target ?? 0}`
-                  : formatMeasurementValue(progress.current, progress.unit),
-              // VIS-01 — the TARGET, not the pair. The value is already the
-              // figure above this label; repeating it inside the label made the
-              // label the longer of the two strings.
-              label: goalTargetLabel(progress) ?? "current",
-            }
-          : undefined
+        value === null
+          ? undefined
+          : { value, caption: goalJourneyLabel(progress) }
       }
-      progress={
-        measured
-          ? {
-              value: progress.progressPercent!,
-              max: 100,
-              label: `${progress.progressPercent}%`,
-              // The announced value is the SAME sentence the record's own bar
-              // announces, so one Goal has one wording everywhere.
-              valueText: goalProgressSummaryText(progress),
-            }
-          : contribution.has
-            ? {
-                value: contribution.completed,
-                max: contribution.total,
-                label: `${contribution.percent}%`,
-                valueText: `${contribution.percent}% — ${contribution.summary}`,
-              }
-            : undefined
+      note={value === null ? absence : null}
+      /*
+       * A qualitative Goal's definition of done is its content, and without it
+       * the card is the words "Not measured" in an otherwise empty box. It is
+       * only ever shown when there is no reading — a measured Goal's card is
+       * about the measurement.
+       */
+      noteDetail={value === null ? goal.definitionOfDone : null}
+      visual={
+        sparkPoints.length >= 2 ? (
+          <Sparkline points={sparkPoints} direction={progress.direction} />
+        ) : undefined
       }
       /*
-       * VIS-01 — ONE state signal and ONE fact, and which they are depends on
-       * what the Goal actually is.
+       * The bar. A measured Goal's own percentage when it has one; otherwise
+       * the Project contribution, which is real bounded data with a real
+       * denominator and is the only measure an unmeasured Goal has (M3X-02).
        *
-       * This slot used to carry up to four things at once on a measured Goal: a
-       * status pill, an alignment pill, "9.3 kg remaining" and "↓ 5.7 kg
-       * overall". Every one of them is true and every one of them is somewhere
-       * else on the same card — the status is a state of the reading, the
-       * alignment is a state of the WORK, the remainder is the value against
-       * the target two lines above, and the overall change is the record's
-       * trend. Eleven facts is a card that documents a Goal; the job of a
-       * gallery card is to help choose one.
-       *
-       * So: a MEASURED Goal states its measurement status and its total change
-       * — the two things its number cannot say. An UNMEASURED one states its
-       * alignment, which is this collection's reason for existing (ADR-040 —
-       * the intention-to-action gap) and, for that Goal, genuinely the only
-       * story on the card.
+       * Never both — two bars on one card would be two answers to "how far
+       * along?" — and never a contribution bar on a MEASURED Goal, where the
+       * outcome's own percentage is the better answer to the same question.
+       * A Goal with neither gets no bar at all rather than an empty track at 0%.
        */
-      meta={
-        measured ? (
-          <>
-            <StatusPill tone={goalProgressStatusTone(progress.status)}>
-              {goalProgressStatusLabel(progress.status)}
-            </StatusPill>
-            {overall ? <span>{`${overall} overall`}</span> : null}
-          </>
-        ) : (
-          <>
-            <AlignmentIndicator
-              alignment={goal.alignment}
-              showReason={!contribution.has}
-            />
-            {contribution.has ? <span>{contribution.summary}</span> : null}
-          </>
-        )
+      progress={
+        progress.progressPercent === null
+          ? contribution.has
+            ? {
+                percent: contribution.percent,
+                valueText: `${contribution.percent}% — ${contribution.summary}`,
+                /*
+                 * No figure beside this bar. It measures the WORK, not the
+                 * outcome, and the card has already said "Not measured" where
+                 * the reading would be — a bare "0%" next to those two words
+                 * reads as "this Goal is nought per cent done", which is
+                 * exactly the claim the note is there to refuse. The fact line
+                 * states "0 of 1 Project complete", which labels the bar
+                 * honestly and says whose percentage it is.
+                 */
+                label: null,
+              }
+            : undefined
+          : {
+              percent: progress.progressPercent,
+              // The SAME sentence the record's own bar announces, so one Goal
+              // has one wording everywhere.
+              valueText: goalProgressSummaryText(progress),
+              /*
+               * A MANUAL Goal's reading is the percentage itself, so the figure
+               * beside the bar would be the same number the card already prints
+               * at display size. One card, one statement of one number.
+               */
+              label: progress.type === "manual" ? null : undefined,
+            }
       }
+      /*
+       * ONE state word. A completed Goal says "Completed" — the spine's
+       * explicit truth, which outranks whatever the last reading implied — and
+       * everything else says what the evaluator concluded.
+       */
+      state={
+        complete
+          ? { label: "Completed", tone: "success" }
+          : progress.measured
+            ? {
+                label: goalProgressStatusLabel(progress.status),
+                tone: goalProgressStatusTone(progress.status),
+              }
+            : // The unmeasured Goal's one state word is its alignment — the
+              // question this collection was built to answer for exactly the
+              // Goals that cannot answer it with a number.
+              {
+                label: goal.alignment.label,
+                tone: alignmentPillTone(goal.alignment.tone),
+              }
+      }
+      facts={facts}
+      /*
+       * A completed Goal is NOT muted.
+       *
+       * Muting is the treatment for archived and deleted records — things
+       * withdrawn from view. A Goal the owner actually achieved is the best news
+       * on the page, and greying it out is the opposite of the "readable and
+       * dignified" completion the brief asks for. The "Completed" state word and
+       * the full bar carry it.
+       */
       href={`/goals/${encodeURIComponent(goal.id)}`}
       openAriaLabel={`Open ${goal.title}`}
     />
@@ -442,27 +568,32 @@ function alignmentSummary(
 }
 
 /**
- * The same counts `alignmentSummary` states in words, as numbers.
+ * UIX-03 — how many loaded Goals fall into each status view.
  *
- * Split out rather than derived twice so the summary surface and its note can
- * never disagree — and so the ring's proportion is provably the proportion the
- * sentence beneath it describes. Null when there is no open Goal, which is the
- * same condition that suppresses the sentence: a page of completed Goals has
- * nothing to be "working toward".
+ * Derived from the SAME predicate the grid filters with
+ * (`goalMatchesCollectionView`), so a tab that says "3" always has three cards
+ * behind it. Counting through the shared predicate rather than re-testing the
+ * statuses here is the whole point: two implementations of "is this Goal on
+ * track?" is one more than the product can keep honest.
  */
-function alignmentMomentum(goals: readonly SerializedGoalWithAlignment[]): {
-  readonly open: number;
-  readonly active: number;
+function goalViewCounts(goals: readonly SerializedGoalWithAlignment[]): {
+  readonly total: number;
+  readonly on_track: number;
+  readonly attention: number;
   readonly completed: number;
-} | null {
-  const open = goals.filter((goal) => goal.alignment.state !== "completed");
-  if (open.length === 0) {
-    return null;
-  }
+} {
+  const tally = (view: GoalCollectionView) =>
+    goals.filter((goal) =>
+      goalMatchesCollectionView(view, {
+        completed: isGoalComplete(goal),
+        status: goal.progress.status,
+      }),
+    ).length;
   return {
-    open: open.length,
-    active: open.filter((goal) => goal.alignment.state === "active").length,
-    completed: goals.length - open.length,
+    total: goals.length,
+    on_track: tally("on_track"),
+    attention: tally("attention"),
+    completed: tally("completed"),
   };
 }
 
@@ -471,12 +602,14 @@ function GoalsCollection({
   deletedGoals,
   nextCursor,
   state,
+  view,
   failed,
 }: {
   readonly goals: readonly SerializedGoalWithAlignment[];
   readonly deletedGoals: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
   readonly state: GoalCollectionState;
+  readonly view: GoalCollectionView;
   readonly failed: boolean;
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } = useGoalPagination(
@@ -577,7 +710,19 @@ function GoalsCollection({
         ? "1 Goal"
         : `${count} Goals`;
   const summary = failed ? null : alignmentSummary(items);
-  const momentum = failed ? null : alignmentMomentum(items);
+  /*
+   * The view counts, over the Goals LOADED — the same per-page honesty the
+   * subtitle already declares. They are computed here rather than server-side
+   * because a count that disagreed with the cards beneath it would be worse
+   * than one that is explicitly about this page.
+   */
+  const counts = goalViewCounts(items);
+  const visible = items.filter((goal) =>
+    goalMatchesCollectionView(view, {
+      completed: isGoalComplete(goal),
+      status: goal.progress.status,
+    }),
+  );
 
   return (
     <CollectionLayout
@@ -620,61 +765,66 @@ function GoalsCollection({
       }
     >
       {/*
-       * M3X — Goals' one expressive surface.
+       * UIX-03 — the status views, and the collection's one quiet note.
        *
-       * Every figure on it is a COUNT the module already had, and the ring is
-       * the proportion the recap sentence has always stated in words. There is
-       * deliberately no completion percentage, no score and no momentum
-       * gauge: a DalyHub Goal carries no numeric target, and inventing one to
-       * fill a hero would be exactly the fabricated precision
-       * PRODUCT_PRINCIPLES rules out. The sentence stays, as the surface's
-       * note, so nothing here depends on reading a ring.
+       * The M3X expressive banner that stood here was a ring, two counts and a
+       * headline, all describing ALIGNMENT — whether recent Task activity had
+       * touched each Goal. Every figure on it was true, and none of them was
+       * about an outcome: it answered "is work happening?" on the one screen
+       * whose subject is "am I getting there?", and at 390px it was the whole
+       * first screen before a single Goal appeared.
+       *
+       * What replaces it is smaller and does more: four views over statuses the
+       * evaluator already produces, so a workspace with fifteen Goals can ask
+       * "which need me?" without reading fifteen cards. The alignment sentence
+       * survives as the quiet note beneath — same words, same live region, a
+       * twentieth of the space.
        */}
-      {momentum ? (
-        <ExpressiveSummary
-          className="dh-goals-summary"
-          data-testid="goals-summary"
-          eyebrow="Goals"
-          headline="What you are working toward"
-          ring={{
-            value: momentum.active / momentum.open,
-            label: `${momentum.active} of ${momentum.open} open Goals have had recent action`,
-            centre: `${momentum.active}/${momentum.open}`,
-          }}
-          stats={[
-            {
-              id: "open",
-              value: momentum.open,
-              label: momentum.open === 1 ? "open Goal" : "open Goals",
-            },
-            ...(momentum.completed > 0
-              ? [
-                  {
-                    id: "completed",
-                    value: momentum.completed,
-                    label: "completed",
-                  },
-                ]
-              : []),
-          ]}
-          /*
-           * The recap keeps its LIVE REGION. It is the sentence that changes
-           * when "Load more" brings another page of Goals in, and moving it
-           * onto the summary must not stop it being announced — the surface
-           * changed, the behaviour did not.
-           */
-          note={summary ? <span role="status">{summary}</span> : undefined}
-        />
-      ) : summary ? (
+      {counts.total > 0 ? (
+        <div className="dh-goals-views" data-testid="goals-views">
+          <SegmentedFilter
+            param="view"
+            options={GOAL_COLLECTION_VIEWS.map((option) => ({
+              value: option,
+              label:
+                option === "all"
+                  ? GOAL_COLLECTION_VIEW_LABELS[option]
+                  : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
+            }))}
+            value={view}
+            label="Filter Goals by status"
+          />
+        </div>
+      ) : null}
+      {summary ? (
         <p className="dh-goals-alignment-summary" role="status">
           {summary}
         </p>
       ) : null}
-      <EntityCardGrid label="Goals">
-        {items.map((goal) => (
-          <GoalEntityCard key={goal.id} goal={goal} />
-        ))}
-      </EntityCardGrid>
+      {/*
+       * A view that matches nothing is a designed state, not an empty page: the
+       * Goals ARE there, this lens just excludes them, so the copy says which
+       * lens and offers the way back rather than inviting the owner to create a
+       * Goal they already have (AGENTS.md §6 — no dead ends).
+       */}
+      {visible.length === 0 && count > 0 ? (
+        <EmptyState
+          icon={<EntityIcon type="goal" />}
+          title={`No Goals are ${GOAL_COLLECTION_VIEW_LABELS[view].toLowerCase()}`}
+          description="Nothing loaded matches this view."
+          primaryAction={
+            <a className="dh-btn dh-btn--outlined" href="/goals">
+              Show all Goals
+            </a>
+          }
+        />
+      ) : (
+        <EntityCardGrid label="Goals">
+          {visible.map((goal) => (
+            <GoalEntityCard key={goal.id} goal={goal} />
+          ))}
+        </EntityCardGrid>
+      )}
       {!failed && hasMore ? (
         <LoadMore
           loading={loading}

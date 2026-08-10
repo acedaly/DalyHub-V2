@@ -26,14 +26,44 @@ import { UNMEASURED_GOAL } from "~/kernel/goals";
 import { normaliseProgress, type CardTone } from "~/shared/card";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
+/**
+ * UIX-03 — the Area context a Goal surface renders, identity included.
+ *
+ * A Goal has no accent of its own; it inherits its Area's, exactly as a Project
+ * does. Carrying the rank and the glyph key here is what lets a Goal card draw
+ * the SAME identity mark the Areas gallery draws, rather than the neutral grey
+ * container every Goal used to get.
+ */
+export type SerializedGoalArea = {
+  readonly id: string;
+  readonly title: string;
+  readonly colourRank: number | null;
+  readonly iconKey: string | null;
+};
+
 export type SerializedGoalOverview = {
   readonly id: string;
   readonly title: string;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
-  readonly area: { readonly id: string; readonly title: string };
+  readonly area: SerializedGoalArea;
 };
+
+/** Normalise the kernel's optional identity fields into the display shape. */
+function serializeGoalArea(area: {
+  readonly id: string;
+  readonly title: string;
+  readonly colourRank?: number | null;
+  readonly iconKey?: string | null;
+}): SerializedGoalArea {
+  return {
+    id: area.id,
+    title: area.title,
+    colourRank: area.colourRank ?? null,
+    iconKey: area.iconKey ?? null,
+  };
+}
 
 export type SerializedGoalDetails = {
   readonly targetDate: string | null;
@@ -71,7 +101,7 @@ export type SerializedGoalListItem = {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
-  readonly area: { readonly id: string; readonly title: string };
+  readonly area: SerializedGoalArea;
 };
 
 /** AREA-03: one Goal on the workspace-wide Alignment collection. */
@@ -84,7 +114,7 @@ export function serializeGoalListItem(
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
-    area: item.area,
+    area: serializeGoalArea(item.area),
   };
 }
 
@@ -99,7 +129,7 @@ export function serializeGoalOverview(
     completedAt: overview.completedAt
       ? overview.completedAt.toISOString()
       : null,
-    area: overview.area,
+    area: serializeGoalArea(overview.area),
   };
 }
 

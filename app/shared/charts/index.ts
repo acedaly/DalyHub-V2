@@ -28,3 +28,9 @@ export {
   type ComparisonBarsProps,
   type ComparisonBarsPoint,
 } from "./ComparisonBars";
+/* UIX-03 — the card-sized trend, for surfaces a full chart cannot reach. */
+export {
+  Sparkline,
+  type SparklineProps,
+  type SparklinePoint,
+} from "./Sparkline";

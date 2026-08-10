@@ -33,16 +33,23 @@ import { EmptyState } from "~/shared/empty-state";
 import { useFeedback } from "~/shared/feedback";
 import { GoalIcon, TrashIcon } from "~/shared/icons";
 import {
-  GoalProgressReadout,
   formatMeasurementChange,
   formatMeasurementValue,
   formatPacePerWeek,
   goalCheckInLabel,
+  goalJourneyLabel,
+  goalOverTargetLabel,
   goalPaceLabel,
+  goalProgressStatusLabel,
+  goalProgressStatusTone,
+  goalProgressSummaryText,
+  goalRemainingLabel,
   goalTrendSummaryText,
   type SerializedGoalMeasurement,
   type SerializedGoalMilestone,
 } from "~/shared/goal-progress";
+import { StatusPill } from "~/shared/pill";
+import { ProgressTrack } from "~/shared/progress";
 import { ConfirmationDialog } from "~/shared/settings";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
@@ -126,6 +133,102 @@ export function GoalMeasurementPanel(props: GoalMeasurementPanelProps) {
 /* Header                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * UIX-03 — the metric strip: START, NOW, TARGET and what remains, side by side.
+ *
+ * This replaces a single run-on line ("38% · 9.3 kg remaining · ↓ 5.7 kg from
+ * baseline") in which the current value was the only thing set at display size
+ * and the baseline — the number the percentage is measured FROM — was the last
+ * clause of a sentence. A Goal record has to answer "where did I start, where
+ * am I, where am I going" in one look, and three labelled figures answer it in
+ * the order the question is asked.
+ *
+ * NOW is deliberately larger than its neighbours. Start and Target are fixed
+ * facts the owner chose; the current value is the one that moved, and it is why
+ * they opened the page.
+ *
+ * Every figure is rendered only when the evaluator produced one. A Goal with no
+ * baseline shows two columns rather than a column reading "—", because a dash
+ * is a value and an absent start is an absence.
+ */
+function MetricStrip({
+  progress,
+}: {
+  readonly progress: GoalProgressEvaluation;
+}) {
+  const milestone = progress.type === "milestone";
+  /*
+   * A MANUAL Goal has no owner-chosen start or target.
+   *
+   * The kernel normalises it to baseline 0 / target 100 because a manual
+   * percentage IS a 0–100 increase — that is the SCALE, not a decision anybody
+   * made. Printing "Start 0%" and "Target 100%" beside the reading would dress
+   * two arithmetic constants up as the owner's own plan, which is the same
+   * reason `goalTargetLabel` refuses to name a manual Goal's target. Its strip
+   * is the reading and what is left of the hundred.
+   */
+  const scaleOnly = milestone || progress.type === "manual";
+  const cells: {
+    key: string;
+    label: string;
+    value: string;
+    lead?: boolean;
+  }[] = [];
+
+  if (!scaleOnly && progress.baseline !== null) {
+    cells.push({
+      key: "start",
+      label: "Start",
+      value: formatMeasurementValue(progress.baseline, progress.unit),
+    });
+  }
+  cells.push({
+    key: "now",
+    label: milestone ? "Stages complete" : "Now",
+    lead: true,
+    value:
+      progress.current === null
+        ? "—"
+        : milestone
+          ? `${progress.current} of ${progress.target ?? 0}`
+          : formatMeasurementValue(progress.current, progress.unit),
+  });
+  if (!scaleOnly && progress.target !== null) {
+    cells.push({
+      key: "target",
+      label: "Target",
+      value: formatMeasurementValue(progress.target, progress.unit),
+    });
+  }
+  /*
+   * The fourth column is REMAINING while there is a distance to cover, and the
+   * over-target reading once there is not — "113% of target" is the news at
+   * that point, and "0 kg remaining" is not.
+   */
+  const over = goalOverTargetLabel(progress);
+  const remaining = goalRemainingLabel(progress);
+  if (over) {
+    cells.push({ key: "over", label: "Achieved", value: over });
+  } else if (remaining) {
+    cells.push({ key: "remaining", label: "Remaining", value: remaining });
+  }
+
+  return (
+    <dl className="dh-goal-measure__metrics" data-testid="goal-metrics">
+      {cells.map((cell) => (
+        <div
+          key={cell.key}
+          className="dh-goal-measure__metric"
+          data-lead={cell.lead ? "true" : undefined}
+        >
+          <dt>{cell.label}</dt>
+          <dd>{cell.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function ProgressHeader({
   goalTitle,
   progress,
@@ -133,15 +236,43 @@ function ProgressHeader({
   onConfigure,
 }: GoalMeasurementPanelProps) {
   const label = goalCheckInLabel(progress.type, progress.unit);
-  const change = formatMeasurementChange(progress.totalChange, progress.unit);
+  const summary = goalProgressSummaryText(progress);
+  const journey = goalJourneyLabel(progress);
+
   return (
     <header className="dh-goal-measure__head">
-      <GoalProgressReadout
-        progress={progress}
-        label={`${goalTitle} progress`}
-        size="hero"
-        trailing={change ? `${change} from baseline` : null}
-      />
+      <div className="dh-goal-measure__headline">
+        <MetricStrip progress={progress} />
+        {/*
+          The bar and the state, on one line beneath the figures.
+
+          It is the shared `ProgressTrack`, so the announced sentence is the same
+          one every other surface announces for this Goal, and the percentage is
+          printed beside it rather than left to the bar's length.
+        */}
+        {progress.progressPercent !== null ? (
+          <div className="dh-goal-measure__bar">
+            <ProgressTrack
+              className="dh-goal-measure__track"
+              label={`${goalTitle} progress`}
+              percent={progress.progressPercent}
+              valueText={summary}
+              complete={progress.achieved}
+            />
+            <span className="dh-goal-measure__percent">
+              {progress.progressPercent}%
+            </span>
+          </div>
+        ) : null}
+        <p className="dh-goal-measure__state">
+          <StatusPill tone={goalProgressStatusTone(progress.status)}>
+            {goalProgressStatusLabel(progress.status)}
+          </StatusPill>
+          {journey ? (
+            <span className="dh-goal-measure__journey">{journey}</span>
+          ) : null}
+        </p>
+      </div>
       <div className="dh-goal-measure__actions">
         {progress.type === "milestone" ? null : (
           <button
@@ -211,13 +342,16 @@ function PaceFacts({
       value: projected,
     });
   }
-  if (progress.targetDate) {
-    facts.push({
-      key: "target-date",
-      label: "Target date",
-      value: formatCalendarDate(progress.targetDate) ?? progress.targetDate,
-    });
-  }
+  /*
+   * UIX-03 — the target DATE is not repeated here.
+   *
+   * The record header already states it, as the one editable control for it
+   * (RECORD-01 put it in the context line precisely so it would be stated
+   * once). Printing it a third time — after the header and beside a "Projected
+   * target" it is meant to be compared with — was the stat duplication this
+   * pass is removing, and it made the two dates read as a pair of equals when
+   * one is a commitment and the other an extrapolation.
+   */
   if (facts.length === 0) return null;
 
   return (
@@ -292,6 +426,18 @@ function TrendSection({
   const first = measurements[0]!;
   const last = measurements[measurements.length - 1]!;
 
+  /*
+   * UIX-03 — the axis range now describes the PLOTTED domain, not merely the
+   * readings.
+   *
+   * The chart scales to include the target (see `TrendLine`), so labelling the
+   * axis "79.3 kg – 85 kg" while the plot actually spans down to 70 kg would
+   * make the one piece of text on the chart contradict the drawing beside it.
+   */
+  const domain = [...values];
+  if (progress.target !== null) domain.push(progress.target);
+  if (progress.baseline !== null) domain.push(progress.baseline);
+
   return (
     <div className="dh-goal-measure__chart">
       <TrendLine
@@ -303,6 +449,7 @@ function TrendSection({
             value: measurement.value,
             measuredOn: measurement.measuredOn,
           })),
+          (iso) => formatCalendarDate(iso) ?? iso,
         )}
         target={
           progress.target === null
@@ -310,12 +457,38 @@ function TrendSection({
             : {
                 value: progress.target,
                 label: `Target ${formatMeasurementValue(progress.target, progress.unit)}.`,
+                // Pinned to the rule itself, so the dashed line is named where
+                // it is drawn rather than in a sentence three lines below.
+                tag: `Target ${formatMeasurementValue(progress.target, progress.unit)}`,
               }
+        }
+        /*
+         * Where the owner started, as the chart's second reference.
+         *
+         * Only when it is a value the owner actually configured. When the
+         * baseline is merely the earliest READING it is already the line's own
+         * first point, and drawing a rule through it would be a reference line
+         * that says nothing the data has not already said.
+         */
+        baseline={
+          progress.baseline === null ||
+          progress.baseline === measurements[0]?.value
+            ? null
+            : {
+                value: progress.baseline,
+                label: `Started at ${formatMeasurementValue(progress.baseline, progress.unit)}.`,
+                tag: `Start ${formatMeasurementValue(progress.baseline, progress.unit)}`,
+              }
+        }
+        describePoint={(point) =>
+          `${formatMeasurementValue(point.value, progress.unit)} on ${
+            formatCalendarDate(point.date) ?? point.date
+          }`
         }
         startLabel={formatCalendarDate(first.measuredOn) ?? first.measuredOn}
         endLabel={formatCalendarDate(last.measuredOn) ?? last.measuredOn}
-        lowLabel={formatMeasurementValue(Math.min(...values), progress.unit)}
-        highLabel={formatMeasurementValue(Math.max(...values), progress.unit)}
+        lowLabel={formatMeasurementValue(Math.min(...domain), progress.unit)}
+        highLabel={formatMeasurementValue(Math.max(...domain), progress.unit)}
       />
     </div>
   );
@@ -594,7 +767,17 @@ function UnmeasuredState({
 }) {
   return (
     <section
-      className="dh-goal-measure"
+      /*
+       * No workspace SURFACE for this state.
+       *
+       * The measured panel earns a card because it holds a metric strip, a bar,
+       * pace facts, a chart and a history. This state holds one `EmptyState`,
+       * which brings its own container — so painting the card underneath it
+       * would be a bordered box inside a bordered box, which is precisely the
+       * nesting UIX-03 moved this whole region out of the summary band to
+       * remove.
+       */
+      className="dh-goal-measure dh-goal-measure--bare"
       aria-label="Progress"
       data-testid="goal-progress"
     >

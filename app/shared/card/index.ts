@@ -116,6 +116,13 @@ export {
   type ProjectCardProps,
   type ProjectCardTone,
 } from "./ProjectCard";
+/*
+ * UIX-03 — the third family, for the same reason there is a second: a Goal is
+ * an OUTCOME being moved toward, which is a different question from a
+ * Project's "how is this work going?". It lives here rather than in the Goals
+ * module because Today and an Area's Goals tab render it too.
+ */
+export { GoalCard, type GoalCardProps, type GoalCardTone } from "./GoalCard";
 export { EntityRow, EntityRowList, type EntityRowProps } from "./EntityRowList";
 export { CardMetaFact, type CardMetaFactProps } from "./CardMetaFact";
 export {

@@ -48,7 +48,7 @@ function overview(
     createdAt: "2026-07-01T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
     completedAt: null,
-    area: { id: "a1", title: "Health" },
+    area: { id: "a1", title: "Health", colourRank: 0, iconKey: null },
     ...over,
   };
 }
@@ -363,7 +363,15 @@ describe("GoalOverview", () => {
     const onOpenProject = vi.fn();
     renderGoal({ projects: [project()], onOpenProject });
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
-    expect(screen.getByText("Task roll-up: 1 of 4 tasks")).toBeInTheDocument();
+    /*
+     * UIX-03 — the roll-up is stated ONCE, as the bar's label.
+     *
+     * The row used to carry "Tasks: 1 of 4 tasks" as metadata AND "Task
+     * roll-up: 1 of 4 tasks" beneath it as the bar's label: one fact, twice, on
+     * a row whose whole job is to be a compact pointer at a Project.
+     */
+    expect(screen.getByText("1 of 4 tasks")).toBeInTheDocument();
+    expect(screen.queryByText(/Task roll-up/)).toBeNull();
     fireEvent.click(
       screen.getByRole("link", { name: "Open 12-week training plan" }),
     );

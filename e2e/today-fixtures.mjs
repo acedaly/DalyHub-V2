@@ -124,6 +124,14 @@ function clearFixtures() {
   push(
     `DELETE FROM activities WHERE workspace_id = ${ws} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
   );
+  // The two GOAL-02 measurable-Goal tables are cleared FIRST: both hold a
+  // RESTRICT foreign key to `entities`, so a Goal a previous run measured
+  // cannot be deleted while its readings survive.
+  for (const table of ["goal_measurements", "goal_milestones"]) {
+    push(
+      `DELETE FROM ${table} WHERE workspace_id = ${ws} AND entity_id IN (${sel});`,
+    );
+  }
   for (const table of [
     "task_details",
     "meeting_details",
@@ -228,12 +236,63 @@ function project(
   }
 }
 
-function goal(id, title, { areaId = "tf-area-work" } = {}) {
-  entity(id, "goal", title);
-  spine(id, "goal");
+/**
+ * One Goal, optionally MEASURABLE (GOAL-02).
+ *
+ * The measurement options mirror the kernel's own normalisation rules
+ * (`normalizeGoalMeasurementConfig`) rather than inventing a second model:
+ * `direction` is INFERRED from baseline and target exactly as the product
+ * infers it, so a fixture can never seed a configuration the UI could not have
+ * produced. `measurements` are `[value, dayOffset]` pairs positioned relative to
+ * the owner's calendar day, which is what keeps a seeded trend the same trend
+ * whenever it is run.
+ */
+function goal(
+  id,
+  title,
+  {
+    areaId = "tf-area-work",
+    targetDate = addDays(TODAY, 60),
+    definitionOfDone = "A calm, measurable finish line.",
+    measurementType = null,
+    unit = null,
+    baselineValue = null,
+    targetValue = null,
+    measurements = [],
+    milestones = [],
+    completedAt = null,
+    createdAt = null,
+  } = {},
+) {
+  entity(id, "goal", title, { createdAt: createdAt ?? undefined });
+  spine(id, "goal", completedAt);
+  // The kernel's inference, mirrored: 85 → 70 decreases, 0 → 12 increases.
+  const direction =
+    measurementType === null
+      ? null
+      : baselineValue !== null &&
+          targetValue !== null &&
+          targetValue < baselineValue
+        ? "decrease"
+        : "increase";
   push(
-    `INSERT INTO goal_details (workspace_id, entity_id, entity_type, target_date, definition_of_done, updated_at) VALUES (${ws}, ${q(id)}, 'goal', ${q(addDays(TODAY, 60))}, ${q("A calm, measurable finish line.")}, ${q(stamp())});`,
+    `INSERT INTO goal_details (workspace_id, entity_id, entity_type, target_date, definition_of_done, updated_at, measurement_type, measurement_unit, measurement_direction, baseline_value, target_value) VALUES (${ws}, ${q(id)}, 'goal', ${q(targetDate)}, ${q(definitionOfDone)}, ${q(stamp())}, ${q(measurementType)}, ${q(unit)}, ${q(direction)}, ${baselineValue === null ? "NULL" : baselineValue}, ${targetValue === null ? "NULL" : targetValue});`,
   );
+  for (const [
+    index,
+    [value, dayOffset, note = null],
+  ] of measurements.entries()) {
+    const at = stamp();
+    push(
+      `INSERT INTO goal_measurements (workspace_id, id, entity_id, entity_type, value, measured_on, note, created_at, updated_at) VALUES (${ws}, ${q(`${id}-m-${index + 1}`)}, ${q(id)}, 'goal', ${value}, ${q(addDays(TODAY, dayOffset))}, ${q(note)}, ${q(at)}, ${q(at)});`,
+    );
+  }
+  for (const [index, [stageTitle, doneOffset = null]] of milestones.entries()) {
+    const at = stamp();
+    push(
+      `INSERT INTO goal_milestones (workspace_id, id, entity_id, entity_type, title, weight, position, completed_at, created_at, updated_at) VALUES (${ws}, ${q(`${id}-s-${index + 1}`)}, ${q(id)}, 'goal', ${q(stageTitle)}, 1, ${index}, ${doneOffset === null ? "NULL" : q(ownerInstant(addDays(TODAY, doneOffset), 9, 0))}, ${q(at)}, ${q(at)});`,
+    );
+  }
   if (areaId) {
     link(`${id}-l-area`, id, areaId, "goal.belongs_to_area");
   }
@@ -848,6 +907,286 @@ function gallery() {
   );
 }
 
+/**
+ * UIX-03 — the GOALS day: one Goal for every branch the progress engine has.
+ *
+ * The `gallery` scenario seeds Areas and Projects, and its two Goals carry no
+ * measurement at all — the right dataset for judging a Projects gallery and the
+ * wrong one for judging a Goals gallery, where the whole question is whether a
+ * measurable outcome reads at a glance. So this scenario seeds NINE Goals chosen
+ * to cover each distinct thing the evaluator can conclude, rather than nine
+ * variations on "in progress":
+ *
+ *   - DECREASING with history and an honest mid-series backslide (weight);
+ *   - INCREASING currency, comfortably ahead of its own schedule (savings);
+ *   - ACCUMULATION behind its schedule, i.e. the "Needs attention" card (books);
+ *   - MILESTONE, part-complete, which is the only type with no readings at all;
+ *   - TARGET EXCEEDED, so the bar caps at 100% while the value keeps its truth;
+ *   - CONFIGURED BUT NOT STARTED, which must not paint a 0% bar;
+ *   - a STALE Goal, measured once months ago;
+ *   - a COMPLETED Goal, so the finished state is on the page;
+ *   - a LEGACY QUALITATIVE Goal with no measurement, which is every Goal that
+ *     existed before GOAL-02 and must still render with dignity.
+ *
+ * Every figure is a row the product reads. Nothing here is a display string:
+ * the percentages, the statuses and the trends in the screenshots are all
+ * computed by the same kernel evaluator production runs.
+ */
+function goals() {
+  // Areas are parked for the same reason `gallery` parks them: the shared dev
+  // seed's lifecycle-test Areas would otherwise be most of the identity on the
+  // page. Reversible through the same sentinel.
+  push(
+    `UPDATE entities SET deleted_at = ${q(PARK_SENTINEL)} WHERE workspace_id = ${ws} AND type = 'area' AND deleted_at IS NULL;`,
+  );
+
+  area("tf-area-health", "Health & Fitness", { iconKey: "target" });
+  area("tf-area-finance", "Finance", { iconKey: "subscription" });
+  area("tf-area-learning", "Learning & Development", { iconKey: "idea" });
+  area("tf-area-home", "Home & Family", { iconKey: "property" });
+  area("tf-area-work", "Work & Career", { iconKey: "document" });
+
+  /*
+   * The brief's own acceptance Goal. Started 61 days ago against a target date
+   * 122 days out, so a third of the schedule has elapsed against 38% of the
+   * distance covered — which is what makes "On track" a derived conclusion here
+   * rather than a seeded label. The series dips and recovers (80.1 → 80.6) so
+   * the chart has a real backslide to draw honestly.
+   */
+  goal("tf-goal-weight", "Reach 70 kg", {
+    areaId: "tf-area-health",
+    createdAt: ownerInstant(addDays(TODAY, -61), 8, 0),
+    targetDate: addDays(TODAY, 122),
+    definitionOfDone:
+      "Sustainably at 70 kg, holding it for a month without tracking every meal.",
+    measurementType: "target_value",
+    unit: "kg",
+    baselineValue: 85,
+    targetValue: 70,
+    measurements: [
+      [85.0, -61],
+      [83.4, -54],
+      [82.1, -47],
+      [81.2, -38],
+      [80.1, -31, "Held steady through a travel week."],
+      [80.6, -24],
+      [79.8, -17],
+      [79.5, -9],
+      [79.3, -2],
+    ],
+  });
+
+  /* Increasing, currency-formatted, and ahead of its own straight line. */
+  goal("tf-goal-savings", "Save $15,000 emergency fund", {
+    areaId: "tf-area-finance",
+    createdAt: ownerInstant(addDays(TODAY, -90), 8, 0),
+    targetDate: addDays(TODAY, 210),
+    definitionOfDone:
+      "Six months of essential expenses, in the offset account.",
+    measurementType: "target_value",
+    unit: "$",
+    baselineValue: 0,
+    targetValue: 15000,
+    measurements: [
+      [0, -90],
+      [1200, -76],
+      [2650, -62],
+      [3900, -45],
+      [5300, -31],
+      [6100, -18],
+      [7240, -4],
+    ],
+  });
+
+  /*
+   * Accumulation, and deliberately BEHIND: 42% of the reading done with 83% of
+   * the year gone. This is the Goal that proves "Needs attention" is derived
+   * from the owner's own schedule and not from a mood.
+   */
+  goal("tf-goal-books", "Read 12 books", {
+    areaId: "tf-area-learning",
+    createdAt: ownerInstant(addDays(TODAY, -150), 8, 0),
+    targetDate: addDays(TODAY, 30),
+    definitionOfDone: "Twelve finished — started-and-abandoned does not count.",
+    measurementType: "accumulation",
+    unit: "books",
+    baselineValue: 0,
+    targetValue: 12,
+    measurements: [
+      [1, -132],
+      [2, -104],
+      [3, -80],
+      [4, -47],
+      [5, -21],
+    ],
+  });
+
+  /* The one type with no readings: progress comes from completed stages. */
+  goal("tf-goal-halfmarathon", "Run a half-marathon", {
+    areaId: "tf-area-health",
+    createdAt: ownerInstant(addDays(TODAY, -70), 8, 0),
+    targetDate: addDays(TODAY, 96),
+    definitionOfDone: "Finish the September half, running the whole way.",
+    measurementType: "milestone",
+    milestones: [
+      ["Run 5 km without stopping", -56],
+      ["Run 10 km without stopping", -21],
+      ["Run 15 km", null],
+      ["Run 18 km", null],
+      ["Race day", null],
+    ],
+  });
+
+  /* Over target: 1,130 km against 1,000. The bar caps; the value does not. */
+  goal("tf-goal-walk", "Walk 1,000 km this year", {
+    areaId: "tf-area-health",
+    createdAt: ownerInstant(addDays(TODAY, -190), 8, 0),
+    targetDate: addDays(TODAY, 40),
+    definitionOfDone: "A thousand kilometres on foot, cumulative.",
+    measurementType: "accumulation",
+    unit: "km",
+    baselineValue: 0,
+    targetValue: 1000,
+    measurements: [
+      [210, -160],
+      [430, -120],
+      [620, -85],
+      [810, -50],
+      [975, -20],
+      [1130, -3],
+    ],
+  });
+
+  /* Configured, nothing recorded. Must render an invitation, never a 0% bar. */
+  goal("tf-goal-screen", "Cut screen time to 90 minutes a day", {
+    areaId: "tf-area-home",
+    createdAt: ownerInstant(addDays(TODAY, -9), 8, 0),
+    targetDate: addDays(TODAY, 84),
+    definitionOfDone: "Ninety minutes of non-work screen time on a weekday.",
+    measurementType: "target_value",
+    unit: "minutes",
+    baselineValue: 165,
+    targetValue: 90,
+  });
+
+  /* Measured once, months ago — "No recent update", which is not a judgement. */
+  goal("tf-goal-spanish", "Reach B1 Spanish", {
+    areaId: "tf-area-learning",
+    createdAt: ownerInstant(addDays(TODAY, -220), 8, 0),
+    targetDate: addDays(TODAY, 150),
+    definitionOfDone: "Hold a fifteen-minute conversation without switching.",
+    measurementType: "manual",
+    measurements: [
+      [20, -190],
+      [35, -96],
+    ],
+  });
+
+  /* Finished, and explicitly completed — the dignified end state. */
+  goal("tf-goal-deposit", "Save the house deposit", {
+    areaId: "tf-area-finance",
+    createdAt: ownerInstant(addDays(TODAY, -320), 8, 0),
+    targetDate: addDays(TODAY, -12),
+    definitionOfDone: "Twenty per cent, plus costs.",
+    measurementType: "target_value",
+    unit: "$",
+    baselineValue: 0,
+    targetValue: 60000,
+    completedAt: ownerInstant(addDays(TODAY, -12), 17, 0),
+    measurements: [
+      [18000, -280],
+      [31500, -200],
+      [44000, -120],
+      [55200, -48],
+      [60400, -14],
+    ],
+  });
+
+  /*
+   * The legacy Goal: no measurement, no numbers, and genuinely not measurable.
+   * Its story is its definition of done and the work underneath it, and the
+   * redesign has to make that a dignified card rather than an empty one.
+   */
+  goal("tf-goal-family", "Be more present with the kids", {
+    areaId: "tf-area-home",
+    createdAt: ownerInstant(addDays(TODAY, -40), 8, 0),
+    targetDate: null,
+    definitionOfDone:
+      "Phone in the drawer between school pick-up and bedtime, most days.",
+  });
+
+  /* ---- Supporting work, so the relationship sections have real content --- */
+
+  project("tf-proj-nutrition", "Rebuild eating habits", {
+    goal: "tf-goal-weight",
+    iconKey: "target",
+  });
+  task("tf-t-nut-1", "Plan next week's dinners", {
+    project: "tf-proj-nutrition",
+    due: addDays(TODAY, 1),
+  });
+  task("tf-t-nut-2", "Restock the pantry staples", {
+    project: "tf-proj-nutrition",
+    due: addDays(TODAY, 3),
+  });
+  for (const [i, title] of [
+    "Set up the food diary",
+    "Book the dietitian",
+    "Clear the treat cupboard",
+  ].entries()) {
+    task(`tf-t-nut-done-${i + 1}`, title, {
+      project: "tf-proj-nutrition",
+      completedAt: ownerInstant(addDays(TODAY, -(i + 2)), 10, 0),
+    });
+  }
+  activity(
+    "tf-act-nut-1",
+    "task.completed",
+    "tf-t-nut-done-1",
+    ownerInstant(addDays(TODAY, -2), 10, 0),
+    ["tf-proj-nutrition"],
+  );
+
+  project("tf-proj-training", "Build a running base", {
+    goal: "tf-goal-weight",
+    iconKey: "board",
+  });
+  task("tf-t-run-1", "Thursday interval session", {
+    project: "tf-proj-training",
+    due: addDays(TODAY, 2),
+  });
+  task("tf-t-run-done-1", "Buy new shoes", {
+    project: "tf-proj-training",
+    completedAt: ownerInstant(addDays(TODAY, -5), 9, 0),
+  });
+
+  project("tf-proj-budget", "Tighten the monthly budget", {
+    goal: "tf-goal-savings",
+    iconKey: "subscription",
+  });
+  task("tf-t-bud-1", "Cancel the unused subscriptions", {
+    project: "tf-proj-budget",
+    due: addDays(TODAY, 4),
+  });
+
+  project("tf-proj-reading", "Reading habit", {
+    goal: "tf-goal-books",
+    iconKey: "idea",
+  });
+  task("tf-t-read-1", "Twenty minutes before bed", {
+    project: "tf-proj-reading",
+  });
+
+  project("tf-proj-family", "Evening routine", {
+    goal: "tf-goal-family",
+    iconKey: "property",
+  });
+  task("tf-t-fam-1", "Agree the phone-in-the-drawer rule", {
+    project: "tf-proj-family",
+    due: addDays(TODAY, 5),
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Runner                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -858,6 +1197,7 @@ const SCENARIOS = {
   heavy,
   empty,
   gallery,
+  goals,
 };
 
 const scenario = process.argv[2] ?? "typical";

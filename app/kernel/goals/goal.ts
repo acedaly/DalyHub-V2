@@ -12,10 +12,24 @@
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 import type { WorkspaceId } from "~/kernel/workspaces";
 
-/** The Goal's resolved parent Area (current title, never copied). */
+/**
+ * The Goal's resolved parent Area (current title, never copied).
+ *
+ * UIX-03 adds the Area's IDENTITY alongside its name. A Goal has no accent of
+ * its own — it inherits its Area's, exactly as a Project does (ADR-068 decision
+ * 5, `AccentIcon`) — so a gallery of Goals groups visually by the part of life
+ * each one serves without needing a heading. Both fields are read from the same
+ * Area join the title already comes from, so they cost no extra query, and both
+ * are nullable: a read that does not rank the Area yields the neutral container
+ * rather than a colour that would mean nothing.
+ */
 export type GoalAreaContext = {
   readonly id: string;
   readonly title: string;
+  /** The Area's stable 0-based colour rank, or `null` for the neutral container. */
+  readonly colourRank?: number | null;
+  /** The Area's chosen icon key, normalised at the storage boundary. */
+  readonly iconKey?: string | null;
 };
 
 /** The canonical Goal record header, resolved from the spine + its Area link. */

@@ -27,6 +27,7 @@
 
 import type {
   GoalMeasurement,
+  GoalMeasurementPoint,
   GoalMeasurementSummary,
   GoalMilestone,
   GoalMilestoneSummary,
@@ -45,6 +46,16 @@ export type GoalMeasurementSummaryInput = {
    * rather than against the second-newest row whenever that happens to be.
    */
   readonly comparisonFromIso: string;
+};
+
+/** Options for the batched sparkline-series read. */
+export type GoalMeasurementSeriesInput = {
+  /**
+   * The most readings any ONE Goal contributes, newest kept. A card-sized
+   * sparkline resolves nothing beyond a couple of dozen points at 100px wide,
+   * so this is a display bound as much as a query bound.
+   */
+  readonly perGoalLimit: number;
 };
 
 export interface GoalMeasurementRepository {
@@ -69,6 +80,31 @@ export interface GoalMeasurementRepository {
     goalIds: readonly string[],
     input: GoalMeasurementSummaryInput,
   ): Promise<Map<string, GoalMeasurementSummary>>;
+
+  /**
+   * UIX-03 — the batched SPARKLINE series: each Goal's most recent readings,
+   * chronologically ascending, capped per Goal.
+   *
+   * The summary above carries three readings chosen for arithmetic (first,
+   * comparison, latest), which is the right shape for a percentage and the
+   * wrong one for a SHAPE: three points drawn as a line assert a smooth path
+   * through a history that may have wandered. A card-sized trend needs the
+   * recent run of readings, and it needs them for a page of Goals at once.
+   *
+   * Bounded twice over, so this cannot become the "load everything" read the
+   * summary exists to avoid: the caller's page of ids, and a hard per-Goal cap
+   * applied inside the window function rather than in JavaScript — a Goal with a
+   * year of daily weigh-ins contributes `perGoalLimit` rows to the result, not
+   * 365. Still a fixed, small number of statements; never one per Goal.
+   *
+   * A Goal with fewer than two readings may be absent, or present with one
+   * point: the caller draws no sparkline either way, and asking it to tell the
+   * difference would be a distinction with no consequence.
+   */
+  listMeasurementSeries(
+    goalIds: readonly string[],
+    input: GoalMeasurementSeriesInput,
+  ): Promise<Map<string, readonly GoalMeasurementPoint[]>>;
 
   /* ---- measurements: write ----------------------------------------------- */
 

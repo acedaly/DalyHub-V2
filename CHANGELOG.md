@@ -17,6 +17,54 @@ no version number to group them under.
 
 ---
 
+## Goals now show where you are, where you started, and how far is left (UIX-03)
+
+Goals could already track a real measurement — a weight, a savings balance, a
+count of books — but the screens barely used it. A Goal looked like a Project
+card with a percentage on it, every Goal wore the same grey flag, and the chart
+on a Goal's page did not show the target you were aiming at. That is fixed.
+
+**The Goals page.** Each Goal now leads with its actual reading — `79.3 kg`,
+`$7,240`, `5 books` — with the whole journey underneath it: _from 85 kg → 70 kg_.
+That one line is what lets you check the percentage instead of trusting it. Under
+that sits a thin bar, then the state, what is left, and the date you set:
+_On track · 9.3 kg to go · by 10 Dec 2026_.
+
+**Colour that means something.** A Goal now takes the colour and the icon of the
+Area it belongs to, so a page of Goals groups by the part of your life each one
+serves before you read a word. The same Goal is the same colour on Today.
+
+**A small chart on the card.** Where a Goal has enough history, the card draws
+the shape of it beside the number. Where it does not, it does not draw a line —
+one measurement is a value, not a direction.
+
+**Four views.** _All_, _On track_, _Needs attention_ and _Completed_, so you can
+ask "which of these needs me?" without reading all of them.
+
+**The chart on a Goal's page now includes the target.** Before, a weight goal's
+chart showed the last few kilograms and nothing else — the 70 kg you were aiming
+at was off the bottom of the picture. The target is now part of the chart, which
+means the empty space between your line and the dashed target line _is_ the
+distance you have left. Point at the chart (or use the arrow keys) to read any
+measurement. There is a dotted line for where you started, too.
+
+**The page leads with your progress.** A Goal's numbers, chart and history used
+to sit inside the summary box, below the definition of done. They are now the
+first thing on the page, and they open with four labelled figures — **Start**,
+**Now**, **Target**, **Remaining** — instead of one long sentence. Once you pass
+your target, _Remaining_ becomes _113% of target_.
+
+**Smaller things.**
+
+- A Goal you have not told DalyHub how to measure now shows what it is _for_ —
+  its definition of done — instead of an empty progress bar.
+- A Goal tracked as a plain percentage no longer claims a "Target 100%" you
+  never set.
+- A Goal you have already passed no longer tells you the pace required to reach
+  it.
+- A completed Goal is no longer greyed out. Finishing one is the best news on
+  the page.
+
 ## Editing a task from the list works again (EDIT-03)
 
 Changing a task's **priority**, **project** or **due date** from the Tasks list

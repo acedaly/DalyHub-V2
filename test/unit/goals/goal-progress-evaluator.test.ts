@@ -317,6 +317,23 @@ describe("trend and pace", () => {
     expect(result.requiredChangePerWeek).toBeNull();
   });
 
+  it("has no required pace once the target has been REACHED", () => {
+    /*
+     * The arithmetic happily continues past the target and flips the sign: a
+     * reading beyond the goal produced a required pace pointing backwards
+     * ("−22.75 km/week" for 1,130 km against a 1,000 km target), which reads as
+     * an instruction to undo the achievement. There is no pace required to
+     * reach something already reached.
+     */
+    const result = evaluate(
+      [point("2026-08-09", 66)],
+      {},
+      { targetDate: "2026-12-31" },
+    );
+    expect(result.achieved).toBe(true);
+    expect(result.requiredChangePerWeek).toBeNull();
+  });
+
   it("projects a completion date only when the pace moves towards the target", () => {
     const towards = evaluate([
       point("2026-07-12", 81),

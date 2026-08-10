@@ -23,7 +23,20 @@ import {
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
-import { evaluateGoalFromSummary } from "~/shared/goal-progress";
+import {
+  evaluateGoalFromSummary,
+  parseGoalCollectionView,
+} from "~/shared/goal-progress";
+
+/**
+ * How many readings a gallery card's sparkline is drawn from.
+ *
+ * Twelve. A card's chart is roughly 100px wide, where more points are pixels
+ * rather than information, and the recent run is what a "which way is this
+ * going?" glance is asking about — a two-year-old reading would only flatten
+ * the shape of the last few months.
+ */
+const GOAL_CARD_SPARKLINE_POINTS = 12;
 
 import { GoalsCollectionView } from "../GoalsCollection";
 import type {
@@ -58,6 +71,21 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor") ?? undefined;
   const state = parseState(url.searchParams.get("state"));
+  /*
+   * UIX-03 — the status view is parsed here and applied on the CLIENT, over the
+   * Goals already loaded.
+   *
+   * It is deliberately not a query filter. The collection's order is the
+   * workspace-wide alignment ranking established before pagination (DEBT-23),
+   * and its cursor is bound to that window; adding a status predicate to the
+   * SQL would need a second ranking, a second cursor scope and a status the
+   * database can compute — and the status is a KERNEL derivation over
+   * measurements, dates and the owner's calendar, which SQL has no business
+   * reproducing. Narrowing the loaded page keeps one source of truth for the
+   * word on the card and the tab that counts it; the subtitle already states
+   * that counts describe what is loaded.
+   */
+  const view = parseGoalCollectionView(url.searchParams.get("view"));
 
   // PX-04 — the honest "Deleted" view. A soft-deleted Goal is an ordinary
   // soft-deleted ENTITY (the spine stores identity, title and `deletedAt` on
@@ -80,6 +108,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         })) as readonly SerializedDeletedGoalItem[],
         nextCursor: page.nextCursor,
         state,
+        view,
         failed: false,
       };
     } catch {
@@ -88,6 +117,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         deletedGoals: [] as readonly SerializedDeletedGoalItem[],
         nextCursor: null as string | null,
         state,
+        view,
         failed: true,
       };
     }
@@ -140,6 +170,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       contributions,
       activityFacts,
       measurementSummaries,
+      measurementSeries,
       milestoneSummaries,
       detailsById,
     ] = await Promise.all([
@@ -147,6 +178,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       scope.alignment.listGoalAlignmentFacts(ids, { recentWindowStartIso }),
       scope.goalMeasurements.listMeasurementSummaries(ids, {
         comparisonFromIso,
+      }),
+      /*
+       * UIX-03 — the card's SPARKLINE, one grouped statement for the page.
+       *
+       * The summary above holds three readings chosen for arithmetic; drawing
+       * those three as a line would assert a smooth path through a history that
+       * may have wandered. This is the recent run, capped per Goal so the read
+       * stays bounded (`GOAL_CARD_SPARKLINE_POINTS`), and it is used ONLY to
+       * draw — every figure on the card still comes from the summary-based
+       * evaluation, so the picture and the percentage cannot disagree.
+       */
+      scope.goalMeasurements.listMeasurementSeries(ids, {
+        perGoalLimit: GOAL_CARD_SPARKLINE_POINTS,
       }),
       scope.goalMeasurements.listMilestoneSummaries(ids),
       scope.goalDetails.listMany(ids),
@@ -186,6 +230,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           completed: item.completedAt !== null,
           todayIso: evaluation.todayIso,
         }),
+        series: (measurementSeries.get(item.id) ?? []).map((point) => ({
+          value: point.value,
+          measuredOn: point.measuredOn,
+        })),
+        // Already in hand from `listMany` above — the card uses it only when
+        // there is no reading to show.
+        definitionOfDone: details?.definitionOfDone ?? null,
       };
     });
 
@@ -194,6 +245,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: page.nextCursor,
       state,
+      view,
       failed: false,
     };
   } catch {
@@ -202,6 +254,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: null as string | null,
       state,
+      view,
       failed: true,
     };
   }
@@ -214,6 +267,7 @@ export default function GoalsRoute({ loaderData }: Route.ComponentProps) {
       deletedGoals={loaderData.deletedGoals}
       nextCursor={loaderData.nextCursor}
       state={loaderData.state}
+      view={loaderData.view}
       failed={loaderData.failed}
     />
   );

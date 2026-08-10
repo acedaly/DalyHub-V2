@@ -48,6 +48,8 @@ function goal(over: {
     id: "g1",
     title: "Reach 70 kg",
     areaTitle: "Health & Fitness",
+    areaColourRank: 0,
+    areaIconKey: null,
     progress,
     changeInWindow: null,
     windowDays: 30,

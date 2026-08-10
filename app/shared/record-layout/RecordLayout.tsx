@@ -40,6 +40,8 @@ export function RecordLayout({
   // Summary
   summary,
   summaryBar,
+  feature,
+  featureLabel,
   // Tabs
   tabs,
   tabsLabel,
@@ -94,6 +96,28 @@ export function RecordLayout({
         overflowActions={overflowActions}
         overflowLabel={overflowLabel}
       />
+
+      {/*
+       * UIX-03 — the record's WORKSPACE, directly beneath the header and ABOVE
+       * the summary band.
+       *
+       * The order is the argument. A record that declares a feature is saying
+       * this region IS its subject — a Goal's progress, not the prose about it —
+       * so putting the summary first would bury the reason the page exists under
+       * a definition of done and a contribution meter. The band is context for
+       * the workspace, and context follows its subject.
+       *
+       * A real landmark with a real name, so a screen-reader user can jump to
+       * "Progress" the way a sighted one jumps to the chart.
+       */}
+      {feature !== undefined ? (
+        <section
+          className="record-layout__feature"
+          aria-label={featureLabel ?? "Details"}
+        >
+          {feature}
+        </section>
+      ) : null}
 
       {/*
        * RECORD-01 — a record declares ONE summary region.

@@ -71,21 +71,66 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* UIX-03 — the Goals collection                                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The status views row.
+ *
+ * It sits between the collection header and the grid — the shared segmented
+ * FILTER position (UIQ-013: a view switcher changes the collection's mode and
+ * belongs in the header; a filter narrows the data and belongs beside it). It
+ * scrolls horizontally rather than wrapping, so four tabs with counts stay on
+ * one line at 320px instead of becoming two rows of chrome above the Goals they
+ * are there to reveal.
+ */
+.dh-goals-views {
+  display: flex;
+  min-inline-size: 0;
+  margin-block-end: var(--app-space-4);
+  overflow-x: auto;
+  /* No visible scrollbar track under a four-item row; the overflow is a
+   * fallback for very narrow phones, not the normal state. */
+  scrollbar-width: none;
+}
+
+.dh-goals-views::-webkit-scrollbar {
+  display: none;
+}
+
+.dh-goals-views > * {
+  flex: none;
+}
+
+/* -------------------------------------------------------------------------- */
 /* GOAL-02 — measurable Goals                                                  */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The Goal record's progress section.
+ * UIX-03 — the Goal record's PROGRESS WORKSPACE.
  *
- * It leads the Summary band, so it takes the tonal surface the band already
- * owns rather than introducing a card inside a card (DS-02 — "a container is
- * earned"). Its own internal rhythm is the shared spacing scale; nothing here
- * hard-codes a pixel, a radius or a colour.
+ * It is now the record's own top-level region (`RecordLayout`'s `feature`
+ * slot), so it earns one card surface of its own instead of being a section
+ * inside the summary band inside the record. Everything within it — the metric
+ * strip, the bar, the pace facts, the chart, the history — is a region of that
+ * one surface, never a card in its own right: one clear surface per meaningful
+ * region is the whole of the rule.
  */
 .dh-goal-measure {
   display: grid;
-  gap: var(--app-space-4);
+  gap: var(--app-space-5);
   min-inline-size: 0;
+  padding: var(--app-card-padding);
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--app-elevation-resting);
+}
+
+/* A region whose content brings its own container — see `UnmeasuredState`. */
+.dh-goal-measure--bare {
+  padding: 0;
+  background: none;
+  box-shadow: none;
 }
 
 .dh-goal-measure__head {
@@ -93,13 +138,104 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__headline {
+  display: grid;
+  gap: var(--app-space-3);
+  /* 18rem, so the strip keeps a readable measure before the actions wrap under
+   * it rather than squeezing four figures into a column. */
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+/*
+ * The metric strip — Start · Now · Target · Remaining.
+ *
+ * A definition list, because each cell genuinely is a term and its value, which
+ * is what lets a screen reader pair them without any ARIA. `auto-fit` with a
+ * 6rem floor keeps two cells across a 320px phone instead of stacking four
+ * one-line rows.
+ */
+.dh-goal-measure__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: var(--app-space-3) var(--app-space-4);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__metric {
+  min-inline-size: 0;
+}
+
+.dh-goal-measure__metric dt {
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-goal-measure__metric dd {
+  margin: var(--app-space-px) 0 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * NOW is the page's biggest number. Start and Target are fixed facts the owner
+ * chose; the current value is the one that moved, and it is why they opened the
+ * record.
+ */
+.dh-goal-measure__metric[data-lead="true"] dd {
+  font-size: var(--md-sys-typescale-display-small-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  font-weight: var(--md-sys-typescale-display-small-weight);
+}
+
+/* The bar and its figure on one line, directly under the numbers they measure. */
+.dh-goal-measure__bar {
+  display: flex;
+  align-items: center;
   gap: var(--app-space-3);
   min-inline-size: 0;
 }
 
-.dh-goal-measure__head > .dh-goalprogress {
-  flex: 1 1 16rem;
+.dh-goal-measure__track {
+  flex: 1;
   min-inline-size: 0;
+}
+
+.dh-goal-measure__percent {
+  flex: none;
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-goal-measure__state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2) var(--app-space-3);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/* "from 85 kg → 70 kg" — the same sentence the gallery card carries, so the
+ * two surfaces describe one Goal in one vocabulary. */
+.dh-goal-measure__journey {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
 }
 
 .dh-goal-measure__actions {
@@ -189,6 +325,20 @@
  * and six readings stay a glance rather than a scroll. Nothing is squeezed below
  * a 44px target and nothing scrolls sideways.
  */
+/*
+ * UIX-03 — the list is capped at a reading measure.
+ *
+ * A measurement row holds a date, a value and a change: about thirty
+ * characters. Stretched across a 1200px workspace, the controls ended up a
+ * hand's width from the facts they act on, with a quarter of the panel as dead
+ * space in between — the "is there dead whitespace?" question the acceptance
+ * checklist asks, answered badly. The chart above still spans the full width,
+ * because a chart genuinely uses it.
+ */
+.dh-goal-measure__history-list {
+  max-inline-size: var(--app-width-prose, 46rem);
+}
+
 .dh-goal-measure__history-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

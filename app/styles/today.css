@@ -727,18 +727,24 @@
 }
 
 /*
- * One Goal, as a quiet TONED tile on the panel's own surface.
+ * One Goal, as a quiet tinted tile on the panel's own surface.
  *
  * DS-02 bans a CARD inside a panel, and this is not one: no border, no shadow,
  * the figure rung's radius, and separation carried by the grid gap rather than
- * by four boxes. UIX-01 changes only what it is tinted with — the Goal's own
- * tone at the generated `wash` strength instead of the neutral card-subtle
- * surface — because the reference's Goal row is where Today spends most of its
- * colour, and four identically grey tiles is what made ours the flattest thing
- * on the page.
+ * by four boxes. UIX-01 tinted it because the reference's Goal row is where
+ * Today spends most of its colour, and four identically grey tiles is what made
+ * ours the flattest thing on the page.
  *
- * The tint is very pale by construction (see `--app-tone-wash`), so the title,
- * the measurement and the state word keep their ordinary high-contrast colours.
+ * UIX-03 changes only WHERE the tint comes from. UIX-01 derived it from a hash
+ * of the Goal's id — stable, and stable is not the same as meaningful: the same
+ * Goal was green here and grey in the gallery, and neither colour said
+ * anything. A Goal now inherits its Area's accent, so Today's tiles are exactly
+ * as colourful as before and each colour names the part of life its Goal
+ * serves. The neutral surface below is the honest fallback for a Goal whose
+ * Area could not be ranked.
+ *
+ * The tint is very pale by construction, so the title, the measurement and the
+ * state word keep their ordinary high-contrast colours.
  */
 .dh-today__goal {
   display: grid;
@@ -746,12 +752,55 @@
   gap: var(--app-space-2);
   padding: var(--app-space-4);
   border-radius: var(--app-shape-metric);
-  background: var(--app-tone-wash);
+  background: var(--md-app-color-surface-card-subtle);
   min-inline-size: 0;
 }
 
+.dh-today__goal[data-accent="1"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-1-container) 45%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-today__goal[data-accent="2"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-2-container) 45%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-today__goal[data-accent="3"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-3-container) 45%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-today__goal[data-accent="4"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-4-container) 45%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-today__goal[data-accent="5"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-5-container) 45%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-today__goal[data-accent="6"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-6-container) 45%,
+    var(--md-app-color-surface-card)
+  );
+}
+
 /* The mark leads the tile, above the title, as the reference draws it. */
-.dh-today__goal .dh-tone-icon {
+.dh-today__goal .dh-accent-icon {
   margin-block-end: var(--app-space-1);
 }
 

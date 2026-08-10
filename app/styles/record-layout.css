@@ -632,6 +632,24 @@
 }
 
 /*
+ * UIX-03 — the record WORKSPACE region.
+ *
+ * Deliberately unstyled beyond its box: it is a top-level region of the record,
+ * and whatever fills it brings its own composition. Giving it a card here would
+ * recreate the very nesting the slot exists to remove — a Goal's chart would be
+ * back inside a container inside the record.
+ *
+ * It has its OWN rule rather than joining the two selectors above, which is the
+ * whole point: those two ARE the contained working surface, and this one must
+ * not be.
+ */
+.record-layout__feature {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
  * M3-INT — the TABBED panel joins its strip: no top edge of its own (the strip's
  * rule is already there) and square top corners, so the two read as one working
  * surface rather than as a bar sitting on a card. `.record-layout__content` —

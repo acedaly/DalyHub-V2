@@ -45,7 +45,6 @@ export {
   formatPacePerWeek,
   goalCheckInDue,
   goalCheckInLabel,
-  goalCurrentAgainstTarget,
   goalTargetLabel,
   goalDaysToTarget,
   goalLastUpdatedText,
@@ -57,11 +56,21 @@ export {
   goalTrendSummaryText,
   serializeGoalMeasurement,
   serializeGoalMilestone,
+  /* UIX-03 — the outcome vocabulary the redesigned card and record share. */
+  GOAL_COLLECTION_VIEWS,
+  GOAL_COLLECTION_VIEW_LABELS,
+  goalAbsenceNote,
+  goalJourneyLabel,
+  goalMatchesCollectionView,
+  goalOverTargetLabel,
+  goalRemainingLabel,
+  parseGoalCollectionView,
 } from "./goal-progress-view";
 export type {
   SerializedGoalMeasurement,
   SerializedGoalMeasurementConfig,
   SerializedGoalMilestone,
+  GoalCollectionView,
 } from "./goal-progress-view";
 
 export {
