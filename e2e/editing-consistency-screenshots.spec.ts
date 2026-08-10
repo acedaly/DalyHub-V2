@@ -272,14 +272,20 @@ test.describe("EDIT-02 — on a phone", () => {
       ).toBeVisible();
       await shot(page, `phone-editor-toolbar-${scheme}`);
 
-      // An anchored menu at 390px: it flips to the inline-end edge rather than
-      // hanging off the viewport.
+      // EDIT-03 — the select's PHONE presentation. It used to be the desktop
+      // menu, anchored and flipped to the inline-end edge so it did not hang
+      // off the viewport; a 28px menu item hanging off a 28px trigger was never
+      // the right answer on a phone, and it is now the shared sheet of large
+      // labelled option rows. The capture keeps its name so the two are
+      // comparable in the same folder.
       await gotoFixture(page, TASK_DRAWER);
       await expect(taskRecord(page)).toBeVisible();
       await taskRecord(page)
         .getByRole("button", { name: /^Priority: / })
         .click();
-      await expect(page.getByRole("menu")).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: "Priority" }),
+      ).toBeVisible();
       await shot(page, `phone-priority-menu-${scheme}`);
       await page.keyboard.press("Escape");
     }

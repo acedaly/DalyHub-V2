@@ -18,10 +18,25 @@
  * that has real height. No positioning dependency; the caller stays
  * absolutely-positioned against its trigger and only switches which edge it
  * anchors to.
+ *
+ * ── EDIT-03 — the block decision moved, the menu's use of it did not ─────────
+ * Those three rules were never menu-specific: the DS-16 inline select and date
+ * popover need exactly the same answer, and EDIT-03 gave them an overlay-layer
+ * surface that asks it. Rather than a second copy, the decision now lives in
+ * `~/shared/anchored/anchored-placement` and this module names it in the
+ * overflow menu's own vocabulary. `clampMenuInline` stays here: it corrects an
+ * ABSOLUTELY-positioned panel with a translation, which is this component's
+ * anchoring strategy and not the overlay layer's.
  */
 
+import {
+  ANCHORED_MIN_CLAMP_PX,
+  ANCHORED_VIEWPORT_MARGIN_PX,
+  placeAnchoredBlock,
+} from "~/shared/anchored/anchored-placement";
+
 /** Minimum distance the menu keeps from the viewport edges (the Tooltip's 8). */
-export const MENU_VIEWPORT_MARGIN_PX = 8;
+export const MENU_VIEWPORT_MARGIN_PX = ANCHORED_VIEWPORT_MARGIN_PX;
 
 /**
  * The clamp's floor. A pathologically short viewport (a 200px embedded frame,
@@ -30,7 +45,7 @@ export const MENU_VIEWPORT_MARGIN_PX = 8;
  * the margin yields instead — the menu may then approach an edge, but it stays
  * operable and internally scrollable.
  */
-export const MENU_MIN_CLAMP_PX = 96;
+export const MENU_MIN_CLAMP_PX = ANCHORED_MIN_CLAMP_PX;
 
 export type MenuPlacementInput = {
   /** The trigger's viewport-relative top, from `getBoundingClientRect()`. */
@@ -58,19 +73,13 @@ export function placeMenu({
   viewportHeight,
   offset,
 }: MenuPlacementInput): MenuPlacement {
-  const spaceBelow =
-    viewportHeight - MENU_VIEWPORT_MARGIN_PX - (triggerBottom + offset);
-  const spaceAbove = triggerTop - offset - MENU_VIEWPORT_MARGIN_PX;
-
-  if (menuHeight <= spaceBelow) {
-    return { side: "below", maxHeight: null };
-  }
-  if (menuHeight <= spaceAbove) {
-    return { side: "above", maxHeight: null };
-  }
-  const side = spaceAbove > spaceBelow ? "above" : "below";
-  const room = side === "above" ? spaceAbove : spaceBelow;
-  return { side, maxHeight: Math.max(room, MENU_MIN_CLAMP_PX) };
+  return placeAnchoredBlock({
+    triggerTop,
+    triggerBottom,
+    surfaceHeight: menuHeight,
+    viewportHeight,
+    offset,
+  });
 }
 
 export type MenuInlineClampInput = {

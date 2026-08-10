@@ -11,9 +11,10 @@
  * overflow menu rather than a second one: a trigger with `aria-haspopup="menu"`
  * controlling a `role="menu"` of `role="menuitemradio"` items (radio, because
  * exactly one is chosen and the current one must be announced as such). Roving
- * focus, Arrow/Home/End, Escape-to-close with focus restored to the trigger,
- * outside-pointer dismissal, Tab to leave. It is non-modal, so nothing behind it
- * becomes inert and there is no second focus trap.
+ * focus, Arrow/Home/End, printable-character typeahead, Escape-to-close with
+ * focus restored to the trigger, outside-pointer dismissal, Tab to leave. It is
+ * non-modal, so nothing behind it becomes inert and there is no second focus
+ * trap.
  *
  * Choosing an option saves immediately: a menu that then required a Save button
  * would be a form, and this exists precisely so that a status change is one
@@ -37,6 +38,23 @@
  * — is one separated command at the END of the menu, present only when there is
  * something to clear. Changing `Current value → New value` therefore stays what
  * it always should have been: open, choose, done. Never "clear it first".
+ *
+ * ── EDIT-03 — the menu is in the OVERLAY LAYER, and on a phone it is a sheet ──
+ * The menu used to be `position: absolute` inside the field. On a record page
+ * that was invisible; in a LIST it made the control unusable, because a task row
+ * clips its own overflow (the swipe tray slides under it) and the Project column
+ * is a fixed 12rem track that clips too. The menu was painted as a 45px sliver
+ * of the row showing the value you already had — see `AnchoredSurface`, which
+ * now owns the placement for every inline editor rather than each field
+ * reinventing it.
+ *
+ * Below the `md` breakpoint the same options are presented as the shared phone
+ * {@link Sheet} of large option rows — the SAME primitive `SelectSheetControl`,
+ * Quick Capture and the collection's sort/density choices already use. A 44px
+ * menu item anchored to a 28px trigger is a desktop idea, and a phone has no
+ * hover to reveal it with; the vocabulary, the ordering and the separated clear
+ * command are identical, so it is one field with two presentations rather than
+ * two controls.
  */
 
 import {
@@ -49,10 +67,12 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
+import { AnchoredSurface } from "~/shared/anchored";
 import { ChevronDownIcon } from "~/shared/icons";
+import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
+import { useCompactViewport } from "~/shared/viewport";
 
 import { InlineEditShell } from "./InlineEditShell";
-import { useAnchoredAlignment } from "./use-anchored-alignment";
 import { useInlineEdit } from "./use-inline-edit";
 import type { InlineSaveOutcome } from "./inline-edit-model";
 
@@ -90,6 +110,9 @@ export interface InlineSelectFieldProps {
 /** The sentinel the clear command submits. Never a real option value. */
 const CLEAR_VALUE = "";
 
+/** How long a typeahead buffer survives before the next key starts a new search. */
+const TYPEAHEAD_RESET_MS = 700;
+
 export function InlineSelectField({
   label,
   value,
@@ -109,14 +132,12 @@ export function InlineSelectField({
   const menuId = `${generatedId}-menu`;
   const errorId = `${generatedId}-error`;
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const compact = useCompactViewport();
 
   const open = field.editing;
   const selected = options.find((option) => option.value === value) ?? null;
-  const alignment = useAnchoredAlignment(menuRef, open);
 
   /**
    * The rendered item list: the real options, plus the clear command when the
@@ -147,28 +168,22 @@ export function InlineSelectField({
     field.begin();
   }, [field, items, value]);
 
-  useEffect(() => {
-    if (!open || activeIndex < 0) return;
-    itemRefs.current[activeIndex]?.focus();
-  }, [open, activeIndex]);
+  // Pressing the trigger while the menu is open closes it, the way every other
+  // menu button in the product does. Without this the press landed on the
+  // anchor, which the overlay layer correctly treats as "inside", and the menu
+  // simply stayed open.
+  const toggle = useCallback(() => {
+    if (open) {
+      close();
+    } else {
+      openMenu();
+    }
+  }, [close, open, openMenu]);
 
   useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        // An outside press dismisses WITHOUT pulling focus back — the user is
-        // already on their way somewhere else.
-        setActiveIndex(-1);
-        field.cancel();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [open, field]);
+    if (!open || compact || activeIndex < 0) return;
+    itemRefs.current[activeIndex]?.focus();
+  }, [open, compact, activeIndex]);
 
   const step = (delta: number) => {
     setActiveIndex((current) => {
@@ -177,6 +192,56 @@ export function InlineSelectField({
       if (next >= items.length) return 0;
       return next;
     });
+  };
+
+  /*
+   * Typeahead — the standard menu behaviour, and the answer to a LONG list.
+   *
+   * The Project chooser is handed up to fifty bounded candidates. Fifty items
+   * scroll (the overlay layer clamps and scrolls them), but scrolling is not
+   * finding, and a text filter inside a `role="menu"` is not a menu any more —
+   * it is a combobox, which is a different pattern with different semantics.
+   * Typing letters to jump is what the WAI-ARIA menu pattern already specifies,
+   * costs no visible chrome, and works for the keyboard user who needs it most.
+   */
+  const typeaheadRef = useRef({ buffer: "", at: 0 });
+  const typeahead = (character: string) => {
+    const now = Date.now();
+    const state = typeaheadRef.current;
+    state.buffer =
+      now - state.at > TYPEAHEAD_RESET_MS
+        ? character
+        : state.buffer + character;
+    state.at = now;
+
+    /*
+     * A run of the SAME character CYCLES; a genuine word REFINES.
+     *
+     * Appending unconditionally was wrong for the first of those: pressing "c"
+     * twice inside the window made the query "cc", which matches nothing, so
+     * the second press did the opposite of what the pattern promises — walking
+     * through the Projects that start with "c" is exactly the case typeahead
+     * exists for, and it is the common one in a fifty-item list. A repeated
+     * character therefore searches for that ONE character, from the item after
+     * the current, and wraps.
+     */
+    const repeating = [...state.buffer].every(
+      (letter) => letter === state.buffer[0],
+    );
+    const query = (repeating ? character : state.buffer).toLocaleLowerCase();
+    const current = activeIndex < 0 ? 0 : activeIndex;
+    // A cycling search starts AFTER the current item so it advances. A refining
+    // one starts AT it, so typing more of the word the cursor already sits on
+    // does not skip past it.
+    const from = repeating ? current + 1 : current;
+    for (let offset = 0; offset < items.length; offset += 1) {
+      const index = (from + offset) % items.length;
+      const item = items[index];
+      if (item && item.label.toLocaleLowerCase().startsWith(query)) {
+        setActiveIndex(index);
+        return;
+      }
+    }
   };
 
   const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -207,27 +272,56 @@ export function InlineSelectField({
         field.cancel();
         break;
       default:
+        // A printable character searches. Space is deliberately NOT one: in the
+        // menu pattern it ACTIVATES the focused item, and swallowing it into a
+        // typeahead buffer would take a standard way of choosing an option away
+        // from the keyboard. A leading space is not a search term either.
+        if (
+          event.key.length === 1 &&
+          event.key !== " " &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey
+        ) {
+          event.preventDefault();
+          typeahead(event.key);
+        }
         break;
     }
+  };
+
+  const choose = (option: InlineSelectOption) => {
+    if (option.disabled) return;
+    setActiveIndex(-1);
+    field.submit(option.value);
   };
 
   const valueNode = renderValue ? renderValue(selected) : selected?.label;
 
   return (
-    <div className="dh-inline-select" ref={containerRef}>
+    <div className="dh-inline-select">
       <InlineEditShell
         label={label}
         valueText={selected?.label ?? emptyLabel}
         isEmpty={selected === null}
         emptyLabel={emptyLabel}
         editing={false}
-        onActivate={openMenu}
+        onActivate={toggle}
         triggerRef={field.triggerRef}
         triggerProps={{
           id: triggerId,
-          "aria-haspopup": "menu",
+          "aria-haspopup": compact ? "dialog" : "menu",
           "aria-expanded": open,
-          "aria-controls": open ? menuId : undefined,
+          /*
+           * `menuId` belongs to the anchored MENU, so it may only be referenced
+           * while the menu is what opened. The phone presentation is a `Sheet`,
+           * which owns its own generated ids and never carries this one — so on
+           * a phone the attribute pointed at an element that does not exist,
+           * which is a broken relationship rather than a missing one. The sheet
+           * needs no `aria-controls`: it is a modal dialog that takes focus, and
+           * the trigger's `aria-expanded` already says it is open.
+           */
+          "aria-controls": open && !compact ? menuId : undefined,
         }}
         pending={field.pending}
         error={field.error}
@@ -243,12 +337,53 @@ export function InlineSelectField({
         </span>
       </InlineEditShell>
 
-      {open ? (
-        <div
+      {open && compact ? (
+        /*
+         * The phone presentation. The sheet brings DS-03's focus trap, inert
+         * background, scroll lock and focus restoration with it — there is never
+         * a second modal system in DalyHub — and the rows bring their own 44px
+         * targets and `aria-pressed` selection state.
+         */
+        <Sheet
+          title={label}
+          opener={field.triggerRef.current}
+          onClose={close}
+          className="dh-inline-select-sheet"
+          data-testid={testId ? `${testId}-sheet` : undefined}
+        >
+          <SheetOptionList label={label}>
+            {options.map((option) => (
+              <SheetOption
+                key={option.value}
+                label={option.label}
+                {...(option.description
+                  ? { description: option.description }
+                  : {})}
+                selected={option.value === value}
+                disabled={option.disabled}
+                onSelect={() => choose(option)}
+              />
+            ))}
+          </SheetOptionList>
+          {clearable && value !== CLEAR_VALUE ? (
+            <button
+              type="button"
+              className="dh-inline-select-sheet__clear"
+              onClick={() => choose({ value: CLEAR_VALUE, label: "" })}
+            >
+              {clearLabel ?? `Clear ${label.toLocaleLowerCase()}`}
+            </button>
+          ) : null}
+        </Sheet>
+      ) : null}
+
+      {open && !compact ? (
+        <AnchoredSurface
+          anchorRef={field.triggerRef}
+          onDismiss={close}
+          matchAnchorWidth
           className="dh-inline-select__menu"
           id={menuId}
-          ref={menuRef}
-          data-align={alignment}
           role="menu"
           aria-labelledby={triggerId}
           tabIndex={-1}
@@ -273,11 +408,7 @@ export function InlineSelectField({
                   itemRefs.current[index] = node;
                 }}
                 onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => {
-                  if (option.disabled) return;
-                  setActiveIndex(-1);
-                  field.submit(option.value);
-                }}
+                onClick={() => choose(option)}
               >
                 <span className="dh-inline-select__option-label">
                   {option.label}
@@ -290,7 +421,7 @@ export function InlineSelectField({
               </button>
             );
           })}
-        </div>
+        </AnchoredSurface>
       ) : null}
     </div>
   );

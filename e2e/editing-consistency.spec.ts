@@ -284,8 +284,11 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
 });
 
 test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () => {
+  /** The DS-01 `md` breakpoint, below which an inline editor is a sheet. */
+  const COMPACT_MAX = 768;
+
   for (const width of [320, 390, 700, 1024, 1440]) {
-    test(`no horizontal overflow with an inline menu open at ${width}px`, async ({
+    test(`no horizontal overflow with an inline editor open at ${width}px`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 800 });
@@ -295,14 +298,33 @@ test.describe("EDIT-02 §12 — inline surfaces stay inside the viewport", () =>
       await expectNoHorizontalOverflow(page);
 
       await record.getByRole("button", { name: /^Priority: / }).click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      // The anchored menu flips to the inline-end edge when a start-anchored
-      // box would run past the viewport, so opening it never adds a page
-      // scrollbar — the defect this measures is invisible on a wide monitor.
+      /*
+       * EDIT-03 — the select has TWO presentations, and this width decides
+       * which one is correct.
+       *
+       * Above `md` it is the anchored WAI-ARIA menu. Below it, it is the shared
+       * phone sheet (a `dialog` named for the field) — a 28px menu item hanging
+       * off a 28px trigger is a desktop idea, and a phone has no hover to
+       * reveal the trigger with. The overflow assertion below is what this spec
+       * is actually for, and it is unchanged and made at every width; only the
+       * expectation about WHICH surface opened has moved with the design.
+       */
+      await expect(
+        width <= COMPACT_MAX
+          ? page.getByRole("dialog", { name: "Priority" })
+          : page.getByRole("menu"),
+      ).toBeVisible();
+      // Neither surface may add a page scrollbar: the anchored menu slides back
+      // from the viewport edge rather than running past it, and the sheet is
+      // the width of the phone. The defect this measures is invisible on a wide
+      // monitor, which is why it is asserted at five widths.
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
 
       await record.getByRole("button", { name: /^Due date: / }).click();
+      // The date editor keeps ONE accessible name across both presentations —
+      // the popover and the sheet are the same `dialog`, so this locator is
+      // deliberately not branched.
       await expect(
         page.getByRole("dialog", { name: "Edit due date" }),
       ).toBeVisible();

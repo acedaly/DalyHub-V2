@@ -1339,6 +1339,12 @@
   --app-z-overlay: 1100;
   --app-z-drawer: 1200;
   --app-z-modal: 1300;
+  /* EDIT-03 — the anchored-overlay layer (`~/shared/anchored`). Above the modal
+   * rung because these surfaces are opened from INSIDE it: a Drawer edits its
+   * priority with one, and a dropdown-rung popover portalled to `<body>` would
+   * render behind the Drawer that opened it. Below the toast and the tooltip,
+   * both of which are allowed to speak over any surface. */
+  --app-z-anchored: 1350;
   --app-z-toast: 1400;
   --app-z-tooltip: 1500;
 }

@@ -23,9 +23,27 @@
  *
  * It renders only while open (mounting is what makes the focus contract clean), so
  * consumers conditionally render it rather than passing an `open` prop.
+ *
+ * ── EDIT-03 — and it renders into `<body>` ───────────────────────────────────
+ * `position: fixed` is not absolute in the way it reads: an ancestor with a
+ * `transform` becomes the containing block for its fixed descendants, and an
+ * ancestor with `overflow: hidden` then clips them. A swipeable card has both —
+ * `.dh-card-swipe > .dh-card` is translated by the swipe hook and the wrapper
+ * clips the tray — so a sheet opened from a task row was laid out inside a 45px
+ * row and cut to it: a bottom sheet with no scrim, no panel and three buttons
+ * floating over the list. Portalling is the only fix, because both properties on
+ * the row are load-bearing.
+ *
+ * The DS-03 Drawer's decision NOT to portal is unchanged and is not the same
+ * decision: a drawer is server-rendered so a deep link works without JavaScript.
+ * A sheet is mounted only after a user gesture, so it has no first-byte to
+ * protect. Everything else is untouched — `useInertBackground` still walks from
+ * the panel up to `<body>`, which from a portal root simply means "everything
+ * else in the document", which is what `aria-modal="true"` already promised.
  */
 
 import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode, RefObject } from "react";
 
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
@@ -210,7 +228,7 @@ export function Sheet({
     </button>
   );
 
-  return (
+  const layer = (
     <div
       className="dh-sheet-layer"
       ref={rootRef}
@@ -266,4 +284,11 @@ export function Sheet({
       </div>
     </div>
   );
+
+  // The sheet only ever mounts in the browser (it is rendered in response to a
+  // gesture), so there is no server render to guard — but the check keeps the
+  // component safe to import from anything the server touches.
+  return typeof document === "undefined"
+    ? layer
+    : createPortal(layer, document.body);
 }
