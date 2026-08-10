@@ -370,9 +370,21 @@
 /* ------------------------------------------------------------------------- *
  * The anchored select menu.
  * ------------------------------------------------------------------------- */
+/*
+ * EDIT-03 — the wrapper is NOT a positioning context any more.
+ *
+ * It used to be `position: relative`, because the menu and the date popover were
+ * absolutely positioned inside it. That is what made them clippable: an
+ * absolutely positioned box is still cut by any ancestor with `overflow:
+ * hidden`, and on a Task row there are three (the swipe wrapper, the row's own
+ * line, the 12rem Project track) — so the menu was painted as a 45px sliver of
+ * the row showing only the value the owner already had. Both surfaces are now
+ * portalled into the shared overlay layer (`~/shared/anchored`), which measures
+ * from the trigger and paints `position: fixed` above the page. Nothing in this
+ * file may reintroduce a positioning context here.
+ */
 .dh-inline-select,
 .dh-inline-date {
-  position: relative;
   display: inline-block;
   min-inline-size: 0;
 }
@@ -390,29 +402,21 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/*
+ * The two surfaces' APPEARANCE. Position, layer, the viewport clamp and the
+ * internal scroll all belong to `.dh-anchored` (`styles/anchored.css`) — this
+ * rule may not restate any of them, or the two would have to agree about the
+ * same geometry in two files.
+ */
 .dh-inline-select__menu,
 .dh-inline-date__popover {
-  position: absolute;
-  inset-block-start: calc(100% + var(--app-space-1));
-  inset-inline-start: 0;
-  z-index: var(--app-z-dropdown);
-  /* The surface measures itself on open and flips to the inline-END edge when a
-   * start-anchored box would run past the viewport (`useAnchoredAlignment`).
-   * Only the anchor changes — never the width — so nothing reflows. */
   min-inline-size: var(--app-space-16);
-  max-inline-size: min(20rem, 90vw);
   padding: var(--app-space-1);
   border: var(--app-border-width-thin) solid
     var(--md-app-color-outline-hairline);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
-}
-
-.dh-inline-select__menu[data-align="end"],
-.dh-inline-date__popover[data-align="end"] {
-  inset-inline-start: auto;
-  inset-inline-end: 0;
 }
 
 .dh-inline-select__option {
@@ -461,13 +465,36 @@
   font-weight: 400;
 }
 
+/* The phone presentation's clear command. The sheet's option rows carry the
+ * real values; this is the same separated "none of these" the menu ends with. */
+.dh-inline-select-sheet__clear {
+  display: block;
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  margin-block-start: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: none;
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
 /* ------------------------------------------------------------------------- *
  * The anchored date popover.
  * ------------------------------------------------------------------------- */
-.dh-inline-date__popover {
+.dh-inline-date__popover,
+.dh-inline-date-sheet .dh-sheet__body {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);
+  align-items: stretch;
+}
+
+.dh-inline-date__popover {
   padding: var(--app-space-3);
 }
 
@@ -479,6 +506,19 @@
 
 .dh-inline-date__input {
   min-block-size: var(--app-touch-target-min);
+}
+
+/*
+ * The one-press dates, above the input.
+ *
+ * They wrap rather than scroll: three short words at the top of a popover that
+ * is already width-clamped, and a horizontal scroller for three buttons is a
+ * gesture nobody would guess at.
+ */
+.dh-inline-date__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
 }
 
 .dh-inline-date__actions {

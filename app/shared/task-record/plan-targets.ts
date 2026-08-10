@@ -48,3 +48,29 @@ export function planTargets(todayIso: string): PlanTargets {
     nextWeek: addCalendarDays(todayIso, 7),
   };
 }
+
+/**
+ * EDIT-03 — the same three dates, as the one-press shortcuts a DATE EDITOR
+ * offers above its input.
+ *
+ * The Task record's planning section has always drawn Today / Tomorrow / Next
+ * week as buttons beside its dates; the shared `InlineDateField` now offers the
+ * same row inside the popover and the phone sheet, so a date is one press
+ * wherever it is edited instead of only on the record. Deriving them HERE keeps
+ * one definition of what the product's shortcut dates are — the shared field is
+ * given the list, and never invents a calendar vocabulary of its own.
+ *
+ * `todayIso` is the OWNER's calendar day, resolved server-side (ADR-022). A
+ * surface that cannot name one offers no shortcuts rather than guessing from
+ * the browser clock: a wrong "Today" on a date field is worse than no Today.
+ */
+export function taskDateShortcuts(
+  todayIso: string,
+): readonly { readonly label: string; readonly value: string }[] {
+  const targets = planTargets(todayIso);
+  return [
+    { label: "Today", value: targets.today },
+    { label: "Tomorrow", value: targets.tomorrow },
+    { label: "Next week", value: targets.nextWeek },
+  ];
+}

@@ -17,6 +17,26 @@ no version number to group them under.
 
 ---
 
+## Editing a task from the list works again (EDIT-03)
+
+Changing a task's **priority**, **project** or **due date** from the Tasks list
+showed you the value you already had and none of the others — the chooser was
+being cut down to the height of the row it opened from, so there was nothing to
+choose between. It now floats above the list.
+
+- **Priority** opens the full set — P1, P2, P3, P4 — with the current one marked,
+  and one separated **Clear priority** underneath when there is something to clear.
+- **Project** opens the whole list of Projects and Areas, scrolls when it is longer
+  than the screen, and offers **Move to Inbox** when the task is filed somewhere.
+  Start typing a name to jump to it.
+- **Due date** opens **Today**, **Tomorrow** and **Next week** beside the date
+  picker and a **Clear** — the same four answers the task record has always given.
+- A chooser opened near the bottom of the window now opens upward instead of off
+  the edge, and a long one scrolls inside itself rather than pushing the page.
+- On a phone these are proper sheets that slide up from the bottom, the same way
+  every other choice on a phone is made. The date sheet was previously drawn inside
+  the task row and was unusable.
+
 ## A redesigned DalyHub (UIX-01)
 
 The biggest visual change since 2.0. Nothing moved in the product's structure —

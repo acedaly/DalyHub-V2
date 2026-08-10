@@ -101,6 +101,39 @@ Tasks, at desktop and phone widths, in both appearances.
   TASKS-10 behaviour.
 - Record: [`UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).
 
+### ☑ EDIT-03 - Inline editors must show the whole list of choices — **DELIVERED 2026-08-09**
+
+Fix the reported defect that made inline Task editing unusable: opening Priority,
+Project or Due date on a `/tasks` row showed the stored value and none of the
+alternatives.
+
+- Diagnosed as a SHARED placement defect, not three Task bugs. Both DS-16 anchored
+  surfaces were `position: absolute` inside the field, so a Tasks row's three
+  load-bearing `overflow: hidden` ancestors cut a 305px priority menu to a 45px,
+  64px-wide sliver and wrapped `P2 · High` to `P2 · Hi / gh`.
+- Added `~/shared/anchored` — one portalled, viewport-placed overlay surface plus
+  the pure geometry (flip · height clamp · inline slide), generalised from DS-12's
+  `menu-placement` rather than copied. `InlineSelectField` and `InlineDateField`
+  adopt it; `useAnchoredAlignment` is deleted.
+- Added `--app-z-anchored` (1350) so a surface opened from inside the Task record
+  Drawer renders above it rather than behind it.
+- Made `Sheet` portal into `<body>`: a swipe card is TRANSFORMED, so it was the
+  containing block for its `position: fixed` descendants and clipped a phone sheet
+  to a 45px row.
+- Gave the phone the shared sheet presentation for both fields, and every Task date
+  editor the product's own Today / Tomorrow / Next week shortcuts from one shared
+  derivation.
+- Added typeahead to the select menu, so the fifty-candidate Project chooser is
+  navigable by keyboard without a filter box the menu role cannot carry.
+- Audited the product's other floating surfaces in a browser: the DS-12 overflow
+  menu and the combobox listbox are unclipped on the same rows and are unchanged.
+- **Non-goals:** a positioning dependency, the native Popover API, converting the
+  DS-12 menu, changing any route/intent/storage rule, or making the task row taller.
+- Record: [ADR-087](../decisions/ARCHITECTURE_DECISIONS.md#adr-087-inline-editors-float-in-a-shared-overlay-layer-and-become-sheets-on-a-phone) ·
+  [DESIGN_SYSTEM → Anchored overlay](../design/DESIGN_SYSTEM.md#anchored-overlay-edit-03) ·
+  captures in [`docs/design/assets/edit-03-2026-08/`](../design/assets/edit-03-2026-08)
+  (`e2e/inline-editor-overlay-screenshots.spec.ts`).
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.

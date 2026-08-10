@@ -43,7 +43,7 @@ import { useMemo, useState } from "react";
 import { FormButton } from "~/shared/forms";
 import { InlineDateField, type InlineSaveOutcome } from "~/shared/inline-edit";
 
-import { planTargets } from "./plan-targets";
+import { planTargets, taskDateShortcuts } from "./plan-targets";
 import { formatCalendarDate } from "./task-view";
 
 /** The outcome the Drawer's planning mutations return to this control. */
@@ -90,6 +90,10 @@ export function TaskPlanningSection({
   // The quick-plan target dates, derived from the server-resolved owner day, so
   // "Today"/"Tomorrow"/"Next week" match the day this record is displaying.
   const targets = useMemo(() => planTargets(todayIso), [todayIso]);
+  // EDIT-03 — the same three dates, inside each date editor's own popover, so
+  // the fast path is there whether the owner reaches for the buttons below or
+  // opens the picker.
+  const shortcuts = useMemo(() => taskDateShortcuts(todayIso), [todayIso]);
 
   /**
    * Adapt the plan callbacks to the shared inline-field contract. Clearing is a
@@ -140,6 +144,7 @@ export function TaskPlanningSection({
               onSave={saveScheduled}
               format={(iso) => formatCalendarDate(iso) ?? iso}
               emptyLabel="Not planned"
+              shortcuts={shortcuts}
               // Planning applies to OPEN work: a completed task shows its plan
               // as plain text, with no tab stop and no hover container.
               readOnly={completed}
@@ -156,6 +161,7 @@ export function TaskPlanningSection({
               onSave={onSetDue ?? (async () => ({ ok: true }))}
               format={(iso) => formatCalendarDate(iso) ?? iso}
               emptyLabel="No due date"
+              shortcuts={shortcuts}
               readOnly={completed || onSetDue === undefined}
               data-testid="task-due-edit"
             />

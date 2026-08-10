@@ -354,8 +354,18 @@ test.describe("M3-INT — the shared switch", () => {
 
     await target.click();
     await expect(toggle).toBeChecked();
-    // Position AND glyph, not just a colour.
-    expect(await thumbX()).toBeGreaterThan(offX);
+    /*
+     * Position AND glyph, not just a colour.
+     *
+     * Both are POLLED, because both are animated. The thumb slides on a token
+     * transition, so `toBeChecked()` resolves the moment the input's state
+     * flips — a frame or more before the thumb has gone anywhere. A single
+     * sample there reads the OFF position and fails with `Expected: > 1173,
+     * Received: 1173`, which is what a contended CI runner produced. The
+     * opacity assertion below already polled for exactly this reason; the
+     * position one was the half that did not.
+     */
+    await expect.poll(thumbX, { timeout: 2_000 }).toBeGreaterThan(offX);
     await expect.poll(checkOpacity, { timeout: 2_000 }).toBeGreaterThan(0.5);
   });
 
