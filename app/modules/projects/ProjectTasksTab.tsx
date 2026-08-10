@@ -270,16 +270,18 @@ const ROUTINE_TASK_STATES: ReadonlySet<string> = new Set(["planned", "inbox"]);
  */
 function ProjectTaskCompleteToggle({
   task,
+  completed,
   urgent,
   disabled,
   onToggle,
 }: {
   readonly task: SerializedProjectTask;
+  /** Includes an unconfirmed completion, so the control follows the click. */
+  readonly completed: boolean;
   readonly urgent: boolean;
   readonly disabled: boolean;
   readonly onToggle: (complete: boolean) => void;
 }) {
-  const completed = task.completedAt !== null;
   return (
     <label className="dh-check-circle-target">
       <input
@@ -305,6 +307,8 @@ function toTaskCardProps(
   openProps: (key: string) => { href: string; onOpen: () => void },
   onToggleComplete: (task: SerializedProjectTask, complete: boolean) => void,
   archived: boolean,
+  /** An unconfirmed completion for THIS task, or undefined when settled. */
+  pending: boolean | undefined,
 ): CardProps {
   const waiting = isTaskWaiting(task);
   // The ONE canonical display-state evaluator (TASKS-02 retired the legacy
@@ -319,7 +323,9 @@ function toTaskCardProps(
     waiting: task.waiting,
   });
   const urgency = taskUrgency(task, todayIso);
-  const completed = task.completedAt !== null;
+  // The owner's unconfirmed intent wins over the loader's value while it is in
+  // flight, so the control never contradicts the click that produced it.
+  const completed = pending ?? task.completedAt !== null;
 
   const metadata: CardMetaItem[] = [];
   /*
@@ -392,6 +398,7 @@ function toTaskCardProps(
     leadingControl: (
       <ProjectTaskCompleteToggle
         task={task}
+        completed={completed}
         urgent={urgency?.kind === "overdue"}
         disabled={archived}
         onToggle={(complete) => onToggleComplete(task, complete)}
@@ -420,6 +427,26 @@ export function ProjectTasksTab({
   const [searchParams] = useSearchParams();
   const revalidator = useRevalidator();
   const [completionError, setCompletionError] = useState<string | null>(null);
+  /*
+   * The completions the owner has asked for but the server has not confirmed.
+   *
+   * The circle is a CONTROLLED checkbox drawn from loader data, so without this
+   * a click painted the new state for one frame and then snapped back to the old
+   * one until `/tasks/bulk` and the route revalidation had both finished —
+   * visibly undoing the thing the owner just did. That is a worse interaction
+   * than the one this tab replaced, because the old surface had no clickable
+   * control at all.
+   *
+   * It is a narrow optimism, deliberately: only the ROW's own checked state is
+   * patched, and only until the server answers. The roll-up, the progress bar
+   * and the health chip still come from the revalidation, so the figures on the
+   * record are never optimistic — they simply arrive a moment after the tick,
+   * which is the honest order. A refusal drops the entry and the row returns to
+   * the server's truth with the message beside it.
+   */
+  const [pendingCompletion, setPendingCompletion] = useState<
+    ReadonlyMap<string, boolean>
+  >(() => new Map());
   const { items, hasMore, loading, loadFailed, loadMore } =
     useProjectTaskPagination(projectId, tasks, nextCursor, taskState);
 
@@ -447,6 +474,7 @@ export function ProjectTasksTab({
   const onToggleComplete = useCallback(
     (task: SerializedProjectTask, complete: boolean) => {
       setCompletionError(null);
+      setPendingCompletion((prev) => new Map(prev).set(task.id, complete));
       void postTaskBulkAction(
         [task.id],
         { intent: complete ? "complete" : "reopen" },
@@ -456,10 +484,23 @@ export function ProjectTasksTab({
             : "That task couldn’t be reopened. Please try again.",
         },
       ).then((outcome) => {
+        if (!outcome.ok) {
+          setCompletionError(outcome.message);
+        }
+        /*
+         * The entry is dropped either way. On success the revalidation brings
+         * back a row that already says what the patch said, so releasing it is
+         * invisible; on a refusal the row reverts to the server's answer, which
+         * is the whole point of reporting the SERVER's outcome rather than
+         * inventing one (DALYHUB_DESIGN_SYSTEM §7).
+         */
+        setPendingCompletion((prev) => {
+          const next = new Map(prev);
+          next.delete(task.id);
+          return next;
+        });
         if (outcome.ok) {
           revalidator.revalidate();
-        } else {
-          setCompletionError(outcome.message);
         }
       });
     },
@@ -566,6 +607,7 @@ export function ProjectTasksTab({
                   openProps,
                   onToggleComplete,
                   archived,
+                  pendingCompletion.get(task.id),
                 )}
               />
             )}

@@ -25,7 +25,17 @@ const EDGE_MARGIN = 8;
 /** Every collection that renders the shared header with a view switcher. */
 const SWITCHER_SURFACES = [
   { name: "Tasks", path: "/tasks", group: "Task layout" },
-  { name: "Projects", path: "/projects", group: "Project views" },
+  /*
+   * UIX-02 — Projects is no longer in this list.
+   *
+   * Its lifecycle mode moved from the header's `ViewSwitcher` slot to the
+   * shared TAB RAIL under the title (`ViewTabs` / `.dh-viewtabs`), which is a
+   * `navigation` of links rather than a `group` of segments. That is a
+   * deliberate split, not a regression: the segmented control remains the
+   * right instrument for a bounded toggle inside a toolbar, and the rail is
+   * the right one directly beneath a page title. `projects.spec.ts` and
+   * `projects-mobile.spec.ts` assert the rail's own contract.
+   */
   { name: "Goals", path: "/goals", group: "Goal views" },
   { name: "Notes", path: "/notes", group: "Note views" },
   { name: "People", path: "/people", group: "People views" },
@@ -278,7 +288,9 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
     // fallback, not a habit. A Tasks row's ~713px menu cannot fit either side
     // of an 800px viewport and is therefore the wrong instrument for this.
     await gotoFixture(page, "/projects");
-    const card = page.locator("article.dh-ecard, li .dh-ecard").first();
+    // UIX-02 — a Project gallery card is `.dh-pcard`; the generic `.dh-ecard`
+    // it used to share with Areas is now Goals' and Assets'.
+    const card = page.locator("article.dh-pcard, li .dh-pcard").first();
     await card.hover();
     await card.getByRole("button", { name: /More actions for/ }).click();
     const panel = page.getByRole("menu");

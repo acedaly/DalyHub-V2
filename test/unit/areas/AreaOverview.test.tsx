@@ -95,6 +95,8 @@ function renderRecord(
     onOpenProject?: (id: string) => void;
     /** Which section to render — the record now opens on its Overview. */
     activeTabId?: string;
+    /** The COMPLETE active-Project count the loader supplies. */
+    activeProjectTotal?: number;
   } = {},
 ) {
   const router = createMemoryRouter(
@@ -111,6 +113,12 @@ function renderRecord(
               goalsNextCursor={over.goalsNextCursor ?? null}
               projects={over.projects ?? [project]}
               projectsNextCursor={over.projectsNextCursor ?? null}
+              activeProjectTotal={
+                over.activeProjectTotal ??
+                (over.projects ?? [project]).filter(
+                  (p) => p.completedAt === null && p.archivedAt === null,
+                ).length
+              }
               onRename={over.onRename ?? (async () => ({ ok: true }) as const)}
               onOpenGoal={over.onOpenGoal ?? (() => {})}
               onOpenProject={over.onOpenProject ?? (() => {})}

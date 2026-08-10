@@ -51,6 +51,12 @@ interface AreaOverviewViewProps {
   readonly goalsNextCursor: string | null;
   readonly projects: readonly SerializedAreaProjectItem[];
   readonly projectsNextCursor: string | null;
+  /**
+   * UIX-02 — the COMPLETE count of actively-worked Projects in this Area, from
+   * the loader's own complete momentum boundary rather than from the bounded
+   * `projects` card page above.
+   */
+  readonly activeProjectTotal: number;
   /** AREA-05: whether this Area is archived — drives the status label and guards
    * the non-lifecycle actions (Rename, New Goal) that are invalid while archived. */
   readonly archived?: boolean;
@@ -244,23 +250,37 @@ function projectCard(
  */
 function AreaOverviewTab({
   rollup,
-  projects,
+  activeProjects,
   openTasks,
   onSelectTab,
   activityTab,
 }: {
   readonly rollup: SerializedAreaRollup;
-  readonly projects: readonly SerializedAreaProjectItem[];
+  /**
+   * The COMPLETE count of actively-worked Projects, from the loader.
+   *
+   * Not derived from the displayed card page: that page is bounded at 50, so an
+   * Area running more than that would have undercounted here while the tab
+   * badge beside it showed the true total. A record never presents a bounded
+   * page as a total.
+   */
+  readonly activeProjects: number;
   readonly openTasks: number;
   readonly onSelectTab?: (tabId: string) => void;
   readonly activityTab: ReactNode;
 }) {
   const openGoals = Math.max(0, rollup.goals.total - rollup.goals.completed);
-  const activeProjects = projects.filter(
-    (project) => project.completedAt === null && project.archivedAt === null,
-  ).length;
-  const empty =
-    rollup.goals.total === 0 && rollup.projects.total === 0 && openTasks === 0;
+  /*
+   * The empty state is decided by the SAME three figures the tiles draw, not by
+   * the roll-up's historical totals.
+   *
+   * An Area whose Goals are all met and whose Projects are all finished has
+   * `goals.total > 0` and `projects.total > 0`, so keying off those rendered
+   * three tiles reading zero — which is the "an absence is never drawn as a
+   * state" rule broken by the very component that cites it. What the owner
+   * should see there is the one sentence.
+   */
+  const empty = openGoals === 0 && activeProjects === 0 && openTasks === 0;
 
   return (
     <div className="dh-area-overview">
@@ -374,6 +394,7 @@ export function AreaOverviewView({
   goalsNextCursor,
   projects,
   projectsNextCursor,
+  activeProjectTotal,
   archived = false,
   onRename,
   onOpenGoal,
@@ -551,7 +572,7 @@ export function AreaOverviewView({
             content: (
               <AreaOverviewTab
                 rollup={rollup}
-                projects={projects}
+                activeProjects={activeProjectTotal}
                 openTasks={openTasks}
                 onSelectTab={onTabChange}
                 activityTab={activityTab}

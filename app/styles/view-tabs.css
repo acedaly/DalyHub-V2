@@ -75,6 +75,25 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* The rail INSIDE a record                                                   */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A filter is subordinate to the tab strip it sits under.
+ *
+ * Under a page TITLE the rail is the loudest thing in its band and takes
+ * `label-large`. Inside a record it sits directly beneath the record's own tab
+ * strip, which is `label-medium` — so at the larger size the filter competed
+ * with, and actually outweighed, the navigation above it. `record-anatomy.spec`
+ * has asserted this hierarchy since M3-INT and caught the regression: the
+ * filter's type must be no larger than the tabs'.
+ */
+.dh-record-toolbar .dh-viewtabs__tab {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
 /* The phone rail                                                             */
 /* -------------------------------------------------------------------------- */
 

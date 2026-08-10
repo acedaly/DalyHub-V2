@@ -198,6 +198,22 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       };
     });
 
+  /*
+   * UIX-02 — the COMPLETE active-Project count, for the Overview's tile.
+   *
+   * `projectPage` is a bounded first page (50), so counting active Projects by
+   * filtering the displayed cards undercounts an Area that runs more than that
+   * — and an Area record is exactly where the roll-up has to be complete: a
+   * bounded page is never presented as a total. This counts the SAME complete
+   * `momentumFacts.projects` set the momentum evaluator reads, using the SAME
+   * `isProjectHealthVisible` rule every other surface applies to decide whether
+   * a Project is actively being worked, so the tile and the momentum beside it
+   * can never disagree about what "active" means.
+   */
+  const activeProjectTotal = momentumFacts.projects.filter((project) =>
+    isProjectHealthVisible(project),
+  ).length;
+
   const evaluatedAtIso = healthContext.now.toISOString();
   const momentum = evaluateAreaMomentum(
     {
@@ -218,6 +234,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     overview: serializeAreaOverview(overview, settings?.iconKey ?? null),
     rollup: serializeAreaRollup(rollup),
     momentum,
+    activeProjectTotal,
     goals: goalPage.items.map(serializeAreaGoalItem),
     goalsNextCursor: goalPage.nextCursor,
     projects,
@@ -434,6 +451,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       goalsNextCursor={props.goalsNextCursor}
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
+      activeProjectTotal={props.activeProjectTotal}
       archived={archived}
       onRename={onRename}
       onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
