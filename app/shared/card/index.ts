@@ -124,6 +124,40 @@ export {
  */
 export { GoalCard, type GoalCardProps, type GoalCardTone } from "./GoalCard";
 export { EntityRow, EntityRowList, type EntityRowProps } from "./EntityRowList";
+/*
+ * UIX-05 — the fourth family. A Person has no completion, no proportion and no
+ * deadline; what they have is a face, a place in a life, a way to be reached and
+ * a rhythm being kept or missed. It lives here rather than in the People module
+ * because a Meeting's attendees and a Project's stakeholders are the same row.
+ */
+export {
+  PersonRow,
+  PersonRowList,
+  type PersonRowProps,
+  type PersonRowReach,
+  type PersonRowTone,
+} from "./PersonRow";
+/*
+ * UIX-05 — the fifth family. An Asset's measure is TIME: what does this thing
+ * need, and when? That is neither a proportion nor a reading, so it is neither
+ * `.dh-pcard` nor `.dh-gcard`. Shared because an Area's Assets tab and the
+ * Assets gallery must draw the same object.
+ */
+export {
+  AssetCard,
+  type AssetCardProps,
+  type AssetCardTone,
+} from "./AssetCard";
+/*
+ * UIX-05 — the sixth family, and the only record whose identity is a PERIOD
+ * rather than a name. Shared because a Goal's or a Project's record may later
+ * show the Reviews that covered it, and there must be one Review card.
+ */
+export {
+  ReviewCard,
+  type ReviewCardProps,
+  type ReviewCardTone,
+} from "./ReviewCard";
 export { CardMetaFact, type CardMetaFactProps } from "./CardMetaFact";
 export {
   Timeline,

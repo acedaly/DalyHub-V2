@@ -243,6 +243,52 @@ writing surface and differing in composition.
   the only read available is one query per row.
 - Record: [`UIX_04_NOTES_DIARY_MEETINGS_2026_08.md`](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
 
+### ☑ UIX-05 - People, Assets, Reviews, Analytics & Settings — **DELIVERED 2026-08-10**
+
+The last of the five-part redesign: take the four remaining record modules off the
+generic shared card, build the Analytics surface the product did not have, and
+give Settings a phone composition instead of a scrolling rail.
+
+- **Gave People a surface of its own** (`PersonRow` / `.dh-prow`) — face,
+  identity, reach, rhythm. The face is the one CIRCULAR identity mark in the
+  product (D26); the preferred contact is a real `mailto:`/`tel:` link, so the
+  commonest act from a People list is one click rather than a record visit away;
+  and PEOPLE-03's derived stay-in-touch state moved from the second of six equal
+  facts to the trailing column and the default sort.
+- **Added the People CIRCLE** — Personal / Work / Services, a pure derivation of
+  the relationship the owner already recorded — as the collection's one view rail
+  and as the avatar's identity accent. Thirteen relationship values reached the
+  screen as one grey word before; every generated avatar was the same violet disc.
+- **Gave Assets a card of their own** (`AssetCard` / `.dh-acard`), whose measure
+  is TIME: one commitment, pinned to the floor, in the evaluator's own words. It
+  is the one card family that spends its colour on STATE rather than identity
+  (D27), and why is documented. The seven permanent filter controls moved into the
+  ONE shared collection sheet at every width, with the shared removable chips.
+- **Gave Reviews a card of their own** (`ReviewCard` / `.dh-rcard`), led by the
+  PERIOD in tabular figures rather than by a name that is derived from it. The
+  reflection is the measure, as an exact fraction; a completed Review draws no bar
+  (D28); and an unfinished one carries Start/Continue straight into REVIEW-02's
+  guided flow.
+- **Built Analytics** — a new module with no repository, no write, no migration
+  and no new kind of query, composed entirely from reads that already existed
+  (`countPeriodCompletions`, `listPeriodContributions`, AREA-03's alignment). Four
+  exact figures, each linking to the records behind it; a completion trend on the
+  shared `TrendLine`; and a distribution in each Area's own identity accent.
+- **Refused two figures the reference asks for.** Focus time and a daily-progress
+  percentage would both have to be invented — DalyHub records no time and computes
+  no percentage of a life. Comparisons are sentences rather than percentages or
+  coloured arrows (D29), and there is no score, index or grade.
+- **Grouped Settings and gave it a phone composition.** Three groups, each a real
+  heading naming its list; a summary line per section as an `aria-describedby`
+  description; and on a phone TWO SCREENS — the section list, then one section —
+  resolved server-side from `?section=` so the first byte is correct.
+- **Non-goals:** Notes, Diary and Meetings — UIX-04's scope, delivered
+  separately and merged into this branch rather than duplicated by it; any change
+  to a domain rule, a repository, a schema or a write path; and any figure
+  Analytics cannot produce exactly.
+- Record:
+  [`UIX_05_REMAINING_MODULES_2026_08.md`](../design/UIX_05_REMAINING_MODULES_2026_08.md).
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.
@@ -284,7 +330,12 @@ After TODAY-09, refine the Focus panel only if the evidence shows that one combi
 - **TASKS-12 - Ordinal monthly recurrence**, only if owner routines need patterns
   such as "first Monday of every month".
 - Broader mobile polish after Tasks/Today acceptance is stable.
-- Analytics or richer review surfaces after daily capture and attention are trusted.
+- Richer review surfaces after daily capture and attention are trusted. (The
+  **Analytics** half of this line shipped in UIX-05, and shipped early precisely
+  because it turned out to need nothing new: every figure it shows comes from a
+  read REVIEW-03 and AREA-03 had already built and already trusted. What stays
+  deferred is anything that would require DalyHub to record something it does not
+  — time tracking, effort estimates, a composite score.)
 
 ### DEFERRED / NOT PLANNED
 

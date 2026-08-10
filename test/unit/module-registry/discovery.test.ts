@@ -85,7 +85,7 @@ describe("module discovery", () => {
     // four spine module manifests, TODAY-01 adds the Today view module, and
     // PX-03 adds nine navigation-shell placeholder modules (Notes, Diary,
     // Meetings, People, Assets, Reviews, AI, Settings, Help) — so it now resolves
-    // to exactly those fourteen, discovered automatically, with NO central
+    // to exactly those, discovered automatically, with NO central
     // module array to edit.
     it("transforms the production glob and discovers every module manifest", () => {
       expect(
@@ -95,6 +95,7 @@ describe("module discovery", () => {
       ).toEqual([
         "about",
         "ai",
+        "analytics",
         "areas",
         "assets",
         "diary",
@@ -129,6 +130,7 @@ describe("module discovery", () => {
         "meetings",
         "people",
         "assets",
+        "analytics",
         "reviews",
         "ai",
         "settings",
@@ -485,6 +487,12 @@ describe("module discovery", () => {
           moduleId: "assets",
           file: "routes/history.tsx",
         },
+        // UIX-05 adds Analytics: ONE route, no entity type and no writes.
+        {
+          id: "analytics.index",
+          moduleId: "analytics",
+          file: "routes/index.tsx",
+        },
         {
           id: "reviews.index",
           moduleId: "reviews",
@@ -613,6 +621,11 @@ describe("module discovery", () => {
         "assets.expiring",
         "assets.service_due",
         "assets.archived",
+        // UIX-05 — Analytics: navigation only, one per range.
+        "analytics.open",
+        "analytics.week",
+        "analytics.month",
+        "analytics.quarter",
         "reviews.open",
         "reviews.new",
         "settings.open",

@@ -376,6 +376,17 @@ export type SerializedObligationSignal = {
   /** The one calm line a card shows ("Service overdue", "Rego due 30 September"). */
   readonly text: string;
   readonly tone: "danger" | "warning" | "info" | "neutral";
+  /**
+   * UIX-05 — the next obligation's due date, formatted, or `null`.
+   *
+   * The COUNTING forms of `text` ("1 obligation overdue", "2 obligations due
+   * soon") deliberately say how many rather than when, which left the UIX-05
+   * card's commitment block with no date at all on exactly the Assets that most
+   * needed one — the card said something was overdue and refused to say since
+   * when. This carries the date so the card can state it beneath the line,
+   * without turning one urgent line into two (§12).
+   */
+  readonly dueLabel: string | null;
 };
 
 /**
@@ -432,11 +443,13 @@ function counts(summary: {
   readonly openCount: number;
   readonly overdueCount: number;
   readonly dueSoonCount: number;
+  readonly nextDueDate: string | null;
 }) {
   return {
     openCount: summary.openCount,
     overdueCount: summary.overdueCount,
     dueSoonCount: summary.dueSoonCount,
+    dueLabel: formatHistoryDate(summary.nextDueDate),
   };
 }
 

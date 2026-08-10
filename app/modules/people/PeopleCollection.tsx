@@ -1,29 +1,58 @@
 /**
- * PEOPLE-01 — the People collection view (presentation, no server imports).
+ * UIX-05 — the People collection.
  *
- * Composed entirely from the shared PX-02 Collection Layout, the DS-04 Card, the
- * DS-03 Drawer (hosting the "New Person" quick-add form) and shared empty states.
- * It adds the collection controls the People module needs — instant client-side
- * search, sort, and a list/grid presentation toggle over the loaded page — plus
- * bounded "Load more" pagination. Each active Card opens the canonical person
- * record through normal client navigation; an archived Card also carries a
- * "Restore" quick action. The three views (`all` on /people, `recent`, `archived`)
- * reuse this one component.
+ * ── What was wrong ──────────────────────────────────────────────────────────
+ * People rendered through the generic shared `Card`, with a list/grid toggle and
+ * up to six metadata facts at one weight: relationship, stay-in-touch, last
+ * interaction, next follow-up, preferred contact and tags. Every one of those is
+ * true and none of them led, so the surface whose subject is "who is in my life,
+ * and who have I not spoken to?" answered it with an alphabetised directory in
+ * the same object a Project gallery uses.
+ *
+ * Four specific defects, each addressed here:
+ *
+ * 1. **A Person was drawn as a body of work.** The shared card is built around a
+ *    title, a status and a run of metadata — the shape of something being moved
+ *    forward. A Person completes nothing. UIX-02 gave a Project its own card and
+ *    an Area its own row for exactly this reason; People was left behind.
+ * 2. **The derived signal was buried.** PEOPLE-03 evaluates a real stay-in-touch
+ *    state per Person and it arrived as the second of six equal facts.
+ * 3. **The list could not reach anyone.** It showed the NAME of the preferred
+ *    contact method and never the address, so writing to someone from the People
+ *    screen was impossible without opening their record.
+ * 4. **Identity carried nothing.** Every generated avatar was the same violet
+ *    disc, and thirteen relationship values reached the screen as one grey word.
+ *
+ * ── What this is now ────────────────────────────────────────────────────────
+ * One `PersonRowList` of `PersonRow`s — face, identity, reach, rhythm — read
+ * through the CIRCLE rail (All · Personal · Work · Services · Archived), with a
+ * "needs a catch-up" filter over the derived state and instant search.
+ *
+ * ── Two removals, both deliberate ───────────────────────────────────────────
+ * - **The list/grid toggle is gone.** A Person has a face, a place, a contact
+ *   and a rhythm; four facts in a 280px card is a card that is mostly empty, and
+ *   the gallery form said nothing the row does not. This is D25's reasoning
+ *   (an Area is a row, only a Project gets a gallery) applied where it holds
+ *   just as well, and it removes a control rather than adding one.
+ * - **The `Recent` scope left the rail.** "Recently added" is an ORDER, not a
+ *   collection, and it already exists as one in the sort. The route stays so no
+ *   existing link breaks; it simply is not a tab any more.
+ *
+ * The circles are applied over the LOADED page rather than in SQL, exactly as
+ * UIX-03 applies Goal status views: the circle is a pure derivation over a
+ * vocabulary the collection already ships, and the page's cursor is bound to the
+ * server's own ordering. The subtitle always states the bound honestly.
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
+import { PersonRow, PersonRowList, type PersonRowTone } from "~/shared/card";
 import {
-  Card,
-  CardCollection,
-  type CardAction,
-  type CardMetaItem,
-  type CardProps,
-} from "~/shared/card";
-import {
+  CollectionControls,
   CollectionLayout,
   useCollectionLoading,
+  type CollectionControlGroup,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -35,17 +64,25 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
-import { GridIcon, ListIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { OverflowMenu } from "~/shared/overflow-menu";
 import { ViewSwitcher } from "~/shared/view-switcher";
 import {
-  StayInTouchIndicator,
   formatRelationshipDate,
   relativeDayPhrase,
 } from "~/shared/relationships";
+import type { RelationshipTone } from "~/kernel/relationships";
 
 import { NewPersonForm } from "./NewPersonForm";
 import { PersonAvatar } from "./PersonAvatar";
+import {
+  PERSON_CIRCLES,
+  parsePersonCircle,
+  personCircle,
+  personCircleLabel,
+  personCircleRank,
+  type PersonCircle,
+} from "./person-circles";
 import { formatPersonDate, type SerializedPersonListItem } from "./person-view";
 import type { PersonMutationResult } from "./routes/mutate";
 
@@ -54,14 +91,116 @@ const NEW_PERSON_KEY = "new-person";
 /** Which collection surface is rendering. */
 export type PeopleView = "all" | "recent" | "archived";
 
-type SortKey = "name" | "recent" | "organisation" | "follow_up";
+type SortKey = "rhythm" | "name" | "recent" | "organisation";
 
 const SORT_OPTIONS: readonly { value: SortKey; label: string }[] = [
-  { value: "recent", label: "Recently added" },
+  { value: "rhythm", label: "Needs attention first" },
   { value: "name", label: "Name (A–Z)" },
+  { value: "recent", label: "Recently added" },
   { value: "organisation", label: "Organisation" },
-  { value: "follow_up", label: "Next follow-up" },
 ];
+
+const DEFAULT_SORT: SortKey = "rhythm";
+
+/** Narrow an untrusted query-string value to a sort. */
+function parseSort(value: string | null): SortKey {
+  return SORT_OPTIONS.some((option) => option.value === value)
+    ? (value as SortKey)
+    : DEFAULT_SORT;
+}
+
+/**
+ * The control dimensions, as the ONE shared collection sheet's groups.
+ *
+ * Both are URL-backed, which is what lets the phone reach them through the
+ * shared sheet rather than through a second row of chrome — and it is an
+ * improvement in its own right: a People list narrowed to "needs a catch-up" and
+ * sorted by name is now a link that can be shared and restored, which it was not
+ * while the sort lived in component state.
+ *
+ * The CATCH-UP group is omitted on the Archived view, and that is a data fact
+ * rather than a tidy-up: the archived loader deliberately serializes every
+ * Person WITHOUT a stay-in-touch signal, because telling an owner that someone
+ * they filed away is due for a catch-up is exactly the nagging AGENTS.md §5
+ * rules out. Offering the filter there would therefore empty the list every
+ * time, whatever the stored relationships say. The desktop toggle already hid
+ * itself for this reason; the sheet has to as well.
+ */
+function controlGroups(view: PeopleView): readonly CollectionControlGroup[] {
+  const sort: CollectionControlGroup = {
+    id: "sort",
+    label: "Sort",
+    param: "sort",
+    kind: "sort",
+    defaultValue: DEFAULT_SORT,
+    options: SORT_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label,
+      ...(option.value === "rhythm"
+        ? {
+            // Said here rather than in the label, because it is a caveat about
+            // the ORDER's reach and not part of the order's name. The People
+            // repository paginates by creation order, so a rhythm sort ranks
+            // what is loaded — see the subtitle, which states the same bound.
+            description: "Orders the People loaded so far.",
+          }
+        : {}),
+    })),
+  };
+  if (view === "archived") {
+    return [sort];
+  }
+  return [
+    {
+      id: "catch_up",
+      label: "Show",
+      param: "catch_up",
+      options: [
+        { value: "", label: "Everyone" },
+        {
+          value: "1",
+          label: "Needs a catch-up",
+          description: "Past the rhythm you set, or out of touch.",
+        },
+      ],
+    },
+    sort,
+  ];
+}
+
+/**
+ * How overdue each stay-in-touch state is, for the default order.
+ *
+ * It is a display rank and never a score: nothing is shown as a number, and the
+ * words on the row are the whole statement. `no_history` sits mid-list rather
+ * than first — someone the owner has recorded nothing about yet is an invitation
+ * (PEOPLE-03's own wording), not the most pressing thing on the screen.
+ */
+const RHYTHM_RANK: Readonly<Record<string, number>> = {
+  out_of_touch: 0,
+  due_for_follow_up: 1,
+  no_history: 2,
+  in_touch: 3,
+  recently_connected: 4,
+};
+
+/**
+ * The row's tone vocabulary from the relationship kernel's.
+ *
+ * `out_of_touch` and `due_for_follow_up` both arrive as the kernel's `neutral`
+ * tone — correct for a pill that must not shout, and not enough for a column the
+ * eye is meant to land on. The escalation is made HERE, from the state rather
+ * than from the tone, and it is still never colour alone: the state is spelled
+ * out beside the dot on every row.
+ */
+function rhythmTone(state: string, tone: RelationshipTone): PersonRowTone {
+  if (state === "out_of_touch" || state === "due_for_follow_up") {
+    return "warning";
+  }
+  if (tone === "success") return "success";
+  if (tone === "info") return "info";
+  return "neutral";
+}
 
 export interface PeopleCollectionViewProps {
   readonly people: readonly SerializedPersonListItem[];
@@ -85,7 +224,7 @@ const BASE_PATH: Record<PeopleView, string> = {
 
 const HEADINGS: Record<PeopleView, { title: string; noun: string }> = {
   all: { title: "People", noun: "people" },
-  recent: { title: "Recent people", noun: "recent people" },
+  recent: { title: "Recently added", noun: "recent people" },
   archived: { title: "Archived people", noun: "archived people" },
 };
 
@@ -121,7 +260,6 @@ export function PeopleCollectionView({
         nextCursor={nextCursor}
         failed={failed}
         view={view}
-        onOpen={(id) => navigate(`/person/${encodeURIComponent(id)}`)}
       />
     </DrawerProvider>
   );
@@ -136,107 +274,55 @@ function NewPersonFormHost({
   return <NewPersonForm onCreated={onCreated} onCancel={closeDrawer} />;
 }
 
-function metaFor(person: SerializedPersonListItem): CardMetaItem[] {
-  const metadata: CardMetaItem[] = [];
-  if (person.relationshipLabel) {
-    metadata.push({
-      id: "relationship",
-      label: "Relationship",
-      value: person.relationshipLabel,
-    });
-  }
-  // PEOPLE-03 — the DERIVED stay-in-touch state, rendered through the SAME shared
-  // indicator the Person record uses (never a second collection-only pill). The
-  // pill is non-interactive, so it adds no tab stop inside the card's own link.
-  if (person.stayInTouch) {
-    metadata.push({
-      id: "stay-in-touch",
-      label: "Staying in touch",
-      value: <StayInTouchIndicator relationship={person.stayInTouch} />,
-    });
-  }
-  // The last interaction is DERIVED from the relationship timeline when there is
-  // one, and only falls back to the hand-entered `lastInteraction` field when
-  // nothing has been recorded — the derived value is the one that cannot go stale.
-  const derivedLast = person.stayInTouch?.daysSinceLastInteraction ?? null;
-  if (derivedLast !== null) {
-    metadata.push({
-      id: "last-interaction",
-      label: "Last interaction",
-      value:
-        formatRelationshipDate(
-          person.stayInTouch?.lastInteractionDate ?? null,
-        ) ?? relativeDayPhrase(derivedLast),
-    });
-  } else {
-    const lastInteraction = formatPersonDate(person.lastInteraction);
-    if (lastInteraction) {
-      metadata.push({
-        id: "last-interaction",
-        label: "Last spoke",
-        value: lastInteraction,
-      });
-    }
-  }
-  const nextFollowUp = formatPersonDate(person.nextFollowUp);
-  if (nextFollowUp) {
-    metadata.push({
-      id: "next-follow-up",
-      label: "Follow up",
-      value: nextFollowUp,
-    });
-  }
-  if (person.favouriteContactMethodLabel) {
-    metadata.push({
-      id: "favourite-contact",
-      label: "Prefers",
-      value: person.favouriteContactMethodLabel,
-    });
-  }
-  if (person.tags.length > 0) {
-    metadata.push({ id: "tags", label: "Tags", value: person.tags.join(", ") });
-  }
-  return metadata;
-}
-
-function toCardProps(
-  person: SerializedPersonListItem,
-  presentation: "list" | "grid",
-  onOpen: (id: string) => void,
-  restoreAction: CardAction | undefined,
-): CardProps {
-  const subtitleParts = [person.role, person.organisation].filter(Boolean);
-  return {
-    id: person.id,
-    title: person.title,
-    typeLabel: "Person",
-    icon: (
-      <PersonAvatar
-        name={person.title}
-        initials={person.initials}
-        photoUrl={person.photoUrl}
-        size={presentation === "grid" ? 48 : 40}
-      />
-    ),
-    headingLevel: 2,
-    subtitle: subtitleParts.length > 0 ? subtitleParts.join(" · ") : undefined,
-    status: person.archived
-      ? { label: "Archived", tone: "warning" }
-      : undefined,
-    metadata: metaFor(person),
-    density: "comfortable",
-    presentation,
-    href: `/person/${encodeURIComponent(person.id)}`,
-    onOpen: () => onOpen(person.id),
-    openAriaLabel: `Open ${person.title}`,
-    quickActions: restoreAction ? [restoreAction] : undefined,
-  };
+/**
+ * The one identity line under the name.
+ *
+ * The role and organisation lead where they exist, because that is what
+ * distinguishes two people with the same first name; the circle follows, so the
+ * avatar's colour always has a word beside it. A Person with neither says only
+ * their relationship, and a Person with none of the three says nothing at all
+ * rather than a placeholder.
+ */
+function contextLine(person: SerializedPersonListItem): string | null {
+  const circle = personCircleLabel(personCircle(person.relationship));
+  const parts = [person.role, person.organisation].filter(Boolean);
+  const who = person.relationshipLabel ?? circle;
+  const line = [who, ...parts].filter(Boolean).join(" · ");
+  return line.length > 0 ? line : null;
 }
 
 /**
- * UX-01 — replaced by the ONE shared `useKeysetPagination` (DEBT-45). This was one
- * of five near-identical private copies of the same accumulate/de-duplicate/reset
- * logic; the shared hook also fixes the request-scoping defect they all carried.
+ * The rhythm column's detail line — when this person was last heard from.
+ *
+ * The DERIVED date leads, because it cannot go stale; the hand-entered "last
+ * spoke" field is the fallback, and "Nothing recorded yet" is the honest third
+ * case. A Person whose signal failed to load shows no rhythm at all rather than
+ * a wrong one.
+ *
+ * Every branch is PREFIXED with what the date means. The first screenshots of
+ * this row printed a bare "24 March 2026" under "Due for follow-up", and a bare
+ * date beneath a follow-up state reads just as naturally as the date the
+ * follow-up is DUE — which is the opposite of what it is. A column of dates that
+ * needs the reader to remember which kind they are is a column that says nothing.
+ */
+function rhythmDetail(person: SerializedPersonListItem): string | null {
+  const days = person.stayInTouch?.daysSinceLastInteraction ?? null;
+  if (days !== null) {
+    const dated = formatRelationshipDate(
+      person.stayInTouch?.lastInteractionDate ?? null,
+    );
+    return `Last spoke ${dated ?? relativeDayPhrase(days)}`;
+  }
+  const entered = formatPersonDate(person.lastInteraction);
+  if (entered) return `Last spoke ${entered}`;
+  const followUp = formatPersonDate(person.nextFollowUp);
+  if (followUp) return `Follow up ${followUp}`;
+  return null;
+}
+
+/**
+ * UX-01 — the ONE shared `useKeysetPagination` (DEBT-45). This was one of five
+ * near-identical private copies of the same accumulate/de-duplicate/reset logic.
  */
 function usePeoplePagination(
   firstPage: readonly SerializedPersonListItem[],
@@ -321,12 +407,19 @@ function matchesQuery(
     person.organisation,
     person.role,
     person.relationshipLabel,
+    ...person.reach.map((reach) => reach.value),
     ...person.tags,
   ]
     .filter(Boolean)
     .join(" ")
     .toLocaleLowerCase();
   return haystack.includes(query);
+}
+
+/** True when the derived state says this relationship is asking for something. */
+function needsCatchUp(person: SerializedPersonListItem): boolean {
+  const state = person.stayInTouch?.state;
+  return state === "out_of_touch" || state === "due_for_follow_up";
 }
 
 function sortPeople(
@@ -343,15 +436,23 @@ function sortPeople(
           (a.organisation ?? "").localeCompare(b.organisation ?? "") ||
           a.title.localeCompare(b.title),
       );
-    case "follow_up":
-      return items.sort((a, b) => {
-        const av = a.nextFollowUp ?? "9999-99-99";
-        const bv = b.nextFollowUp ?? "9999-99-99";
-        return av.localeCompare(bv) || a.title.localeCompare(b.title);
-      });
     case "recent":
-    default:
       return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    case "rhythm":
+    default:
+      // The default. A People list is opened to find out who has gone quiet, so
+      // the ones who have lead — and within a state, the longest silence first.
+      return items.sort((a, b) => {
+        const rank =
+          (RHYTHM_RANK[a.stayInTouch?.state ?? "no_history"] ?? 2) -
+          (RHYTHM_RANK[b.stayInTouch?.state ?? "no_history"] ?? 2);
+        if (rank !== 0) return rank;
+        const days =
+          (b.stayInTouch?.daysSinceLastInteraction ?? -1) -
+          (a.stayInTouch?.daysSinceLastInteraction ?? -1);
+        if (days !== 0) return days;
+        return a.title.localeCompare(b.title);
+      });
   }
 }
 
@@ -360,13 +461,11 @@ function PeopleCollection({
   nextCursor,
   failed,
   view,
-  onOpen,
 }: {
   readonly people: readonly SerializedPersonListItem[];
   readonly nextCursor: string | null;
   readonly failed: boolean;
   readonly view: PeopleView;
-  readonly onOpen: (id: string) => void;
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } = usePeoplePagination(
     people,
@@ -374,29 +473,83 @@ function PeopleCollection({
     view,
   );
   const { restore, pendingIds, restoredIds } = useRestorePerson();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("recent");
-  const [presentation, setPresentation] = useState<"list" | "grid">("list");
+
+  // The circle, the catch-up filter and the sort all live in the URL, so each is
+  // deep-linkable, shareable and Back/Forward-correct — the same contract every
+  // other view rail and control sheet has. The sort used to be component state,
+  // which is why it could not reach the shared phone sheet.
+  const circle = parsePersonCircle(searchParams.get("circle"));
+  const onlyCatchUp = searchParams.get("catch_up") === "1";
+  const sortKey = parseSort(searchParams.get("sort"));
+
+  const setParam = useCallback(
+    (key: string, value: string | null) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value) next.set(key, value);
+          else next.delete(key);
+          return next;
+        },
+        { replace: true, preventScrollReset: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const normalisedQuery = query.trim().toLocaleLowerCase();
   const visible = useMemo(() => {
     const filtered = items
       .filter((person) => !restoredIds.has(person.id))
+      .filter(
+        (person) =>
+          circle === null || personCircle(person.relationship) === circle,
+      )
+      .filter((person) => !onlyCatchUp || needsCatchUp(person))
       .filter((person) => matchesQuery(person, normalisedQuery));
     return sortPeople(filtered, sortKey);
-  }, [items, restoredIds, normalisedQuery, sortKey]);
+  }, [items, restoredIds, circle, onlyCatchUp, normalisedQuery, sortKey]);
+
+  const catchUpCount = useMemo(
+    () =>
+      items.filter((person) => !restoredIds.has(person.id)).filter(needsCatchUp)
+        .length,
+    [items, restoredIds],
+  );
 
   const { title, noun } = HEADINGS[view];
   const canQuickAdd = view !== "archived";
   const count = visible.length;
+  const narrowed = circle !== null || onlyCatchUp || normalisedQuery.length > 0;
+
+  /*
+   * The subtitle states the BOUND, not just the count — and says what to do
+   * about it.
+   *
+   * The circles, the catch-up filter, the search and the SORT all run over the
+   * loaded page, because the repository paginates People by creation order and
+   * the stay-in-touch state is derived per page (there is no server-side rhythm
+   * ranking, and inventing one would mean duplicating PEOPLE-03's evaluator in
+   * SQL — the thing UIX-03 explicitly refused for Goal status).
+   *
+   * So while more pages remain, every one of those is a statement about what is
+   * LOADED and not about the workspace. Saying so is the whole fix: "4 of 50
+   * loaded — load more to keep looking" makes the bound and the remedy the same
+   * sentence, where "4 people" would be a claim this screen cannot make.
+   */
+  const bounded = hasMore && (narrowed || sortKey !== "recent");
   const subtitle = failed
     ? `We couldn’t load your ${noun}.`
-    : normalisedQuery.length > 0
-      ? `${count} of ${items.length} match "${query.trim()}"`
+    : narrowed
+      ? bounded
+        ? `${count} of ${items.length} loaded — load more to keep looking`
+        : `${count} of ${items.length}`
       : hasMore
         ? `${count} ${noun} loaded`
         : count === 1
-          ? `1 ${noun.replace(/s$/, "")}`
+          ? `1 ${noun.replace(/people$/, "person")}`
           : `${count} ${noun}`;
 
   const quickAdd = canQuickAdd ? (
@@ -408,51 +561,37 @@ function PeopleCollection({
     </DrawerTrigger>
   ) : undefined;
 
-  const restoreActionFor = (
-    person: SerializedPersonListItem,
-  ): CardAction | undefined =>
-    person.archived
-      ? {
-          id: "restore",
-          label: "Restore",
-          pending: pendingIds.has(person.id),
-          onSelect: () => restore(person.id, person.title),
-        }
-      : undefined;
-
   /*
-   * UIQ-013 — People had TWO bespoke switchers and now has none of its own.
+   * The CIRCLE rail — the one view switcher People has, and the collection's
+   * principal mode: exactly one is always active, and each is a partition of the
+   * relationship vocabulary the record already carries (`person-circles.ts`).
    *
-   * Both are the one shared primitive, and both are genuinely views rather
-   * than filters: the scope decides which principal collection is shown (one
-   * of the three is always active) and the layout decides how those records
-   * are presented. They sit side by side in the header's view slot — scope
-   * first, because it is the bigger decision — and the layout toggle is
-   * icon-only so a second control costs a pair of 44px squares rather than a
-   * second row of pills.
+   * `Archived` is the fifth because it genuinely is the fifth mode of the same
+   * kind: a different set of People, not a different lens on the same ones. It
+   * is a route rather than a param because it is a different server-side scope.
    */
+  const circleHref = (value: PersonCircle | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set("circle", value);
+    else next.delete("circle");
+    const qs = next.toString();
+    return qs ? `/people?${qs}` : "/people";
+  };
+
   const viewSwitcher = (
-    <>
-      <ViewSwitcher
-        options={[
-          { value: "all", label: "All people", href: "/people" },
-          { value: "recent", label: "Recent", href: "/people/recent" },
-          { value: "archived", label: "Archived", href: "/people/archived" },
-        ]}
-        value={view}
-        label="People views"
-      />
-      <ViewSwitcher
-        options={[
-          { value: "list", label: "List view", icon: <ListIcon /> },
-          { value: "grid", label: "Gallery view", icon: <GridIcon /> },
-        ]}
-        value={presentation}
-        label="Card layout"
-        iconOnly
-        onSelect={(next) => setPresentation(next as "list" | "grid")}
-      />
-    </>
+    <ViewSwitcher
+      options={[
+        { value: "all", label: "All", href: circleHref(null) },
+        ...PERSON_CIRCLES.map((entry) => ({
+          value: entry.value,
+          label: entry.railLabel,
+          href: circleHref(entry.value),
+        })),
+        { value: "archived", label: "Archived", href: "/people/archived" },
+      ]}
+      value={view === "archived" ? "archived" : (circle ?? "all")}
+      label="People circles"
+    />
   );
 
   const filterBar = (
@@ -462,18 +601,38 @@ function PeopleCollection({
         <input
           type="search"
           inputMode="search"
-          placeholder="Search name, organisation, role or tag"
+          placeholder="Search name, organisation, email or tag"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="dh-people-filters__input"
           autoComplete="off"
         />
       </label>
+      {/*
+       * The one FILTER People has, and it is the module's own question rather
+       * than a generic facet: "who is this list asking me to contact?". It is a
+       * toggle rather than a select because there is exactly one answer, and it
+       * states its own count so the owner knows before pressing it whether it
+       * will show anything.
+       */}
+      {view !== "archived" ? (
+        <button
+          type="button"
+          className="dh-people-filters__toggle"
+          aria-pressed={onlyCatchUp}
+          onClick={() => setParam("catch_up", onlyCatchUp ? null : "1")}
+        >
+          Needs a catch-up
+          <span className="dh-people-filters__toggle-count">
+            {catchUpCount}
+          </span>
+        </button>
+      ) : null}
       <label className="dh-people-filters__sort">
         <span className="dh-visually-hidden">Sort people</span>
         <select
           value={sortKey}
-          onChange={(event) => setSortKey(event.target.value as SortKey)}
+          onChange={(event) => setParam("sort", event.target.value)}
           className="dh-people-filters__select"
         >
           {SORT_OPTIONS.map((option) => (
@@ -484,6 +643,27 @@ function PeopleCollection({
         </select>
       </label>
     </div>
+  );
+
+  /*
+   * The phone's ONE control row.
+   *
+   * At 390px the desktop filter bar was three stacked rows — search, the
+   * catch-up toggle, the sort select — under a scrolling circle rail, which is
+   * four rows of chrome before the first Person. MOBILE-01 exists for exactly
+   * this: the phone gets one Filter button and the shared sheet, and it can only
+   * do that because the sort and the catch-up filter are both URL-backed.
+   *
+   * Search stays visible at every width (see `people.css`), because a search box
+   * behind a button is a search box nobody uses.
+   */
+  const mobileControls = (
+    <CollectionControls
+      groups={controlGroups(view)}
+      label="Filter and sort people"
+      triggerLabel="Filter & sort"
+      basePath={BASE_PATH[view]}
+    />
   );
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
@@ -498,6 +678,7 @@ function PeopleCollection({
       entityType="person"
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
+      mobileControls={mobileControls}
       primaryAction={quickAdd}
       error={
         failed ? (
@@ -526,46 +707,138 @@ function PeopleCollection({
       isFilteredEmpty={
         !failed &&
         count === 0 &&
-        (items.length > 0 || view !== "all" || normalisedQuery.length > 0)
+        (items.length > 0 || view !== "all" || narrowed)
       }
       filteredEmptySlot={
+        /*
+         * The wording depends on whether there are MORE PAGES.
+         *
+         * Every narrowing here runs over the loaded page, so "Nobody in Personal
+         * yet" is a claim about the workspace that a first page of fifty cannot
+         * support — and it is the most misleading thing this screen could say,
+         * because the owner's answer is one button away. While a cursor remains,
+         * the empty state says what it actually knows ("none of the N loaded")
+         * and points at Load more, which is still rendered beneath it.
+         */
         <EmptyState
           icon={<EntityIcon type="person" />}
           title={
-            normalisedQuery.length > 0
-              ? "No people match your search"
-              : view === "archived"
-                ? "No archived people"
-                : "No people to show"
+            hasMore
+              ? `No matches in the ${items.length} loaded so far`
+              : normalisedQuery.length > 0
+                ? "No people match your search"
+                : onlyCatchUp
+                  ? "Nobody is waiting to hear from you"
+                  : circle !== null
+                    ? `Nobody in ${personCircleLabel(circle)} yet`
+                    : view === "archived"
+                      ? "No archived people"
+                      : "No people to show"
           }
           description={
-            normalisedQuery.length > 0
-              ? "Try a different name, organisation, role or tag."
-              : view === "archived"
-                ? "People you archive appear here, and can be restored at any time."
-                : "Add someone to get started."
+            hasMore
+              ? "There are more People to load. Load more to keep looking, or widen the search."
+              : normalisedQuery.length > 0
+                ? "Try a different name, organisation, address or tag."
+                : onlyCatchUp
+                  ? "Everyone in this circle is inside the rhythm you set for them."
+                  : circle !== null
+                    ? "Set someone’s relationship on their record and they will appear in the circle it belongs to."
+                    : view === "archived"
+                      ? "People you archive appear here, and can be restored at any time."
+                      : "Add someone to get started."
+          }
+          /*
+           * The remedy has to be IN the empty state, not beneath it.
+           *
+           * `CollectionLayout` replaces the whole content region with this slot,
+           * so the Load more that sits beside the row list is not rendered at
+           * all here — telling the owner to "load more to keep looking" while
+           * the control was elsewhere on the page would have been worse than the
+           * defect it replaced. The same handler, in the one place they are
+           * looking.
+           */
+          primaryAction={
+            hasMore ? (
+              <button
+                type="button"
+                className="dh-btn dh-btn--primary"
+                onClick={loadMore}
+                disabled={loading}
+                aria-busy={loading}
+              >
+                {loading ? "Loading…" : `Load more ${noun}`}
+              </button>
+            ) : undefined
           }
         />
       }
     >
-      <CardCollection
-        items={visible}
-        getItemId={(person) => person.id}
-        ariaLabel={title}
-        presentation={presentation}
-        density="comfortable"
-        renderCard={(person) => (
-          <Card
-            {...toCardProps(
-              person,
-              presentation,
-              onOpen,
-              restoreActionFor(person),
-            )}
+      <PersonRowList label={title} data-testid="people-list">
+        {visible.map((person) => (
+          <PersonRow
+            key={person.id}
+            headingLevel={2}
+            avatar={
+              <PersonAvatar
+                name={person.title}
+                initials={person.initials}
+                photoUrl={person.photoUrl}
+                colourRank={personCircleRank(personCircle(person.relationship))}
+                size={44}
+              />
+            }
+            title={person.title}
+            context={contextLine(person)}
+            reach={person.reach[0] ?? null}
+            secondaryReach={person.reach[1] ?? null}
+            rhythm={
+              person.stayInTouch
+                ? {
+                    text: person.stayInTouch.label,
+                    tone: rhythmTone(
+                      person.stayInTouch.state,
+                      person.stayInTouch.tone,
+                    ),
+                    detail: rhythmDetail(person),
+                  }
+                : undefined
+            }
+            muted={person.archived}
+            href={`/person/${encodeURIComponent(person.id)}`}
+            openAriaLabel={`Open ${person.title}`}
+            overflow={
+              person.archived ? (
+                <OverflowMenu
+                  label={`Actions for ${person.title}`}
+                  items={[
+                    {
+                      id: "restore",
+                      label: pendingIds.has(person.id)
+                        ? "Restoring…"
+                        : "Restore",
+                      disabled: pendingIds.has(person.id),
+                      onSelect: () => restore(person.id, person.title),
+                    },
+                  ]}
+                />
+              ) : undefined
+            }
           />
-        )}
-      />
-      {!failed && hasMore && normalisedQuery.length === 0 ? (
+        ))}
+      </PersonRowList>
+      {/*
+       * Load more is available whenever a cursor remains — narrowed or not.
+       *
+       * It used to be hidden while a search was active, and this pass had
+       * widened that to the circles and the catch-up filter too. Since all of
+       * them narrow the LOADED page rather than the query, hiding the control
+       * made every matching Person on a later page unreachable: the owner saw
+       * "Nobody in Personal yet" with fifty of two hundred People loaded and no
+       * way to look further. Loading another page is exactly the remedy, so the
+       * control stays — and the empty state above now points at it.
+       */}
+      {!failed && hasMore ? (
         <LoadMore
           loading={loading}
           loadFailed={loadFailed}

@@ -1,30 +1,45 @@
 /**
- * ASSET-01 — the Assets collection view (presentational).
+ * UIX-05 — the Assets collection.
  *
- * Layers the Assets-specific controls on the shared PX-02 Collection Layout: a
- * segmented VIEW switcher (All / Recently updated / Expiring soon / Service due /
- * Archived), a FILTER bar (type, status, area, owner, tag) and a SORT control — all
- * URL-driven, so filtering/sorting/pagination run against the FULL workspace
- * collection server-side (never only the loaded page), and Back/Forward restores
- * them. Cards show only NON-SENSITIVE facts (type, status, make/model, location) plus
- * the single next meaningful date; a serial/reference number, price or private note
- * never reaches a card (§17). "Load more" appends cursor pages without re-loading.
+ * ── What was wrong ──────────────────────────────────────────────────────────
+ * Assets rendered through the generic shared `Card` in a single-column list,
+ * behind a filter bar of SEVEN permanent controls — search, type, status, area,
+ * owner, obligations, tag, plus a sort — laid out as one wrapping row. On a
+ * 1280 laptop that was three rows of chrome above the first record; on a phone
+ * it was a screenful. Every card then carried type, make/model, location, status
+ * and one date at near-equal weight, so the surface that exists to answer "what
+ * do I own, and what does it need from me next?" answered the first half and
+ * whispered the second.
+ *
+ * ── What this is now ────────────────────────────────────────────────────────
+ * A gallery of `AssetCard`s (`~/shared/card/AssetCard.tsx`) whose measure is
+ * TIME: the thing at the top, the next commitment pinned to the floor, in the
+ * state's own words and tone. The five scopes stay on the shared view rail; the
+ * seven filters move into the ONE shared collection sheet at every width
+ * (`persistentControls`), which is exactly the case TASKS-03 built it for — a
+ * collection with a genuinely rich control surface should not fork into a
+ * desktop bar and a phone sheet, because that is two things to learn and two
+ * places for a filter to hide. Search stays visible, because a search box behind
+ * a button is a search box nobody uses.
+ *
+ * ── What did NOT change ─────────────────────────────────────────────────────
+ * Every filter, sort, view and cursor is still URL-backed and still applied
+ * server-side over the FULL collection; the obligation facet is still applied
+ * over the loaded page for the reason `assets-collection-data.ts` documents; and
+ * the card still shows only non-sensitive facts — no serial number, no reference
+ * code, no price, no private note ever reaches it (§17).
  */
 
 import { useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { ASSET_STATUSES, ASSET_TYPES, type AssetView } from "~/kernel/assets";
+import { AssetCard, EntityCardGrid, type AssetCardTone } from "~/shared/card";
 import {
-  Card,
-  CardCollection,
-  type CardMetaItem,
-  type CardProps,
-  type CardTone,
-} from "~/shared/card";
-import {
+  CollectionControls,
   CollectionLayout,
   useCollectionLoading,
+  type CollectionControlGroup,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
@@ -32,12 +47,13 @@ import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { assetTypeIcon } from "./asset-icons";
-import { nextMeaningfulDate, type AssetDateStatus } from "./asset-dates";
+import {
+  formatAssetDate,
+  nextMeaningfulDate,
+  type AssetDateStatus,
+} from "./asset-dates";
 import type { SerializedObligationSignal } from "./asset-history-view";
-import type {
-  AssetFilterOption,
-  AssetsCollectionData,
-} from "./assets-collection-data";
+import type { AssetsCollectionData } from "./assets-collection-data";
 import type { SerializedAssetListItem } from "./asset-view";
 
 const VIEWS: {
@@ -59,7 +75,15 @@ const SORTS = [
   { value: "next_date", label: "Next date" },
 ];
 
-const DATE_TONE: Record<AssetDateStatus, CardTone> = {
+/**
+ * The card's tone for a canonical date status.
+ *
+ * `overdue` is the attention tone rather than the error one (D3): a lapsed
+ * warranty is a state of a record, not an application fault. `today` reads as
+ * due-soon rather than overdue, because a thing due today has not yet been
+ * missed.
+ */
+const DATE_TONE: Record<AssetDateStatus, AssetCardTone> = {
   overdue: "danger",
   due_soon: "warning",
   today: "warning",
@@ -68,54 +92,73 @@ const DATE_TONE: Record<AssetDateStatus, CardTone> = {
   none: "neutral",
 };
 
+const OBLIGATION_TONE: Record<
+  SerializedObligationSignal["tone"],
+  AssetCardTone
+> = {
+  danger: "danger",
+  warning: "warning",
+  info: "info",
+  neutral: "neutral",
+};
+
 function pathFor(view: AssetView): string {
   return VIEWS.find((v) => v.view === view)?.path ?? "/assets";
 }
 
 /**
- * Build the NON-SENSITIVE card view-model for one Asset.
+ * The ONE commitment a card shows.
  *
- * ASSET-02 — the card's single date line now prefers the OBLIGATION signal when
- * the Asset has one, because that is the live commitment; it falls back to the
- * canonical warranty/renewal/service date only when there are no obligations. The
- * two are never shown together: a card carries one urgent line, not a maintenance
- * history (§12).
+ * The OBLIGATION signal wins where the Asset has one, because that is a live
+ * commitment the owner created; the canonical warranty/renewal/service date is
+ * the fallback. The two are never shown together — a card carries one urgent
+ * line, not a maintenance history (§12) — and the obligation's own `when` is
+ * omitted because the signal's text already carries it ("Rego due 30
+ * September").
  *
- * Phone priority (§12): the Card renders title → type → this date line → status,
- * which is exactly the order an owner needs at 320px.
+ * An Asset with neither returns `null`, and the card states the absence once in
+ * the space the date would have taken rather than leaving a gap.
  */
-function toCard(
+function commitmentFor(
   item: SerializedAssetListItem,
   today: string,
   signal: SerializedObligationSignal | undefined,
-): CardProps {
-  const Icon = assetTypeIcon(item.assetType);
-  const nextDate = nextMeaningfulDate(item, today);
-  const metadata: CardMetaItem[] = [];
-  const modelLine = [item.manufacturer, item.model].filter(Boolean).join(" ");
-  if (modelLine) metadata.push({ id: "model", value: modelLine });
-  if (item.location) {
-    metadata.push({ id: "location", label: "Location", value: item.location });
+): { text: string; tone: AssetCardTone; when: string | null } | null {
+  if (signal) {
+    return {
+      text: signal.text,
+      tone: OBLIGATION_TONE[signal.tone],
+      /*
+       * The date, unless the signal's own text already carries it.
+       *
+       * The counting forms ("1 obligation overdue") say how many and not when,
+       * which is exactly the case that most needs a date — a card saying
+       * something is overdue and refusing to say since when. The dated form
+       * ("Next: Rego 30 September") already has it, and printing it twice under
+       * itself would be worse than not printing it at all.
+       */
+      when:
+        signal.dueLabel && !signal.text.includes(signal.dueLabel)
+          ? signal.dueLabel
+          : null,
+    };
   }
-  const dateLabel = signal
-    ? { label: signal.text, tone: signal.tone as CardTone }
-    : nextDate
-      ? { label: nextDate.text, tone: DATE_TONE[nextDate.status] }
-      : undefined;
+  const next = nextMeaningfulDate(item, today);
+  if (!next) return null;
   return {
-    id: item.id,
-    title: item.title,
-    headingLevel: 2,
-    typeLabel: item.assetTypeLabel,
-    icon: <Icon />,
-    accent: "neutral",
-    subtitle: item.assetTypeLabel,
-    status: { label: item.statusLabel },
-    metadata,
-    dateLabel,
-    href: `/asset/${encodeURIComponent(item.id)}`,
-    openAriaLabel: `Open ${item.title}`,
+    text: next.text,
+    tone: DATE_TONE[next.status],
+    // The relative phrase is in `text` ("Service due in 12 days"); the absolute
+    // date beneath it is what an owner needs to act on, and one without the
+    // other is either vague or unscannable.
+    when: formatAssetDate(next.iso),
   };
+}
+
+/** "Vehicle · Toyota HiLux SR5" — the type, then what it actually is. */
+function contextFor(item: SerializedAssetListItem): string {
+  const model = [item.manufacturer, item.model].filter(Boolean).join(" ");
+  return [item.assetTypeLabel, model].filter(Boolean).join(" · ");
 }
 
 /**
@@ -188,6 +231,7 @@ export function AssetsCollectionView({
   const filtersActive =
     Boolean(data.query) ||
     Object.keys(data.filters).length > 0 ||
+    data.obligations !== "any" ||
     data.view !== "all";
 
   const viewLabel = VIEWS.find((v) => v.view === data.view)?.label ?? "Assets";
@@ -212,9 +256,87 @@ export function AssetsCollectionView({
     />
   );
 
+  /*
+   * The seven control dimensions, as ONE shared sheet at every width.
+   *
+   * Every group is URL-backed and single-select, so the sheet is a different way
+   * to reach the same state rather than a second state store: a shared link
+   * still restores the exact collection, and Back/Forward still work. The Area
+   * and Owner groups are bounded server-loaded option lists (never a collection
+   * loaded to filter it locally), which is why they are ordinary groups rather
+   * than the sheet's server-backed picker slot.
+   */
+  const controlGroups: readonly CollectionControlGroup[] = useMemo(
+    () => [
+      {
+        id: "type",
+        label: "Type",
+        param: "type",
+        options: [
+          { value: "", label: "All types" },
+          ...ASSET_TYPES.map((t) => ({ value: t.value, label: t.label })),
+        ],
+      },
+      {
+        id: "status",
+        label: "Status",
+        param: "status",
+        options: [
+          { value: "", label: "Any status" },
+          ...ASSET_STATUSES.map((s) => ({ value: s.value, label: s.label })),
+        ],
+      },
+      {
+        id: "obligations",
+        label: "Obligations",
+        param: "obligations",
+        defaultValue: "any",
+        options: [
+          { value: "any", label: "Any" },
+          { value: "overdue", label: "Overdue" },
+          { value: "due_soon", label: "Due soon" },
+        ],
+      },
+      {
+        id: "area",
+        label: "Area",
+        param: "area",
+        options: [
+          { value: "", label: "Any area" },
+          ...data.areas.map((a) => ({ value: a.id, label: a.title })),
+        ],
+      },
+      {
+        id: "person",
+        label: "Owner",
+        param: "person",
+        options: [
+          { value: "", label: "Anyone" },
+          ...data.people.map((p) => ({ value: p.id, label: p.title })),
+        ],
+      },
+      {
+        id: "sort",
+        label: "Sort",
+        param: "sort",
+        kind: "sort",
+        defaultValue: "recent",
+        options: SORTS.map((s) => ({ value: s.value, label: s.label })),
+      },
+    ],
+    [data.areas, data.people],
+  );
+
+  /*
+   * Search stays visible at every width.
+   *
+   * It is the one control an owner reaches for without deciding to filter, and a
+   * search box behind a button is a search box nobody uses. Everything else is
+   * in the sheet beside it.
+   */
   const filterBar = (
     <div className="dh-assets-filters">
-      <label className="dh-assets-filters__field">
+      <label className="dh-assets-filters__search">
         <span className="dh-visually-hidden">Search assets</span>
         <input
           type="search"
@@ -225,64 +347,20 @@ export function AssetsCollectionView({
           aria-label="Search assets"
         />
       </label>
+      {/*
+       * The TAG filter stays visible beside search, and is not in the sheet.
+       *
+       * The sheet's groups are closed option sets; a tag is free text, so it has
+       * no group to belong to. Dropping it was not a neutral omission: the
+       * loader still honours `?tag=`, so a bookmarked or shared tag URL kept
+       * narrowing the gallery with no control showing it, no chip explaining it
+       * and no way to clear it — a filtered list that cannot explain itself,
+       * which is the one thing the chips exist to prevent. Beside search is
+       * where it belongs anyway: both are free text, and both narrow by
+       * something the owner types rather than picks.
+       */}
       <label className="dh-assets-filters__field">
-        <span className="dh-assets-filters__label">Type</span>
-        <select
-          className="dh-select"
-          value={data.filters.type ?? ""}
-          onChange={(e) => setParam("type", e.currentTarget.value)}
-        >
-          <option value="">All types</option>
-          {ASSET_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="dh-assets-filters__field">
-        <span className="dh-assets-filters__label">Status</span>
-        <select
-          className="dh-select"
-          value={data.filters.status ?? ""}
-          onChange={(e) => setParam("status", e.currentTarget.value)}
-        >
-          <option value="">Any status</option>
-          {ASSET_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <FilterSelect
-        label="Area"
-        allLabel="Any area"
-        value={data.filters.areaId ?? ""}
-        options={data.areas}
-        onChange={(v) => setParam("area", v)}
-      />
-      <FilterSelect
-        label="Owner"
-        allLabel="Anyone"
-        value={data.filters.personId ?? ""}
-        options={data.people}
-        onChange={(v) => setParam("person", v)}
-      />
-      <label className="dh-assets-filters__field">
-        <span className="dh-assets-filters__label">Obligations</span>
-        <select
-          className="dh-select"
-          value={data.obligations}
-          onChange={(e) => setParam("obligations", e.currentTarget.value)}
-        >
-          <option value="any">Any</option>
-          <option value="overdue">Overdue</option>
-          <option value="due_soon">Due soon</option>
-        </select>
-      </label>
-      <label className="dh-assets-filters__field">
-        <span className="dh-assets-filters__label">Tag</span>
+        <span className="dh-visually-hidden">Filter by tag</span>
         <input
           type="text"
           className="dh-input"
@@ -292,24 +370,14 @@ export function AssetsCollectionView({
           placeholder="Any tag"
         />
       </label>
-      {data.view === "all" ||
-      data.view === "recent" ||
-      data.view === "archived" ? (
-        <label className="dh-assets-filters__field">
-          <span className="dh-assets-filters__label">Sort</span>
-          <select
-            className="dh-select"
-            value={data.sort}
-            onChange={(e) => setParam("sort", e.currentTarget.value)}
-          >
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+      {/*
+       * The active-filter CHIPS are not rendered here: the shared control row
+       * already draws them from the same groups (see `CollectionControls`), so a
+       * narrowed gallery explains itself and each filter can be removed where it
+       * is displayed. That is what makes moving six controls behind a button
+       * honest — and rendering a second copy beside the search box would print
+       * every chip twice.
+       */}
     </div>
   );
 
@@ -328,8 +396,18 @@ export function AssetsCollectionView({
       title="Assets"
       entityType="asset"
       subtitle={viewLabel}
+      presentation="grid"
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
+      persistentControls
+      mobileControls={
+        <CollectionControls
+          groups={controlGroups}
+          label="Filter and sort assets"
+          triggerLabel="Filter & sort"
+          basePath={basePath}
+        />
+      }
       primaryAction={
         <Link to="/new/asset" className="dh-btn dh-btn--primary">
           New Asset
@@ -349,7 +427,7 @@ export function AssetsCollectionView({
         <EmptyState
           icon={<EntityIcon type="asset" />}
           title="No Assets yet"
-          description="Track the important things you own — vehicles, appliances, licences, subscriptions and more."
+          description="Track the important things you own — vehicles, appliances, licences, subscriptions and more. DalyHub remembers what each one needs next."
           primaryAction={
             <Link to="/new/asset" className="dh-btn dh-btn--primary">
               New Asset
@@ -366,16 +444,31 @@ export function AssetsCollectionView({
         />
       }
     >
-      <CardCollection
-        items={[...pagination.items]}
-        getItemId={(a) => a.id}
-        ariaLabel={`Assets — ${viewLabel}`}
-        presentation="list"
-        density="comfortable"
-        renderCard={(a) => (
-          <Card {...toCard(a, data.today, data.obligationSignals[a.id])} />
-        )}
-      />
+      <EntityCardGrid label={`Assets — ${viewLabel}`}>
+        {pagination.items.map((asset) => {
+          const Icon = assetTypeIcon(asset.assetType);
+          const commitment = commitmentFor(
+            asset,
+            data.today,
+            data.obligationSignals[asset.id],
+          );
+          return (
+            <AssetCard
+              key={asset.id}
+              headingLevel={2}
+              icon={<Icon />}
+              title={asset.title}
+              context={contextFor(asset)}
+              commitment={commitment ?? undefined}
+              status={asset.statusLabel}
+              place={asset.location}
+              muted={asset.archived}
+              href={`/asset/${encodeURIComponent(asset.id)}`}
+              openAriaLabel={`Open ${asset.title}`}
+            />
+          );
+        })}
+      </EntityCardGrid>
       {!data.failed && pagination.hasMore ? (
         <LoadMore
           loading={pagination.loading}
@@ -385,41 +478,5 @@ export function AssetsCollectionView({
         />
       ) : null}
     </CollectionLayout>
-  );
-}
-
-function FilterSelect({
-  label,
-  allLabel,
-  value,
-  options,
-  onChange,
-}: {
-  readonly label: string;
-  readonly allLabel: string;
-  readonly value: string;
-  readonly options: readonly AssetFilterOption[];
-  readonly onChange: (value: string) => void;
-}) {
-  const known = options.some((o) => o.id === value);
-  return (
-    <label className="dh-assets-filters__field">
-      <span className="dh-assets-filters__label">{label}</span>
-      <select
-        className="dh-select"
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value)}
-      >
-        <option value="">{allLabel}</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.title}
-          </option>
-        ))}
-        {value && !known ? (
-          <option value={value}>(current selection)</option>
-        ) : null}
-      </select>
-    </label>
   );
 }

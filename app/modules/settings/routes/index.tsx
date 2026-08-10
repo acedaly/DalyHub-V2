@@ -95,17 +95,88 @@ type SectionId =
 type ActionResult =
   { readonly ok: true } | { readonly ok: false; readonly message: string };
 
-const SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] =
-  [
-    { id: "general", label: "General" },
-    { id: "date-time", label: "Date & time" },
-    { id: "navigation", label: "Navigation" },
-    { id: "ai", label: "AI" },
-    { id: "account-security", label: "Account & security" },
-    { id: "privacy-data", label: "Privacy & data" },
-    { id: "offline", label: "Offline & app" },
-    { id: "about", label: "About" },
-  ];
+/**
+ * UIX-05 — the sections, GROUPED, and each with a line saying what it holds.
+ *
+ * Eight equally-weighted links in one flat column is a menu with no shape: an
+ * owner looking for "where does the app open?" has to read all eight, and the
+ * two that are about their ACCOUNT sit between two that are about the app's
+ * defaults. Three groups is the smallest number that separates the three genuine
+ * kinds of thing here — how the app behaves for me, what it may do with my data,
+ * and what it IS — and it is a division the owner can hold in their head.
+ *
+ * The description is not decoration. On a phone the section list IS the Settings
+ * screen (see the component below), and a list of eight bare nouns is exactly
+ * the surface a description turns into something navigable without guessing.
+ */
+type SectionGroupId = "app" | "data" | "system";
+
+const SECTION_GROUPS: readonly {
+  readonly id: SectionGroupId;
+  readonly label: string;
+}[] = [
+  { id: "app", label: "How DalyHub works" },
+  { id: "data", label: "Your data" },
+  { id: "system", label: "This app" },
+];
+
+const SECTIONS: readonly {
+  readonly id: SectionId;
+  readonly label: string;
+  readonly group: SectionGroupId;
+  /** One line saying what is inside — the phone list's supporting text. */
+  readonly summary: string;
+}[] = [
+  {
+    id: "general",
+    label: "General",
+    group: "app",
+    summary: "Appearance, where DalyHub opens, and how new work starts.",
+  },
+  {
+    id: "date-time",
+    label: "Date & time",
+    group: "app",
+    summary: "Your timezone, date format and the first day of your week.",
+  },
+  {
+    id: "navigation",
+    label: "Navigation",
+    group: "app",
+    summary: "Which modules appear in the sidebar, and what they are called.",
+  },
+  {
+    id: "ai",
+    label: "AI",
+    group: "data",
+    summary:
+      "Which features may use a model, what they may send, and a budget.",
+  },
+  {
+    id: "account-security",
+    label: "Account & security",
+    group: "data",
+    summary: "Who you are signed in as, recent activity, and signing out.",
+  },
+  {
+    id: "privacy-data",
+    label: "Privacy & data",
+    group: "data",
+    summary: "Export everything, restore from a backup, and what is stored.",
+  },
+  {
+    id: "offline",
+    label: "Offline & app",
+    group: "system",
+    summary: "Installing DalyHub, and what works without a connection.",
+  },
+  {
+    id: "about",
+    label: "About",
+    group: "system",
+    summary: "Version, build and the licences behind this workspace.",
+  },
+];
 
 const TIMEZONE_OPTIONS = [
   "Australia/Sydney",
@@ -169,6 +240,21 @@ function sectionFromUrl(request: Request): SectionId {
     : "general";
 }
 
+/**
+ * Whether the owner CHOSE a section, as opposed to landing on the default.
+ *
+ * The distinction only matters on a phone, where "the settings list" and "one
+ * settings section" are two screens rather than two columns — but it is resolved
+ * on the SERVER and rendered into the markup, so the phone composition is
+ * correct on the first byte with no viewport sniffing and no hydration mismatch.
+ * That is the same mechanism the shared collection layout uses for its own
+ * phone/desktop control swap.
+ */
+function sectionWasChosen(request: Request): boolean {
+  const value = new URL(request.url).searchParams.get("section");
+  return value !== null && SECTIONS.some((section) => section.id === value);
+}
+
 export function meta() {
   return [
     { title: "Settings · DalyHub" },
@@ -192,6 +278,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const availablePaths = new Set(navigation.map((item) => item.href));
   return {
     section,
+    sectionChosen: sectionWasChosen(request),
     // SET-03 — assembled ONLY for the section that renders it. It costs three
     // bounded Activity reads, and every other Settings section would pay for
     // them without showing anything.
@@ -718,44 +805,135 @@ function patchForField(field: string, value: string): AppPreferencePatch {
 export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
   const active = loaderData.section;
+  const sectionChosen = loaderData.sectionChosen;
+  /*
+   * Every section names itself in the URL, INCLUDING General.
+   *
+   * It used to drop the param for General, on the reasoning that a default needs
+   * no parameter — true while the parameter only chose a column. It now also
+   * distinguishes "the settings list" from "one section" on a phone, so an
+   * absent parameter has to mean the list and nothing else. General is a
+   * destination like the other seven and says so.
+   */
   const sectionHref = (section: SectionId) => {
     const next = new URLSearchParams(searchParams);
-    if (section === "general") next.delete("section");
-    else next.set("section", section);
-    const query = next.toString();
-    return query ? `?${query}` : "?";
+    next.set("section", section);
+    return `?${next.toString()}`;
   };
 
+  const activeSection = SECTIONS.find((section) => section.id === active);
+
+  /*
+   * UIX-05 — one DOM, two compositions.
+   *
+   * DESKTOP is a grouped section rail beside the chosen section, which is what
+   * Settings has always been and what it should be: eight destinations and one
+   * pane, with the rail persistent so moving between two settings is one click.
+   *
+   * PHONE is two screens, because a horizontally-scrolling rail of eight labels
+   * above every section was the module's worst surface — "an action the user has
+   * to swipe to find is not a quick action" is DalyHub's own rule, written in
+   * `people.css`, and it applies here exactly. Without a chosen section the phone
+   * shows the LIST, with each section's own summary line under it; with one, it
+   * shows that section and a way back. That is the native pattern on every
+   * platform, and it is the reason each section now carries a description.
+   *
+   * `data-chosen` is resolved on the SERVER from the presence of `?section=`, so
+   * the phone lands on the right screen on the first byte — no viewport sniffing,
+   * no hydration mismatch, and Back genuinely returns to the list because each
+   * section is a real URL.
+   */
   return (
-    <div className="dh-settings-page">
+    <div
+      className="dh-settings-page"
+      data-chosen={sectionChosen ? "true" : "false"}
+    >
+      <header className="dh-settings-page__header">
+        <h1 className="dh-settings-page__title">Settings</h1>
+        <p className="dh-settings-page__description">
+          Application preferences for this owner and workspace.
+        </p>
+      </header>
+
       {/* A list of links between sections is navigation, not complementary
        * content. It was an <aside>; RELEASE-01 added a top-level /about route,
        * which made an unscoped "About" link ambiguous and surfaced the wrong
        * landmark role at the same time. */}
       <nav className="dh-settings-page__nav" aria-label="Settings sections">
-        {SECTIONS.map((section) => (
-          <Link
-            key={section.id}
-            to={sectionHref(section.id)}
-            className={
-              active === section.id
-                ? "dh-settings-page__nav-link dh-settings-page__nav-link--active"
-                : "dh-settings-page__nav-link"
-            }
-            aria-current={active === section.id ? "page" : undefined}
-            preventScrollReset
-          >
-            {section.label}
-          </Link>
+        {SECTION_GROUPS.map((group) => (
+          <div key={group.id} className="dh-settings-page__nav-group">
+            {/*
+             * The group label is a real heading for the list beneath it, and the
+             * list is named BY it — so a screen reader hears "Your data, list, 3
+             * items" rather than eight links in one undifferentiated run.
+             */}
+            <h2
+              className="dh-settings-page__nav-group-label"
+              id={`dh-settings-group-${group.id}`}
+            >
+              {group.label}
+            </h2>
+            <ul
+              className="dh-settings-page__nav-list"
+              aria-labelledby={`dh-settings-group-${group.id}`}
+            >
+              {SECTIONS.filter((section) => section.group === group.id).map(
+                (section) => (
+                  <li key={section.id} className="dh-settings-page__nav-item">
+                    <Link
+                      to={sectionHref(section.id)}
+                      className={
+                        active === section.id
+                          ? "dh-settings-page__nav-link dh-settings-page__nav-link--active"
+                          : "dh-settings-page__nav-link"
+                      }
+                      aria-current={active === section.id ? "page" : undefined}
+                      aria-describedby={`dh-settings-summary-${section.id}`}
+                      preventScrollReset
+                    >
+                      {section.label}
+                    </Link>
+                    {/*
+                     * The summary is a SIBLING of the link, described by it
+                     * rather than inside it.
+                     *
+                     * Inside, it would join the link's accessible NAME, so a
+                     * screen reader would announce "Account & security Who you
+                     * are signed in as, recent activity, and signing out, link"
+                     * — a name that is a paragraph, on a rail where the summary
+                     * is not even visible. As a description it is announced
+                     * AFTER the name, which is what supporting text is for, and
+                     * the whole row is still one target because the link's
+                     * ::after covers the item (the same whole-row-link pattern
+                     * every row family in the product uses).
+                     */}
+                    <span
+                      className="dh-settings-page__nav-summary"
+                      id={`dh-settings-summary-${section.id}`}
+                    >
+                      {section.summary}
+                    </span>
+                  </li>
+                ),
+              )}
+            </ul>
+          </div>
         ))}
       </nav>
+
       <div className="dh-settings-page__content">
-        <header className="dh-settings-page__header">
-          <h1 className="dh-settings-page__title">Settings</h1>
-          <p className="dh-settings-page__description">
-            Application preferences for this owner and workspace.
-          </p>
-        </header>
+        {/* Phone only — the way back to the list. It is a real link to the
+         * section-less URL, so it is also what Back does. */}
+        <p className="dh-settings-page__back">
+          <Link to="?" preventScrollReset className="dh-btn dh-btn--ghost">
+            <span aria-hidden="true">←</span> All settings
+            {activeSection ? (
+              <span className="dh-visually-hidden">
+                {` — leaving ${activeSection.label}`}
+              </span>
+            ) : null}
+          </Link>
+        </p>
         {active === "general" ? <GeneralSection data={loaderData} /> : null}
         {active === "date-time" ? <DateTimeSection data={loaderData} /> : null}
         {active === "navigation" ? (

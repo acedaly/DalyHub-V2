@@ -128,6 +128,10 @@ specification does not, because the specification's answer was worse *here*.
 | D23 | **The sixth identity slot is a cyan where the widget ramp's is a coral** (UIX-02) | The one place the two lists differ, and it is about where each is drawn. Harmonisation rotates every design hue up to 15° toward the seed, so any warm-red source lands at HCT hue ~20 against `state-overdue`'s 8.5. As a pale WASH under a worded label that is fine; as a full-strength fill on a progress bar, one line under an attention line drawn in the real overdue colour, it is a Project claiming to be in trouble. Cyan is the one hue with genuinely empty space around it — 26° from teal, 57° from blue, clear of every semantic role |
 | D24 | **A Project card states its condition ONCE, as a line rather than a chip** (UIX-02) | The gallery carried a filled status pill beside the title *and* the health reason explaining it three rows below: one fact, two objects, and the pill was the loudest thing on a card whose job is to be recognised by its mark. A dot and the words say it once, and the compact wording is built from the evaluator's own structured count |
 | D25 | **An Area is drawn as a ROW; only a Project gets a gallery card** (UIX-02) | They shared one component, so the two most different records in the spine were the same object with different words in it — and an Area has no description, no completion, no due date and no progress, so most of each card was empty. The difference is now structural, which is what makes them distinguishable with the labels hidden |
+| D26 | **A Person's identity mark is a CIRCLE; every other record's is a rounded square** (UIX-05) | The square is a container, and every record it holds — an Area, a Project, a Goal, an Asset — is one. A person is not a container, and the circular avatar is the one identity mark in the product that is a photograph as often as it is a glyph. It is also the strongest single recognition device on any collection surface: a face is found faster than a name |
+| D27 | **An ASSET card spends its colour on STATE, not on identity** (UIX-05) | Every other record family paints its mark with the owner's own classification — a Project's Area, a Person's circle. An Asset's classification is its TYPE, and thirteen types over a six-accent ramp collide two times in three, so the tint would be a coincidence rather than a signal. The type glyph is far stronger (a car and a shield are told apart instantly), so the mark stays neutral and the colour goes to the one thing that screen exists to answer: what is overdue. This does not breach D21 — the identity mark is still never repainted by state; the mark and the due block are separate objects, and the state always carries its own words |
+| D28 | **A completed Review draws NO progress bar** (UIX-05) | "An absence is not a zero" pointed the other way: a settled fact is not a live measure. Once a Review is closed, "how much is written?" has stopped being interesting, and a full bar on every past Review turns the gallery into a wall of identical green with nothing to scan. It states when it closed instead — the fact that matters afterwards |
+| D29 | **Analytics states a comparison as a SENTENCE, never a percentage or a coloured arrow** (UIX-05) | "6 more than the previous period (18)" is checkable; "+33%" hides its base, and from a base of zero it is not a figure at all — so the evaluator refuses that case in words rather than inventing one. Nor is the direction painted: a week with fewer completed Tasks may be a week of one large Project, and green-for-up/red-for-down would make the product an opinion rather than a record |
 
 ## 5a. Projects and Areas — related, and deliberately not alike
 
@@ -157,6 +161,64 @@ Three rules hold across both:
 3. **No Area health is invented.** There is no score, no traffic light and no
    percentage. The Areas index states what is IN each Area; the Area record
    states the momentum the kernel actually evaluates, and nothing more.
+
+## 5b. The record surface families — six, and none a variant of another
+
+Completed in UIX-05. The product's collections are read by SHAPE before a word of
+them is read, so two records that answer different questions are drawn as
+different objects. The test is §41's: distinguishable with the labels hidden.
+
+| | Leads with | Its measure | Colour carries | Surface |
+| --- | --- | --- | --- | --- |
+| **Project** `.dh-pcard` | mark, then the measure | a proportion — 8px bar + % | the Area's identity | gallery card, bottom-heavy |
+| **Goal** `.dh-gcard` | mark, then the reading | a reading and its shape | the Area's identity | gallery card, middle-heavy |
+| **Area** `.dh-erow` | mark, then relationships | **none** — an Area never completes | its own identity | one row list |
+| **Person** `.dh-prow` | a **face** (D26) | **none** — a rhythm, in words | the circle's identity | one row list, four columns |
+| **Asset** `.dh-acard` | a type **glyph** | **time** to the next commitment | the commitment's **state** (D27) | gallery card, bottom-heavy |
+| **Review** `.dh-rcard` | a **period** | the reflection, as a fraction | the state, as one dot | gallery card, top-heavy |
+
+Three rules hold across all six:
+
+1. **Identity is never status.** The mark takes the record's stable classification
+   (ADR-068 §5); the state line takes the state's own tone. The one family that
+   spends colour on state does so on a *separate object*, and D27 says why.
+2. **An absence is not a zero.** No bar for a Project with no tasks, no percentage
+   for a Goal with no target, no circle for a Person with no relationship
+   recorded, "Nothing scheduled" for an Asset with no commitment — each stated
+   once, in the space the figure would have taken.
+3. **A gallery is for records with enough to fill one.** A Person and an Area have
+   four facts each, so both are rows; a Project, a Goal, an Asset and a Review each
+   carry a measure worth comparing across a grid, so all four are cards.
+
+## 5c. People — the circle
+
+Shipped in UIX-05. People has thirteen relationship values, which is the right
+vocabulary for a record and the wrong one for a collection: thirteen tabs is not a
+view rail, and a thirteen-value select is a filter nobody opens.
+
+A **circle** is that vocabulary at collection altitude — Personal, Work, Services
+— and it is a **pure derivation** of the relationship the owner already chose, so
+there is no second vocabulary to keep in step and no migration. It is the People
+collection's one view rail, and it supplies the avatar's identity accent under the
+same rule a Goal follows for its Area (D21/D22).
+
+`other` maps to **no circle**. It is a real choice meaning "none of these", so
+putting it in one would invent the classification the owner declined to make;
+those People appear under All and nowhere else.
+
+## 5d. Analytics — what a figure has to earn
+
+Shipped in UIX-05. Analytics is the product's first surface whose subject is not a
+record, and every rule it follows is about what it will not say:
+
+| Rule | What it rules out |
+| --- | --- |
+| **Every figure is exact and comes from an existing read** | No estimate, no sampled aggregate, and no second source of truth for a count another surface already produces |
+| **Every figure links to the records behind it** | A number the owner cannot check is a number they have to trust |
+| **No metric the product does not record** | No focus time, no "daily progress" percentage — DalyHub tracks no time and computes no percentage of a life |
+| **No score, index or grade** | REVIEW-03's own refusal: one number mixing tasks, Goals and Areas would look precise and mean nothing |
+| **Comparisons are sentences** (D29) | No percentage change, no coloured arrow, and no comparison at all against a period with nothing in it |
+| **Fixed spans, not a free date picker** | An arbitrary window has no honest previous period to compare against |
 
 ## 6. Measurable Goals — the visual language
 
@@ -310,6 +372,9 @@ divergence to reconcile.
 | Projects | Gallery | Compact rows, same DOM |
 | Areas | One row list | The same rows, tighter |
 | Notes | Gallery + persistent compact filters | Clean list + a disclosure |
+| People | Four columns: face · identity · reach · rhythm | Two lines: name + state, then the last shared moment |
+| Analytics | Metric row, then trend beside distribution | The metric row two-by-two, then the panels stacked |
+| Settings | Grouped rail beside the section | **Two screens** — the section list, then one section |
 | Collections | Persistent controls | Sheets and scrolling rails |
 
 Validated at 320 · 375 · 390 · 430 · 768 · 1024 · 1280 · 1440 · 1920 · 2560.
@@ -334,11 +399,17 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 
 | # | Decision | Why it is still outstanding |
 | --- | --- | --- |
-| A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet. VIS-01 quietened the two charts a Goal draws; UIX-03 added the **sparkline** to `~/shared/charts` and gave `TrendLine` its grid, references and readout, so four of the five now exist as shared primitives — what is outstanding is the unifying pass across them, not the components |
+| A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | VIS-01 quietened the two charts a Goal draws; UIX-03 added the **sparkline** and gave `TrendLine` its grid, references and readout; UIX-05 built **Analytics** on those same primitives and added the horizontal proportion split, choosing bars over the reference's donut precisely because this list is the agreed language (see [§5d](#5d-analytics--what-a-figure-has-to-earn)). All five now exist as shared primitives. What is outstanding is the unifying pass ACROSS them — one legend anatomy, one empty-state, one summary contract — not the components |
 | A6 | **Component consolidation** across buttons, chips, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn. UIX-02 took the **tabs** out of this list: the view rail is now one shared `.dh-viewtabs`, drawn once and consumed by both the saved-view switcher and `ViewTabs` |
 | A9 | **A Goal trend on Today.** A target-value Goal's card shows a bar where its shape would say more | UIX-03 built the read a sparkline needs (`listMeasurementSeries`, one grouped statement for a page) and used it on the **gallery** card, but deliberately NOT on Today: Today's row already carries a bar, and a second drawing of the same Goal would be the two-visuals-per-card rule broken on the one surface that must stay a glance. Today gained the Area accent instead. Revisit only if the bar goes |
 
-**Delivered since this section was written.** A1 (measurable Goals) shipped in
+**Delivered since this section was written.** UIX-05 closed the **components**
+half of A5 (all five chart primitives now exist and Analytics is built on them),
+and answered A9 the way UIX-03 predicted it would have to be answered — Today
+still carries no Goal sparkline, because a second drawing of a Goal already
+carrying a bar breaks the one-visual rule on the one surface that must stay a
+glance; the shape an owner wanted from it is now on Analytics, at a scale where it
+is a chart rather than a decoration. A1 (measurable Goals) shipped in
 GOAL-02 and is described in [§6](#6-measurable-goals--the-visual-language).
 VIS-01 delivered A2 (D12 — a soft wash and a rounded row, at a generated
 strength), A4 (D16), A7 (D17) and A8 (D14), and answered A3 by going the other
@@ -347,7 +418,11 @@ rather than the page title going up. Hierarchy is size, space, tone and only
 then weight. UIX-02 delivered the **tabs** half of A6, and consolidated the two
 overlapping identity ramps into one (D22). UIX-03 delivered the Goal card
 family, Goal identity, and the sparkline half of A5 — see
-[§6.1](#61-the-goal-card-uix-03) onward.
+[§6.1](#61-the-goal-card-uix-03) onward. UIX-05 delivered the remaining three
+record families (Person, Asset, Review), the People circle, the Analytics surface
+and Settings' phone composition — see
+[§5b](#5b-the-record-surface-families--six-and-none-a-variant-of-another) onward
+and `UIX_05_REMAINING_MODULES_2026_08.md`.
 
 ---
 

@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
-  clickCardAction,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -98,10 +97,16 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     await expect(page.getByText("Archived").first()).toBeVisible();
 
     await gotoFixture(page, "/people/archived");
-    const archivedCard = page.getByRole("article", { name: new RegExp(name) });
-    await expect(archivedCard).toBeVisible();
-    await clickCardAction(archivedCard, "Restore");
-    await expect(archivedCard).not.toBeVisible();
+    const archivedRow = page.getByRole("article", { name: new RegExp(name) });
+    await expect(archivedRow).toBeVisible();
+    // UIX-05 — a Person is a ROW now, and its actions are in the shared overflow
+    // menu (the same place a Project card and a Goal card put theirs) rather than
+    // in a hover-revealed quick-action rail. Same command, same words.
+    await archivedRow
+      .getByRole("button", { name: new RegExp(`Actions for ${name}`) })
+      .click();
+    await page.getByRole("menuitem", { name: "Restore" }).click();
+    await expect(archivedRow).not.toBeVisible();
 
     // 6. The active collection search finds them again.
     await gotoFixture(page, "/people");

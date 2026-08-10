@@ -111,6 +111,9 @@
  * both Review stylesheets because it is rendered inside each of them, and it
  * reuses the health/alignment pill anatomy rather than restating it. */
 @import "./styles/insights.css";
+/* UIX-05 — the Analytics surface. After insights.css because it renders the same
+ * shared chart primitives and deliberately adds no chart family of its own. */
+@import "./styles/analytics.css";
 /* PWA — the offline, connection-state and installation surfaces. Late in the
  * cascade because the connection status sits inside the pane the shell owns. */
 @import "./styles/offline.css";
