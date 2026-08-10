@@ -32,7 +32,8 @@ function facts(over: Partial<AnalyticsFacts> = {}): AnalyticsFacts {
     })),
     areas: [],
     areasBounded: false,
-    goals: { onTrack: 5, total: 9 },
+    areasAvailable: true,
+    goals: { onTrack: 5, total: 9, bounded: false },
     ...over,
   };
 }
@@ -217,6 +218,54 @@ describe("analytics evaluator", () => {
     );
     expect(model.isEmpty).toBe(true);
     expect(model.degraded).toBe(false);
+  });
+
+  // Codex review, PR #156 — a bounded Goal read must not read as a workspace
+  // total: the alignment ordering decides which Goals enter the page, so both
+  // halves of the fraction describe a subset the reader cannot see.
+  it("says the Goal tally is bounded, in the sentence and in a note", () => {
+    const model = evaluateAnalytics(
+      facts({ goals: { onTrack: 12, total: 40, bounded: true } }),
+    );
+    const goals = model.metrics.find((metric) => metric.id === "goals");
+    expect(goals?.supporting).toBe("of the 40 Goals read, right now");
+    expect(
+      model.notes.some((note) => note.includes("not every Goal in the")),
+    ).toBe(true);
+  });
+
+  it("states an unbounded Goal tally plainly", () => {
+    const model = evaluateAnalytics(facts());
+    expect(
+      model.metrics.find((metric) => metric.id === "goals")?.supporting,
+    ).toBe("of 9 Goals, right now");
+    expect(
+      model.notes.some((note) => note.includes("not every Goal in the")),
+    ).toBe(false);
+  });
+
+  // Codex review, PR #156 — a failed distribution read and an empty period are
+  // the same empty array and must never be the same statement.
+  it("distinguishes a failed distribution read from a period with no attributed work", () => {
+    const failedRead = evaluateAnalytics(facts({ areasAvailable: false }));
+    expect(failedRead.distributionAvailable).toBe(false);
+    expect(failedRead.degraded).toBe(true);
+    // …and it must not be able to produce the empty state, which asserts a fact.
+    expect(failedRead.isEmpty).toBe(false);
+
+    const genuinelyEmpty = evaluateAnalytics(
+      facts({
+        current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
+        previous: {
+          tasksCompleted: 0,
+          projectsCompleted: 0,
+          goalsCompleted: 0,
+        },
+        areas: [],
+      }),
+    );
+    expect(genuinelyEmpty.distributionAvailable).toBe(true);
+    expect(genuinelyEmpty.isEmpty).toBe(true);
   });
 
   it("never invents a productivity score", () => {

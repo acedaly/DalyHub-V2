@@ -136,6 +136,20 @@ describe("Assets collection (UIX-05)", () => {
     );
   });
 
+  /*
+   * Codex review, PR #156 — the loader still honours `?tag=`, so dropping the
+   * control left a bookmarked tag URL narrowing the gallery with nothing showing
+   * it and no way to clear it: a filtered list that cannot explain itself.
+   */
+  it("keeps the free-text tag filter visible beside search", () => {
+    renderCollection(
+      data([asset()], { filters: { tag: "shed" } }),
+      "/assets?tag=shed",
+    );
+    const tag = screen.getByLabelText("Filter by tag");
+    expect(tag).toHaveValue("shed");
+  });
+
   it("shows a warm empty state on an empty workspace", () => {
     renderCollection(data([]));
     expect(screen.getByText("No Assets yet")).toBeInTheDocument();

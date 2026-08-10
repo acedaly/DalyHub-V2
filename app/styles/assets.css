@@ -60,21 +60,44 @@
  * — see `AssetsCollection.tsx`), and the chips beneath the search box say which
  * of them are active, so hiding them costs nothing.
  */
+/*
+ * `max-inline-size`, not `inline-size: 100%`, unlike every other filter bar.
+ *
+ * With `persistentControls` the shared filter slot is `flex: 0 1 auto` so it can
+ * sit beside the "Filter & sort" button, which makes a 100%-wide child circular:
+ * the band sizes to its content and the content asks for 100% of the band. The
+ * cap keeps the row inside its band without feeding that loop.
+ *
+ * The two fields wrap onto two short lines inside that band rather than sharing
+ * one, and that is left alone deliberately: it is two controls in a narrow
+ * column beside the sheet trigger, against the seven-across-three-rows bar this
+ * replaced, and forcing one line would mean fixing widths that a longer
+ * placeholder or a wider font would break again.
+ */
 .dh-assets-filters {
   display: flex;
   flex-wrap: wrap;
   gap: var(--app-space-3);
   align-items: center;
-  inline-size: 100%;
+  max-inline-size: 100%;
 }
 
-/* The search box stops at a readable measure — a full-bleed search field on a
- * 2560 monitor is a metre of empty input. It does not GROW, because with
- * persistent controls the filter band shares a row with the shared "Filter &
- * sort" button and a growing field would push it off the line. */
+/*
+ * Search and tag share ONE line with the "Filter & sort" button beside them.
+ *
+ * Neither grows: with persistent controls the filter band shares a row with the
+ * shared control button, so a growing field pushes it onto a line of its own —
+ * which is what happened when the tag field returned at the default
+ * `flex: 1 1 10rem`. Two fixed, readable measures fit together at every width
+ * from a 1024 laptop up, and the phone block below stacks them deliberately.
+ */
 .dh-assets-filters__search {
-  flex: 0 1 22rem;
+  flex: 0 1 17rem;
   min-inline-size: 0;
+}
+
+.dh-assets-filters > .dh-assets-filters__field {
+  flex: 0 1 10rem;
 }
 
 /* The chips flow after the search box and wrap when they run out of room. */
@@ -84,7 +107,8 @@
 }
 
 @media (max-width: 48rem) {
-  .dh-assets-filters__search {
+  .dh-assets-filters__search,
+  .dh-assets-filters > .dh-assets-filters__field {
     flex-basis: 100%;
   }
 }

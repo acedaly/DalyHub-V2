@@ -44,7 +44,8 @@ function pageData(
       },
     ],
     areasBounded: false,
-    goals: { onTrack: 5, total: 9 },
+    areasAvailable: true,
+    goals: { onTrack: 5, total: 9, bounded: false },
     ...over,
   };
   return {

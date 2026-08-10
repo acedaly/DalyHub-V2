@@ -233,6 +233,7 @@ export async function loadAnalytics(
     series,
     areas: areas.rows,
     areasBounded: areas.bounded,
+    areasAvailable: areas.available,
     goals,
   });
 
@@ -260,7 +261,11 @@ export async function loadAnalytics(
 async function readDistribution(
   input: AnalyticsContextInput,
   span: AnalyticsSpan,
-): Promise<{ rows: AnalyticsAreaRow[]; bounded: boolean }> {
+): Promise<{
+  rows: AnalyticsAreaRow[];
+  bounded: boolean;
+  available: boolean;
+}> {
   try {
     const [contributions, areaPage] = await Promise.all([
       input.scope.reviewInsights.listPeriodContributions(
@@ -289,10 +294,17 @@ async function readDistribution(
         colourRank: ranks.get(areaId) ?? null,
       })),
       bounded: contributions.length >= ANALYTICS_LIMITS.contributions,
+      available: true,
     };
   } catch {
-    // The distribution is one panel; losing it must not lose the page.
-    return { rows: [], bounded: false };
+    /*
+     * The distribution is one panel; losing it must not lose the page — but it
+     * must not look like an ANSWER either. An empty array is what a period with
+     * no attributed work looks like, and the panel's copy for that case is a
+     * claim ("none of this period's completed work rolled up to an Area"). The
+     * flag is what lets the panel say "not available" instead.
+     */
+    return { rows: [], bounded: false, available: false };
   }
 }
 
@@ -309,15 +321,26 @@ async function readDistribution(
  */
 async function readGoalTally(
   input: AnalyticsContextInput,
-): Promise<{ onTrack: number; total: number } | null> {
+): Promise<{ onTrack: number; total: number; bounded: boolean } | null> {
   try {
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
       createOwnerAlignmentContext(input.now, input.timezone);
 
     let goalPage;
     try {
+      /*
+       * `limit + 1`, so the read can TELL whether it hit its bound.
+       *
+       * Asking for exactly the limit makes a full page and a workspace of
+       * exactly that many Goals indistinguishable, and the difference matters:
+       * the alignment ordering decides which Goals enter a bounded page, so on a
+       * larger workspace both the numerator and the denominator would describe a
+       * subset while the tile read as a workspace total. One extra row is the
+       * cheapest possible way to know. (`review-insights-context.ts` does the
+       * same thing for the same reason.)
+       */
       goalPage = await input.scope.goals.listGoalsByAlignment({
-        limit: ANALYTICS_LIMITS.goals,
+        limit: ANALYTICS_LIMITS.goals + 1,
         activeBoundaryIso: recentBoundaryStartIso,
       });
     } catch (error) {
@@ -327,7 +350,9 @@ async function readGoalTally(
       });
     }
 
-    const goalIds = goalPage.items.map((goal) => goal.id);
+    const bounded = goalPage.items.length > ANALYTICS_LIMITS.goals;
+    const goalItems = goalPage.items.slice(0, ANALYTICS_LIMITS.goals);
+    const goalIds = goalItems.map((goal) => goal.id);
     const [contributions, activity] = await Promise.all([
       input.scope.goals.listGoalProjectContributions(goalIds),
       input.scope.alignment.listGoalAlignmentFacts(goalIds, {
@@ -337,7 +362,7 @@ async function readGoalTally(
 
     let onTrack = 0;
     let total = 0;
-    for (const goal of goalPage.items) {
+    for (const goal of goalItems) {
       const alignment = evaluateGoalAlignment(
         composeGoalAlignmentFacts({
           goalId: goal.id,
@@ -359,7 +384,7 @@ async function readGoalTally(
       total += 1;
       if (alignment.state === "active") onTrack += 1;
     }
-    return { onTrack, total };
+    return { onTrack, total, bounded };
   } catch {
     return null;
   }

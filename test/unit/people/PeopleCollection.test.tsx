@@ -287,6 +287,67 @@ describe("People collection", () => {
     expect(screen.getByRole("article", { name: /Grace/ })).toBeInTheDocument();
   });
 
+  /*
+   * Codex review, PR #156 — every narrowing here runs over the LOADED page, so
+   * hiding Load more made matching People on later pages unreachable and let the
+   * empty state claim the workspace.
+   */
+  it("keeps Load more available while a circle is selected", () => {
+    render(
+      <FeedbackProvider>
+        <RouterProvider
+          router={createMemoryRouter(
+            [
+              {
+                path: "/people",
+                element: (
+                  <PeopleCollectionView
+                    people={[personItem({ relationship: "family" })]}
+                    nextCursor="cursor-2"
+                    failed={false}
+                    view="all"
+                  />
+                ),
+              },
+            ],
+            { initialEntries: ["/people?circle=work"] },
+          )}
+        />
+      </FeedbackProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: /Load more people/ }),
+    ).toBeInTheDocument();
+    // …and the empty state says what it actually knows, not "Nobody in Work yet".
+    expect(
+      screen.getByText(/No matches in the 1 loaded so far/),
+    ).toBeInTheDocument();
+  });
+
+  /*
+   * Codex review, PR #156 — the archived loader deliberately serializes every
+   * Person WITHOUT a stay-in-touch signal, so offering the catch-up filter there
+   * would empty the list every time whatever the stored relationships say.
+   */
+  it("omits the catch-up filter on the Archived view, in the sheet as well", () => {
+    renderCollection([personItem({ archived: true })], { view: "archived" });
+    expect(
+      screen.queryByRole("button", { name: /Needs a catch-up/ }),
+    ).toBeNull();
+    fireEvent.click(screen.getByTestId("collection-filter-trigger"));
+    const sheet = screen.getByTestId("collection-sheet");
+    expect(within(sheet).queryByText("Needs a catch-up")).toBeNull();
+    // The sort is still offered — it is the group that has data behind it.
+    expect(within(sheet).getByText("Sort")).toBeInTheDocument();
+  });
+
+  it("offers the catch-up filter in the sheet on the active views", () => {
+    renderCollection([personItem()]);
+    fireEvent.click(screen.getByTestId("collection-filter-trigger"));
+    const sheet = screen.getByTestId("collection-sheet");
+    expect(within(sheet).getByText("Needs a catch-up")).toBeInTheDocument();
+  });
+
   it("shows a Restore action for an archived person in the Archived view", () => {
     renderCollection([personItem({ archived: true })], { view: "archived" });
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });

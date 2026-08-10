@@ -348,6 +348,29 @@ export function AssetsCollectionView({
         />
       </label>
       {/*
+       * The TAG filter stays visible beside search, and is not in the sheet.
+       *
+       * The sheet's groups are closed option sets; a tag is free text, so it has
+       * no group to belong to. Dropping it was not a neutral omission: the
+       * loader still honours `?tag=`, so a bookmarked or shared tag URL kept
+       * narrowing the gallery with no control showing it, no chip explaining it
+       * and no way to clear it — a filtered list that cannot explain itself,
+       * which is the one thing the chips exist to prevent. Beside search is
+       * where it belongs anyway: both are free text, and both narrow by
+       * something the owner types rather than picks.
+       */}
+      <label className="dh-assets-filters__field">
+        <span className="dh-visually-hidden">Filter by tag</span>
+        <input
+          type="text"
+          className="dh-input"
+          defaultValue={data.filters.tag ?? ""}
+          onChange={(e) => setParam("tag", e.currentTarget.value)}
+          aria-label="Filter by tag"
+          placeholder="Any tag"
+        />
+      </label>
+      {/*
        * The active-filter CHIPS are not rendered here: the shared control row
        * already draws them from the same groups (see `CollectionControls`), so a
        * narrowed gallery explains itself and each filter can be removed where it

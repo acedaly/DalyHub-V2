@@ -110,29 +110,24 @@ function parseSort(value: string | null): SortKey {
 }
 
 /**
- * The two control dimensions, as the ONE shared collection sheet's groups.
+ * The control dimensions, as the ONE shared collection sheet's groups.
  *
  * Both are URL-backed, which is what lets the phone reach them through the
  * shared sheet rather than through a second row of chrome — and it is an
  * improvement in its own right: a People list narrowed to "needs a catch-up" and
  * sorted by name is now a link that can be shared and restored, which it was not
  * while the sort lived in component state.
+ *
+ * The CATCH-UP group is omitted on the Archived view, and that is a data fact
+ * rather than a tidy-up: the archived loader deliberately serializes every
+ * Person WITHOUT a stay-in-touch signal, because telling an owner that someone
+ * they filed away is due for a catch-up is exactly the nagging AGENTS.md §5
+ * rules out. Offering the filter there would therefore empty the list every
+ * time, whatever the stored relationships say. The desktop toggle already hid
+ * itself for this reason; the sheet has to as well.
  */
-const CONTROL_GROUPS: readonly CollectionControlGroup[] = [
-  {
-    id: "catch_up",
-    label: "Show",
-    param: "catch_up",
-    options: [
-      { value: "", label: "Everyone" },
-      {
-        value: "1",
-        label: "Needs a catch-up",
-        description: "Past the rhythm you set, or out of touch.",
-      },
-    ],
-  },
-  {
+function controlGroups(view: PeopleView): readonly CollectionControlGroup[] {
+  const sort: CollectionControlGroup = {
     id: "sort",
     label: "Sort",
     param: "sort",
@@ -141,9 +136,37 @@ const CONTROL_GROUPS: readonly CollectionControlGroup[] = [
     options: SORT_OPTIONS.map((option) => ({
       value: option.value,
       label: option.label,
+      ...(option.value === "rhythm"
+        ? {
+            // Said here rather than in the label, because it is a caveat about
+            // the ORDER's reach and not part of the order's name. The People
+            // repository paginates by creation order, so a rhythm sort ranks
+            // what is loaded — see the subtitle, which states the same bound.
+            description: "Orders the People loaded so far.",
+          }
+        : {}),
     })),
-  },
-];
+  };
+  if (view === "archived") {
+    return [sort];
+  }
+  return [
+    {
+      id: "catch_up",
+      label: "Show",
+      param: "catch_up",
+      options: [
+        { value: "", label: "Everyone" },
+        {
+          value: "1",
+          label: "Needs a catch-up",
+          description: "Past the rhythm you set, or out of touch.",
+        },
+      ],
+    },
+    sort,
+  ];
+}
 
 /**
  * How overdue each stay-in-touch state is, for the default order.
@@ -502,17 +525,27 @@ function PeopleCollection({
   const narrowed = circle !== null || onlyCatchUp || normalisedQuery.length > 0;
 
   /*
-   * The subtitle states the BOUND, not just the count.
+   * The subtitle states the BOUND, not just the count — and says what to do
+   * about it.
    *
-   * The circles and the catch-up filter run over the loaded page, so "4 people"
-   * would be a claim about the workspace that this screen cannot make while more
-   * pages remain. Saying "of 24 loaded" is the honest form, and it is the same
-   * wording UIX-03 gave the Goals status views for the same reason.
+   * The circles, the catch-up filter, the search and the SORT all run over the
+   * loaded page, because the repository paginates People by creation order and
+   * the stay-in-touch state is derived per page (there is no server-side rhythm
+   * ranking, and inventing one would mean duplicating PEOPLE-03's evaluator in
+   * SQL — the thing UIX-03 explicitly refused for Goal status).
+   *
+   * So while more pages remain, every one of those is a statement about what is
+   * LOADED and not about the workspace. Saying so is the whole fix: "4 of 50
+   * loaded — load more to keep looking" makes the bound and the remedy the same
+   * sentence, where "4 people" would be a claim this screen cannot make.
    */
+  const bounded = hasMore && (narrowed || sortKey !== "recent");
   const subtitle = failed
     ? `We couldn’t load your ${noun}.`
     : narrowed
-      ? `${count} of ${items.length} loaded`
+      ? bounded
+        ? `${count} of ${items.length} loaded — load more to keep looking`
+        : `${count} of ${items.length}`
       : hasMore
         ? `${count} ${noun} loaded`
         : count === 1
@@ -626,7 +659,7 @@ function PeopleCollection({
    */
   const mobileControls = (
     <CollectionControls
-      groups={CONTROL_GROUPS}
+      groups={controlGroups(view)}
       label="Filter and sort people"
       triggerLabel="Filter & sort"
       basePath={BASE_PATH[view]}
@@ -677,29 +710,66 @@ function PeopleCollection({
         (items.length > 0 || view !== "all" || narrowed)
       }
       filteredEmptySlot={
+        /*
+         * The wording depends on whether there are MORE PAGES.
+         *
+         * Every narrowing here runs over the loaded page, so "Nobody in Personal
+         * yet" is a claim about the workspace that a first page of fifty cannot
+         * support — and it is the most misleading thing this screen could say,
+         * because the owner's answer is one button away. While a cursor remains,
+         * the empty state says what it actually knows ("none of the N loaded")
+         * and points at Load more, which is still rendered beneath it.
+         */
         <EmptyState
           icon={<EntityIcon type="person" />}
           title={
-            normalisedQuery.length > 0
-              ? "No people match your search"
-              : onlyCatchUp
-                ? "Nobody is waiting to hear from you"
-                : circle !== null
-                  ? `Nobody in ${personCircleLabel(circle)} yet`
-                  : view === "archived"
-                    ? "No archived people"
-                    : "No people to show"
+            hasMore
+              ? `No matches in the ${items.length} loaded so far`
+              : normalisedQuery.length > 0
+                ? "No people match your search"
+                : onlyCatchUp
+                  ? "Nobody is waiting to hear from you"
+                  : circle !== null
+                    ? `Nobody in ${personCircleLabel(circle)} yet`
+                    : view === "archived"
+                      ? "No archived people"
+                      : "No people to show"
           }
           description={
-            normalisedQuery.length > 0
-              ? "Try a different name, organisation, address or tag."
-              : onlyCatchUp
-                ? "Everyone in this circle is inside the rhythm you set for them."
-                : circle !== null
-                  ? "Set someone’s relationship on their record and they will appear in the circle it belongs to."
-                  : view === "archived"
-                    ? "People you archive appear here, and can be restored at any time."
-                    : "Add someone to get started."
+            hasMore
+              ? "There are more People to load. Load more to keep looking, or widen the search."
+              : normalisedQuery.length > 0
+                ? "Try a different name, organisation, address or tag."
+                : onlyCatchUp
+                  ? "Everyone in this circle is inside the rhythm you set for them."
+                  : circle !== null
+                    ? "Set someone’s relationship on their record and they will appear in the circle it belongs to."
+                    : view === "archived"
+                      ? "People you archive appear here, and can be restored at any time."
+                      : "Add someone to get started."
+          }
+          /*
+           * The remedy has to be IN the empty state, not beneath it.
+           *
+           * `CollectionLayout` replaces the whole content region with this slot,
+           * so the Load more that sits beside the row list is not rendered at
+           * all here — telling the owner to "load more to keep looking" while
+           * the control was elsewhere on the page would have been worse than the
+           * defect it replaced. The same handler, in the one place they are
+           * looking.
+           */
+          primaryAction={
+            hasMore ? (
+              <button
+                type="button"
+                className="dh-btn dh-btn--primary"
+                onClick={loadMore}
+                disabled={loading}
+                aria-busy={loading}
+              >
+                {loading ? "Loading…" : `Load more ${noun}`}
+              </button>
+            ) : undefined
           }
         />
       }
@@ -757,7 +827,18 @@ function PeopleCollection({
           />
         ))}
       </PersonRowList>
-      {!failed && hasMore && !narrowed ? (
+      {/*
+       * Load more is available whenever a cursor remains — narrowed or not.
+       *
+       * It used to be hidden while a search was active, and this pass had
+       * widened that to the circles and the catch-up filter too. Since all of
+       * them narrow the LOADED page rather than the query, hiding the control
+       * made every matching Person on a later page unreachable: the owner saw
+       * "Nobody in Personal yet" with fifty of two hundred People loaded and no
+       * way to look further. Loading another page is exactly the remedy, so the
+       * control stays — and the empty state above now points at it.
+       */}
+      {!failed && hasMore ? (
         <LoadMore
           loading={loading}
           loadFailed={loadFailed}

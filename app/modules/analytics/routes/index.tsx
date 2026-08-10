@@ -69,6 +69,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         series: [],
         areas: [],
         areasBounded: false,
+        areasAvailable: false,
         goals: null,
       }),
       range,

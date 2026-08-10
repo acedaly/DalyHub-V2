@@ -68,6 +68,17 @@ export interface AnalyticsAreaRow {
 export interface AnalyticsGoalTally {
   readonly onTrack: number;
   readonly total: number;
+  /**
+   * True when the Goal read hit its bound, so BOTH figures describe the Goals
+   * examined rather than the workspace.
+   *
+   * It has to travel, because the alignment ordering decides which Goals enter a
+   * bounded page: on a workspace with more Goals than the bound, the numerator
+   * and the denominator can both differ from the workspace-wide tally, and
+   * "5 of 9 Goals" would be a precise-looking claim about a set the reader
+   * cannot see. REVIEW-03 reports its own bounds the same way.
+   */
+  readonly bounded: boolean;
 }
 
 export interface AnalyticsFacts {
@@ -83,6 +94,17 @@ export interface AnalyticsFacts {
   readonly areas: readonly AnalyticsAreaRow[];
   /** True when the distribution read hit its row bound. */
   readonly areasBounded: boolean;
+  /**
+   * False when the distribution READ failed, as opposed to genuinely finding
+   * nothing.
+   *
+   * The two are the same empty array and must never be the same sentence: "none
+   * of this period's completed work rolled up to an Area" is a claim about the
+   * workspace, and saying it because a query fell over is the module's own
+   * "failure is said, not zeroed" rule broken in the one place it is easiest to
+   * break it.
+   */
+  readonly areasAvailable: boolean;
   /** The Goal tally, or `null` when the read failed. */
   readonly goals: AnalyticsGoalTally | null;
 }
@@ -144,6 +166,8 @@ export interface AnalyticsModel {
   readonly distribution: readonly AnalyticsDistributionRow[];
   /** Tasks attributed to an Area. Never the range's whole task total. */
   readonly distributionTotal: number;
+  /** False when the distribution read failed — the panel then says so. */
+  readonly distributionAvailable: boolean;
   /** Calm sentences about the limits of what is shown. Never a disclaimer wall. */
   readonly notes: readonly string[];
   /** True when there is genuinely nothing to show — ONE empty state, not five. */
@@ -245,7 +269,12 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
           ? "Not available"
           : facts.goals.total === 0
             ? "No Goals yet"
-            : `of ${plural(facts.goals.total, "Goal", "Goals")}, right now`,
+            : facts.goals.bounded
+              ? // The bound is in the sentence, not only in a note: a reader who
+                // never reaches the notes must not take this for a workspace
+                // total.
+                `of the ${plural(facts.goals.total, "Goal", "Goals")} read, right now`
+              : `of ${plural(facts.goals.total, "Goal", "Goals")}, right now`,
       delta: null,
       to: "/goals",
     },
@@ -286,6 +315,11 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     }));
 
   const notes: string[] = [];
+  if (facts.goals?.bounded) {
+    notes.push(
+      "Goal figures cover the Goals this reads, ordered by alignment — not every Goal in the workspace.",
+    );
+  }
   if (facts.areas.length > 0) {
     notes.push(
       "Completed work is attributed to the Area its Project belongs to today. Moving a Project later moves its history with it.",
@@ -302,7 +336,13 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     );
   }
 
-  const degraded = current === null || facts.goals === null;
+  const degraded =
+    current === null || facts.goals === null || !facts.areasAvailable;
+  /*
+   * "Nothing happened" requires every read to have SUCCEEDED and returned
+   * nothing. A failed distribution read must not be able to produce the empty
+   * state, because that state asserts a fact about the period.
+   */
   const isEmpty =
     !degraded &&
     (current?.tasksCompleted ?? 0) === 0 &&
@@ -317,6 +357,7 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     buckets: facts.buckets,
     distribution,
     distributionTotal: attributed,
+    distributionAvailable: facts.areasAvailable,
     notes,
     isEmpty,
     degraded,

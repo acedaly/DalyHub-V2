@@ -287,6 +287,25 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
  * to sit in, which is a different statement from "you did less than you think".
  */
 function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
+  /*
+   * A failed read and an empty period are the same empty array, and they must
+   * never be the same sentence.
+   *
+   * "None of this period's completed work rolled up to an Area" is a CLAIM about
+   * the workspace. Saying it because a query fell over is the module's own
+   * "failure is said, not zeroed" rule broken in the easiest place to break it —
+   * the owner would go looking for a structural problem that does not exist.
+   */
+  if (!model.distributionAvailable) {
+    return (
+      <DashboardCard title="Where the work landed" density="standard">
+        <p className="dh-analytics__absent">
+          This panel could not be read just now. Nothing in your workspace has
+          changed — the figures above are unaffected.
+        </p>
+      </DashboardCard>
+    );
+  }
   if (model.distribution.length === 0) {
     return (
       <DashboardCard title="Where the work landed" density="standard">
