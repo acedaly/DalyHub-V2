@@ -1,0 +1,338 @@
+/**
+ * UIX-05 — the ONE bounded projection behind the Analytics surface (server-only).
+ *
+ * Nothing in the Analytics module reads a repository except this file, and this
+ * file adds NO repository, NO write, NO migration and no new kind of query to
+ * the product. Every fact it works from already existed for something else:
+ *
+ *   - **completions**, current, previous and per bucket, come from
+ *     `ReviewInsightRepository.countPeriodCompletions` — one grouped statement
+ *     over the append-only Activity stream for however many windows are asked
+ *     for, capped at `MAX_TREND_PERIODS`. The ranges in `analytics-range.ts` are
+ *     bucketed to fit inside that cap by construction;
+ *   - **where completed work landed** comes from `listPeriodContributions`, the
+ *     same read the Review's distribution section uses, with the same documented
+ *     approximation (ancestry through the CURRENT spine links);
+ *   - **Goals on track** is AREA-03's own alignment evaluator over one bounded
+ *     page of Goals, exactly as `review-insights-context.ts` composes it.
+ *
+ * The query budget is therefore FLAT with respect to workspace size and does not
+ * grow with the range: one bucketed series read, one totals read, one
+ * contribution read, one Area page, one Goal page, one Goal-contribution read
+ * and one alignment-facts read — seven grouped statements, every time.
+ *
+ * Failure is SAID, not zeroed. A read that fails leaves its half of the model
+ * `null`, and the evaluator turns that into "Not available" rather than into a
+ * nought that would read as "you did nothing".
+ */
+
+import {
+  evaluateAnalytics,
+  previousSpan,
+  rangeBuckets,
+  rangeSpan,
+  type AnalyticsAreaRow,
+  type AnalyticsCompletionCounts,
+  type AnalyticsModel,
+  type AnalyticsRangeId,
+  type AnalyticsSeriesPoint,
+  type AnalyticsSpan,
+} from "~/kernel/analytics";
+import {
+  composeGoalAlignmentFacts,
+  evaluateGoalAlignment,
+} from "~/kernel/alignment";
+import { formatPreferenceDate, type DateFormat } from "~/kernel/preferences";
+import type {
+  PeriodCountRequest,
+  ReviewPeriodWindow,
+} from "~/kernel/review-insights";
+import { InvalidSpineCursorError } from "~/kernel/spine";
+import type { WorkspaceScope } from "~/platform/workspaces";
+import { createOwnerAlignmentContext } from "~/shared/alignment";
+import { ownerLocalToUtc } from "~/shared/datetime";
+
+/**
+ * The server-side bounds. Generous enough that a realistic workspace is
+ * described completely, small enough that the payload never grows with it.
+ */
+export const ANALYTICS_LIMITS = {
+  /** Rows in the "where did the completed work land" breakdown. */
+  contributions: 60,
+  /** Areas read for the distribution's titles and identity ranks. */
+  areas: 24,
+  /** Goals examined for the on-track tally, alignment-ranked. */
+  goals: 40,
+} as const;
+
+/** Everything the Analytics route hands the browser. Fully JSON-safe. */
+export interface AnalyticsPageData {
+  readonly model: AnalyticsModel;
+  readonly range: AnalyticsRangeId;
+  /** The span, as the owner reads it — "5 August – 11 August 2026". */
+  readonly rangeLabel: string;
+  /** One label per bucket, in the same order as `model.buckets`. */
+  readonly bucketLabels: readonly string[];
+  /** The last day of each bucket, `YYYY-MM-DD`, for the trend's time axis. */
+  readonly bucketDates: readonly string[];
+  readonly failed: boolean;
+}
+
+/** Turn an owner-calendar span into the half-open instant window a count needs. */
+function toWindow(span: AnalyticsSpan, timezone: string): ReviewPeriodWindow {
+  const start = ownerLocalToUtc(`${span.startIso}T00:00`, timezone);
+  // The window is half-open and ends at the owner's local start of the day AFTER
+  // the span's last day, so the last day is included in full.
+  const endExclusiveIso = addOneDay(span.endIso);
+  const end = ownerLocalToUtc(`${endExclusiveIso}T00:00`, timezone);
+  return {
+    periodStart: span.startIso,
+    periodEnd: span.endIso,
+    startInstantIso: (
+      start ?? new Date(`${span.startIso}T00:00:00Z`)
+    ).toISOString(),
+    endInstantIso: (
+      end ?? new Date(`${endExclusiveIso}T00:00:00Z`)
+    ).toISOString(),
+  };
+}
+
+function addOneDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map((part) => Number.parseInt(part, 10));
+  return new Date(Date.UTC(y, (m ?? 1) - 1, (d ?? 1) + 1))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** "5 August – 11 August 2026", in the owner's own date format. */
+function spanLabel(span: AnalyticsSpan, dateFormat: DateFormat): string {
+  const start = formatPreferenceDate(span.startIso, dateFormat);
+  const end = formatPreferenceDate(span.endIso, dateFormat);
+  return start === end ? start : `${start} – ${end}`;
+}
+
+export interface AnalyticsContextInput {
+  readonly scope: WorkspaceScope;
+  readonly range: AnalyticsRangeId;
+  readonly todayIso: string;
+  readonly timezone: string;
+  readonly dateFormat: DateFormat;
+  readonly now: Date;
+}
+
+export async function loadAnalytics(
+  input: AnalyticsContextInput,
+): Promise<AnalyticsPageData> {
+  const span = rangeSpan(input.range, input.todayIso);
+  const buckets = rangeBuckets(input.range, span);
+  const previous = previousSpan(span);
+
+  /*
+   * TWO grouped statements, and deliberately not one.
+   *
+   * Both the buckets and the two totals are just windows, so the obvious move is
+   * to ask for all of them together — and it is wrong twice over. The aggregate
+   * caps one call at `MAX_TREND_PERIODS` (8) windows, and seven daily buckets
+   * plus two totals is nine. More importantly, the range total must NOT be the
+   * sum of its buckets: the count is `DISTINCT` per record per window, so a Task
+   * completed, reopened and completed again in two different buckets would be
+   * counted twice by a sum and once by the whole-range window. The headline
+   * figure is the one an owner reads, so it is asked for as its own window and
+   * the buckets are only ever the SHAPE.
+   *
+   * Two statements, each one grouped scan, both flat with respect to workspace
+   * size and to the length of the range.
+   */
+  const bucketRequests: PeriodCountRequest[] = buckets.map((bucket) => ({
+    key: bucket.key,
+    window: toWindow(bucket, input.timezone),
+  }));
+  const totalRequests: PeriodCountRequest[] = [
+    { key: "current", window: toWindow(span, input.timezone) },
+    { key: "previous", window: toWindow(previous, input.timezone) },
+  ];
+
+  let series: AnalyticsSeriesPoint[] = [];
+  let current: AnalyticsCompletionCounts | null = null;
+  let previousCounts: AnalyticsCompletionCounts | null = null;
+  let failed = false;
+  try {
+    const [bucketRows, totalRows] = await Promise.all([
+      input.scope.reviewInsights.countPeriodCompletions(bucketRequests),
+      input.scope.reviewInsights.countPeriodCompletions(totalRequests),
+    ]);
+    const byKey = new Map(
+      [...bucketRows, ...totalRows].map((row) => [row.key, row]),
+    );
+    series = buckets.map((bucket) => {
+      const row = byKey.get(bucket.key);
+      return {
+        key: bucket.key,
+        tasksCompleted: row?.tasksCompleted ?? 0,
+        projectsCompleted: row?.projectsCompleted ?? 0,
+        goalsCompleted: row?.goalsCompleted ?? 0,
+      };
+    });
+    const currentRow = byKey.get("current");
+    const previousRow = byKey.get("previous");
+    current = currentRow
+      ? {
+          tasksCompleted: currentRow.tasksCompleted,
+          projectsCompleted: currentRow.projectsCompleted,
+          goalsCompleted: currentRow.goalsCompleted,
+        }
+      : null;
+    previousCounts = previousRow
+      ? {
+          tasksCompleted: previousRow.tasksCompleted,
+          projectsCompleted: previousRow.projectsCompleted,
+          goalsCompleted: previousRow.goalsCompleted,
+        }
+      : null;
+  } catch {
+    failed = true;
+  }
+
+  const [areas, goals] = await Promise.all([
+    readDistribution(input, span),
+    readGoalTally(input),
+  ]);
+
+  const model = evaluateAnalytics({
+    range: input.range,
+    buckets,
+    current,
+    previous: previousCounts,
+    series,
+    areas: areas.rows,
+    areasBounded: areas.bounded,
+    goals,
+  });
+
+  return {
+    model,
+    range: input.range,
+    rangeLabel: spanLabel(span, input.dateFormat),
+    bucketLabels: buckets.map((bucket) => spanLabel(bucket, input.dateFormat)),
+    bucketDates: buckets.map((bucket) => bucket.endIso),
+    failed,
+  };
+}
+
+/**
+ * Where the range's completed Tasks landed, joined to the Areas' own identity
+ * ranks so the distribution bars take each Area's colour — the same rank a
+ * Project's mark and an Area's row already use (ADR-068 §5), never a second
+ * colour decision.
+ *
+ * An Area the contribution read names but the bounded Area page does not reach
+ * keeps its title from the contribution row and gets the neutral bar, which is
+ * the honest outcome: the count is real, the colour would be a guess.
+ */
+async function readDistribution(
+  input: AnalyticsContextInput,
+  span: AnalyticsSpan,
+): Promise<{ rows: AnalyticsAreaRow[]; bounded: boolean }> {
+  try {
+    const [contributions, areaPage] = await Promise.all([
+      input.scope.reviewInsights.listPeriodContributions(
+        toWindow(span, input.timezone),
+        ANALYTICS_LIMITS.contributions,
+      ),
+      input.scope.areas.listAreas({ limit: ANALYTICS_LIMITS.areas }),
+    ]);
+    const ranks = new Map(
+      areaPage.items.map((area) => [area.id, area.colourRank]),
+    );
+    const totals = new Map<string, { title: string; tasks: number }>();
+    for (const row of contributions) {
+      if (row.areaId === null) continue;
+      const existing = totals.get(row.areaId);
+      totals.set(row.areaId, {
+        title: existing?.title ?? row.areaTitle ?? "Untitled Area",
+        tasks: (existing?.tasks ?? 0) + row.tasksCompleted,
+      });
+    }
+    return {
+      rows: [...totals].map(([areaId, entry]) => ({
+        areaId,
+        title: entry.title,
+        tasksCompleted: entry.tasks,
+        colourRank: ranks.get(areaId) ?? null,
+      })),
+      bounded: contributions.length >= ANALYTICS_LIMITS.contributions,
+    };
+  } catch {
+    // The distribution is one panel; losing it must not lose the page.
+    return { rows: [], bounded: false };
+  }
+}
+
+/**
+ * The Goal tally, from AREA-03's evaluator over one bounded, alignment-ranked
+ * page of Goals — never a second Goal-health model, and never a count invented
+ * in SQL.
+ *
+ * "On track" is the alignment evaluator's `active` state: a Goal with
+ * contributing work recorded inside the recent window. `completed` Goals are
+ * excluded from BOTH halves of the fraction, because "4 of 12 on track" reading
+ * as an indictment when eight of the twelve are finished would be the surface
+ * lying by omission.
+ */
+async function readGoalTally(
+  input: AnalyticsContextInput,
+): Promise<{ onTrack: number; total: number } | null> {
+  try {
+    const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
+      createOwnerAlignmentContext(input.now, input.timezone);
+
+    let goalPage;
+    try {
+      goalPage = await input.scope.goals.listGoalsByAlignment({
+        limit: ANALYTICS_LIMITS.goals,
+        activeBoundaryIso: recentBoundaryStartIso,
+      });
+    } catch (error) {
+      if (!(error instanceof InvalidSpineCursorError)) throw error;
+      goalPage = await input.scope.goals.listGoalsByAlignment({
+        activeBoundaryIso: recentBoundaryStartIso,
+      });
+    }
+
+    const goalIds = goalPage.items.map((goal) => goal.id);
+    const [contributions, activity] = await Promise.all([
+      input.scope.goals.listGoalProjectContributions(goalIds),
+      input.scope.alignment.listGoalAlignmentFacts(goalIds, {
+        recentWindowStartIso,
+      }),
+    ]);
+
+    let onTrack = 0;
+    let total = 0;
+    for (const goal of goalPage.items) {
+      const alignment = evaluateGoalAlignment(
+        composeGoalAlignmentFacts({
+          goalId: goal.id,
+          completedAt: goal.completedAt,
+          contribution: contributions.get(goal.id) ?? {
+            total: 0,
+            completed: 0,
+            incomplete: 0,
+            active: 0,
+            planned: 0,
+            onHold: 0,
+            archived: 0,
+          },
+          activity: activity.get(goal.id),
+        }),
+        evaluation,
+      );
+      if (alignment.state === "completed") continue;
+      total += 1;
+      if (alignment.state === "active") onTrack += 1;
+    }
+    return { onTrack, total };
+  } catch {
+    return null;
+  }
+}

@@ -43,6 +43,30 @@ export type SerializedPersonStayInTouch = {
   readonly daysSinceLastInteraction: number | null;
 };
 
+/**
+ * UIX-05 — one reachable contact, already resolved to a real `href`.
+ *
+ * The People row's most-used affordance is "write to this person", and until
+ * this pass a People list could not do it: the collection projection carried the
+ * NAME of the preferred method ("Email") and not the address, so reaching anyone
+ * meant opening their record first. The address itself is what an owner scans
+ * for, so the address is what travels.
+ *
+ * This is the owner's own contact book on the owner's own screen, which is a
+ * different question from §17's rule about what may leave the product: nothing
+ * here is sent anywhere, indexed, or put in a search snippet. `href` is built
+ * server-side by `personReach` so no component ever assembles a scheme from a
+ * raw field.
+ */
+export type SerializedPersonReach = {
+  /** "Email", "Mobile", "Work phone" — what it is, for the accessible name. */
+  readonly kind: string;
+  /** The address or number itself, exactly as the owner entered it. */
+  readonly value: string;
+  /** `mailto:` or `tel:`. */
+  readonly href: string;
+};
+
 /** One Person on the `/people` collection (card-sized projection). */
 export type SerializedPersonListItem = {
   readonly id: string;
@@ -54,6 +78,11 @@ export type SerializedPersonListItem = {
   readonly relationshipLabel: string | null;
   readonly favouriteContactMethod: ContactMethod | null;
   readonly favouriteContactMethodLabel: string | null;
+  /**
+   * Up to two ways to reach this person, preferred first. Empty when nothing
+   * reachable was recorded — an absence, drawn as one.
+   */
+  readonly reach: readonly SerializedPersonReach[];
   readonly tags: readonly string[];
   readonly lastInteraction: string | null;
   readonly nextFollowUp: string | null;
@@ -163,12 +192,75 @@ function letter(value: string): string {
   return [...value][0] ?? "";
 }
 
+/**
+ * UIX-05 — the reachable contacts for one Person, preferred first.
+ *
+ * The owner's chosen `favouriteContactMethod` leads when it names a field that
+ * is actually filled; otherwise the natural order does — an email before a
+ * phone, a mobile before a desk phone, because that is the order a personal
+ * contact book is used in. At most two travel: a Person with five recorded
+ * addresses is still one person to write to, and the record holds the rest.
+ *
+ * Only `mailto:` and `tel:` are produced. An address and a website are genuine
+ * contact methods and are deliberately NOT here — neither is a way to reach a
+ * person from a list, and `https:` from a stored string is a link this surface
+ * has no business building.
+ */
+export function personReach(person: {
+  readonly email: string | null;
+  readonly secondaryEmail: string | null;
+  readonly mobile: string | null;
+  readonly workPhone: string | null;
+  readonly favouriteContactMethod: ContactMethod | null;
+}): SerializedPersonReach[] {
+  const candidates: { method: ContactMethod; reach: SerializedPersonReach }[] =
+    [];
+  const push = (
+    method: ContactMethod,
+    kind: string,
+    value: string | null,
+    scheme: "mailto" | "tel",
+  ) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return;
+    candidates.push({
+      method,
+      reach: {
+        kind,
+        value: trimmed,
+        // A phone number is written for humans ("0412 345 678"); `tel:` wants it
+        // without the spacing, and the visible text keeps the owner's own form.
+        href:
+          scheme === "tel"
+            ? `tel:${trimmed.replace(/[^+\d]/g, "")}`
+            : `mailto:${trimmed}`,
+      },
+    });
+  };
+
+  push("email", "Email", person.email, "mailto");
+  push("mobile", "Call", person.mobile, "tel");
+  push("work_phone", "Call", person.workPhone, "tel");
+  push("secondary_email", "Email", person.secondaryEmail, "mailto");
+
+  const preferred = person.favouriteContactMethod;
+  const ordered =
+    preferred === null
+      ? candidates
+      : [
+          ...candidates.filter((entry) => entry.method === preferred),
+          ...candidates.filter((entry) => entry.method !== preferred),
+        ];
+  return ordered.slice(0, 2).map((entry) => entry.reach);
+}
+
 export function serializePersonListItem(
   person: Person,
   stayInTouch?: SerializedPersonStayInTouch,
 ): SerializedPersonListItem {
   return {
     ...(stayInTouch ? { stayInTouch } : {}),
+    reach: personReach(person),
     id: person.id,
     title: person.title,
     preferredName: person.preferredName,

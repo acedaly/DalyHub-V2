@@ -32,6 +32,7 @@ import { StayInTouchPanel } from "~/shared/relationships";
 import { SummaryCards } from "~/shared/summary-cards";
 
 import { PersonAvatar } from "./PersonAvatar";
+import { personCircle, personCircleRank } from "./person-circles";
 import { personRelationshipCards } from "./person-relationship-view";
 import {
   formatBirthday,
@@ -160,10 +161,14 @@ export function PersonSummary({
         relationship record rather than a contact row.
       */}
       <div className="dh-person-summary__head">
+        {/* UIX-05 — the SAME circle accent the collection row paints, so a
+         * Person is recognisably the same object in both places. Resolved from
+         * the relationship the record itself already shows one line below. */}
         <PersonAvatar
           name={person.title}
           initials={person.initials}
           photoUrl={person.photoUrl}
+          colourRank={personCircleRank(personCircle(person.relationship))}
           size={72}
         />
         <div className="dh-person-summary__identity">

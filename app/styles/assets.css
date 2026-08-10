@@ -49,12 +49,44 @@
 /* Filter bar                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * UIX-05 — the Assets filter bar carries SEARCH and the active-filter chips, and
+ * nothing else.
+ *
+ * It used to hold seven permanent controls in one wrapping row: search, type,
+ * status, area, owner, obligations, tag and sort. On a 1280 laptop that was
+ * three rows of chrome above the first Asset. The seven dimensions now live in
+ * the ONE shared collection sheet at every width (TASKS-03's `persistentControls`
+ * — see `AssetsCollection.tsx`), and the chips beneath the search box say which
+ * of them are active, so hiding them costs nothing.
+ */
 .dh-assets-filters {
   display: flex;
   flex-wrap: wrap;
   gap: var(--app-space-3);
-  align-items: end;
+  align-items: center;
   inline-size: 100%;
+}
+
+/* The search box stops at a readable measure — a full-bleed search field on a
+ * 2560 monitor is a metre of empty input. It does not GROW, because with
+ * persistent controls the filter band shares a row with the shared "Filter &
+ * sort" button and a growing field would push it off the line. */
+.dh-assets-filters__search {
+  flex: 0 1 22rem;
+  min-inline-size: 0;
+}
+
+/* The chips flow after the search box and wrap when they run out of room. */
+.dh-assets-filters .dh-filter-chips {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+@media (max-width: 48rem) {
+  .dh-assets-filters__search {
+    flex-basis: 100%;
+  }
 }
 
 .dh-assets-filters__field {

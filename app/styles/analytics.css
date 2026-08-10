@@ -1,0 +1,340 @@
+/*
+ * UIX-05 — the Analytics surface.
+ *
+ * Tokens only (no raw hex, px, radius, shadow or duration), and no bespoke card:
+ * the two panels are the shared `DashboardCard` and the trend is the shared
+ * `TrendLine`, so this file draws exactly two things the shared system does not
+ * already own — the metric ROW, and the horizontal proportion SPLIT.
+ */
+
+.dh-analytics {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  /* The pane owns its own scrolling, like every other top-level surface. */
+  min-block-size: 0;
+}
+
+.dh-analytics__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-dashboard-gap);
+  padding: var(--app-space-5) var(--app-page-padding) var(--app-space-8);
+  min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The metric row                                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Four figures, on the canvas rather than in four boxes.
+ *
+ * This is D11's reasoning applied to a second surface: Today's figures are a row
+ * of quiet cards because a hero would spend the page's largest type on a
+ * headline and leave the numbers at label size beside it. An Analytics row has
+ * the same job and the same answer — the figures ARE the page's first sentence,
+ * so they get the type and the surface gets out of the way.
+ *
+ * `auto-fit` with a real minimum, so a narrow window wraps to two-by-two rather
+ * than crushing four columns; the `min(…, 100%)` guard is what keeps a 320px
+ * phone at one column with no horizontal overflow.
+ */
+.dh-analytics__metrics {
+  list-style: none;
+  margin: 0;
+  padding: var(--app-card-padding);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: var(--app-space-5);
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+}
+
+.dh-analytics__metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+.dh-analytics__metric-label {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The figure. `display-small` emphasized is the product's ONE hero-metric style,
+ * and this is the surface it exists for — an Analytics row is four numbers and
+ * nothing else, so the numbers are allowed to be the loudest thing on it.
+ */
+.dh-analytics__metric-value {
+  margin: 0;
+  font-size: var(--md-sys-typescale-display-small-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  font-weight: var(--md-sys-typescale-display-small-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-display-small-tracking);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The figure is a LINK to the records behind it, and it does not look like one
+ * at rest — a row of four underlined blue numbers is a row with no hierarchy
+ * left. It announces itself on hover and focus, which is where a pointer and a
+ * keyboard both ask.
+ */
+.dh-analytics .dh-analytics__metric-link,
+.dh-analytics .dh-analytics__metric-link:visited {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--app-shape-control);
+}
+
+.dh-analytics .dh-analytics__metric-link:hover,
+.dh-analytics .dh-analytics__metric-link:focus-visible {
+  color: var(--md-sys-color-primary);
+  text-decoration: underline;
+}
+
+/* A figure whose read failed says so at the figure's own size, so the row keeps
+ * its rhythm and the absence is impossible to mistake for a zero. */
+.dh-analytics__metric-absent {
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The comparison sentence.
+ *
+ * `on-surface-variant`, deliberately NOT green for up and red for down. A week
+ * with fewer completed Tasks is not a failure — it may be a week of one large
+ * Project — and painting it red would make the product an opinion rather than a
+ * record. The sentence states the direction in words; nothing here needs a hue.
+ */
+.dh-analytics__metric-supporting {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  text-wrap: pretty;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The two panels                                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The trend takes the wider track, because a line needs horizontal room to have
+ * a shape at all and a list of named bars does not. Below `lg` they stack, the
+ * trend first — it is the answer to "when", which is the question an owner
+ * arrives with.
+ */
+.dh-analytics__panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--app-dashboard-gap);
+  align-items: start;
+  min-inline-size: 0;
+}
+
+@media (max-width: 64rem) {
+  .dh-analytics__panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The sentence a panel shows instead of a chart it cannot honestly draw. */
+.dh-analytics__absent {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  text-wrap: pretty;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The distribution split                                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Horizontal proportion bars, one row per Area — the design system's agreed
+ * chart language for a share across named categories (Part 2, A5), and NOT a
+ * donut. See `AnalyticsScreen.tsx` for why.
+ *
+ * A grid rather than a flex line, so every bar starts and ends on the same two
+ * vertical rules whatever the Area names are. That is the property that makes
+ * eight shares comparable at a glance, and it is the same reason a gallery pins
+ * its progress bars to one baseline.
+ */
+.dh-analytics__split {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-analytics__split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-analytics .dh-analytics__split-name,
+.dh-analytics .dh-analytics__split-name:visited {
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-analytics .dh-analytics__split-name:hover,
+.dh-analytics .dh-analytics__split-name:focus-visible {
+  text-decoration: underline;
+}
+
+/* The 8px entity rung (D5): a bar whose entire job is a proportion gets the
+ * thicker rule. The track is the neutral sunken surface, so an empty bar can
+ * never read as a full one in another colour. */
+.dh-analytics__split-track {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--app-progress-bar-height-entity);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
+  overflow: hidden;
+}
+
+.dh-analytics__split-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+}
+
+/*
+ * D22 — each bar takes its AREA's own identity accent, resolved from the same
+ * stable rank the Area's row and its Projects' marks already use. A workspace's
+ * Analytics panel is therefore recognisable as the Areas the owner knows, rather
+ * than as an arbitrary palette invented for one chart. The count and the share
+ * are printed beside every bar, so the colour is never the signal.
+ */
+.dh-analytics__split-track[data-accent="1"] .dh-analytics__split-fill {
+  background: var(--md-sys-color-area-accent-1);
+}
+.dh-analytics__split-track[data-accent="2"] .dh-analytics__split-fill {
+  background: var(--md-sys-color-area-accent-2);
+}
+.dh-analytics__split-track[data-accent="3"] .dh-analytics__split-fill {
+  background: var(--md-sys-color-area-accent-3);
+}
+.dh-analytics__split-track[data-accent="4"] .dh-analytics__split-fill {
+  background: var(--md-sys-color-area-accent-4);
+}
+.dh-analytics__split-track[data-accent="5"] .dh-analytics__split-fill {
+  background: var(--md-sys-color-area-accent-5);
+}
+.dh-analytics__split-track[data-accent="6"] .dh-analytics__split-fill {
+  background: var(--md-sys-color-area-accent-6);
+}
+
+.dh-analytics__split-figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  flex: none;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-analytics__split-percent {
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notes                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The limits of what is shown, stated calmly and once. Never a disclaimer wall
+ * and never a warning: these are facts about the reading, in the same voice the
+ * Review's own notes use.
+ */
+.dh-analytics__notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+  max-inline-size: var(--app-width-prose, 44rem);
+}
+
+.dh-analytics__note {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phone                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The phone keeps the same DOM and the same reading order and changes only what
+ * a 358px line cannot hold.
+ *
+ * The metric row goes to TWO columns rather than one: four figures stacked is
+ * four screens of scrolling before the first chart, and two-by-two is what a
+ * thumb actually scans. The split's bar track yields its width to the Area
+ * names, because a name truncated to two words is a row that says nothing while
+ * a shorter bar still says everything.
+ */
+@media (max-width: 48rem) {
+  .dh-analytics__body {
+    gap: var(--app-space-4);
+    padding: var(--app-space-4) var(--app-page-padding) var(--app-space-6);
+  }
+
+  .dh-analytics__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--app-space-4);
+    padding: var(--app-card-padding-compact);
+  }
+
+  .dh-analytics__metric-value {
+    font-size: var(--md-sys-typescale-headline-medium-size);
+    line-height: var(--md-sys-typescale-headline-medium-line-height);
+  }
+
+  .dh-analytics__split-row {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+    gap: var(--app-space-2);
+  }
+}
+
+@media (forced-colors: active) {
+  .dh-analytics__metrics {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-analytics__split-fill {
+    background: CanvasText;
+  }
+}

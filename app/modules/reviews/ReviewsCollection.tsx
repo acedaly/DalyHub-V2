@@ -1,13 +1,34 @@
 /**
- * The Reviews collection.
+ * UIX-05 — the Reviews collection.
  *
- * UX-01 — two corrections to bring Reviews onto the conventions every other
- * collection already followed:
- *   - pagination was a "Next page" `Link` that REPLACED the list; it now uses the
- *     ONE shared `useKeysetPagination` hook and accumulates in place, like Areas,
- *     Goals, Notes, Projects, People, Assets and (since UX-01) Meetings (DEBT-45);
- *   - the placeholder copy used ASCII "..." where the rest of the product uses a
- *     real ellipsis (the PX-06 copy convention).
+ * ── What was wrong ──────────────────────────────────────────────────────────
+ * Reviews rendered through the generic shared `Card`: the Review entity glyph,
+ * the title, the period as a grey subtitle, a filled status pill beside the
+ * title, and three metadata facts — "Updated 2 August", "Completed 2 August",
+ * "3 of 6 sections authored" — all at one weight.
+ *
+ * Three specific defects:
+ *
+ * 1. **A Review was identified by its NAME.** Titles are derived from the
+ *    period in most workspaces, so a gallery printed "Weekly review" eight times
+ *    down the page and put the one distinguishing fact — WHICH week — in the
+ *    subtitle at body-small grey.
+ * 2. **The measure was a metadata fact.** How much of a Review has been written
+ *    is the only bounded proportion a Review has, and it sat third in a run.
+ * 3. **Continuing was invisible.** A half-finished Review's whole purpose is to
+ *    be finished, and reaching REVIEW-02's guided flow meant opening the record
+ *    and finding the control there.
+ *
+ * ── What this is now ────────────────────────────────────────────────────────
+ * A gallery of `ReviewCard`s (`~/shared/card/ReviewCard.tsx`): the cadence as an
+ * eyebrow, the PERIOD as the heading in tabular figures, the record's own name
+ * demoted beneath it and dropped entirely when it says nothing the period does
+ * not, the reflection as the shared 8px bar with an exact fraction, and one
+ * state line. A Review that is not finished carries a "Continue" control
+ * straight into the guided flow.
+ *
+ * The four scopes, the type filter, the sort and the cursor are unchanged: all
+ * URL-backed, all applied server-side over the full collection.
  */
 
 import { useMemo } from "react";
@@ -18,7 +39,7 @@ import {
   type ReviewType,
   type ReviewView,
 } from "~/kernel/reviews";
-import { Card, CardCollection, type CardMetaItem } from "~/shared/card";
+import { EntityCardGrid, ReviewCard, type ReviewCardTone } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -45,6 +66,8 @@ const SORTS = [
   { value: "period", label: "Period" },
 ] as const;
 
+type SerializedReviewRow = ReviewsCollectionData["reviews"][number];
+
 function hrefFor(
   searchParams: URLSearchParams,
   changes: Record<string, string | null>,
@@ -59,27 +82,57 @@ function hrefFor(
   return qs ? `/reviews?${qs}` : "/reviews";
 }
 
-function cardMeta(
-  review: ReviewsCollectionData["reviews"][number],
-): CardMetaItem[] {
-  // UIQ-010 — the card's subtitle already states the period; repeating it as a
-  // "Period:" fact printed the same range twice on every row.
-  const metadata: CardMetaItem[] = [
-    { id: "updated", label: "Updated", value: review.updatedLabel },
-  ];
-  if (review.completedAt) {
-    metadata.push({
-      id: "completed",
-      label: "Completed",
-      value: review.completedLabel,
-    });
+/**
+ * The card's title slot, or `null`.
+ *
+ * `defaultReviewTitle` produces "Weekly Review — 27 Jul–2 Aug 2026", so a
+ * workspace that has never renamed a Review shows the cadence and the period
+ * twice on every card: once in the eyebrow and heading, where they belong, and
+ * once more as a title. The card drops the title when it is that derived form,
+ * and keeps it when the owner has given the Review a name of their own —
+ * because that is how they will look for it.
+ *
+ * The test is the derived PREFIX rather than the whole string, because the
+ * default title's date range is formatted compactly and the heading's is not, so
+ * the two are the same fact in two spellings and can never be compared whole.
+ * Inferring from the title rather than storing a "was renamed" flag is both
+ * honest and self-correcting: rename a Review and the name appears; rename it
+ * back and it goes.
+ */
+function displayTitle(review: SerializedReviewRow): string | null {
+  const derivedPrefix = `${review.typeLabel} review — `.toLocaleLowerCase();
+  const actual = review.title.trim().toLocaleLowerCase();
+  return actual.startsWith(derivedPrefix) ? null : review.title;
+}
+
+/**
+ * The one state line, and its tone.
+ *
+ * A COMPLETED Review says when it was completed, because that is the fact that
+ * matters afterwards; an open one says what it is and when it last moved. The
+ * archived case leads with the word "Archived", because that is the thing that
+ * explains why the Review is not in the list the owner expected.
+ */
+function stateLine(review: SerializedReviewRow): {
+  text: string;
+  tone: ReviewCardTone;
+} {
+  if (review.archived) {
+    return {
+      text: `Archived · ${review.statusLabel.toLocaleLowerCase()}`,
+      tone: "neutral",
+    };
   }
-  metadata.push({
-    id: "authored",
-    label: "Reflection",
-    value: review.completionLabel,
-  });
-  return metadata;
+  if (review.status === "completed") {
+    return {
+      text: `Completed ${review.completedLabel}`,
+      tone: "success",
+    };
+  }
+  return {
+    text: `${review.statusLabel} · updated ${review.updatedLabel}`,
+    tone: review.status === "in_progress" ? "info" : "neutral",
+  };
 }
 
 export function ReviewsCollectionView({
@@ -99,7 +152,7 @@ export function ReviewsCollectionView({
   }, [searchParams]);
 
   const pagination = useKeysetPagination<
-    ReviewsCollectionData["reviews"][number],
+    SerializedReviewRow,
     ReviewsCollectionData
   >({
     firstPage: data.reviews,
@@ -113,11 +166,7 @@ export function ReviewsCollectionView({
     data.view !== "current" || data.query.length > 0 || data.type !== "all";
 
   // UIQ-013 — the four Review scopes are the collection's principal MODE (one
-  // is always active), so they are the ONE shared view switcher rather than
-  // the module-local pill row they used to be. UIQ-014 — with the switcher in
-  // its own header slot, "New Review" sits in the shared primary slot at the
-  // trailing end of the row, exactly where every other collection puts its
-  // create action, instead of reading as the fifth pill.
+  // is always active), so they are the ONE shared view switcher.
   const viewSwitcher = (
     <ViewSwitcher
       options={VIEWS.map((view) => ({
@@ -158,7 +207,7 @@ export function ReviewsCollectionView({
         />
       </label>
       <label className="dh-reviews-filters__field">
-        <span className="dh-reviews-filters__label">Type</span>
+        <span className="dh-reviews-filters__label">Cadence</span>
         <select
           className="dh-select"
           value={data.type}
@@ -175,7 +224,7 @@ export function ReviewsCollectionView({
             )
           }
         >
-          <option value="all">All types</option>
+          <option value="all">Every cadence</option>
           {REVIEW_TYPES.map((type) => (
             <option key={type} value={type}>
               {REVIEW_TYPE_LABELS[type as ReviewType]}
@@ -221,6 +270,7 @@ export function ReviewsCollectionView({
       title="Reviews"
       entityType="review"
       subtitle="Reflect on the period, close loops and plan what matters next."
+      presentation="grid"
       viewSwitcher={viewSwitcher}
       primaryAction={
         <Link className="dh-btn dh-btn--primary" to="/reviews/new">
@@ -273,37 +323,49 @@ export function ReviewsCollectionView({
       }
       className="dh-reviews"
     >
-      <CardCollection
-        ariaLabel="Reviews"
-        items={pagination.items}
-        getItemId={(review) => review.id}
-        renderCard={(review) => (
-          <Card
-            key={review.id}
-            id={review.id}
-            title={review.title}
-            headingLevel={2}
-            typeLabel={review.typeLabel}
-            icon={<EntityIcon type="review" />}
-            subtitle={review.periodLabel}
-            status={{
-              label: review.archived
-                ? `Archived · ${review.statusLabel}`
-                : review.statusLabel,
-              tone: review.archived
-                ? "warning"
-                : review.status === "completed"
-                  ? "success"
-                  : review.status === "in_progress"
-                    ? "info"
-                    : "neutral",
-            }}
-            metadata={cardMeta(review)}
-            href={`/reviews/${encodeURIComponent(review.id)}`}
-            openAriaLabel={`Open ${review.title}`}
-          />
-        )}
-      />
+      <EntityCardGrid label="Reviews">
+        {pagination.items.map((review) => {
+          const finished = review.status === "completed";
+          return (
+            <ReviewCard
+              key={review.id}
+              headingLevel={2}
+              cadence={review.typeLabel}
+              period={review.periodLabel}
+              title={displayTitle(review)}
+              // Rule 3: a completed Review draws no bar. The question "how much
+              // is written?" has stopped being live, and a wall of full bars is
+              // a gallery with nothing to scan.
+              reflection={
+                finished
+                  ? undefined
+                  : {
+                      authored: review.authoredSections,
+                      total: review.totalSections,
+                      valueText: review.completionLabel,
+                    }
+              }
+              state={stateLine(review)}
+              action={
+                finished || review.archived ? undefined : (
+                  <Link
+                    className="dh-btn dh-btn--secondary dh-btn--sm"
+                    to={`/reviews/${encodeURIComponent(review.id)}/guide`}
+                  >
+                    {review.authoredSections === 0 ? "Start" : "Continue"}
+                    <span className="dh-visually-hidden">
+                      {` ${review.typeLabel} review, ${review.periodLabel}`}
+                    </span>
+                  </Link>
+                )
+              }
+              muted={review.archived}
+              href={`/reviews/${encodeURIComponent(review.id)}`}
+              openAriaLabel={`Open ${review.typeLabel} review — ${review.periodLabel}`}
+            />
+          );
+        })}
+      </EntityCardGrid>
       {pagination.hasMore ? (
         <LoadMore
           loading={pagination.loading}
@@ -325,6 +387,6 @@ function selectReviewsPage(data: ReviewsCollectionData) {
   };
 }
 
-function reviewId(review: ReviewsCollectionData["reviews"][number]): string {
+function reviewId(review: SerializedReviewRow): string {
   return review.id;
 }

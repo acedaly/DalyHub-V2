@@ -11,6 +11,10 @@
 /* Avatar                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * The one CIRCULAR identity mark in DalyHub. Every other record's mark is a
+ * rounded square, because those records are containers and a person is not.
+ */
 .dh-person-avatar {
   display: inline-flex;
   align-items: center;
@@ -18,9 +22,65 @@
   border-radius: var(--md-sys-shape-corner-full);
   overflow: hidden;
   flex: none;
-  color: var(--md-sys-color-on-primary);
+  /* The neutral disc — a Person with no relationship recorded. It is a real
+   * answer ("not classified"), not a fallback colour, and it is legible in both
+   * appearances without any accent at all. */
+  background: var(--md-app-color-surface-card-subtle);
+  color: var(--md-sys-color-on-surface-variant);
   font-weight: 500;
   line-height: 1;
+}
+
+/*
+ * UIX-05 — the generated avatar takes its CIRCLE's accent, at the same generated
+ * identity strength `.dh-accent-icon` uses (D17/D4).
+ *
+ * One authored rule and one generated percentage per appearance, so a list of
+ * People is a soft palette in light and a calm one in dark rather than a row of
+ * saturated discs. The mix is contrast-safe by construction — moving a container
+ * toward the card always moves it away from its own `on-` role — which is what
+ * lets the initials stay legible on all six ramps without a per-accent override.
+ */
+.dh-person-avatar[data-accent] {
+  background: color-mix(
+    in srgb,
+    var(--person-avatar-container) var(--app-tint-strength-identity),
+    var(--md-app-color-surface-card)
+  );
+  color: var(--person-avatar-on-container);
+}
+
+.dh-person-avatar[data-accent="1"] {
+  --person-avatar-container: var(--md-sys-color-area-accent-1-container);
+  --person-avatar-on-container: var(--md-sys-color-on-area-accent-1-container);
+}
+.dh-person-avatar[data-accent="2"] {
+  --person-avatar-container: var(--md-sys-color-area-accent-2-container);
+  --person-avatar-on-container: var(--md-sys-color-on-area-accent-2-container);
+}
+.dh-person-avatar[data-accent="3"] {
+  --person-avatar-container: var(--md-sys-color-area-accent-3-container);
+  --person-avatar-on-container: var(--md-sys-color-on-area-accent-3-container);
+}
+.dh-person-avatar[data-accent="4"] {
+  --person-avatar-container: var(--md-sys-color-area-accent-4-container);
+  --person-avatar-on-container: var(--md-sys-color-on-area-accent-4-container);
+}
+.dh-person-avatar[data-accent="5"] {
+  --person-avatar-container: var(--md-sys-color-area-accent-5-container);
+  --person-avatar-on-container: var(--md-sys-color-on-area-accent-5-container);
+}
+.dh-person-avatar[data-accent="6"] {
+  --person-avatar-container: var(--md-sys-color-area-accent-6-container);
+  --person-avatar-on-container: var(--md-sys-color-on-area-accent-6-container);
+}
+
+/* Forced colours strip the generated tints, which would leave identical discs.
+ * The ring restores the mark as a SHAPE, exactly as the identity mark does. */
+@media (forced-colors: active) {
+  .dh-person-avatar {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
 }
 
 .dh-person-avatar__img {
@@ -66,9 +126,61 @@
   flex: 0 1 auto;
 }
 
+/*
+ * UIX-05 — the "Needs a catch-up" toggle.
+ *
+ * A filter, not a view: it narrows which People are included within whichever
+ * circle is active, so it lives in the filter row rather than in the header's
+ * view slot (DESIGN_SYSTEM.md → Collection header). It is a toggle button with a
+ * real `aria-pressed`, so its state is announced rather than only tinted, and it
+ * carries its own count so an owner knows before pressing it whether it will
+ * show anything.
+ */
+.dh-people-filters__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex: none;
+  min-block-size: var(--app-control-height-md);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--app-shape-control);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Pressed is a SURFACE and a border, never a tone alone — and `aria-pressed`
+ * carries it for anyone who cannot see either. */
+.dh-people-filters__toggle[aria-pressed="true"] {
+  background: var(--md-sys-color-secondary-container);
+  border-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.dh-people-filters__toggle-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-people-filters__toggle[aria-pressed="true"]
+  .dh-people-filters__toggle-count {
+  color: inherit;
+}
+
+@media (forced-colors: active) {
+  .dh-people-filters__toggle[aria-pressed="true"] {
+    border: var(--app-border-width-thick) solid CanvasText;
+  }
+}
+
 /* UIQ-013 — People's pill-tab view nav and its bordered icon toggle group are
    both retired: the collection renders the ONE shared view switcher
-   (`segmented-filter.css`) in the pane header's view slot instead. */
+   (`segmented-filter.css`) in the pane header's view slot instead. UIX-05
+   retired the list/grid toggle entirely — a Person is a row (see
+   `PersonRow.tsx`), so there is no second presentation to switch to. */
 
 /* -------------------------------------------------------------------------- */
 /* Create page                                                                */

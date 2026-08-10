@@ -572,7 +572,9 @@
  */
 .dh-ecard-grid__item > .dh-ecard,
 .dh-ecard-grid__item > .dh-pcard,
-.dh-ecard-grid__item > .dh-gcard {
+.dh-ecard-grid__item > .dh-gcard,
+.dh-ecard-grid__item > .dh-acard,
+.dh-ecard-grid__item > .dh-rcard {
   flex: 1;
   min-inline-size: 0;
 }
@@ -3260,5 +3262,872 @@
    * centres in the single row it does have rather than sitting high. */
   .dh-erow:not(:has(.dh-erow__figure)) .dh-erow__body {
     align-self: center;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* PersonRow (UIX-05)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The People surface. A sibling of `.dh-erow`, and deliberately not a variant of
+ * it: an Area row leads with a rounded-square mark and closes with a count; a
+ * Person row leads with a FACE and closes with a rhythm. The two are meant to be
+ * told apart with the labels hidden, which is what §41 actually asks for.
+ *
+ * The list owns the surface and the hairlines, so no row draws its own border
+ * and two adjacent rows can never disagree about the line between them.
+ */
+.dh-prow-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+  overflow: hidden;
+  /*
+   * The same content cap `.dh-erow-list` takes, for the same reason: a row with
+   * four columns of content stretched to a 2560 monitor puts the name and the
+   * rhythm at opposite ends of a metre of empty desk.
+   */
+  max-inline-size: var(--app-width-content);
+}
+
+.dh-prow-list__item + .dh-prow-list__item {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+/*
+ * Four columns and one hairline-free row.
+ *
+ * A grid rather than a flex line, because the middle two columns must hold
+ * their track whether or not a given Person has anything in them — a directory
+ * whose email column wanders left and right as it scrolls is unreadable. Both
+ * are `minmax(0, …)` so a long address ellipsises rather than pushing the
+ * rhythm off the row.
+ */
+.dh-prow {
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(0, 1.6fr)
+    minmax(0, 1fr)
+    auto
+    auto;
+  align-items: center;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
+  /* Two comfortable lines above the touch floor. A face at 44px plus a name and
+   * a context line is what sets this, not a chosen number. */
+  min-block-size: 4.5rem;
+  padding: var(--app-space-3) var(--app-card-padding);
+  transition: background var(--md-sys-motion-duration-short3)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-prow:hover {
+  background: var(--md-app-color-surface-card-subtle);
+}
+
+.dh-prow--muted {
+  opacity: 0.72;
+}
+
+/* The one CIRCULAR identity mark in the product. Everything else — an Area, a
+ * Project, a Goal, an Asset — is a rounded square, because those are containers
+ * and a person is not. */
+.dh-prow__face {
+  flex: none;
+  display: inline-flex;
+}
+
+.dh-prow__identity {
+  min-inline-size: 0;
+}
+
+.dh-prow__name {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-prow__open,
+.dh-prow__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The whole row is the destination; the reach links and the overflow sit above
+ * it (see `.dh-prow__reach-link` and `.dh-prow__overflow`). */
+.dh-prow__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.dh-prow__open:focus-visible {
+  outline: none;
+}
+
+/* The ring belongs to the ROW, not to the inline text of its link — a keyboard
+ * user needs to see which person they are on, not which words. */
+.dh-prow:has(.dh-prow__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: calc(-1 * var(--app-border-width-thick));
+}
+
+.dh-prow__context {
+  margin: var(--app-space-px) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The reach column. Two lines at most, because a Person with five recorded
+ * addresses is still one person to write to — the record holds the rest.
+ */
+.dh-prow__reach {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--app-space-px);
+  min-inline-size: 0;
+}
+
+/*
+ * A REAL control inside a fully-linked row, so it is raised above the row's
+ * ::after overlay. It is quiet at rest — a directory of twenty blue addresses
+ * has no hierarchy left — and announces itself on hover and focus.
+ */
+.dh-prow .dh-prow__reach-link,
+.dh-prow .dh-prow__reach-link:visited {
+  position: relative;
+  z-index: var(--app-z-raised);
+  max-inline-size: 100%;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-prow .dh-prow__reach-link:hover,
+.dh-prow .dh-prow__reach-link:focus-visible {
+  color: var(--md-sys-color-primary);
+  text-decoration: underline;
+}
+
+.dh-prow__reach-link--secondary {
+  opacity: 0.86;
+}
+
+/*
+ * The rhythm column — the derived stay-in-touch state and the last shared
+ * moment beneath it.
+ *
+ * Right-aligned and tabular, so a column of "6 weeks ago" / "3 days ago" reads
+ * down rather than across. The dot only AGREES with the state beside it; the
+ * words carry it, so nothing here is lost in monochrome or forced colours.
+ */
+.dh-prow__rhythm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+  text-align: end;
+  justify-items: end;
+}
+
+.dh-prow__rhythm-state {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-prow__rhythm-detail {
+  grid-column: 2;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-prow__dot {
+  grid-row: 1;
+  grid-column: 1;
+  inline-size: var(--app-space-2);
+  block-size: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+}
+
+/*
+ * The rhythm tones. `info` is the brand, `warning` is the state-overdue ramp
+ * rather than `error` (D3) — a relationship the owner has not tended is a state
+ * of a record, not an application fault, and this surface never shouts.
+ */
+.dh-prow__rhythm[data-tone="success"] .dh-prow__dot {
+  background: var(--md-sys-color-success);
+}
+.dh-prow__rhythm[data-tone="info"] .dh-prow__dot {
+  background: var(--md-sys-color-primary);
+}
+.dh-prow__rhythm[data-tone="warning"] .dh-prow__dot {
+  background: var(--md-sys-color-state-overdue);
+}
+
+.dh-prow__overflow {
+  position: relative;
+  z-index: var(--app-z-raised);
+  flex: none;
+}
+
+@media (forced-colors: active) {
+  .dh-prow-list {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-prow__dot {
+    background: CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* PersonRow — the laptop and phone compositions                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Below ~68rem the reach column goes, not the rhythm.
+ *
+ * Both are useful and only one fits, and the choice is not close: "who have I
+ * not spoken to?" is the question this list is opened with, and the address is
+ * one tap away on the record. Nothing is lost — the reach links are still on the
+ * Person record, where every other contact detail already lives.
+ */
+@media (max-width: 68rem) {
+  .dh-prow {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .dh-prow__reach {
+    display: none;
+  }
+}
+
+/*
+ * A phone gets a genuinely different COMPOSITION of the same data, in the same
+ * DOM order (§7 — composition is DOM order, never `order`).
+ *
+ * Four columns across 358px is four columns of nothing, so the row becomes two
+ * lines with the face spanning both: the name and the rhythm STATE share the
+ * first line, and the context and the last-shared moment share the second. That
+ * puts the two facts a thumb is scrolling for — who, and are we overdue — on
+ * one line each, at full width.
+ */
+@media (max-width: 48rem) {
+  .dh-prow-list {
+    border-radius: var(--app-shape-card);
+  }
+
+  .dh-prow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "face identity overflow"
+      "face rhythm   overflow";
+    align-items: center;
+    column-gap: var(--app-space-3);
+    row-gap: var(--app-space-1);
+    min-block-size: var(--app-touch-target-min);
+    padding-inline: var(--app-card-padding-compact);
+  }
+
+  .dh-prow__face {
+    grid-area: face;
+    align-self: center;
+  }
+
+  .dh-prow__identity {
+    grid-area: identity;
+    align-self: end;
+  }
+
+  .dh-prow__rhythm {
+    grid-area: rhythm;
+    align-self: start;
+    /* On the phone the rhythm sits UNDER the name rather than opposite it, so
+     * it reads left-to-right with everything else on the row. */
+    justify-items: start;
+    text-align: start;
+  }
+
+  .dh-prow__overflow {
+    grid-area: overflow;
+  }
+
+  /*
+   * The phone drops the context line and keeps the rhythm's DETAIL, because the
+   * two say the same kind of thing — where this person sits — and only one of
+   * them changes. The circle is still carried by the avatar's accent, and the
+   * full context is on the record.
+   */
+  .dh-prow__context {
+    display: none;
+  }
+
+  /* A person with no derived rhythm has no second line, so the identity centres
+   * in the single row it does have rather than sitting high. */
+  .dh-prow:not(:has(.dh-prow__rhythm)) .dh-prow__identity {
+    align-self: center;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* AssetCard (UIX-05)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The Asset gallery card. A sibling of `.dh-pcard`, and deliberately not a
+ * variant of it: a Project card pins a percentage and a full-width bar to its
+ * floor, and an Asset card pins a DATE. Both are pinned for the same reason —
+ * a gallery row shares a height, and the measure has to land on one baseline
+ * across the row or the eye has nothing to track along.
+ */
+.dh-acard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--app-space-5);
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: var(--app-card-padding);
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+/* One pixel of lift — the gallery's whole motion budget, zeroed under
+ * `prefers-reduced-motion` by the global rule in `base.css`. */
+.dh-acard:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+.dh-acard--muted {
+  opacity: 0.72;
+}
+
+.dh-acard__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * The type mark, and the one place this card deliberately spends NO colour.
+ *
+ * Thirteen Asset types over a six-accent ramp collide two times in three, and a
+ * mark whose colour is a coincidence carries nothing. The glyph is the identity
+ * here — a car, a shield, a licence — so the container stays the neutral tonal
+ * tile and the card's colour goes to the due state instead. See `AssetCard.tsx`
+ * rule 2 for why that does not breach D21.
+ */
+.dh-acard__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: var(--app-entity-icon-container-size-lg);
+  block-size: var(--app-entity-icon-container-size-lg);
+  border-radius: var(--app-shape-supporting);
+  background: var(--md-app-color-surface-card-subtle);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--app-entity-icon-size-lg);
+  line-height: 0;
+}
+
+.dh-acard__mark .dh-icon {
+  inline-size: var(--app-entity-icon-size-lg);
+  block-size: var(--app-entity-icon-size-lg);
+}
+
+.dh-acard__titles {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* Two lines then an ellipsis, for the reason `.dh-pcard__title` documents: a
+ * gallery row shares a height, and one long name must not set it for the row. */
+.dh-acard__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.dh-acard__open,
+.dh-acard__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-acard__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dh-acard__open:focus-visible {
+  outline: none;
+}
+
+/* The ring belongs to the CARD, not to the inline text of its link. */
+.dh-acard:has(.dh-acard__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.dh-acard__context {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dh-acard__overflow {
+  position: absolute;
+  z-index: var(--app-z-raised);
+  inset-block-start: var(--app-space-2);
+  inset-inline-end: var(--app-space-2);
+}
+
+.dh-acard:has(.dh-acard__overflow) .dh-acard__titles {
+  padding-inline-end: var(--app-space-6);
+}
+
+.dh-acard__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * The commitment — the card's ANSWER, and the one region that carries tone.
+ *
+ * A tinted block rather than a coloured line, for the same reason the Goal
+ * card's reading sits in one: at gallery width a single toned sentence reads as
+ * an error message, and a block reads as a state. The tint is the state role at
+ * container strength, so it stays a wash in light and a calm slab in dark; the
+ * words are always the statement, and the dot only agrees with them.
+ */
+.dh-acard__due {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+  margin: 0;
+  min-inline-size: 0;
+  padding: var(--app-space-3);
+  border-radius: var(--app-shape-metric);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-acard__due-text {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.dh-acard__due-when {
+  margin: 0;
+  padding-inline-start: calc(var(--app-space-2) + var(--app-space-2));
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An Asset with nothing scheduled says so once, quietly, in the space the date
+ * would have taken. It is not a warning and not a gap. */
+.dh-acard__due--none {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.dh-acard__dot {
+  flex: none;
+  inline-size: var(--app-space-2);
+  block-size: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+}
+
+/*
+ * The three states that matter, and the one that does not.
+ *
+ * `danger` is `state-overdue` rather than `error` (D3): an Asset whose service
+ * has lapsed is a state of a record, not an application fault. Every tone
+ * carries a word — "Service overdue", "Renewal due in 12 days" — so nothing on
+ * this card is signalled by colour alone.
+ */
+.dh-acard__due[data-tone="danger"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-state-overdue-container)
+      var(--app-tint-strength-identity),
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-acard__due[data-tone="danger"] .dh-acard__dot {
+  background: var(--md-sys-color-state-overdue);
+}
+
+.dh-acard__due[data-tone="warning"] {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-warning-container) var(--app-tint-strength-identity),
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-acard__due[data-tone="warning"] .dh-acard__dot {
+  background: var(--md-sys-color-warning);
+}
+
+.dh-acard__due[data-tone="info"] .dh-acard__dot {
+  background: var(--md-sys-color-primary);
+}
+
+/* The quiet closing line — lifecycle state and where the thing actually is. */
+.dh-acard__state {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (forced-colors: active) {
+  .dh-acard {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-acard__due {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-acard__dot {
+    background: CanvasText;
+  }
+}
+
+/*
+ * A phone gets the same card at compact padding, with the mark stood down a
+ * rung. The composition does NOT change: an Asset card is already two short
+ * blocks stacked, which is the phone shape, and inventing a second arrangement
+ * for it would be complexity with nothing to buy.
+ */
+@media (max-width: 48rem) {
+  .dh-acard {
+    gap: var(--app-space-4);
+    padding: var(--app-card-padding-compact);
+  }
+
+  .dh-acard__mark {
+    inline-size: var(--app-entity-icon-container-size);
+    block-size: var(--app-entity-icon-container-size);
+    border-radius: var(--md-sys-shape-corner-medium);
+    font-size: var(--app-entity-icon-size);
+  }
+
+  .dh-acard__mark .dh-icon {
+    inline-size: var(--app-entity-icon-size);
+    block-size: var(--app-entity-icon-size);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ReviewCard (UIX-05)                                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The Review gallery card. A sibling of `.dh-pcard` and `.dh-acard`, and the one
+ * card in the product whose heading is a DATE RANGE rather than a name — see
+ * `ReviewCard.tsx` for why that is the right identity for this record.
+ *
+ * Composed top-heavy, which is the inverse of the Project card and deliberate: a
+ * Project is scanned for its measure, and a Review is scanned for its PERIOD.
+ * The foot is still pinned so a gallery row shares one baseline.
+ */
+.dh-rcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--app-space-5);
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: var(--app-card-padding);
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.dh-rcard:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+.dh-rcard--muted {
+  opacity: 0.72;
+}
+
+.dh-rcard__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+  /* Reserve the corner for the absolutely-positioned overflow, so a long period
+   * never runs under the menu. */
+  padding-inline-end: var(--app-space-6);
+}
+
+/*
+ * The cadence eyebrow — the ONE place this card shouts, and it shouts quietly.
+ * Uppercase label at the emphasized weight, exactly as `.dh-scard__eyebrow`
+ * does, so a Review card's eyebrow and a supporting surface's are the same
+ * object rather than two dialects of one idea.
+ */
+.dh-rcard__cadence {
+  margin: 0;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The period, at the card's largest rung with tabular figures.
+ *
+ * `title-large` rather than `headline`: a gallery of eight cards each shouting a
+ * headline has no hierarchy left, and the page title above them is the heading.
+ * Tabular figures are what let a column of date ranges line up as a calendar.
+ */
+.dh-rcard__period {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+
+.dh-rcard__open,
+.dh-rcard__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-rcard__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dh-rcard__open:focus-visible {
+  outline: none;
+}
+
+.dh-rcard:has(.dh-rcard__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* The record's own NAME, demoted below the period it describes and clamped to
+ * one line — in most workspaces it is derived from that period, and a renamed
+ * Review still has to be findable by the name the owner gave it. */
+.dh-rcard__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-rcard__overflow {
+  position: absolute;
+  z-index: var(--app-z-raised);
+  inset-block-start: var(--app-space-2);
+  inset-inline-end: var(--app-space-2);
+}
+
+.dh-rcard__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * The reflection measure. The bar leads and the fraction follows beneath it —
+ * the inverse of the Project card, where the percentage leads and the bar
+ * supports. A Review's six sections are a countable thing, so the COUNT is the
+ * statement and the bar is the shape of it.
+ */
+.dh-rcard__reflection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+/* The shared 8px entity-card bar (D5): the one surface whose whole job is a
+ * proportion gets the thicker rule. The track is the neutral sunken surface, so
+ * an empty bar can never read as a full one in another colour. */
+.dh-rcard__track {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--app-progress-bar-height-entity);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
+  overflow: hidden;
+}
+
+.dh-rcard__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-rcard__figures {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The state line. One dot, one sentence — never a filled pill beside the title,
+ * which is D24's finding on the Project card applied here for the same reason:
+ * a chip is the loudest thing on a card whose job is to be recognised by its
+ * period. */
+.dh-rcard__state {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.dh-rcard__dot {
+  flex: none;
+  inline-size: var(--app-space-2);
+  block-size: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+}
+
+.dh-rcard__state[data-tone="success"] .dh-rcard__dot {
+  background: var(--md-sys-color-success);
+}
+.dh-rcard__state[data-tone="info"] .dh-rcard__dot {
+  background: var(--md-sys-color-primary);
+}
+.dh-rcard__state[data-tone="warning"] .dh-rcard__dot {
+  background: var(--md-sys-color-state-overdue);
+}
+
+/* The one action a Review card offers, above the card's own link overlay so it
+ * stays pressable inside a fully-linked card. */
+.dh-rcard__action {
+  position: relative;
+  z-index: var(--app-z-raised);
+  display: flex;
+}
+
+@media (forced-colors: active) {
+  .dh-rcard {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-rcard .dh-rcard__fill {
+    background: CanvasText;
+  }
+  .dh-rcard__dot {
+    background: CanvasText;
+  }
+}
+
+@media (max-width: 48rem) {
+  .dh-rcard {
+    gap: var(--app-space-4);
+    padding: var(--app-card-padding-compact);
   }
 }

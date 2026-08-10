@@ -38,7 +38,7 @@ const SWITCHER_SURFACES = [
    */
   { name: "Goals", path: "/goals", group: "Goal views" },
   { name: "Notes", path: "/notes", group: "Note views" },
-  { name: "People", path: "/people", group: "People views" },
+  { name: "People", path: "/people", group: "People circles" },
   { name: "Meetings", path: "/meetings/upcoming", group: "Meeting views" },
   { name: "Assets", path: "/assets", group: "Asset views" },
   { name: "Reviews", path: "/reviews", group: "Review views" },

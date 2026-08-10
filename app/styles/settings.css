@@ -610,9 +610,20 @@
 
 /* ---------------------------------------------------------------- app settings route */
 
+/*
+ * UIX-05 — the page is a HEADER over a two-column body, not a two-column grid
+ * with the heading inside the right-hand column.
+ *
+ * The `h1` used to live in the content column, so it moved every time a section
+ * was chosen and the rail beside it had nothing above it at all. It is the
+ * page's heading, so it spans the page.
+ */
 .dh-settings-page {
   display: grid;
-  grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr);
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  grid-template-areas:
+    "header header"
+    "nav    content";
   gap: var(--app-space-6);
   width: 100%;
   max-width: var(--app-width-wide);
@@ -620,13 +631,64 @@
   margin: 0 auto;
 }
 
+.dh-settings-page__header {
+  grid-area: header;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
 .dh-settings-page__nav {
+  grid-area: nav;
   position: sticky;
   top: var(--app-space-6);
   align-self: start;
   display: flex;
   flex-direction: column;
+  gap: var(--app-space-5);
+}
+
+/*
+ * UIX-05 — three groups, because eight equally-weighted links in one column is a
+ * menu with no shape. The label is a real heading and names the list beneath it,
+ * so the grouping is structural rather than a visual gap.
+ */
+.dh-settings-page__nav-group {
+  display: flex;
+  flex-direction: column;
   gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+.dh-settings-page__nav-group-label {
+  margin: 0 0 var(--app-space-1);
+  padding-inline: var(--app-space-3);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-settings-page__nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+}
+
+/* The item, not the link, is the row: the link's ::after covers it, so the whole
+ * two-line phone row is one target while the summary stays a described sibling
+ * rather than part of the link's accessible name. */
+.dh-settings-page__nav-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-inline-size: 0;
 }
 
 .dh-settings-page__nav-link {
@@ -639,6 +701,37 @@
   text-decoration: none;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
+}
+
+.dh-settings-page__nav-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+/*
+ * The summary is carried in the DOM at every width, because it is the link's
+ * accessible DESCRIPTION — a section called "General" says nothing on its own —
+ * but a desktop RAIL is a rail, so it is hidden visually and stays available to
+ * assistive technology. The phone list below reveals it.
+ */
+.dh-settings-page__nav-summary {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The phone-only way back to the section list. */
+.dh-settings-page__back {
+  display: none;
+  margin: 0;
 }
 
 .dh-settings-page__nav-link:hover {
@@ -668,16 +761,11 @@
 }
 
 .dh-settings-page__content {
+  grid-area: content;
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);
   min-width: 0;
-}
-
-.dh-settings-page__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
 }
 
 .dh-settings-page__title {
@@ -714,24 +802,115 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * UIX-05 — the phone composition: TWO SCREENS, not two columns.
+ *
+ * The rail used to become a horizontally-scrolling row of eight labels above
+ * every section, which is the one shape DalyHub's own design rules rule out — "an
+ * action the user has to swipe to find is not a quick action" (`people.css`) —
+ * and it cost a permanent row of chrome on a surface that is already dense with
+ * controls.
+ *
+ * Instead the section list IS the Settings screen, as a real list with each
+ * section's summary under it, and choosing one replaces it. `data-chosen` is
+ * server-resolved from `?section=`, so the phone lands on the correct screen on
+ * the first byte, Back returns to the list because each section is a real URL,
+ * and the desktop composition above is completely unaffected.
+ */
 @media (max-width: 48rem) {
   .dh-settings-page {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "header"
+      "nav"
+      "content";
     gap: var(--app-space-5);
     padding: var(--app-space-4);
   }
 
   .dh-settings-page__nav {
     position: static;
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: var(--app-space-1);
-    scrollbar-width: thin;
+    gap: var(--app-space-5);
+  }
+
+  /* The list rows share one surface with hairlines between, so the eye reads a
+   * stable column of labels — the same contract every row list in the product
+   * has. */
+  .dh-settings-page__nav-list {
+    gap: 0;
+    background: var(--md-app-color-surface-card);
+    border-radius: var(--app-shape-card);
+    box-shadow: var(--app-elevation-resting);
+    overflow: hidden;
+  }
+
+  .dh-settings-page__nav-list > li + li {
+    border-block-start: var(--app-border-width-thin) solid
+      var(--md-app-color-outline-hairline);
+  }
+
+  .dh-settings-page__nav-item {
+    padding: var(--app-space-3) var(--app-card-padding-compact);
+    gap: var(--app-space-px);
+    min-block-size: var(--app-touch-target-min);
   }
 
   .dh-settings-page__nav-link {
-    flex: 0 0 auto;
-    min-height: var(--app-touch-target-min);
+    min-height: 0;
+    padding: 0;
+    border-radius: 0;
+    color: var(--md-sys-color-on-surface);
+    font-size: var(--md-sys-typescale-body-medium-size);
+  }
+
+  /* The whole row lights up on press, not just the label's own box. */
+  .dh-settings-page__nav-item:has(.dh-settings-page__nav-link:focus-visible) {
+    outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+    outline-offset: calc(-1 * var(--app-border-width-thick));
+  }
+
+  .dh-settings-page__nav-link:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* The list is a list of destinations, not a set of tabs: nothing in it is
+   * "current" while the list itself is what is on screen. */
+  .dh-settings-page__nav-link--active {
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  /* The summary becomes visible — it is what makes a list of eight nouns
+   * navigable without opening each one. */
+  .dh-settings-page__nav-summary {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    font-weight: 400;
+    text-wrap: pretty;
+  }
+
+  /* Without a chosen section the phone shows only the list; with one, only the
+   * section and its way back. */
+  .dh-settings-page[data-chosen="false"] .dh-settings-page__content {
+    display: none;
+  }
+
+  .dh-settings-page[data-chosen="true"] .dh-settings-page__nav {
+    display: none;
+  }
+
+  .dh-settings-page[data-chosen="true"] .dh-settings-page__back {
+    display: flex;
+    align-self: flex-start;
   }
 }
 
