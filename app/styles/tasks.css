@@ -1942,10 +1942,6 @@
     min-inline-size: 0;
   }
 
-  :is(.dh-collection--tasks, .dh-tasklist) .dh-pane-header__icon {
-    display: none;
-  }
-
   :is(.dh-collection--tasks, .dh-tasklist) .dh-pane-header__actions {
     margin-inline-start: auto;
   }

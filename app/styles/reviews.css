@@ -17,7 +17,6 @@
   gap: var(--app-space-1);
 }
 
-.dh-reviews-filters__label,
 .dh-review-date-grid span {
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
