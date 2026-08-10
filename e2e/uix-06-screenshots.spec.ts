@@ -76,30 +76,44 @@ const INDEX_ROUTES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * The DETAIL families. Each is reached through the product rather than by a
- * hard-coded id, because the seeded ids are fixture detail and the navigation
- * itself is part of what is being reviewed.
+ * The DETAIL families.
+ *
+ * The record's URL is DISCOVERED from its collection rather than hard-coded,
+ * because the seeded ids are fixture detail — but the capture then navigates to
+ * it directly rather than clicking. Clicking looked like the more faithful
+ * option and was not: several of these collections open a record through a
+ * drawer or an overlay anchored to the row, so "click the first link and shoot"
+ * produced a screenshot of the INDEX filed under the detail's name, which is
+ * worse than no evidence.
+ *
+ * The pattern excludes each collection's own view routes (`/meetings/upcoming`,
+ * `/assets/recent`) and its create route, so what is captured is a record.
  */
-const DETAIL_ENTRIES: ReadonlyArray<
-  readonly [string, string, string /* selector for the first record link */]
-> = [
-  ["/projects", "project-detail", "a[href^='/projects/']"],
-  ["/areas", "area-detail", "a[href^='/areas/']"],
-  ["/goals", "goal-detail", "a[href^='/goals/']"],
-  ["/notes", "note-detail", "a[href^='/notes/']"],
-  ["/meetings", "meeting-detail", "a[href^='/meeting/']"],
-  ["/people", "person-detail", "a[href^='/person/']"],
-  ["/assets", "asset-detail", "a[href^='/asset/']"],
-  ["/reviews", "review-detail", "a[href^='/reviews/']"],
-  ["/tasks", "task-detail", "a[href^='/tasks/']"],
+const DETAIL_ENTRIES: ReadonlyArray<readonly [string, string, RegExp]> = [
+  ["/projects", "project-detail", /^\/projects\/[^/?]+$/],
+  ["/areas", "area-detail", /^\/areas\/[^/?]+$/],
+  ["/goals", "goal-detail", /^\/goals\/[^/?]+$/],
+  ["/notes", "note-detail", /^\/notes\/[^/?]+$/],
+  ["/meetings", "meeting-detail", /^\/meeting\/[^/?]+$/],
+  ["/people", "person-detail", /^\/person\/[^/?]+$/],
+  ["/assets", "asset-detail", /^\/asset\/[^/?]+$/],
+  ["/reviews", "review-detail", /^\/reviews\/(?!new$)[^/?]+$/],
 ];
 
-async function openFirstDetail(page: Page, index: string, selector: string) {
+/** Collection routes that are VIEWS of the collection, never a record. */
+const NOT_A_RECORD =
+  /\/(new|create|recent|archived|expiring|service-due|upcoming|saved)$/;
+
+async function openFirstDetail(page: Page, index: string, pattern: RegExp) {
   await gotoFixture(page, index);
-  const link = page.locator(selector).first();
-  if ((await link.count()) === 0) return false;
-  await link.click();
-  await page.waitForLoadState("networkidle");
+  const href = await page.evaluate(() => {
+    return [...document.querySelectorAll("main a[href]")]
+      .map((a) => a.getAttribute("href") ?? "")
+      .filter(Boolean);
+  });
+  const target = href.find((h) => pattern.test(h) && !NOT_A_RECORD.test(h));
+  if (!target) return false;
+  await gotoFixture(page, target);
   return true;
 }
 
@@ -117,8 +131,8 @@ for (const scheme of ["light", "dark"] as const) {
     test(`captures every detail family at 1280 (${scheme})`, async ({
       page,
     }) => {
-      for (const [index, name, selector] of DETAIL_ENTRIES) {
-        if (await openFirstDetail(page, index, selector)) {
+      for (const [index, name, pattern] of DETAIL_ENTRIES) {
+        if (await openFirstDetail(page, index, pattern)) {
           await shoot(page, `${name}-1280-${scheme}`);
         }
       }
@@ -198,8 +212,8 @@ for (const scheme of ["light", "dark"] as const) {
     test(`captures the phone detail families at 390 (${scheme})`, async ({
       page,
     }) => {
-      for (const [index, name, selector] of DETAIL_ENTRIES) {
-        if (await openFirstDetail(page, index, selector)) {
+      for (const [index, name, pattern] of DETAIL_ENTRIES) {
+        if (await openFirstDetail(page, index, pattern)) {
           await shoot(page, `${name}-390-${scheme}`);
         }
       }
