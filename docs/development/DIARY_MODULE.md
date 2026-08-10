@@ -740,3 +740,45 @@ for what was **not** moved, is in
 Passages above that describe a `Rename` action, an `Edit details` panel or a
 per-module long-form control describe the surface as it was before that change;
 the mutation contracts they document are unchanged.
+
+## UIX-04 — the week strip (August 2026)
+
+Redesigned as part of [UIX-04](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+The domain, the routes, the `occurred_at` chronology and every mutation are
+unchanged.
+
+**`DiaryDayNavigator` is a week strip.** Seven day links, Monday first, the
+selected day carrying the primary accent as a filled container and
+`aria-current="date"`, today marked by a dot *and* by "(today)" in its accessible
+name. Each day's accessible name is its FULL date, because "8" is not a date to
+anyone reading the page one control at a time. Two new pure helpers in
+`occurred-time.ts` — `weekStripDays` and `weekStripCaption` — compute it with the
+same fixed English tables the day headings already use, so the server render and
+the hydration agree byte for byte.
+
+The URL contract is unchanged and slightly stricter: `?date=` is still the state,
+today is still the absence of the param, a date change still drops the
+scope-bound `cursor`, and it now also drops `inspector` — opening a day must not
+reopen the previous day's entry over the new day's timeline.
+
+The native `<input type="date">` survives as the way to travel further than a
+week, stretched invisibly over a 44px well that draws a calendar glyph (a native
+date input cannot be shrunk to a glyph without the browser clipping its own
+segmented field). A calendar widget would be the "huge calendar widget" the brief
+rules out.
+
+**The type filter stopped shouting.** Same chips, same URL contract, no border, no
+fill and no glyph until one is chosen — a quiet row of words beside a strip that
+is now the primary control. The chosen type fills with `secondary-container`.
+
+**Entries read like a journal.** A day is a group on the raised surface with no
+border and no hard corner; days are separated by space and a date heading rather
+than by card edges. The preview is two lines (`EXCERPT_CHARS` 140 → 260). The type
+badge is plain text rather than a chip, and the neutral default type (`NOTE_ENTRY`)
+is announced but not drawn — "NOTE" on every row of a diary of notes is a word
+that never varies. The timeline node's glyph stays decorative, so the badge is
+what carries the type to assistive tech.
+
+**Phone.** One row: week arrows, seven days, picker, Today. The month caption is
+dropped, and the day track carries `min-inline-size: 0` so it scrolls inside
+itself rather than pushing the next-week control off the viewport.

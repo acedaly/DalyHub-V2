@@ -31,7 +31,6 @@ import { useRef, type ReactNode } from "react";
 
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
-import { EntityIcon } from "~/shared/entity";
 import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { MarkdownContent } from "~/shared/markdown";
@@ -41,18 +40,23 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NoteContentForm } from "./NoteContentForm";
+import { NotesRail } from "./NotesRail";
 import { useArchiveNote } from "./use-archive-note";
 import { useDeleteNote } from "./use-delete-note";
 import { useNoteExport } from "./use-note-export";
 import {
   effectiveNoteUpdatedAt,
   type SerializedNoteDetails,
+  type SerializedNoteListItem,
   type SerializedNoteOverview,
 } from "./note-view";
 
 interface NoteOverviewProps {
   readonly overview: SerializedNoteOverview;
   readonly details: SerializedNoteDetails;
+  /** UIX-04 §5 — the notes the desktop rail lists beside this one. */
+  readonly rail?: readonly SerializedNoteListItem[];
+  readonly railHasMore?: boolean;
   /**
    * DS-16 — rename from the record heading. Returns an outcome rather than
    * throwing, so a refusal keeps the typed name in the field with the server's
@@ -84,6 +88,8 @@ function dateLabel(iso: string): string | null {
 export function NoteOverview({
   overview,
   details,
+  rail = [],
+  railHasMore = false,
   onRename,
   onEditTags,
   onSaved,
@@ -238,86 +244,111 @@ export function NoteOverview({
 
   return (
     <>
-      <RecordLayout
-        title={overview.title}
-        titleSlot={
-          <InlineTextField
-            label="Note title"
-            value={overview.title}
-            onSave={onRename}
-            variant="heading"
-            maxLength={TITLE_MAX_LENGTH}
-            data-testid="note-title-edit"
-          />
-        }
-        // RECORD-01 — no `typeLabel`: the breadcrumb above says "Notes".
-        icon={<EntityIcon type="note" />}
-        breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
-        // State in words — never a colour-only or icon-only signal (AGENTS.md §15).
-        status={archived ? { label: "Archived", tone: "on-hold" } : undefined}
-        metadata={contextItems}
-        overflowActions={lifecycle.overflowActions}
-        activeTabId={activeTabId}
-        onTabChange={onTabChange}
-        tabs={[
-          {
-            id: "note",
-            label: "Note",
-            // RECORD-01 — the writing surface brings its own single frame
-            // (EDIT-01), so the panel does not draw a second around it.
-            surface: "plain",
-            content:
-              (
-                /* DS-14 reference implementation (Reading).
-                 *
-                 * The note body is the one thing on this record the owner READS,
-                 * so it is the one region that takes the serif at the capped
-                 * measure. Everything around it — the record header, the tabs, the
-                 * summary metadata, the editor's own toolbar and save status —
-                 * takes the chrome typescale. M3-01 retired the density presets
-                 * and the serif column with them: prose is `body-large` in the
-                 * one UI family, and the contrast comes from size and measure
-                 * rather than from a second typeface (ADR-074 decision 6). */
-                <div className="dh-note-body">
-                  <NoteContentForm
-                    noteId={overview.id}
-                    initialContent={details.content}
-                    contentUpdatedAt={details.contentUpdatedAt}
-                    onSaved={onSaved}
-                    suppressGuard={deleted}
-                    flushRef={flushContentRef}
-                  />
-                </div>
-              ),
-          },
-          /* The same record's other three tabs are COLLECTION regions: backlinks,
-           * links and activity are all scanned, not read. One route, both
-           * presets, on separate regions — brief §7's "both" case, and the reason
-           * density is a property of the region rather than of the module. */
-          {
-            id: "backlinks",
-            label: "Backlinks",
-            content: backlinksTab,
-          },
-          {
-            id: "linked",
-            label: "Links",
-            content: linksTab,
-          },
-          {
-            // AI-01 — the extraction surface, mounted as an ordinary tab so it
-            // costs the record no chrome and no attention until it is opened.
-            id: "ai",
-            label: "AI",
-            content: aiTab,
-          },
-          {
-            id: "activity",
-            label: "Activity",
-            content: activityTab,
-          },
-        ]}
-      />
+      {/*
+       * UIX-04 §5 — the Note record is a WORKSPACE: a list rail and a document.
+       *
+       * The rail is a sibling of the record, not a section inside it, so the
+       * record keeps its own `article` landmark and its own heading and nothing
+       * about the DS-02 contract changes. CSS collapses the grid to one column
+       * below the desktop breakpoint and hides the rail there, because §13 wants
+       * a phone to get list screen → note screen rather than a squeezed
+       * split-pane. The rail is rendered only when there is something to list —
+       * a workspace with one note in it is not improved by a column repeating it.
+       */}
+      <div
+        className="dh-note-workspace dh-writing-record"
+        data-rail={rail.length > 1 || undefined}
+      >
+        {rail.length > 1 ? (
+          <NotesRail notes={rail} hasMore={railHasMore} />
+        ) : null}
+        <RecordLayout
+          title={overview.title}
+          titleSlot={
+            <InlineTextField
+              label="Note title"
+              value={overview.title}
+              onSave={onRename}
+              variant="heading"
+              maxLength={TITLE_MAX_LENGTH}
+              data-testid="note-title-edit"
+            />
+          }
+          // UIX-04 §8/§11 — no glyph, and no `typeLabel`.
+          //
+          // RECORD-01 already dropped the type line because the breadcrumb says
+          // "Notes"; the icon was the same statement made a second time, and on
+          // a document whose title is long enough to wrap it did real damage —
+          // the identity row wraps, so the glyph took a line of its own directly
+          // above the title, on the desktop AND on the phone, where the words
+          // are supposed to start near the top of the screen (§13).
+          breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
+          // State in words — never a colour-only or icon-only signal (AGENTS.md §15).
+          status={archived ? { label: "Archived", tone: "on-hold" } : undefined}
+          metadata={contextItems}
+          overflowActions={lifecycle.overflowActions}
+          activeTabId={activeTabId}
+          onTabChange={onTabChange}
+          tabs={[
+            {
+              id: "note",
+              label: "Note",
+              // RECORD-01 — the writing surface brings its own single frame
+              // (EDIT-01), so the panel does not draw a second around it.
+              surface: "plain",
+              content:
+                (
+                  /* DS-14 reference implementation (Reading).
+                   *
+                   * The note body is the one thing on this record the owner READS,
+                   * so it is the one region that takes the serif at the capped
+                   * measure. Everything around it — the record header, the tabs, the
+                   * summary metadata, the editor's own toolbar and save status —
+                   * takes the chrome typescale. M3-01 retired the density presets
+                   * and the serif column with them: prose is `body-large` in the
+                   * one UI family, and the contrast comes from size and measure
+                   * rather than from a second typeface (ADR-074 decision 6). */
+                  <div className="dh-note-body">
+                    <NoteContentForm
+                      noteId={overview.id}
+                      initialContent={details.content}
+                      contentUpdatedAt={details.contentUpdatedAt}
+                      onSaved={onSaved}
+                      suppressGuard={deleted}
+                      flushRef={flushContentRef}
+                    />
+                  </div>
+                ),
+            },
+            /* The same record's other three tabs are COLLECTION regions: backlinks,
+             * links and activity are all scanned, not read. One route, both
+             * presets, on separate regions — brief §7's "both" case, and the reason
+             * density is a property of the region rather than of the module. */
+            {
+              id: "backlinks",
+              label: "Backlinks",
+              content: backlinksTab,
+            },
+            {
+              id: "linked",
+              label: "Links",
+              content: linksTab,
+            },
+            {
+              // AI-01 — the extraction surface, mounted as an ordinary tab so it
+              // costs the record no chrome and no attention until it is opened.
+              id: "ai",
+              label: "AI",
+              content: aiTab,
+            },
+            {
+              id: "activity",
+              label: "Activity",
+              content: activityTab,
+            },
+          ]}
+        />
+      </div>
       {lifecycle.dialogs}
 
       {/*

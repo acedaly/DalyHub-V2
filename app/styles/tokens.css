@@ -1044,18 +1044,62 @@
    * column are retired, so the 46ch serif cap has nothing left to cap. */
   --app-width-prose: 65ch;
   /*
-   * EDIT-02 — the WRITING measure, which is deliberately not the reading one.
+   * UIX-04 — the WRITING measure.
    *
-   * Reading wants a short line because the eye returns to the left margin on
-   * every one of them. Writing Markdown source does not: the owner is looking
-   * at list markers, table pipes, link syntax and long URLs, and a 65ch column
-   * wraps those into an unreadable stack while three hundred pixels of the
-   * writing surface sit empty beside it. This is the wider cap the editable
-   * surface uses instead — still a cap, so an ultra-wide window does not
-   * produce an ultra-wide line, and always LEFT-ALIGNED so the slack falls
-   * after the text rather than in front of the caret.
+   * EDIT-02 set this to 90ch on the argument that writing Markdown SOURCE wants
+   * a longer line than reading prose does, because the author is looking at list
+   * markers, table pipes and long URLs. That argument was sound for a source
+   * editor and is no longer true of this one: the live editor styles the
+   * document AS IT IS TYPED — headings grow, emphasis renders, task items become
+   * checkboxes — so what the author is reading back, sentence by sentence, is
+   * prose. At 90ch that came out around ninety-five characters a line, which is
+   * past every typographic recommendation for continuous text, AND still left a
+   * quarter of the canvas empty beside it, so the surface managed to be both too
+   * wide to read and too narrow to fill the page.
+   *
+   * 72ch is the compromise the brief's §4 asks for: comfortably inside the
+   * 60–75ch band for continuous prose, and still wide enough that a four-column
+   * Markdown table or a fenced code line does not wrap into a stack. The slack
+   * is no longer dead space — the surfaces that use this measure spend it on
+   * something (the Notes rail, a Meeting's context aside) or centre the column
+   * so it reads as a page margin rather than as an alignment mistake.
    */
-  --app-width-editor: 90ch;
+  --app-width-editor: 72ch;
+  /*
+   * UIX-04 — the writing surface's own vertical rhythm.
+   *
+   * Long-form text needs more space between paragraphs than a form does between
+   * fields, and the gap has to be the SAME in the editor and in the rendered
+   * read view or switching between them reflows the document. One value, read by
+   * both.
+   */
+  --app-writing-paragraph-gap: 0.85em;
+  /*
+   * UIX-04 — the DOCUMENT heading ladder.
+   *
+   * The M3 typescale is built for an application's chrome, where the levels are
+   * page title / card title / section label and three of them is plenty. A
+   * document needs four levels that are all visibly different from the body and
+   * from each other, and the chrome scale cannot supply them: `title-medium` is
+   * 16px, which is exactly `body-large`, so `##` and `###` both rendered at body
+   * size and a structured note lost its outline. (Before this, `.markdown-content`
+   * set h2 to `title-medium` — the same 16px as the paragraph under it.)
+   *
+   * These are the four sizes the writing surfaces use, in one place, so the live
+   * editor's CodeMirror decorations and the rendered read view cannot drift
+   * apart. They deliberately step through the 1.125rem the chrome scale skips.
+   */
+  /* The document TITLE — larger than any heading inside the document, because
+   * it names the whole of it. Stepped down on a phone so a two-line title does
+   * not cost a third of the screen before the first paragraph (§13). */
+  --app-writing-title-size: 2rem; /* 32 */
+  --app-writing-title-size-mobile: 1.625rem; /* 26 */
+  --app-writing-h1-size: 1.75rem; /* 28 */
+  --app-writing-h2-size: 1.375rem; /* 22 */
+  --app-writing-h3-size: 1.125rem; /* 18 */
+  --app-writing-h4-size: 1rem; /* 16 — weight and colour carry it from here */
+  /* The Notes rail: the list column beside an open Note (Apple Notes / Bear). */
+  --app-notes-rail-width: 19rem; /* 304 */
   --app-width-narrow: 42rem; /* single-column pages */
   --app-width-content: 72rem; /* dense record content */
   --app-width-wide: 90rem; /* multi-pane shells */

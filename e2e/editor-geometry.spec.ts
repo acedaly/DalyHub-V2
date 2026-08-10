@@ -185,14 +185,18 @@ test.describe("EDIT-02 — the writing surface's horizontal layout", () => {
     const readingBox = await reading.boundingBox();
 
     /*
-     * Reading keeps `--app-width-prose`; writing uses the wider
-     * `--app-width-editor`. They are different measures on purpose — but they
-     * start in the SAME place, so toggling Read never slides the first
-     * character sideways. The right edge moving is the whole point of a reading
-     * measure; the left edge moving would be the jarring jump.
+     * UIX-04 §34 — Read and Write are ONE column, and this now pins that.
+     *
+     * EDIT-02 asserted the two modes shared a left edge and differed in width,
+     * because reading took the 65ch prose measure and writing the 90ch source
+     * measure. UIX-04 retired that split: the live editor styles the document as
+     * it is typed, so Write mode already shows the rendered document, and
+     * reflowing every line on the way to Read was a jump with nothing behind it.
+     * The assertion follows the design — BOTH edges hold, so the text does not
+     * move at all when the toggle is pressed.
      */
     expect(Math.abs(readingBox!.x - writing.editorX)).toBeLessThan(4);
-    expect(readingBox!.width).toBeLessThan(writing.editorWidth);
+    expect(Math.abs(readingBox!.width - writing.editorWidth)).toBeLessThan(4);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -230,6 +234,24 @@ test.describe("EDIT-02 — the writing surface's horizontal layout", () => {
   test("is axe-clean in both appearances at laptop width", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSeededNote(page);
+
+    /*
+     * Settle the pointer somewhere inert before scanning.
+     *
+     * `openSeededNote` clicks a row in the collection and lands on the record,
+     * and where that row sat decides what the cursor is left hovering. After
+     * UIX-04's list redesign it lands over the editor toolbar, which opens the
+     * shared tooltip — and the tooltip is portalled to `document.body`, so axe's
+     * `region` rule reports it as page content outside every landmark. That is a
+     * REAL finding about the shared tooltip (DEBT-118) and not one this test is
+     * about: it fires on any page with a tooltip open, and it fires here only
+     * because a list row happens to sit under the mouse. This test's subject is
+     * the writing surface's own layout, so it scans a page with no transient
+     * overlay on it.
+     */
+    await page.mouse.move(4, 4);
+    await expect(page.locator(".dh-tooltip")).toHaveCount(0);
+
     await expectNoAxeViolations(page);
 
     await page.emulateMedia({ colorScheme: "dark" });

@@ -1,0 +1,242 @@
+/**
+ * UIX-04 — the shared WRITING SURFACE composition.
+ *
+ * Notes, Diary and Meetings are three different products that share one editor.
+ * Before this file they shared the editor's CONTROLS and nothing else: each
+ * module decided independently how wide the text was, how much chrome sat above
+ * it, and where the document began. The result was three surfaces that were
+ * recognisably the same component and recognisably not the same product.
+ *
+ * What lives here is the part that must be identical — the document COLUMN, the
+ * quiet strip of controls attached to it, and the header that names the thing
+ * being written. What deliberately does NOT live here is composition: Notes puts
+ * a list rail beside the column, Diary puts a date above it, Meetings puts an
+ * agenda and a set of actions around it. Sharing primitives, differentiating
+ * composition (brief §2 / §33).
+ *
+ * Every value is a DS-01 token. The measure is `--app-width-editor`; the
+ * paragraph rhythm is `--app-writing-paragraph-gap`; the heading ladder is the
+ * four `--app-writing-h*` sizes, which the rendered read view in `base.css` and
+ * the live editor's CodeMirror decorations both consume, so the document does
+ * not reflow when the Read toggle is pressed.
+ */
+
+/* -------------------------------------------------------------------------- *
+ * The page                                                                    *
+ * -------------------------------------------------------------------------- */
+
+/*
+ * The writing PAGE: a full-width canvas holding a centred document column.
+ *
+ * The alternative — a left-aligned column with the slack falling after the text
+ * — is what shipped before, and on a laptop it read as an alignment mistake: 767
+ * pixels of line with 235 pixels of permanently empty canvas to its right, which
+ * is simultaneously too long a line to read comfortably (§4) and too much dead
+ * space to look deliberate. A centred column at a comfortable measure reads as a
+ * page with margins, which is what every writing application the brief names
+ * does. Where the slack is large enough to be worth spending, the module spends
+ * it (the Notes rail, a Meeting's context aside) rather than leaving it blank.
+ */
+.dh-writing {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+/** One centred column, at the writing measure. Every child of the surface —
+ * header, controls, document, footer — aligns to it, so the composition reads
+ * as one sheet rather than as a stack of independently-sized bands. */
+.dh-writing__column {
+  inline-size: 100%;
+  max-inline-size: var(--app-width-editor);
+  margin-inline: auto;
+  min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- *
+ * The document header: title, then one quiet line of context                  *
+ * -------------------------------------------------------------------------- */
+
+/*
+ * §11 — the title is the document's, not a database field's.
+ *
+ * No border, no label, no field container: it is the largest text on the page
+ * and it sits directly above the words it names. The inline editor underneath it
+ * (DS-16 `InlineTextField`) already carries the click-to-edit affordance, so the
+ * only thing this has to do is stop the shared record heading from looking like
+ * a form control.
+ */
+.dh-writing__title {
+  margin: 0;
+  font-size: var(--app-writing-title-size);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--md-sys-color-on-surface);
+  /* §4 — a long title should break where it reads best, not wherever the box
+   * ends, and it should never be forced onto a second line by a control sitting
+   * beside it. */
+  text-wrap: balance;
+}
+
+/*
+ * §8 — the metadata/context LINE. Singular.
+ *
+ * One row of small, quiet text between the title and the first paragraph: when
+ * it was last touched, and whatever context the module genuinely has (tags for a
+ * Note, a time for a Diary entry, attendees for a Meeting). Everything else the
+ * record knows lives in the overflow or in a tab. A writing surface earns its
+ * calm by refusing to state, above the text, facts the writer already knows.
+ */
+.dh-writing__context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-3);
+  margin-block-start: var(--app-space-2);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.dh-writing__context-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+/* The separator between context items — decorative, so it is never announced. */
+.dh-writing__context-sep {
+  color: var(--md-sys-color-outline);
+}
+
+.dh-writing__context .dh-icon {
+  inline-size: var(--app-space-4);
+  block-size: var(--app-space-4);
+  flex: 0 0 auto;
+  color: var(--md-sys-color-outline);
+}
+
+/* -------------------------------------------------------------------------- *
+ * Long-form prose                                                             *
+ * -------------------------------------------------------------------------- */
+
+/*
+ * §44 — a rendered document inside a writing surface fills the column.
+ *
+ * `.markdown-content` caps itself at the READING measure (65ch), which is right
+ * when prose is embedded in a record beside other things and wrong here, where
+ * the column IS the measure and a second, narrower cap inside it just moves the
+ * right edge in by a few characters for no reason the reader can see.
+ */
+.dh-writing .markdown-content,
+.dh-writing__prose {
+  max-inline-size: none;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Phone                                                                       *
+ * -------------------------------------------------------------------------- */
+
+@media (max-width: 47.999rem) {
+  /*
+   * §13 — on a phone the words start near the top of the screen.
+   *
+   * The column is the viewport, the title steps down one rung so a real
+   * document title does not spend three lines before the first paragraph, and
+   * the context line stays one line.
+   */
+  .dh-writing__title {
+    font-size: var(--app-writing-title-size-mobile);
+  }
+}
+
+/* -------------------------------------------------------------------------- *
+ * The writing RECORD                                                          *
+ * -------------------------------------------------------------------------- */
+
+/*
+ * §8 / §11 / §13 — the shared record scaffold, wearing a document's clothes.
+ *
+ * A Note and a Meeting are both DS-02 records and both are, primarily, something
+ * you write. The scaffold is tuned for a record you SCAN — a title sized for a
+ * list of records, an identity row that wraps so a row of action buttons can sit
+ * beside it, a breadcrumb that is a phone's only way back. Applied to a document
+ * that costs three bands of chrome before the first word, and on a phone it cost
+ * more than half the screen.
+ *
+ * `.dh-writing-record` is the opt-in. It is deliberately NOT a change to the
+ * shared header: every other record in the product still wants those defaults,
+ * and this is the second module to need these three, which is when a shared class
+ * earns its place (§33).
+ */
+
+/* The document title outranks its own first sentence, at every width. The
+ * shared scaffold steps a phone title down to `title-medium` — 16px, exactly the
+ * size of the paragraph underneath it. */
+.dh-writing-record .record-title,
+.dh-writing-record .record-title .dh-inline-edit__trigger {
+  font-size: var(--app-writing-title-size);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  /* §4 — a long title breaks where it reads best, not wherever the box ends. */
+  text-wrap: balance;
+}
+
+@media (max-width: 47.999rem) {
+  .dh-writing-record .record-title,
+  .dh-writing-record .record-title .dh-inline-edit__trigger {
+    font-size: var(--app-writing-title-size-mobile);
+  }
+
+  /*
+   * The BREADCRUMB goes on a phone. The MOBILE-01 top bar already names the
+   * record's parent and carries the Back control the breadcrumb exists to
+   * provide, so on these two surfaces it is the same navigation twice — and it
+   * is a whole band above a document whose words should start near the top of
+   * the screen.
+   */
+  .dh-writing-record .record-breadcrumb {
+    display: none;
+  }
+}
+
+@container record (max-width: 30rem) {
+  .dh-writing-record .record-title,
+  .dh-writing-record .record-title .dh-inline-edit__trigger {
+    font-size: var(--app-writing-title-size-mobile);
+  }
+}
+
+/*
+ * The identity row does not wrap, so a single overflow trigger does not claim a
+ * band of its own.
+ *
+ * `.record-header__identity` carries `flex: 1 1 20rem`, so on any container
+ * narrower than 320px plus the action row it is the IDENTITY that forces the
+ * wrap — relaxing the actions alone changes nothing, which is why the stray `⋯`
+ * line survived the obvious fix. A document's header is a title and one
+ * trigger; it needs no wrap rule at all, and the title still wraps WITHIN
+ * itself, which is what a record's name should do.
+ */
+.dh-writing-record .record-header__bar {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.dh-writing-record .record-header__identity {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+@container record (max-width: 34rem) {
+  .dh-writing-record .record-header__actions {
+    flex-basis: auto;
+  }
+
+  .dh-writing-record .record-action {
+    flex: 0 0 auto;
+  }
+}

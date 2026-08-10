@@ -131,6 +131,72 @@ export function formatDayKeyLong(dayKey: string): string {
   return `${weekday}, ${midnight.getUTCDate()} ${MONTHS[midnight.getUTCMonth()]} ${midnight.getUTCFullYear()}`;
 }
 
+/**
+ * UIX-04 §18 — one day in the week strip: its short weekday, its day number and
+ * the month it belongs to.
+ *
+ * Deterministic and locale-independent for the same reason every other label in
+ * this file is: the strip is server-rendered and hydrated, and a locale-dependent
+ * `Intl` format would let the two disagree.
+ */
+export type DiaryStripDay = {
+  readonly dayKey: string;
+  /** `"Mon"` — the strip's own label. */
+  readonly weekday: string;
+  /** `8` — the day of the month, the strip's largest text. */
+  readonly dayOfMonth: number;
+  /** `"August"` — used only for the strip's month caption. */
+  readonly month: string;
+};
+
+/**
+ * The seven days of the calendar week containing `dayKey`, Monday first.
+ *
+ * Monday rather than Sunday because a Diary is used to look back over a working
+ * week, and Monday-first keeps Saturday and Sunday adjacent at the end of the
+ * strip where they read as one weekend rather than as two ends of a row.
+ *
+ * Returns an empty array for a malformed key, so a bad `?date=` degrades to no
+ * strip rather than to a broken one.
+ */
+export function weekStripDays(dayKey: string): readonly DiaryStripDay[] {
+  const midnight = dayKeyToUtcMidnight(dayKey);
+  if (!midnight) return [];
+  // `getUTCDay()` is 0=Sunday; shift so Monday is 0.
+  const offsetFromMonday = (midnight.getUTCDay() + 6) % 7;
+  const days: DiaryStripDay[] = [];
+  for (let index = 0; index < 7; index += 1) {
+    const key = adjacentDayKey(dayKey, index - offsetFromMonday);
+    if (key === null) return [];
+    const day = dayKeyToUtcMidnight(key);
+    if (!day) return [];
+    days.push({
+      dayKey: key,
+      weekday: WEEKDAYS[day.getUTCDay()].slice(0, 3),
+      dayOfMonth: day.getUTCDate(),
+      month: MONTHS[day.getUTCMonth()],
+    });
+  }
+  return days;
+}
+
+/**
+ * The strip's month caption — `"August 2026"`, or `"July – August 2026"` when
+ * the week straddles two months, so the strip never leaves the reader guessing
+ * which August the 3rd belongs to.
+ */
+export function weekStripCaption(days: readonly DiaryStripDay[]): string {
+  if (days.length === 0) return "";
+  const first = days[0];
+  const last = days[days.length - 1];
+  const year = last.dayKey.slice(0, 4);
+  if (first.month === last.month) return `${last.month} ${year}`;
+  const firstYear = first.dayKey.slice(0, 4);
+  return firstYear === year
+    ? `${first.month} – ${last.month} ${year}`
+    : `${first.month} ${firstYear} – ${last.month} ${year}`;
+}
+
 /** A compact `"Mon, 20 May 2024"` label for the Day-mode date navigator. */
 export function formatDayKeyMedium(dayKey: string): string {
   const midnight = dayKeyToUtcMidnight(dayKey);

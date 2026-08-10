@@ -596,3 +596,53 @@ own tokens so it cannot drift.
 Elsewhere: the Overview's "Status" row is gone (the header's status pill states
 it), and each structured item form says "Add {kind}" once — as the field label —
 with the button reading "Add" and keeping the specific accessible name.
+
+## UIX-04 — the meeting notebook (August 2026)
+
+Redesigned as part of [UIX-04](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+No schema change, no new section kinds, no change to follow-up conversion.
+
+**The notebook is the record, and it opens first.** Tab order is `Notebook →
+Follow-up → Details → AI → Activity → Settings`, and Notebook is the default. Its
+slug stays `meeting`, so every existing link resolves; `legacyMeetingTabs` now
+maps the four MEET-01 section slugs **and** `overview` (UIX-04's rename of that tab
+to `details`) onto their successors, so no old URL breaks.
+
+The notebook runs in the order a meeting happens — Agenda → Notes → Decisions →
+Outcomes → Actions — and every section is a real column of the schema: the two
+Markdown bodies on `meeting_details`, and the four `meeting_items.kind` values
+migration 0021 defines. The Agenda body and the agenda ITEMS sit under one
+heading rather than in two halves of the tab: the body is prose the owner writes,
+the items are the structured rows a follow-up Task is created from.
+
+`MeetingItemsSection` no longer renders its own `<h2>` or the `.dh-record-section`
+card — the notebook draws the heading, and five stacked cards is the record-editor
+look this got away from. The heading survives as the list's `aria-label`. Item
+rows lost their containers and their kind chips (every row under "Decisions" is a
+decision); their actions reveal on hover **and** `:focus-within`, and stay
+permanently visible on coarse pointers.
+
+Notebook editors take `--app-editor-min-height-compact` as their floor rather than
+the shared `max(40dvh, …)`: five 40dvh minimums put the Actions list three screens
+below the title on a meeting with a three-line agenda.
+
+**Context is one line under the title.** `MeetingContextRow` renders when, where
+and with whom — attendees as small decorative initial marks beside their names,
+read-only, collapsing to "+N more" beyond four. The header's `When:`/`Where:` field
+pairs are gone (`label: ""` supplies the whole line). `meetingModeLabel` in
+`meeting-view.ts` gives the stored `in_person`/`phone`/`online` values their human
+names, shared by the header and the details form — the header previously rendered
+the raw enum. Adding and removing attendees stays in the Details tab.
+
+**The collection is a schedule.** `MeetingsList` replaces the Card list: rows
+grouped by calendar day with relative headings, a fixed leading time column, the
+title dominating, the place beneath it, and the status shown only when it is not
+what the view already implies. `formatMeetingDayGroup` and `formatMeetingTime`
+join `meeting-view.ts`; the day headings are computed against a `todayKey` the
+loaders resolve from the stored timezone preference, because a relative heading
+computed in the browser would say "Yesterday" about a 9am Sydney meeting opened
+from London. `.dh-meetings-filters` finally has styles — it was referenced by the
+component and defined nowhere.
+
+Attendees are deliberately absent from collection rows: resolving them for a page
+of meetings needs one `listForEntity` call per row. Tracked as DEBT-124.

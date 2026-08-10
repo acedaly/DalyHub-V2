@@ -1,4 +1,6 @@
 import { env } from "cloudflare:workers";
+import { toLocalDayKey } from "~/kernel/diary";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { MeetingsCollection } from "../MeetingsCollection";
@@ -12,6 +14,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const u = new URL(request.url);
+    /*
+     * UIX-04 §25 — the OWNER's calendar day, for the list's "Today" /
+     * "Tomorrow" / "Yesterday" day headings.
+     *
+     * Resolved server-side against the stored timezone preference, exactly as
+     * the Diary timeline resolves its own day: a relative heading computed in
+     * the browser would say "Yesterday" about a 9am Sydney meeting opened from
+     * London, and would differ between the server render and the hydration.
+     * A missing preference degrades to the product-wide default rather than
+     * costing the page.
+     */
+    const timezone = await scope.appPreferences
+      .get(session.user.subject)
+      .then((preferences) => preferences.timezone)
+      .catch(() => DEFAULT_APP_PREFERENCES.timezone);
+    const todayKey = toLocalDayKey(new Date(), timezone);
     const page = await scope.meetings.list({
       view: "upcoming",
       query: u.searchParams.get("q") ?? undefined,
@@ -23,6 +41,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       total: page.total,
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
+      todayKey,
+      ownerTimezone: timezone,
       failed: false,
     };
   } catch {
@@ -31,6 +51,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       total: 0,
       nextCursor: null,
       hasMore: false,
+      todayKey: toLocalDayKey(new Date(), DEFAULT_APP_PREFERENCES.timezone),
+      ownerTimezone: DEFAULT_APP_PREFERENCES.timezone,
       failed: true,
     };
   }

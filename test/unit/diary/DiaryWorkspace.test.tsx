@@ -108,8 +108,14 @@ describe("Diary workspace", () => {
     expect(
       screen.getByRole("group", { name: "Diary views" }),
     ).toBeInTheDocument();
+    /*
+     * UIX-04 §18 — the day navigator is a week STRIP of links, so it is a
+     * `navigation` landmark named "Select a day" rather than a `group` of
+     * steppers named "Selected day". Same job, and now a landmark a screen
+     * reader can jump to.
+     */
     expect(
-      screen.getByRole("group", { name: "Selected day" }),
+      screen.getByRole("navigation", { name: "Select a day" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("group", { name: "Filter by type" }),

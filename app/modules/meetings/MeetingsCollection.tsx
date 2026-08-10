@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
-import { Card, CardCollection, type CardMetaItem } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -22,11 +21,8 @@ import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
-import {
-  formatMeetingInstant,
-  meetingStatusLabel,
-  type SerializedMeeting,
-} from "./meeting-view";
+import { MeetingsList } from "./MeetingsList";
+import type { SerializedMeeting } from "./meeting-view";
 
 /** The loader payload each `/meetings/*` view returns. */
 type MeetingsPageData = {
@@ -54,6 +50,8 @@ export function MeetingsCollection({
   total,
   nextCursor,
   hasMore,
+  todayKey,
+  ownerTimezone,
 }: {
   meetings: readonly SerializedMeeting[];
   view: string;
@@ -61,6 +59,10 @@ export function MeetingsCollection({
   total: number;
   nextCursor: string | null;
   hasMore: boolean;
+  /** The owner's calendar day, for the list's relative day headings (§25). */
+  todayKey: string;
+  /** The owner's timezone — the one frame those day boundaries are read in. */
+  ownerTimezone: string;
 }) {
   const isReloading = useCollectionLoading();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -161,11 +163,20 @@ export function MeetingsCollection({
       }
       filterBar={
         <div className="dh-meetings-filters">
+          {/*
+            UIX-04 §7/§37 — the search field's visible label is its placeholder,
+            exactly as the Notes band does it. The label element is only
+            VISUALLY hidden, so the control is still named for assistive tech;
+            what goes is the empty, unlabelled box the band used to open with.
+          */}
           <label className="dh-field dh-meetings-search">
-            <span className="dh-field__label-text">Search</span>
+            <span className="dh-field__label-text dh-visually-hidden">
+              Search meetings
+            </span>
             <input
               className="dh-input"
               type="search"
+              placeholder="Search meetings"
               value={draftQuery}
               onChange={(event) => setDraftQuery(event.target.value)}
             />
@@ -211,33 +222,12 @@ export function MeetingsCollection({
         />
       ) : (
         <>
-          <CardCollection
-            items={pagination.items}
-            getItemId={(meeting) => meeting.id}
+          <MeetingsList
+            meetings={pagination.items}
             ariaLabel={`${view} meetings`}
-            presentation="list"
-            density="compact"
-            renderCard={(meeting) => (
-              <Card
-                id={meeting.id}
-                title={meeting.title}
-                typeLabel="Meeting"
-                icon={<EntityIcon type="meeting" />}
-                headingLevel={2}
-                status={{
-                  label: meeting.archivedAt
-                    ? "Archived"
-                    : meetingStatusLabel(meeting.status),
-                  tone: meeting.archivedAt ? "warning" : "neutral",
-                }}
-                metadata={meetingMetadata(meeting)}
-                href={`/meeting/${meeting.id}`}
-                openAriaLabel={`Open meeting ${meeting.title}`}
-                quickActions={joinActions(meeting)}
-                density="compact"
-                presentation="list"
-              />
-            )}
+            todayKey={todayKey}
+            ownerTimezone={ownerTimezone}
+            view={view}
           />
           {pagination.hasMore ? (
             <LoadMore
@@ -264,61 +254,4 @@ function selectMeetingsPage(data: MeetingsPageData) {
 
 function meetingId(meeting: SerializedMeeting): string {
   return meeting.id;
-}
-
-function meetingMetadata(meeting: SerializedMeeting): CardMetaItem[] {
-  const metadata: CardMetaItem[] = [
-    {
-      id: "when",
-      label: "When",
-      // MOBILE-01: when a meeting IS is the thing you scan a meeting list for.
-      value: formatMeetingInstant(meeting.startsAt, meeting.timezone),
-    },
-  ];
-  if (meeting.location || meeting.mode) {
-    metadata.push({
-      id: "where",
-      label: "Where",
-      value: meeting.location ?? meeting.mode,
-      // Supporting detail: useful, but not what you scan for.
-      priority: "low",
-    });
-  }
-  return metadata;
-}
-
-/**
- * MOBILE-01 — joining an online meeting is a ONE-TAP card action.
- *
- * Previously the meeting link lived inside the record's details, so joining from
- * a phone thirty seconds before a call meant opening the record, finding the
- * Overview tab and hunting for a URL. It is now a visible, labelled quick action
- * on the card itself, for meetings that actually have a link and are still
- * upcoming — a "Join" button on last month's completed meeting is noise.
- *
- * It is an ordinary Card quick action, so it is a labelled 44px control that
- * stops propagation and never opens the record instead.
- */
-function joinActions(meeting: SerializedMeeting) {
-  const joinable =
-    meeting.meetingUrl !== null &&
-    meeting.meetingUrl.length > 0 &&
-    meeting.archivedAt === null &&
-    meeting.heldAt === null &&
-    meeting.status === "planned";
-  if (!joinable) {
-    return undefined;
-  }
-  return [
-    {
-      id: "join",
-      label: "Join",
-      ariaLabel: `Join ${meeting.title}`,
-      href: meeting.meetingUrl as string,
-      // The conferencing site is not DalyHub: joining opens a new tab, exactly as
-      // the canonical meeting-link control on the record does, so the user's place
-      // in the application survives the call.
-      external: true,
-    },
-  ];
 }

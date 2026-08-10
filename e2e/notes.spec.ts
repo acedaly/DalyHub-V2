@@ -480,10 +480,22 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     );
     expect(await readSource(page)).toContain("**make me bold**");
 
-    // Toolbar: Checklist over the current line makes a task item.
+    /*
+     * Toolbar: Checklist over the current line makes a task item.
+     *
+     * UIX-04 §9 moved Checklist (and Strikethrough) behind the toolbar's "More"
+     * toggle. Nothing about the ACTION changed — same transform, same shortcut,
+     * same `aria-pressed` state, same single roving tab stop — it is simply not
+     * one of the seven controls that stay permanently visible, because thirteen
+     * 44px controls do not fit the document column and the row's own horizontal
+     * scroll was hiding the ones that did not.
+     */
     await clearAndType(page, "buy milk");
     await focusEditor(page);
     await page.keyboard.press("ControlOrMeta+a");
+    await toolbar
+      .getByRole("button", { name: "More formatting options" })
+      .click();
     await toolbar.getByRole("button", { name: "Checklist" }).click();
     expect(await readSource(page)).toContain("- [ ] buy milk");
 

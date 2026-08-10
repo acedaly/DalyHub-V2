@@ -234,10 +234,11 @@ test.describe("EDIT-02 — dates and long-form", () => {
       await shot(page, `diary-editor-${scheme}`);
 
       // The Meeting notes — the same editor, so the two captures should be
-      // indistinguishable apart from their content. The record opens on
-      // Overview; the agenda and notes surfaces live on the "Meeting" tab.
+      // indistinguishable apart from their content. The agenda and notes
+      // surfaces live on the Notebook tab, which is also where the record
+      // opens; the click is what makes that independent of the default.
       await gotoFixture(page, "/meeting/m-search-e2e");
-      await page.getByRole("tab", { name: "Meeting" }).click();
+      await page.getByRole("tab", { name: "Notebook" }).click();
       await expect(
         page.getByRole("group", { name: "Notes" }).first(),
       ).toBeVisible();

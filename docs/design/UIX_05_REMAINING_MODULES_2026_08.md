@@ -26,13 +26,19 @@ carry UIX-02's `.dh-pcard` and `.dh-erow`; Goals carries UIX-03's `.dh-gcard`,
 `GoalAreaContext.colourRank` and the target-inclusive `TrendLine`. The design
 system's departures table runs to D25 and its §5a/§6 sections describe all three.
 
-**One gap, reported rather than worked around.** The brief lists UIX-04 (Notes,
-Diary, Meetings) as completed work. It is not on `main` and has no branch. Nothing
-in UIX-05 depends on it — the visual foundations UIX-05 extends are UIX-01's
-shell, UIX-02's card family and UIX-03's identity rules, all of which are present
-— so this pass proceeded and Notes, Diary and Meetings are untouched. They remain
-on the shared `Card`, which is the same starting position People, Assets and
-Reviews were in before this pass.
+**One gap at the time, since closed.** The brief listed UIX-04 (Notes, Diary,
+Meetings) as completed work; at the point this branch was cut it was not on `main`
+and had no branch, which was reported rather than worked around. Nothing in UIX-05
+depended on it — the foundations this pass extends are UIX-01's shell, UIX-02's
+card family and UIX-03's identity rules, all of which were present — so it
+proceeded with Notes, Diary and Meetings untouched.
+
+UIX-04 has since landed (`18c4414b`) and is **merged into this branch**. The two
+passes turned out to be genuinely disjoint in product terms: UIX-04 rebuilt the
+writing surface, the Notes rail, the Diary week strip and the Meeting notebook;
+UIX-05 rebuilt the four record collections beside them and added Analytics. They
+met in exactly two places, both in the test fixtures rather than the product — see
+§8.
 
 ---
 
@@ -351,9 +357,10 @@ were added to existing projections, both cheap and both on data already loaded:
 
 ## 7. What was deliberately NOT done
 
-- **Notes, Diary and Meetings are untouched.** They are UIX-04's scope, that work
-  is not on `main`, and inventing a fourth and fifth card family for them inside
-  this pass would pre-empt a design decision that belongs to it. See §0.
+- **Notes, Diary and Meetings are untouched by this pass.** They are UIX-04's
+  scope, and inventing card families for them here would have pre-empted a design
+  decision that belonged to it. UIX-04 has since landed and is merged into this
+  branch — see §0 and §8.
 - **No focus tracking, and no "daily progress" figure.** Adding either would mean
   inventing data. See §2.4.
 - **No Analytics repository.** Everything the surface needs already existed as a
@@ -368,3 +375,36 @@ were added to existing projections, both cheap and both on data already loaded:
   not using it.
 - **No new chart dependency.** The trend is the shared `TrendLine`; the
   distribution is hand-rolled SVG-free bars over design tokens.
+
+---
+
+## 8. The UIX-04 merge
+
+UIX-04 landed on `main` (`18c4414b`) while this branch was open, and is merged in
+here. The two passes are disjoint in the product — different modules, different
+surfaces, no shared component — and met in exactly two places, both in the test
+fixtures.
+
+**`e2e/today-fixtures.mjs` — two `person()` helpers.** UIX-04 added one that
+derives first and last names from a display name, for a Meeting attendee row;
+UIX-05 added one that takes the contact and relationship fields the People row
+needs. They sit in different parts of the file and touch none of the same lines,
+so **git merged both cleanly** — and two `function person` declarations in one ES
+module is a `SyntaxError`, so the fixture would have refused to load at all. A
+clean auto-merge is not the same as a correct one, and nothing in the test suite
+would have caught it: the fixture is a script the specs shell out to, not a module
+they import.
+
+The resolution is one helper that is the union: an explicit `firstName`/
+`lastName` still wins, and defaults fall back to splitting the display name, so
+both call shapes keep working unchanged.
+
+**`parkExisting` — the wrong altitude.** This pass had added `person`, `asset` and
+`review` to the SHARED park list, which would have changed what every other
+scenario shows. UIX-04 solved the identical problem better, by parking the types
+its own scenario photographs inside that scenario. The merge adopts UIX-04's
+pattern and moves the three types into `modules()`, leaving the shared helper on
+the four types Today reads.
+
+Everything else — the roadmap entry, `app.css`, the `clearFixtures` table list —
+was an ordinary append on both sides and merged as the union.

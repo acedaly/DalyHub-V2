@@ -138,14 +138,23 @@ function renderStatefulCollection(
 }
 
 describe("Notes collection", () => {
-  it("renders a Note card as a canonical link with its Updated metadata", () => {
+  it("renders a Note row as a canonical link with its Updated metadata", () => {
     renderCollection({
       notes: [note({ title: "Reading list" })],
       nextCursor: null,
       failed: false,
     });
 
-    const link = screen.getByRole("link", { name: "Open Reading list" });
+    /*
+     * UIX-04 §6 — the row's accessible name is the note's TITLE.
+     *
+     * The gallery Card wrapped its title in an "Open {title}" affordance, which
+     * gave every row in the collection an accessible name that began with the
+     * word "Open" — so a screen-reader user listing the links heard "Open …"
+     * seven times before the thing they were looking for. The row is now the
+     * link, and its name is what it says.
+     */
+    const link = screen.getByRole("link", { name: /Reading list/ });
     expect(link).toHaveAttribute("href", "/notes/n1");
     expect(screen.getByText("1 note")).toBeInTheDocument();
     // Shell cleanup: a POPULATED Notes collection carries no create action of its
@@ -211,7 +220,7 @@ describe("Notes collection", () => {
 
   it("opens a note via a real link (accessible, not a div onClick)", () => {
     renderCollection({ notes: [note()], nextCursor: null, failed: false });
-    const link = screen.getByRole("link", { name: "Open Reading list" });
+    const link = screen.getByRole("link", { name: /Reading list/ });
     expect(link).toHaveAttribute("href", "/notes/n1");
   });
 

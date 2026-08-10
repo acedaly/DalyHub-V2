@@ -86,14 +86,18 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 }
 
 async function addAttendee(page: Page, personName: string): Promise<void> {
-  await page.getByRole("tab", { name: "Overview" }).click();
+  await page.getByRole("tab", { name: "Details" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill(personName);
   await page.getByRole("option", { name: personName }).click();
   await page.getByRole("button", { name: "Add selected" }).click();
+  // Scoped to the Details tab: UIX-04 §27 also names the attendees on the
+  // record's context line, so an unscoped link now matches in two places.
   await expect(
-    page.getByRole("link", { name: new RegExp(personName) }),
+    page
+      .getByRole("tabpanel", { name: "Details" })
+      .getByRole("link", { name: new RegExp(personName) }),
   ).toBeVisible();
 }
 

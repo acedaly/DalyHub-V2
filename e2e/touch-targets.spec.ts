@@ -224,7 +224,15 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // formatting toolbar plus a Read toggle. Sample a toolbar button and the
     // toggle — all share the same 44px-floor rule.
     const toolbar = page.getByRole("toolbar", { name: "Formatting" });
-    for (const name of ["Bold", "Checklist"] as const) {
+    // UIX-04 §9 moved Checklist behind "More" — the permanently-visible set is
+    // the seven a person writing prose reaches for. `Numbered list` takes its
+    // place here as the second permanent control sampled; the moved ones are
+    // measured below, where the group is opened.
+    //
+    // Not `Link`: `getByRole`'s `name` is a case-insensitive SUBSTRING match by
+    // default, and this toolbar also carries "Record link", so "Link" names two
+    // controls at once.
+    for (const name of ["Bold", "Numbered list"] as const) {
       await expectMinTouchTarget(toolbar.getByRole("button", { name }));
     }
     // MOBILE-01 moved the low-frequency commands behind "More" INSIDE the same
@@ -232,7 +240,9 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // still toolbar buttons held to the same 44px floor — reveal and measure one.
     await expectMinTouchTarget(toolbar.getByRole("button", { name: "More" }));
     await toolbar.getByRole("button", { name: "More" }).click();
-    await expectMinTouchTarget(toolbar.getByRole("button", { name: "Table" }));
+    for (const name of ["Table", "Checklist", "Strikethrough"] as const) {
+      await expectMinTouchTarget(toolbar.getByRole("button", { name }));
+    }
     await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
     // Removal itself now runs through the same overflow menu measured above —
