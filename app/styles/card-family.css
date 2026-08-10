@@ -3410,11 +3410,25 @@
  * A REAL control inside a fully-linked row, so it is raised above the row's
  * ::after overlay. It is quiet at rest — a directory of twenty blue addresses
  * has no hierarchy left — and announces itself on hover and focus.
+ *
+ * ── The 24px floor is WCAG 2.2 SC 2.5.8, not a nicety ───────────────────────
+ * A `body-small` line box is 16px tall. Two of them stacked with a 1px gap is a
+ * pair of 16px targets 18px apart, which fails Target Size (Minimum) on BOTH of
+ * its clauses — too small, and too close to its neighbour. The axe scan on the
+ * People collection caught exactly that, and it was right to: an email address
+ * and a phone number one pixel apart is a link a shaky hand mis-taps.
+ *
+ * 24px is the AA minimum and is what the size clause needs; the link therefore
+ * carries a min-height and centres its text inside it rather than being sized by
+ * its own line box. The row has the space — its own floor is 72px.
  */
 .dh-prow .dh-prow__reach-link,
 .dh-prow .dh-prow__reach-link:visited {
   position: relative;
   z-index: var(--app-z-raised);
+  display: flex;
+  align-items: center;
+  min-block-size: var(--app-space-6);
   max-inline-size: 100%;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -3424,6 +3438,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * D8's rule, applied here: `(hover: none)` is what positively identifies a
+ * device without a pointer, and there the product's unconditional touch floor
+ * (44px) governs rather than WCAG's 24px minimum. The reach column is hidden
+ * below 68rem, so this only reaches a large touch screen — a tablet in
+ * landscape — which is precisely the case a 24px target would fail in the hand.
+ */
+@media (hover: none) {
+  .dh-prow .dh-prow__reach-link {
+    min-block-size: var(--app-touch-target-min);
+  }
 }
 
 .dh-prow .dh-prow__reach-link:hover,

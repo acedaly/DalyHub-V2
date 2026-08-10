@@ -7,19 +7,16 @@
  * already own — the metric ROW, and the horizontal proportion SPLIT.
  */
 
-.dh-analytics {
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
-  /* The pane owns its own scrolling, like every other top-level surface. */
-  min-block-size: 0;
-}
-
+/*
+ * The surface itself is the shared `CollectionLayout` (see `AnalyticsScreen.tsx`
+ * for why), so the sticky header, the scroll ownership, the page measure and the
+ * empty/error slots are all already correct and none of them is restated here.
+ * This file only lays out what goes INSIDE the content region.
+ */
 .dh-analytics__body {
   display: flex;
   flex-direction: column;
   gap: var(--app-dashboard-gap);
-  padding: var(--app-space-5) var(--app-page-padding) var(--app-space-8);
   min-inline-size: 0;
 }
 
@@ -310,7 +307,6 @@
 @media (max-width: 48rem) {
   .dh-analytics__body {
     gap: var(--app-space-4);
-    padding: var(--app-space-4) var(--app-page-padding) var(--app-space-6);
   }
 
   .dh-analytics__metrics {

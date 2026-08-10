@@ -107,15 +107,30 @@ test("create, edit, search, filter, archive, restore, delete", async ({
     page.getByRole("link", { name: new RegExp(vehicle) }),
   ).toBeVisible();
 
-  // 8. Filter the collection by type (Vehicle) — the appliance drops out.
+  /*
+   * 8. Filter the collection by type (Vehicle) — the appliance drops out.
+   *
+   * UIX-05 moved the seven permanent filter selects into the ONE shared
+   * collection sheet at every width (TASKS-03's `persistentControls`), so this
+   * drives the same URL-backed dimension through the control surface every other
+   * rich collection uses. The sheet edits a DRAFT, so nothing is committed until
+   * Apply — which is why the assertion follows the Apply and not the option tap.
+   */
   await gotoFixture(page, "/assets");
-  await page.getByRole("combobox", { name: "Type" }).selectOption("vehicle");
+  await page.getByTestId("collection-filter-trigger").click();
+  await page.getByTestId("collection-sheet-type-vehicle").click();
+  await page.getByTestId("collection-sheet-apply").click();
+  await expect.poll(() => page.url()).toContain("type=vehicle");
   await expect(
     page.getByRole("link", { name: new RegExp(vehicle) }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: new RegExp(appliance) }),
   ).toHaveCount(0);
+  // The narrowed gallery explains itself without reopening the sheet.
+  await expect(page.getByTestId("collection-filter-chips")).toContainText(
+    "Vehicle",
+  );
 
   // 10. Archive then restore from the Settings tab.
   await page.goto(vehicleUrl);

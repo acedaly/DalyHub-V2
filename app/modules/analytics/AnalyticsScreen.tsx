@@ -57,9 +57,9 @@ import {
 } from "~/kernel/analytics";
 import { DashboardCard } from "~/shared/card";
 import { TrendLine, type TrendLinePoint } from "~/shared/charts";
+import { CollectionLayout } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { PaneHeader } from "~/shared/shell/PaneHeader";
 import { areaAccentForRank } from "~/shared/pill";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
@@ -99,56 +99,69 @@ export function AnalyticsScreen({
     />
   );
 
+  /*
+   * The shared `CollectionLayout`, even though Analytics collects no records.
+   *
+   * PX-02's scaffold is not "a list of cards" — it is a pane-filling surface with
+   * a sticky header, correct scroll ownership within the pane, the one collection
+   * header anatomy, and error/empty slots the caller cannot forget to wire.
+   * Analytics wants all four, and Views (which is also not a record collection)
+   * already reaches for it for the same reason. Building a private header here
+   * would have meant a second sticky implementation and a second scroll owner for
+   * one screen.
+   *
+   * The DASHBOARD measure (POLISH-02), because this page is two wide panels and a
+   * figure row rather than a column of records.
+   */
   return (
-    <section className="dh-analytics" aria-labelledby="dh-analytics-title">
-      <PaneHeader
-        title="Analytics"
-        titleId="dh-analytics-title"
-        headingLevel={1}
-        subtitle={data.rangeLabel}
-        viewSwitcher={viewSwitcher}
-      />
-
-      <div className="dh-analytics__body">
-        {data.failed ? (
+    <CollectionLayout
+      className="dh-analytics dh-collection--dashboard"
+      title="Analytics"
+      headingLevel={1}
+      subtitle={data.rangeLabel}
+      viewSwitcher={viewSwitcher}
+      error={
+        data.failed ? (
           <EmptyState
             title="We couldn’t read your history"
             description="The Activity history behind these figures could not be read just now. Nothing in your workspace has changed — try again in a moment."
           />
-        ) : model.isEmpty ? (
-          <EmptyState
-            icon={<EntityIcon type="task" />}
-            title="Nothing completed in this period"
-            description="Analytics reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
-            primaryAction={
-              <Link className="dh-btn dh-btn--primary" to="/tasks">
-                Open Tasks
-              </Link>
-            }
-          />
-        ) : (
-          <>
-            <MetricRow model={model} />
-            <div className="dh-analytics__panels">
-              <TrendPanel data={data} />
-              <DistributionPanel model={model} />
-            </div>
-            {model.notes.length > 0 ? (
-              <aside
-                className="dh-analytics__notes"
-                aria-label="About these figures"
-              >
-                {model.notes.map((note) => (
-                  <p key={note} className="dh-analytics__note">
-                    {note}
-                  </p>
-                ))}
-              </aside>
-            ) : null}
-          </>
-        )}
+        ) : undefined
+      }
+      isEmpty={model.isEmpty}
+      emptySlot={
+        <EmptyState
+          icon={<EntityIcon type="task" />}
+          title="Nothing completed in this period"
+          description="Analytics reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
+          primaryAction={
+            <Link className="dh-btn dh-btn--primary" to="/tasks">
+              Open Tasks
+            </Link>
+          }
+        />
+      }
+    >
+      <div className="dh-analytics__body">
+        <MetricRow model={model} />
+        <div className="dh-analytics__panels">
+          <TrendPanel data={data} />
+          <DistributionPanel model={model} />
+        </div>
+        {model.notes.length > 0 ? (
+          <aside
+            className="dh-analytics__notes"
+            aria-label="About these figures"
+          >
+            {model.notes.map((note) => (
+              <p key={note} className="dh-analytics__note">
+                {note}
+              </p>
+            ))}
+          </aside>
+        ) : null}
       </div>
-    </section>
+    </CollectionLayout>
   );
 }
 

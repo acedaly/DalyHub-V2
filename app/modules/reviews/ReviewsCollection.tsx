@@ -361,7 +361,24 @@ export function ReviewsCollectionView({
               }
               muted={review.archived}
               href={`/reviews/${encodeURIComponent(review.id)}`}
-              openAriaLabel={`Open ${review.typeLabel} review — ${review.periodLabel}`}
+              /*
+               * The link's accessible name states the NAME when the owner gave
+               * the Review one, and the cadence-and-period when they did not.
+               *
+               * The visible heading is a date range in both cases, so "Open 27
+               * July – 2 August 2026" alone never says what kind of thing opens
+               * — hence the cadence. But a Review the owner renamed
+               * ("Post-Ekka reset") has to be findable by that name, from
+               * search and from a screen reader's link list alike, and the
+               * card's own title line is a `<p>` rather than the link. Naming
+               * the link by the period only would have made a renamed Review
+               * unreachable by its name.
+               */
+              openAriaLabel={
+                displayTitle(review)
+                  ? `Open ${review.title} — ${review.typeLabel} review, ${review.periodLabel}`
+                  : `Open ${review.typeLabel} review — ${review.periodLabel}`
+              }
             />
           );
         })}
