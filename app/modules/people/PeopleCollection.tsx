@@ -49,8 +49,10 @@ import { useNavigate, useSearchParams } from "react-router";
 
 import { PersonRow, PersonRowList, type PersonRowTone } from "~/shared/card";
 import {
+  CollectionControls,
   CollectionLayout,
   useCollectionLoading,
+  type CollectionControlGroup,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -96,6 +98,51 @@ const SORT_OPTIONS: readonly { value: SortKey; label: string }[] = [
   { value: "name", label: "Name (A–Z)" },
   { value: "recent", label: "Recently added" },
   { value: "organisation", label: "Organisation" },
+];
+
+const DEFAULT_SORT: SortKey = "rhythm";
+
+/** Narrow an untrusted query-string value to a sort. */
+function parseSort(value: string | null): SortKey {
+  return SORT_OPTIONS.some((option) => option.value === value)
+    ? (value as SortKey)
+    : DEFAULT_SORT;
+}
+
+/**
+ * The two control dimensions, as the ONE shared collection sheet's groups.
+ *
+ * Both are URL-backed, which is what lets the phone reach them through the
+ * shared sheet rather than through a second row of chrome — and it is an
+ * improvement in its own right: a People list narrowed to "needs a catch-up" and
+ * sorted by name is now a link that can be shared and restored, which it was not
+ * while the sort lived in component state.
+ */
+const CONTROL_GROUPS: readonly CollectionControlGroup[] = [
+  {
+    id: "catch_up",
+    label: "Show",
+    param: "catch_up",
+    options: [
+      { value: "", label: "Everyone" },
+      {
+        value: "1",
+        label: "Needs a catch-up",
+        description: "Past the rhythm you set, or out of touch.",
+      },
+    ],
+  },
+  {
+    id: "sort",
+    label: "Sort",
+    param: "sort",
+    kind: "sort",
+    defaultValue: DEFAULT_SORT,
+    options: SORT_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label,
+    })),
+  },
 ];
 
 /**
@@ -228,6 +275,12 @@ function contextLine(person: SerializedPersonListItem): string | null {
  * spoke" field is the fallback, and "Nothing recorded yet" is the honest third
  * case. A Person whose signal failed to load shows no rhythm at all rather than
  * a wrong one.
+ *
+ * Every branch is PREFIXED with what the date means. The first screenshots of
+ * this row printed a bare "24 March 2026" under "Due for follow-up", and a bare
+ * date beneath a follow-up state reads just as naturally as the date the
+ * follow-up is DUE — which is the opposite of what it is. A column of dates that
+ * needs the reader to remember which kind they are is a column that says nothing.
  */
 function rhythmDetail(person: SerializedPersonListItem): string | null {
   const days = person.stayInTouch?.daysSinceLastInteraction ?? null;
@@ -235,7 +288,7 @@ function rhythmDetail(person: SerializedPersonListItem): string | null {
     const dated = formatRelationshipDate(
       person.stayInTouch?.lastInteractionDate ?? null,
     );
-    return dated ?? relativeDayPhrase(days);
+    return `Last spoke ${dated ?? relativeDayPhrase(days)}`;
   }
   const entered = formatPersonDate(person.lastInteraction);
   if (entered) return `Last spoke ${entered}`;
@@ -399,12 +452,14 @@ function PeopleCollection({
   const { restore, pendingIds, restoredIds } = useRestorePerson();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("rhythm");
 
-  // The circle lives in the URL, so a circle is deep-linkable, shareable and
-  // Back/Forward-correct — the same contract every other view rail has.
+  // The circle, the catch-up filter and the sort all live in the URL, so each is
+  // deep-linkable, shareable and Back/Forward-correct — the same contract every
+  // other view rail and control sheet has. The sort used to be component state,
+  // which is why it could not reach the shared phone sheet.
   const circle = parsePersonCircle(searchParams.get("circle"));
   const onlyCatchUp = searchParams.get("catch_up") === "1";
+  const sortKey = parseSort(searchParams.get("sort"));
 
   const setParam = useCallback(
     (key: string, value: string | null) => {
@@ -544,7 +599,7 @@ function PeopleCollection({
         <span className="dh-visually-hidden">Sort people</span>
         <select
           value={sortKey}
-          onChange={(event) => setSortKey(event.target.value as SortKey)}
+          onChange={(event) => setParam("sort", event.target.value)}
           className="dh-people-filters__select"
         >
           {SORT_OPTIONS.map((option) => (
@@ -555,6 +610,27 @@ function PeopleCollection({
         </select>
       </label>
     </div>
+  );
+
+  /*
+   * The phone's ONE control row.
+   *
+   * At 390px the desktop filter bar was three stacked rows — search, the
+   * catch-up toggle, the sort select — under a scrolling circle rail, which is
+   * four rows of chrome before the first Person. MOBILE-01 exists for exactly
+   * this: the phone gets one Filter button and the shared sheet, and it can only
+   * do that because the sort and the catch-up filter are both URL-backed.
+   *
+   * Search stays visible at every width (see `people.css`), because a search box
+   * behind a button is a search box nobody uses.
+   */
+  const mobileControls = (
+    <CollectionControls
+      groups={CONTROL_GROUPS}
+      label="Filter and sort people"
+      triggerLabel="Filter & sort"
+      basePath={BASE_PATH[view]}
+    />
   );
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
@@ -569,6 +645,7 @@ function PeopleCollection({
       entityType="person"
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
+      mobileControls={mobileControls}
       primaryAction={quickAdd}
       error={
         failed ? (

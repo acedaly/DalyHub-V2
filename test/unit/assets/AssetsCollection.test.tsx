@@ -99,6 +99,7 @@ describe("Assets collection (UIX-05)", () => {
             dueSoonCount: 0,
             text: "1 obligation overdue",
             tone: "danger",
+            dueLabel: "3 August 2026",
           },
         },
       }),

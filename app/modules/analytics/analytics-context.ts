@@ -73,6 +73,16 @@ export interface AnalyticsPageData {
   readonly rangeLabel: string;
   /** One label per bucket, in the same order as `model.buckets`. */
   readonly bucketLabels: readonly string[];
+  /**
+   * The same buckets, named for an AXIS — "5 Aug" rather than "5 August 2026".
+   *
+   * The first Analytics capture put the full label at both ends of the plot and
+   * again in the readout beneath it, so a 260px-tall chart carried three lines of
+   * date caption. The axis is decorative (the summary is the authoritative
+   * reading of the same numbers), so it gets the short form and the summary keeps
+   * the long one.
+   */
+  readonly bucketShortLabels: readonly string[];
   /** The last day of each bucket, `YYYY-MM-DD`, for the trend's time axis. */
   readonly bucketDates: readonly string[];
   readonly failed: boolean;
@@ -109,6 +119,23 @@ function spanLabel(span: AnalyticsSpan, dateFormat: DateFormat): string {
   const start = formatPreferenceDate(span.startIso, dateFormat);
   const end = formatPreferenceDate(span.endIso, dateFormat);
   return start === end ? start : `${start} – ${end}`;
+}
+
+/**
+ * "5 Aug" — a bucket named for an axis rather than for a sentence.
+ *
+ * Deliberately NOT the owner's date-format preference: that preference governs
+ * how a DATE is written where the date is the statement, and an axis tick is a
+ * position rather than a statement. Every range's ticks are within a year of
+ * today, so the year is the one part that can go.
+ */
+function axisLabel(iso: string): string {
+  const [y, m, d] = iso.split("-").map((part) => Number.parseInt(part, 10));
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1)));
 }
 
 export interface AnalyticsContextInput {
@@ -214,6 +241,7 @@ export async function loadAnalytics(
     range: input.range,
     rangeLabel: spanLabel(span, input.dateFormat),
     bucketLabels: buckets.map((bucket) => spanLabel(bucket, input.dateFormat)),
+    bucketShortLabels: buckets.map((bucket) => axisLabel(bucket.endIso)),
     bucketDates: buckets.map((bucket) => bucket.endIso),
     failed,
   };

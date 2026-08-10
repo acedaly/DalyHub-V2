@@ -74,6 +74,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       range,
       rangeLabel: "",
       bucketLabels: [],
+      bucketShortLabels: [],
       bucketDates: [],
       failed: true,
     };

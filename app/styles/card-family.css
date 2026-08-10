@@ -3304,18 +3304,28 @@
  *
  * A grid rather than a flex line, because the middle two columns must hold
  * their track whether or not a given Person has anything in them — a directory
- * whose email column wanders left and right as it scrolls is unreadable. Both
- * are `minmax(0, …)` so a long address ellipsises rather than pushing the
- * rhythm off the row.
+ * whose email column wanders left and right as it scrolls is unreadable.
+ *
+ * The reach and rhythm columns are FIXED widths, not fractions, and that is the
+ * whole point of the rule. Every row is its own grid — CSS has no cross-row
+ * alignment short of a subgrid or one grid over the whole list — so `1fr`
+ * tracks resolve against each row's OWN content and the columns come out ragged:
+ * the first screenshot of this row family had the email column starting at four
+ * different x-positions down a seven-row list. Fixed tracks make every row agree
+ * without the list having to become the grid, which would cost the row its
+ * `<article>` boundary and its per-row hover.
+ *
+ * The identity column stays `minmax(0, 1fr)` because it is the one that should
+ * absorb the leftover width, and everything in the fixed columns ellipsises.
  */
 .dh-prow {
   position: relative;
   display: grid;
   grid-template-columns:
     auto
-    minmax(0, 1.6fr)
     minmax(0, 1fr)
-    auto
+    14rem
+    11rem
     auto;
   align-items: center;
   gap: var(--app-space-4);
@@ -3471,15 +3481,25 @@
  * down rather than across. The dot only AGREES with the state beside it; the
  * words carry it, so nothing here is lost in monochrome or forced colours.
  */
+/*
+ * `justify-content: end` rather than `justify-items: end`.
+ *
+ * `justify-items` right-aligns each CELL's content inside a track that still
+ * spans the column, so on a fixed-width rhythm column the dot sat pinned to the
+ * left edge with its own words a hundred pixels away — a dot beside nothing,
+ * which is worse than no dot. `justify-content` moves the whole two-column grid
+ * to the end of the track instead, so the dot stays against the state it agrees
+ * with and the pair right-aligns as one object.
+ */
 .dh-prow__rhythm {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto auto;
   align-items: center;
+  justify-content: end;
   column-gap: var(--app-space-2);
   margin: 0;
   min-inline-size: 0;
   text-align: end;
-  justify-items: end;
 }
 
 .dh-prow__rhythm-state {
@@ -3556,7 +3576,7 @@
  */
 @media (max-width: 68rem) {
   .dh-prow {
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) 11rem auto;
   }
 
   .dh-prow__reach {

@@ -188,7 +188,9 @@ describe("People collection", () => {
       }),
     ]);
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });
-    expect(within(row).getByText("25 July 2026")).toBeInTheDocument();
+    expect(
+      within(row).getByText("Last spoke 25 July 2026"),
+    ).toBeInTheDocument();
     expect(within(row).queryByText(/1 January 2020/)).not.toBeInTheDocument();
   });
 

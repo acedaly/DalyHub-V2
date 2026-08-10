@@ -128,7 +128,19 @@ function commitmentFor(
     return {
       text: signal.text,
       tone: OBLIGATION_TONE[signal.tone],
-      when: null,
+      /*
+       * The date, unless the signal's own text already carries it.
+       *
+       * The counting forms ("1 obligation overdue") say how many and not when,
+       * which is exactly the case that most needs a date — a card saying
+       * something is overdue and refusing to say since when. The dated form
+       * ("Next: Rego 30 September") already has it, and printing it twice under
+       * itself would be worse than not printing it at all.
+       */
+      when:
+        signal.dueLabel && !signal.text.includes(signal.dueLabel)
+          ? signal.dueLabel
+          : null,
     };
   }
   const next = nextMeaningfulDate(item, today);

@@ -98,11 +98,21 @@
 /* Collection controls (search / sort / view switch)                          */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * `inline-size: 100%` is load-bearing, not tidiness.
+ *
+ * The shared filter slot is itself a flex row, so a filter bar that does not
+ * claim the row is sized to its own content — which came out at about half the
+ * pane, and the sort select wrapped onto a second line with the whole right-hand
+ * half of the row empty beside it. Every other collection's filter bar states
+ * this; People's did not.
+ */
 .dh-people-filters {
   display: flex;
   flex-wrap: wrap;
   gap: var(--app-space-3);
   align-items: center;
+  inline-size: 100%;
 }
 
 .dh-people-filters__search {

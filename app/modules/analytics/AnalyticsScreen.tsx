@@ -229,6 +229,11 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
   const low = values.length > 0 ? Math.min(...values) : 0;
   const total = values.reduce((sum, value) => sum + value, 0);
 
+  /*
+   * The chart's own text form, and the only place the FULL bucket labels are
+   * spelled out. The axis takes the short form (see `bucketShortLabels`), so the
+   * plot carries one line of caption rather than three.
+   */
   const summary =
     points.length < 2
       ? "Not enough of this period has passed to show a trend."
@@ -248,10 +253,12 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
           points={points}
           summary={summary}
           scaleToTarget={false}
-          startLabel={data.bucketLabels[0] ?? ""}
-          endLabel={data.bucketLabels[data.bucketLabels.length - 1] ?? ""}
-          lowLabel={`${low} completed`}
-          highLabel={`${high} completed`}
+          startLabel={data.bucketShortLabels[0] ?? ""}
+          endLabel={
+            data.bucketShortLabels[data.bucketShortLabels.length - 1] ?? ""
+          }
+          lowLabel={`${low} Tasks`}
+          highLabel={`${high} Tasks`}
           describePoint={(point) => {
             const index = model.series.findIndex(
               (entry) => entry.key === point.key,

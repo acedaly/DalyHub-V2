@@ -97,9 +97,24 @@ function stamp() {
 const statements = [];
 const push = (sql) => statements.push(sql);
 
-/** Park every record type the Today surface reads. Reversible. */
+/**
+ * Park every record type a scenario's surfaces read. Reversible.
+ *
+ * UIX-05 added `person`, `asset` and `review`. They are parked for the same
+ * reason the first four are: a screenshot of a redesigned collection has to show
+ * the fixture's own records and nothing else, and the journey specs leave their
+ * test-owned records behind between runs.
+ */
 function parkExisting() {
-  for (const type of ["task", "meeting", "project", "goal"]) {
+  for (const type of [
+    "task",
+    "meeting",
+    "project",
+    "goal",
+    "person",
+    "asset",
+    "review",
+  ]) {
     push(
       `UPDATE entities SET deleted_at = ${q(PARK_SENTINEL)} WHERE workspace_id = ${ws} AND type = '${type}' AND deleted_at IS NULL;`,
     );
@@ -132,12 +147,24 @@ function clearFixtures() {
       `DELETE FROM ${table} WHERE workspace_id = ${ws} AND entity_id IN (${sel});`,
     );
   }
+  // UIX-05 — the Asset obligations and the Review sections, both keyed by their
+  // owning record rather than by `entity_id`, so neither is caught by the loop
+  // below and both must go before the entities they hang from.
+  push(
+    `DELETE FROM asset_obligations WHERE workspace_id = ${ws} AND asset_id IN (${sel});`,
+  );
+  push(
+    `DELETE FROM review_sections WHERE workspace_id = ${ws} AND review_id IN (${sel});`,
+  );
   for (const table of [
     "task_details",
     "meeting_details",
     "project_details",
     "goal_details",
     "area_details",
+    "person_details",
+    "asset_details",
+    "review_details",
   ]) {
     push(
       `DELETE FROM ${table} WHERE workspace_id = ${ws} AND entity_id IN (${sel});`,
@@ -309,6 +336,136 @@ function meeting(
   push(
     `INSERT INTO meeting_details (workspace_id, entity_id, entity_type, starts_at, ends_at, timezone, location, mode, meeting_url, status, agenda_markdown, notes_markdown, archived_at, held_at, updated_at) VALUES (${ws}, ${q(id)}, 'meeting', ${q(startsAt)}, ${q(endsAt)}, ${q(OWNER_TIMEZONE)}, ${q(location)}, ${q(mode)}, NULL, 'planned', '', '', NULL, NULL, ${q(stamp())});`,
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* UIX-05 — the supporting records                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One Person, with exactly the fields the People collection reads.
+ *
+ * The `relationship` is the important one: UIX-05 derives both the CIRCLE (the
+ * collection's view rail) and the avatar's identity accent from it, so a fixture
+ * that left it null would photograph a grid of neutral discs and prove nothing.
+ * The contact fields are what the row's reach column links to.
+ *
+ * Nothing here sets a stay-in-touch STATE. That is derived by PEOPLE-03 from real
+ * interaction history (see `interaction` below) plus the cadence the owner chose,
+ * and a fixture that hand-set it would be photographing the fixture rather than
+ * the product.
+ */
+function person(
+  id,
+  title,
+  {
+    firstName = null,
+    lastName = null,
+    organisation = null,
+    role = null,
+    email = null,
+    mobile = null,
+    workPhone = null,
+    relationship = null,
+    favouriteContactMethod = null,
+    followUpFrequency = null,
+    nextFollowUp = null,
+    lastInteraction = null,
+    tags = [],
+  } = {},
+) {
+  entity(id, "person", title);
+  push(
+    `INSERT INTO person_details (workspace_id, entity_id, entity_type, preferred_name, first_name, middle_name, last_name, pronouns, organisation, role, department, email, secondary_email, mobile, work_phone, address, website, birthday, relationship, tags, notes, favourite_contact_method, follow_up_frequency, next_follow_up, last_interaction, photo_url, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'person', NULL, ${q(firstName)}, NULL, ${q(lastName)}, NULL, ${q(organisation)}, ${q(role)}, NULL, ${q(email)}, NULL, ${q(mobile)}, ${q(workPhone)}, NULL, NULL, NULL, ${q(relationship)}, ${q(JSON.stringify(tags))}, NULL, ${q(favouriteContactMethod)}, ${q(followUpFrequency)}, ${q(nextFollowUp)}, ${q(lastInteraction)}, NULL, NULL, ${q(stamp())});`,
+  );
+}
+
+/**
+ * A shared moment with a Person, positioned relative to the owner's calendar day.
+ *
+ * `meeting.held` naming the Person as a subject is what a real interaction leaves
+ * behind (ADR-055), and it is in `INTERACTION_ACTIVITY_TYPES`, so the
+ * stay-in-touch state a screenshot shows is genuinely evaluated from it.
+ */
+function interaction(id, personId, dayOffset) {
+  activity(
+    id,
+    "meeting.held",
+    personId,
+    ownerInstant(addDays(TODAY, dayOffset), 10, 0),
+  );
+}
+
+/**
+ * One Asset. The three canonical dates are the point: they are what the UIX-05
+ * card's commitment falls back to when the Asset carries no open obligation, and
+ * their offsets are relative to the owner's day so "Service overdue" stays
+ * overdue whenever the fixture is run.
+ */
+function asset(
+  id,
+  title,
+  {
+    assetType = "other",
+    status = "active",
+    manufacturer = null,
+    model = null,
+    location = null,
+    warrantyExpiry = null,
+    renewalDate = null,
+    nextServiceDate = null,
+  } = {},
+) {
+  entity(id, "asset", title);
+  push(
+    `INSERT INTO asset_details (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number, reference_code, tags, owner_person_id, responsible_person_id, location, area_id, acquisition_date, purchase_price_minor, currency_code, supplier, replacement_value_minor, disposal_date, disposal_notes, warranty_expiry, service_interval, last_service_date, next_service_date, service_provider, maintenance_notes, issuer, reference_number, issue_date, renewal_date, url, document_notes, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'asset', ${q(assetType)}, ${q(status)}, NULL, ${q(manufacturer)}, ${q(model)}, NULL, NULL, '[]', NULL, NULL, ${q(location)}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ${q(warrantyExpiry === null ? null : addDays(TODAY, warrantyExpiry))}, NULL, NULL, ${q(nextServiceDate === null ? null : addDays(TODAY, nextServiceDate))}, NULL, NULL, NULL, NULL, NULL, ${q(renewalDate === null ? null : addDays(TODAY, renewalDate))}, NULL, NULL, NULL, ${q(stamp())});`,
+  );
+}
+
+/** One OPEN obligation on an Asset — the live commitment a card prefers. */
+function obligation(id, assetId, title, { category = "service", dueOffset }) {
+  const at = stamp();
+  push(
+    `INSERT INTO asset_obligations (id, workspace_id, asset_id, asset_entity_type, category, title, description, due_date, lead_days, recurrence_kind, recurrence_interval, meter_threshold, meter_interval, meter_unit, status, task_id, completed_event_id, completed_at, next_obligation_id, series_id, sequence, created_at, updated_at, archived_at, deleted_at) VALUES (${q(id)}, ${ws}, ${q(assetId)}, 'asset', ${q(category)}, ${q(title)}, NULL, ${q(addDays(TODAY, dueOffset))}, 14, 'none', NULL, NULL, NULL, NULL, 'open', NULL, NULL, NULL, NULL, ${q(`${id}-series`)}, 0, ${q(at)}, ${q(at)}, NULL, NULL);`,
+  );
+}
+
+/**
+ * One Review. `authored` is how many of the six summary sections carry a body,
+ * because that count IS the reflection measure the UIX-05 card draws — it is not
+ * a separate field, and seeding it any other way would photograph a number the
+ * product does not compute.
+ */
+function review(
+  id,
+  title,
+  {
+    reviewType = "weekly",
+    templateId = "weekly.v1",
+    startOffset,
+    endOffset,
+    status = "in_progress",
+    authored = 0,
+    completedOffset = null,
+  },
+) {
+  entity(id, "review", title);
+  push(
+    `INSERT INTO review_details (workspace_id, entity_id, entity_type, review_type, period_start, period_end, status, template_id, completed_at, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'review', ${q(reviewType)}, ${q(addDays(TODAY, startOffset))}, ${q(addDays(TODAY, endOffset))}, ${q(status)}, ${q(templateId)}, ${q(completedOffset === null ? null : ownerInstant(addDays(TODAY, completedOffset), 18, 0))}, NULL, ${q(stamp())});`,
+  );
+  const SUMMARY_SECTIONS = [
+    "summary.overall",
+    "summary.highlights",
+    "summary.challenges",
+    "summary.lessons",
+    "summary.decisions",
+    "summary.next_focus",
+  ];
+  for (const sectionId of SUMMARY_SECTIONS.slice(0, authored)) {
+    push(
+      `INSERT INTO review_sections (workspace_id, review_id, section_id, body_markdown, updated_at) VALUES (${ws}, ${q(id)}, ${q(sectionId)}, ${q("A calm, honest paragraph about the period.")}, ${q(stamp())});`,
+    );
+  }
 }
 
 /** A meaningful Activity event, so project/goal recency is a REAL signal. */
@@ -1187,6 +1344,324 @@ function goals() {
   });
 }
 
+/**
+ * UIX-05 — the four supporting modules, and enough completed history for
+ * Analytics to have a shape.
+ *
+ * The `gallery` scenario seeds Areas, Projects and Goals; `goals` seeds one Goal
+ * per branch of the progress engine. Neither seeds a single Person, Asset or
+ * Review, and the ordinary dev seed does not either — it only knows how to CLEAN
+ * those up after the journey specs. So every surface UIX-05 redesigned would
+ * photograph as its empty state, which is the one thing a redesign's evidence
+ * must not be.
+ *
+ * What this seeds is chosen so each surface shows its DECISIONS rather than a
+ * pretty average:
+ *
+ *   - People spans all three CIRCLES plus the deliberate absence ("Other" is a
+ *     real choice and not a circle), and the stay-in-touch column spans its whole
+ *     range — recently connected, in touch, due for follow-up, out of touch, and
+ *     no shared history at all. Every state is DERIVED from seeded interactions
+ *     and the owner's chosen cadence; none is hand-set.
+ *   - Assets spans an overdue obligation, an obligation due soon, a canonical
+ *     date inside the due-soon threshold, a distant renewal and an Asset with
+ *     nothing scheduled — the absence the card states in words.
+ *   - Reviews spans in-progress (a partial bar), completed (no bar at all), a
+ *     draft with nothing written, and a RENAMED Review, which is the one case
+ *     where the card keeps a title.
+ *   - Analytics gets completed Tasks spread across the last twelve weeks and
+ *     across Areas, so the trend has a shape and the distribution has more than
+ *     one bar. The completions are real `task.completed` Activity rows over real
+ *     Tasks, because that is the only thing Analytics counts.
+ */
+function modules() {
+  baseSpine();
+  area("tf-area-health", "Health & Fitness", { iconKey: "health" });
+  area("tf-area-family", "Family & Parenting", { iconKey: "family" });
+
+  /*
+   * Two Goals with contributing Projects under them, so Analytics' "Goals on
+   * track" tile has something to count. AREA-03 reads a Goal as ACTIVE when
+   * contributing work was recorded recently, which the completed Tasks below
+   * supply — the tile is therefore derived, not seeded.
+   */
+  goal("tf-goal-ship", "Ship DalyHub V2", { areaId: "tf-area-work" });
+  goal("tf-goal-fitness", "Run a half-marathon", {
+    areaId: "tf-area-health",
+  });
+
+  project("tf-proj-redesign", "OPPO Program Redesign", {
+    goal: "tf-goal-ship",
+  });
+  project("tf-proj-training", "Base training block", {
+    goal: "tf-goal-fitness",
+  });
+  project("tf-proj-house", "Home setup", { areaId: "tf-area-family" });
+
+  /* -- People ------------------------------------------------------------- */
+
+  // Personal circle. Long silence + a chosen cadence → "Out of touch".
+  person("tf-p-sarah", "Sarah Johnson", {
+    firstName: "Sarah",
+    lastName: "Johnson",
+    relationship: "family",
+    email: "sarah.j@example.com",
+    mobile: "0412 345 678",
+    favouriteContactMethod: "mobile",
+    followUpFrequency: "monthly",
+  });
+  interaction("tf-a-sarah-1", "tf-p-sarah", -140);
+
+  // Personal circle, recently connected — the calm end of the same column.
+  person("tf-p-lisa", "Lisa Chen", {
+    firstName: "Lisa",
+    lastName: "Chen",
+    relationship: "friend",
+    email: "lisa.chen@example.com",
+    mobile: "0432 678 901",
+    followUpFrequency: "quarterly",
+  });
+  interaction("tf-a-lisa-1", "tf-p-lisa", -3);
+  interaction("tf-a-lisa-2", "tf-p-lisa", -38);
+
+  // Work circle, a steady rhythm → "In touch".
+  person("tf-p-michael", "Michael Brown", {
+    firstName: "Michael",
+    lastName: "Brown",
+    organisation: "Northbridge Consulting",
+    role: "Program lead",
+    relationship: "colleague",
+    email: "michael.brown@example.com",
+    workPhone: "0401 234 567",
+    favouriteContactMethod: "email",
+    followUpFrequency: "fortnightly",
+  });
+  interaction("tf-a-michael-1", "tf-p-michael", -4);
+  interaction("tf-a-michael-2", "tf-p-michael", -19);
+  interaction("tf-a-michael-3", "tf-p-michael", -33);
+
+  // Work circle, cadence elapsed → "Due for follow-up".
+  person("tf-p-emma", "Emma Wilson", {
+    firstName: "Emma",
+    lastName: "Wilson",
+    organisation: "Whitfield Building Co.",
+    role: "Site foreman",
+    relationship: "supplier",
+    email: "emma.w@example.com",
+    mobile: "0413 555 019",
+    followUpFrequency: "weekly",
+    nextFollowUp: addDays(TODAY, -6),
+  });
+  interaction("tf-a-emma-1", "tf-p-emma", -24);
+
+  // Services circle — the part of a life a person needs rather than chooses.
+  person("tf-p-david", "David Lee", {
+    firstName: "David",
+    lastName: "Lee",
+    organisation: "Lee & Partners",
+    role: "Accountant",
+    relationship: "professional",
+    email: "david.lee@example.com",
+    workPhone: "0411 587 990",
+    favouriteContactMethod: "email",
+  });
+  interaction("tf-a-david-1", "tf-p-david", -61);
+
+  // Services circle, no history at all — an invitation, not a deficiency.
+  person("tf-p-priya", "Priya Nair", {
+    firstName: "Priya",
+    lastName: "Nair",
+    organisation: "Kingsford Medical",
+    role: "GP",
+    relationship: "professional",
+    workPhone: "02 9555 1200",
+  });
+
+  // "Other" is a real choice and deliberately NOT a circle: this Person appears
+  // under All and nowhere else, with the neutral disc.
+  person("tf-p-dan", "Dan Whitfield", {
+    firstName: "Dan",
+    lastName: "Whitfield",
+    relationship: "other",
+    email: "dan.whitfield@example.com",
+    mobile: "0412 774 903",
+  });
+  interaction("tf-a-dan-1", "tf-p-dan", -12);
+
+  /* -- Assets ------------------------------------------------------------- */
+
+  // An open obligation that is OVERDUE — the live commitment, which wins over
+  // the canonical date this Asset also carries.
+  asset("tf-as-hilux", "Hilux", {
+    assetType: "vehicle",
+    manufacturer: "Toyota",
+    model: "HiLux SR5",
+    location: "Garage",
+    nextServiceDate: 48,
+    renewalDate: 96,
+  });
+  obligation("tf-ob-hilux-1", "tf-as-hilux", "Log-book service", {
+    category: "service",
+    dueOffset: -9,
+  });
+
+  // An obligation due SOON.
+  asset("tf-as-trailer", "Box trailer", {
+    assetType: "trailer",
+    manufacturer: "Ozzi",
+    model: "7x4",
+    location: "Side yard",
+  });
+  obligation("tf-ob-trailer-1", "tf-as-trailer", "Registration renewal", {
+    category: "registration",
+    dueOffset: 11,
+  });
+
+  // No obligation — the canonical renewal date inside the due-soon threshold.
+  asset("tf-as-insurance", "Home & contents policy", {
+    assetType: "insurance",
+    manufacturer: "Ardent",
+    location: "Documents",
+    renewalDate: 21,
+  });
+
+  // A distant date: future, and therefore calm.
+  asset("tf-as-laptop", "MacBook Pro", {
+    assetType: "electronics",
+    manufacturer: "Apple",
+    model: "M3 Pro 14”",
+    location: "Study",
+    warrantyExpiry: 320,
+  });
+
+  // Nothing scheduled at all — the absence the card states once, in words.
+  asset("tf-as-mower", "Ride-on mower", {
+    assetType: "equipment",
+    manufacturer: "Husqvarna",
+    model: "TS 138",
+    location: "Shed",
+  });
+
+  // A lifecycle state that is not "Active".
+  asset("tf-as-ute", "Old ute", {
+    assetType: "vehicle",
+    status: "stored",
+    manufacturer: "Ford",
+    model: "Falcon XR6",
+    location: "Farm",
+  });
+
+  /* -- Reviews ------------------------------------------------------------ */
+
+  // In progress, partly written — the reflection bar's ordinary case.
+  review("tf-rev-week-0", "Weekly Review — this week", {
+    startOffset: -6,
+    endOffset: 0,
+    status: "in_progress",
+    authored: 4,
+  });
+
+  // A draft with nothing written — the card says "Start", not "Continue".
+  review("tf-rev-week-1", "Weekly Review — last week", {
+    startOffset: -13,
+    endOffset: -7,
+    status: "draft",
+    authored: 0,
+  });
+
+  // Completed: no bar at all, and the date it closed instead.
+  review("tf-rev-week-2", "Weekly Review — a fortnight ago", {
+    startOffset: -20,
+    endOffset: -14,
+    status: "completed",
+    authored: 6,
+    completedOffset: -14,
+  });
+
+  // RENAMED — the one case where the card keeps a title of its own.
+  review("tf-rev-month", "Post-Ekka reset", {
+    reviewType: "monthly",
+    templateId: "monthly.v1",
+    startOffset: -44,
+    endOffset: -14,
+    status: "completed",
+    authored: 6,
+    completedOffset: -13,
+  });
+
+  // A different cadence, still open.
+  review("tf-rev-quarter", "Quarterly Review — this quarter", {
+    reviewType: "quarterly",
+    templateId: "quarterly.v1",
+    startOffset: -70,
+    endOffset: 20,
+    status: "in_progress",
+    authored: 2,
+  });
+
+  /* -- Completed work, for Analytics -------------------------------------- */
+
+  /*
+   * Real completed Tasks with real `task.completed` Activity, spread over the
+   * last twelve weeks and across three Areas.
+   *
+   * The shape is deliberate rather than uniform: the recent weeks are busier
+   * than the older ones, so the trend has a direction to read, and the Areas get
+   * different totals so the distribution has bars of different lengths. Every
+   * figure Analytics shows is counted from these rows — nothing about the screen
+   * is seeded directly.
+   */
+  const WORKLOAD = [
+    // [dayOffset, howMany, project]
+    // Today is included on purpose. Leaving it out made the most recent bucket a
+    // zero on every capture, so the trend ended in a nosedive that was an
+    // artefact of the fixture rather than a shape of the data.
+    [0, 2, "tf-proj-redesign"],
+    [-1, 3, "tf-proj-redesign"],
+    [-2, 2, "tf-proj-training"],
+    [-3, 4, "tf-proj-redesign"],
+    [-4, 1, "tf-proj-house"],
+    [-5, 3, "tf-proj-redesign"],
+    [-6, 2, "tf-proj-training"],
+    [-8, 3, "tf-proj-redesign"],
+    [-10, 2, "tf-proj-house"],
+    [-12, 4, "tf-proj-redesign"],
+    [-15, 2, "tf-proj-training"],
+    [-19, 3, "tf-proj-redesign"],
+    [-24, 1, "tf-proj-house"],
+    [-30, 2, "tf-proj-training"],
+    [-38, 2, "tf-proj-redesign"],
+    [-46, 1, "tf-proj-house"],
+    [-55, 2, "tf-proj-training"],
+    [-66, 1, "tf-proj-redesign"],
+    [-76, 1, "tf-proj-house"],
+  ];
+  let done = 0;
+  for (const [dayOffset, count, projectId] of WORKLOAD) {
+    for (let index = 0; index < count; index += 1) {
+      done += 1;
+      const taskId = `tf-t-done-${done}`;
+      const completedAt = ownerInstant(addDays(TODAY, dayOffset), 14, 0);
+      task(taskId, `Completed work ${done}`, {
+        due: addDays(TODAY, dayOffset),
+        completedAt,
+        project: projectId,
+      });
+      activity(`tf-a-done-${done}`, "task.completed", taskId, completedAt);
+    }
+  }
+
+  // A little open work, so the modules do not look like a finished workspace.
+  task("tf-t-open-1", "Prepare the OPPO workshop", {
+    due: TODAY,
+    project: "tf-proj-redesign",
+  });
+  task("tf-t-open-2", "Book the mower service", {
+    due: addDays(TODAY, 3),
+    project: "tf-proj-house",
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Runner                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -1198,6 +1673,7 @@ const SCENARIOS = {
   empty,
   gallery,
   goals,
+  modules,
 };
 
 const scenario = process.argv[2] ?? "typical";

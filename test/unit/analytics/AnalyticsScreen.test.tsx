@@ -52,6 +52,7 @@ function pageData(
     range: facts.range,
     rangeLabel: "4 August 2026 – 10 August 2026",
     bucketLabels: BUCKETS.map((bucket) => bucket.endIso),
+    bucketShortLabels: BUCKETS.map((bucket) => bucket.endIso.slice(5)),
     bucketDates: BUCKETS.map((bucket) => bucket.endIso),
     failed: false,
     ...page,

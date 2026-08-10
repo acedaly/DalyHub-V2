@@ -68,6 +68,26 @@ const SORTS = [
 
 type SerializedReviewRow = ReviewsCollectionData["reviews"][number];
 
+const VIEW_NOUNS: Readonly<Record<ReviewView, string>> = {
+  current: "current",
+  in_progress: "in progress",
+  completed: "completed",
+  archived: "archived",
+};
+
+/** "3 current Reviews", and honest about the page bound while more remain. */
+function reviewCount(
+  loaded: number,
+  view: ReviewView,
+  hasMore: boolean,
+): string {
+  const noun = loaded === 1 ? "Review" : "Reviews";
+  const scope = VIEW_NOUNS[view];
+  return hasMore
+    ? `${loaded} ${scope} ${noun} loaded`
+    : `${loaded} ${scope} ${noun}`;
+}
+
 function hrefFor(
   searchParams: URLSearchParams,
   changes: Record<string, string | null>,
@@ -269,7 +289,19 @@ export function ReviewsCollectionView({
       isLoading={isReloading}
       title="Reviews"
       entityType="review"
-      subtitle="Reflect on the period, close loops and plan what matters next."
+      /*
+       * A COUNT, not a sentence.
+       *
+       * The sentence ("Reflect on the period, close loops and plan what matters
+       * next.") is good copy in the wrong slot: at 1280 it took enough of the
+       * header's track that the view rail and "New Review" could not share the
+       * row with the title, so the primary action wrapped to a line of its own —
+       * the exact geometry UIQ-013 asserts against on every other collection.
+       * Every other collection's subtitle is its scope and its count, and this is
+       * now one too. The sentence itself lives in the empty state, which is where
+       * someone actually needs to be told what a Review is for.
+       */
+      subtitle={reviewCount(pagination.items.length, data.view, data.hasMore)}
       presentation="grid"
       viewSwitcher={viewSwitcher}
       primaryAction={
@@ -349,7 +381,12 @@ export function ReviewsCollectionView({
               action={
                 finished || review.archived ? undefined : (
                   <Link
-                    className="dh-btn dh-btn--secondary dh-btn--sm"
+                    /* Outlined, not filled. A filled control was the loudest
+                     * thing on a card whose job is to be recognised by its
+                     * PERIOD — the same finding D24 made about the Project
+                     * card's status pill. An outline is unmistakably a control
+                     * and still lets the date range lead. */
+                    className="dh-btn dh-btn--outlined dh-btn--sm"
                     to={`/reviews/${encodeURIComponent(review.id)}/guide`}
                   >
                     {review.authoredSections === 0 ? "Start" : "Continue"}
