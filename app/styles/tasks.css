@@ -1026,16 +1026,99 @@
   white-space: nowrap;
 }
 
-/* The supporting run stops wrapping and hugs the trailing edge. */
+/*
+ * The supporting run is a TRACK of its own width, not a run sized by its words.
+ *
+ * ── Why the columns were not columns (UIX-06) ───────────────────────────────
+ * `[data-field="parent"]` has carried `margin-inline-start: auto` since UIX-01,
+ * on the correct reasoning that the Project mark and the date should square up
+ * into two trailing columns (D18). It never did anything: the run was
+ * `flex: 0 1 auto`, so it had no free space for an auto margin to absorb — the
+ * TITLE (`flex: 1 1 auto`) took all of it. The run therefore packed against
+ * whatever width each title happened to leave, and the measured Project marks
+ * on six consecutive seeded rows began at x = 630, 510, 724, 672, 638 and 670.
+ * A context column that moves 200px per row is a ragged edge, which is exactly
+ * what the rule above says it must not be.
+ *
+ * Giving the run its own basis is what makes the auto margin real: parent and
+ * due now sit at a fixed offset from the row's trailing edge on every row, and
+ * the quieter facts fill — and give up — the space in front of them. The basis
+ * is `flex: 0 1` so a narrow window still takes it back title-last.
+ */
+/*
+ * `__support` steps OUT of the layout, so there is ONE box to size.
+ *
+ * The metas live in `.dh-card__metadata`, which `.dh-card__support` wraps. Two
+ * nested flex boxes meant the track had to be sized twice and agreed with
+ * itself neither time: sizing the wrapper left a 440px box with a 248px run at
+ * its leading edge, and sizing both left the inner run at 248px with
+ * `justify-content: flex-end`, which overflows to the START — the P1 mark and
+ * the status pill printed on top of each other at 1280. `display: contents`
+ * removes the intermediate box (the row's `__support` holds nothing else), so
+ * the metadata run is a direct flex item of the row body and the track is
+ * stated once.
+ */
 :is(.dh-collection--tasks, .dh-tasklist)
   .dh-card-collection--list
   .dh-card__support {
+  display: contents;
+}
+
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__metadata {
   flex: 0 1 auto;
+  /* 12rem parent + 6.5rem due + two gaps, and ~8rem for everything in front. */
+  inline-size: 27.5rem;
   flex-wrap: nowrap;
   justify-content: flex-end;
   align-items: center;
   gap: var(--app-space-3);
   min-inline-size: 0;
+}
+
+/*
+ * Nothing in a one-line row is allowed to become two lines.
+ *
+ * `Sector: This Week` and `Delegated to: Sam Okafor` wrapped inside their own
+ * chips, so rows carrying them measured 45px of row with a 45px chip in it and
+ * the run's vertical rhythm broke halfway down the list. They ellipsise
+ * instead — the value is still in the accessible name, in the row's overflow
+ * and on the record.
+ */
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-inline-size: 0;
+}
+
+/*
+ * The LOW tier is not drawn on a list row. At any width.
+ *
+ * D18 is explicit about what a task row carries: "the completion circle leads,
+ * the title is dominant, the Project mark and the date form two aligned
+ * trailing columns, and EVERYTHING ELSE is on hover, in the overflow, or on the
+ * record". The sector, the delegate and the waiting note are that everything
+ * else, and the row was drawing all three permanently — which is what pushed
+ * the Project mark 200px around the run and what wrapped `Sector: This Week`
+ * onto a second line inside a 45px row.
+ *
+ * Squaring the columns up made the cost visible rather than removing it: with a
+ * fixed track in front of them the three facts compressed instead, and a run
+ * reading "Se… De…" is chrome that has stopped carrying its own information.
+ *
+ * All three remain exactly where the row's own field notes say they are — in
+ * "Priority, dates and repeat…" in the row overflow, and on the Task record —
+ * and the sector is a first-class filter in Filter & sort. Nothing became
+ * unreachable; it stopped being announced fifty times down a list.
+ */
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__meta[data-priority="low"] {
+  display: none;
 }
 
 /*
@@ -1047,10 +1130,23 @@
  * mark above it 25px to the left — and a context column that moves is not a
  * column. A date longer than the floor still grows rather than clipping.
  */
+/*
+ * The date is a TRACK, not a floor (UIX-06).
+ *
+ * `min-inline-size` let the column grow with its own words, and because the
+ * Project mark's auto-margin is measured from the run's trailing edge, a longer
+ * date pushed the mark left: "17 days ago" and "Yesterday" on adjacent rows put
+ * their Project marks 24px apart. A fixed track is what squares both columns at
+ * once. 6.5rem holds every relative form the formatter produces ("Yesterday",
+ * "Thu, 12 Jun", "9719 days ago"); anything longer ellipsises, and the exact
+ * date is the field's own accessible name either way.
+ */
 :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="due"] {
-  order: 2;
-  margin-inline-start: auto;
-  min-inline-size: 5.5rem;
+  order: 3;
+  margin-inline-start: 0;
+  flex: none;
+  inline-size: 6.5rem;
+  text-align: end;
 }
 
 /* A two-character chip has nothing to give. Left shrinkable it was the item a
@@ -1169,8 +1265,25 @@
  * squares them up.
  */
 :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="parent"] {
-  order: 1;
-  margin-inline-start: auto;
+  /*
+   * UIX-06 — `order: 2`, so the two columns are genuinely LAST.
+   *
+   * At `order: 1` the parent shared its ordinal with every `low` fact, and DOM
+   * order then put the sector and the delegate BETWEEN the Project mark and the
+   * date — inside the pair the rule below is trying to square up. The quiet
+   * facts are order 1, the two columns are 2 and 3.
+   */
+  order: 2;
+  /*
+   * NO auto margin (UIX-06). An `auto` inline-start margin resolves to zero the
+   * moment the run has negative free space, and `justify-content` is ignored
+   * while an auto margin is present — so at 1024 and 768, where the run is
+   * compressed past its basis, the line packed from the START and the mark's
+   * position went back to tracking whatever was in front of it. The run's own
+   * `justify-content: flex-end` anchors the two columns to the trailing edge at
+   * every width, including when the content no longer fits.
+   */
+  margin-inline-start: 0;
   /* `flex: none`, or the track is not a track: as a shrinkable item the column
    * gave its width back to whichever title happened to be longest, so at 1280
    * "Home" read "Ho…" with 200px of empty row beside it. The title is the part
@@ -1263,10 +1376,25 @@
     display: none;
   }
 
-  /* The date column's floor goes with it: on a phone the row cannot spare
-   * 88px so that the word "Today" can sit in a column. */
+  /*
+   * The date column's floor goes with it: on a phone the row cannot spare
+   * 88px so that the word "Today" can sit in a column — and neither can the RUN
+   * spare its desktop track. With the Project mark and both quiet tiers gone,
+   * the run holds one date; sizing it to 18rem anyway (UIX-06's track, which
+   * the container query above sets from 46rem down) reserved 288px of a 358px
+   * row and crushed every title to "Data…". `auto` gives the row back to the
+   * one thing a phone list is scanned by.
+   */
   :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="due"] {
     min-inline-size: 0;
+    inline-size: auto;
+    max-inline-size: 7rem;
+  }
+
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__metadata {
+    inline-size: auto;
   }
 
   .dh-task-date {
@@ -1569,11 +1697,25 @@
     display: none;
   }
 
-  /* The Project column stops being a fixed track and simply takes what is left
-   * after the title's floor and the date. */
+  /*
+   * The Project column NARROWS to 10rem — it does not stop being a column.
+   *
+   * It used to become `inline-size: auto` with a 10rem cap here, which is a
+   * content-sized box anchored at its trailing edge: the marks' right edges
+   * lined up and their glyphs began at four different x-positions down the
+   * list. That is the ragged edge the wide rule exists to prevent, reappearing
+   * at exactly the container width where the list is hardest to scan. A
+   * narrower fixed track costs the same width and keeps the column.
+   */
   :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="parent"] {
-    inline-size: auto;
-    max-inline-size: 10rem;
+    inline-size: 10rem;
+  }
+
+  /* The run's basis narrows with it: 10rem parent + 6.5rem due + two gaps. */
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__metadata {
+    inline-size: 18rem;
   }
 
   /*
@@ -1653,13 +1795,30 @@
    * title absorb the shrink instead, which is the right answer anyway: a title
    * has an ellipsis and a date does not.
    */
+  /* UIX-06 — stated on the metadata run, because `.dh-card__support` is now
+   * `display: contents` in a task row and a `flex` on a box that generates none
+   * is inert. Left on the wrapper, the run stayed shrinkable and the date ran
+   * over the title again at 390px. */
   :is(.dh-collection--tasks, .dh-tasklist)
     .dh-card-collection--list
-    .dh-card__support {
+    .dh-card__metadata {
     flex: none;
   }
 
-  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__metadata {
+  /*
+   * The run gives its TRACK back (UIX-06).
+   *
+   * The 46rem rule above sets the run to an 18rem track so the Project mark and
+   * the date square up into columns. In a phone-narrow list the Project mark,
+   * the quiet tier and the low tier are all gone, so that track reserves 288px
+   * of a 358px row for one date — and every title read "Data…". Written here,
+   * in the LATER and narrower container query, because both are true at 390px
+   * and file order decides between them (the note above learned the same thing).
+   */
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__metadata {
+    inline-size: auto;
     gap: var(--app-space-3);
   }
 
