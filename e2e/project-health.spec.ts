@@ -33,44 +33,65 @@ test.describe("PROJ-02 — Project health", () => {
   }) => {
     await gotoFixture(page, "/projects");
 
+    /*
+     * UIX-02 — ONE attention LINE per card, not a chip plus the sentence
+     * explaining it.
+     *
+     * The contract this asserts is unchanged: exactly one status treatment per
+     * card, health replacing the lifecycle word whenever health has something
+     * to say, and never a meaning carried by colour alone. What changed is the
+     * object — a filled `.dh-pill` beside the title became a state dot and
+     * words in the card's foot — and the wording, which is now built from the
+     * reason's own structured count ("2 overdue") with the evaluator's full
+     * sentence carried alongside for assistive tech.
+     */
     const atRisk = page
       .getByRole("listitem")
       .filter({ hasText: "Conference talk" });
-    await expect(atRisk.getByText("At risk")).toBeVisible();
-    await expect(atRisk.getByText(/past (its|their) due date/)).toBeVisible();
+    const atRiskLine = atRisk.locator(".dh-pcard__attention");
+    await expect(atRiskLine).toHaveCount(1);
+    await expect(atRiskLine).toContainText(/\d+ overdue/);
+    // The evaluator's own sentence rides along for a screen reader, so nothing
+    // is lost by the compact wording. It is deliberately not VISIBLE.
+    await expect(atRiskLine).toContainText(/past (its|their) due date/);
 
     const blocked = page
       .getByRole("listitem")
       .filter({ hasText: "Office move" });
-    await expect(blocked.getByText("Blocked")).toBeVisible();
+    await expect(blocked.locator(".dh-pcard__attention")).toContainText(
+      "All open work waiting",
+    );
 
     /*
-     * Gate D: the collection card carries ONE status treatment, and health
-     * REPLACES the lifecycle word only when health has something to say.
-     * "On track" is the absence of a signal, so a healthy, actively-worked
-     * Project shows its workflow status — "Active" — rather than swapping a
-     * useful word for a vaguer one. The full health vocabulary still appears
-     * on the record, which the panel assertions below cover.
+     * UIX-02 — a healthy, actively-worked Project now reads "On track".
+     *
+     * Gate D showed "Active" here, because the card's ONE chip was the
+     * lifecycle word unless health spoke, and `on_track` counted as silence.
+     * The card's one line is now the health signal wherever health is
+     * evaluated at all, and `on_track` is what it has to say; the workflow word
+     * is what a Project shows when health is deliberately NOT evaluated
+     * (Planned, On hold) — which the cases below cover.
      */
     const onTrack = page
       .getByRole("listitem")
       .filter({ hasText: "Team offsite" });
-    await expect(onTrack.getByText("Active")).toBeVisible();
-    await expect(onTrack.getByText("On track")).toHaveCount(0);
-    // …and it is still exactly one chip, not a lifecycle chip plus a health one.
-    await expect(onTrack.locator(".dh-pill")).toHaveCount(1);
+    await expect(onTrack.locator(".dh-pcard__attention")).toContainText(
+      "On track",
+    );
+    // …and still exactly one treatment, with no filled chip anywhere on it.
+    await expect(onTrack.locator(".dh-pcard__attention")).toHaveCount(1);
+    await expect(onTrack.locator(".dh-pill")).toHaveCount(0);
 
     const stale = page
       .getByRole("listitem")
       .filter({ hasText: "Old archive tidy" });
-    await expect(stale.getByText("Stale")).toBeVisible();
-
-    // Health is never conveyed by colour alone: the state pill carries a data-tone
-    // AND a text label.
-    await expect(atRisk.getByText("At risk")).toHaveAttribute(
-      "data-tone",
-      "danger",
+    await expect(stale.locator(".dh-pcard__attention")).toContainText(
+      "No recent activity",
     );
+
+    // Health is never conveyed by colour alone: the line carries a data-tone
+    // AND its words.
+    await expect(atRiskLine).toHaveAttribute("data-tone", "danger");
   });
 
   test("explains health on the record, resolves a cause, and updates after revalidation", async ({
@@ -157,9 +178,10 @@ test.describe("PROJ-02 — Project health", () => {
       await expect(loadMore).toHaveCount(0);
     }
     // Every card still carries exactly one status treatment after paging —
-    // health rides along on each appended item, and never adds a second chip.
+    // health rides along on each appended item, and never adds a second one.
     for (const card of await page.getByRole("article").all()) {
-      expect(await card.locator(".dh-pill").count()).toBe(1);
+      expect(await card.locator(".dh-pcard__attention").count()).toBe(1);
+      expect(await card.locator(".dh-pill").count()).toBe(0);
     }
   });
 
