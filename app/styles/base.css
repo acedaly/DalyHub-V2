@@ -504,6 +504,41 @@ body {
   margin: 0 0 var(--app-space-2);
 }
 
+/*
+ * UIX-06 — the route error / not-found surface.
+ *
+ * It cannot render the app shell (see `root.tsx`), so it borrows the product's
+ * EMPTY-STATE anatomy instead: centred, one heading, one line, one action. Same
+ * shape as every other "nothing here" in the application, drawn with the same
+ * tokens, so the one screen an owner reaches by accident stops being the one
+ * screen that looks like a different product.
+ */
+.dh-route-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-space-2);
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-route-error h1 {
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+}
+
+.dh-route-error p {
+  margin: 0;
+  max-width: var(--app-width-narrow);
+}
+
+.dh-route-error__actions {
+  margin-block-start: var(--app-space-4);
+}
+
 .page h2,
 .dh-pane-body h2 {
   font-size: var(--md-sys-typescale-title-medium-size);
@@ -521,8 +556,23 @@ body {
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.page a,
-.dh-pane-body a {
+/*
+ * PROSE links inside a generic page or pane body.
+ *
+ * UIX-06 excluded anchors that are BUTTONS. `.dh-btn--primary` paints
+ * `on-primary` on a `primary` container; this rule then repainted the label
+ * `primary` — the same colour as the container — so an anchor styled as a
+ * filled button rendered as an empty violet pill with an invisible label. It
+ * was live on the not-found surface's only action in both appearances, and it
+ * is a 1:1 contrast failure wherever else an `<a class="dh-btn">` sits inside
+ * one of these two containers (WCAG 1.4.3).
+ *
+ * `:not(.dh-btn)` rather than a `.dh-btn` override, because the button already
+ * states its own colour correctly for all five variants — the bug is that a
+ * container rule was reaching into a component.
+ */
+.page a:not(.dh-btn),
+.dh-pane-body a:not(.dh-btn) {
   color: var(--md-sys-color-primary);
 }
 

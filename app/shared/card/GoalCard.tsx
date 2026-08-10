@@ -207,7 +207,22 @@ export function GoalCard({
             {visual ? <div className="dh-gcard__visual">{visual}</div> : null}
           </div>
         ) : note ? (
-          <div className="dh-gcard__note" data-testid="goal-card-note">
+          /*
+           * UIX-06 — `data-detail` decides whether the absence gets a SURFACE.
+           *
+           * The wash exists to hold a qualitative Goal's definition of done,
+           * which is that card's content. Where the owner has not written one,
+           * the box holds the two words "Not measured" and nothing else — and a
+           * full-width tinted slab is then the loudest object on the card,
+           * which is precisely "a chip announcing that something has not been
+           * configured" (§6 rule 3, "an absence is never drawn as a state").
+           * The sentence is still said, once, quietly.
+           */
+          <div
+            className="dh-gcard__note"
+            data-detail={noteDetail ? "true" : "false"}
+            data-testid="goal-card-note"
+          >
             <p className="dh-gcard__note-label">{note}</p>
             {noteDetail ? (
               <p className="dh-gcard__note-detail">{noteDetail}</p>
