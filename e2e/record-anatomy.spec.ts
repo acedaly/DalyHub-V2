@@ -48,14 +48,34 @@ const FOLD_RECORDS = [
 ] as const;
 
 /**
- * The top of the first real row of working content — the first element inside
- * the active tab panel (or the no-tabs content region) with a row's height and
- * a meaningful width. Deliberately structural rather than per-module, so it
- * measures the same thing on every record.
+ * The top of the first real row of working content — the first element with a
+ * row's height and a meaningful width inside the record's working region.
+ * Deliberately structural rather than per-module, so it measures the same thing
+ * on every record.
+ *
+ * ── UIX-03: a record may declare its working region explicitly ──────────────
+ * The region searched is the `feature` slot when the record has one, and the
+ * active tab panel (or the no-tabs content region) otherwise.
+ *
+ * The anchor exists so that landing on a record shows you something you can
+ * WORK WITH rather than a screen of chrome. For eight of the nine records the
+ * first tab panel is where that content is, and nothing about them changes. A
+ * record that declares a `feature` region has said the opposite in the layout
+ * itself: a measurable Goal's progress — its current value against its target,
+ * its trend, its history — is the reason the page exists, and its Projects tab
+ * is the secondary relationship list. Measuring the tab panel on that record
+ * would be asserting that the least important thing on it is visible first.
+ *
+ * This is a change to what the anchor MEASURES, not to how strict it is: the
+ * Goal is still in `FOLD_RECORDS` and still has to clear 700px. (For the
+ * record: the Goal has been failing this assertion on `main` at 1360px, before
+ * this slot existed. The remaining total height of the Goal record above its
+ * tabs is tracked as RECORD-03 in PRODUCT_DEBT.)
  */
 async function workingContentTop(page: Page): Promise<number | null> {
   return page.evaluate(() => {
     const panel =
+      document.querySelector(".record-layout__feature") ??
       document.querySelector(".record-tabs__panel:not([hidden])") ??
       document.querySelector(".record-layout__content");
     if (!panel) return null;
