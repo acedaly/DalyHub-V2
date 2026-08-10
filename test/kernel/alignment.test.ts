@@ -427,7 +427,37 @@ describe("GoalRepository.listGoals — the workspace-wide Alignment collection b
 
     const page = await w.goals.listGoals();
     expect(page.items.map((g) => g.id)).toEqual([goal1.id, goal2.id]);
-    expect(page.items[0]!.area).toEqual({ id: areaA.id, title: "Area A" });
+    /*
+     * UIX-03 — the Area context now carries its IDENTITY as well as its name.
+     *
+     * A Goal has no accent of its own; it inherits its Area's, so every Goal
+     * read resolves the rank and the glyph key off the Area join the title
+     * already comes from. Asserted end to end here rather than only in a
+     * component test, because the rank is computed by a SQL window function
+     * (`ROW_NUMBER()` over creation order) and a component test would happily
+     * pass against a query that never returned it — which is exactly how the
+     * gallery ended up drawing a grey flag on every Goal.
+     */
+    expect(page.items[0]!.area).toEqual({
+      id: areaA.id,
+      title: "Area A",
+      colourRank: 0,
+      iconKey: null,
+    });
+    // The SECOND Area created takes the next rank, so two Areas are two colours.
+    expect(page.items[1]!.area).toMatchObject({
+      id: areaB.id,
+      colourRank: 1,
+    });
+
+    // …and the record read agrees with the collection read about both.
+    const overview = await w.goals.getGoalOverview(goal2.id);
+    expect(overview?.area).toEqual({
+      id: areaB.id,
+      title: "Area B",
+      colourRank: 1,
+      iconKey: null,
+    });
   });
 
   it("paginates deterministically and rejects a cursor issued for another workspace’s scope", async () => {

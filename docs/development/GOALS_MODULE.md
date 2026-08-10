@@ -826,11 +826,24 @@ collection reads the bounded summary instead:
   and a count for a WHOLE page of Goals, in two grouped statements per chunk of
   50 ids (window functions, no N+1);
 - `listMilestoneSummaries(ids)` — completed/total weight, one grouped statement;
-- `goalDetails.listMany(ids)` — the configurations, one statement per chunk.
+- `goalDetails.listMany(ids)` — the configurations, one statement per chunk;
+- **`listMeasurementSeries(ids, { perGoalLimit })` (UIX-03)** — the recent run of
+  readings per Goal, for the gallery card's sparkline. One statement per chunk,
+  with the per-Goal cap applied INSIDE a `ROW_NUMBER()` partition rather than by
+  discarding rows after transferring them, so a workspace with a year of daily
+  weigh-ins on ten Goals moves a few hundred rows and not a few thousand.
 
-`evaluateGoalFromSummary` hands those three readings to the SAME kernel
+`evaluateGoalFromSummary` hands the summary's three readings to the SAME kernel
 evaluator the record uses, so a card can never disagree with a record about the
 same Goal.
+
+**The series is used ONLY to draw.** Every figure on a card still comes from the
+summary-based evaluation; the sparkline is the shape and the numbers beside it
+are the evaluation, which is what guarantees the picture cannot imply a
+different value from the one printed next to it. That is also why the summary
+was not simply replaced by the series: the summary picks three readings chosen
+for arithmetic (first, comparison, latest), and drawing those three as a line
+would assert a smooth path through a history that may have wandered.
 
 Today's 7-day workload trend is two bounded aggregate statements for the whole
 week (a `SUM(CASE …)` column per day), with the owner-calendar day boundaries
@@ -894,4 +907,83 @@ on the primary event having been appended.
   which discards a partially-typed `-` or `79.`), and the sheet's Save lives in
   the keyboard-safe sticky footer via the shared `Form`'s `id`.
 - The progress section carries a real (visually hidden) `<h2>`, so its `<h3>`
-  sub-headings do not break the record's heading order.
+  sub-headings do not break the record's heading order, and (UIX-03) the section
+  is a named `feature` landmark ("Progress") a screen-reader user can jump to.
+- **UIX-03 — the chart's references and its readout.** The target and the
+  baseline are distinguished by DASH PATTERN and by a text tag pinned to each
+  line, never by hue; both are also named in the caption. The plot is ONE tab
+  stop with arrow-key stepping and a `role="status"` readout, rather than a
+  focus target per reading — a year of weigh-ins would otherwise put fifty tab
+  stops between the chart and the next control, and every value it can reveal is
+  already listed in the history below.
+- **UIX-03 — the sparkline is `aria-hidden`**, and it is the only chart in
+  DalyHub that is. It sits beside its card's reading, target and percentage as
+  ordinary text, so a summary would be a fourth reading of announced facts. A
+  chart that is the ONLY statement of its data is `TrendLine`, which is
+  `role="img"` with a required summary.
+
+## The Goals presentation contract (UIX-03, August 2026)
+
+GOAL-02 built the measurement model; UIX-03 is the pass that got it onto the
+screen. **No domain rule, measurement type, formula or table changed.** What
+changed is what each surface says and how it says it, and this section is the
+authority on that.
+
+### Which surface says what
+
+| Surface | Leads with | Visualisation | Density |
+|---|---|---|---|
+| **Today** | title, reading, target, one state word | the bar | glance — no remainder, no chart |
+| **Gallery card** (`.dh-gcard`) | the READING, then `from 85 kg → 70 kg` | a sparkline where history supports one, else the bar alone | choice — state, distance, deadline |
+| **Record** (`feature` region) | the **Start · Now · Target · Remaining** strip | the full `TrendLine`, target on the scale | everything — pace, chart, history, stages |
+
+### Identity
+
+A Goal has **no accent of its own**; it inherits its Area's `colourRank` and
+`iconKey`, resolved on every Goal read off the Area join the title already comes
+from (`GoalAreaContext`). The rank is `ROW_NUMBER()` over Area creation order —
+the identical expression `d1-project-repository.ts` uses, so two repositories
+cannot disagree about which colour an Area is. One rank paints the mark, the wash
+behind the reading, the progress fill and the sparkline.
+
+Do not parse Goal titles for colour, and do not add a Goals-only ramp.
+
+### The vocabulary, and where it lives
+
+All of it is in `~/shared/goal-progress/goal-progress-view.ts`, React-free, so
+Today and the Goals module cannot describe one Goal differently:
+
+| Function | Says | Refuses |
+|---|---|---|
+| `goalJourneyLabel` | `from 85 kg → 70 kg`; `of 12 books` | `null` for milestone/manual (their "target" is a scale, not a choice) and when no target is set |
+| `goalRemainingLabel` | `9.3 kg to go` | `null` once achieved — "0 kg to go" is true and useless |
+| `goalOverTargetLabel` | `113% of target`, from the UNCLAMPED fraction | `null` at or below the target |
+| `goalAbsenceNote` | `Not measured` / `No measurement recorded yet` / `No stages yet` | `null` when there IS a reading — three different absences, worded as three |
+| `goalMatchesCollectionView` | the All / On track / Needs attention / Completed partition | inventing a status; `completed` is the SPINE's explicit completion, never derived "achieved" |
+
+### The bar shows achievement; the chart shows direction
+
+A decreasing Goal's **progress bar fills left to right** as the owner approaches
+the target — it is a measure of how far along the journey they are, not of which
+way the number moved. The **chart** draws the raw values, so a weight Goal's line
+falls. Both are correct, and they are answering different questions.
+
+### The chart's vertical domain includes the target
+
+`TrendLine` scales to the readings AND the target (`scaleToTarget`, default
+`true`). A Goal a third of the way there therefore draws its line across the top
+third of the plot, and the empty space below it is the distance still to cover.
+
+This was the single most consequential presentation bug UIX-03 fixed: the old
+reading-only domain dropped the target line entirely whenever it fell outside the
+readings, which for a weight Goal is *always*, until the very end.
+
+### Legacy and qualitative Goals
+
+A Goal with no measurement is **not 0% done**. Its card shows `Not measured`
+where the reading would be, its **definition of done** takes the space the
+reading would have had, it draws no outcome bar, and its one state word is its
+ALIGNMENT — the question ADR-040 built this collection to answer, and genuinely
+the only story that card has. If it has contributing Projects it also carries the
+contribution bar and summary, with no percentage figure beside the bar: a bare
+`0%` next to the words "Not measured" reads as a claim about the Goal.

@@ -395,10 +395,174 @@ export function goalTargetLabel(
   return `Target ${formatMeasurementValue(progress.target, progress.unit)}`;
 }
 
-/** The chart's required text equivalent, stating direction and span in words. */
+/**
+ * UIX-03 — the JOURNEY, as one line: "from 85 kg → 70 kg".
+ *
+ * The single most useful sentence a Goal card can carry, and the one the old
+ * card had nowhere to put. A percentage is only checkable if the reader knows
+ * where the journey started: "38%" beside "79.3 kg" is a claim, and "38%"
+ * beside "79.3 kg, from 85 kg → 70 kg" is arithmetic anyone can verify.
+ *
+ * Three shapes, because three kinds of Goal read differently in English:
+ *   - `target_value` — "from 85 kg → 70 kg", the full journey;
+ *   - `accumulation` — "of 12 books", because counting up from nothing has no
+ *     interesting start and "from 0 books → 12 books" is a worse sentence;
+ *   - `milestone`/`manual` — `null`. A milestone Goal's reading is already
+ *     "2 of 5", and a manual one's target is the number 100, which nobody set.
+ *
+ * `null` whenever the target is unknown: a Goal that has been told HOW it is
+ * measured but not WHAT success is has no journey to state yet.
+ */
+export function goalJourneyLabel(
+  progress: GoalProgressEvaluation,
+): string | null {
+  if (!progress.measured || progress.target === null) return null;
+  if (progress.type === "milestone" || progress.type === "manual") return null;
+  const target = formatMeasurementValue(progress.target, progress.unit);
+  if (progress.type === "accumulation") return `of ${target}`;
+  if (progress.baseline === null) return `Target ${target}`;
+  return `from ${formatMeasurementValue(progress.baseline, progress.unit)} → ${target}`;
+}
+
+/**
+ * What is left, as a phrase for a card's state line: "9.3 kg to go".
+ *
+ * `null` once the target is reached, because "0 kg to go" is a worse sentence
+ * than the "Target achieved" the status already says — and null whenever the
+ * distance is unknown, rather than a zero standing in for an absence.
+ */
+export function goalRemainingLabel(
+  progress: GoalProgressEvaluation,
+): string | null {
+  if (!progress.measured || progress.achieved) return null;
+  if (progress.remaining === null || progress.remaining <= 0) return null;
+  if (progress.type === "milestone") {
+    const left = (progress.target ?? 0) - (progress.current ?? 0);
+    return left > 0 ? `${left} to go` : null;
+  }
+  return `${formatMeasurementValue(progress.remaining, progress.unit)} to go`;
+}
+
+/**
+ * "113% of target" — stated ONLY when the target was genuinely passed.
+ *
+ * The progress bar caps at 100% because a bar cannot honestly draw more, so
+ * this is where the extra goes. It reads from the UNCLAMPED fraction, which is
+ * the reason the evaluator keeps one.
+ */
+export function goalOverTargetLabel(
+  progress: GoalProgressEvaluation,
+): string | null {
+  if (!progress.measured || progress.progressFraction === null) return null;
+  if (progress.progressFraction <= 1.005) return null;
+  return `${Math.round(progress.progressFraction * 100)}% of target`;
+}
+
+/**
+ * The honest sentence for a Goal with no reading to show, and the reason.
+ *
+ * Three distinct absences, deliberately worded as three different states rather
+ * than collapsed into one "no data": a Goal nobody has told DalyHub how to
+ * measure is not the same as one configured this morning with nothing logged
+ * yet, and neither is a failure.
+ */
+export function goalAbsenceNote(
+  progress: GoalProgressEvaluation,
+): string | null {
+  if (!progress.measured) return "Not measured";
+  if (progress.type === "milestone" && (progress.target ?? 0) <= 0) {
+    return "No stages yet";
+  }
+  if (progress.current === null) return "No measurement recorded yet";
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Collection views                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * UIX-03 — the Goals collection's status VIEWS.
+ *
+ * Every one is a partition of statuses the evaluator already produces, so the
+ * filter can never disagree with the word printed on the card, and no status
+ * was invented to populate a tab. "Attention" deliberately pairs
+ * `needs_attention` with `overdue`: both mean the Goal is behind something the
+ * owner themselves set, which is one question, not two.
+ *
+ * `completed` is the SPINE's explicit completion, never the derived "target
+ * achieved" — a Goal whose reading has passed its target is not finished until
+ * the owner says so, and conflating the two is exactly the semantics §30 warns
+ * against. It is therefore resolved by the caller from `completedAt`, not here.
+ */
+export const GOAL_COLLECTION_VIEWS = [
+  "all",
+  "on_track",
+  "attention",
+  "completed",
+] as const;
+
+export type GoalCollectionView = (typeof GOAL_COLLECTION_VIEWS)[number];
+
+export const GOAL_COLLECTION_VIEW_LABELS: Readonly<
+  Record<GoalCollectionView, string>
+> = {
+  all: "All",
+  on_track: "On track",
+  attention: "Needs attention",
+  completed: "Completed",
+};
+
+export function parseGoalCollectionView(
+  value: string | null,
+): GoalCollectionView {
+  return value !== null &&
+    (GOAL_COLLECTION_VIEWS as readonly string[]).includes(value)
+    ? (value as GoalCollectionView)
+    : "all";
+}
+
+/**
+ * Does this Goal belong in the given view?
+ *
+ * `completed` is asked FIRST and answered from explicit completion alone, so a
+ * finished Goal appears once — in "Completed" — rather than also under whatever
+ * its last reading implied.
+ */
+export function goalMatchesCollectionView(
+  view: GoalCollectionView,
+  goal: {
+    readonly completed: boolean;
+    readonly status: GoalProgressStatus;
+  },
+): boolean {
+  if (view === "completed") return goal.completed;
+  if (goal.completed) return view === "all";
+  switch (view) {
+    case "on_track":
+      return goal.status === "on_track" || goal.status === "ahead";
+    case "attention":
+      return goal.status === "needs_attention" || goal.status === "overdue";
+    default:
+      return true;
+  }
+}
+
+/**
+ * The chart's required text equivalent, stating direction and span in words.
+ *
+ * UIX-03 takes an optional date formatter. This sentence is rendered VISIBLY
+ * beneath the chart as well as being its accessible label, and it was the one
+ * place on the Goal record printing raw `2026-06-10` ISO dates beside a page
+ * that says "10 Jun 2026" everywhere else. The formatter is injected rather than
+ * imported so this module stays free of the date package (and of a dependency on
+ * the Tasks view-model), which is the same reason `evaluateGoalProgress` takes
+ * the owner's today as an argument.
+ */
 export function goalTrendSummaryText(
   progress: GoalProgressEvaluation,
   points: readonly { readonly value: number; readonly measuredOn: string }[],
+  formatDate: (iso: string) => string = (iso) => iso,
 ): string {
   if (points.length < 2) {
     return progress.current === null
@@ -417,10 +581,10 @@ export function goalTrendSummaryText(
   return `${points.length} measurements from ${formatMeasurementValue(
     first.value,
     progress.unit,
-  )} on ${first.measuredOn} to ${formatMeasurementValue(
+  )} on ${formatDate(first.measuredOn)} to ${formatMeasurementValue(
     last.value,
     progress.unit,
-  )} on ${last.measuredOn} — ${movement}.`;
+  )} on ${formatDate(last.measuredOn)} — ${movement}.`;
 }
 
 /**

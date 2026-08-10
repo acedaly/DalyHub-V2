@@ -21,6 +21,7 @@ import {
   validateSpineLimit,
 } from "~/kernel/spine";
 import { GOAL_ALIGNMENT_DISPLAY_RANK } from "~/kernel/alignment";
+import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import {
   decodeGoalAlignmentCursorForScope,
   decodeGoalCursorForScope,
@@ -66,7 +67,39 @@ import { likeContains, likePrefix } from "./like-pattern";
 const EFFECTIVE_UPDATED_AT_EXPR =
   "(CASE WHEN gd.updated_at IS NOT NULL AND gd.updated_at > ge.updated_at THEN gd.updated_at ELSE ge.updated_at END)";
 
-interface GoalOverviewRow {
+/**
+ * UIX-03 — the AREA identity every Goal read now resolves.
+ *
+ * A Goal inherits its Area's accent, so every read that already joins the Area
+ * for its title also ranks it. The rank is derived from immutable creation
+ * facts — `ROW_NUMBER()` over `(created_at, id)`, the identical expression
+ * `d1-project-repository.ts` uses — so the colour survives refresh, rename,
+ * re-sorting and the creation of other Areas, and two repositories can never
+ * disagree about which colour an Area is.
+ */
+const AREA_RANKS_CTE = `area_ranks AS (
+           SELECT id,
+                  ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
+                    AS colour_rank
+           FROM entities
+           WHERE workspace_id = ? AND type = '${AREA}'
+         )`;
+
+/** The Area's rank and chosen glyph, joined off the Area the Goal resolved to. */
+const AREA_IDENTITY_JOINS = `
+  LEFT JOIN area_ranks arank ON arank.id = ae.id
+  LEFT JOIN area_details adet
+    ON adet.workspace_id = ae.workspace_id AND adet.entity_id = ae.id`;
+
+const AREA_IDENTITY_COLUMNS = `arank.colour_rank AS area_colour_rank,
+                  adet.icon_key AS area_icon_key`;
+
+interface GoalAreaIdentityRow {
+  readonly area_colour_rank: number | null;
+  readonly area_icon_key: string | null;
+}
+
+interface GoalOverviewRow extends GoalAreaIdentityRow {
   readonly id: string;
   readonly workspace_id: string;
   readonly title: string;
@@ -89,7 +122,7 @@ interface GoalProjectFactBatchRow extends GoalProjectFactRow {
   readonly goal_id: string;
 }
 
-interface GoalListRow {
+interface GoalListRow extends GoalAreaIdentityRow {
   readonly id: string;
   readonly title: string;
   readonly created_at: string;
@@ -262,9 +295,11 @@ export class D1GoalRepository implements GoalRepository {
     const result = await this.#run(
       this.#db
         .prepare(
-          `SELECT ge.id, ge.workspace_id, ge.title, ge.created_at, ge.updated_at,
+          `WITH ${AREA_RANKS_CTE}
+           SELECT ge.id, ge.workspace_id, ge.title, ge.created_at, ge.updated_at,
                   ${EFFECTIVE_UPDATED_AT_EXPR} AS effective_updated_at,
-                  gsr.completed_at, ae.id AS area_id, ae.title AS area_title
+                  gsr.completed_at, ae.id AS area_id, ae.title AS area_title,
+                  ${AREA_IDENTITY_COLUMNS}
            FROM entity_links gl
            JOIN entities ge
              ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
@@ -275,12 +310,12 @@ export class D1GoalRepository implements GoalRepository {
              ON gd.workspace_id = ge.workspace_id AND gd.entity_id = ge.id
            JOIN entities ae
              ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
-                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
+                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL${AREA_IDENTITY_JOINS}
            WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
                  AND gl.deleted_at IS NULL AND ge.id = ?
            LIMIT 1`,
         )
-        .bind(this.#workspaceId, goalId),
+        .bind(this.#workspaceId, this.#workspaceId, goalId),
     );
     const row = ((result.results ?? []) as GoalOverviewRow[])[0];
     return row ? this.#toGoalOverview(row) : null;
@@ -346,8 +381,10 @@ export class D1GoalRepository implements GoalRepository {
     const result = await this.#run(
       this.#db
         .prepare(
-          `SELECT ge.id, ge.title, ge.created_at, ge.updated_at, gsr.completed_at,
-                  ae.id AS area_id, ae.title AS area_title
+          `WITH ${AREA_RANKS_CTE}
+           SELECT ge.id, ge.title, ge.created_at, ge.updated_at, gsr.completed_at,
+                  ae.id AS area_id, ae.title AS area_title,
+                  ${AREA_IDENTITY_COLUMNS}
            FROM entity_links gl
            JOIN entities ge
              ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
@@ -356,13 +393,18 @@ export class D1GoalRepository implements GoalRepository {
              ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
            JOIN entities ae
              ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
-                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
+                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL${AREA_IDENTITY_JOINS}
            WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
                  AND gl.deleted_at IS NULL${cursorClause}
            ORDER BY ge.created_at ASC, ge.id ASC
            LIMIT ?`,
         )
-        .bind(this.#workspaceId, ...cursorParams, fetchLimit),
+        .bind(
+          this.#workspaceId,
+          this.#workspaceId,
+          ...cursorParams,
+          fetchLimit,
+        ),
     );
     const rows = (result.results ?? []) as GoalListRow[];
     const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
@@ -475,10 +517,12 @@ export class D1GoalRepository implements GoalRepository {
                   AND a.type IN (${MEANINGFUL_TYPE_LIST})
              GROUP BY ct.goal_id
            ),
+           ${AREA_RANKS_CTE},
            ranked AS (
              SELECT ge.id AS id, ge.title AS title, ge.created_at AS created_at,
                     ge.updated_at AS updated_at, gsr.completed_at AS completed_at,
                     ae.id AS area_id, ae.title AS area_title,
+                    ${AREA_IDENTITY_COLUMNS},
                     ${rankCase} AS display_rank
              FROM entity_links gl
              JOIN entities ge
@@ -488,14 +532,15 @@ export class D1GoalRepository implements GoalRepository {
                ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
              JOIN entities ae
                ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
-                  AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
+                  AND ae.type = '${AREA}' AND ae.deleted_at IS NULL${AREA_IDENTITY_JOINS}
              LEFT JOIN contrib c ON c.goal_id = ge.id
              LEFT JOIN activity act ON act.goal_id = ge.id
              WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
                    AND gl.deleted_at IS NULL
            )
            SELECT id, title, created_at, updated_at, completed_at,
-                  area_id, area_title, display_rank
+                  area_id, area_title, area_colour_rank, area_icon_key,
+                  display_rank
            FROM ranked
            WHERE 1 = 1${cursorClause}
            ORDER BY display_rank ASC, created_at ASC, id ASC
@@ -505,6 +550,10 @@ export class D1GoalRepository implements GoalRepository {
           this.#workspaceId, // contrib
           this.#workspaceId, // activity inner
           this.#workspaceId, // activity subjects
+          // Bind order follows the order the placeholders appear in the SQL
+          // TEXT: `area_ranks` is declared before `ranked`, so its workspace
+          // binds before the rank CASE's boundary inside `ranked`'s SELECT.
+          this.#workspaceId, // area_ranks
           input.activeBoundaryIso, // rank CASE active/neglected boundary (exact)
           this.#workspaceId, // ranked goals
           ...cursorParams, // outer keyset (rank, rank, createdAt, createdAt, id)
@@ -713,7 +762,31 @@ export class D1GoalRepository implements GoalRepository {
         row.completed_at === null
           ? null
           : fromStorageTimestamp(row.completed_at),
-      area: { id: row.area_id, title: row.area_title },
+      area: this.#toAreaContext(row),
+    };
+  }
+
+  /**
+   * The Area context, with its identity.
+   *
+   * The rank is `null` — the neutral container — only when the join could not
+   * rank the Area at all; `0` is a legitimate rank (the workspace's first Area),
+   * so it must survive. The icon key is normalised on the way OUT, so a key
+   * removed from the vocabulary in a later release degrades to the Area's
+   * default glyph rather than reaching a component that cannot draw it.
+   */
+  #toAreaContext(row: {
+    readonly area_id: string;
+    readonly area_title: string;
+    readonly area_colour_rank: number | null;
+    readonly area_icon_key: string | null;
+  }) {
+    return {
+      id: row.area_id,
+      title: row.area_title,
+      colourRank:
+        row.area_colour_rank === null ? null : Number(row.area_colour_rank),
+      iconKey: normaliseEntityIconKey(row.area_icon_key),
     };
   }
 
@@ -728,7 +801,7 @@ export class D1GoalRepository implements GoalRepository {
         row.completed_at === null
           ? null
           : fromStorageTimestamp(row.completed_at),
-      area: { id: row.area_id, title: row.area_title },
+      area: this.#toAreaContext(row),
     };
   }
 

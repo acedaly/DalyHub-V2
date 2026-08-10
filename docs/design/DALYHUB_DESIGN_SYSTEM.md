@@ -186,7 +186,95 @@ Three rules hold across every surface that draws one:
 Density is by surface, and it is a ladder rather than one component at three
 sizes: Today shows a **glance** (title, value, one visualisation, one state);
 the gallery card shows a **choice** (identity, title, value, bar, one fact); the
-record shows the **whole thing** (hero figure, pace, trend, history, stages).
+record shows the **whole thing** (metric strip, pace, trend, history, stages).
+
+### 6.1 The Goal card (UIX-03)
+
+A Goal is an OUTCOME being moved toward; a Project is work being moved forward.
+UIX-02 gave Projects `.dh-pcard` for that reason and left Goals on the generic
+entity card, so the gallery answered a Project's question on the Goals screen.
+`.dh-gcard` is the third family in the one shared grid:
+
+```
+┌────────────────────────────────────────┐
+│ [mark]  Reach 70 kg                 ⋯  │
+│         Health & Fitness               │
+│                                        │
+│ 79.3 kg                    ╲╱╲___      │  ← the outcome, and its shape
+│ from 85 kg  →  70 kg                   │  ← the journey, in words
+│                                        │
+│ ███████░░░░░░░░░░░░░░░░  38%           │
+│ On track · 9.3 kg to go · 10 Dec 2026  │  ← state, distance, deadline
+└────────────────────────────────────────┘
+```
+
+| Rule | Why |
+| --- | --- |
+| **The reading leads, not the percentage** | "79.3 kg" is what the owner set out to change; "38%" is a derivation of it. The Project card inverts this because a Project's own unit — a task — is not what its owner counts |
+| **The journey is stated** (`from 85 kg → 70 kg`) | A percentage is only checkable if the reader knows where it started. This is the one fact neither the reading nor the target carries |
+| **One visual, chosen by the data** | A sparkline where history supports one; the bar alone where it does not. Never a flat line drawn from a single reading, and never two drawings of one number |
+| **An absence is drawn as an absence** | No bar for a Goal with no measurement — its definition of done takes the space the reading would have had |
+
+### 6.2 Goal identity is the AREA's
+
+A Goal has no accent of its own. It inherits its Area's rank and glyph — the
+same rule a Project follows (D21/D22) — resolved server-side on every Goal read
+and applied ONCE per card: the mark, the wash behind the reading, the bar and
+the sparkline all take it. A grid of Goals therefore groups visually by the part
+of life each serves without needing a heading.
+
+Before UIX-03 every Goal in the gallery drew the same neutral grey flag, and
+Today derived a tone from a hash of the Goal's id — stable, and stable is not
+the same as meaningful: one Goal was green on Today and grey in the gallery, and
+neither colour said anything.
+
+### 6.3 The trend chart shows the target
+
+`TrendLine` scales its vertical domain to include the **target**, not only the
+readings. The consequence is deliberate: a Goal a third of the way there draws
+its line across the top third of the plot, and the distance still to cover is
+the empty space between the line and the dashed reference.
+
+That empty space is the information. The previous behaviour — scale to the
+readings, draw the target only if it happened to land inside them — meant the
+product's own acceptance Goal (85 kg → 79.3 kg, target 70 kg) never showed its
+target at all: the chart answered "have I moved?" and silently refused "am I
+getting there?".
+
+Supporting rules: three quiet gridlines and no numeric axis (the range is real
+text beneath the plot, which wraps and scales); the target and the baseline are
+told apart by **dash pattern** and by a pinned text tag, never by hue; and the
+plot is ONE tab stop with arrow-key stepping rather than one focus target per
+reading, because a year of weigh-ins would otherwise put fifty tab stops between
+the chart and the next control.
+
+### 6.4 Sparkline vs. TrendLine
+
+| | `Sparkline` | `TrendLine` |
+| --- | --- | --- |
+| Where | gallery card | Goal record |
+| Axes, grid, labels | none | range + dates as text, three gridlines |
+| Accessibility | `aria-hidden` — every fact it shows is printed beside it | `role="img"` with a required summary, rendered visibly too |
+| Minimum data | two readings | two readings |
+
+The accessibility split is the important line. A sparkline sits beside its
+card's reading, target and percentage, so a summary would be a fourth reading of
+announced facts. A `TrendLine` is the only statement of its series, so it is
+never decorative.
+
+### 6.5 The record is a workspace, not a summary
+
+A measurable Goal's progress is the reason its record exists, so it is a
+top-level region (`RecordLayout`'s `feature` slot) **above** the summary band —
+not, as before UIX-03, the band's `description`, which put a chart inside a
+summary card inside the record. The band keeps what RECORD-01 designed it for:
+the Project contribution and the alignment state, which describe the WORK.
+
+The region opens with a labelled metric strip — **Start · Now · Target ·
+Remaining** — with `Now` a rung larger than its neighbours, because start and
+target are fixed facts the owner chose and the current value is the one that
+moved. Once the target is passed, the fourth column switches from `Remaining` to
+`Achieved · 113% of target`: "0 kg to go" is true and useless.
 
 ## 7. Interaction principles
 
@@ -246,9 +334,9 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 
 | # | Decision | Why it is still outstanding |
 | --- | --- | --- |
-| A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet. VIS-01 quietened the two charts a Goal draws (a 1.5px line, smaller readings) without unifying the five |
+| A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | Analytics is the surface that needs it, and the seeded workspace holds no Reviews, so it cannot be reviewed by eye yet. VIS-01 quietened the two charts a Goal draws; UIX-03 added the **sparkline** to `~/shared/charts` and gave `TrendLine` its grid, references and readout, so four of the five now exist as shared primitives — what is outstanding is the unifying pass across them, not the components |
 | A6 | **Component consolidation** across buttons, chips, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn. UIX-02 took the **tabs** out of this list: the view rail is now one shared `.dh-viewtabs`, drawn once and consumed by both the saved-view switcher and `ViewTabs` |
-| A9 | **A Goal trend on Today.** A target-value Goal's card shows a bar where its shape would say more | Today loads a bounded per-Goal SUMMARY, not history (`goal-progress.ts`): a sparkline needs a series per Goal, which is a read change rather than a visual one, and the honesty rule that a section shows only what it has already measured applies to the picture as much as to the number |
+| A9 | **A Goal trend on Today.** A target-value Goal's card shows a bar where its shape would say more | UIX-03 built the read a sparkline needs (`listMeasurementSeries`, one grouped statement for a page) and used it on the **gallery** card, but deliberately NOT on Today: Today's row already carries a bar, and a second drawing of the same Goal would be the two-visuals-per-card rule broken on the one surface that must stay a glance. Today gained the Area accent instead. Revisit only if the bar goes |
 
 **Delivered since this section was written.** A1 (measurable Goals) shipped in
 GOAL-02 and is described in [§6](#6-measurable-goals--the-visual-language).
@@ -257,7 +345,9 @@ strength), A4 (D16), A7 (D17) and A8 (D14), and answered A3 by going the other
 way: the *hero* headline came DOWN a rung so it stops tying with the page title,
 rather than the page title going up. Hierarchy is size, space, tone and only
 then weight. UIX-02 delivered the **tabs** half of A6, and consolidated the two
-overlapping identity ramps into one (D22).
+overlapping identity ramps into one (D22). UIX-03 delivered the Goal card
+family, Goal identity, and the sparkline half of A5 — see
+[§6.1](#61-the-goal-card-uix-03) onward.
 
 ---
 

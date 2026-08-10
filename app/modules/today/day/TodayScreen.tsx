@@ -72,6 +72,7 @@ import { useRegisterContextualActions } from "~/shared/commands/CommandContextPr
 import type { AppAction } from "~/shared/commands/action";
 import { StatCard, StatCardItem, StatCardRow } from "~/shared/card";
 import { AccentIcon } from "~/shared/entity";
+import { areaAccentForRank } from "~/shared/pill";
 import { ProgressRing } from "~/shared/charts";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
@@ -84,7 +85,6 @@ import {
   TaskIcon,
   TrendingUpIcon,
   ToneIcon,
-  toneForKey,
   type ToneName,
 } from "~/shared/icons";
 import { ComparisonBars } from "~/shared/charts";
@@ -861,26 +861,40 @@ function GoalProgressSection({
             );
             return (
               <li
-                className="dh-today__goal dh-tone"
-                data-tone={toneForKey(goal.id)}
+                className="dh-today__goal"
+                /*
+                 * UIX-03 — the tile's wash is the AREA's accent, the same one
+                 * the mark above it and the Goal's gallery card carry. UIX-01
+                 * tinted it from a hash of the Goal's id, which spent colour
+                 * without meaning anything; the tile is just as colourful now
+                 * and the colour says which part of life the Goal serves.
+                 */
+                data-accent={
+                  goal.areaColourRank === null
+                    ? undefined
+                    : String(areaAccentForRank(goal.areaColourRank))
+                }
                 key={goal.id}
               >
                 {/*
-                 * UIX-01 — a compact Goal card leads with a tonal mark.
+                 * UIX-03 — the mark is the Goal's AREA identity.
                  *
-                 * The reference's Goal row is the most colourful thing on
-                 * Today, and deliberately so: four measurable Goals are four
-                 * different pursuits, and colour is what tells them apart at a
-                 * glance. A Goal carries no persisted icon or colour of its own
-                 * (an Area does; a Goal does not), so the tone is derived
-                 * DETERMINISTICALLY from the Goal's id — stable across renders,
-                 * sessions and devices, and never from the title's words. It is
-                 * identity, not status: the state word beside the bar is what
-                 * says how the Goal is going.
+                 * UIX-01 derived a tone from a hash of the Goal's id, because a
+                 * Goal genuinely had no persisted colour then. It has one now —
+                 * its Area's, the same rule a Project follows — so this is the
+                 * mark the Goals gallery draws, on the same rank, with the same
+                 * glyph. Four measurable Goals are still four colours; the
+                 * difference is that the colour now MEANS the part of life each
+                 * one serves, and the same Goal is the same colour on both
+                 * screens. It is identity, never status: the state word beside
+                 * the bar is what says how the Goal is going.
                  */}
-                <ToneIcon size="sm" tone={toneForKey(goal.id)}>
-                  <GoalIcon />
-                </ToneIcon>
+                <AccentIcon
+                  entityType="goal"
+                  iconKey={goal.areaIconKey}
+                  colourRank={goal.areaColourRank}
+                  size="sm"
+                />
                 {/*
                  * VIS-01 — the head is the TITLE, and nothing else.
                  *

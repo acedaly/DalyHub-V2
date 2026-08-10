@@ -44,6 +44,12 @@
   overflow: visible;
 }
 
+/* The frame owns the plot's height (it is the positioning context for the
+ * reference tags), so the SVG fills it rather than setting it. */
+.dh-linechart__frame > .dh-linechart__plot {
+  block-size: 100%;
+}
+
 /*
  * VIS-01 — a thinner line and quieter readings.
  *
@@ -103,7 +109,107 @@
   overflow-wrap: anywhere;
 }
 
-.dh-linechart__target-note {
+.dh-linechart__ref-note {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* -------------------------------------------------------------------------- */
+/* UIX-03 — journey references, grid and the interactive readout               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The focusable plot frame. ONE tab stop for the whole series, so the ring is
+ * drawn around the chart rather than around each of fifty readings.
+ */
+.dh-linechart__frame {
+  position: relative;
+  border-radius: var(--md-sys-shape-corner-small);
+  min-inline-size: 0;
+}
+
+/*
+ * A reference line's short label, pinned to its own height.
+ *
+ * HTML rather than SVG `<text>`: the plot is stretched with
+ * `preserveAspectRatio="none"`, which would squash a glyph by whatever factor
+ * the container imposes. `translateY(-50%)` centres the label on the rule, and
+ * it sits at the inline end so it never covers the start of the series.
+ */
+.dh-linechart__tag {
+  position: absolute;
+  inset-inline-end: 0;
+  transform: translateY(-50%);
+  padding-inline: var(--app-space-1);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface-variant);
+  /* A sliver of the surface behind the text, so the dashed rule does not run
+   * through the glyphs. */
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/*
+ * The grid. Deliberately at the very bottom of the contrast range: it exists so
+ * the eye can judge a level, and the moment it is legible in its own right it
+ * competes with the line it is there to support.
+ */
+.dh-linechart__grid {
+  stroke: var(--md-sys-color-outline-variant);
+  stroke-width: 1;
+  opacity: 0.65;
+}
+
+/*
+ * The BASELINE — where the owner started. Dotted, and quieter than the target:
+ * it is context behind the line, not the thing being aimed at. Distinguished
+ * from the target by its dash pattern as well as its tone, because the two
+ * references must not be told apart by colour alone.
+ */
+.dh-linechart__baseline {
+  stroke: var(--md-sys-color-outline);
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+  opacity: 0.7;
+}
+
+/* The target: quiet, dashed, and always named in the caption beside it. */
+.dh-linechart__target {
+  stroke: var(--md-sys-color-outline);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+/* The pointer bands. Invisible, full height, and one per reading, so a
+   fingertip selects the nearest measurement rather than having to find a dot. */
+.dh-linechart__hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* The selected reading, while pointing at or arrowing through the chart. */
+.dh-linechart__point[data-selected="true"] {
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 8;
+}
+
+/*
+ * The readout keeps its box when nothing is selected, so pointing at the chart
+ * never reflows the page under the cursor.
+ */
+.dh-linechart__readout {
+  margin: 0;
+  min-block-size: 1.5em;
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-linechart__readout[data-empty="true"] {
   color: var(--md-sys-color-on-surface-variant);
 }
 
@@ -112,8 +218,55 @@
   .dh-linechart__point {
     stroke: CanvasText;
   }
-  .dh-linechart__target {
+  .dh-linechart__target,
+  .dh-linechart__baseline,
+  .dh-linechart__grid {
     stroke: GrayText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sparkline                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The card-sized trend. No axes, no labels, no grid — every fact it could
+ * carry is already printed beside it, which is why it is `aria-hidden` and why
+ * it is allowed to be this small.
+ */
+.dh-spark {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  overflow: visible;
+}
+
+.dh-spark__line {
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 1.5;
+  opacity: 0.85;
+}
+
+.dh-spark__end {
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 4.5;
+}
+
+/*
+ * Tone by movement TOWARDS the target, never by the sign of the gradient — a
+ * weight coming down and savings going up are both improving. It is a nuance on
+ * an already-quiet mark: the card states the status in words, and the sparkline
+ * is `aria-hidden`, so nothing depends on reading this.
+ */
+.dh-spark[data-tone="regressing"] .dh-spark__line,
+.dh-spark[data-tone="regressing"] .dh-spark__end {
+  stroke: var(--md-sys-color-on-surface-variant);
+}
+
+@media (forced-colors: active) {
+  .dh-spark__line,
+  .dh-spark__end {
+    stroke: CanvasText;
   }
 }
 

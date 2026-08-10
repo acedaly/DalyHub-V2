@@ -96,18 +96,31 @@ describe("a measurable Goal", () => {
     measurement("m3", "2026-08-09", 79.0),
   ];
 
-  it("states the current value, the target, the progress and what remains", () => {
+  it("states START, NOW, TARGET and what remains as four labelled figures", () => {
     renderPanel({ measurements: series });
+    const strip = screen.getByTestId("goal-metrics");
+    /*
+     * UIX-03 — the record answers "where did I start, where am I, where am I
+     * going" as a labelled strip rather than as one run-on sentence in which the
+     * baseline was the last clause. Each figure is asserted with its own TERM,
+     * because the pairing is the point: a "79 kg" with no "Now" above it is the
+     * layout this replaced.
+     */
+    const figureFor = (term: string) =>
+      within(strip)
+        .getByText(term)
+        .closest(".dh-goal-measure__metric")
+        ?.querySelector("dd")?.textContent;
+
+    expect(figureFor("Start")).toBe("85 kg");
+    expect(figureFor("Now")).toBe("79 kg");
+    expect(figureFor("Target")).toBe("70 kg");
+    expect(figureFor("Remaining")).toBe("9 kg to go");
+
     const panel = screen.getByTestId("goal-progress");
-    // The headline value. It also appears in the history row for the same day,
-    // which is correct — this asserts the PROMINENT one.
-    expect(panel.querySelector(".dh-goalprogress__current")?.textContent).toBe(
-      "79 kg",
-    );
-    expect(within(panel).getByText("Target 70 kg")).toBeInTheDocument();
-    expect(within(panel).getByText(/40%/)).toBeInTheDocument();
-    expect(within(panel).getByText(/9 kg remaining/)).toBeInTheDocument();
-    expect(within(panel).getByText(/↓ 6 kg from baseline/)).toBeInTheDocument();
+    expect(within(panel).getByText("40%")).toBeInTheDocument();
+    // The journey, in the SAME words the gallery card uses for this Goal.
+    expect(within(panel).getByText("from 85 kg → 70 kg")).toBeInTheDocument();
   });
 
   it("announces the same sentence on the bar as it prints beside it", () => {
@@ -203,17 +216,29 @@ describe("what it refuses to show", () => {
 });
 
 describe("the other measurement strategies", () => {
-  it("reads a manual Goal as a plain percentage", () => {
+  it("reads a manual Goal as a plain percentage, with no invented target", () => {
     const readings = [measurement("m1", TODAY, 65)];
     renderPanel({
       measurements: readings,
       progress: progressFor(readings, { type: "manual" }, null),
     });
+    const strip = screen.getByTestId("goal-metrics");
     expect(
-      screen
-        .getByTestId("goal-progress")
-        .querySelector(".dh-goalprogress__current")?.textContent,
+      within(strip)
+        .getByText("Now")
+        .closest(".dh-goal-measure__metric")
+        ?.querySelector("dd")?.textContent,
     ).toBe("65%");
+    /*
+     * A manual Goal stores a target of 100 because that is the SCALE, not
+     * because anyone chose it. Printing "Target 100%" beside the reading told
+     * the owner a fact about the arithmetic and nothing about their Goal, so
+     * neither the strip nor the journey line states one.
+     */
+    expect(strip.textContent).not.toContain("Target");
+    expect(screen.getByTestId("goal-progress").textContent).not.toContain(
+      "100%",
+    );
   });
 
   it("shows stages rather than a chart for a milestone Goal", () => {
@@ -278,9 +303,15 @@ describe("an achieved Goal", () => {
     const readings = [measurement("m1", TODAY, 69.4)];
     renderPanel({ measurements: readings, progress: progressFor(readings) });
     const panel = screen.getByTestId("goal-progress");
-    expect(within(panel).getByText(/Target reached/)).toBeInTheDocument();
     expect(within(panel).getByText("Target achieved")).toBeInTheDocument();
-    expect(panel.textContent).not.toContain("remaining");
+    /*
+     * UIX-03 — the fourth figure switches from REMAINING to what was achieved.
+     * "0 kg to go" is a true sentence and a useless one; once the target is
+     * passed the news is by how much.
+     */
+    const strip = screen.getByTestId("goal-metrics");
+    expect(within(strip).queryByText("Remaining")).not.toBeInTheDocument();
+    expect(panel.textContent).not.toContain("to go");
   });
 
   it("does not break the indicator when the target is exceeded", () => {

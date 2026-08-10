@@ -101,12 +101,12 @@ interface GoalOverviewProps {
   /** The shared Universal Relationship System Linked Items section. */
   readonly linkedTab: ReactNode;
   /**
-   * GOAL-02 — the measurable-progress section, rendered at the TOP of the
-   * Summary.
+   * GOAL-02 / UIX-03 — the measurable-progress workspace, rendered as the
+   * record's own top-level region above the summary's prose.
    *
    * A slot rather than a set of measurement props: this component composes the
    * record and must not learn what a baseline is, and the route already owns the
-   * fetches and the sheets the section needs. It leads the Summary because "am I
+   * fetches and the sheets the section needs. It leads the record because "am I
    * getting there?" is the question a measurable Goal exists to answer — the
    * definition of done and the Project contribution explain HOW, and follow it.
    */
@@ -277,16 +277,35 @@ export function GoalOverview({
          */
         secondaryActions={completed ? [primaryAction] : []}
         overflowActions={lifecycle.overflowActions}
+        /*
+         * UIX-03 — the progress workspace is a TOP-LEVEL region, not the
+         * summary's description.
+         *
+         * It used to be passed as `summaryBar.description`, which put the
+         * current value, the pace facts, the trend chart and the measurement
+         * history inside a summary card inside the record — three containers of
+         * descending purpose around the one thing the page exists to show. The
+         * shared layout's `feature` slot exists for exactly this shape, and the
+         * band goes back to what RECORD-01 designed it for: derived state in a
+         * sentence.
+         */
+        feature={progressSlot}
+        featureLabel="Progress"
         summaryBar={{
           /*
            * RECORD-01 — ONE summary region carrying the Goal's prose AND its
-           * derived state, rather than a card holding a second dashboard.
+           * derived state.
            *
            * The definition of done is genuine prose, so the band takes the card
            * surface (the DS-02 "a container is earned" rule). The contribution
-           * meter and the alignment state now sit on one row, and alignment's
-           * reasons are the band's signal line instead of a heading, a pill on
-           * its own row and a bulleted list.
+           * meter and the alignment state sit on one row, and alignment's
+           * reasons are the band's signal line.
+           *
+           * UIX-03 moved the measurable-progress section OUT of here (see
+           * `feature` above). What is left is the band's proper subject: how the
+           * WORK under this Goal is going, which is a different question from
+           * whether the outcome is being reached — and keeping the two apart is
+           * the distinction §27 of the brief calls critical.
            */
           progress: {
             label: "Project contribution",
@@ -300,12 +319,10 @@ export function GoalOverview({
             text: alignmentReasonText(reason),
             tone: reason.tone,
           })),
-          // The administrative timestamps, as the band's quiet trailing line —
-          // the right tier AND the right position (see `detailItems`).
+          // The administrative timestamps, as the band's quiet trailing line.
           facts: detailItems,
           description: (
             <div className="dh-goal-overview__summary">
-              {progressSlot}
               <div className="dh-goal-overview__definition">
                 <h2 className="dh-goal-overview__definition-heading">
                   Definition of done

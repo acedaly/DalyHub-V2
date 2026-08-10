@@ -233,6 +233,28 @@ export interface RecordLayoutProps extends RecordHeaderProps {
    * summary card.
    */
   readonly summaryBar?: RecordSummaryBarProps;
+  /**
+   * UIX-03 — the record's own WORKSPACE, between the summary band and the tabs.
+   *
+   * For the minority of records whose primary artefact is neither a summary nor
+   * a tab: a measurable Goal's progress — its current value, its trend chart,
+   * its history — is the reason the page exists, and it is too big to be a
+   * "signal" in the summary band and too central to be one tab among six.
+   *
+   * It exists because the alternative was worse. The Goal record used to pass
+   * the whole progress workspace as the band's `description`, which put a chart
+   * inside a summary card inside the record — the three-containers-of-identical
+   * -weight stack RECORD-01 set out to remove, arrived at from the other
+   * direction. A top-level region has ONE surface and sits at the altitude its
+   * content deserves.
+   *
+   * It is NOT a second summary: the band stays the place for derived state in a
+   * sentence, and a record with a workspace usually needs a much smaller band —
+   * or none. Use it only when the region is genuinely the record's subject.
+   */
+  readonly feature?: ReactNode;
+  /** Accessible name for the feature region. Required whenever `feature` is set. */
+  readonly featureLabel?: string;
   /** Optional tabs; when present the content region is the active tab's panel. */
   readonly tabs?: readonly RecordTab[];
   /** Accessible name for the tablist (defaults to "<title> sections"). */

@@ -49,7 +49,7 @@ function goal(
     createdAt: "2026-07-01T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
     completedAt: null,
-    area: { id: "a1", title: "Health" },
+    area: { id: "a1", title: "Health", colourRank: 0, iconKey: null },
     alignment: alignment(),
     // No contributing Projects by default, so a test that cares about the card's
     // MEASURE has to say so — the same "opt into what you are asserting" rule
@@ -420,8 +420,17 @@ describe("Goals gallery grid (DS-16)", () => {
     expect(grid?.tagName).toBe("UL");
     expect(grid?.getAttribute("aria-label")).toBe("Goals");
     expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
-    // The SAME card component, not a Goal-shaped lookalike.
-    expect(container.querySelectorAll(".dh-ecard").length).toBe(2);
+    /*
+     * UIX-03 — the shared GRID, and the Goal card FAMILY inside it.
+     *
+     * Goals used to render the generic `.dh-ecard`, which is why the gallery
+     * read as a second Projects gallery. They now render `.dh-gcard`, the same
+     * kind of move UIX-02 made for Projects (`.dh-pcard`): a family of its own
+     * in the one shared grid, not a Goals-only layout and not a lookalike of
+     * the generic card.
+     */
+    expect(container.querySelectorAll(".dh-gcard").length).toBe(2);
+    expect(container.querySelectorAll(".dh-ecard").length).toBe(0);
   });
 
   it("keeps the derived alignment signal on the card, with its reason in words", () => {
@@ -457,7 +466,17 @@ describe("Goals gallery grid (DS-16)", () => {
         "aria-valuetext",
         "38% — 3 of 8 Projects complete",
       );
-      expect(within(card).getByText("38%")).toBeInTheDocument();
+      /*
+       * UIX-03 — no bare percentage beside a CONTRIBUTION bar.
+       *
+       * This bar measures the WORK, and the card has already said "Not
+       * measured" where the reading would be. A bare "38%" next to those two
+       * words reads as "this Goal is 38% done", which is exactly the claim the
+       * note is there to refuse — and at 0% it read as "nothing achieved" about
+       * a Goal nobody has told DalyHub how to measure. The fact line names
+       * whose percentage it is, and the bar still announces it in full.
+       */
+      expect(within(card).queryByText("38%")).toBeNull();
       expect(
         within(card).getByText("3 of 8 Projects complete"),
       ).toBeInTheDocument();
@@ -557,13 +576,34 @@ describe("a measurable Goal's card (GOAL-02)", () => {
     ]);
     const card = screen.getByTestId("goal-card");
     expect(within(card).getByText("79 kg")).toBeInTheDocument();
-    // VIS-01 — the label under the figure is the TARGET, not the pair. Printing
-    // "79 kg → 70 kg" beneath "79 kg" said the current value twice and made the
-    // label the longer of the two strings.
-    expect(within(card).getByText("Target 70 kg")).toBeInTheDocument();
+    /*
+     * UIX-03 — the line under the reading is the whole JOURNEY, not the target
+     * alone.
+     *
+     * VIS-01 cut it back to "Target 70 kg" because the pair it replaced
+     * ("79 kg → 70 kg") repeated the figure printed directly above it. The
+     * journey states the START instead, which is the one fact neither the
+     * reading nor the target carries — and the fact that makes "38%" checkable
+     * by eye rather than a number to be trusted.
+     */
+    expect(within(card).getByText("from 85 kg → 70 kg")).toBeInTheDocument();
+    expect(card.textContent).not.toContain("79 kg → 70 kg");
     // The contribution bar is REPLACED, not joined: two bars would be two
     // answers to "how far along?".
     expect(within(card).queryByText("1 of 4 Projects complete")).toBeNull();
+  });
+
+  it("prints the percentage beside a MEASURED Goal's own bar", () => {
+    /*
+     * The contrast that makes the contribution rule above a rule rather than an
+     * omission: an OUTCOME's percentage is about the outcome the card is
+     * showing, so it is stated beside the bar. A contribution percentage is
+     * about the work, on a card that has already said "Not measured", so it is
+     * not.
+     */
+    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
+    const card = screen.getByRole("article", { name: /Reach 70 kg/ });
+    expect(within(card).getByText("40%")).toBeInTheDocument();
   });
 
   it("announces the same sentence the record's own bar announces", () => {
@@ -586,15 +626,25 @@ describe("a measurable Goal's card (GOAL-02)", () => {
    * of the OUTCOME. Both went; the status and the total change stayed, because
    * they are the two things the number itself cannot say.
    */
-  it("states its measurement status in words, and its total change", () => {
+  it("states its measurement status in words, then what remains and by when", () => {
     renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
     const card = screen.getByTestId("goal-card");
-    expect(card.textContent).toMatch(/On track|Ahead|In progress/);
-    expect(within(card).getByText("↓ 6 kg overall")).toBeInTheDocument();
-    expect(within(card).queryByText("9 kg remaining")).toBeNull();
+    const state = within(card).getByTestId("goal-card-state");
+    expect(state.textContent).toMatch(/On track|Ahead|In progress/);
+    /*
+     * UIX-03 — the trailing facts are what a CHOOSER needs: the distance still
+     * to cover and the date it is wanted by.
+     *
+     * They replace "↓ 6 kg overall", which described the past. A gallery card is
+     * read to decide which Goal to open, and "how far is left, and by when" is
+     * the pair that decides it; how far the owner has already come is the
+     * record's story, and the journey line above already implies it.
+     */
+    expect(state.textContent).toContain("9 kg to go");
+    expect(card.textContent).not.toContain("overall");
   });
 
-  it("leaves an UNMEASURED Goal's card exactly as M3X-02 built it", () => {
+  it("keeps Project contribution as an UNMEASURED Goal's bar and fact", () => {
     renderCollection([
       goal({ title: "Learn Spanish", contribution: contribution(1, 4) }),
     ]);

@@ -571,7 +571,8 @@
  * came out with three different card widths and a ragged right edge.
  */
 .dh-ecard-grid__item > .dh-ecard,
-.dh-ecard-grid__item > .dh-pcard {
+.dh-ecard-grid__item > .dh-pcard,
+.dh-ecard-grid__item > .dh-gcard {
   flex: 1;
   min-inline-size: 0;
 }
@@ -2443,6 +2444,500 @@
   }
   .dh-pcard__dot {
     background: CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* GoalCard (UIX-03)                                                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The Goal gallery card. A sibling of `.dh-pcard`, deliberately NOT a variant of
+ * it: the two answer different questions and are meant to be told apart at a
+ * glance across the sidebar.
+ *
+ * Where a Project card pins a big percentage and a full-width bar to its floor,
+ * a Goal card puts the READING in the middle at display size with its trend
+ * beside it, and reduces the percentage to a small figure on a thin inline bar.
+ * A Project is measured in work done; a Goal is measured in the unit the owner
+ * actually cares about, and the composition says so before a word is read.
+ */
+.dh-gcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: var(--app-card-padding);
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+/* One pixel of lift — the gallery's whole motion budget, zeroed under
+ * `prefers-reduced-motion` by the global rule in `base.css`. */
+.dh-gcard:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+.dh-gcard--muted {
+  opacity: 0.72;
+}
+
+.dh-gcard__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-gcard__mark {
+  flex: none;
+  display: inline-flex;
+}
+
+.dh-gcard__titles {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* Two lines then an ellipsis, for the reason `.dh-pcard__title` documents: a
+ * gallery row shares a height, and one long name must not set it for the row. */
+.dh-gcard__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dh-gcard__open,
+.dh-gcard__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The whole card is the destination; the overflow sits above it. */
+.dh-gcard__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dh-gcard__open:focus-visible {
+  outline: none;
+}
+
+/* The ring belongs to the CARD, not to the inline text of its link — a keyboard
+ * user needs to see which card they are on, not which words. */
+.dh-gcard:has(.dh-gcard__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.dh-gcard__context {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dh-gcard__overflow {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--app-space-2);
+  inset-inline-end: var(--app-space-2);
+}
+
+.dh-gcard:has(.dh-gcard__overflow) .dh-gcard__titles {
+  padding-inline-end: var(--app-space-6);
+}
+
+/*
+ * The reading block — the card's one tinted region.
+ *
+ * This is the Goal card's signature and the brief's "subtle tonal background":
+ * a faint wash of the Area's own accent behind the outcome, so a grid of Goals
+ * groups by the part of life each serves before any text is read. It is
+ * deliberately confined to this block rather than washed over the whole card —
+ * a fully tinted card is the "full-surface saturated colour" the brief rules
+ * out, and it would leave the title fighting its own background.
+ *
+ * The default is the neutral sunken surface, so a Goal whose Area could not be
+ * ranked gets a calm block rather than an arbitrary colour.
+ */
+.dh-gcard__body {
+  display: flex;
+  min-inline-size: 0;
+  /* `auto` top margin pushes the reading down off the title and lets the foot
+   * stay pinned, so every card in a row lands its bar on one baseline. */
+  margin-block-start: auto;
+}
+
+.dh-gcard__reading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--app-space-3);
+  border-radius: var(--app-shape-metric);
+  background: var(--md-app-color-surface-sunken);
+}
+
+.dh-gcard__metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * The outcome, at display size. It is the largest thing on the card because it
+ * is the thing the owner set out to change — the percentage is a derivation of
+ * it and is drawn small, which is the exact inversion of the Project card.
+ */
+.dh-gcard__value {
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* "from 85 kg → 70 kg" — the line that makes the percentage checkable by eye. */
+.dh-gcard__journey {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The sparkline's box. Bounded so it stays a supporting mark: at a wide column
+ * an unbounded chart would become the card, and the card is about the number.
+ */
+.dh-gcard__visual {
+  flex: 0 1 6.5rem;
+  min-inline-size: 3rem;
+  display: flex;
+  align-items: center;
+  /* The end marker is a 4.5px round cap drawn at the series' last point, so a
+   * rising trend would otherwise put half a dot outside the tinted block. */
+  padding-block: var(--app-space-1);
+  padding-inline-end: var(--app-space-1);
+}
+
+/*
+ * The honest absence, where a reading would be. Same block, same tint, no bar.
+ *
+ * It keeps the Area wash rather than falling back to grey: a Goal with no
+ * measurement is still a Goal in Health & Fitness, and greying its one block
+ * made the card read as disabled beside its measured neighbours.
+ */
+.dh-gcard__note {
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--app-space-3);
+  border-radius: var(--app-shape-metric);
+  background: var(--md-app-color-surface-sunken);
+}
+
+.dh-gcard__note-label {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The definition of done, clamped at three lines. A qualitative Goal's card is
+ * carried by these words, so they get real space — but a gallery row shares a
+ * height, and one Goal with a paragraph must not set it for the row.
+ */
+.dh-gcard__note-detail {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dh-gcard__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * Bar and percentage on ONE row.
+ *
+ * The Project card stacks a title-large percentage above a full-width bar,
+ * which is right when the percentage IS the measure. Here the measure is the
+ * reading above, so the pair collapses to a single quiet line and the card
+ * spends its vertical budget on the outcome instead.
+ */
+.dh-gcard__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-gcard__track {
+  flex: 1;
+  display: block;
+  min-inline-size: 0;
+  block-size: var(--app-progress-bar-height-entity);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
+  overflow: hidden;
+}
+
+.dh-gcard__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-gcard__percent {
+  flex: none;
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The state line: one word for how it is going, then the facts a chooser needs
+ * — what remains, and by when. A WORD in its own tone, never a filled chip: a
+ * gallery of nine Goals would otherwise carry nine pills above nine bars, which
+ * is the metadata density UIX-02 removed from Projects.
+ */
+.dh-gcard__state-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-gcard__state {
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Only the two states that are FACTS the owner can act on take a tone — a
+ * passed date, a slipped schedule. Everything in flight is the normal state of
+ * a Goal and stays neutral. The tone always agrees with the word beside it. */
+.dh-gcard__state[data-tone="success"] {
+  color: var(--md-sys-color-success);
+}
+.dh-gcard__state[data-tone="warning"] {
+  color: var(--md-sys-color-state-due-soon);
+}
+.dh-gcard__state[data-tone="info"] {
+  color: var(--md-sys-color-info);
+}
+/* D3 — a slipped Goal is `state-overdue`, never `error`: being behind on
+ * something you set yourself is a state of a record, not an application fault. */
+.dh-gcard__state[data-tone="danger"] {
+  color: var(--md-sys-color-state-overdue);
+}
+
+/* Separators between the trailing facts, so the line reads as one sentence
+ * without a bullet character in the DOM for a screen reader to announce. */
+.dh-gcard__fact {
+  min-inline-size: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-gcard__fact::before {
+  content: "·";
+  margin-inline-end: var(--app-space-2);
+  color: var(--md-sys-color-outline);
+}
+
+.dh-gcard__state-line > .dh-gcard__fact:first-child::before {
+  content: none;
+}
+
+/*
+ * The Area's accent, applied to exactly two things: the wash behind the reading
+ * and the progress fill. The same six-slot ramp the mark is painted from and
+ * the same stable rank — one identity decision, used twice, never two.
+ *
+ * The percentage beside the bar and the Area's name on the card state
+ * everything the colour hints at, so nothing here is carried by hue alone.
+ */
+.dh-gcard[data-accent="1"] .dh-gcard__reading,
+.dh-gcard[data-accent="1"] .dh-gcard__note {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-1-container) 55%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-gcard[data-accent="1"] .dh-gcard__fill {
+  background: var(--md-sys-color-area-accent-1);
+}
+.dh-gcard[data-accent="2"] .dh-gcard__reading,
+.dh-gcard[data-accent="2"] .dh-gcard__note {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-2-container) 55%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-gcard[data-accent="2"] .dh-gcard__fill {
+  background: var(--md-sys-color-area-accent-2);
+}
+.dh-gcard[data-accent="3"] .dh-gcard__reading,
+.dh-gcard[data-accent="3"] .dh-gcard__note {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-3-container) 55%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-gcard[data-accent="3"] .dh-gcard__fill {
+  background: var(--md-sys-color-area-accent-3);
+}
+.dh-gcard[data-accent="4"] .dh-gcard__reading,
+.dh-gcard[data-accent="4"] .dh-gcard__note {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-4-container) 55%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-gcard[data-accent="4"] .dh-gcard__fill {
+  background: var(--md-sys-color-area-accent-4);
+}
+.dh-gcard[data-accent="5"] .dh-gcard__reading,
+.dh-gcard[data-accent="5"] .dh-gcard__note {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-5-container) 55%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-gcard[data-accent="5"] .dh-gcard__fill {
+  background: var(--md-sys-color-area-accent-5);
+}
+.dh-gcard[data-accent="6"] .dh-gcard__reading,
+.dh-gcard[data-accent="6"] .dh-gcard__note {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-area-accent-6-container) 55%,
+    var(--md-app-color-surface-card)
+  );
+}
+.dh-gcard[data-accent="6"] .dh-gcard__fill {
+  background: var(--md-sys-color-area-accent-6);
+}
+
+/* The sparkline takes the same accent as the bar beneath it, so a card carries
+ * one colour rather than a violet line over a green bar. */
+.dh-gcard[data-accent="1"] .dh-gcard__visual .dh-spark__line,
+.dh-gcard[data-accent="1"] .dh-gcard__visual .dh-spark__end {
+  stroke: var(--md-sys-color-area-accent-1);
+}
+.dh-gcard[data-accent="2"] .dh-gcard__visual .dh-spark__line,
+.dh-gcard[data-accent="2"] .dh-gcard__visual .dh-spark__end {
+  stroke: var(--md-sys-color-area-accent-2);
+}
+.dh-gcard[data-accent="3"] .dh-gcard__visual .dh-spark__line,
+.dh-gcard[data-accent="3"] .dh-gcard__visual .dh-spark__end {
+  stroke: var(--md-sys-color-area-accent-3);
+}
+.dh-gcard[data-accent="4"] .dh-gcard__visual .dh-spark__line,
+.dh-gcard[data-accent="4"] .dh-gcard__visual .dh-spark__end {
+  stroke: var(--md-sys-color-area-accent-4);
+}
+.dh-gcard[data-accent="5"] .dh-gcard__visual .dh-spark__line,
+.dh-gcard[data-accent="5"] .dh-gcard__visual .dh-spark__end {
+  stroke: var(--md-sys-color-area-accent-5);
+}
+.dh-gcard[data-accent="6"] .dh-gcard__visual .dh-spark__line,
+.dh-gcard[data-accent="6"] .dh-gcard__visual .dh-spark__end {
+  stroke: var(--md-sys-color-area-accent-6);
+}
+
+/*
+ * UIX-03 — the Goal card on a PHONE.
+ *
+ * At 390px the card is the full column, so the reading has room; what it does
+ * not have room for is a 6.5rem sparkline beside a currency value like
+ * "$7,240". The visual keeps its place but yields first, and the tinted block's
+ * padding tightens so a list of Goals stays scannable rather than becoming one
+ * card per screen (the exact failure the brief calls out at §38).
+ */
+@media (max-width: 30rem) {
+  .dh-gcard {
+    gap: var(--app-space-3);
+    padding: var(--app-space-4);
+  }
+
+  .dh-gcard__reading {
+    padding: var(--app-space-3) var(--app-space-3);
+  }
+
+  .dh-gcard__visual {
+    flex: 0 1 4.5rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .dh-gcard {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-gcard .dh-gcard__fill {
+    background: CanvasText;
+  }
+  .dh-gcard__reading,
+  .dh-gcard__note {
+    border: var(--app-border-width-thin) solid CanvasText;
   }
 }
 

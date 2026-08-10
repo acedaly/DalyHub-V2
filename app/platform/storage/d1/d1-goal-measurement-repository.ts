@@ -44,6 +44,8 @@ import {
   type GoalMeasurement,
   type GoalMeasurementRepository,
   type GoalMeasurementSummary,
+  type GoalMeasurementPoint,
+  type GoalMeasurementSeriesInput,
   type GoalMeasurementSummaryInput,
   type GoalMilestone,
   type GoalMilestoneSummary,
@@ -121,6 +123,14 @@ interface SummaryRow {
 }
 
 interface PriorRow {
+  readonly entity_id: string;
+  readonly value: number;
+  readonly measured_on: string;
+}
+
+/** UIX-03 — one row of the batched sparkline series. Same shape as `PriorRow`,
+ * named separately because the two reads answer different questions. */
+interface SeriesRow {
   readonly entity_id: string;
   readonly value: number;
   readonly measured_on: string;
@@ -550,6 +560,79 @@ export class D1GoalMeasurementRepository implements GoalMeasurementRepository {
         .bind(this.#workspaceId, id, GOAL_MILESTONE_MAX_ROWS)
         .all<MilestoneRow>();
       return (result.results ?? []).map((row) => this.#milestone(row));
+    } catch (cause) {
+      throw new GoalMeasurementStorageError({ cause });
+    }
+  }
+
+  /**
+   * UIX-03 — the batched sparkline series.
+   *
+   * One statement per chunk of ids. `ROW_NUMBER()` ranks each Goal's readings
+   * newest-first and the outer filter keeps the top `perGoalLimit` of each
+   * PARTITION, so the cap is applied by SQLite rather than by discarding rows
+   * after transferring them — a workspace with a year of daily weigh-ins on ten
+   * Goals moves a few hundred rows, not a few thousand.
+   *
+   * Returned chronologically ASCENDING, because that is the order a line is
+   * drawn in and leaving the reversal to every caller is how two surfaces end up
+   * drawing the same Goal backwards from each other.
+   */
+  async listMeasurementSeries(
+    goalIds: readonly string[],
+    input: GoalMeasurementSeriesInput,
+  ): Promise<Map<string, readonly GoalMeasurementPoint[]>> {
+    const ids = [...new Set(goalIds.map((id) => validateSpineId(id, "id")))];
+    const series = new Map<string, readonly GoalMeasurementPoint[]>();
+    if (ids.length === 0) return series;
+
+    // Clamped rather than trusted: a caller asking for 10,000 points per Goal
+    // would turn a bounded page read into the unbounded one this method exists
+    // to avoid.
+    const perGoal = Math.min(
+      GOAL_MEASUREMENT_MAX_ROWS,
+      Math.max(1, Math.trunc(input.perGoalLimit)),
+    );
+
+    try {
+      const chunks = chunk(ids, SUMMARY_CHUNK_SIZE);
+      const gathered = await Promise.all(
+        chunks.map(async (idChunk) => {
+          const marks = placeholders(idChunk.length);
+          const result = await this.#db
+            .prepare(
+              `SELECT entity_id, value, measured_on
+                 FROM (
+                        SELECT m.entity_id, m.value, m.measured_on,
+                               ROW_NUMBER() OVER (
+                                 PARTITION BY m.entity_id
+                                 ORDER BY m.measured_on DESC, m.created_at DESC
+                               ) AS rn
+                        FROM goal_measurements m
+                        JOIN entities e
+                          ON e.workspace_id = m.workspace_id AND e.id = m.entity_id
+                             AND e.type = '${GOAL}' AND e.deleted_at IS NULL
+                        WHERE m.workspace_id = ? AND m.entity_id IN (${marks})
+                      )
+                 WHERE rn <= ?
+                 ORDER BY entity_id ASC, measured_on ASC`,
+            )
+            .bind(this.#workspaceId, ...idChunk, perGoal)
+            .all<SeriesRow>();
+          return result.results ?? [];
+        }),
+      );
+
+      const collected = new Map<string, GoalMeasurementPoint[]>();
+      for (const rows of gathered) {
+        for (const row of rows) {
+          const points = collected.get(row.entity_id) ?? [];
+          points.push({ value: row.value, measuredOn: row.measured_on });
+          collected.set(row.entity_id, points);
+        }
+      }
+      for (const [id, points] of collected) series.set(id, points);
+      return series;
     } catch (cause) {
       throw new GoalMeasurementStorageError({ cause });
     }

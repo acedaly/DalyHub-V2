@@ -329,6 +329,82 @@ describe("the batched summary read", () => {
     expect(second.priorInWindow).toBeNull();
   });
 
+  /*
+   * UIX-03 — the batched SPARKLINE series.
+   *
+   * A different question from the summary above: the summary picks three
+   * readings for arithmetic, this one returns the recent RUN so a card can draw
+   * a shape. Both are batched over a page of ids and both are bounded; the tests
+   * that matter are that the per-Goal cap is applied by SQL rather than after
+   * the fact, and that the order is the one a line is drawn in.
+   */
+  it("returns each Goal's recent readings, oldest first, capped per Goal", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const a = await s.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const b = await s.createGoal({ title: "Read 12 books", areaId: area.id });
+    const repo = measurements();
+
+    for (const [value, measuredOn] of [
+      [85.0, "2026-06-10"],
+      [83.4, "2026-06-24"],
+      [81.2, "2026-07-08"],
+      [80.1, "2026-07-22"],
+      [79.3, "2026-08-08"],
+    ] as const) {
+      await repo.createMeasurement(a.id, { value, measuredOn });
+    }
+    await repo.createMeasurement(b.id, { value: 5, measuredOn: "2026-08-01" });
+
+    const series = await repo.listMeasurementSeries([a.id, b.id], {
+      perGoalLimit: 3,
+    });
+
+    /*
+     * The cap keeps the NEWEST readings — those are what a "which way is this
+     * going?" glance is asking about — and returns them ascending, because that
+     * is the order a line is drawn in and leaving the reversal to each caller is
+     * how two surfaces end up drawing one Goal backwards from each other.
+     */
+    expect(series.get(a.id)).toEqual([
+      { value: 81.2, measuredOn: "2026-07-08" },
+      { value: 80.1, measuredOn: "2026-07-22" },
+      { value: 79.3, measuredOn: "2026-08-08" },
+    ]);
+    // The cap is PER GOAL, not per query: a busy Goal never starves a quiet one.
+    expect(series.get(b.id)).toEqual([{ value: 5, measuredOn: "2026-08-01" }]);
+  });
+
+  it("omits a Goal with no readings rather than inventing an empty series", async () => {
+    const goal = await seedGoal();
+    const series = await measurements().listMeasurementSeries([goal.id], {
+      perGoalLimit: 12,
+    });
+    // The caller draws no sparkline either way, so an absent key and an empty
+    // array are the same answer — and the absent one costs no row.
+    expect(series.get(goal.id)).toBeUndefined();
+  });
+
+  it("never reaches across a workspace boundary", async () => {
+    // Its OWN id prefix: the generators are deterministic, so reusing the one
+    // the summary's boundary test uses would collide on the very first insert.
+    const theirs = spine(OTHER, "gmseries");
+    const otherArea = await theirs.createArea({ title: "Theirs" });
+    const otherGoal = await theirs.createGoal({
+      title: "Other",
+      areaId: otherArea.id,
+    });
+    await measurements(OTHER, "seriesmeas").createMeasurement(otherGoal.id, {
+      value: 42,
+      measuredOn: "2026-08-09",
+    });
+
+    const series = await measurements().listMeasurementSeries([otherGoal.id], {
+      perGoalLimit: 12,
+    });
+    expect(series.size).toBe(0);
+  });
+
   it("includes every requested id, with the all-null shape for an empty Goal", async () => {
     const goal = await seedGoal();
     const summaries = await measurements().listMeasurementSummaries([goal.id], {

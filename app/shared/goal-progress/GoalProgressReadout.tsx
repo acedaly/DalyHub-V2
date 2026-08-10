@@ -24,10 +24,10 @@ import { ProgressTrack } from "~/shared/progress";
 
 import {
   formatMeasurementValue,
-  goalCurrentAgainstTarget,
   goalProgressStatusLabel,
   goalProgressStatusTone,
   goalProgressSummaryText,
+  goalTargetLabel,
 } from "./goal-progress-view";
 
 export interface GoalProgressReadoutProps {
@@ -61,7 +61,7 @@ export function GoalProgressReadout({
   className,
 }: GoalProgressReadoutProps) {
   const summary = goalProgressSummaryText(progress);
-  const against = goalCurrentAgainstTarget(progress);
+  const targetLabel = goalTargetLabel(progress);
   const statusLabel = goalProgressStatusLabel(progress.status);
   const glance = size === "glance";
   const facts: string[] = [];
@@ -92,12 +92,17 @@ export function GoalProgressReadout({
               ? `${progress.current} of ${progress.target ?? 0}`
               : formatMeasurementValue(progress.current, progress.unit)}
         </span>
-        {against &&
-        progress.type !== "milestone" &&
-        progress.current !== null ? (
-          <span className="dh-goalprogress__target">
-            Target {formatMeasurementValue(progress.target, progress.unit)}
-          </span>
+        {/*
+          UIX-03 — the TARGET label comes from the shared vocabulary, which
+          returns `null` for a manual Goal.
+          
+          This used to be gated on `goalCurrentAgainstTarget` being non-null and
+          then printed the raw target, so a manual Goal — whose reading IS a
+          percentage and whose stored target is the number 100 — rendered
+          "35% / Target 100%". Nobody set a target of 100%; it is the scale.
+        */}
+        {targetLabel && progress.current !== null ? (
+          <span className="dh-goalprogress__target">{targetLabel}</span>
         ) : null}
       </p>
       {progress.progressPercent !== null ? (

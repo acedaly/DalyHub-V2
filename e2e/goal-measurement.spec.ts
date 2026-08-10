@@ -100,15 +100,26 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await logMeasurement(page, "79.3", "2026-07-31");
     await logMeasurement(page, "79.0", "2026-08-09");
 
-    await expect(panel.getByText("79 kg").first()).toBeVisible();
-    // Exact: the chart's caption names the target too ("Target 70 kg."), which
-    // is correct — this asserts the readout's own line.
-    await expect(
-      panel.getByText("Target 70 kg", { exact: true }),
-    ).toBeVisible();
-    await expect(panel.getByText(/40%/)).toBeVisible();
-    await expect(panel.getByText(/9 kg remaining/)).toBeVisible();
-    await expect(panel.getByText(/↓ 6 kg from baseline/)).toBeVisible();
+    /*
+     * UIX-03 — the figures are a labelled STRIP, not a run-on sentence.
+     *
+     * "38% · 9.3 kg remaining · ↓ 5.7 kg from baseline" became four terms with
+     * four values, so each is asserted through its own label: the pairing is
+     * the behaviour, and a "79 kg" with no "Now" above it is the layout this
+     * replaced.
+     */
+    const metrics = panel.getByTestId("goal-metrics");
+    await expect(metrics).toContainText("Start");
+    await expect(metrics).toContainText("85 kg");
+    await expect(metrics).toContainText("Now");
+    await expect(metrics).toContainText("79 kg");
+    await expect(metrics).toContainText("Target");
+    await expect(metrics).toContainText("70 kg");
+    await expect(metrics).toContainText("Remaining");
+    await expect(metrics).toContainText("9 kg to go");
+    await expect(panel.getByText("40%", { exact: true })).toBeVisible();
+    // The journey, in the same words the gallery card uses for this Goal.
+    await expect(panel.getByText("from 85 kg → 70 kg")).toBeVisible();
 
     // The bar announces the same sentence the page prints — the chart and the
     // bar are never the only way to read this.
@@ -142,7 +153,10 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expect(editSheet).toHaveCount(0);
     await expect(panel.getByText("77.5 kg").first()).toBeVisible();
     await expect(panel.getByText(/50%/)).toBeVisible();
-    await expect(panel.getByText(/7\.5 kg remaining/)).toBeVisible();
+    // The Remaining figure recomputes from the corrected reading.
+    await expect(panel.getByTestId("goal-metrics")).toContainText(
+      "7.5 kg to go",
+    );
 
     // 7. Removing one uses the shared destructive confirmation, and the figures
     //    fall back to the reading beneath it.
@@ -167,10 +181,15 @@ test.describe("GOAL-02 — measurable Goals", () => {
       .getByTestId("goal-card")
       .filter({ hasText: title })
       .first();
-    // The card leads with the value and states the journey beside it.
+    /*
+     * UIX-03 — the card leads with the reading and states the whole JOURNEY
+     * beneath it. The old label repeated the reading ("79.3 kg → 70 kg"
+     * directly under "79.3 kg"); the journey states the START instead, which is
+     * the fact that makes the percentage checkable by eye.
+     */
     await expect(card).toContainText("79.3 kg");
-    await expect(card).toContainText("79.3 kg → 70 kg");
-    await expect(card).toContainText(/remaining/);
+    await expect(card).toContainText("from 85 kg → 70 kg");
+    await expect(card).toContainText("9.3 kg to go");
 
     // 9. And the record is still reachable and correct.
     await gotoFixture(page, goalUrl);
@@ -265,7 +284,20 @@ test.describe("GOAL-02 — Today", () => {
     const row = goals.locator(".dh-today__goal").first();
     await expect(row).toContainText(/kg/);
     await expect(row).toContainText("Target 70 kg");
-    await expect(row).toContainText(/remaining/);
+    /*
+     * Today states the percentage and the state WORD, not the remainder.
+     *
+     * `GoalProgressReadout` at `glance` size deliberately drops "N remaining"
+     * (see its `size` doc): a glance surface answers "how is this going?", and
+     * the Goal record is one tap away for the arithmetic. This assertion used
+     * to require "remaining" and had been failing on main because of it —
+     * fixed here rather than left red, since UIX-03 is the pass that owns these
+     * surfaces.
+     */
+    await expect(row).toContainText(/\d+%/);
+    await expect(row).toContainText(
+      /On track|Ahead|In progress|Needs attention|Target achieved|No recent update/,
+    );
     // Hold on to WHICH Goal this is: recording a measurement changes its rank
     // (a Goal just checked in is no longer waiting for one), so the row can move.
     const chosenTitle = (
@@ -286,7 +318,9 @@ test.describe("GOAL-02 — Today", () => {
     // SECTION rather than a fixed row, because recording a measurement changes
     // that Goal's rank and the ranking may legitimately reorder the list.
     await expect(goals).toContainText("78.6 kg");
-    await expect(goals).toContainText("8.6 kg remaining");
+    // Same reason as above: the glance readout states the value and the
+    // percentage, and leaves the remainder to the record.
+    await expect(goals).toContainText(/\d+%/);
     expect(chosenTitle.length).toBeGreaterThan(0);
 
     await expectNoAxeViolations(page);

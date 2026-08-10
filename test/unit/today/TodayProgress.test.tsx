@@ -46,6 +46,8 @@ function weightGoal(over: Partial<TodayGoal> = {}): TodayGoal {
     id: "g1",
     title: "Reach 70 kg",
     areaTitle: "Health & Fitness",
+    areaColourRank: 0,
+    areaIconKey: null,
     progress: evaluateGoalProgress(
       {
         config: normalizeGoalMeasurementConfig({

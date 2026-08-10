@@ -62,6 +62,19 @@ export interface TodayGoal {
   readonly id: string;
   readonly title: string;
   readonly areaTitle: string;
+  /**
+   * UIX-03 — the Area's identity, so Today draws a Goal with the SAME mark and
+   * accent the Goals gallery draws it with.
+   *
+   * Today used to derive a tone from a hash of the Goal's id, on the stated
+   * ground that "a Goal carries no persisted icon or colour of its own". That
+   * premise is no longer true: a Goal inherits its Area's identity, which every
+   * Goal read now resolves. A deterministic-but-arbitrary colour was stable, and
+   * stable is not the same as MEANINGFUL — the same Goal was green on Today and
+   * grey in the gallery, and neither colour said anything.
+   */
+  readonly areaColourRank: number | null;
+  readonly areaIconKey: string | null;
   readonly progress: GoalProgressEvaluation;
   /** The change since the comparison reading, e.g. `-0.3`. `null` when there is
    * no earlier reading to compare with — never a fabricated zero. */
@@ -155,6 +168,8 @@ export async function loadTodayGoals(
       id: item.id,
       title: item.title,
       areaTitle: item.area.title,
+      areaColourRank: item.area.colourRank ?? null,
+      areaIconKey: item.area.iconKey ?? null,
       progress,
       changeInWindow:
         prior !== null && summary?.latest

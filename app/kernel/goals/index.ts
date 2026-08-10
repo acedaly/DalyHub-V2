@@ -28,6 +28,7 @@ export type { GoalRepository } from "./goal-repository";
 export type { GoalDetailsRepository } from "./goal-details-repository";
 export type {
   GoalMeasurementRepository,
+  GoalMeasurementSeriesInput,
   GoalMeasurementSummaryInput,
 } from "./goal-measurement-repository";
 export { GoalStorageError } from "./goal-errors";
