@@ -14,6 +14,8 @@ import {
   ownerLocalToUtc,
   startOfLocalDayUtc,
   utcToOwnerLocal,
+  weekStripCaption,
+  weekStripDays,
 } from "~/modules/diary/occurred-time";
 
 /**
@@ -172,5 +174,102 @@ describe("zoned date labels", () => {
     expect(formatZonedDateTimeLong(instant, SYDNEY)).toBe(
       "19 July 2026 at 14:30",
     );
+  });
+});
+
+/**
+ * UIX-04 §18 — the week strip's pure day arithmetic.
+ *
+ * These are the two helpers the Day-mode navigator is built from, and they are
+ * the reason the strip can be server-rendered and hydrated without disagreeing
+ * with itself: fixed English tables, no `Intl`, no machine-local time.
+ */
+describe("weekStripDays", () => {
+  it("returns the seven days of the containing week, Monday first", () => {
+    // 2026-07-15 is a Wednesday.
+    const days = weekStripDays("2026-07-15");
+    expect(days.map((day) => day.dayKey)).toEqual([
+      "2026-07-13",
+      "2026-07-14",
+      "2026-07-15",
+      "2026-07-16",
+      "2026-07-17",
+      "2026-07-18",
+      "2026-07-19",
+    ]);
+    expect(days.map((day) => day.weekday)).toEqual([
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun",
+    ]);
+    expect(days.map((day) => day.dayOfMonth)).toEqual([
+      13, 14, 15, 16, 17, 18, 19,
+    ]);
+  });
+
+  it("treats Sunday as the END of its week, not the start", () => {
+    // The boundary that decides whether "the previous day" is in this strip or
+    // the one before it — asserted so a change of first-day fails here.
+    const days = weekStripDays("2026-05-31"); // a Sunday
+    expect(days[0].dayKey).toBe("2026-05-25");
+    expect(days[6].dayKey).toBe("2026-05-31");
+  });
+
+  it("crosses a month boundary without losing a day", () => {
+    const days = weekStripDays("2026-08-01"); // a Saturday
+    expect(days.map((day) => day.dayKey)).toEqual([
+      "2026-07-27",
+      "2026-07-28",
+      "2026-07-29",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-08-01",
+      "2026-08-02",
+    ]);
+  });
+
+  it("degrades to no strip for an unparseable key rather than a broken one", () => {
+    expect(weekStripDays("not-a-date")).toEqual([]);
+    expect(weekStripDays("")).toEqual([]);
+  });
+
+  it("normalises an out-of-range month, exactly as the rest of this module does", () => {
+    /*
+     * `2026-13-01` is January 2027 to `dayKeyToUtcMidnight`, which is the same
+     * leniency `addDaysToDayKey` and `formatDayKeyLong` have always had. It is
+     * unreachable from the product: the Diary loader validates `?date=` with
+     * `isValidDayKey` (which IS strict, because it goes through
+     * `startOfLocalDayUtc`) and falls back to today before the strip is built.
+     * Pinned so the two behaviours are a documented pair rather than a surprise.
+     */
+    expect(isValidDayKey("2026-13-01", DIARY_DISPLAY_TIME_ZONE)).toBe(false);
+    expect(weekStripDays("2026-13-01")[0].dayKey).toBe("2026-12-28");
+  });
+});
+
+describe("weekStripCaption", () => {
+  it("names one month when the week sits inside it", () => {
+    expect(weekStripCaption(weekStripDays("2026-07-15"))).toBe("July 2026");
+  });
+
+  it("names both when the week straddles two", () => {
+    expect(weekStripCaption(weekStripDays("2026-08-01"))).toBe(
+      "July – August 2026",
+    );
+  });
+
+  it("carries both years across a new year", () => {
+    // 2025-12-29 is a Monday, so the week runs 29 Dec 2025 → 4 Jan 2026.
+    expect(weekStripCaption(weekStripDays("2025-12-31"))).toBe(
+      "December 2025 – January 2026",
+    );
+  });
+
+  it("is empty for an empty strip", () => {
+    expect(weekStripCaption([])).toBe("");
   });
 });

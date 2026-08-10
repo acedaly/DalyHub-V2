@@ -1,24 +1,49 @@
 /**
- * DIARY-01B — the Day-mode date navigator.
+ * DIARY-01B / UIX-04 §18 — the Day-mode date navigator, as a WEEK STRIP.
  *
- * Previous-day, next-day, Today and a native date picker, all URL-backed via the
- * `?date=YYYY-MM-DD` param (Back/Forward correct, deep-linkable). Previous/next step
- * the local calendar day with the pure day arithmetic in `./occurred-time` — the
- * browser never re-derives the day boundary. Changing the date is a SCOPE change, so
- * every control drops the pagination `cursor`; navigating to "today" clears the
- * param (today is the canonical default). Previous/next/Today are real links (they
- * work without JavaScript); the picker navigates on change.
+ * ── What changed, and why ────────────────────────────────────────────────────
+ * This was a prev / "Today · Mon, 10 August 2026" / next trio of pills. Every
+ * control worked and none of them answered the question a diary is opened with,
+ * which is not "what day is selected?" but "where am I in the week, and which
+ * days have I got anything for?". Moving between two days meant two clicks and a
+ * page of reading in between; moving to Saturday meant four.
  *
- * Accessible: each control is a labelled button/link, the current day is announced
- * through the picker's accessible name, and the visible label pairs the weekday with
- * the date so the day is never signalled by position alone.
+ * The strip is the answer §18 asks for in as many words — Mon 8, Tue 9, Wed 10 —
+ * with the selected day carrying the DalyHub accent. Seven days is one glance
+ * and one click, and the week is the unit a person actually reflects over.
+ *
+ * ── What is deliberately kept ────────────────────────────────────────────────
+ *   - the URL is still the state (`?date=YYYY-MM-DD`), so every day is
+ *     deep-linkable, shareable and Back/Forward-correct, and "today" is still
+ *     expressed by the ABSENCE of the param;
+ *   - every day is a real `<Link>`, so the strip works with no JavaScript and
+ *     costs no client state — the same reason the old controls were links;
+ *   - a date change is a SCOPE change, so it drops the pagination `cursor`;
+ *   - the native date picker survives, as the way to travel further than a week.
+ *     A week strip is for the recent past; a picker is for last March. Replacing
+ *     the picker with a calendar widget is exactly the "huge calendar widget"
+ *     §18 rules out;
+ *   - "Today" survives as the one-press way home from any week.
+ *
+ * ── Accessibility ────────────────────────────────────────────────────────────
+ * The strip is a `<nav>` of links. The selected day carries `aria-current="date"`
+ * — the ARIA value that exists precisely for a date in a picker — and its
+ * accessible name is the FULL date, because "8" is not a date to anyone reading
+ * the page one control at a time. Today is marked in words for the same reason.
+ * Nothing is signalled by colour alone: the selected day is a filled container
+ * and today carries a dot AND a "(today)" in its accessible name.
  */
 
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
-import { ChevronRightIcon } from "~/shared/icons";
+import { CalendarIcon } from "~/shared/icons";
 
-import { addDaysToDayKey, formatDayKeyMedium } from "./occurred-time";
+import {
+  addDaysToDayKey,
+  formatDayKeyLong,
+  weekStripCaption,
+  weekStripDays,
+} from "./occurred-time";
 
 export interface DiaryDayNavigatorProps {
   readonly selectedDate: string;
@@ -36,6 +61,8 @@ export function DiaryDayNavigator({
     const next = new URLSearchParams(searchParams);
     // A date change is a scope change: the cursor is scope-bound and dropped.
     next.delete("cursor");
+    // Opening a day must not also reopen whatever panel was last open.
+    next.delete("inspector");
     if (dayKey === todayKey) {
       // Today is the canonical default, expressed by the absence of `date`.
       next.delete("date");
@@ -46,8 +73,9 @@ export function DiaryDayNavigator({
     return query.length > 0 ? `?${query}` : "?";
   };
 
-  const previous = addDaysToDayKey(selectedDate, -1);
-  const nextDay = addDaysToDayKey(selectedDate, 1);
+  const days = weekStripDays(selectedDate);
+  const previousWeek = addDaysToDayKey(selectedDate, -7);
+  const nextWeek = addDaysToDayKey(selectedDate, 7);
   const isToday = selectedDate === todayKey;
 
   const go = (dayKey: string) => {
@@ -58,52 +86,97 @@ export function DiaryDayNavigator({
   };
 
   return (
-    <div className="dh-diary-datenav" role="group" aria-label="Selected day">
-      <button
-        type="button"
-        className="dh-diary-datenav__step dh-diary-datenav__step--prev"
-        aria-label="Previous day"
-        disabled={previous === null}
-        onClick={() => previous && go(previous)}
-      >
-        <ChevronRightIcon aria-hidden="true" />
-      </button>
+    <nav className="dh-diary-week" aria-label="Select a day">
+      <div className="dh-diary-week__bar">
+        {previousWeek !== null ? (
+          <Link
+            to={hrefForDate(previousWeek)}
+            className="dh-diary-week__step"
+            aria-label="Previous week"
+            preventScrollReset
+          >
+            <span aria-hidden="true">‹</span>
+          </Link>
+        ) : null}
 
-      <div className="dh-diary-datenav__current">
-        <span className="dh-diary-datenav__label">
-          {isToday ? "Today · " : ""}
-          {formatDayKeyMedium(selectedDate)}
-        </span>
-        <input
-          type="date"
-          className="dh-diary-datenav__picker"
-          aria-label="Select date"
-          value={selectedDate}
-          onChange={(event) => {
-            const value = event.target.value;
-            if (value) go(value);
-          }}
-        />
+        <ol className="dh-diary-week__days">
+          {days.map((day) => {
+            const selected = day.dayKey === selectedDate;
+            const today = day.dayKey === todayKey;
+            return (
+              <li key={day.dayKey}>
+                <Link
+                  to={hrefForDate(day.dayKey)}
+                  className="dh-diary-week__day"
+                  // `date` is the ARIA current value for exactly this: the day a
+                  // date control is showing.
+                  aria-current={selected ? "date" : undefined}
+                  data-today={today || undefined}
+                  aria-label={`${formatDayKeyLong(day.dayKey)}${today ? " (today)" : ""}`}
+                  preventScrollReset
+                >
+                  <span className="dh-diary-week__weekday" aria-hidden="true">
+                    {day.weekday}
+                  </span>
+                  <span className="dh-diary-week__number" aria-hidden="true">
+                    {day.dayOfMonth}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+
+        {nextWeek !== null ? (
+          <Link
+            to={hrefForDate(nextWeek)}
+            className="dh-diary-week__step"
+            aria-label="Next week"
+            preventScrollReset
+          >
+            <span aria-hidden="true">›</span>
+          </Link>
+        ) : null}
       </div>
 
-      <button
-        type="button"
-        className="dh-diary-datenav__step dh-diary-datenav__step--next"
-        aria-label="Next day"
-        disabled={nextDay === null}
-        onClick={() => nextDay && go(nextDay)}
-      >
-        <ChevronRightIcon aria-hidden="true" />
-      </button>
+      <div className="dh-diary-week__end">
+        <span className="dh-diary-week__caption">{weekStripCaption(days)}</span>
+        {/*
+          The picker is how you leave the week.
 
-      <button
-        type="button"
-        className="dh-diary-datenav__today"
-        onClick={() => go(todayKey)}
-        disabled={isToday}
-      >
-        Today
-      </button>
-    </div>
+          A native `<input type="date">` cannot be shrunk to a glyph — the
+          browser lays out its own segmented field and clips it, which is what
+          "08/📅" in a 44px box was. So the input is stretched INVISIBLY over a
+          44px well that draws the glyph, which is the same technique the
+          navigator this replaced already used. The control the user operates is
+          still the real native picker: keyboard-complete, phone-native, and
+          working with no JavaScript beyond the navigation itself.
+
+          Its accessible name states the day it currently holds, so a keyboard
+          user reaching it knows where they are without reading the strip.
+        */}
+        <span className="dh-diary-week__pickerwell">
+          <CalendarIcon aria-hidden="true" />
+          <input
+            type="date"
+            className="dh-diary-week__picker"
+            aria-label={`Go to a date — showing ${formatDayKeyLong(selectedDate)}`}
+            value={selectedDate}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value) go(value);
+            }}
+          />
+        </span>
+        <Link
+          to={hrefForDate(todayKey)}
+          className="dh-diary-week__today"
+          aria-disabled={isToday || undefined}
+          preventScrollReset
+        >
+          Today
+        </Link>
+      </div>
+    </nav>
   );
 }

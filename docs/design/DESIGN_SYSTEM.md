@@ -765,9 +765,57 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 - **The boundary is test-enforced, not documented.** `test/unit/markdown-editor/one-writing-surface.test.ts` fails if CodeMirror is imported outside this package, if a second toolbar or formatting catalogue appears, if a superseded long-form control is redeclared, if `~/shared/forms` exports anything Markdown, or if a rich-text document model enters the application.
 - **Presentation converges; persistence does not (EDIT-02).** A module adopting this surface keeps its own save semantics — the Diary panel keeps its explicit **Save changes** and its dirty guard, a Note keeps autosave, a Meeting keeps autosave-on-blur. `MarkdownEditorField` exists precisely so that unifying how writing LOOKS never forces a module onto a different persistence strategy. It lives in `~/shared/markdown-editor`, not in `~/shared/forms`, so a route that only renders a text input does not pull the writing surface into its bundle.
 - **Disabled is a state of this control, not a read view.** `disabled` reconfigures the live view through a CodeMirror `Compartment` rather than re-creating it, so a form that disables its controls during a submit does not cost the author their undo history or their caret. The toolbar keeps its shape and greys out; it never disappears and shifts the page.
-- **The editor SURFACE and the writing MEASURE are two different things.** The surface is the full width of whatever hosts it, left-aligned and flush with the record's content edge, with only modest internal padding before the first character — the same padding that lines it up with the toolbar's first icon. The measure is `--app-width-editor` (90ch), deliberately wider than the 65ch reading measure because Markdown source is not prose: lists, tables, link syntax and long URLs wrap into an unreadable stack at a reading measure. Any unused width falls **after** the text.
-- **Never centre the editable column.** `margin-inline: auto` on `.cm-content` does not merely centre a capped column: `.cm-scroller` is a flex container, so auto margins cancel `flex-grow` and centre the item's own max-content box — which on an *empty* document is a few pixels wide. That is how a Note's caret and `Start writing…` placeholder came to open near the middle of a 1044px surface. Reading mode keeps `--app-width-prose`, left-aligned from the same content edge, so toggling Read changes where a line ENDS and never where it begins.
+- **The editor is a DOCUMENT COLUMN, and every band shares it (UIX-04).** The measure is `--app-width-editor` (**72ch**) and it is applied to the editor's own CHILDREN — the toolbar, the writing surface, the read view, the message slot — so the strip's first icon sits above the first character and the whole thing reads as one sheet. It is 72ch, not EDIT-02's 90ch: that value was argued from "Markdown source is not prose", which stopped being true when the live editor started styling the document as it is typed. 90ch produced ~95-character lines *and* left a quarter of the canvas empty — too wide to read and too narrow to fill the page. Where the slack is worth spending, the module spends it (the Notes rail, a Meeting's dense tabs) rather than leaving it blank. **There is no single global max-width**: reading and writing take this measure, collection rows take `--app-width-content`, metadata takes the column it belongs to.
+- **Never cap or centre `.cm-content` itself.** `margin-inline: auto` on `.cm-content` does not merely centre a capped column: `.cm-scroller` is a flex container, so auto margins cancel `flex-grow` and centre the item's own max-content box — which on an *empty* document is a few pixels wide. That is how a Note's caret and `Start writing…` placeholder came to open near the middle of a 1044px surface. The column lives one level up, on ordinary block children of a column flex container, so `.cm-content` simply fills what it is given and there is nothing left for the flex layout to misinterpret.
+- **Read and Write are ONE column (UIX-04).** They used to be 65ch and 90ch respectively, sharing only a left edge. Write mode already shows the rendered document, so reflowing every line on the way to Read was a jump with nothing behind it: both modes now take the writing measure and the text does not move when the toggle is pressed. Read differs from Write in what it renders, not in where it sits.
+- **The document heading ladder is `--app-writing-h1…h4` (28/22/18/16), not the chrome typescale.** The M3 scale is built for an application's chrome, where `title-medium` is 16px — identical to `body-large` — so mapping `h2`/`h3` onto it made a structured note render as a wall with no outline. The four sizes are consumed by BOTH `.markdown-content` and the live editor's decorations, so Read and Write cannot drift. Paragraph rhythm is `--app-writing-paragraph-gap`, in `em`, shared by both for the same reason.
+- **Not every formatting control is permanently visible (UIX-04).** Thirteen 44px controls do not fit a 72ch column, and the row's own horizontal scroll hid the overflow — a control that has scrolled out of a strip nobody knows scrolls is simply gone. Seven stay: bold, italic, heading, bulleted list, numbered list, link, remove formatting, plus undo/redo, the record-link command and *More*. Strikethrough and Checklist live behind *More* and keep their shortcut, tooltip, `aria-pressed` state and place in the single roving tab stop.
+- **The toolbar sticks to the top of the writing surface (UIX-04).** A note long enough to scroll used to scroll its controls off the page, so formatting a paragraph three screens down meant scrolling back for a button. It carries the page colour only while stuck, so a document that fits shows no band at all.
 - **44px targets, on every pointer.** DalyHub holds that bar everywhere and it is stricter than WCAG 2.2 AA's 24px; an earlier draft of this work shrank the control to 36px on fine pointers for compactness, which traded an accessibility contract for a visual one. The compactness comes from the GLYPH instead: thirteen 44px squares are narrower than eleven word-buttons, and they do not wrap. The row scrolls horizontally inside its own box, so the toolbar never produces page-level overflow at 320px.
+
+### Writing-module composition (UIX-04)
+**Purpose.** The three modules that hold real prose — Notes, Diary, Meetings —
+share the [writing surface](#shared-writing-surface-edit-01) and differ in
+COMPOSITION. Sharing primitives without sharing the whole experience is the point:
+capturing information, recording a day and running a conversation are three
+different jobs, and a module that is the same screen with a different heading is
+the failure this pattern exists to prevent.
+
+**Anatomy.** [`app/styles/writing.css`](../../app/styles/writing.css) (the shared
+document column, its title and its one context line) · the module compositions in
+`notes.css`, `diary.css` and `meetings.css` · the four `--app-writing-*` tokens in
+`tokens.css`.
+
+**Rules.**
+- **One context LINE, not a metadata band.** A writing surface states, above the
+  text, only what the writer cannot see by looking at it: when it was last
+  touched, and whatever context the module genuinely has (tags for a Note, a time
+  for a Diary entry, when/where/who for a Meeting). Everything else the record
+  knows lives in the overflow or a tab. Where a record's header would otherwise
+  render labelled `Field: value` pairs, the module passes `label: ""` and supplies
+  the whole line — the shared header's documented "this context reads as a phrase"
+  escape.
+- **The record header aligns to the document column.** Otherwise the title sits a
+  hundred and fifty pixels to the left of the first character it names, which is
+  the "awkward centring" defect arrived at from the other direction. Breadcrumb,
+  title, context, tab strip and prose are one column.
+- **A module's identity is its LIST, not its editor.** Notes is a directory of
+  documents (title-dominant rows, one-line preview, a right-hand date column, a
+  rail beside the open note); Diary is a chronology (a week strip, day groups,
+  two-line previews); Meetings is a schedule (day headings, a leading time column,
+  status only when it contradicts the view). None of the three uses the shared
+  Card: a card is how you present things you choose between by LOOKING, and all
+  three of these are found by their title or their date.
+- **A phone gets a different composition, never a squeezed desktop one.** The
+  Notes rail is not rendered below `lg` (list screen → note screen); the Diary's
+  week strip scrolls inside its own track so its controls stay reachable; the
+  Meetings row moves its time above the title rather than stealing width from it.
+  On a document, the phone drops chrome the top bar already carries — the
+  breadcrumb, the entity glyph — so the words start near the top of the screen.
+- **Structured sections are the ones the schema owns.** A Meeting's notebook runs
+  Agenda → Notes → Decisions → Outcomes → Actions because those are the two
+  Markdown bodies on `meeting_details` plus the four `meeting_items.kind` values.
+  A module does not invent a section a reader could not fill.
 
 ### Inline editing (DS-16)
 **Purpose.** Change a commonly-edited value where it is shown, instead of routing every small correction through a modal, a drawer or a dedicated edit page.

@@ -175,15 +175,32 @@
 .dh-notes-filters__form {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--app-space-3);
+  align-items: center;
+  gap: var(--app-space-2) var(--app-space-3);
   margin: 0;
 }
 
+/*
+ * UIX-04 §7 — "Do not create a huge filter toolbar."
+ *
+ * The controls are right and the ARCHITECTURE is right: one ordinary GET form of
+ * native controls, so every filtered view is a shareable URL that works with no
+ * JavaScript (NOTES-03). What was wrong was the HEIGHT. Each field stacked its
+ * label above a 44px control, so the band came to about ninety pixels of chrome
+ * standing above a list of seven notes — on the module whose whole point is the
+ * writing underneath it.
+ *
+ * A label now sits BESIDE its control rather than above it. Nothing is hidden
+ * from assistive tech: the search field's label is `dh-visually-hidden` (present,
+ * announced, and repeated verbatim by the placeholder) and every other control
+ * keeps its visible label. The 44px touch floor is untouched — this recovers the
+ * label ROW, never the target.
+ */
 .dh-notes-filters__field {
   display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--app-space-2);
   margin: 0;
   min-width: 0;
   /*
@@ -200,18 +217,33 @@
   flex: 0 1 8rem;
 }
 
-/* The search field is the one control that earns the slack. */
+/*
+ * The search field is the widest control in the band, and it stops there.
+ *
+ * It used to be `flex: 2 1 14rem`, which grew it to whatever was left of the
+ * row — but the shared collection rule caps every control inside a filter bar at
+ * 18rem, so the FIELD grew and the INPUT inside it did not: 342px of empty flex
+ * space opened between the search box and the next control, and the band read as
+ * three controls scattered across a thousand pixels. Sizing the field to its
+ * control packs the row tight, which is what §7 means by compact.
+ */
 .dh-notes-filters__field--grow {
-  flex: 2 1 14rem;
+  flex: 0 1 18rem;
 }
 
 .dh-notes-filters__label {
+  flex: 0 0 auto;
+  white-space: nowrap;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-notes-filters__control {
+  /* A flex item now that its label sits beside it, so it grows into the field
+   * rather than resolving `width: 100%` against a box it no longer fills. */
+  flex: 1 1 auto;
+  min-inline-size: 0;
   min-height: var(--app-touch-target-min);
   width: 100%;
   padding: var(--app-space-2) var(--app-space-3);
@@ -289,7 +321,7 @@
 .dh-notes-filters__more-fields {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--app-space-3);
   padding-block-start: var(--app-space-3);
 }

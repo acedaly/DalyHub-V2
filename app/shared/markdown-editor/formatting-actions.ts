@@ -154,7 +154,6 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
     },
     {
       id: "strikethrough",
-      primary: true,
       stateful: true,
       group: "emphasis",
       label: "Strikethrough",
@@ -195,7 +194,6 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
     },
     {
       id: "checklist",
-      primary: true,
       stateful: true,
       group: "block",
       label: "Checklist",
@@ -260,6 +258,25 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       transform: removeFormattingTransform,
     },
   ];
+
+/*
+ * UIX-04 §9/§10 — which controls are PERMANENT.
+ *
+ * §9 is explicit that not every formatting control should be exposed
+ * permanently "if it creates clutter", and the writing measure gave that
+ * abstract instruction a concrete number: the document column is 72ch, and
+ * thirteen 44px controls plus their separators do not fit inside it. The
+ * toolbar's own horizontal scroll hid the difference — which is worse than
+ * clutter, because a control that has scrolled out of a strip nobody knows
+ * scrolls is a control that is simply gone.
+ *
+ * So STRIKETHROUGH and CHECKLIST move behind "More". They lose nothing else:
+ * both keep their keyboard shortcut, their tooltip, their `aria-pressed` active
+ * state and their place in the toolbar's single roving tab stop when the group
+ * is open. What is left permanently visible is the set a person writing prose
+ * reaches for without thinking — bold, italic, a heading, two kinds of list, a
+ * link, and the escape hatch that removes formatting.
+ */
 
 /** The actions offered directly in the toolbar. */
 export const PRIMARY_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =

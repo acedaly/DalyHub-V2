@@ -51,12 +51,23 @@ import { NoteTagsForm } from "../NoteTagsForm";
 import {
   effectiveNoteUpdatedAt,
   serializeNoteDetails,
+  serializeNoteListItem,
   serializeNoteOverview,
 } from "../note-view";
 import type { NoteMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
 const TAGS_KEY = "tags";
+
+/**
+ * UIX-04 — how many notes the rail beside an open Note holds.
+ *
+ * Long enough that the list is genuinely useful for moving between the notes
+ * someone is actually working in, short enough that opening a note never costs
+ * an unbounded query. Beyond it the rail says "All notes" and hands over to the
+ * collection, which owns search, tags and the archived views.
+ */
+const RAIL_LIMIT = 40;
 
 export function meta() {
   return [{ title: "Note · DalyHub" }];
@@ -104,6 +115,20 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     }
   }
 
+  /*
+   * UIX-04 §5 — the rail's notes.
+   *
+   * ONE bounded page of the same READ projection the collection uses, ordered
+   * by the effective updated moment, so the list beside the document is the
+   * list the owner would have been looking at. It is a nice-to-have beside the
+   * record itself, so a failure degrades to no rail rather than costing the
+   * user their note — the writing surface must open even when the list query
+   * does not.
+   */
+  const rail = await scope.notes
+    .list({ state: "active", sort: "recent", limit: RAIL_LIMIT })
+    .catch(() => null);
+
   return {
     // AI-01 — availability only: whether the action can run, never a credential.
     aiAvailability: await readAiAvailability(
@@ -117,6 +142,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     backlinks,
     outgoing,
     printHtml,
+    rail: rail ? rail.items.map(serializeNoteListItem) : [],
+    railHasMore: rail?.hasMore ?? false,
   };
 }
 
@@ -259,6 +286,8 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
     <NoteOverview
       overview={props.overview}
       details={props.details}
+      rail={props.rail}
+      railHasMore={props.railHasMore}
       onRename={onRename}
       onEditTags={() => openDrawer(TAGS_KEY)}
       onSaved={() => revalidator.revalidate()}

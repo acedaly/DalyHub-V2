@@ -199,6 +199,50 @@ chart, both phone compositions and the dark appearance.
   correct, including inverse direction and the baseline-relative formula.
 - Record: [`UIX_03_GOALS_2026_08.md`](../design/UIX_03_GOALS_2026_08.md).
 
+### ☑ UIX-04 - Notes, Diary & Meetings product UI redesign — **DELIVERED 2026-08-10**
+
+Turn the three writing modules from record editors with a big text field into a
+writing application, a personal journal and a working notebook — sharing one
+writing surface and differing in composition.
+
+- **Fixed the writing measure.** `--app-width-editor` went from 90ch to **72ch**,
+  and the cap and centring moved off `.cm-content` onto the editor's own children,
+  so the toolbar, the text, the read view and the messages share ONE document
+  column. The old value produced ~95-character lines *and* left a quarter of the
+  canvas empty — too wide to read and too narrow to fill the page.
+- **Gave documents a heading ladder.** Four `--app-writing-h*` sizes
+  (28/22/18/16) consumed by both `.markdown-content` and the live editor's
+  decorations. `.markdown-content` previously rendered `h2` and `h3`–`h6` at
+  `body-large` — the size of the paragraph beneath them — so a structured note had
+  no visible outline. List rhythm, task lists, inline code, fenced blocks (which
+  now scroll inside themselves) and links were rebuilt with it.
+- **Unified Read and Write.** Both take the writing column, so pressing Read no
+  longer reflows the document. The read view also lost the card it was painted on.
+- **Made the toolbar fit and stay.** Strikethrough and Checklist moved behind
+  *More* (thirteen 44px controls do not fit a 72ch column, and the row's own
+  horizontal scroll was hiding the overflow), and the strip is now sticky to the
+  top of the writing surface.
+- **Gave Notes a rail.** `/notes/:id` loads one bounded page of the notes list and
+  renders it beside the document at ≥1024px, with `aria-current="page"` on the
+  open note. The collection became a list of documents — title-dominant rows, a
+  one-line preview and a right-hand date column — in place of a three-column
+  gallery of tiles.
+- **Made the Diary's date the control.** A week strip (Mon 8, Tue 9, Wed 10) with
+  the selected day in the primary accent, replacing a prev/label/next trio that
+  cost two clicks to move one day. The ten-chip type filter lost its borders and
+  fills; entries got two-line previews and lost their repeated type chip.
+- **Made the Meeting record a notebook.** Agenda → Notes → Decisions → Outcomes →
+  Actions — every section a real column of the schema — is now the FIRST and
+  default tab, in place of a metadata form holding a duration, a timezone, an
+  attendee editor and two relationship lists. Attendees moved into the header as a
+  compact read-only row, and the collection became a day-grouped schedule.
+- **Non-goals:** no storage change (Markdown throughout), no new editor
+  framework, no invented Meeting sections, no mood tracking, no calendar system,
+  no tagging framework, and none of the AI/transcription/collaboration work the
+  brief rules out. Meeting collection rows deliberately do not resolve attendees:
+  the only read available is one query per row.
+- Record: [`UIX_04_NOTES_DIARY_MEETINGS_2026_08.md`](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.

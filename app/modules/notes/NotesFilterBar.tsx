@@ -155,8 +155,20 @@ export function NotesFilterBar({
         ) : null}
         {drawer ? <input type="hidden" name="drawer" value={drawer} /> : null}
 
+        {/*
+          UIX-04 §7/§37 — the search field's visible label is its placeholder.
+
+          The control is still named for assistive tech (the label element is
+          only visually hidden, never removed), and the placeholder repeats the
+          same words, so nothing is lost to anyone — but the band stops spending
+          a stacked label row on a control whose purpose a search input already
+          announces by its shape. That is most of the height §7 objects to.
+        */}
         <p className="dh-notes-filters__field dh-notes-filters__field--grow">
-          <label className="dh-notes-filters__label" htmlFor="notes-filter-q">
+          <label
+            className="dh-notes-filters__label dh-visually-hidden"
+            htmlFor="notes-filter-q"
+          >
             Search notes
           </label>
           <input
@@ -164,7 +176,7 @@ export function NotesFilterBar({
             name="q"
             type="search"
             defaultValue={filters.q}
-            placeholder="Title, content or tag"
+            placeholder="Search notes"
             className="dh-notes-filters__control"
             autoComplete="off"
           />

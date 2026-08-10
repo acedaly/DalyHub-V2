@@ -138,6 +138,12 @@ function clearFixtures() {
     "project_details",
     "goal_details",
     "area_details",
+    // UIX-04's three writing modules. `meeting_items` cascades from
+    // `meeting_details`, but the two above are deleted explicitly anyway (the
+    // cascade fires on the meeting row, which is deleted in this same loop).
+    "note_details",
+    "diary_entry_details",
+    "person_details",
   ]) {
     push(
       `DELETE FROM ${table} WHERE workspace_id = ${ws} AND entity_id IN (${sel});`,
@@ -298,16 +304,99 @@ function goal(
   }
 }
 
+/**
+ * One Meeting.
+ *
+ * `dayOffset` positions it relative to the owner's calendar day (0 = today), so
+ * a scenario can seed the Today/Upcoming/Recent grouping the collection derives
+ * rather than a seeded label. Everything past `mode` is UIX-04's addition: the
+ * two Markdown bodies and the held/completed lifecycle a meeting NOTEBOOK needs
+ * in order to be judged as one. The defaults keep every pre-existing caller
+ * (`typical`, `heavy`) byte-identical.
+ */
 function meeting(
   id,
   title,
-  { hour, minute = 0, location = null, mode = "online" } = {},
+  {
+    hour,
+    minute = 0,
+    location = null,
+    mode = "online",
+    dayOffset = 0,
+    durationHours = 1,
+    status = "planned",
+    agenda = "",
+    notes = "",
+    heldAt = null,
+    url = null,
+  } = {},
 ) {
-  const startsAt = ownerInstant(TODAY, hour, minute);
-  const endsAt = ownerInstant(TODAY, hour + 1, minute);
+  const day = addDays(TODAY, dayOffset);
+  const startsAt = ownerInstant(day, hour, minute);
+  const endsAt = ownerInstant(day, hour + durationHours, minute);
   entity(id, "meeting", title);
   push(
-    `INSERT INTO meeting_details (workspace_id, entity_id, entity_type, starts_at, ends_at, timezone, location, mode, meeting_url, status, agenda_markdown, notes_markdown, archived_at, held_at, updated_at) VALUES (${ws}, ${q(id)}, 'meeting', ${q(startsAt)}, ${q(endsAt)}, ${q(OWNER_TIMEZONE)}, ${q(location)}, ${q(mode)}, NULL, 'planned', '', '', NULL, NULL, ${q(stamp())});`,
+    `INSERT INTO meeting_details (workspace_id, entity_id, entity_type, starts_at, ends_at, timezone, location, mode, meeting_url, status, agenda_markdown, notes_markdown, archived_at, held_at, updated_at) VALUES (${ws}, ${q(id)}, 'meeting', ${q(startsAt)}, ${q(endsAt)}, ${q(OWNER_TIMEZONE)}, ${q(location)}, ${q(mode)}, ${q(url)}, ${q(status)}, ${q(agenda)}, ${q(notes)}, NULL, ${q(heldAt)}, ${q(stamp())});`,
+  );
+}
+
+/**
+ * One structured Meeting item. `kind` is one of the four the schema allows —
+ * `agenda`, `decision`, `outcome`, `action` (migration 0021) — so a fixture can
+ * never seed a section the product does not own.
+ */
+function meetingItem(id, meetingId, kind, body, position) {
+  const at = stamp();
+  push(
+    `INSERT INTO meeting_items (workspace_id, id, meeting_id, kind, body_markdown, position, created_at, updated_at) VALUES (${ws}, ${q(id)}, ${q(meetingId)}, ${q(kind)}, ${q(body)}, ${position}, ${q(at)}, ${q(at)});`,
+  );
+}
+
+/** The durable "this action item became that Task" mapping (MEET-02). */
+function meetingItemTask(meetingId, itemId, taskId) {
+  push(
+    `INSERT INTO meeting_item_tasks (workspace_id, meeting_id, item_id, task_id, created_at) VALUES (${ws}, ${q(meetingId)}, ${itemId === null ? "NULL" : q(itemId)}, ${q(taskId)}, ${q(stamp())});`,
+  );
+}
+
+/** One Note. `content` is the Markdown source — the only thing Notes store. */
+function note(id, title, { content = "", tags = [], dayOffset = 0 } = {}) {
+  const at = ownerInstant(addDays(TODAY, dayOffset), 9, 0);
+  entity(id, "note", title, { createdAt: at, updatedAt: at });
+  push(
+    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, tags, updated_at) VALUES (${ws}, ${q(id)}, 'note', ${q(content)}, ${q(JSON.stringify(tags))}, ${q(at)});`,
+  );
+}
+
+/**
+ * One Diary entry. `occurred_at` — not `created_at` — is the chronology the
+ * Timeline sorts and groups by (ADR-041), so a scenario positions an entry by
+ * `dayOffset`/`hour` and gets the same day whenever it is run.
+ */
+function diary(
+  id,
+  title,
+  {
+    body = null,
+    entryType = "note",
+    dayOffset = 0,
+    hour = 20,
+    minute = 0,
+  } = {},
+) {
+  const occurredAt = ownerInstant(addDays(TODAY, dayOffset), hour, minute);
+  entity(id, "diary", title, { createdAt: occurredAt, updatedAt: occurredAt });
+  push(
+    `INSERT INTO diary_entry_details (workspace_id, entity_id, entity_type, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES (${ws}, ${q(id)}, 'diary', ${q(entryType)}, ${q(body)}, ${q(occurredAt)}, ${q(OWNER_TIMEZONE)}, 'manual', NULL, ${q(occurredAt)});`,
+  );
+}
+
+/** One Person, with just enough identity for an attendee row to read. */
+function person(id, name, { organisation = null, role = null } = {}) {
+  const [firstName, ...rest] = name.split(" ");
+  entity(id, "person", name);
+  push(
+    `INSERT INTO person_details (workspace_id, entity_id, entity_type, preferred_name, first_name, last_name, organisation, role, tags, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'person', ${q(firstName)}, ${q(firstName)}, ${q(rest.join(" ") || null)}, ${q(organisation)}, ${q(role)}, '[]', NULL, ${q(stamp())});`,
   );
 }
 
@@ -1187,6 +1276,570 @@ function goals() {
   });
 }
 
+/**
+ * UIX-04 — the WRITING day: Notes, Diary and Meetings with real prose in them.
+ *
+ * Every other scenario seeds the spine, because every other scenario is judging
+ * the spine. This one is judging a WRITING surface, and a writing surface can
+ * only be judged against writing: an editor photographed over two sentences
+ * looks calm no matter how badly its line length is chosen, and a Note list of
+ * six-word titles never shows that the excerpt has nowhere to go.
+ *
+ * So the content here is deliberately long-form and deliberately uneven:
+ *
+ *   - Notes span a 900-word structured document (headings, lists, a table, a
+ *     quote, a code fence, links) down to a four-word capture, because the list
+ *     row and the editor have to hold both;
+ *   - one Note title is long enough to test wrapping at 390px without being
+ *     absurd, which is the width the brief calls out (§4, §52);
+ *   - Diary entries land across today, yesterday and the preceding fortnight,
+ *     several on the SAME day at different hours, so date grouping and the
+ *     within-day ordering are both visible;
+ *   - Meetings cover the three groups the collection derives from `starts_at`
+ *     (today, upcoming, recent) and the completed/planned lifecycle, and the
+ *     recent one carries the full structured notebook: agenda items, a written
+ *     body, decisions, outcomes, and actions that became real Tasks through the
+ *     real `meeting_item_tasks` mapping.
+ *
+ * Nothing here is a display string. The groupings, the excerpts, the relative
+ * dates and the linked-Task rows in the screenshots are all computed by the
+ * same code production runs.
+ */
+function writing() {
+  // The shared dev seed carries a dozen lifecycle-test Notes, People and
+  // Meetings ("Blocked Delete Note", "Pagination 7", …) which would be most of
+  // what a screenshot shows. Parked behind the SAME reversible sentinel the
+  // other scenarios use, so `restore` brings them all back.
+  for (const type of ["note", "diary", "person", "area", "meeting"]) {
+    push(
+      `UPDATE entities SET deleted_at = ${q(PARK_SENTINEL)} WHERE workspace_id = ${ws} AND type = '${type}' AND deleted_at IS NULL;`,
+    );
+  }
+
+  area("tf-area-work", "Work & Career", { iconKey: "document" });
+  area("tf-area-health", "Health & Fitness", { iconKey: "target" });
+  area("tf-area-home", "Home & Family", { iconKey: "property" });
+  area("tf-area-learning", "Learning & Development", { iconKey: "idea" });
+
+  project("tf-proj-oppo", "OPPO Program Redesign", {
+    areaId: "tf-area-work",
+    iconKey: "board",
+  });
+  project("tf-proj-review", "Curriculum review", {
+    areaId: "tf-area-work",
+    iconKey: "document",
+  });
+
+  person("tf-p-mira", "Mira Kaplan", {
+    organisation: "Faculty of Health",
+    role: "Associate Dean",
+  });
+  person("tf-p-tomas", "Tomas Bergström", {
+    organisation: "Registry",
+    role: "Manager, Admissions",
+  });
+  person("tf-p-jules", "Jules Okonkwo", {
+    organisation: "Faculty of Health",
+    role: "Program Lead",
+  });
+  person("tf-p-anna", "Anna Whitfield", {
+    organisation: "Student Experience",
+    role: "Director",
+  });
+  person("tf-p-david", "David Ng", {
+    organisation: "Planning",
+    role: "Analyst",
+  });
+
+  /* ---- Notes ----------------------------------------------------------- */
+
+  // The long one. This is the document the editor is judged against: nine
+  // hundred words of ordinary working prose carrying every block the Markdown
+  // pipeline renders, so "would I write a long note in this?" is a question the
+  // screenshots can actually answer.
+  note("tf-note-pathway", "Direct-entry pathway — options and trade-offs", {
+    dayOffset: -1,
+    tags: ["oppo", "policy", "draft"],
+    content: `The current pathway assumes every student arrives from a completed diploma. That assumption is now wrong for roughly a third of the cohort, and the admissions rules have been quietly patched around it three times. This note is the attempt to write down what we actually want before we patch it a fourth time.
+
+## What is actually broken
+
+Three things, in the order they hurt:
+
+1. **The credit table is unreadable.** It has forty-one rows, twelve of which are exceptions to other rows. Nobody in Registry can answer a student's question from it without ringing the faculty.
+2. **The entry points disagree.** A student with a Certificate IV can enter through two different rules that grant different amounts of credit for the same prior study. Which one applies depends on which form they filled in.
+3. **We cannot tell anyone what happens next.** There is no published progression map, so the honest answer to "what does this lead to?" is currently a conversation rather than a page.
+
+None of these are hard problems individually. They are hard together, because fixing one without the others just moves the confusion.
+
+## Options
+
+### Option A — Tidy the existing table
+
+Keep the current structure and rewrite the table so the exceptions become their own rows. Cheapest, fastest, and it does not fix the disagreement between entry points — it only makes the disagreement easier to read.
+
+> Worth saying plainly: this is the option we will default to if we do not decide anything, because it is the only one that needs no approval.
+
+### Option B — Collapse to three entry bands
+
+Replace forty-one rows with three bands defined by volume of prior learning, and grant credit by band rather than by named qualification. Loses some precision at the edges. Gains an answer a human can give over the phone.
+
+| Band | Prior learning | Credit | Typical entrant |
+| --- | --- | --- | --- |
+| 1 | Under 12 months | 0–2 units | School leaver, short course |
+| 2 | 12–24 months | 3–6 units | Certificate IV, partial diploma |
+| 3 | Over 24 months | 7–8 units | Completed diploma, associate degree |
+
+The edge cases are real but small: we modelled last year's intake and eleven students would have received less credit than they did under the current rules. Six would have received more.
+
+### Option C — Assess individually, publish the criteria
+
+Drop the table entirely and assess each application against published criteria. Most accurate, most defensible, and it costs Registry roughly forty minutes per non-standard application. At current volumes that is about 1.5 FTE we do not have.
+
+## Where I have landed
+
+Option B, with a documented appeal path for the edge cases that Option C would have caught. The precision we lose is smaller than the precision we currently *pretend* to have — the forty-one-row table looks exact and is applied inconsistently, which is worse than a coarser rule applied the same way every time.
+
+## Open questions
+
+- [ ] Does the appeal path need academic-board sign-off, or is it a Registry procedure?
+- [ ] What happens to students mid-pathway when the bands change? Grandfathering seems obvious but nobody has costed it.
+- [ ] Who owns the published progression map after launch?
+
+## Notes from the modelling
+
+The band boundaries came out of the intake data rather than out of a workshop, which is the main reason I trust them. The script that produced the numbers is short enough to include:
+
+\`\`\`python
+bands = {1: (0, 12), 2: (12, 24), 3: (24, None)}
+
+def band_for(months_prior):
+    for band, (low, high) in bands.items():
+        if months_prior >= low and (high is None or months_prior < high):
+            return band
+    raise ValueError(months_prior)
+\`\`\`
+
+Reference material: the [2025 admissions review](https://example.org/admissions-review) and the sector comparison Tomas put together. Both agree that banding is the common approach; neither is a strong argument on its own, because both are describing what institutions *do* rather than what works.
+
+## Next step
+
+Take Option B to the working group with the modelling attached, and ask specifically about grandfathering — that is the question most likely to sink it, and it is better raised by us than found by someone else.`,
+  });
+
+  note(
+    "tf-note-briefing",
+    "Briefing paper structure for the executive committee meeting",
+    {
+      dayOffset: -3,
+      tags: ["oppo", "writing"],
+      content: `Executive briefings here run to two pages and get read in the five minutes before the meeting. Structure accordingly.
+
+## The shape that works
+
+**Page one** answers the decision. **Page two** justifies it. Nobody reads page two in the room; they read it afterwards when someone challenges the decision.
+
+- Lead with the recommendation, not the background. The background is why the recommendation is right, which is a different question from what we are asking them to do.
+- One paragraph of context, maximum. If the context needs three paragraphs, the paper is trying to do two jobs.
+- Options as a short list with the trade-off stated in the option, not in a separate section.
+- Cost and risk in the same place. Splitting them lets a reader agree to the cost without having seen the risk.
+
+## What to avoid
+
+Long preambles about process. The committee does not need to know how many workshops it took; they need to know what came out of them. A sentence like "following extensive consultation" carries no information and costs a line.
+
+Also avoid the passive voice for decisions already made — "it was decided" hides who decided, and that is exactly the thing a committee wants to know.`,
+    },
+  );
+
+  note("tf-note-meeting-prep", "Questions for Mira before the working group", {
+    dayOffset: -4,
+    tags: ["oppo"],
+    content: `Short list, in priority order:
+
+1. Is academic board sign-off needed for the appeal path, or can Registry own it as procedure?
+2. Has anyone costed grandfathering for the mid-pathway cohort?
+3. Who is the named owner of the progression map after launch?
+4. Is there an appetite for a staged rollout, or does this need to land as one change?
+
+Everything else can wait for the paper.`,
+  });
+
+  note("tf-note-reading", "Reading list — service design", {
+    dayOffset: -9,
+    tags: ["learning"],
+    content: `Things worth finishing rather than skimming.
+
+- *Good Services*, Lou Downe — the fifteen principles are the most directly usable thing I have read on this.
+- *Seeing Like a State*, Scott — long, and the middle third is the part that matters for us: what legibility costs the thing being made legible.
+- The GOV.UK service manual. Not a book, but the sections on service patterns are better than most books.
+
+Half-read and probably worth abandoning: two of the "design thinking" titles that keep getting recommended. Both are workshop facilitation guides wearing a strategy cover.`,
+  });
+
+  note("tf-note-house", "House — window quotes and who said what", {
+    dayOffset: -12,
+    tags: ["home"],
+    content: `Three quotes in, all for the same six windows, all quoting slightly different work.
+
+- **Quote 1** — $8,400. Includes the two upstairs frames, which the others exclude. Six weeks out.
+- **Quote 2** — $6,950. Excludes frames. Available in a fortnight, which is the only reason it is still in contention.
+- **Quote 3** — $9,100. Includes frames and the render patching. Nine weeks.
+
+The frames are the whole question. If they need doing anyway then Quote 3 is cheapest by about six hundred dollars once the render is counted. Getting a second opinion on the frames before deciding.`,
+  });
+
+  note("tf-note-capture", "Ask Tomas about the intake data", {
+    dayOffset: 0,
+    tags: [],
+    content: `Specifically the 2024 figures — the ones in the review look like they exclude deferrals.`,
+  });
+
+  note("tf-note-standup", "Standup notes", {
+    dayOffset: -2,
+    tags: ["oppo"],
+    content: `Blocked on the credit table until Registry confirms the exception list is complete. Jules is chasing.
+
+Everything else moving. Nothing needs escalating this week.`,
+  });
+
+  /* ---- Diary ------------------------------------------------------------ */
+
+  // Two entries today at different hours, so the within-day ordering shows.
+  diary("tf-diary-today-eve", "A good day for thinking", {
+    dayOffset: 0,
+    hour: 21,
+    minute: 10,
+    body: `Spent most of the afternoon on the pathway note and it was the first sustained stretch of actual thinking I have had in about three weeks. The difference is embarrassing — three hours uninterrupted got further than a fortnight of half-hours between meetings.
+
+The thing I keep relearning: I cannot think in the gaps. Everything I have ever been pleased with came out of a long block. Everything produced in the gaps is competent and forgettable.
+
+Worth defending Thursday mornings properly rather than nominally.`,
+  });
+
+  diary("tf-diary-today-morn", "Slow start", {
+    dayOffset: 0,
+    hour: 7,
+    minute: 40,
+    entryType: "note",
+    body: `Woke early and did not get up, which is the worst of both. Walked before breakfast anyway and felt better for it.`,
+  });
+
+  diary("tf-diary-yesterday", "The working group went better than expected", {
+    dayOffset: -1,
+    hour: 19,
+    minute: 30,
+    body: `I had braced for the banding proposal to be picked apart and instead the objection was about something I had not prepared for at all — what happens to students who are already mid-pathway when the rules change.
+
+Fair objection. Better raised now than in the committee. Anna was the one who raised it and she was right to.
+
+What I notice about my own reaction: my first instinct was to defend the proposal rather than to take the question seriously, and I could hear myself doing it. Caught it about a sentence in and stopped. Would not have caught it two years ago.`,
+  });
+
+  diary("tf-diary-2", "Long walk, no phone", {
+    dayOffset: -2,
+    hour: 18,
+    minute: 15,
+    body: `Two hours around the bay without the phone. Came back with the structure of the briefing paper more or less finished, which is the third time that has happened and I still do not plan for it.`,
+  });
+
+  diary("tf-diary-4", "Tired and slightly flat", {
+    dayOffset: -4,
+    hour: 22,
+    minute: 5,
+    body: `Nothing wrong exactly. Just the end of a week that had four days of back-to-back in it. Reading rather than working tonight.`,
+  });
+
+  diary("tf-diary-6", "Dinner with the Bergströms", {
+    dayOffset: -6,
+    hour: 22,
+    minute: 40,
+    body: `First proper evening off in a while. Tomas is thinking about leaving Registry, which I did not see coming and probably should have.
+
+Made a note to check in properly in a few weeks rather than letting it become a work conversation.`,
+  });
+
+  diary("tf-diary-9", "Reset weekend", {
+    dayOffset: -9,
+    hour: 20,
+    minute: 0,
+    body: `Did almost nothing deliberately and it worked. The garden is still a disaster.`,
+  });
+
+  diary("tf-diary-13", "Two years since the move", {
+    dayOffset: -13,
+    hour: 21,
+    minute: 30,
+    body: `Two years today. The house still does not feel finished and I have stopped expecting it to.
+
+What has changed is that I no longer think of this as the temporary version of the life. It took most of the two years to notice that had happened.`,
+  });
+
+  /* ---- Meetings --------------------------------------------------------- */
+
+  // TODAY, still ahead — prepared, with an agenda and nothing written yet.
+  meeting("tf-meet-today", "Pathway working group", {
+    hour: 14,
+    minute: 30,
+    dayOffset: 0,
+    mode: "online",
+    location: "Teams",
+    url: "https://example.org/meet/pathway",
+    agenda: `- Banding proposal — walk through the modelling
+- Grandfathering: what does it cost, and who decides?
+- Appeal path ownership
+- Timing against the committee cycle`,
+  });
+
+  meeting("tf-meet-today-2", "Weekly catch-up with Jules", {
+    hour: 9,
+    minute: 0,
+    dayOffset: 0,
+    durationHours: 1,
+    mode: "in_person",
+    location: "Level 3 meeting room",
+  });
+
+  // UPCOMING — one TOMORROW, so the list's relative day heading is exercised
+  // rather than assumed (the two "today" meetings above are seeded at 09:00 and
+  // 14:30 owner-local, which are in the past for most of the owner's day).
+  meeting("tf-meet-tomorrow", "Registry follow-up — exception list", {
+    hour: 9,
+    minute: 30,
+    dayOffset: 1,
+    mode: "online",
+    location: "Teams",
+    url: "https://example.org/meet/registry",
+  });
+
+  meeting("tf-meet-up-1", "Executive committee — pathway paper", {
+    hour: 10,
+    minute: 0,
+    dayOffset: 3,
+    mode: "in_person",
+    location: "Chancellery boardroom",
+    agenda: `- Decision: adopt three-band entry model
+- Note: grandfathering approach and cost
+- Note: publication timeline for the progression map`,
+  });
+
+  meeting("tf-meet-up-2", "Registry systems walkthrough", {
+    hour: 11,
+    minute: 30,
+    dayOffset: 5,
+    mode: "online",
+    location: "Teams",
+  });
+
+  meeting("tf-meet-up-3", "Curriculum review — quarterly", {
+    hour: 15,
+    minute: 0,
+    dayOffset: 11,
+    mode: "in_person",
+    location: "Faculty of Health, room 2.14",
+  });
+
+  /*
+   * RECENT and HELD — the full notebook. This is the Meeting the detail screen
+   * is judged against: every section the schema owns is populated, and the two
+   * action items became REAL Tasks through the real mapping table, so the
+   * linked-Task rows on the detail screen are the product's own, not a mock.
+   */
+  meeting("tf-meet-past-1", "Admissions rules — deep dive with Registry", {
+    hour: 13,
+    minute: 0,
+    dayOffset: -1,
+    durationHours: 2,
+    mode: "in_person",
+    location: "Registry, level 1",
+    status: "completed",
+    heldAt: ownerInstant(addDays(TODAY, -1), 15, 0),
+    agenda: `- Walk the exception list end to end
+- Agree which exceptions are real policy and which are accumulated practice
+- Decide what a banded model would break`,
+    notes: `Tomas walked the full forty-one rows. The useful finding is that only **nine** of the twelve exceptions are actual policy — the other three are practice that got written down at some point and has been treated as policy ever since. Nobody could name the decision behind them.
+
+That changes the shape of the problem. If three exceptions can simply be retired, the table drops to a size a person could hold in their head, and the case for banding gets weaker rather than stronger.
+
+Anna's point about mid-pathway students came up again here, independently of the working group. Two people raising the same objection from different directions is usually a sign it is the real one.
+
+We did not resolve the credit question for Certificate IV entrants and deliberately parked it — it needs the modelling that is not finished yet, and guessing at it in the room would have produced a number we then had to defend.`,
+  });
+
+  meetingItem(
+    "tf-mi-a1",
+    "tf-meet-past-1",
+    "agenda",
+    "Walk the exception list end to end",
+    0,
+  );
+  meetingItem(
+    "tf-mi-a2",
+    "tf-meet-past-1",
+    "agenda",
+    "Separate real policy from accumulated practice",
+    1,
+  );
+  meetingItem(
+    "tf-mi-a3",
+    "tf-meet-past-1",
+    "agenda",
+    "Decide what a banded model would break",
+    2,
+  );
+
+  meetingItem(
+    "tf-mi-d1",
+    "tf-meet-past-1",
+    "decision",
+    "Retire the three exceptions that are practice rather than policy, subject to Registry confirming no student is currently relying on them.",
+    0,
+  );
+  meetingItem(
+    "tf-mi-d2",
+    "tf-meet-past-1",
+    "decision",
+    "Park the Certificate IV credit question until the intake modelling is complete — no number to be quoted before then.",
+    1,
+  );
+
+  meetingItem(
+    "tf-mi-o1",
+    "tf-meet-past-1",
+    "outcome",
+    "The exception list is smaller than we thought: nine real, three retiring.",
+    0,
+  );
+  meetingItem(
+    "tf-mi-o2",
+    "tf-meet-past-1",
+    "outcome",
+    "Mid-pathway grandfathering is now the main open risk, raised independently by two people.",
+    1,
+  );
+
+  meetingItem(
+    "tf-mi-x1",
+    "tf-meet-past-1",
+    "action",
+    "Send the pathway draft to Mira",
+    0,
+  );
+  meetingItem(
+    "tf-mi-x2",
+    "tf-meet-past-1",
+    "action",
+    "Confirm nobody is relying on the three retiring exceptions",
+    1,
+  );
+  meetingItem(
+    "tf-mi-x3",
+    "tf-meet-past-1",
+    "action",
+    "Cost the grandfathering options",
+    2,
+  );
+
+  task("tf-t-meet-1", "Send the pathway draft to Mira", {
+    project: "tf-proj-oppo",
+    due: addDays(TODAY, 1),
+    priority: "p1",
+  });
+  task(
+    "tf-t-meet-2",
+    "Confirm nobody is relying on the three retiring exceptions",
+    {
+      project: "tf-proj-oppo",
+      due: addDays(TODAY, 4),
+    },
+  );
+  meetingItemTask("tf-meet-past-1", "tf-mi-x1", "tf-t-meet-1");
+  meetingItemTask("tf-meet-past-1", "tf-mi-x2", "tf-t-meet-2");
+
+  for (const [id, personId] of [
+    ["tf-meet-past-1-at-1", "tf-p-tomas"],
+    ["tf-meet-past-1-at-2", "tf-p-anna"],
+    ["tf-meet-past-1-at-3", "tf-p-david"],
+  ]) {
+    link(id, "tf-meet-past-1", personId, "meeting.attendee");
+  }
+  link(
+    "tf-meet-past-1-l-proj",
+    "tf-meet-past-1",
+    "tf-proj-oppo",
+    "link.related",
+  );
+
+  // A second recent one, lighter — a meeting that happened and produced a
+  // couple of lines, which is what most meetings actually are.
+  meeting("tf-meet-past-2", "Curriculum review — check-in", {
+    hour: 10,
+    minute: 30,
+    dayOffset: -3,
+    mode: "online",
+    location: "Teams",
+    status: "completed",
+    heldAt: ownerInstant(addDays(TODAY, -3), 11, 30),
+    notes: `Short. Everything on track; the unit outlines are the only thing at risk and Jules has that.
+
+Next check-in moves to the quarterly slot.`,
+  });
+  link(
+    "tf-meet-past-2-at-1",
+    "tf-meet-past-2",
+    "tf-p-jules",
+    "meeting.attendee",
+  );
+  link(
+    "tf-meet-past-2-l-proj",
+    "tf-meet-past-2",
+    "tf-proj-review",
+    "link.related",
+  );
+
+  // Five attendees on the today meeting, so the collapse behaviour (§28) is
+  // exercised rather than assumed.
+  for (const [id, personId] of [
+    ["tf-meet-today-at-1", "tf-p-mira"],
+    ["tf-meet-today-at-2", "tf-p-tomas"],
+    ["tf-meet-today-at-3", "tf-p-jules"],
+    ["tf-meet-today-at-4", "tf-p-anna"],
+    ["tf-meet-today-at-5", "tf-p-david"],
+  ]) {
+    link(id, "tf-meet-today", personId, "meeting.attendee");
+  }
+  link("tf-meet-today-l-proj", "tf-meet-today", "tf-proj-oppo", "link.related");
+
+  link(
+    "tf-meet-tomorrow-at-1",
+    "tf-meet-tomorrow",
+    "tf-p-tomas",
+    "meeting.attendee",
+  );
+  link("tf-meet-up-1-at-1", "tf-meet-up-1", "tf-p-mira", "meeting.attendee");
+  link("tf-meet-up-1-at-2", "tf-meet-up-1", "tf-p-anna", "meeting.attendee");
+
+  /* Notes linked to the work they document, so the context line has content. */
+  link(
+    "tf-note-pathway-l",
+    "tf-note-pathway",
+    "tf-proj-oppo",
+    "project.supporting_note",
+  );
+  link(
+    "tf-note-briefing-l",
+    "tf-note-briefing",
+    "tf-proj-oppo",
+    "project.supporting_note",
+  );
+  link(
+    "tf-note-reading-l",
+    "tf-note-reading",
+    "tf-area-learning",
+    "link.related",
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Runner                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -1198,6 +1851,7 @@ const SCENARIOS = {
   empty,
   gallery,
   goals,
+  writing,
 };
 
 const scenario = process.argv[2] ?? "typical";

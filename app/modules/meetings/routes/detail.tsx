@@ -51,6 +51,7 @@ import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { serializeTaskView } from "~/shared/task-record/task-view";
 import { utcToOwnerLocal } from "~/shared/datetime";
 import { MeetingCaptureBar } from "../MeetingCaptureBar";
+import { MeetingContextRow } from "../MeetingContextRow";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import {
   DIRECT_FOLLOW_UP_DRAWER_KEY,
@@ -67,6 +68,7 @@ import { MeetingTimelineTab } from "../MeetingTimelineTab";
 import {
   formatMeetingDate,
   formatMeetingInstant,
+  meetingModeLabel,
   meetingStatusLabel,
   serializeMeeting,
 } from "../meeting-view";
@@ -138,8 +140,35 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   };
 }
 
-const tabs = ["overview", "meeting", "follow-up", "ai", "activity", "settings"];
-const legacyMeetingTabs = new Set(["agenda", "notes", "decisions", "outcomes"]);
+/*
+ * UIX-04 §24/§26 — the NOTEBOOK is the meeting, and it opens first.
+ *
+ * "Overview" was the default tab, and it held a duration, a timezone, a held
+ * date, an "Edit details" disclosure, an attendee editor with a full-width
+ * People search, and two relationship lists. So the screen that is supposed to
+ * answer "what are we discussing / what was decided / what came out of it"
+ * opened on a metadata form, and the agenda, the notes, the decisions and the
+ * actions were all one tab away — behind a tab labelled, unhelpfully, "Meeting".
+ *
+ * The order is now the order of the questions §24 lists. The notebook is first
+ * and is the default (its id keeps the `meeting` slug so every existing link and
+ * the four legacy slugs still resolve); the follow-up work is second, because
+ * that is what a meeting produces; and the metadata that used to be the front
+ * page is now "Details", which is what it always was.
+ */
+const tabs = ["meeting", "follow-up", "details", "ai", "activity", "settings"];
+/*
+ * Older links, redirected rather than broken. The four MEET-01 section slugs
+ * folded into `meeting` when the notebook was unified; `overview` is UIX-04's
+ * own rename of that tab to `details`.
+ */
+const legacyMeetingTabs = new Map<string, string>([
+  ["agenda", "meeting"],
+  ["notes", "meeting"],
+  ["decisions", "meeting"],
+  ["outcomes", "meeting"],
+  ["overview", "details"],
+]);
 
 export default function Detail({ loaderData }: Route.ComponentProps) {
   const { meeting } = loaderData;
@@ -206,11 +235,9 @@ function MeetingRecord({
     feedback = useFeedback(),
     [sp, setSp] = useSearchParams(),
     rawTab = sp.get("tab"),
-    active = legacyMeetingTabs.has(rawTab ?? "")
-      ? "meeting"
-      : tabs.includes(rawTab ?? "")
-        ? rawTab!
-        : "overview";
+    active =
+      legacyMeetingTabs.get(rawTab ?? "") ??
+      (tabs.includes(rawTab ?? "") ? rawTab! : "meeting");
   const readOnly = Boolean(m.archivedAt);
   const captureContext: CaptureContextContract = {
     sourceEntityId: m.id,
@@ -229,7 +256,9 @@ function MeetingRecord({
       setSp(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (id === "overview") next.delete("tab");
+          // The notebook is the default, so it is the tab expressed by the
+          // ABSENCE of the param — the same contract every other record uses.
+          if (id === "meeting") next.delete("tab");
           else next.set("tab", id);
           return next;
         },
@@ -558,218 +587,288 @@ function MeetingRecord({
 
   return (
     <>
-      <RecordLayout
-        title={m.title}
-        titleSlot={
-          <InlineTextField
-            label="Meeting title"
-            value={m.title}
-            onSave={renameMeeting}
-            // An archived meeting is read-only until it is restored, so its
-            // title renders as plain text rather than as a control (DS-16).
-            readOnly={m.archivedAt !== null}
-            variant="heading"
-            maxLength={MEETING_TITLE_MAX_LENGTH}
-            data-testid="meeting-title-edit"
-          />
-        }
-        // RECORD-01 — no `typeLabel`: the breadcrumb above says "Meetings".
-        icon={<EntityIcon type="meeting" />}
-        breadcrumb={[{ id: "meetings", label: "Meetings", href: "/meetings" }]}
-        status={{
-          label: m.archivedAt ? "Archived" : meetingStatusLabel(m.status),
-          tone: m.archivedAt ? "warning" : "neutral",
-        }}
-        metadata={[
-          {
-            id: "when",
-            label: "When",
-            value: formatMeetingInstant(m.startsAt, m.timezone),
-          },
-          {
-            id: "where",
-            label: "Where",
-            value: m.location ?? m.mode ?? "Not set",
-          },
-        ]}
-        overflowActions={lifecycle.overflowActions}
-        activeTabId={active}
-        onTabChange={change}
-        tabs={[
-          {
-            id: "overview",
-            label: "Overview",
-            content: (
-              <section className="dh-record-section">
-                <h2>Meeting details</h2>
-                {/* UIQ-007 — the SHARED summary facts grid, not a bare
-                 * browser-default `<dl>`: the label-over-value presentation
-                 * every other record's metadata already uses. */}
-                <dl className="record-summary__meta">
-                  {/* RECORD-01 — Status is NOT repeated here: the record header's
-                   * status pill, a few pixels above, already states it, and this
-                   * row was the same word again under a "Status" label. */}
-                  <div className="record-summary__meta-item">
-                    <dt>Duration</dt>
-                    <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
+      {/*
+       * UIX-04 §8/§11/§13 — a Meeting record is a DOCUMENT, so it wears the
+       * shared writing-record treatment: a document-sized title, an identity row
+       * that does not wrap a lone overflow trigger onto a band of its own, and no
+       * breadcrumb on a phone where the top bar already carries "Meetings" and
+       * Back. Notes is the other consumer; see `writing.css`.
+       */}
+      <div className="dh-writing-record">
+        <RecordLayout
+          title={m.title}
+          titleSlot={
+            <InlineTextField
+              label="Meeting title"
+              value={m.title}
+              onSave={renameMeeting}
+              // An archived meeting is read-only until it is restored, so its
+              // title renders as plain text rather than as a control (DS-16).
+              readOnly={m.archivedAt !== null}
+              variant="heading"
+              maxLength={MEETING_TITLE_MAX_LENGTH}
+              data-testid="meeting-title-edit"
+            />
+          }
+          // UIX-04 §8/§11 — no glyph, and no `typeLabel`. RECORD-01 dropped the
+          // type line because the breadcrumb says "Meetings"; the icon repeated it
+          // a second time, and on a title long enough to wrap it took a whole line
+          // of its own directly above the title, on the desktop and on the phone.
+          breadcrumb={[
+            { id: "meetings", label: "Meetings", href: "/meetings" },
+          ]}
+          status={{
+            label: m.archivedAt ? "Archived" : meetingStatusLabel(m.status),
+            tone: m.archivedAt ? "warning" : "neutral",
+          }}
+          /*
+           * UIX-04 §27 — one context line: when, where, and WITH WHOM.
+           *
+           * The shared header's `metadata` renders labelled field/value pairs
+           * ("When: …", "Where: …"), which is right for a record whose context is
+           * a set of fields and wrong for a meeting, where it reads as the first
+           * two rows of the form §27 rules out — and where it left out the one
+           * fact a person opens a meeting to check. `label: ""` is the shared
+           * header's documented "this context reads as a phrase, not a field"
+           * escape, and the value is the whole line.
+           */
+          metadata={[
+            {
+              id: "context",
+              label: "",
+              value: (
+                <MeetingContextRow
+                  when={formatMeetingInstant(m.startsAt, m.timezone)}
+                  where={m.location ?? meetingModeLabel(m.mode)}
+                  attendees={loaderData.attendees}
+                  allAttendeesHref={`/meeting/${m.id}?tab=details`}
+                />
+              ),
+            },
+          ]}
+          overflowActions={lifecycle.overflowActions}
+          activeTabId={active}
+          onTabChange={change}
+          tabs={[
+            {
+              id: "meeting",
+              label: "Notebook",
+              /* The notebook brings its own writing surfaces, so the panel does
+               * not draw a card around a page of writing (§8, §26). */
+              surface: "plain",
+              content:
+                (
+                  /*
+                   * UIX-04 §26 — the sections run in the order a meeting HAPPENS:
+                   * what we said we would cover, what was actually said, what was
+                   * decided, what that means, and what someone now has to do.
+                   *
+                   * Every section here is a real column of the schema — the two
+                   * Markdown bodies on `meeting_details`, and the four
+                   * `meeting_items.kind` values migration 0021 defines (agenda,
+                   * decision, outcome, action). Nothing is invented, which is what
+                   * §26 and §30 both insist on.
+                   *
+                   * Agenda items and the Agenda body are NOT merged: the body is
+                   * prose the owner writes, the items are the structured rows a
+                   * follow-up Task can be created from. Both existed before; what
+                   * changes is that they now sit next to each other under one
+                   * heading instead of in two different halves of the tab.
+                   */
+                  <div className="dh-meeting-notebook">
+                    <section className="dh-meeting-notebook__section">
+                      <h2 className="dh-meeting-notebook__heading">Agenda</h2>
+                      <MeetingMarkdown
+                        meetingId={m.id}
+                        field="agendaMarkdown"
+                        label="Agenda"
+                        initial={m.agendaMarkdown}
+                        onSaved={() => r.revalidate()}
+                      />
+                      {itemSection("agenda", "Agenda items")}
+                    </section>
+
+                    <section className="dh-meeting-notebook__section">
+                      <h2 className="dh-meeting-notebook__heading">Notes</h2>
+                      <MeetingMarkdown
+                        meetingId={m.id}
+                        field="notesMarkdown"
+                        label="Notes"
+                        initial={m.notesMarkdown}
+                        onSaved={() => r.revalidate()}
+                      />
+                    </section>
+
+                    <section className="dh-meeting-notebook__section">
+                      <h2 className="dh-meeting-notebook__heading">
+                        Decisions
+                      </h2>
+                      {itemSection("decision", "Decisions")}
+                    </section>
+
+                    <section className="dh-meeting-notebook__section">
+                      <h2 className="dh-meeting-notebook__heading">Outcomes</h2>
+                      {itemSection("outcome", "Outcomes")}
+                    </section>
+
+                    <section className="dh-meeting-notebook__section">
+                      <h2 className="dh-meeting-notebook__heading">Actions</h2>
+                      {itemSection("action", "Actions")}
+                    </section>
                   </div>
-                  <div className="record-summary__meta-item">
-                    <dt>Timezone</dt>
-                    <dd>{m.timezone}</dd>
-                  </div>
-                  {/*
+                ),
+            },
+            {
+              id: "details",
+              label: "Details",
+              content: (
+                <section className="dh-record-section">
+                  <h2>Meeting details</h2>
+                  {/* UIQ-007 — the SHARED summary facts grid, not a bare
+                   * browser-default `<dl>`: the label-over-value presentation
+                   * every other record's metadata already uses. */}
+                  <dl className="record-summary__meta">
+                    {/* RECORD-01 — Status is NOT repeated here: the record header's
+                     * status pill, a few pixels above, already states it, and this
+                     * row was the same word again under a "Status" label. */}
+                    <div className="record-summary__meta-item">
+                      <dt>Duration</dt>
+                      <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
+                    </div>
+                    <div className="record-summary__meta-item">
+                      <dt>Timezone</dt>
+                      <dd>{m.timezone}</dd>
+                    </div>
+                    {/*
                     MEET-03 — the held state, stated in words on the record itself
                     so it is legible without opening a menu, and so the outcome of
                     "Mark as held" is visible rather than implied.
                   */}
-                  <div className="record-summary__meta-item">
-                    <dt>Held</dt>
-                    <dd>
-                      {m.heldAt
-                        ? `Recorded as held on ${formatMeetingDate(m.heldAt, m.timezone)}`
-                        : "Not recorded as held yet"}
-                    </dd>
-                  </div>
-                  {m.meetingUrl && (
                     <div className="record-summary__meta-item">
-                      <dt>Meeting link</dt>
+                      <dt>Held</dt>
                       <dd>
-                        <a href={m.meetingUrl} target="_blank" rel="noreferrer">
-                          Open meeting link
-                        </a>
+                        {m.heldAt
+                          ? `Recorded as held on ${formatMeetingDate(m.heldAt, m.timezone)}`
+                          : "Not recorded as held yet"}
                       </dd>
                     </div>
-                  )}
-                </dl>
-                {!readOnly ? (
-                  <MeetingDetailsEditor meeting={m} onSave={post} />
-                ) : null}
-                <MeetingAttendees
-                  meetingId={m.id}
-                  attendees={loaderData.attendees}
-                  readOnly={readOnly}
-                  onPost={post}
-                />
-                <LinkedItemsTab
-                  anchorId={m.id}
-                  anchorType="meeting"
-                  readOnly={readOnly}
-                  linkCommandTarget={{
-                    kind: "route",
-                    to: `/meeting/${m.id}`,
-                  }}
-                />
-              </section>
-            ),
-          },
-          {
-            id: "meeting",
-            label: "Meeting",
-            content: (
-              <section className="dh-record-section">
-                <div className="dh-meeting-workspace">
-                  <MeetingMarkdown
+                    {m.meetingUrl && (
+                      <div className="record-summary__meta-item">
+                        <dt>Meeting link</dt>
+                        <dd>
+                          <a
+                            href={m.meetingUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open meeting link
+                          </a>
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  {!readOnly ? (
+                    <MeetingDetailsEditor meeting={m} onSave={post} />
+                  ) : null}
+                  <MeetingAttendees
                     meetingId={m.id}
-                    field="agendaMarkdown"
-                    label="Agenda"
-                    initial={m.agendaMarkdown}
-                    onSaved={() => r.revalidate()}
+                    attendees={loaderData.attendees}
+                    readOnly={readOnly}
+                    onPost={post}
                   />
-                  <MeetingMarkdown
-                    meetingId={m.id}
-                    field="notesMarkdown"
-                    label="Notes"
-                    initial={m.notesMarkdown}
-                    onSaved={() => r.revalidate()}
+                  <LinkedItemsTab
+                    anchorId={m.id}
+                    anchorType="meeting"
+                    readOnly={readOnly}
+                    linkCommandTarget={{
+                      kind: "route",
+                      to: `/meeting/${m.id}`,
+                    }}
                   />
-                </div>
-                {itemSection("agenda", "Agenda items")}
-                {itemSection("action", "Actions")}
-                {itemSection("decision", "Decisions")}
-                {itemSection("outcome", "Outcomes")}
-              </section>
-            ),
-          },
-          {
-            id: "follow-up",
-            label: "Follow-up",
-            content: (
-              <MeetingFollowUpTab
-                items={m.items}
-                followUps={followUps}
-                readOnly={readOnly}
-                onConvert={onConvert}
-                onOpenTask={onOpenTask}
-                onAddFollowUp={onAddFollowUp}
-              />
-            ),
-          },
-          {
-            id: "ai",
-            label: "AI",
-            content: (
-              <AiExtractionSurface
-                feature="meeting-action-extraction"
-                recordId={m.id}
-                recordLabel="Meeting"
-                availability={aiAvailability}
-                readOnly={readOnly}
-              />
-            ),
-          },
-          {
-            id: "activity",
-            label: "Activity",
-            content: (
-              <MeetingTimelineTab meetingId={m.id} reloadKey={m.updatedAt} />
-            ),
-          },
-          {
-            id: "settings",
-            label: "Settings",
-            // PX-04: the shared DS-10b Settings surface, not a bespoke section with
-            // a raw button — the same structure Areas/Projects/People/Assets use,
-            // and the same lifecycle wording as the header overflow above.
-            content: (
-              <SettingsLayout title="Meeting settings">
-                <SettingsGroup
-                  title={m.archivedAt ? "Archived" : "Archive"}
-                  description="Archiving removes this record from active meeting views without deleting its history. Follow-up tasks stay accessible and are never archived or deleted with the meeting."
-                  tone={m.archivedAt ? undefined : "danger"}
-                >
-                  <SettingsRow
-                    label={
-                      m.archivedAt
-                        ? lifecycleActionLabel("restore", "meeting")
-                        : lifecycleActionLabel("archive", "meeting")
-                    }
-                    description={
-                      m.archivedAt
-                        ? "Bring it back into your active meetings. Nothing inside it changed."
-                        : "It leaves your active meetings, but stays readable and fully intact."
-                    }
-                    control={
-                      <button
-                        type="button"
-                        className="dh-btn dh-btn--secondary"
-                        onClick={() =>
-                          void post({
-                            intent: m.archivedAt ? "restore" : "archive",
-                          })
-                        }
-                      >
-                        {m.archivedAt
+                </section>
+              ),
+            },
+            {
+              id: "follow-up",
+              label: "Follow-up",
+              content: (
+                <MeetingFollowUpTab
+                  items={m.items}
+                  followUps={followUps}
+                  readOnly={readOnly}
+                  onConvert={onConvert}
+                  onOpenTask={onOpenTask}
+                  onAddFollowUp={onAddFollowUp}
+                />
+              ),
+            },
+            {
+              id: "ai",
+              label: "AI",
+              content: (
+                <AiExtractionSurface
+                  feature="meeting-action-extraction"
+                  recordId={m.id}
+                  recordLabel="Meeting"
+                  availability={aiAvailability}
+                  readOnly={readOnly}
+                />
+              ),
+            },
+            {
+              id: "activity",
+              label: "Activity",
+              content: (
+                <MeetingTimelineTab meetingId={m.id} reloadKey={m.updatedAt} />
+              ),
+            },
+            {
+              id: "settings",
+              label: "Settings",
+              // PX-04: the shared DS-10b Settings surface, not a bespoke section with
+              // a raw button — the same structure Areas/Projects/People/Assets use,
+              // and the same lifecycle wording as the header overflow above.
+              content: (
+                <SettingsLayout title="Meeting settings">
+                  <SettingsGroup
+                    title={m.archivedAt ? "Archived" : "Archive"}
+                    description="Archiving removes this record from active meeting views without deleting its history. Follow-up tasks stay accessible and are never archived or deleted with the meeting."
+                    tone={m.archivedAt ? undefined : "danger"}
+                  >
+                    <SettingsRow
+                      label={
+                        m.archivedAt
                           ? lifecycleActionLabel("restore", "meeting")
-                          : lifecycleActionLabel("archive", "meeting")}
-                      </button>
-                    }
-                  />
-                </SettingsGroup>
-              </SettingsLayout>
-            ),
-          },
-        ]}
-      />
+                          : lifecycleActionLabel("archive", "meeting")
+                      }
+                      description={
+                        m.archivedAt
+                          ? "Bring it back into your active meetings. Nothing inside it changed."
+                          : "It leaves your active meetings, but stays readable and fully intact."
+                      }
+                      control={
+                        <button
+                          type="button"
+                          className="dh-btn dh-btn--secondary"
+                          onClick={() =>
+                            void post({
+                              intent: m.archivedAt ? "restore" : "archive",
+                            })
+                          }
+                        >
+                          {m.archivedAt
+                            ? lifecycleActionLabel("restore", "meeting")
+                            : lifecycleActionLabel("archive", "meeting")}
+                        </button>
+                      }
+                    />
+                  </SettingsGroup>
+                </SettingsLayout>
+              ),
+            },
+          ]}
+        />
+      </div>
 
       {/*
        * MOBILE-01 — the sticky capture bar, shown only while the Meeting tab is

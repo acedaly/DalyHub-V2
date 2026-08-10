@@ -371,3 +371,408 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* UIX-04 — the meeting CONTEXT row (§27/§28)                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * One line under the title: when, where, and with whom.
+ *
+ * It replaces the header's "When: … / Where: …" field pairs, which read as the
+ * first two rows of the metadata form §27 rules out and never mentioned the
+ * people at all. It renders inside the shared header's context slot, so it
+ * inherits that slot's quiet size and colour and adds no band of its own.
+ */
+.dh-meeting-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-meeting-context__when {
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-meeting-context__sep {
+  color: var(--md-sys-color-outline);
+}
+
+.dh-meeting-context__people {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+.dh-meeting-context__person {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+/*
+ * §28 — the identity mark is small and subordinate.
+ *
+ * Initials rather than a photograph, because People carries no image and
+ * inventing an avatar service for a header is exactly the feature creep §59
+ * rules out. It is decorative (`aria-hidden`): the person's NAME sits beside it
+ * and is the link, so nothing depends on two letters being readable.
+ */
+.dh-meeting-context__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-space-5);
+  block-size: var(--app-space-5);
+  flex: 0 0 auto;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.dh-meeting-context__more {
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------- */
+/* UIX-04 — the meeting NOTEBOOK (§26)                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Agenda → Notes → Decisions → Outcomes → Actions, in the order a meeting
+ * happens. Every one is a real column of the schema; none is invented (§26/§30).
+ *
+ * The measure is the writing one, because four of the five sections ARE writing
+ * and a notebook whose sections disagree about where the text starts is not a
+ * notebook. The sections are separated by space and a heading, never by a card
+ * each: five outlined boxes down a page is the record-editor look §26 is trying
+ * to get away from.
+ */
+.dh-meeting-notebook {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-8);
+  inline-size: 100%;
+  max-inline-size: var(--app-width-editor);
+  min-inline-size: 0;
+}
+
+.dh-meeting-notebook__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * A section heading is a LABEL for the writing under it, not a title competing
+ * with the meeting's own. Small, uppercase and quiet is how a printed notebook
+ * marks its parts, and it keeps the writing the largest text in the region.
+ */
+.dh-meeting-notebook__heading {
+  margin: 0;
+  padding-block-end: var(--app-space-1);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/*
+ * The editor inside a notebook section fills the section, which already carries
+ * the measure — otherwise the shared writing column would be applied twice and
+ * the text would step in by a second margin at every section.
+ */
+.dh-meeting-notebook .dh-md-editor:not([data-density="compact"]) > * {
+  max-inline-size: none;
+}
+
+/* The two Markdown bodies have their own visible field label from
+ * `LiveMarkdownEditor`'s group name; inside a section that is already headed
+ * "Agenda", a second "Agenda" above the text is the same word twice. */
+.dh-meeting-notebook__section .dh-md-editor__bar {
+  padding-inline: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* UIX-04 — the notebook's structured item lists                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-meeting-items-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * §26/§31 — a decision, an outcome and an action are LINES, not cards.
+ *
+ * Each was an outlined, filled, large-radius card carrying its own kind chip
+ * ("Agenda item") under a heading that already said "Agenda items", plus two
+ * text buttons at full weight. Five sections of those is a page of boxes, and
+ * the reading order put the chrome before the sentence.
+ *
+ * They are now rows separated by a hairline, with the actions revealed on hover
+ * and focus — the same treatment the Diary timeline gives its Edit control, so
+ * the pattern transfers. The actions remain permanently present for keyboard and
+ * touch (see below): "reveal on hover" must never mean "unreachable".
+ */
+.dh-meeting-items .dh-meeting-item {
+  padding: var(--app-space-2) 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  align-items: center;
+}
+
+.dh-meeting-items .dh-meeting-item + .dh-meeting-item {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+.dh-meeting-items .dh-meeting-item__text {
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface);
+}
+
+/*
+ * The KIND chip goes. Every row in a list headed "Decisions" is a decision, so
+ * the chip was a label repeating its own section on every line. What is left in
+ * the meta line is the thing that actually varies: whether this item has become
+ * a Task.
+ */
+.dh-meeting-items .dh-meeting-item__tag {
+  display: none;
+}
+
+/*
+ * The actions are quiet until the row is pointed at or focused within.
+ *
+ * `:focus-within` is doing the accessibility work: a keyboard user tabbing into
+ * the row reveals them, and on a coarse pointer (where there is no hover) the
+ * media query below keeps them visible at all times. Nothing is ever reachable
+ * only by hovering.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .dh-meeting-items .dh-meeting-item__actions {
+    opacity: 0;
+    transition: opacity var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard);
+  }
+
+  .dh-meeting-items .dh-meeting-item:hover .dh-meeting-item__actions,
+  .dh-meeting-items .dh-meeting-item:focus-within .dh-meeting-item__actions {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-meeting-items .dh-meeting-item__actions {
+    transition: none;
+  }
+}
+
+/*
+ * §44 — a notebook section is not a half-screen box.
+ *
+ * The shared editor opens at `max(40dvh, 16rem)` because a Note's writing
+ * surface IS its page and should look like somewhere to write. A meeting's
+ * notebook has FIVE regions on one page, and five 400px minimums put the
+ * Actions list three screens below the title on a meeting whose agenda is three
+ * lines long. These editors size to their content from a much lower floor —
+ * still tall enough to write a paragraph into, never tall enough to bury the
+ * section under it.
+ */
+.dh-meeting-notebook
+  .dh-md-editor:not([data-density="compact"])
+  .dh-md-editor__cm
+  .cm-editor,
+.dh-meeting-notebook .dh-md-editor .dh-md-editor__fallback {
+  min-block-size: var(--app-editor-min-height-compact);
+  max-block-size: 60vh;
+}
+
+/* The "New decision" / "New action" field is a quiet way to add a line, not a
+ * form: it sits at the end of its list on one row with its button. */
+.dh-meeting-items-section form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--app-space-2);
+}
+
+.dh-meeting-items-section form .dh-field {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* UIX-04 — the Meetings collection (§25)                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The filter row had no styles at all: `.dh-meetings-filters` was never defined,
+ * so the two `.dh-field` column labels stacked their controls into a tall,
+ * left-hugging block — a search input with no placeholder above a sort select,
+ * both about 70px tall, above a list of three meetings. One row, labels beside
+ * their controls, matching the Notes band exactly so the two collections do not
+ * disagree about what a filter row looks like.
+ */
+.dh-meetings-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2) var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-meetings-filters .dh-field {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+}
+
+.dh-meetings-filters .dh-field__label-text {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.dh-meetings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-6);
+  max-inline-size: var(--app-width-content);
+  min-inline-size: 0;
+}
+
+/*
+ * §25 — the day heading. It is the thing that turns a list of meetings into a
+ * schedule, so it reads as a date rather than as a table caption.
+ */
+.dh-meetings-list__day {
+  margin: 0 0 var(--app-space-2);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-small-size);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dh-meetings-list__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dh-meetings-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-meetings-list__row + .dh-meetings-list__row {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+.dh-meetings-list__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-4);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  padding: var(--app-space-3);
+  margin-inline: calc(-1 * var(--app-space-3));
+  border-radius: var(--md-sys-shape-corner-medium);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-meetings-list__item:hover {
+  background: var(--md-app-color-surface-sunken);
+}
+
+/* A fixed leading column, so a day's meetings read DOWN the page as a schedule
+ * rather than as a list that happens to mention times. Tabular figures keep the
+ * colons aligned. */
+.dh-meetings-list__time {
+  flex: 0 0 auto;
+  inline-size: 5rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-meetings-list__main {
+  display: block;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* §25 — the title dominates. */
+.dh-meetings-list__title {
+  display: block;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+}
+
+.dh-meetings-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-3);
+  margin-block-start: var(--app-space-px);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/* Status appears only when it is NOT what the view already implies, so it reads
+ * as an exception rather than as a label on every row. In words, never colour
+ * alone (AGENTS.md §15). */
+.dh-meetings-list__status {
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-meetings-list__join {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 47.999rem) {
+  /* On a phone the time moves ABOVE the title rather than stealing 80px from
+   * it — a title truncated to make room for "10:00 am" is the wrong trade. */
+  .dh-meetings-list__item {
+    display: block;
+  }
+
+  .dh-meetings-list__time {
+    display: block;
+    inline-size: auto;
+    margin-block-end: var(--app-space-px);
+    font-size: var(--md-sys-typescale-body-small-size);
+  }
+}
