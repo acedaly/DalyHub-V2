@@ -16,6 +16,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  RESPONSIVE_VIEWPORTS,
   expectNoAxeViolations,
   gotoFixture,
   hasNoHorizontalOverflow,
@@ -286,5 +287,57 @@ test.describe("UIX-03 — phone and accessibility", () => {
     await expect(page.getByTestId("goal-trend-chart")).toBeVisible();
     expect(await hasNoHorizontalOverflow(page)).toBe(true);
     await expectNoAxeViolations(page);
+  });
+});
+
+test.describe("UIX-03 — the responsive matrix", () => {
+  /*
+   * The gallery and the record across every width the contract names — 320
+   * through ultra-wide. The Goal card is the newest composition in the product
+   * and the one most able to overflow: a tinted block holding a display-size
+   * value, a sparkline and a currency figure, three or four to a row.
+   */
+  test("the Goals gallery never scrolls sideways at any supported width", async ({
+    page,
+  }) => {
+    for (const viewport of RESPONSIVE_VIEWPORTS) {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/goals");
+      await expect(page.getByTestId("goal-card").first()).toBeVisible();
+      expect(
+        await hasNoHorizontalOverflow(page),
+        `horizontal overflow at ${viewport.label}`,
+      ).toBe(true);
+    }
+  });
+
+  test("a measurable Goal record never scrolls sideways at any supported width", async ({
+    page,
+  }) => {
+    const url = await createMeasurableGoal(page, {
+      title: `Cycle 2,000 km ${RUN}`,
+      unit: "km",
+      start: "0",
+      target: "2000",
+    });
+    await logMeasurement(page, "300", "2026-06-01");
+    await logMeasurement(page, "720", "2026-07-01");
+
+    for (const viewport of RESPONSIVE_VIEWPORTS) {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, url);
+      // The chart is the element most likely to force a wide page.
+      await expect(page.getByTestId("goal-trend-chart")).toBeVisible();
+      expect(
+        await hasNoHorizontalOverflow(page),
+        `horizontal overflow at ${viewport.label}`,
+      ).toBe(true);
+    }
   });
 });

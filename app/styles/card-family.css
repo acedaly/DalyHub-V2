@@ -2586,19 +2586,35 @@
  * The default is the neutral sunken surface, so a Goal whose Area could not be
  * ranked gets a calm block rather than an arbitrary colour.
  */
+/*
+ * The reading sits directly under the title; only the FOOT is pushed to the
+ * bottom (see `.dh-gcard__foot`).
+ *
+ * Putting the auto margin here instead opened a hole between the title and the
+ * reading on every card shorter than its row — at four columns on a 1440 that
+ * was most of them, and the card's most important element floated in the middle
+ * of nowhere. Pinning the foot alone still lands every bar in a row on one
+ * baseline, which is the property that made the auto margin worth having.
+ */
 .dh-gcard__body {
   display: flex;
   min-inline-size: 0;
-  /* `auto` top margin pushes the reading down off the title and lets the foot
-   * stay pinned, so every card in a row lands its bar on one baseline. */
-  margin-block-start: auto;
 }
 
+/*
+ * `wrap`, so the sparkline drops BELOW the reading rather than squeezing it.
+ *
+ * At four columns the card is ~250px and the reading's track is that minus a
+ * 6.5rem chart, which broke "from 85 kg → 70 kg" after the arrow and left "kg"
+ * alone on the next line. Giving the metric a real flex basis makes the visual
+ * the thing that yields.
+ */
 .dh-gcard__reading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
   inline-size: 100%;
   min-inline-size: 0;
   padding: var(--app-space-3);
@@ -2611,6 +2627,9 @@
   flex-direction: column;
   gap: var(--app-space-px);
   margin: 0;
+  /* 9rem: enough for "from $0 → $15,000" on one line. Below it the sparkline
+   * wraps under rather than the sentence breaking mid-value. */
+  flex: 1 1 9rem;
   min-inline-size: 0;
 }
 
@@ -2634,7 +2653,10 @@
   line-height: var(--md-sys-typescale-body-small-line-height);
   color: var(--md-sys-color-on-surface-variant);
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  /* `break-word`, not `anywhere`: a long custom unit still breaks rather than
+   * overflowing the card, but an ordinary "70 kg" is never split across lines
+   * just because the column is narrow. */
+  overflow-wrap: break-word;
 }
 
 /*
@@ -2642,7 +2664,8 @@
  * an unbounded chart would become the card, and the card is about the number.
  */
 .dh-gcard__visual {
-  flex: 0 1 6.5rem;
+  flex: 1 1 5rem;
+  max-inline-size: 6.5rem;
   min-inline-size: 3rem;
   display: flex;
   align-items: center;
@@ -2694,11 +2717,18 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The pinned foot. `auto` top margin spends a taller-than-needed card's extra
+ * height on AIR between the reading and the bar, so every card in a row lands
+ * its bar and its state line on one baseline — which is what makes a gallery
+ * comparable at a glance.
+ */
 .dh-gcard__foot {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);
   min-inline-size: 0;
+  margin-block-start: auto;
 }
 
 /*

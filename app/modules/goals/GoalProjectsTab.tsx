@@ -193,16 +193,19 @@ function projectCard(
   onOpenProject: (projectId: string) => void,
 ): CardProps {
   const hasTasks = project.taskTotal > 0;
-  const metadata: CardMetaItem[] = [];
-  if (hasTasks) {
-    metadata.push({
-      id: "tasks",
-      label: "Tasks",
-      value: `${project.taskCompleted} of ${project.taskTotal} tasks`,
-    });
-  } else {
-    metadata.push({ id: "tasks", label: "Tasks", value: "No tasks yet" });
-  }
+  /*
+   * UIX-03 — the task count is stated ONCE.
+   *
+   * The row carried "Tasks: 0 of 1 tasks" as metadata AND
+   * "Task roll-up: 0 of 1 tasks" as the bar's label, directly beneath it: one
+   * fact, two renderings, on a row whose whole job is to be a compact pointer
+   * at a Project. The BAR keeps it, because a bar with no figure is the thing
+   * that needs the words; a Project with no tasks has no bar, so it keeps the
+   * metadata line instead and the row never loses the fact entirely.
+   */
+  const metadata: CardMetaItem[] = hasTasks
+    ? []
+    : [{ id: "tasks", label: "Tasks", value: "No tasks yet" }];
   return {
     id: project.id,
     title: project.title,
@@ -215,7 +218,7 @@ function projectCard(
       ? {
           value: project.taskCompleted,
           max: project.taskTotal,
-          label: `Task roll-up: ${project.taskCompleted} of ${project.taskTotal} tasks`,
+          label: `${project.taskCompleted} of ${project.taskTotal} tasks`,
         }
       : undefined,
     density: "comfortable",
