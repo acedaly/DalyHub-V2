@@ -420,6 +420,7 @@ export function evaluateGoalProgress(
     target,
     facts.targetDate,
     context.todayIso,
+    achieved,
   );
   const projectedCompletionDate = evaluateProjection(
     trend,
@@ -540,13 +541,22 @@ function evaluateTrend(
  * Signed in the measurement's own unit, so a weight goal reads "-0.39 kg/week".
  * `null` when there is no target date, no target, no current value, or the date
  * has already passed — a required pace for a deadline in the past is not a plan.
+ *
+ * UIX-03 — and `null` once the target has been REACHED. The arithmetic happily
+ * continues past the target and produces a figure with the sign reversed: a
+ * 1,130 km reading against a 1,000 km target reported "Required pace
+ * −22.75 km/week", which reads as an instruction to walk backwards. There is no
+ * pace required to reach something already reached, and the evaluator's rule is
+ * to return nothing rather than something plausible.
  */
 function evaluateRequiredPace(
   current: number | null,
   target: number | null,
   targetDate: string | null,
   todayIso: string,
+  achieved: boolean,
 ): number | null {
+  if (achieved) return null;
   if (current === null || target === null || targetDate === null) return null;
   const daysRemaining = goalDaysBetween(todayIso, targetDate);
   if (daysRemaining === null || daysRemaining <= 0) return null;
