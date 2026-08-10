@@ -190,12 +190,48 @@ surface's only action.
 | `pnpm run typecheck` | pass |
 | `pnpm run scheme:check` | pass |
 | `pnpm run build` | pass |
-| `pnpm run test:unit` | 4720 passed / 369 files |
-| `pnpm run test:kernel` | pass |
-| `pnpm run test:e2e` | see the PR body for the run |
-| `e2e/accessibility.spec.ts` | 122 axe scans, both appearances, every route and overlay — pass |
+| `pnpm run test:unit` | **4720 passed**, 369 files |
+| `e2e/accessibility.spec.ts` + `e2e/design-foundation.spec.ts` | **126 passed** — 122 axe scans over every route and overlay, in BOTH appearances |
+| `e2e/uix-06-screenshots.spec.ts` | **18 passed** (the AFTER evidence run) |
+| `e2e/collection-header.spec.ts` | **14 passed, 1 failed** — see below |
 
-Measured rather than asserted: the responsive sweep (every route × 320 / 390 /
-768 / 1024 / 1280 / 1440 / 1920) reports zero page-level horizontal overflow, and
-every element extending past the viewport edge sits inside a control that
-scrolls by design.
+### The e2e baseline, measured rather than assumed
+
+The full suite is 1764 tests and the repository shards it in CI; a single-worker
+local run of all of it is impractical here, so the specs covering everything this
+pass touched were run instead — and, where they failed, run again on a **clean
+git worktree at the UIX-05 commit this branch started from** to establish whether
+the failure is a regression.
+
+It is not. The base commit is already red in this environment:
+
+| Spec | At the base (`25814a9`) | On this branch |
+| --- | --- | --- |
+| `collection-header.spec.ts` | **10 failed / 5 passed** | **1 failed / 14 passed** |
+| `ai-assistance.spec.ts` | **17 failed / 18 passed** | fails the same AI-tab tests; untouched by this pass |
+
+Nine of the ten `collection-header` failures were the spec asserting controls the
+product had deliberately moved — Tasks' switcher into the overflow menu (UIX-01),
+and the header switcher hidden on a phone for any collection with a mobile
+control row (MOBILE-01). Those three assertions are repaired to the shipped
+contract in this pass; see the commit for each.
+
+**The one remaining failure** is UIQ-021's "a trigger near the viewport bottom
+flips its menu above it": the menu opens `below` and clamps instead. It fails
+identically at the base, its sibling assertions prove the menu stays inside the
+viewport and stays operable, and changing shared overlay placement is not this
+pass's remit — so it is left failing and recorded rather than masked.
+
+`ai-assistance.spec.ts` is redder at the base than on this branch and this pass
+touched no AI code; its failures are pre-existing and out of scope.
+
+### Measured, not asserted
+
+- **Responsive.** Every route × 320 / 390 / 768 / 1024 / 1280 / 1440 / 1920:
+  zero page-level horizontal overflow. Every element extending past the viewport
+  edge sits inside a control that scrolls by design (a segmented rail, the Diary
+  type filter, the Tasks saved-view rail).
+- **The task row's columns.** At 320 / 390 / 430 / 768 / 900 / 1024 / 1280 /
+  1440 / 1920: ONE Project-mark x, ONE date right edge, 45px rows. Before this
+  pass, six consecutive rows put their Project marks at six different
+  x-positions.
