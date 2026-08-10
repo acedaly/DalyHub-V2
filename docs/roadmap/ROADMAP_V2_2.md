@@ -134,6 +134,35 @@ alternatives.
   captures in [`docs/design/assets/edit-03-2026-08/`](../design/assets/edit-03-2026-08)
   (`e2e/inline-editor-overlay-screenshots.spec.ts`).
 
+### ☑ UIX-02 - Projects & Areas product UI redesign — **DELIVERED 2026-08-10**
+
+Extend the UIX-01 visual language into the spine's two middle rungs, against the
+third supplied reference — both galleries, both records, both phone compositions
+and the dark appearance.
+
+- **Separated the two modules.** They shared one `EntityCard` in one grid, so a
+  finite body of work and a permanent domain of a life were the same object with
+  different words in it. A Project now has `ProjectCard` (identity above a pinned
+  measure); an Area has `EntityRow` in one bordered list.
+- **Moved record identity off the CHART ramp.** `area-accent-*` was `chart-*`
+  reused, whose hues are chosen so a legend stays separable — it was putting an
+  olive, a magenta and a crimson on Project progress bars. Identity now resolves
+  to UIX-01's widget accents, plus one generated `accent-cyan` so the sixth slot
+  is clear of the scheme's alarm band.
+- **Removed the fabricated Area completion meter** from the Area record. Areas
+  never complete; the gallery had never drawn one and the record had.
+- **Gave the Area record an Overview** of what is actually in it, and gave both
+  records their own identity mark on their own accent.
+- **Made a Project's tasks Tasks rows**: the shared completion circle (which now
+  works, through the canonical `/tasks/bulk` route), relative dates in words, and
+  no routine status pills — via a `.dh-tasklist` opt-in on the UIX-01 row.
+- **Shared the view tab rail** (`ViewTabs` / `.dh-viewtabs`) between Tasks and
+  Projects instead of copying it, and gave its phone pills a 44px target.
+- **Non-goals:** new Project methodology (Kanban, Gantt, dependencies,
+  templates), an Area health score, an Area completion model, AI summaries,
+  notifications, analytics, or any change to domain rules.
+- Record: [`UIX_02_PROJECTS_AREAS_2026_08.md`](../design/UIX_02_PROJECTS_AREAS_2026_08.md).
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.

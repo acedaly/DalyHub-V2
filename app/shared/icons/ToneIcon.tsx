@@ -44,6 +44,10 @@ export const TONE_NAMES = [
   "green",
   "amber",
   "teal",
+  // UIX-02 — added with the record-identity ramp, which needed a sixth hue
+  // clear of the scheme's alarm band (see `IDENTITY_HUES` in the generator).
+  // A widget may declare it like any other.
+  "cyan",
 ] as const;
 
 export type ToneName = (typeof TONE_NAMES)[number];

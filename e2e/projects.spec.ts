@@ -36,7 +36,12 @@ test.describe("PROJ-01 — Projects", () => {
     // progress bar whose accessible value names the denominator.
     const article = page.getByRole("article", { name: "Website relaunch" });
     await expect(article.getByText(/DalyHub V2/)).toBeVisible();
-    await expect(article.locator(".dh-pill")).toHaveCount(1);
+    /*
+     * UIX-02 — ONE attention line, and no filled status chip at all. The pill
+     * and the health sentence beneath it were one fact drawn as two objects.
+     */
+    await expect(article.locator(".dh-pill")).toHaveCount(0);
+    await expect(article.locator(".dh-pcard__attention")).toHaveCount(1);
     await expect(article.getByRole("progressbar")).toHaveAttribute(
       "aria-valuetext",
       /^\d+% — \d+ of \d+ tasks? complete$/,
@@ -286,7 +291,16 @@ test.describe("PROJ-01 — Projects", () => {
      * regardless — which is how a raised, NON-interactive status chip turned
      * the top-right corner of every card into a dead zone unnoticed.
      */
-    const targets = ["entity-card-status", "entity-card-meta"] as const;
+    /*
+     * UIX-02 — the card's two non-interactive REGIONS, by their new names. The
+     * status chip and the metadata row became the attention line and the
+     * figures row; the hazard they were tested for is unchanged, because it is
+     * a property of the stretched-link technique rather than of any one
+     * element: anything painted above the `::after` overlay becomes a dead
+     * zone, and a raised chip in the top-right corner of every card is exactly
+     * how that goes unnoticed.
+     */
+    const targets = ["project-card-attention", "project-card-figures"] as const;
     for (const testid of targets) {
       await gotoFixture(page, "/projects");
       const card = page.getByRole("article", { name: "Website relaunch" });

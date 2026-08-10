@@ -80,6 +80,12 @@ interface AreaDependencyRow {
   readonly other: number | null;
 }
 
+/** The single-record read's row: an `AreaRow` plus its computed identity rank. */
+interface AreaOverviewRow extends AreaRow {
+  /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
+  readonly colour_rank: number | null;
+}
+
 interface AreaListRow extends AreaRow {
   /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
   readonly colour_rank: number;
@@ -553,8 +559,25 @@ export class D1AreaRepository implements AreaRepository {
           // deliberately does NOT filter on `area_details.archived_at` — only on
           // soft-delete. The archival timestamp is joined so the record can render
           // its lifecycle state.
+          // UIX-02 — the record carries its own `colour_rank`, so the Area's
+          // identity mark on its record is the SAME colour the gallery drew.
+          // Without it the one screen dedicated to a single Area was the one
+          // screen on which that Area had no identity.
+          //
+          // Expressed as a COUNT of the Areas that sort before this one, which
+          // is exactly `ROW_NUMBER() OVER (ORDER BY created_at, id) - 1` for
+          // this row — the identical ADR-068 ordering `listAreas` computes with
+          // a window function — without making a single-record read build the
+          // whole ranking CTE. It runs on `entities_workspace_type_created_idx`.
           `SELECT e.id, e.workspace_id, e.title, e.created_at, e.updated_at,
-                  ad.archived_at AS archived_at
+                  ad.archived_at AS archived_at,
+                  (SELECT COUNT(*)
+                     FROM entities r
+                    WHERE r.workspace_id = e.workspace_id
+                      AND r.type = '${AREA}'
+                      AND (r.created_at < e.created_at
+                           OR (r.created_at = e.created_at AND r.id < e.id))
+                  ) AS colour_rank
            FROM entities e
            JOIN spine_records sr
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -566,7 +589,7 @@ export class D1AreaRepository implements AreaRepository {
         )
         .bind(this.#workspaceId, areaId),
     );
-    const row = ((result.results ?? []) as AreaRow[])[0];
+    const row = ((result.results ?? []) as AreaOverviewRow[])[0];
     return row ? this.#toAreaOverview(row) : null;
   }
 
@@ -996,11 +1019,12 @@ export class D1AreaRepository implements AreaRepository {
     };
   }
 
-  #toAreaOverview(row: AreaRow): AreaOverview {
+  #toAreaOverview(row: AreaOverviewRow): AreaOverview {
     return {
       id: row.id,
       workspaceId: parseWorkspaceId(row.workspace_id),
       title: row.title,
+      colourRank: row.colour_rank ?? 0,
       createdAt: fromStorageTimestamp(row.created_at),
       updatedAt: fromStorageTimestamp(row.updated_at),
       archivedAt: row.archived_at

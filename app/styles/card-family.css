@@ -564,7 +564,14 @@
   min-inline-size: 0;
 }
 
-.dh-ecard-grid__item > .dh-ecard {
+/*
+ * Every card family the grid carries fills its track. `.dh-pcard` (UIX-02) is
+ * listed beside `.dh-ecard` rather than left to inherit: without a flex factor
+ * the card is sized to its own content inside the flex item, so a gallery row
+ * came out with three different card widths and a ragged right edge.
+ */
+.dh-ecard-grid__item > .dh-ecard,
+.dh-ecard-grid__item > .dh-pcard {
   flex: 1;
   min-inline-size: 0;
 }
@@ -2114,5 +2121,619 @@
 @media (forced-colors: active) {
   .dh-stat {
     border: var(--app-border-width-thin) solid CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ProjectCard (UIX-02)                                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The Project gallery card — identity at the top, the measure pinned to the
+ * bottom, and the space between them absorbing whatever the context line needs.
+ *
+ * `justify-content: space-between` plus the grid's `align-items: stretch` is
+ * what puts every bar in a row on the same baseline. The previous shared card
+ * let each one float wherever its own content ended, which is why the audit
+ * found a row holding a 220px, a 180px and a 230px card with nothing for the
+ * eye to track along.
+ */
+.dh-pcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--app-space-5);
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: var(--app-card-padding);
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+  transition:
+    box-shadow var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short3)
+      var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+/* One pixel of lift — the whole of the gallery's motion budget, zeroed under
+ * `prefers-reduced-motion` by the global rule in `base.css`. */
+.dh-pcard:hover {
+  box-shadow: var(--app-elevation-raised);
+  transform: translateY(-1px);
+}
+
+.dh-pcard--muted {
+  opacity: 0.72;
+}
+
+.dh-pcard__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-pcard__mark {
+  flex: none;
+  display: inline-flex;
+}
+
+.dh-pcard__titles {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/*
+ * TWO lines, then an ellipsis.
+ *
+ * One line is what a ROW wants; a gallery card is a different shape. At four
+ * columns on a 1440 the card is ~285px and the title's track is that minus the
+ * mark, which is not enough for "Records Migration" — clamping to one line
+ * produced a gallery of "DalyHub…", "Kitchen…", "Base Training…", which is
+ * worse than a wrap in every way. Two lines fit every realistic Project name at
+ * every column count the grid produces, and the pinned foot means a card whose
+ * title takes two lines still lands its bar on the row's baseline.
+ *
+ * `-webkit-line-clamp` rather than `text-overflow: ellipsis` because the title's
+ * child is a link whose ::after covers the card: an ellipsis declared on the
+ * heading does not reach the span that actually holds the words, which is the
+ * exact defect UIX-01 had to fix on the task row's Project column.
+ */
+.dh-pcard__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dh-pcard__open,
+.dh-pcard__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The whole card is the destination; the overflow sits above it. */
+.dh-pcard__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dh-pcard__open:focus-visible {
+  outline: none;
+}
+
+/*
+ * The ring is lifted from the LINK to the card, because the link is inline text
+ * whose own box wraps the title rather than the destination — a keyboard user
+ * needs to see which card they are on, not which words. 2px is the global
+ * `:focus-visible` offset from `base.css`, matched here because the rule it
+ * replaces is that one.
+ */
+.dh-pcard:has(.dh-pcard__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* The parent context — quiet, one line, and never competing with the title. */
+.dh-pcard__context {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/*
+ * Out of flow, in the corner. See `ProjectCard.tsx` — as a flex child it was
+ * taking 40px out of every title's track.
+ */
+.dh-pcard__overflow {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--app-space-2);
+  inset-inline-end: var(--app-space-2);
+}
+
+/* The head reserves the corner the menu sits in, so a long title never runs
+ * underneath it. */
+.dh-pcard:has(.dh-pcard__overflow) .dh-pcard__titles {
+  padding-inline-end: var(--app-space-6);
+}
+
+.dh-pcard__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * The ONE attention line. A dot and a word, never a filled chip.
+ *
+ * The chip this replaced was the loudest object on a card whose job is to be
+ * recognised by its mark — and on a gallery of nine it produced nine pills in
+ * five colours above nine bars in six more. The dot is decorative; the words
+ * beside it carry the state, and the evaluator's fuller sentence is available to
+ * assistive tech, so nothing here is conveyed by colour alone.
+ */
+.dh-pcard__attention {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-pcard__attention-text {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-pcard__dot {
+  flex: none;
+  inline-size: var(--app-space-2);
+  block-size: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+}
+
+/*
+ * D3 — slipped work is `state-overdue`, never `error`: a late task is a state of
+ * a record, not an application fault. `warning` likewise takes the due-soon
+ * state rather than the feedback role.
+ */
+.dh-pcard__attention[data-tone="danger"] {
+  color: var(--md-sys-color-state-overdue);
+}
+.dh-pcard__attention[data-tone="danger"] .dh-pcard__dot {
+  background: var(--md-sys-color-state-overdue);
+}
+.dh-pcard__attention[data-tone="warning"] {
+  color: var(--md-sys-color-state-due-soon);
+}
+.dh-pcard__attention[data-tone="warning"] .dh-pcard__dot {
+  background: var(--md-sys-color-state-due-soon);
+}
+.dh-pcard__attention[data-tone="success"] .dh-pcard__dot {
+  background: var(--md-sys-color-success);
+}
+.dh-pcard__attention[data-tone="info"] .dh-pcard__dot {
+  background: var(--md-sys-color-info);
+}
+
+.dh-pcard__progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/* The figure leads and the one supporting fact sits opposite it, so the
+ * percentage and the bar below share a left edge down the whole gallery. */
+.dh-pcard__figures {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dh-pcard__figures--factonly {
+  /* A Project with no tasks keeps the foot's height without drawing a track at
+   * zero, so its row still shares a baseline with the cards beside it. */
+  min-block-size: calc(
+    var(--md-sys-typescale-title-large-line-height) +
+      var(--app-progress-bar-height-entity) + var(--app-space-2)
+  );
+  align-items: flex-start;
+}
+
+.dh-pcard__percent {
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-pcard__fact {
+  flex: none;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* D5 — 8px, not the product's 6px. This is the one surface whose entire job is
+ * a proportion; at gallery width a 6px rule reads as a divider. */
+.dh-pcard__track {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--app-progress-bar-height-entity);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
+  overflow: hidden;
+}
+
+.dh-pcard__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
+}
+
+/*
+ * D6 — the bar takes the RECORD's identity accent, not `primary`.
+ *
+ * The same six-slot ramp the mark above it is painted from (UIX-02 moved that
+ * ramp off the chart hues and onto the widget accents), resolved from the same
+ * stable rank — one identity, not two colour decisions. The percentage beside
+ * the bar states the value in words, so the colour carries nothing on its own.
+ */
+.dh-pcard[data-accent="1"] .dh-pcard__fill {
+  background: var(--md-sys-color-area-accent-1);
+}
+.dh-pcard[data-accent="2"] .dh-pcard__fill {
+  background: var(--md-sys-color-area-accent-2);
+}
+.dh-pcard[data-accent="3"] .dh-pcard__fill {
+  background: var(--md-sys-color-area-accent-3);
+}
+.dh-pcard[data-accent="4"] .dh-pcard__fill {
+  background: var(--md-sys-color-area-accent-4);
+}
+.dh-pcard[data-accent="5"] .dh-pcard__fill {
+  background: var(--md-sys-color-area-accent-5);
+}
+.dh-pcard[data-accent="6"] .dh-pcard__fill {
+  background: var(--md-sys-color-area-accent-6);
+}
+
+@media (forced-colors: active) {
+  .dh-pcard {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+  .dh-pcard .dh-pcard__fill {
+    background: CanvasText;
+  }
+  .dh-pcard__dot {
+    background: CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* EntityRow + EntityRowList (UIX-02) — the Areas surface                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE surface holding every row, with hairlines between them.
+ *
+ * The list draws the rules rather than each row, so the first and last edges
+ * belong to the surface and no row has to know where it sits. This is the
+ * reference's Areas composition, and it is the denser layout the design system
+ * asks for when a record does not have enough to fill a gallery card.
+ */
+.dh-erow-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--app-shape-entity-card);
+  overflow: hidden;
+  /*
+   * A MEASURE, and a tighter one than the collection's own.
+   *
+   * The design system already caps a collection at `--app-width-wide`, because
+   * an uncapped list at 1440 is a 1200px row with a title at one end and a
+   * figure at the other and a quarter-second of eye travel between them. That
+   * cap is sized for a DENSE row; these rows carry a name, two counts and a
+   * figure, so at the wide cap the middle of every one of them was empty. The
+   * record cap is the right measure for the amount of content an Area actually
+   * has, and it keeps the trailing figure in the same glance as the name.
+   */
+  max-inline-size: var(--app-width-content);
+}
+
+.dh-erow-list__item + .dh-erow-list__item {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+}
+
+.dh-erow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
+  /* Comfortably above the 44px touch floor without becoming a card: an Area is
+   * a permanent thing and its row is allowed to breathe. */
+  min-block-size: 4.5rem;
+  padding: var(--app-space-3) var(--app-card-padding);
+  transition: background var(--md-sys-motion-duration-short3)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-erow:hover {
+  background: var(--md-app-color-surface-card-subtle);
+}
+
+.dh-erow--muted {
+  opacity: 0.72;
+}
+
+.dh-erow__mark {
+  flex: none;
+  display: inline-flex;
+}
+
+.dh-erow__body {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.dh-erow__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  color: var(--md-sys-color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-erow__open,
+.dh-erow__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-erow__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.dh-erow__open:focus-visible {
+  outline: none;
+}
+
+.dh-erow:has(.dh-erow__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: calc(-1 * var(--app-border-width-thick));
+}
+
+/*
+ * The relationship line — what is LIVING in this part of life. Never a
+ * proportion: an Area does not complete, so it has no percentage to state and
+ * this row deliberately has nowhere to put one.
+ */
+.dh-erow__facts {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-erow__figure {
+  flex: none;
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dh-erow__overflow {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+
+@media (forced-colors: active) {
+  .dh-erow-list {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ProjectCard — the phone composition                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A phone gets a COMPACT ROW, not the desktop card at full size.
+ *
+ * That is the design system's own stated responsive behaviour for this module
+ * ("Projects · Areas — gallery on desktop, compact rows on the phone, same
+ * DOM"), it is what the redesign reference draws on its phone screen, and it is
+ * arithmetic: the desktop card is ~200px tall, so a 844px viewport minus the
+ * header bands and the navigation bar showed three and a half Projects. The
+ * same facts, laid out for the axis that is actually scarce, show six.
+ *
+ * Nothing is removed — the mark, the title, the context, the attention line,
+ * the percentage, the bar and the trailing fact are all still here. The
+ * percentage moves ONTO the bar's row instead of above it, the mark steps down
+ * a rung, and the padding comes in. Same DOM, same reading order, same
+ * accessible names.
+ */
+@media (max-width: 48rem) {
+  .dh-pcard {
+    gap: var(--app-space-3);
+    padding: var(--app-card-padding-compact);
+    border-radius: var(--app-shape-card);
+  }
+
+  /* The mark steps down: at row density a 56px square is the loudest thing on
+   * the screen, and identity only has to be recognisable, not dominant. */
+  .dh-pcard__mark > .dh-accent-icon {
+    inline-size: var(--app-entity-icon-container-size);
+    block-size: var(--app-entity-icon-container-size);
+    border-radius: var(--md-sys-shape-corner-medium);
+    font-size: var(--app-entity-icon-size);
+  }
+
+  .dh-pcard__mark > .dh-accent-icon .dh-icon {
+    inline-size: var(--app-entity-icon-size);
+    block-size: var(--app-entity-icon-size);
+  }
+
+  /*
+   * The figure joins the BAR's row rather than sitting on one of its own. On a
+   * phone the percentage and the bar are one statement, and giving them two
+   * lines spent ~40px per card saying it twice over.
+   */
+  .dh-pcard__progress {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--app-space-3);
+  }
+
+  .dh-pcard__figures {
+    flex: none;
+    order: 2;
+    gap: var(--app-space-2);
+  }
+
+  .dh-pcard__track {
+    /* `flex: 1` is safe here and not in the column layout: the axis is now the
+     * inline one, so a flex factor resolves against width rather than
+     * collapsing the bar's height to nothing. */
+    flex: 1;
+    order: 1;
+    min-inline-size: 0;
+  }
+
+  /* The percentage steps down with everything else — it is still the largest
+   * figure on the row, but the row is 36px rather than 60px. */
+  .dh-pcard__percent {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+  }
+
+  /*
+   * The trailing fact joins the ATTENTION line, opposite it — the row that
+   * already exists and has spare width, rather than a third line of its own.
+   */
+  .dh-pcard__foot {
+    gap: var(--app-space-2);
+  }
+
+  .dh-pcard__attention {
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+  }
+
+  /* A card with no progress keeps no reserved height on a phone: there is no
+   * row of neighbours to share a baseline with when the grid is one column. */
+  .dh-pcard__figures--factonly {
+    min-block-size: 0;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* EntityRow — the phone composition                                          */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /*
+   * The trailing FIGURE moves under the relationships instead of competing with
+   * the name for the row's width.
+   *
+   * At 390px a right-aligned "3 open tasks" took ~90px of a ~300px row, and
+   * every Area whose name is longer than "Finance" came out as
+   * "Health & Fitn…". The name is what an owner scans this list by; the figure
+   * is supporting.
+   *
+   * A GRID rather than `order`, because the two would not be equivalent: the
+   * figure is a SIBLING of the body in the DOM, and `order` moves pixels while
+   * leaving the reading order and the tab order behind (DALYHUB_DESIGN_SYSTEM
+   * §7). Naming areas puts the figure on a second row of the middle column with
+   * the DOM untouched, so what a screen reader hears is what the eye sees:
+   * mark, name, relationships, figure.
+   */
+  .dh-erow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "mark body overflow"
+      "mark figure overflow";
+    align-items: center;
+    column-gap: var(--app-space-3);
+    row-gap: 0;
+    padding-inline: var(--app-card-padding-compact);
+  }
+
+  .dh-erow__mark {
+    grid-area: mark;
+  }
+
+  .dh-erow__body {
+    grid-area: body;
+    align-self: end;
+  }
+
+  .dh-erow__figure {
+    grid-area: figure;
+    align-self: start;
+    margin-block-start: var(--app-space-1);
+  }
+
+  .dh-erow__overflow {
+    grid-area: overflow;
+  }
+
+  /* A row whose Area has no open tasks has no second line to fill, so the body
+   * centres in the single row it does have rather than sitting high. */
+  .dh-erow:not(:has(.dh-erow__figure)) .dh-erow__body {
+    align-self: center;
   }
 }

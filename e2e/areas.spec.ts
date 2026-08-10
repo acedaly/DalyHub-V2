@@ -18,12 +18,18 @@ test.describe("AREA-01 — Areas", () => {
 
     const seededArea = page.getByRole("link", { name: "Open DalyHub V2" });
     await expect(seededArea).toHaveAttribute("href", "/areas/a-dh");
-    // Gate D: the labelled "Goals: … · Projects: …" metadata is gone. The card
-    // states its structure in one line and its open work as one figure — both
-    // from exact aggregates, so these are contract assertions, not copy checks.
+    /*
+     * The labelled "Goals: … · Projects: …" metadata is gone. The row states
+     * its structure in one line and its open work as one figure — both from
+     * exact aggregates, so these are contract assertions, not copy checks.
+     *
+     * UIX-02 dropped the "active"/"open" qualifiers from the relationship line:
+     * on a list where every row says it, they are words per row restating what
+     * the collection already means.
+     */
     const dhCard = page.getByRole("article", { name: "DalyHub V2" });
-    await expect(dhCard.getByText(/\d+ active Projects?/)).toBeVisible();
-    await expect(dhCard.getByText("open tasks")).toBeVisible();
+    await expect(dhCard.getByText(/\d+ Projects?/)).toBeVisible();
+    await expect(dhCard.getByText(/\d+ open tasks?/)).toBeVisible();
     // The chip that said nothing about any particular Area is gone.
     await expect(page.getByText("Permanent")).toHaveCount(0);
 
@@ -35,7 +41,15 @@ test.describe("AREA-01 — Areas", () => {
     await expect(
       page.getByRole("heading", { name: "DalyHub V2" }),
     ).toBeVisible();
-    await expect(page.getByText("Permanent").first()).toBeVisible();
+    /*
+     * UIX-02 — no "Permanent" chip on the record either.
+     *
+     * Every Area is permanent, so it is a fact about Areas rather than about
+     * this Area. The gallery dropped it in AREA-01; the record kept it, so the
+     * product said it on one screen and not the other. Only the exceptional
+     * state (Archived) paints now.
+     */
+    await expect(page.getByText("Permanent")).toHaveCount(0);
     /*
      * RECORD-01 — momentum is the compact summary band's state chip and signal
      * line. It used to be an outlined card nested inside the summary card
@@ -50,6 +64,18 @@ test.describe("AREA-01 — Areas", () => {
       ),
     ).toBeVisible();
 
+    /*
+     * UIX-02 — the record OPENS on its Overview, so reaching a section is a
+     * deliberate step. The overview states what is in the Area as counts of
+     * living things; the sections hold the records themselves.
+     */
+    const overviewMetrics = page.getByTestId("area-overview-metrics");
+    await expect(overviewMetrics).toBeVisible();
+    // Counts, never a proportion: an Area does not complete.
+    await expect(page.getByRole("progressbar")).toHaveCount(0);
+
+    await page.getByRole("tab", { name: /Goals/ }).click();
+    await expect(page).toHaveURL(/\/areas\/a-dh\?tab=goals/);
     await expect(
       page.getByRole("article", { name: "Launch the site" }),
     ).toBeVisible();
@@ -102,7 +128,19 @@ test.describe("AREA-01 — Areas", () => {
     await newDialog.getByRole("button", { name: "Create Area" }).click();
     await expect(page).toHaveURL(/\/areas\/[^/?#]+$/);
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    // A brand-new Area still reports its momentum in the band…
     await expect(page.getByText("No active work")).toBeVisible();
+    /*
+     * …and its Overview says the absence ONCE, as a sentence, rather than as
+     * three tiles reading zero. "An absence is never drawn as a state" is the
+     * design system's rule for a Goal's measurement and it holds here too.
+     */
+    await expect(
+      page.getByText("Nothing running in this Area yet."),
+    ).toBeVisible();
+    await expect(page.getByTestId("area-overview-metrics")).toHaveCount(0);
+
+    await page.getByRole("tab", { name: /Goals/ }).click();
     await expect(page.getByText("No Goals in this Area")).toBeVisible();
 
     // DS-16 — the heading IS the rename control. Escape restores focus to it
@@ -166,11 +204,12 @@ test.describe("AREA-01 — Areas", () => {
 
     // The seeded `a-dh` Area holds Projects, Goals and Tasks; the counts come
     // from workspace-wide aggregates, so they are integers, never blanks.
-    await expect(fallback.getByText(/\d+ active Projects?/)).toBeVisible();
-    await expect(fallback.getByText("open tasks")).toBeVisible();
+    await expect(fallback.getByText(/\d+ Projects?/)).toBeVisible();
+    await expect(fallback.getByText(/\d+ open tasks?/)).toBeVisible();
 
-    // Areas never complete, so no Area card carries a completion bar — the
-    // source of the audit's ragged-alignment finding.
+    // Areas never complete, so no Area row carries a completion bar — the
+    // source of the audit's ragged-alignment finding, and the fabricated
+    // figure UIX-02 also removed from the Area RECORD.
     await expect(page.getByRole("progressbar")).toHaveCount(0);
   });
 
@@ -204,7 +243,13 @@ test.describe("AREA-01 — Areas", () => {
   }) => {
     await gotoFixture(page, "/design/collection-states?state=areas-icons");
     const empty = page.getByRole("article", { name: "Finances" });
-    await expect(empty.getByText("No active work")).toBeVisible();
+    /*
+     * UIX-02 — ONE line, and it is the ACTIONABLE absence. The row used to say
+     * "No active work" in its relationship slot and "Ready for its first
+     * Project" beneath it: two statements of the same nothing.
+     */
+    await expect(empty.getByText("Ready for its first Project")).toBeVisible();
+    await expect(empty.getByText("No active work")).toHaveCount(0);
     // The three absence messages the audit found are gone.
     await expect(empty.getByText(/No goals yet/)).toHaveCount(0);
     await expect(empty.getByText(/No Projects yet/)).toHaveCount(0);
@@ -213,7 +258,8 @@ test.describe("AREA-01 — Areas", () => {
     // An Area holding only loose tasks is NOT idle, and must not claim to be.
     const loose = page.getByRole("article", { name: "Home" });
     await expect(loose.getByText("No active work")).toHaveCount(0);
-    await expect(loose.getByText("open tasks")).toBeVisible();
+    await expect(loose.getByText("Ready for its first Project")).toHaveCount(0);
+    await expect(loose.getByText(/\d+ open tasks?/)).toBeVisible();
   });
 
   test("collection: meets touch targets and stays overflow-free at 320px", async ({

@@ -419,7 +419,24 @@ export class D1ProjectRepository implements ProjectRepository {
     const projectId = validateSpineId(id, "id");
     const statement = this.#db
       .prepare(
-        `SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS}
+        // UIX-02 — the record carries its own `colour_rank`, so a Project's
+        // identity mark on its record is the SAME colour the gallery drew.
+        // Without it, the one screen dedicated to a single Project was the one
+        // screen on which that Project had no identity.
+        //
+        // A COUNT of the Projects that sort before this one, which is exactly
+        // `ROW_NUMBER() OVER (ORDER BY created_at, id) - 1` for this row — the
+        // identical ADR-068 ordering `PROJECT_RANKS_CTE` computes with a window
+        // function — without making a single-record read build the whole
+        // ranking CTE. It runs on `entities_workspace_type_created_idx`.
+        `SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},
+                (SELECT COUNT(*)
+                   FROM entities r
+                  WHERE r.workspace_id = e.workspace_id
+                    AND r.type = '${PROJECT}'
+                    AND (r.created_at < e.created_at
+                         OR (r.created_at = e.created_at AND r.id < e.id))
+                ) AS project_colour_rank
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -432,7 +449,9 @@ export class D1ProjectRepository implements ProjectRepository {
       .bind(projectId, this.#workspaceId);
 
     const result = await this.#run(statement);
-    const rows = (result.results ?? []) as ProjectBaseRow[];
+    const rows = (result.results ?? []) as (ProjectBaseRow & {
+      readonly project_colour_rank: number | null;
+    })[];
     const row = rows[0];
     if (!row) {
       return null;
@@ -442,6 +461,8 @@ export class D1ProjectRepository implements ProjectRepository {
       id: row.id,
       workspaceId: parseWorkspaceId(row.workspace_id),
       title: row.title,
+      colourRank:
+        row.project_colour_rank === null ? 0 : Number(row.project_colour_rank),
       createdAt: fromStorageTimestamp(row.created_at),
       updatedAt: fromStorageTimestamp(row.effective_updated_at),
       completedAt:

@@ -12,7 +12,7 @@
 
 import type { ReactNode } from "react";
 
-import { EntityLink, RecordIcon } from "~/shared/entity";
+import { AccentIcon, EntityLink } from "~/shared/entity";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import {
@@ -256,7 +256,24 @@ export function ProjectOverview({
         //
         // The record's OWN icon — the chosen glyph, falling back to the
         // project default when there is none or the stored key is unresolvable.
-        icon={<RecordIcon entityType="project" iconKey={overview.iconKey} />}
+        /*
+         * UIX-02 — the record's own icon on the record's own ACCENT, at the
+         * same geometry the gallery draws. It was a bare monochrome glyph, so
+         * the one screen dedicated to a single Project was the one screen where
+         * that Project had no identity: an owner arriving from a grid of
+         * coloured marks landed on a grey outline of the same shape.
+         * `AccentIcon` is the component the gallery card uses, resolving the
+         * same stored key and the same stable rank — recognition survives the
+         * navigation.
+         */
+        icon={
+          <AccentIcon
+            entityType="project"
+            iconKey={overview.iconKey}
+            colourRank={overview.colourRank}
+            size="md"
+          />
+        }
         breadcrumb={[{ id: "projects", label: "Projects", href: "/projects" }]}
         status={{ label: state.label, tone: state.tone }}
         metadata={contextItems}

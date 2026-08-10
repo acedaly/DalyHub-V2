@@ -67,6 +67,13 @@ export type AreaOverview = {
   readonly id: string;
   readonly workspaceId: WorkspaceId;
   readonly title: string;
+  /**
+   * UIX-02 — the Area's stable identity colour rank (ADR-068 decision 5), the
+   * SAME rank `AreaListItem` carries. The record draws its own identity mark
+   * from it, so an owner arriving from the gallery lands on the colour they
+   * clicked rather than on a neutral glyph.
+   */
+  readonly colourRank: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
   /**

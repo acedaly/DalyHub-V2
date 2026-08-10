@@ -279,7 +279,19 @@ export function SavedViewSwitcher({
          * never rests on the violet underline the stylesheet draws.
          */
         <nav
-          className={`${classPrefix}__rail`}
+          /*
+           * UIX-02 — the rail carries the SHARED `dh-viewtabs` classes as well
+           * as its own prefixed ones.
+           *
+           * The prefixed pair stays because this module's stylesheet and its
+           * end-to-end tests address it; the shared pair is where the rail is
+           * now actually DRAWN. Until UIX-02 the treatment lived in
+           * `tasks.css`, scoped to `.dh-collection--tasks`, which meant the
+           * next collection that wanted the same tabs had to copy it — and
+           * "do not independently reinvent view tabs" is the brief's own rule.
+           * One definition, two consumers.
+           */
+          className={`${classPrefix}__rail dh-viewtabs`}
           aria-label={collectionLabel}
           data-testid={`${testIdPrefix}-rail`}
         >
@@ -287,7 +299,7 @@ export function SavedViewSwitcher({
             <Link
               key={view.id}
               to={`${basePath}?${view.query}`}
-              className={`${classPrefix}__tab`}
+              className={`${classPrefix}__tab dh-viewtabs__tab`}
               aria-current={view.id === activeViewId ? "page" : undefined}
               preventScrollReset
             >

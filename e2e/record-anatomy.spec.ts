@@ -237,25 +237,40 @@ test.describe("filters are subordinate to tabs", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    const filter = page.getByRole("group", { name: "Filter tasks by state" });
+    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), so it
+    // announces as a `navigation`. The point of this test is unchanged and if
+    // anything better served: the rail is quieter than the segmented track it
+    // replaced, which is exactly what "subordinate to the tabs above it" means.
+    const filter = page.getByRole("navigation", {
+      name: "Filter tasks by state",
+    });
     await expect(filter).toBeVisible();
 
+    /*
+     * The measurement follows the control. It used to read the segmented
+     * track's option and check for its `--subtle` variant; the rail has no
+     * variants, so what is asserted instead is the property that carried the
+     * meaning all along — the filter's type is no larger than the tab strip's,
+     * and an unselected tab draws no filled container of its own.
+     */
     const sizes = await page.evaluate(() => {
       const tab = document.querySelector(".record-tab");
       const option = document.querySelector(
-        ".dh-segmented--subtle .dh-segmented__option",
+        ".dh-project-tasks .dh-viewtabs__tab:not([aria-current])",
       );
       if (!tab || !option) return null;
+      const optionStyle = getComputedStyle(option);
       return {
         tab: parseFloat(getComputedStyle(tab).fontSize),
-        filter: parseFloat(getComputedStyle(option).fontSize),
-        subtle: option.closest(".dh-segmented--subtle") !== null,
+        filter: parseFloat(optionStyle.fontSize),
+        background: optionStyle.backgroundColor,
       };
     });
     expect(sizes).not.toBeNull();
-    const s = sizes as { tab: number; filter: number; subtle: boolean };
-    expect(s.subtle).toBe(true);
+    const s = sizes as { tab: number; filter: number; background: string };
     expect(s.filter).toBeLessThanOrEqual(s.tab);
+    // The rail's only chrome is the 2px indicator under the CURRENT tab.
+    expect(s.background).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
   });
 });
 

@@ -858,7 +858,7 @@
  *   3. a view switcher, a filter trigger, two filled buttons and a quick-add
  *      field stacked above the first task.
  *
- * Everything here is scoped to `.dh-collection--tasks` rather than applied to
+ * Everything here is scoped to `:is(.dh-collection--tasks, .dh-tasklist)` rather than applied to
  * the shared list row. Task rows genuinely differ from every other collection's
  * — they lead with a completion control, they carry a right-aligned date, and
  * they are the one list an owner reads a hundred rows of — and a change this
@@ -871,66 +871,18 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * A lightweight destination rail, not a segmented control and not pill buttons.
+ * UIX-02 — the rail's TREATMENT moved to `view-tabs.css` as `.dh-viewtabs`.
  *
- * The reference draws these as text with a thin indicator under the current
- * one, which is what a DESTINATION looks like — these change which records are
- * shown, so they are links, and each is the URL that IS the view. The chrome is
- * a 2px rule and nothing else.
+ * It was declared here, scoped to Tasks, because Tasks was the only collection
+ * that had one. Projects now takes the same rail under its own title, and the
+ * brief's rule is explicit: do not independently reinvent view tabs. The
+ * `SavedViewSwitcher` markup carries both class families, so the prefixed hooks
+ * this stylesheet and the Tasks end-to-end tests address are unchanged — only
+ * the declarations moved.
+ *
+ * What stays here is the one thing that is genuinely about Tasks: the trigger
+ * beside the rail, which steps back because the rail is in front of it.
  */
-.dh-tasks-views__rail {
-  display: flex;
-  align-items: stretch;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-  /* On a narrow window the rail scrolls sideways rather than wrapping into two
-   * rows of tabs or squeezing five labels into unreadable columns. The
-   * scrollbar is hidden; the fade is not needed because the rail is inside the
-   * page's own inline padding and the last tab is always partly visible. */
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.dh-tasks-views__rail::-webkit-scrollbar {
-  display: none;
-}
-
-.dh-tasks-views__tab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--app-space-3);
-  border-block-end: var(--app-border-width-thick) solid transparent;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
-}
-
-.dh-tasks-views__tab:hover {
-  color: var(--md-sys-color-on-surface);
-}
-
-/* Current: the primary colour, a weight step and a 2px indicator. Three
- * signals, plus `aria-current` — never the colour alone. */
-.dh-tasks-views__tab[aria-current="page"] {
-  color: var(--md-sys-color-primary);
-  font-weight: 600;
-  border-block-end-color: var(--md-sys-color-primary);
-}
-
-@media (forced-colors: active) {
-  .dh-tasks-views__tab[aria-current="page"] {
-    border-block-end-color: Highlight;
-  }
-}
 
 /*
  * With a rail in front of it, the "View …" trigger is the way to the OTHER
@@ -969,11 +921,11 @@
  * density" rhythm the whole redesign is built on: the eye finds the band, then
  * reads the rows without interruption.
  */
-.dh-collection--tasks .dh-tasks-grouped {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-grouped {
   gap: var(--app-space-5);
 }
 
-.dh-collection--tasks .dh-tasks-grouped__section {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-grouped__section {
   gap: var(--app-space-1);
 }
 
@@ -985,7 +937,7 @@
  * the brackets are gone from the markup's own text node, so the heading reads
  * "OVERDUE 2".
  */
-.dh-collection--tasks .dh-tasks-section__count {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-section__count {
   margin-inline-start: var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   opacity: 0.75;
@@ -997,7 +949,7 @@
  * Its rows are ordinary rows — their dates already read "Yesterday" in the
  * state colour. Tinting the band as well would paint a third of the page.
  */
-.dh-collection--tasks
+:is(.dh-collection--tasks, .dh-tasklist)
   .dh-tasks-grouped__section[aria-label="Overdue"]
   .dh-tasks-section__label {
   color: var(--md-sys-color-state-overdue);
@@ -1020,14 +972,18 @@
  * The title keeps `flex: 1` and a minimum, so it is what gets the width and the
  * trailing facts are what shrink.
  */
-.dh-collection--tasks .dh-card-collection--list .dh-card__body {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__body {
   flex-direction: row;
   align-items: center;
   flex-wrap: nowrap;
   gap: var(--app-space-3);
 }
 
-.dh-collection--tasks .dh-card-collection--list .dh-card__line {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__line {
   flex: 1 1 auto;
   flex-wrap: nowrap;
   min-inline-size: 0;
@@ -1046,7 +1002,9 @@
  * the delegate and the status pill kept their width. The title is the one thing
  * being scanned for; it gets a floor and everything after it shrinks first.
  */
-.dh-collection--tasks .dh-card-collection--list .dh-card__title {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__title {
   flex: 1 1 auto;
   min-inline-size: min(100%, 14rem);
   /* One line, ellipsised. A task title that wraps is what turns a 40px row into
@@ -1058,7 +1016,10 @@
   white-space: nowrap;
 }
 
-.dh-collection--tasks .dh-card-collection--list .dh-card__title .dh-card__open {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__title
+  .dh-card__open {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1066,7 +1027,9 @@
 }
 
 /* The supporting run stops wrapping and hugs the trailing edge. */
-.dh-collection--tasks .dh-card-collection--list .dh-card__support {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__support {
   flex: 0 1 auto;
   flex-wrap: nowrap;
   justify-content: flex-end;
@@ -1084,7 +1047,7 @@
  * mark above it 25px to the left — and a context column that moves is not a
  * column. A date longer than the floor still grows rather than clipping.
  */
-.dh-collection--tasks .dh-card__meta[data-field="due"] {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="due"] {
   order: 2;
   margin-inline-start: auto;
   min-inline-size: 5.5rem;
@@ -1092,7 +1055,7 @@
 
 /* A two-character chip has nothing to give. Left shrinkable it was the item a
  * crowded run took width from, and "P1" rendered as a clipped capsule. */
-.dh-collection--tasks .dh-card__meta[data-field="priority"] {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="priority"] {
   flex: none;
 }
 
@@ -1104,7 +1067,9 @@
  * the one thing that has to go — see the row's own note — and the label must
  * stay in the accessibility tree, so only the icon is dropped.
  */
-.dh-collection--tasks .dh-card-collection--list .dh-card__icon {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__icon {
   display: none;
 }
 
@@ -1117,7 +1082,9 @@
  * indicator keeps its dot and its word — "P1" is still there, so nothing rests
  * on colour — and loses the capsule around them.
  */
-.dh-collection--tasks .dh-card-collection--list .dh-priority {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-priority {
   padding-inline: 0;
   border-color: transparent;
   background: transparent;
@@ -1133,14 +1100,16 @@
  * priority mark, visible at 768px and worse at 320. Here it is simply the next
  * thing after the title.
  */
-.dh-collection--tasks .dh-card-collection--list .dh-card__status {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card-collection--list
+  .dh-card__status {
   flex: none;
   margin-inline-start: var(--app-space-2);
 }
 
 /* The row's own vertical rhythm: tight, and driven by the 44px target of the
  * completion control rather than by padding. */
-.dh-collection--tasks .dh-card-collection--list .dh-card {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-card-collection--list .dh-card {
   padding-block: 0;
   min-block-size: var(--app-touch-target-min);
   align-items: center;
@@ -1199,7 +1168,7 @@
  * (context + date) to the trailing end, and a fixed track for each is what
  * squares them up.
  */
-.dh-collection--tasks .dh-card__meta[data-field="parent"] {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="parent"] {
   order: 1;
   margin-inline-start: auto;
   /* `flex: none`, or the track is not a track: as a shrinkable item the column
@@ -1213,7 +1182,7 @@
 }
 
 /* With the context pinned, the date's own auto-margin would double the gap. */
-.dh-collection--tasks
+:is(.dh-collection--tasks, .dh-tasklist)
   .dh-card__meta[data-field="parent"]
   ~ .dh-card__meta[data-field="due"] {
   margin-inline-start: 0;
@@ -1275,25 +1244,28 @@
  */
 @media (max-width: 30rem) {
   /* The shared list row wraps its parts at this width; a task row must not. */
-  .dh-collection--tasks .dh-card-collection--list .dh-card {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card-collection--list .dh-card {
     flex-wrap: nowrap;
     align-items: center;
   }
 
-  .dh-collection--tasks .dh-card-collection--list .dh-card__actions {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__actions {
     flex-basis: auto;
     margin-block-start: 0;
   }
 
-  .dh-collection--tasks .dh-card__meta[data-field="parent"],
-  .dh-collection--tasks .dh-card__meta[data-priority="low"],
-  .dh-collection--tasks .dh-card__meta[data-priority="quiet"] {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="parent"],
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-priority="low"],
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card__meta[data-priority="quiet"] {
     display: none;
   }
 
   /* The date column's floor goes with it: on a phone the row cannot spare
    * 88px so that the word "Today" can sit in a column. */
-  .dh-collection--tasks .dh-card__meta[data-field="due"] {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="due"] {
     min-inline-size: 0;
   }
 
@@ -1323,7 +1295,7 @@
  * controls (see below). The field is a real input with a real label, and Enter
  * still submits.
  */
-.dh-collection--tasks .dh-tasks-quickadd {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd {
   gap: var(--app-space-2);
   margin-block-end: var(--app-space-4);
   padding-inline: var(--app-space-4);
@@ -1331,7 +1303,7 @@
   background: var(--md-app-color-surface-card);
 }
 
-.dh-collection--tasks .dh-tasks-quickadd__input {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__input {
   border-color: transparent;
   background: transparent;
   padding-inline-start: 0;
@@ -1339,7 +1311,7 @@
 
 /* The `+` stands where a task row's completion circle does, so the row lines up
  * with the list beneath it. Decorative: the field has its own label. */
-.dh-collection--tasks .dh-tasks-quickadd::before {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd::before {
   content: "+";
   flex: none;
   display: grid;
@@ -1351,13 +1323,13 @@
   line-height: 1;
 }
 
-.dh-collection--tasks .dh-tasks-quickadd__submit {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit {
   background: transparent;
   border-color: transparent;
   color: var(--md-sys-color-primary);
 }
 
-.dh-collection--tasks .dh-tasks-quickadd__submit:disabled {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit:disabled {
   color: var(--md-sys-color-on-surface-variant);
 }
 
@@ -1376,24 +1348,24 @@
 @media (min-width: 48rem) {
   /* The rail band GROWS, so the shared "Filter & sort" control is pushed to the
    * trailing end of the same row instead of sitting against the tabs. */
-  .dh-collection--tasks.dh-collection--persistent-controls
+  :is(.dh-collection--tasks, .dh-tasklist).dh-collection--persistent-controls
     .dh-collection__filters {
     flex: 1 1 auto;
     min-inline-size: 0;
   }
 
-  .dh-collection--tasks .dh-tasks-views {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views {
     flex-wrap: nowrap;
     min-inline-size: 0;
   }
 
-  .dh-collection--tasks .dh-tasks-views__rail {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views__rail {
     flex: 0 1 auto;
   }
 
   /* The other-views trigger and its manage menu follow the rail, separated from
    * it by the space the rail does not use. */
-  .dh-collection--tasks .dh-tasks-views__trigger {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views__trigger {
     margin-inline-start: auto;
   }
 }
@@ -1411,7 +1383,7 @@
  * of the list spent on nothing and breaks the column rhythm the date and the
  * mark depend on.
  */
-.dh-collection--tasks .dh-card-collection--list {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-card-collection--list {
   gap: 0;
   /*
    * The ROW rules below are container queries on the list, not media queries on
@@ -1471,10 +1443,10 @@
  * `text-overflow` has no effect on an inline-level box; the caret is an inline
  * SVG on the same line, so a name too long to fit takes the ellipsis and the
  * caret with it, which is the honest reading — there is no room for either. */
-.dh-collection--tasks
+:is(.dh-collection--tasks, .dh-tasklist)
   .dh-card__meta[data-field="parent"]
   .dh-inline-edit__value,
-.dh-collection--tasks
+:is(.dh-collection--tasks, .dh-tasklist)
   .dh-card__meta[data-field="parent"]
   .dh-inline-select__value {
   display: block;
@@ -1496,9 +1468,13 @@
  * inside a column with 140px to spare.
  */
 @container tasks-list (min-width: 46rem) {
-  .dh-collection--tasks .dh-card__meta[data-field="parent"] .dh-inline-select,
-  .dh-collection--tasks .dh-card__meta[data-field="parent"] .dh-inline-edit,
-  .dh-collection--tasks
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card__meta[data-field="parent"]
+    .dh-inline-select,
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card__meta[data-field="parent"]
+    .dh-inline-edit,
+  :is(.dh-collection--tasks, .dh-tasklist)
     .dh-card__meta[data-field="parent"]
     .dh-inline-edit__trigger {
     inline-size: 100%;
@@ -1512,7 +1488,8 @@
  * while it is invisible. `visibility` would collapse nothing; `opacity` keeps
  * the box, which is the point.
  */
-.dh-collection--tasks .dh-card__meta[data-field="due"][data-priority="quiet"] {
+:is(.dh-collection--tasks, .dh-tasklist)
+  .dh-card__meta[data-field="due"][data-priority="quiet"] {
   order: 2;
   margin-inline-start: auto;
 }
@@ -1529,7 +1506,7 @@
  * produced a 94px row at 390px with the priority above the date and the title
  * truncated to eight characters. The list is where the rule belongs.
  */
-.dh-collection--tasks .dh-card__metadata {
+:is(.dh-collection--tasks, .dh-tasklist) .dh-card__metadata {
   flex-wrap: nowrap;
   align-items: center;
 }
@@ -1545,33 +1522,16 @@
    * without going through a sheet that does not offer them. The reference puts
    * them across the top as compact pills, and so does this.
    */
-  .dh-collection--tasks .dh-collection__filters {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-collection__filters {
     display: block;
     padding: var(--app-space-2) var(--app-page-padding) 0;
   }
 
-  /* Pills, not underlined tabs. A phone's rail is a horizontal scroller and an
-   * underline on a scrolling row is hard to see; a filled selected pill is the
-   * treatment the reference uses and the one a thumb aims at. */
-  .dh-collection--tasks .dh-tasks-views__tab {
-    min-block-size: 2.25rem;
-    padding-inline: var(--app-space-4);
-    border-radius: var(--md-sys-shape-corner-full);
-    border-block-end: 0;
-    background: var(--md-app-color-surface-card);
-    font-size: var(--md-sys-typescale-label-medium-size);
-  }
-
-  .dh-collection--tasks .dh-tasks-views__tab[aria-current="page"] {
-    background: var(--md-sys-color-primary);
-    color: var(--md-sys-color-on-primary);
-  }
-
-  /* The rail keeps a comfortable 44px band around its 36px pills, so the target
-   * clears WCAG 2.2 (2.5.8) while the pills stay compact. */
-  .dh-collection--tasks .dh-tasks-views__rail {
-    padding-block: var(--app-space-1);
-  }
+  /*
+   * UIX-02 — the phone PILL treatment moved to `view-tabs.css` with the rest of
+   * the rail, so Projects gets the same thumb-sized pills the reference draws
+   * on both screens rather than a second copy of this block.
+   */
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1589,7 +1549,7 @@
  * the date) stay until the list is genuinely phone-narrow.
  */
 @container tasks-list (max-width: 46rem) {
-  .dh-collection--tasks .dh-card__meta[data-priority="low"] {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-priority="low"] {
     display: none;
   }
 
@@ -1604,13 +1564,14 @@
    * "Priority, dates and repeat…" panel, which is the only way a touch device
    * ever reached them.
    */
-  .dh-collection--tasks .dh-card__meta[data-priority="quiet"] {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card__meta[data-priority="quiet"] {
     display: none;
   }
 
   /* The Project column stops being a fixed track and simply takes what is left
    * after the title's floor and the date. */
-  .dh-collection--tasks .dh-card__meta[data-field="parent"] {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="parent"] {
     inline-size: auto;
     max-inline-size: 10rem;
   }
@@ -1625,12 +1586,14 @@
    * the status pill, then the title's ellipsis — so wrapping is never the
    * answer it needs.
    */
-  .dh-collection--tasks .dh-card-collection--list .dh-card {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card-collection--list .dh-card {
     flex-wrap: nowrap;
   }
 
   /* …and the title's floor comes down with the width it has to live in. */
-  .dh-collection--tasks .dh-card-collection--list .dh-card__title {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__title {
     min-inline-size: min(100%, 8rem);
   }
 
@@ -1644,7 +1607,9 @@
    * tap. A COMPLETED row is unaffected: it reads as done from its ticked circle
    * and its strike-through, neither of which is a pill.
    */
-  .dh-collection--tasks .dh-card-collection--list .dh-card__status {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__status {
     display: none;
   }
 }
@@ -1673,7 +1638,9 @@
    * floor at 320px, the row could not fit title + date + overflow, and the date
    * ran over the overflow button.
    */
-  .dh-collection--tasks .dh-card-collection--list .dh-card__title {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__title {
     min-inline-size: 6ch;
   }
 
@@ -1686,22 +1653,25 @@
    * title absorb the shrink instead, which is the right answer anyway: a title
    * has an ellipsis and a date does not.
    */
-  .dh-collection--tasks .dh-card-collection--list .dh-card__support {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__support {
     flex: none;
   }
 
-  .dh-collection--tasks .dh-card__metadata {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__metadata {
     gap: var(--app-space-3);
   }
 
-  .dh-collection--tasks .dh-card__meta[data-field="priority"],
-  .dh-collection--tasks .dh-card__meta[data-field="repeat"] {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card__meta[data-field="priority"],
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="repeat"] {
     display: none;
   }
 
   /* The chevron each inline editor draws says "this opens a menu"; on a phone
    * the whole field is the target and the chevron is 16px of the title's width. */
-  .dh-collection--tasks .dh-inline-select__caret {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-inline-select__caret {
     display: none;
   }
 }
@@ -1723,7 +1693,7 @@
    *     change either, so nothing regressed — and the desktop keeps all of them.
    *   - the rail and "Filter & sort" share one row.
    */
-  .dh-collection--tasks .dh-pane-header__primary {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-pane-header__primary {
     display: none;
   }
 
@@ -1736,13 +1706,13 @@
    * saved views live, and a phone owner could no longer reach one at all. It is
    * a quiet text control after the last tab, and it scrolls with them.
    */
-  .dh-collection--tasks .dh-tasks-views__trigger {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views__trigger {
     margin-inline-start: 0;
     flex: none;
     white-space: nowrap;
   }
 
-  .dh-collection--tasks .dh-collection__sticky {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-collection__sticky {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1771,12 +1741,12 @@
    * a boundary this file, `collection-layout.css` and the shell all share — so
    * at that one width the desktop control row and the phone one are applied
    * together. The desktop rules above are written as
-   * `.dh-collection--tasks.dh-collection--persistent-controls …`, which outranks
+   * `:is(.dh-collection--tasks, .dh-tasklist).dh-collection--persistent-controls …`, which outranks
    * a two-class phone selector, and the result at 768px was the header crushed
    * to 50px with "Filter & sort" sitting on top of the count. Matching their
    * specificity lets source order decide, and this block is the later one.
    */
-  .dh-collection--tasks.dh-collection--persistent-controls
+  :is(.dh-collection--tasks, .dh-tasklist).dh-collection--persistent-controls
     .dh-collection__sticky
     > .dh-pane-header {
     order: 1;
@@ -1788,7 +1758,7 @@
     min-inline-size: 0;
   }
 
-  .dh-collection--tasks.dh-collection--persistent-controls
+  :is(.dh-collection--tasks, .dh-tasklist).dh-collection--persistent-controls
     .dh-collection__filters {
     order: 3;
     flex: 1 0 100%;
@@ -1800,34 +1770,35 @@
    * title itself is not here — the phone top bar publishes it (see
    * `PaneHeader`), which is why this band would otherwise be a tall box holding
    * a count and a menu button on separate rows. */
-  .dh-collection--tasks .dh-pane-header.dh-pane-header--compact {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-pane-header.dh-pane-header--compact {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
     padding-block: var(--app-space-2);
   }
 
-  .dh-collection--tasks .dh-pane-header__lead {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-pane-header__lead {
     flex: 1 1 auto;
     min-inline-size: 0;
   }
 
-  .dh-collection--tasks .dh-pane-header__icon {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-pane-header__icon {
     display: none;
   }
 
-  .dh-collection--tasks .dh-pane-header__actions {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-pane-header__actions {
     margin-inline-start: auto;
   }
 
   /* Quick add is one line: the `+`, the field, and Add. "More options" opens
    * the full New Task form, which the phone reaches through the capture sheet's
    * own hand-off link — so it is a second door on a surface with no room. */
-  .dh-collection--tasks .dh-tasks-quickadd {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd {
     flex-wrap: nowrap;
   }
 
-  .dh-collection--tasks .dh-tasks-quickadd__more {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__more {
     display: none;
   }
 
@@ -1842,7 +1813,7 @@
    * because a wrapping list of removable filters is not a trailing control —
    * and because it describes the list, so it belongs against it.
    */
-  .dh-collection--tasks.dh-collection--persistent-controls
+  :is(.dh-collection--tasks, .dh-tasklist).dh-collection--persistent-controls
     .dh-collection__mobile-controls {
     order: 2;
     flex: 0 1 auto;
@@ -1853,7 +1824,7 @@
     border-bottom: 0;
   }
 
-  .dh-collection--tasks.dh-collection--persistent-controls
+  :is(.dh-collection--tasks, .dh-tasklist).dh-collection--persistent-controls
     .dh-collection__mobile-controls:has(.dh-filter-chips) {
     order: 4;
     flex: 1 0 100%;
@@ -1862,14 +1833,14 @@
 
   /* The rail is the thing that scrolls, and it is the whole band, so it clips
    * against the screen's own edge and nothing else. */
-  .dh-collection--tasks .dh-tasks-views {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views {
     min-inline-size: 0;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .dh-collection--tasks .dh-tasks-views::-webkit-scrollbar {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views::-webkit-scrollbar {
     display: none;
   }
 
@@ -1884,7 +1855,7 @@
    * obscured", and a tap near the middle of it landed on a pill. Refusing to
    * shrink is what makes the pills part of the scrollable run instead.
    */
-  .dh-collection--tasks .dh-tasks-views__rail {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views__rail {
     overflow: visible;
     flex: none;
   }

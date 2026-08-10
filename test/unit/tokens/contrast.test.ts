@@ -101,9 +101,12 @@ const CUSTOM_GROUPS = [
   "accent-green",
   "accent-amber",
   "accent-teal",
+  // UIX-02 — the sixth RANKED identity, added so record identity has a hue
+  // clear of the scheme's alarm band. Same quartet, same guarantees.
+  "accent-cyan",
 ] as const satisfies readonly SchemeRole[];
 
-/** UIX-01 — the six decorative widget identities, on their own. */
+/** The decorative widget identities, on their own (UIX-01, +cyan in UIX-02). */
 const WIDGET_ACCENTS = [
   "accent-coral",
   "accent-blue",
@@ -111,6 +114,7 @@ const WIDGET_ACCENTS = [
   "accent-green",
   "accent-amber",
   "accent-teal",
+  "accent-cyan",
 ] as const satisfies readonly SchemeRole[];
 
 /** The seven surfaces the APPLICATION paints with, from the app-neutral palette. */

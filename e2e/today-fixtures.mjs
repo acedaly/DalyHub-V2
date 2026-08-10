@@ -194,11 +194,11 @@ function task(
   }
 }
 
-function area(id, title) {
+function area(id, title, { iconKey = null } = {}) {
   entity(id, "area", title);
   spine(id, "area");
   push(
-    `INSERT INTO area_details (workspace_id, entity_id, entity_type, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'area', NULL, ${q(stamp())});`,
+    `INSERT INTO area_details (workspace_id, entity_id, entity_type, archived_at, updated_at, icon_key) VALUES (${ws}, ${q(id)}, 'area', NULL, ${q(stamp())}, ${q(iconKey)});`,
   );
 }
 
@@ -210,12 +210,13 @@ function project(
     status = "active",
     updatedAt = null,
     goal = null,
+    iconKey = null,
   } = {},
 ) {
   entity(id, "project", title, { updatedAt: updatedAt ?? undefined });
   spine(id, "project");
   push(
-    `INSERT INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'project', ${q(status)}, NULL, ${q(updatedAt ?? stamp())});`,
+    `INSERT INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, updated_at, icon_key) VALUES (${ws}, ${q(id)}, 'project', ${q(status)}, NULL, ${q(updatedAt ?? stamp())}, ${q(iconKey)});`,
   );
   // A spine child has exactly ONE active structural parent
   // (`entity_links_one_active_parent_idx`): a Project either advances a Goal or
@@ -555,6 +556,298 @@ function empty() {
   baseSpine();
 }
 
+/**
+ * UIX-02 — the GALLERY day: enough Areas and Projects to judge a gallery by eye.
+ *
+ * The `typical` day is specified against the Today screen's conditional
+ * rendering, and it holds two Areas and four Projects. That is the right dataset
+ * for Today and the wrong one for a Projects/Areas redesign: six accents cannot
+ * be reviewed over four records, a three- or four-column grid cannot be reviewed
+ * over a single row of cards, and "does the eye track identity down the grid"
+ * has no answer at that size.
+ *
+ * So this scenario seeds SIX Areas — the full width of the ADR-068 accent ramp,
+ * each with its own chosen icon — and eight Projects positioned to cover every
+ * branch the two surfaces actually render:
+ *
+ *   - each workflow status (`planned`, `active`, `on_hold`) and a completed one;
+ *   - each health state the evaluator can reach (`at_risk` via overdue work,
+ *     `stale` via aged activity, `blocked` via all-waiting open work,
+ *     `on_track`);
+ *   - progress at 0%, part-way and near-complete, plus a Project with no tasks
+ *     at all, which is the "absence is not 0%" case;
+ *   - a Project under a Goal and Projects directly under an Area, so both parent
+ *     context lines render;
+ *   - one Area with no work at all, which is the calm end of the Areas list.
+ *
+ * Nothing here is invented for the picture: every fact is a row the product
+ * already reads, and every derived signal (health, progress, momentum) is
+ * computed by the same evaluators production uses.
+ */
+function gallery() {
+  // Areas are the one spine type `parkExisting` leaves alone, because Today
+  // never lists them — and the shared dev seed holds a dozen lifecycle-test
+  // Areas ("Blocked Delete Area", "Pagination", …) that are invisible on Today
+  // and would be most of the page here. Parking them uses the SAME reversible
+  // sentinel, so `restore` brings them back with everything else.
+  push(
+    `UPDATE entities SET deleted_at = ${q(PARK_SENTINEL)} WHERE workspace_id = ${ws} AND type = 'area' AND deleted_at IS NULL;`,
+  );
+
+  // Six Areas, in creation order — which is the order the stable colour rank is
+  // assigned in, so the ramp is exercised end to end rather than by chance.
+  area("tf-area-health", "Health & Fitness", { iconKey: "target" });
+  area("tf-area-learning", "Learning & Development", { iconKey: "idea" });
+  area("tf-area-work", "Work & Career", { iconKey: "document" });
+  area("tf-area-home", "Home & Property", { iconKey: "property" });
+  area("tf-area-finance", "Finance", { iconKey: "subscription" });
+  area("tf-area-travel", "Travel", { iconKey: "travel" });
+
+  goal("tf-goal-ship", "Ship DalyHub V2", { areaId: "tf-area-work" });
+  goal("tf-goal-fitness", "Run a half-marathon", {
+    areaId: "tf-area-health",
+  });
+
+  /* ---- Work & Career -------------------------------------------------- */
+
+  // AT RISK: overdue open work. Part-way progress.
+  project("tf-proj-oppo", "OPPO Program Redesign", {
+    areaId: "tf-area-work",
+    iconKey: "board",
+  });
+  task("tf-t-oppo-1", "Review the pathway structure", {
+    project: "tf-proj-oppo",
+    due: addDays(TODAY, -3),
+    priority: "p1",
+  });
+  task("tf-t-oppo-2", "Finalise the direct-entry model", {
+    project: "tf-proj-oppo",
+    due: addDays(TODAY, -1),
+  });
+  task("tf-t-oppo-3", "Update the issues paper", {
+    project: "tf-proj-oppo",
+    due: addDays(TODAY, 2),
+  });
+  for (const [i, title] of [
+    "Draft the consultation brief",
+    "Map the current cohort",
+    "Agree the assessment rubric",
+    "Confirm the delivery window",
+    "Book the review workshop",
+  ].entries()) {
+    task(`tf-t-oppo-done-${i + 1}`, title, {
+      project: "tf-proj-oppo",
+      completedAt: ownerInstant(addDays(TODAY, -(i + 2)), 11, 0),
+    });
+  }
+
+  // ON TRACK, under a Goal, and the most-complete Project on the page.
+  project("tf-proj-dalyhub", "DalyHub Development", {
+    goal: "tf-goal-ship",
+    iconKey: "software",
+  });
+  task("tf-t-dh-1", "Redesign the Projects gallery", {
+    project: "tf-proj-dalyhub",
+    due: addDays(TODAY, 3),
+  });
+  task("tf-t-dh-2", "Write the design-system note", {
+    project: "tf-proj-dalyhub",
+    due: addDays(TODAY, 5),
+  });
+  for (const [i, title] of [
+    "Redesign Today",
+    "Redesign the task row",
+    "Generate the accent ramps",
+    "Ship the capture sheet",
+    "Rebuild the shell",
+    "Move search into the top bar",
+  ].entries()) {
+    task(`tf-t-dh-done-${i + 1}`, title, {
+      project: "tf-proj-dalyhub",
+      completedAt: ownerInstant(addDays(TODAY, -(i + 1)), 15, 0),
+    });
+  }
+
+  // STALE: open work, no meaningful activity for three weeks.
+  project("tf-proj-migration", "Records Migration", {
+    areaId: "tf-area-work",
+    iconKey: "archive",
+    updatedAt: ownerInstant(addDays(TODAY, -24), 10, 0),
+  });
+  task("tf-t-mig-1", "Reconcile the legacy export", {
+    project: "tf-proj-migration",
+    priority: "p1",
+  });
+  task("tf-t-mig-2", "Write the rollback plan", {
+    project: "tf-proj-migration",
+  });
+  task("tf-t-mig-done-1", "Agree the cutover window", {
+    project: "tf-proj-migration",
+    completedAt: ownerInstant(addDays(TODAY, -26), 9, 0),
+  });
+
+  /* ---- Learning & Development ----------------------------------------- */
+
+  // BLOCKED: every open task is waiting on somebody else.
+  project("tf-proj-rfs", "NSW RFS Learning", {
+    areaId: "tf-area-learning",
+    iconKey: "shield",
+  });
+  task("tf-t-rfs-1", "Accreditation sign-off", {
+    project: "tf-proj-rfs",
+    waitingSince: ownerInstant(addDays(TODAY, -18), 9, 0),
+    waitingNote: "With the training officer",
+  });
+  task("tf-t-rfs-2", "Venue confirmation", {
+    project: "tf-proj-rfs",
+    waitingSince: ownerInstant(addDays(TODAY, -4), 9, 0),
+  });
+  for (const [i, title] of [
+    "Complete the online modules",
+    "Book the practical day",
+    "Submit the prerequisites",
+  ].entries()) {
+    task(`tf-t-rfs-done-${i + 1}`, title, {
+      project: "tf-proj-rfs",
+      completedAt: ownerInstant(addDays(TODAY, -(i + 3)), 13, 0),
+    });
+  }
+
+  // PLANNED: real structure, not started. Progress is genuinely 0%.
+  project("tf-proj-platform", "Learning Platform Review", {
+    areaId: "tf-area-learning",
+    status: "planned",
+    iconKey: "checklist",
+  });
+  task("tf-t-plat-1", "Shortlist the candidates", {
+    project: "tf-proj-platform",
+  });
+  task("tf-t-plat-2", "Draft the evaluation criteria", {
+    project: "tf-proj-platform",
+  });
+
+  /* ---- Health & Fitness ------------------------------------------------ */
+
+  project("tf-proj-training", "Base Training Block", {
+    goal: "tf-goal-fitness",
+    iconKey: "today",
+  });
+  task("tf-t-train-1", "Long run", {
+    project: "tf-proj-training",
+    due: addDays(TODAY, 1),
+  });
+  task("tf-t-train-2", "Strength session", {
+    project: "tf-proj-training",
+    due: addDays(TODAY, 4),
+  });
+  for (const [i, title] of [
+    "Week 1 base miles",
+    "Week 2 base miles",
+    "Threshold test",
+  ].entries()) {
+    task(`tf-t-train-done-${i + 1}`, title, {
+      project: "tf-proj-training",
+      completedAt: ownerInstant(addDays(TODAY, -(i + 1)), 7, 30),
+    });
+  }
+
+  /* ---- Home & Property ------------------------------------------------- */
+
+  // ON HOLD, deliberately paused — no health warning, by the shared rule.
+  project("tf-proj-kitchen", "Kitchen Renovation", {
+    areaId: "tf-area-home",
+    status: "on_hold",
+    iconKey: "appliance",
+  });
+  task("tf-t-kitchen-1", "Re-quote the joinery", {
+    project: "tf-proj-kitchen",
+  });
+  task("tf-t-kitchen-done-1", "Measure the run", {
+    project: "tf-proj-kitchen",
+    completedAt: ownerInstant(addDays(TODAY, -30), 10, 0),
+  });
+
+  // NO TASKS AT ALL — the "absence is not 0%" case the card must not draw as a
+  // bar sitting at zero.
+  project("tf-proj-garden", "Garden Reset", {
+    areaId: "tf-area-home",
+    status: "planned",
+    iconKey: "folder",
+  });
+
+  /* ---- Finance --------------------------------------------------------- */
+
+  project("tf-proj-insurance", "Insurance Review", {
+    areaId: "tf-area-finance",
+    iconKey: "licence",
+  });
+  task("tf-t-ins-1", "Compare the home policies", {
+    project: "tf-proj-insurance",
+    due: addDays(TODAY, 6),
+  });
+  task("tf-t-ins-done-1", "Gather the renewal notices", {
+    project: "tf-proj-insurance",
+    completedAt: ownerInstant(addDays(TODAY, -2), 12, 0),
+  });
+
+  /* ---- Direct Area tasks, and one Area with nothing running ------------ */
+
+  task("tf-t-area-health-1", "Book the physio", {
+    area: "tf-area-health",
+    due: TODAY,
+  });
+  task("tf-t-area-home-1", "Service the hot water system", {
+    area: "tf-area-home",
+    due: addDays(TODAY, 5),
+  });
+  // Travel deliberately holds nothing: the calm end of the Areas list, and the
+  // surface that must not manufacture a metric to fill the row.
+
+  /* ---- Real activity recency, so momentum is an honest signal ---------- */
+
+  activity(
+    "tf-a-oppo",
+    "task.completed",
+    "tf-t-oppo-done-1",
+    ownerInstant(addDays(TODAY, -2), 11, 0),
+    ["tf-proj-oppo"],
+  );
+  activity(
+    "tf-a-dh",
+    "task.completed",
+    "tf-t-dh-done-1",
+    ownerInstant(addDays(TODAY, -1), 15, 0),
+    ["tf-proj-dalyhub"],
+  );
+  activity(
+    "tf-a-mig",
+    "entity.updated",
+    "tf-proj-migration",
+    ownerInstant(addDays(TODAY, -24), 10, 0),
+  );
+  activity(
+    "tf-a-rfs",
+    "task.completed",
+    "tf-t-rfs-done-1",
+    ownerInstant(addDays(TODAY, -3), 13, 0),
+    ["tf-proj-rfs"],
+  );
+  activity(
+    "tf-a-train",
+    "task.completed",
+    "tf-t-train-done-1",
+    ownerInstant(addDays(TODAY, -1), 7, 30),
+    ["tf-proj-training"],
+  );
+  activity(
+    "tf-a-ins",
+    "task.completed",
+    "tf-t-ins-done-1",
+    ownerInstant(addDays(TODAY, -2), 12, 0),
+    ["tf-proj-insurance"],
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Runner                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -564,6 +857,7 @@ const SCENARIOS = {
   morning: () => typical({ completedToday: 0 }),
   heavy,
   empty,
+  gallery,
 };
 
 const scenario = process.argv[2] ?? "typical";

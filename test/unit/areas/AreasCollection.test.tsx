@@ -70,15 +70,19 @@ describe("Areas collection", () => {
     expect(
       within(card).getByRole("link", { name: /Open A very long Area title/ }),
     ).toHaveAttribute("href", "/areas/a1");
-    // ONE work-state line built from exact aggregates, not three separate
-    // absence messages.
-    expect(
-      within(card).getByText("1 active Project · 1 open Goal"),
-    ).toBeInTheDocument();
-    // 4 total tasks, 1 completed -> 3 open. The metric names the count and the
-    // noun, so it is never a bare number.
-    expect(within(card).getByText("3")).toBeInTheDocument();
-    expect(within(card).getByText("open tasks")).toBeInTheDocument();
+    /*
+     * UIX-02 — ONE relationship line of exact aggregates, in plain nouns.
+     *
+     * The qualifiers went ("1 active Project · 1 open Goal" → "1 Project · 1
+     * Goal"): on a list where every row says it, "active" and "open" are six
+     * words per row restating what the collection already means, and the counts
+     * are what the eye compares down the column.
+     */
+    expect(within(card).getByText("1 Project · 1 Goal")).toBeInTheDocument();
+    // 4 total tasks, 1 completed -> 3 open, stated with its noun so it is never
+    // a bare number — and never a proportion, because an Area does not complete.
+    expect(within(card).getByText("3 open tasks")).toBeInTheDocument();
+    expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.getByText("1 Area")).toBeInTheDocument();
   });
 
@@ -100,14 +104,21 @@ describe("Areas collection", () => {
       }),
     ]);
     const card = screen.getByRole("article", { name: "Career" });
-    expect(within(card).getByText("No active work")).toBeInTheDocument();
+    /*
+     * UIX-02 — ONE line, and it is the ACTIONABLE absence.
+     *
+     * The row used to say "No active work" in its relationship slot and "Ready
+     * for its first Project" beneath it: two statements of the same nothing.
+     * The one that survives is the one that tells the owner what to do next.
+     */
+    expect(
+      within(card).getByText("Ready for its first Project"),
+    ).toBeInTheDocument();
+    expect(within(card).queryByText("No active work")).not.toBeInTheDocument();
     // The three absence messages the audit found are gone.
     expect(within(card).queryByText(/No goals yet/)).not.toBeInTheDocument();
     expect(within(card).queryByText(/No Projects yet/)).not.toBeInTheDocument();
     expect(within(card).queryByText(/No tasks yet/)).not.toBeInTheDocument();
-    expect(
-      within(card).getByText("Ready for its first Project"),
-    ).toBeInTheDocument();
   });
 
   it("does not repeat the task count as both summary and metric", () => {
@@ -187,19 +198,28 @@ describe("Areas collection", () => {
  * behave, not about pixel geometry: a layout test that pins column widths breaks
  * on every refinement and proves nothing about whether the grid works.
  */
-describe("Areas gallery grid (DS-16)", () => {
-  it("renders the SHARED gallery grid rather than a module-local layout", () => {
+describe("Areas row list (UIX-02)", () => {
+  it("renders the SHARED row list rather than the Projects gallery grid", () => {
     const { container } = renderCollection([area(), area({ id: "a2" })]);
-    const grid = container.querySelector(".dh-ecard-grid");
-    expect(grid).not.toBeNull();
+    /*
+     * UIX-02 — Areas are ROWS, not gallery cards.
+     *
+     * They rendered through the same `EntityCard` in the same `EntityCardGrid`
+     * Projects used, which made the two most different records in the spine the
+     * same object with different words in it — and left most of each card
+     * empty, because an Area has no description, no completion and no progress.
+     */
+    expect(container.querySelector(".dh-ecard-grid")).toBeNull();
+    const list = container.querySelector(".dh-erow-list");
+    expect(list).not.toBeNull();
     // A labelled list, so a screen reader is told how much is there before
     // reading any of it.
-    expect(grid?.tagName).toBe("UL");
-    expect(grid?.getAttribute("aria-label")).toBe("Areas");
-    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
+    expect(list?.tagName).toBe("UL");
+    expect(list?.getAttribute("aria-label")).toBe("Areas");
+    expect(list?.querySelectorAll(":scope > li").length).toBe(2);
   });
 
-  it("states counts as compact facts with their nouns beside them", () => {
+  it("states counts as one relationship line with their nouns beside them", () => {
     renderCollection([
       area({
         title: "Career",
@@ -213,12 +233,9 @@ describe("Areas gallery grid (DS-16)", () => {
       }),
     ]);
     const card = screen.getByRole("article", { name: "Career" });
-    expect(within(card).getByText("Projects")).toBeInTheDocument();
-    expect(within(card).getByText("Goals")).toBeInTheDocument();
-    // Never an icon on its own: every fact carries its noun as text.
-    for (const fact of within(card).getAllByTestId("entity-card-fact")) {
-      expect(fact.textContent?.trim().length ?? 0).toBeGreaterThan(0);
-    }
+    // Never a bare number: every count carries its noun as text.
+    expect(within(card).getByText("2 Projects · 2 Goals")).toBeInTheDocument();
+    expect(within(card).getByText("4 open tasks")).toBeInTheDocument();
   });
 
   it("omits an absent dimension instead of rendering a zero row", () => {

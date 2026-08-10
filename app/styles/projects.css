@@ -91,3 +91,17 @@ a.dh-btn {
     flex-direction: column;
   }
 }
+
+/*
+ * UIX-02 — a refused completion, reported where it was attempted.
+ *
+ * The Project's task list writes nothing optimistically (see the tab's own
+ * note), so a refusal leaves the row exactly as it was and this line explains
+ * why. `role="alert"` because the owner has just acted and the answer is "no".
+ */
+.dh-project-tasks__error {
+  margin: 0 0 var(--app-space-3);
+  color: var(--md-sys-color-error);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+}

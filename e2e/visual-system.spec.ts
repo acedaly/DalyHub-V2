@@ -163,7 +163,15 @@ test.describe("visual system — surface hierarchy", () => {
      * actually decides on, rather than to the one the retired grid rule did.
      */
     await page.setViewportSize({ width: 1440, height: 900 });
-    await gotoFixture(page, "/projects");
+    /*
+     * UIX-02 — GOALS rather than Projects.
+     *
+     * The subject of this test is `.dh-ecard`, the shared entity card, and
+     * Projects moved off it to its own `.dh-pcard`. Goals (and Assets) still
+     * render the shared card, so pointing here keeps the assertion about the
+     * component it was written for instead of quietly re-aiming it at a new one.
+     */
+    await gotoFixture(page, "/goals");
 
     const widgetStyle = await page
       .locator(".dh-ecard")

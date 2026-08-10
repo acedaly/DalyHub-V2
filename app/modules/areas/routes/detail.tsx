@@ -66,7 +66,8 @@ const AREA_CHILD_PAGE_SIZE = 50;
  */
 const HEALTH_FACTS_BATCH_SIZE = 100;
 
-type AreaTab = "goals" | "projects" | "linked" | "activity" | "settings";
+type AreaTab =
+  "overview" | "goals" | "projects" | "linked" | "activity" | "settings";
 
 export function meta() {
   return [{ title: "Area · DalyHub" }];
@@ -197,6 +198,22 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       };
     });
 
+  /*
+   * UIX-02 — the COMPLETE active-Project count, for the Overview's tile.
+   *
+   * `projectPage` is a bounded first page (50), so counting active Projects by
+   * filtering the displayed cards undercounts an Area that runs more than that
+   * — and an Area record is exactly where the roll-up has to be complete: a
+   * bounded page is never presented as a total. This counts the SAME complete
+   * `momentumFacts.projects` set the momentum evaluator reads, using the SAME
+   * `isProjectHealthVisible` rule every other surface applies to decide whether
+   * a Project is actively being worked, so the tile and the momentum beside it
+   * can never disagree about what "active" means.
+   */
+  const activeProjectTotal = momentumFacts.projects.filter((project) =>
+    isProjectHealthVisible(project),
+  ).length;
+
   const evaluatedAtIso = healthContext.now.toISOString();
   const momentum = evaluateAreaMomentum(
     {
@@ -217,6 +234,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     overview: serializeAreaOverview(overview, settings?.iconKey ?? null),
     rollup: serializeAreaRollup(rollup),
     momentum,
+    activeProjectTotal,
     goals: goalPage.items.map(serializeAreaGoalItem),
     goalsNextCursor: goalPage.nextCursor,
     projects,
@@ -273,13 +291,23 @@ function NewGoalDrawerHost({ areaId }: { readonly areaId: string }) {
   );
 }
 
+/**
+ * UIX-02 — the default tab is OVERVIEW, not Goals.
+ *
+ * An Area record used to open on whichever section happened to be first. Its
+ * actual question is "what is going on in this part of my life?", which no
+ * single section answers, so the overview is the landing tab and carries no
+ * `?tab=` param — the same "the default view has a clean URL" contract every
+ * other record follows.
+ */
 function parseTab(value: string | null): AreaTab {
-  return value === "projects" ||
+  return value === "goals" ||
+    value === "projects" ||
     value === "linked" ||
     value === "activity" ||
     value === "settings"
     ? value
-    : "goals";
+    : "overview";
 }
 
 async function postAreaMutation(
@@ -311,7 +339,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (tabId === "goals") {
+          if (tabId === "overview") {
             next.delete("tab");
           } else {
             next.set("tab", tabId);
@@ -423,6 +451,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       goalsNextCursor={props.goalsNextCursor}
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
+      activeProjectTotal={props.activeProjectTotal}
       archived={archived}
       onRename={onRename}
       onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}

@@ -1,0 +1,153 @@
+/*
+ * UIX-02 — the view TAB RAIL, in one place.
+ *
+ * A lightweight destination rail: text with a 2px indicator under the current
+ * one. The reference draws this above both Projects and Tasks, and it is what a
+ * DESTINATION looks like — each tab changes which records are shown, so each is
+ * a link to the URL that IS the view, and the chrome is a 2px rule and nothing
+ * else.
+ *
+ * UIX-01 introduced it in `tasks.css`, scoped to `.dh-collection--tasks`,
+ * because Tasks was the only collection that had one. UIX-02 gives Projects the
+ * same rail under its own title, so the treatment moved here and both consumers
+ * draw from it: `ViewTabs` (a param-driven rail) and `SavedViewSwitcher` (the
+ * saved-view rail), whose markup carries `dh-viewtabs` alongside its own
+ * prefixed hooks so the Tasks stylesheet and its end-to-end tests are unchanged.
+ *
+ * This is deliberately NOT the M3 segmented control (`ViewSwitcher`). That one
+ * is right for a bounded either/or inside a toolbar, and wrong directly beneath
+ * a page title, where an outlined capsule with a filled segment and dividers is
+ * the heaviest object on the calmest band of the screen.
+ */
+
+.dh-viewtabs {
+  display: flex;
+  align-items: stretch;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+  /* On a narrow window the rail scrolls sideways rather than wrapping into two
+   * rows of tabs or squeezing four labels into unreadable columns. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dh-viewtabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dh-viewtabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border-block-end: var(--app-border-width-thick) solid transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.dh-viewtabs__tab:hover {
+  color: var(--md-sys-color-on-surface);
+}
+
+/*
+ * Current: the primary colour, a weight step and a 2px indicator. Three
+ * signals, plus `aria-current` — never the colour alone.
+ */
+.dh-viewtabs__tab[aria-current="page"] {
+  color: var(--md-sys-color-primary);
+  font-weight: 600;
+  border-block-end-color: var(--md-sys-color-primary);
+}
+
+@media (forced-colors: active) {
+  .dh-viewtabs__tab[aria-current="page"] {
+    border-block-end-color: Highlight;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The rail INSIDE a record                                                   */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A filter is subordinate to the tab strip it sits under.
+ *
+ * Under a page TITLE the rail is the loudest thing in its band and takes
+ * `label-large`. Inside a record it sits directly beneath the record's own tab
+ * strip, which is `label-medium` — so at the larger size the filter competed
+ * with, and actually outweighed, the navigation above it. `record-anatomy.spec`
+ * has asserted this hierarchy since M3-INT and caught the regression: the
+ * filter's type must be no larger than the tabs'.
+ */
+.dh-record-toolbar .dh-viewtabs__tab {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The phone rail                                                             */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /*
+   * Pills, not underlined tabs.
+   *
+   * A phone's rail is a horizontal scroller, and an underline on a scrolling
+   * row is hard to see; a filled selected pill is the treatment the reference
+   * uses on both its phone screens, and the one a thumb aims at.
+   */
+  /*
+   * A 44px TARGET around a 36px PILL.
+   *
+   * The target is the link, so it is the link that has to clear the floor —
+   * padding on the rail around it does not help a thumb, it only moves the gap.
+   * Touch floors are unconditional (AGENTS.md §15), and a pill that merely LOOKS
+   * small is not an exception.
+   *
+   * The capsule is therefore painted by a pseudo-element inset in the BLOCK axis
+   * only, rather than by the link's own background. `background-clip:
+   * content-box` was the obvious first answer and is wrong: it clips both axes,
+   * so the capsule lost its 16px of inline padding too and came out as a 30px
+   * ellipse with the word spilling out of both ends. `isolation` keeps the
+   * `z-index: -1` inside the rail rather than letting it fall behind the page.
+   */
+  .dh-viewtabs {
+    isolation: isolate;
+  }
+
+  .dh-viewtabs__tab {
+    position: relative;
+    min-block-size: var(--app-touch-target-min);
+    padding-inline: var(--app-space-4);
+    border-block-end: 0;
+    background: none;
+    font-size: var(--md-sys-typescale-label-medium-size);
+  }
+
+  .dh-viewtabs__tab::before {
+    content: "";
+    position: absolute;
+    inset-block: var(--app-space-1);
+    inset-inline: 0;
+    z-index: -1;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-app-color-surface-card);
+  }
+
+  .dh-viewtabs__tab[aria-current="page"] {
+    color: var(--md-sys-color-on-primary);
+  }
+
+  .dh-viewtabs__tab[aria-current="page"]::before {
+    background: var(--md-sys-color-primary);
+  }
+}

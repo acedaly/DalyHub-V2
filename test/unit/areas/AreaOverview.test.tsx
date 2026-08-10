@@ -1,5 +1,11 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
@@ -19,6 +25,7 @@ import { stubHealth } from "../../support/project-health";
 const overview: SerializedAreaOverview = {
   id: "a1",
   title: "Career",
+  colourRank: 0,
   createdAt: "2026-07-18T09:00:00.000Z",
   updatedAt: "2026-07-20T10:00:00.000Z",
   archivedAt: null,
@@ -86,6 +93,10 @@ function renderRecord(
     ) => Promise<{ ok: true } | { ok: false; message: string }>;
     onOpenGoal?: (id: string) => void;
     onOpenProject?: (id: string) => void;
+    /** Which section to render — the record now opens on its Overview. */
+    activeTabId?: string;
+    /** The COMPLETE active-Project count the loader supplies. */
+    activeProjectTotal?: number;
   } = {},
 ) {
   const router = createMemoryRouter(
@@ -102,11 +113,23 @@ function renderRecord(
               goalsNextCursor={over.goalsNextCursor ?? null}
               projects={over.projects ?? [project]}
               projectsNextCursor={over.projectsNextCursor ?? null}
+              activeProjectTotal={
+                over.activeProjectTotal ??
+                (over.projects ?? [project]).filter(
+                  (p) => p.completedAt === null && p.archivedAt === null,
+                ).length
+              }
               onRename={over.onRename ?? (async () => ({ ok: true }) as const)}
               onOpenGoal={over.onOpenGoal ?? (() => {})}
               onOpenProject={over.onOpenProject ?? (() => {})}
               linkedTab={<div>linked-content</div>}
               activityTab={<div>activity-content</div>}
+              /*
+               * UIX-02 — an Area record opens on its OVERVIEW, so a test about
+               * one of the SECTIONS says which section it means. The route
+               * resolves this from `?tab=`; the harness passes it directly.
+               */
+              activeTabId={over.activeTabId}
             />
           </DrawerProvider>
         ),
@@ -122,44 +145,73 @@ function renderRecord(
 }
 
 describe("AreaOverview", () => {
-  it("renders Area identity, permanent state, roll-up summary and momentum reasons", () => {
+  it("renders Area identity and momentum, and NEVER a completion meter", () => {
     renderRecord();
     expect(screen.getByRole("heading", { name: "Career" })).toBeInTheDocument();
-    expect(screen.getAllByText("Permanent").length).toBeGreaterThan(0);
     /*
-     * RECORD-01 — the roll-up is the shared meter in the compact summary band.
-     * The percentage reaches assistive tech through the progressbar; the counts
-     * stay visible as text, so nothing depends on seeing the bar. The band
-     * replaced a sentence that stated the percentage and the counts inline.
+     * UIX-02 — an Area's band carries NO progress meter.
+     *
+     * It used to open with "Tasks — 1 of 4 tasks complete" over a bar: a
+     * completion PROPORTION, on the one entity in the spine that by definition
+     * never completes (AGENTS.md §4). The Areas gallery had never drawn one, so
+     * the product said both things about the same entity on two screens. It was
+     * also a moving figure — an Area's roll-up spans every Project under it, so
+     * it drifted whenever unrelated work finished, and a mature Area would sit
+     * near 100% for ever, reading as "nearly done" about a part of a life.
      */
-    const meter = screen.getByRole("progressbar", { name: "Tasks" });
-    expect(meter).toHaveAttribute("aria-valuenow", "25");
-    expect(screen.getByText("1 of 4 tasks complete")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText("1 of 4 tasks complete")).not.toBeInTheDocument();
+    /*
+     * UIX-02 — and no "Permanent" chip. Every Area is permanent, so it is a
+     * fact about Areas rather than about this Area; the gallery dropped it in
+     * AREA-01 and the record kept it. Only the exceptional state (Archived)
+     * paints now.
+     */
+    expect(screen.queryByText("Permanent")).not.toBeInTheDocument();
+    // What survives is the momentum the kernel actually evaluates.
     expect(screen.getByText("Momentum visible")).toBeInTheDocument();
     expect(
       screen.getByText("1 active project contributing momentum."),
     ).toBeInTheDocument();
   });
 
+  it("opens on an Overview of what is actually in the Area", () => {
+    renderRecord();
+    const metrics = screen.getByTestId("area-overview-metrics");
+    // Counts of LIVING things, never a proportion. The fixture has one open
+    // Goal, one active Project and three open tasks across the Area.
+    expect(within(metrics).getByText("open Goal")).toBeInTheDocument();
+    expect(within(metrics).getByText("active Project")).toBeInTheDocument();
+    expect(
+      within(metrics).getByText("open tasks in this Area"),
+    ).toBeInTheDocument();
+    // Nothing here is a proportion, and nothing here is a bar.
+    expect(within(metrics).queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(metrics.textContent).not.toContain("%");
+  });
+
   it("links Goal cards to the canonical Goal record and opens it (AREA-02)", () => {
     const onOpenGoal = vi.fn();
-    renderRecord({ onOpenGoal });
+    renderRecord({ onOpenGoal, activeTabId: "goals" });
     expect(screen.getByText("Task roll-up: 1 of 2 tasks")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Open Ship v2" }));
     expect(onOpenGoal).toHaveBeenCalledWith("g1");
   });
 
   it("shows a Goal’s target date only when set, never overcrowding the card (AREA-02)", () => {
-    const { unmount } = renderRecord();
+    const { unmount } = renderRecord({ activeTabId: "goals" });
     expect(screen.queryByText("Target")).not.toBeInTheDocument();
     unmount();
 
-    renderRecord({ goals: [{ ...goal, targetDate: "2026-08-15" }] });
+    renderRecord({
+      activeTabId: "goals",
+      goals: [{ ...goal, targetDate: "2026-08-15" }],
+    });
     expect(screen.getByText("15 Aug 2026")).toBeInTheDocument();
   });
 
   it("exposes a New Goal action on the Goals tab (AREA-02)", () => {
-    renderRecord();
+    renderRecord({ activeTabId: "goals" });
     expect(screen.getByRole("link", { name: "New Goal" })).toBeInTheDocument();
   });
 
@@ -188,7 +240,8 @@ describe("AreaOverview", () => {
   });
 
   it("renders calm empty states and bounded-page notes", () => {
-    renderRecord({
+    const { unmount } = renderRecord({
+      activeTabId: "goals",
       goals: [],
       projects: [],
       goalsNextCursor: "g-next",
@@ -202,7 +255,18 @@ describe("AreaOverview", () => {
      */
     expect(screen.getByText("No Goals in this Area yet.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "New Goal" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
+    unmount();
+
+    // The tab is CONTROLLED by the harness (the route resolves it from
+    // `?tab=`), so the Projects section is asserted from its own render rather
+    // than by clicking a strip whose selection this test owns.
+    renderRecord({
+      activeTabId: "projects",
+      goals: [],
+      projects: [],
+      goalsNextCursor: "g-next",
+      projectsNextCursor: "p-next",
+    });
     expect(
       screen.getByText("No Projects in this Area yet."),
     ).toBeInTheDocument();

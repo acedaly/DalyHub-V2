@@ -187,10 +187,11 @@ test.describe("PROJ-06 — mobile Projects", () => {
 
     await enterProjectsFromMobileShell(page);
 
-    // The shared collection header names this group "Project views", as it names
-    // the Tasks one "Task layout" and the Reviews one "Review views" — one
-    // vocabulary across every collection, rather than a per-module sentence.
-    const filter = page.getByRole("group", { name: "Project views" });
+    // UIX-02 — the lifecycle mode is the shared TAB RAIL, so it announces as a
+    // `navigation` of links rather than a `group` of segments. The NAME is
+    // unchanged ("Project views"), because the one-vocabulary-across-every-
+    // collection rule is about the wording, not about the control.
+    const filter = page.getByRole("navigation", { name: "Project views" });
     await expect(filter).toBeVisible();
     for (const label of ["All", "Open", "Completed", "Archived"]) {
       await expectMinTouchTarget(
@@ -354,9 +355,18 @@ test.describe("PROJ-06 — mobile Projects", () => {
 
     await gotoFixture(page, "/projects/pg-tasks?tasks=all");
     await expectNoHorizontalOverflow(page);
+    /*
+     * UIX-02 — the task-state filter is the shared TAB RAIL, whose current tab
+     * carries `aria-current="page"`. That is the rail's existing convention
+     * (`SavedViewSwitcher`'s pinned tabs have used it since UIX-01) and the
+     * right token here: each tab is a link to the URL that IS that view, so
+     * "this is the current page" is literally what it means. The segmented
+     * control it replaced used `"true"`, which is the correct token for a
+     * control that is not a set of links.
+     */
     await expect(
       page.getByRole("link", { name: "All", exact: true }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "Load more tasks" }).click();
     const lateTask = page.getByRole("link", {
       name: "Open Paginated task 060",

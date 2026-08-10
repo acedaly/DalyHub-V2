@@ -107,20 +107,26 @@ describe("Projects collection", () => {
     expect(screen.getByText("DalyHub V2")).toBeInTheDocument();
     expect(screen.getAllByText("Career").length).toBeGreaterThan(0);
     /*
-     * M3X-02 — a Project with no tasks draws NO progress and says nothing about
-     * it. The "No tasks yet" line was the absence rule in miniature: a slot on
-     * every card of a freshly-created workspace, spent reporting that a
-     * dimension has not been used yet. The honest expression of "nothing to
-     * measure" is a shorter card.
+     * A Project with no tasks draws NO progress bar — an empty track at 0%
+     * reads as "nothing done" when the truth is "nothing planned".
+     *
+     * UIX-02 revisited the other half of M3X-02's decision here. That pass also
+     * removed the words "No tasks yet", on the grounds that the honest
+     * expression of "nothing to measure" is a SHORTER card. The card's foot is
+     * now pinned so every bar in a gallery row lands on one baseline, which
+     * means the space is reserved whether or not anything is drawn in it — so
+     * the choice is no longer "words or a shorter card" but "words or a gap",
+     * and the words explain why the bar beside its neighbours is missing.
      */
-    expect(screen.queryByText("No tasks yet")).not.toBeInTheDocument();
     const empty = screen.getByRole("article", { name: "Half-marathon plan" });
     expect(within(empty).queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(within(empty).getByText("No tasks yet")).toBeInTheDocument();
     // The subtitle reflects the count.
     expect(screen.getByText("2 projects")).toBeInTheDocument();
-    // The state segment and the New Project affordance are present.
+    // UIX-02 — the lifecycle mode is a tab RAIL of links under the title, not
+    // a segmented capsule beside it, so it announces as navigation.
     expect(
-      screen.getByRole("group", { name: "Project views" }),
+      screen.getByRole("navigation", { name: "Project views" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("New Project").length).toBeGreaterThan(0);
   });
@@ -184,8 +190,16 @@ describe("Projects collection", () => {
       state: "all",
       failed: false,
     });
-    expect(screen.getByText("At risk")).toHaveAttribute("data-tone", "danger");
-    expect(screen.getByText("2 tasks past their due date")).toBeInTheDocument();
+    /*
+     * UIX-02 — ONE attention line, not a chip plus the sentence explaining it.
+     * The compact wording is built from the reason's own structured count, and
+     * the evaluator's full sentence rides along for assistive tech.
+     */
+    const attention = screen.getByText("2 overdue").closest("p");
+    expect(attention).toHaveAttribute("data-tone", "danger");
+    expect(
+      screen.getByText("2 tasks past their due date", { exact: false }),
+    ).toBeInTheDocument();
   });
 
   it("does not falsely label a completed project as actively at risk", () => {
@@ -255,11 +269,13 @@ describe("Projects collection", () => {
       failed: false,
     });
     const card = screen.getByRole("article", { name: "Overdue project" });
-    // Exactly one pill on the card, and it is the health state — the workflow
-    // word it replaces must not also be present.
-    expect(card.querySelectorAll(".dh-pill")).toHaveLength(1);
-    expect(within(card).getByText("At risk")).toBeInTheDocument();
+    // Exactly one attention line on the card, and it is the health signal — the
+    // workflow word it replaces must not also be present.
+    expect(card.querySelectorAll(".dh-pcard__attention")).toHaveLength(1);
+    expect(within(card).getByText("2 overdue")).toBeInTheDocument();
     expect(within(card).queryByText("Active")).not.toBeInTheDocument();
+    // And no filled status chip anywhere on it.
+    expect(card.querySelectorAll(".dh-pill")).toHaveLength(0);
   });
 
   it("keeps the workflow word when health has nothing to say", () => {
@@ -277,8 +293,8 @@ describe("Projects collection", () => {
       failed: false,
     });
     const card = screen.getByRole("article", { name: "Healthy project" });
-    expect(card.querySelectorAll(".dh-pill")).toHaveLength(1);
-    expect(within(card).getByText("Active")).toBeInTheDocument();
+    expect(card.querySelectorAll(".dh-pcard__attention")).toHaveLength(1);
+    expect(within(card).getByText("On track")).toBeInTheDocument();
   });
 
   it("states progress once, with the bar and the text agreeing", () => {
@@ -337,9 +353,11 @@ describe("Projects collection", () => {
       failed: false,
     });
     const card = screen.getByRole("article", { name: "Nothing planned" });
+    // No bar and no percentage — "nothing planned" is not "0% done".
     expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
-    // …and it does not say so either: no bar, and no line reporting the absence.
-    expect(within(card).queryByText("No tasks yet")).not.toBeInTheDocument();
+    // UIX-02 — the reserved foot says WHY there is no bar rather than sitting
+    // empty. See the note on the first test in this file.
+    expect(within(card).getByText("No tasks yet")).toBeInTheDocument();
   });
 
   it("shows a fully completed roll-up accurately", () => {
@@ -458,7 +476,7 @@ describe("Projects collection", () => {
       failed: false,
     });
     expect(screen.getByRole("article", { name: "Put away" })).toHaveClass(
-      "dh-ecard--muted",
+      "dh-pcard--muted",
     );
     expect(
       screen.getByRole("article", { name: "Still going" }),
@@ -479,7 +497,14 @@ describe("Projects collection", () => {
         over: { status: "on_hold" as const, healthVisible: false },
         label: "On hold",
       },
-      { id: "active", title: "Active one", over: {}, label: "Active" },
+      /*
+       * UIX-02 — an actively-worked Project with nothing wrong reads "On
+       * track" rather than "Active". The card's one line is now the HEALTH
+       * signal wherever health is speaking, and `on_track` is the thing it has
+       * to say; "Active" is the workflow status, which is only the most useful
+       * word when health is deliberately not evaluated (Planned, On hold).
+       */
+      { id: "active", title: "Active one", over: {}, label: "On track" },
       {
         id: "completed",
         title: "Completed one",
@@ -505,7 +530,9 @@ describe("Projects collection", () => {
             overdueOpen: 2,
           }),
         },
-        label: "At risk",
+        // The compact form of the primary reason, from its own structured
+        // count — the state word ("At risk") is what the sentence implies.
+        label: "2 overdue",
       },
     ];
 
@@ -522,7 +549,7 @@ describe("Projects collection", () => {
     for (const c of cases) {
       const card = screen.getByRole("article", { name: c.title });
       // Exactly ONE status treatment per card, and it says the right thing.
-      expect(card.querySelectorAll(".dh-pill")).toHaveLength(1);
+      expect(card.querySelectorAll(".dh-pcard__attention")).toHaveLength(1);
       expect(within(card).getByText(c.label)).toBeInTheDocument();
     }
   });
@@ -610,7 +637,7 @@ describe("Projects collection", () => {
         state: "all",
         failed: false,
       });
-      const group = screen.getByRole("group", {
+      const group = screen.getByRole("navigation", {
         name: "Project views",
       });
       expect(
@@ -852,8 +879,9 @@ describe("Projects gallery grid (DS-16)", () => {
     expect(
       within(card).queryByTestId("entity-card-fact"),
     ).not.toBeInTheDocument();
-    // M3X-02 — and no line reporting what it does not have.
-    expect(within(card).queryByText("No tasks yet")).not.toBeInTheDocument();
+    // No parent context line either, because this Project genuinely has no
+    // Area and no Goal.
+    expect(card.querySelectorAll(".dh-pcard__context")).toHaveLength(0);
     // And it is still a complete, navigable card.
     expect(
       within(card).getByRole("link", { name: "Open Just started" }),
