@@ -1191,7 +1191,7 @@ authority now.)
 - **Related roadmap item.** [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ · [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) ☐, which is where it has to be answered.
 
 ### ☐ DEBT-95 — `AGENTS.md` §6 and §15 still describe the colour system the product no longer has — P2
-- **Current issue.** Two changes have now overtaken the same two sentences. [ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation) gave the owner a three-value **Appearance** preference over the one generated light/dark pair, and [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance) (THEME-01) grew that one pair into **five generated colour schemes**. §6 is now wrong twice over — it says the pair is "selected by the operating system", that colour is "generated from one seed", and that there is "no theme feature" — and §15 says "`prefers-color-scheme` is not merely honoured — it is the *only* thing that decides light or dark, because there is no theme preference to override it". §15 is the worse of the two, because it sits inside the accessibility requirements, which is the last place a reader should have to discount what they read.
+- **Current issue.** Two changes have now overtaken the same two sentences. [ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation) gave the owner a three-value **Appearance** preference over the one generated light/dark pair, and [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance) (THEME-01) grew that one pair into **five generated colour schemes**. §6 is now wrong twice over — it says the pair is "selected by the operating system", that colour is "generated from one seed", and that there is "no theme feature" — and §15 says "`prefers-color-scheme` is not merely honoured — it is the *only* thing that decides light or dark, because there is no theme preference to override it". §15 is the worse of the two, because it sits inside the accessibility requirements, which is the last place a reader should have to discount what they read.
 - **Impact.** An agent reading the constitution — which §0 makes the highest authority — is told the product cannot do things it demonstrably does. The correct reading requires also knowing that ADR-075 and ADR-088 supersede it, which is exactly the indirection §0's supersession clause is meant to be a stopgap for, not a resting state. The risk compounds now that there are five schemes: an agent that believes there is one pair may write a module rule that is only correct in Daly Violet.
 - **Desired future state.** §6 states that colour is generated per **colour scheme** (five of them, Daly Violet the default), that the owner chooses **System / Light / Dark** independently over whichever scheme is chosen, and that a scheme is a token map rather than a theme feature — no module rule branches on one. §15 keeps its requirement — honour the device — and says plainly that `System` is the default and is that honouring, while an explicit Light or Dark is a deliberate user override, which is user control rather than a failure to respect a device signal.
 - **Closing condition.** A dedicated PR amending `AGENTS.md`, per the file's own closing rule ("change this file in a dedicated PR that explains the reasoning"). ADR-075's and ADR-088's supersession tables are then redundant and can say so.
@@ -1315,7 +1315,7 @@ authority now.)
 - **Closing condition.** A collection loader resolves relationships for a page of records in a bounded number of statements that does not grow with the page size, and the Meetings list shows its attendees.
 - **Related.** [`app/kernel/entity-links/entity-link-repository.ts`](../../app/kernel/entity-links/entity-link-repository.ts) · [`app/platform/entity-links/note-references.ts`](../../app/platform/entity-links/note-references.ts) (the batching precedent) · [`app/modules/meetings/MeetingsList.tsx`](../../app/modules/meetings/MeetingsList.tsx).
 
-### ◐ DEBT-125 — `main`'s E2E suite is red for reasons unrelated to the change that finds it — P1 — LARGELY REPAIRED 2026-08-11; ONE INTERMITTENT BROWSER DEATH NARROWED, NOT CLOSED
+### ◐ DEBT-125 — `main`'s E2E suite is red for reasons unrelated to the change that finds it — P1 — EVERY DETERMINISTIC FAILURE REPAIRED 2026-08-11; THE BROWSER CRASH FIX NOW REACHES THE BROWSER, AND NEEDS RUNS
 
 - **Status: raised 2026-08-11 by the CI reliability pass (#158),** which measured it rather than inferred it. This was [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) recurring three days after it was closed, by the same mechanism: six UIX passes redesigned thirteen modules in nine days, and the specs asserting the surfaces they replaced were not updated with them. **Worked 2026-08-11 by [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md).**
 - **These failures were NOT flaky, and that was the important part.** Every one reproduced locally at `workers: 1`, `retries: 0`, deterministically. A red DalyHub CI has overwhelmingly meant "a real thing is broken", and nobody could tell because it was always red.
@@ -1374,7 +1374,12 @@ A cause identified from one log and a fix applied is not a closed case. An inter
 - **The shard count stays at 8.** All eight shards started within twenty seconds of each other on the baseline run and none queued, so the runner-pool constraint #158 re-split against is satisfied. The per-shard budget that run measured is contaminated — shards 4 and 8 reached `globalTimeout` with tests never run, and a failing test burns its whole timeout — so re-deriving the split from it would be measuring the breakage. That re-derivation is now unblocked and is the next step, from a green run.
 - **Four deterministic failures remain, and are KEPT IN THE GATE — failing and visible.** No `.skip`, no `.fixme`, no retry, no removal from a shard. All four are in this entry's own original table (`people-diary-context.spec.ts | 2`; `mobile-capture-journeys` and `project-settings` at `1 each`, all under "not yet diagnosed"), so they predate HARDEN-01, and nothing in that pass touches capture routing, the People/Diary surfaces or `rankContinueProjects`.
 
-  | Failing test | Diagnosis | Class |
+  > **Superseded by the HARDEN-02 section below (2026-08-11).** The table is kept
+  > as the record of what was believed at the HARDEN-01 boundary, and two of its
+  > four readings turned out to be wrong: `:144` and `:196` are PRODUCT DEFECTS,
+  > not test drift. Read the later section for the current state of each.
+
+  | Failing test | Diagnosis (as at HARDEN-01) | Class (as at HARDEN-01) |
   |---|---|---|
   | `mobile-capture-journeys.spec.ts:207` | `page.waitForResponse` never settles in 30s; the awaited request is not made because the context switch is handled client-side | needs re-diagnosis against the current capture flow |
   | `people-diary-context.spec.ts:144` | `getByPlaceholder(/Search name/)` resolves but is not visible — the test sets a PHONE viewport and UIX-05 CSS-hides the desktop `filterBar` in favour of `mobileControls` | **stale test** |
@@ -1382,8 +1387,53 @@ A cause identified from one log and a fix applied is not a closed case. An inter
   | `project-settings.spec.ts:213` | `pr-today` is absent from "Continue working": `rankContinueProjects` filters `openCount > 0`, sorts by `lastMeaningfulActivityAt` (from the Activity stream, deliberately not `updated_at`) and slices to `CONTINUE_MAX = 3` | **test defect**, most likely |
 
   Three of the four are genuine product questions — *should* the capture hand-off navigate, *should* a just-touched Project appear on Today — and answering them is product work, not hardening. Guessing at them to make a gate green is the failure mode this entry exists to end.
-- **Closing condition (revised).** A full Playwright run on `main` is green with no spec excluded, no `.skip`/`.fixme` added, no retry raised and no shard reaching `globalTimeout`, sustained across enough runs that a green one is not a lucky sample — **and** the four failures above each diagnosed to a class and either fixed or converted into a test of what the product now does, with the product decision recorded. The crash clause closes with those runs, or is reopened by the falsifier above.
-- **Related.** [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat) · [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) · [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md).
+#### HARDEN-02, 2026-08-11 — the four residuals are closed, and the crash fix had never taken effect
+
+Worked by [HARDEN-02](HARDEN_02_RELEASE_TRUST_2026_08.md) at `main` @ `b806246`
+(CI run [`31488073976`](https://github.com/acedaly/DalyHub-V2/actions/runs/31488073976)).
+
+**The crash fix was never applied to the thing that chooses the binary.** The
+SIGSEGV recurred at that commit, and every frame is inside
+`chromium_headless_shell-1234/…/chrome-headless-shell` — so HARDEN-01's stated
+falsifier ("if the crash recurs on the FULL build…") did not fire: the run was not
+on the full build. `playwright install chromium` installs BOTH binaries, and
+Playwright picks between them at LAUNCH:
+`return options.headless ? "chromium-headless-shell" : "chromium"`. MEASURED
+locally at 1.62.1 — `launch({headless:true})` resolves the shell,
+`launch({headless:true, channel:"chromium"})` resolves
+`chromium-<rev>/chrome-linux64/chrome`. `playwright.config.ts` now sets
+`channel: "chromium"`, which is also why this never reproduced locally: the config
+already pinned an `executablePath` to a full build.
+
+**Restated falsifier:** if the SIGSEGV recurs with `chrome-linux64/chrome` in the
+frames, the binary is not the cause and this reopens with that evidence.
+
+**The four failures, each diagnosed to a class and closed.** Two of them turned
+out to be PRODUCT DEFECTS that the previous classification had read as test drift,
+which is the reason this entry insists on diagnosing before repairing:
+
+| Failing test | Class | Resolution |
+|---|---|---|
+| `mobile-capture-journeys.spec.ts:207` | **stale test** | It clicked a "Create task" button UIX-01 replaced with the sheet header's Save (`capture-save`). The `POST /tasks/new` wait is KEPT — that route is ADR-060's stated contract, not an incidental detail |
+| `people-diary-context.spec.ts:144` | **PRODUCT DEFECT** | Not a stale test. UIX-05 wrote "search stays visible at every width" in `PeopleCollection` and, in the same change, supplied `mobileControls` — which turns on the shared rule that hides the WHOLE filter bar below 48rem, search included. A phone user could not search People by name. `people.css` now keeps the search at phone width; the toggle and sort stay in the sheet. The test passes unchanged |
+| `people-diary-context.spec.ts:196` | **PRODUCT DEFECT** | "More note options" did nothing on a phone. Pressing it blurred the title field, DS-06's `FormErrorSummary` appeared ABOVE the form, and the link moved 118px between `pointerdown` and `pointerup` — so no `click` was ever produced. MEASURED: down on `dh-capture-handoff` at y=562, up on `dh-field` at y=680. Fixed twice over: a blur error is now the field's own message (the summary renders after a failed submit, which is its own documented contract), and the hand-off no longer takes focus from the field behind it |
+| `project-settings.spec.ts:213` | **stale test** | The journey asserted a state the product cannot reach: Today's rail requires `openCount > 0` (added by the Today redesign AFTER this journey), and archiving is refused while any unfinished task remains. Split into a visibility journey over a project WITH open work and an archive/restore journey over the task-free one, with Today's absence asserted for the documented reason |
+
+**Also repaired, and not previously visible.** `settings.spec.ts:261` and
+`tasks-collection.spec.ts:514` had not RUN on `main` for several commits — they
+sat inside the 44 and 65 tests shards 4 and 8 never started before hitting
+`globalTimeout`. Both were stale (a phone asserting a rail UIX-05 replaced with
+two screens; a row asserting an inline field UIX-06 removed from the list), and
+both are repaired against what the product does now. **A suite that cannot finish
+stops reporting, and a report that stops is indistinguishable from a pass.**
+
+**One failure is kept open and undiagnosed:** `tasks-collection.spec.ts:340`
+failed in CI at the baseline and passes locally at `workers: 1`, `retries: 0`
+repeatedly. It stays in the gate, failing and visible. It is not "flaky" — it is
+undiagnosed, and the next occurrence owes evidence.
+
+- **Closing condition (unchanged in substance).** A full Playwright run on `main` is green with no spec excluded, no `.skip`/`.fixme` added, no retry raised and no shard reaching `globalTimeout`, sustained across enough runs that a green one is not a lucky sample. The deterministic half of this entry is now met: every failure it raised has been diagnosed to a class and either fixed or converted into a test of what the product does, with the product decision recorded. What remains is the crash clause, which closes with runs — or is reopened by the restated falsifier above.
+- **Related.** [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat) · [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) · [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md) · [HARDEN-02](HARDEN_02_RELEASE_TRUST_2026_08.md).
 
 ### ☑ DEBT-112 — Every select's clear control said "Clear selection", so a form with two of them had one name between them — P3 — RESOLVED 2026-08-11
 

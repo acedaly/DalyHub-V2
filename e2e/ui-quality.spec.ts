@@ -151,12 +151,23 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     const actions = row.locator(".dh-card__actions");
     await expect(actions).toHaveCSS("opacity", "1");
 
-    // The concealed buttons themselves stay focusable (they are opacity-0 with
-    // pointer-events off, never `visibility: hidden`): on a surface without a
-    // roving model, Tab must still reach a quick action directly — losing that
-    // would break the DS-04 "keyboard/AT reachable" contract for keyboard
-    // users. Focusing one reveals the rail via `:focus-within`.
-    const firstAction = row.locator(".dh-card__action").first();
+    /*
+     * The concealed buttons themselves stay focusable (they are opacity-0 with
+     * pointer-events off, never `visibility: hidden`): on a surface without a
+     * roving model, Tab must still reach the rail's controls directly — losing
+     * that would break the DS-04 "keyboard/AT reachable" contract for keyboard
+     * users. Focusing one reveals the rail via `:focus-within`.
+     *
+     * HARDEN-02 — this asked for `.dh-card__action`, the class a QUICK ACTION
+     * button carries, and UIX-01 took every permanent action button off the task
+     * row ("Complete" became the leading circle, "Today" moved into the overflow
+     * and the swipe tray). The rail on this surface now holds exactly one
+     * control, the overflow trigger, so the locator matched nothing and the test
+     * spent its whole timeout waiting for it. Asking the RAIL for its buttons
+     * keeps asserting the contract — whatever the rail holds is reachable — and
+     * survives quick actions coming back.
+     */
+    const firstAction = row.locator(".dh-card__actions button").first();
     await firstAction.focus();
     await expect(firstAction).toBeFocused();
     await expect(actions).toHaveCSS("opacity", "1");

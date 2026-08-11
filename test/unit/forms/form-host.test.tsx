@@ -66,12 +66,59 @@ describe("useForm explicit save", () => {
   it("validates on blur with a specific message", async () => {
     render(<TestForm onSubmit={async () => ({ status: "success" })} />);
     fireEvent.blur(screen.getByLabelText("Title", { exact: false }));
-    // The message appears inline on the field (and, once present, also in the
-    // summary), so assert at least one occurrence.
+    // The message appears inline on the field, beside the control it is about.
     await waitFor(() =>
       expect(screen.getAllByText("Title is required.").length).toBeGreaterThan(
         0,
       ),
+    );
+  });
+
+  /*
+   * HARDEN-02 — a blur error is the FIELD's message, and grows nothing above it.
+   *
+   * The summary used to render from the same map, so leaving one untouched
+   * required field inserted a whole block ("There is 1 problem to fix", the list
+   * and its focus links) at the top of the form. On a phone that block is ~118px,
+   * it appears on the `pointerdown` that starts a press, and every control below
+   * the fields moves out from under the pointer before it lifts — so the press
+   * produced no click at all. The capture sheet's "More note options" hand-off
+   * was unreachable on the first tap because of it (`people-diary-context`
+   * journey 3), and the summary's own contract had always said "after a failed
+   * explicit submit".
+   */
+  it("keeps a blur error off the form summary until a submit is attempted", async () => {
+    render(<TestForm onSubmit={async () => ({ status: "success" })} />);
+    fireEvent.blur(screen.getByLabelText("Title", { exact: false }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Title is required.")).toBeInTheDocument(),
+    );
+    // Exactly one occurrence — the field's own — and no summary at all.
+    expect(screen.getAllByText("Title is required.")).toHaveLength(1);
+    expect(screen.queryByText(/problem to fix/)).not.toBeInTheDocument();
+
+    // Attempting the submit is what makes it a summary: the same message, now in
+    // both places, with the summary's "go to the problem" control.
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(screen.getByText(/problems? to fix/)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getAllByText("Title is required.").length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("clears a blur error from the field as the value is fixed", async () => {
+    render(<TestForm onSubmit={async () => ({ status: "success" })} />);
+    const title = screen.getByLabelText("Title", { exact: false });
+    fireEvent.blur(title);
+    await waitFor(() =>
+      expect(screen.getByText("Title is required.")).toBeInTheDocument(),
+    );
+    fireEvent.change(title, { target: { value: "A title" } });
+    await waitFor(() =>
+      expect(screen.queryByText("Title is required.")).not.toBeInTheDocument(),
     );
   });
 

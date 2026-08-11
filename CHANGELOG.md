@@ -17,6 +17,36 @@ no version number to group them under.
 
 ---
 
+## Two fixes you would have met on a phone (HARDEN-02)
+
+> **A note for anyone who upgraded from an interim build of this branch.** An
+> earlier revision renamed a database migration, which would have made your copy
+> of DalyHub try to apply it a second time and stop upgrading. The rename is
+> reverted and the released path is clean: nothing your database has already
+> applied is applied again.
+
+Both of these were found by tests that had been failing for days and had been read
+as the tests being out of date. They were not.
+
+- **Searching People on a phone works again.** The People list has a search box at
+  every width — that is the module's own rule — but the change that gave the phone
+  its "Filter & sort" sheet also hid the whole filter row it lives in. On a phone
+  there was no way to find a person by name from the list. The search box is back;
+  the sort and the catch-up filter stay in the sheet, where they belong.
+- **"More note options" opens the full note form again.** Capturing a note from a
+  Person and pressing "More note options" did nothing the first time you pressed
+  it. Pressing it moved focus off the title field, an error message appeared above
+  it, and the link moved out from under your finger before you let go — so the tap
+  never landed. Leaving for the fuller form no longer flags the title you have not
+  written yet, and the link no longer moves.
+
+Nothing else about validation changed: a field still tells you what it needs, in
+the same words, at the same moment. What has changed is that the whole-form "there
+is 1 problem to fix" summary appears when you try to SAVE, rather than the moment
+you look away from a field — which is what it was always meant to do.
+
+---
+
 ## Five colour schemes, and DalyHub stops being "the violet app" (THEME-01)
 
 DalyHub has always had one colour. It is a good colour — but a tool you sit in
@@ -54,6 +84,7 @@ things that mean something — the buttons you press, what is selected, where yo
 are in the navigation, progress, charts — not on the page behind your work. That
 is why five schemes still read as one product, and why Pulse's lime stays a small
 accent rather than a wall.
+
 ## Capture from your phone without opening DalyHub (CAPTURE-01)
 
 A thought does not wait for an app to load. Until now, catching one meant

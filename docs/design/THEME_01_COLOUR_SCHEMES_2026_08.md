@@ -6,7 +6,7 @@
 > The **contract** lives in
 > [`DESIGN_SYSTEM.md → Appearance, colour scheme, design system`](DESIGN_SYSTEM.md#appearance-colour-scheme-design-system).
 > The **decision** lives in
-> [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
+> [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
 > This document is the working record behind both — read those first if you only
 > want the rules.
 

@@ -89,6 +89,22 @@ async function selectTaskParentIfNeeded(
   await sheet.getByRole("option", { name: parentName }).first().click();
 }
 
+/**
+ * Submit the Task capture panel, from where the panel's primary action now IS.
+ *
+ * HARDEN-02 — this asked for a `Create task` button and waited 30 seconds for a
+ * `POST /tasks/new` that no click had triggered, because UIX-01 moved the Task
+ * panel's submit into the SHEET HEADER ("Cancel · New task · Save", see
+ * `CaptureSheet`'s `headerSubmit`). No button called "Create task" has existed
+ * since; the control is `capture-save`, and the sheet publishes that test id
+ * precisely so a journey does not have to know the header's wording.
+ *
+ * The `/tasks/new` wait STAYS. It is not a transport detail this journey happens
+ * to observe — it is the contract `TaskCapturePanel` and ADR-060 both state in
+ * as many words: capture terminates in the module's canonical creation route,
+ * never a capture-only one. The caller asserts the user-facing outcome
+ * (`capture-result`) on top of it.
+ */
 async function submitTaskCapture(
   page: Page,
   sheet: ReturnType<Page["getByTestId"]>,
@@ -99,7 +115,7 @@ async function submitTaskCapture(
         new URL(r.url()).pathname === "/tasks/new" &&
         r.request().method() === "POST",
     ),
-    sheet.getByRole("button", { name: "Create task" }).click(),
+    sheet.getByTestId("capture-save").click(),
   ]);
   const body = (await response.json()) as { ok?: boolean };
   expect(body.ok, JSON.stringify(body)).toBe(true);

@@ -72,6 +72,16 @@ return (
 
 Guarantees: validation on blur and submit; submit blocked while invalid; first invalid field focused on failed submit; the complete draft preserved on any failure; server errors authoritative; duplicate submits prevented; Cancel restores the baseline; dirty comparison honours per-field `isEqual`. A submission commits its own **immutable snapshot** as the baseline, so an edit made while the save is in flight stays dirty and is never silently discarded.
 
+**Where an error is SHOWN depends on how it was produced (HARDEN-02).** A blur (or
+an async check answering after one) puts the message on the FIELD, beside the
+control it is about, and nowhere else. `FormErrorSummary` — the assertive live
+region that lists every problem and offers a jump to each — belongs to an attempt
+the owner made, so it appears after a failed **submit** and not before. That is
+what its own contract has always said, and it is not cosmetic: the summary is
+inserted above the whole form, so growing one on a blur moves every control below
+it, and a control that moves between `pointerdown` and `pointerup` receives no
+click at all.
+
 For a form hosted in a DS-03 Drawer, pass the drawer key so the guard intercepts drawer close/replace/Back (same-pathname `drawer`-param navigations), not just pathname changes:
 
 ```tsx

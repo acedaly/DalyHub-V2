@@ -153,12 +153,26 @@ test.describe("the shared tooltip", () => {
   test("positions safely at the viewport edge, with no horizontal overflow", async ({
     page,
   }) => {
-    // The floating capture button sits hard against the right edge of the
-    // window, which is the position most likely to push a naively-placed
-    // tooltip past it and give the document a sideways scroll.
+    /*
+     * The tooltip trigger nearest the right edge of the window, which is the
+     * position most likely to push a naively-placed tooltip past it and give the
+     * document a sideways scroll.
+     *
+     * HARDEN-02 — that used to be the floating capture button
+     * (`button.dh-fab`), and UIX-01 retired it: on a phone the navigation bar had
+     * carried a labelled Capture slot in the same corner since CAPTURE-02, and on
+     * a desktop the action moved into the top app bar. This hovered a control
+     * that has not existed for days and spent its whole timeout waiting for it —
+     * unseen, because this spec sits inside the tests shards 4 and 8 never
+     * started before `globalTimeout`. The top bar's Help utility is the last
+     * tooltip-carrying control before the account menu, so it is now the one
+     * closest to the edge, and the geometry this test asserts is unchanged.
+     */
     await page.setViewportSize({ width: 1024, height: 768 });
     await gotoFixture(page, "/today");
-    const capture = page.locator("button.dh-fab");
+    const capture = page
+      .locator(".dh-topbar")
+      .getByRole("link", { name: "Help", exact: true });
     await hover(capture);
 
     const box = await tooltip(page).boundingBox();

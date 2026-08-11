@@ -104,6 +104,39 @@ test.describe("compact widths — ONE global Capture affordance, not two", () =>
     ).toHaveCount(5);
   });
 
+  /*
+   * HARDEN-02 — the hand-off is a LINK, and it still works from the keyboard.
+   *
+   * `CaptureSheet` prevents the default `mousedown` on it, so a POINTER press
+   * cannot move focus off the field behind it — that focus move blurred the
+   * title, DS-06 grew an error above the link, and the link moved out from under
+   * the pointer before it lifted, which is why the first tap did nothing
+   * (`people-diary-context` journey 3). Suppressing a mouse focus must not
+   * suppress the keyboard path, so this drives the one the change could break.
+   */
+  test("the full-form hand-off is reachable and activatable by keyboard", async ({
+    page,
+  }) => {
+    await page.setViewportSize(COMPACT);
+    await gotoFixture(page, "/today");
+
+    await barCapture(page).click();
+    const sheet = page.getByTestId("capture-sheet");
+    await expect(sheet).toBeVisible();
+    const changeType = sheet.getByTestId("capture-change-type");
+    if (await changeType.isVisible()) {
+      await changeType.click();
+    }
+    await sheet.getByTestId("capture-choose-note").click();
+
+    const handoff = sheet.getByTestId("capture-full-form");
+    await expect(handoff).toBeVisible();
+    await handoff.focus();
+    await expect(handoff).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/notes\?.*drawer=new-note/);
+  });
+
   test("closing capture returns focus to the bar's Capture control", async ({
     page,
   }) => {

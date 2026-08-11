@@ -66,10 +66,27 @@ version. Locally, install it once with:
 pnpm exec playwright install chromium
 ```
 
-CI installs the Chromium **headless shell** explicitly
-(`playwright install --with-deps --only-shell chromium`) — see
-[Continuous Integration](#continuous-integration) for why the full browser
-binary isn't needed — so runs are self-contained.
+CI installs the FULL Chromium build (`playwright install --with-deps chromium`)
+and the suite **launches** it, through `channel: "chromium"` in
+[`playwright.config.ts`](../../playwright.config.ts).
+
+Both halves are load-bearing, and it took two passes to get them both:
+
+- `playwright install chromium` installs **two** binaries — `chromium` and
+  `chromium-headless-shell` — and Playwright's own rule is
+  `headless && !channel → chromium-headless-shell`. So an install-only change
+  cannot decide which binary runs; the launch does.
+- The headless shell is a separate build, and it is the one that
+  **segfaults** in CI: `Received signal 11 SEGV_MAPERR`, every later test failing
+  `browser.newContext: Target page, context or browser has been closed`, and the
+  shard walking into `globalTimeout` with tests never run. That is
+  [DEBT-125](../product/PRODUCT_DEBT.md)'s signature. #158 switched to
+  `--only-shell` on sound reasoning (no video, no PDFs); HARDEN-01 identified the
+  crash and reverted the install; HARDEN-02 found the crash still recurring
+  because the launch had never changed, and set the channel.
+
+If the crash recurs with `chrome-linux64/chrome` in the frames, the binary is not
+the cause and DEBT-125 reopens with that evidence.
 
 ## Continuous Integration
 

@@ -390,6 +390,41 @@
   .dh-people-filters__search {
     flex-basis: 100%;
   }
+
+  /*
+   * HARDEN-02 — People keeps its SEARCH BOX at phone width.
+   *
+   * UIX-05 gave People the shared phone control sheet and wrote the rule beside
+   * it: "Search stays visible at every width, because a search box behind a
+   * button is a search box nobody uses" (`PeopleCollection`, and the same
+   * sentence in the UIX-05 record). Supplying `mobileControls` also turns on the
+   * shared rule that hides the WHOLE desktop filter bar below 48rem
+   * (`collection-layout.css`), and the search box is inside it — so the rule
+   * above was inert from the moment it was written, and the one control an owner
+   * reaches for without deciding to filter disappeared on the device the module
+   * is most used on. Assets, which states the identical rule, keeps its search
+   * because it composes `persistentControls` instead; People states the rule and
+   * does not.
+   *
+   * This is the smallest correct repair: the filters band comes back at phone
+   * width carrying ONLY the search, while the catch-up toggle and the sort stay
+   * where the phone composition put them — in the sheet, where they are the same
+   * URL-backed controls. Nothing is offered twice, and the desktop composition is
+   * untouched.
+   *
+   * The `:has()` is what lets one module opt out of a shared rule without a new
+   * layout prop; the extra class keeps this above the shared rule's specificity
+   * regardless of stylesheet order.
+   */
+  .dh-collection--has-mobile-controls
+    .dh-collection__filters:has(.dh-people-filters) {
+    display: block;
+  }
+
+  .dh-people-filters__toggle,
+  .dh-people-filters__sort {
+    display: none;
+  }
 }
 /* MEET-01 uses the shared collection/record primitives; these rules only provide module rhythm. */
 .dh-meeting-new {

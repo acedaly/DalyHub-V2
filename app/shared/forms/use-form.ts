@@ -235,12 +235,41 @@ export function useForm<TValues extends Record<string, unknown>>(
   }, [values, baseline, equalityFor]);
   const isSubmitting = submit.status === "submitting";
 
+  /**
+   * A field error produced while the user is still FILLING the form — by a blur,
+   * or by an async check that answered after one. It is shown on the field and
+   * nowhere else.
+   *
+   * HARDEN-02 — these used to be written into `submit.fieldErrors`, which is the
+   * map every `FormErrorSummary` renders, so blurring one untouched required
+   * field grew a whole summary block ("There is 1 problem to fix", the list, and
+   * the "go to the first problem" control) at the TOP of the form. That block is
+   * ~118px, it is inserted ABOVE everything, and it appears on the `pointerdown`
+   * that begins a press — so every control below the fields moves out from under
+   * the pointer before it lifts, and the press produces no `click` at all.
+   * MEASURED on the phone capture sheet: pointerdown on "More note options" at
+   * y=562, pointerup at y=680 on a different element, no click event, and the
+   * hand-off silently did nothing on the first tap.
+   *
+   * Keeping them out of that map is also what `FormErrorSummary`'s own contract
+   * has always said — "after a failed explicit submit, users need one place that
+   * names what went wrong" — and it is the accessible reading too: an assertive
+   * live region belongs to an attempt the user made, not to leaving a field.
+   * Nothing about VALIDATION changes: the same rules run at the same moments and
+   * the field still shows its own message inline, next to the control.
+   */
+  const [blurErrors, setBlurErrors] = useState<Record<string, string>>({});
+
   const setFieldError = useCallback((name: string, message: string | null) => {
-    setSubmit((prev) => {
-      const next = { ...prev.fieldErrors };
-      if (message) next[name] = message;
-      else delete next[name];
-      return { ...prev, fieldErrors: next };
+    setBlurErrors((prev) => {
+      if (message) {
+        if (prev[name] === message) return prev;
+        return { ...prev, [name]: message };
+      }
+      if (!(name in prev)) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
     });
   }, []);
 
@@ -299,6 +328,15 @@ export function useForm<TValues extends Record<string, unknown>>(
         else next[name] = outcome.message;
         return { ...prev, fieldErrors: next };
       });
+      // The same live-clear for a blur-produced error, which lives in its own map.
+      setBlurErrors((prev) => {
+        if (!prev[name]) return prev;
+        const outcome = runValidator(getConfig(name)?.validate, value);
+        const next = { ...prev };
+        if (outcome.ok) delete next[name];
+        else next[name] = outcome.message;
+        return next;
+      });
     },
     [getConfig],
   );
@@ -347,7 +385,9 @@ export function useForm<TValues extends Record<string, unknown>>(
     <K extends keyof TValues & string>(name: K): FieldBinding<TValues[K]> => ({
       id: fieldId(name),
       value: values[name],
-      error: submit.fieldErrors[name] ?? null,
+      // A submit-time error wins, because it is the newest answer about this
+      // field; a blur-time one is shown when there is no submit error for it.
+      error: submit.fieldErrors[name] ?? blurErrors[name] ?? null,
       onChange: (value: TValues[K]) => setValue(name, value),
       onBlur: (committedValue?: TValues[K]) =>
         validateFieldOnBlur(name, committedValue),
@@ -357,6 +397,7 @@ export function useForm<TValues extends Record<string, unknown>>(
       fieldId,
       values,
       submit.fieldErrors,
+      blurErrors,
       setValue,
       validateFieldOnBlur,
       getRefCallback,
@@ -392,6 +433,10 @@ export function useForm<TValues extends Record<string, unknown>>(
         if (!outcome.ok) syncErrors[name] = outcome.message;
       }
       if (Object.keys(syncErrors).length > 0) {
+        // The submit map is now the whole truth about this attempt, and it is
+        // a superset of anything a blur found, so the blur map is retired
+        // rather than left to shadow it.
+        setBlurErrors({});
         setSubmit(submitFailed({ fieldErrors: syncErrors }));
         focusFirstInvalid(syncErrors);
         return;
@@ -399,6 +444,7 @@ export function useForm<TValues extends Record<string, unknown>>(
 
       // 2) Enter submitting; run async validation then persistence.
       submittingRef.current = true;
+      setBlurErrors({});
       setSubmit(beginSubmit());
       void (async () => {
         try {
@@ -456,6 +502,7 @@ export function useForm<TValues extends Record<string, unknown>>(
       abortAllAsync();
       asyncSeq.current.clear();
       setValues(next);
+      setBlurErrors({});
       setSubmit(INITIAL_SUBMIT_STATE);
     },
     [abortAllAsync],

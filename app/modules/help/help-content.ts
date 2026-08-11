@@ -605,11 +605,15 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         blocks: [
           {
             kind: "text",
-            text: "DalyHub has one light appearance and one dark one, and you choose which to use: System, Light or Dark. System is the default and follows your phone or computer, changing with it the moment you do. Light and Dark stay put whatever your device is set to.",
+            text: "DalyHub has a light appearance and a dark one, and you choose which to use: System, Light or Dark. System is the default and follows your phone or computer, changing with it the moment you do. Light and Dark stay put whatever your device is set to.",
           },
           {
             kind: "text",
             text: "The choice lives in two places, and they are the same setting: your account menu (the avatar at the top right, or at the bottom of the navigation sheet on a phone) and Settings → General → Appearance. It is saved to your account, so it follows you to your other devices.",
+          },
+          {
+            kind: "text",
+            text: "Separately, Settings → General → Colour scheme chooses the palette: Daly Violet, Electric, Pulse, Ocean or Graphite. Every scheme has its own light and dark, so the two settings are independent — the scheme decides which colours, the appearance decides which half of them. Only colour changes: the layout, type, spacing and shape are identical in all five.",
           },
           {
             kind: "text",
@@ -735,7 +739,6 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
               "Weather on Today. There is no weather data source, so there is no weather widget.",
               "Notifications and reminders. DalyHub will not email you, push to you or nag you.",
               "AI that acts on its own. DalyHub's AI reads your records and proposes changes for you to accept or reject (see \u201cAI assistance\u201d); it never edits your data itself, and it is off until you turn it on.",
-              "Choosing a colour scheme. There is one light appearance and one dark one, generated from a single seed. There is no palette to pick from and no theme to build.",
             ],
           },
           {

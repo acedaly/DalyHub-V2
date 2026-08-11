@@ -278,6 +278,26 @@ export default function CaptureSheet({
           <a
             className="dh-capture-handoff"
             href={handoffRoute}
+            /*
+             * HARDEN-02 — pressing this must not blur the field behind it.
+             *
+             * A pointer press focuses what it lands on, so pressing the hand-off
+             * blurred the panel's title field, DS-06 validated it, and its "a
+             * title is required" message appeared ABOVE this link — moving the
+             * link out from under the pointer between `pointerdown` and
+             * `pointerup`. Two elements, no `click`, and the hand-off silently
+             * did nothing on the first tap. MEASURED on a 390x844 phone: press at
+             * y=562, release at y=578 on a different element.
+             *
+             * Keeping focus where it is fixes it at the cause AND is the right
+             * behaviour on its own terms: leaving for the module's fuller form is
+             * not abandoning the title, it is going somewhere to write one, so
+             * flagging the field as a problem on the way out is a false alarm.
+             * Keyboard activation is untouched — this only suppresses the focus
+             * a MOUSE press would move, which is the same technique every
+             * toolbar control that must not steal focus uses.
+             */
+            onMouseDown={(event) => event.preventDefault()}
             onClick={(event) => {
               if (
                 event.defaultPrevented ||

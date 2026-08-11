@@ -202,8 +202,18 @@ test.describe("PROJ-01 — Projects", () => {
     });
     await expect(latecomer).toHaveCount(0);
 
-    // The subtitle must not present the loaded count as the total while more remain.
-    await expect(page.getByText(/\d+ projects loaded/)).toBeVisible();
+    /*
+     * The subtitle must not present the loaded count as the total while more
+     * remain — and it says so in the product's own noun.
+     *
+     * HARDEN-02 — this asserted a lower-case "projects loaded". UIX-06 gave every
+     * collection ONE count line through `collectionCountLabel`, and its first
+     * rule is that the noun is CAPITALISED because these are the product's nouns
+     * ("50 Projects loaded"). The assertion had been failing ever since and
+     * nobody could see it: this spec sat inside the tests shards 4 and 8 never
+     * started before `globalTimeout`.
+     */
+    await expect(page.getByText(/\d+ Projects loaded/)).toBeVisible();
     // Task roll-ups stay authoritative across pagination: the cards state each
     // Project's OWN totals, never a figure derived from the loaded page.
     const websiteBar = page

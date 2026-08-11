@@ -168,9 +168,17 @@ repository or status-label mapping:
   Project preserves its existing documented workflow status (never resets to
   Planned), so it can reappear in Today immediately if that preserved status is
   Active; restoring an Archived Project likewise preserves its workflow status
-  (ADR-037 §37.1/§37.5), so an Active project that was archived reappears in
-  Today after restore + revalidation with no second manual status change,
-  while a restored Planned or On-hold project correctly stays absent.
+  (ADR-037 §37.1/§37.5), so no second manual status change is ever needed after a
+  restore, while a restored Planned or On-hold project correctly stays absent.
+  - **Corrected 2026-08-11 (HARDEN-02).** This last clause used to say that an
+    Active project that was archived "reappears in Today after restore", and that
+    state is unreachable: archiving is REFUSED while any unfinished task remains
+    directly under the project, and this rail requires `openCount > 0`. So a
+    project that can be archived at all has no open work, and restoring it
+    returns its Active STATUS without returning it to this rail — it comes back
+    when it has work to continue, which is the rail's whole claim. Both journeys
+    are asserted in `e2e/project-settings.spec.ts`, over two fixtures, because one
+    project cannot satisfy both rules.
 - **Bounded recent ordering is unchanged.** `orderBy: "recent"` and
   `RECENT_PROJECTS_COUNT` behave exactly as before Slice 4 — the ordering keyset
   is the ADR-037 §37.2 effective `updatedAt` (`MAX(entities.updated_at,

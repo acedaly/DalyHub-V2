@@ -344,7 +344,7 @@ against the design system, not another whole-app pass.
 
 Five genuinely distinct colour schemes over ONE design system, so DalyHub stops
 meaning "the violet app" without becoming five applications. Accepted as
-[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
+[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
 
 > **The identifier is reused deliberately.** The V2 `THEME-01`
 > ([Phase 12b](ROADMAP_V2.md#-theme-01--the-curated-theme-system)) was the seven-,
@@ -390,15 +390,6 @@ meaning "the violet app" without becoming five applications. Accepted as
   downloaded palettes, a theme marketplace, per-Project or per-module schemes, and
   any change to typography, spacing, shape, layout, motion, icons or charts.
 
-### ☐ DS-17 - Select clear-control names
-
-Complete the cross-product select accessibility follow-up.
-
-- Convert the affected tests away from brittle substring `getByLabel` queries.
-- Rename `SelectField` and `SelectSheetControl` clear controls so each names the
-  field it clears, matching `InlineSelectField`.
-- **Non-goals:** redesigning selects or changing unset/empty semantics, which are
-  already correct.
 ### ☑ DS-17 - Select clear-control names - **DELIVERED 2026-08-11**
 
 The cross-product select accessibility follow-up, delivered inside
@@ -480,6 +471,54 @@ opening the application first.
   See [`UNIVERSAL_CAPTURE.md`](../development/UNIVERSAL_CAPTURE.md), which carries the
   Apple Shortcut setup, the required Cloudflare Access bypass, and the manual iPhone
   and email acceptance checklists.
+
+### ☑ HARDEN-02 - Release trust and the residual defects - **DELIVERED 2026-08-11**
+
+The second hardening pass, taken after CAPTURE-01 and THEME-01 landed on top of
+HARDEN-01. No feature, no redesign. Full record:
+[`HARDEN_02_RELEASE_TRUST_2026_08.md`](../product/HARDEN_02_RELEASE_TRUST_2026_08.md).
+
+- **Three merge collisions, from two pull requests that were open at once.**
+  `CHANGELOG.md` failed `format:check`; two migrations both claimed `0039` (unit
+  test, red); and two ADRs both claimed `088` (nothing checks that, so it was red
+  nowhere). The ADR renumbered — [ADR-089](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)
+  — and the MIGRATIONS deliberately did not: Wrangler keys `d1_migrations` on the
+  complete filename, so renaming a file the parent commit already applied re-runs
+  it (`duplicate column name: color_scheme`) and blocks every migration after it.
+  The `0039` pair is grandfathered by exact filename beside the `0013` pair, and
+  two tests now enforce that instead of describing it. The older `ADR-082`
+  collision is likewise recorded rather than renumbered.
+- **The DEBT-125 crash fix had never reached the browser.** HARDEN-01 changed
+  what CI INSTALLS; Playwright chooses the binary at LAUNCH
+  (`headless && !channel → chromium-headless-shell`), so CI kept running the
+  binary that segfaults and the crash duly recurred. `playwright.config.ts` now
+  sets `channel: "chromium"`. Retries stay `0`, no browser recycling, no shard
+  change.
+- **Two of the four residual E2E failures were PRODUCT defects**, not the test
+  drift they had been read as: a phone user could not search People by name
+  (UIX-05's own stated rule was made inert by the shared phone rule), and the
+  capture sheet's "More note options" hand-off did nothing on the first tap
+  (a blur-triggered error summary displaced the link between `pointerdown` and
+  `pointerup`, so no click was ever produced). Both fixed, with regression
+  coverage.
+- **Eight more had not RUN on `main` for several commits** — they sat inside the
+  tests shards 4 and 8 never started before `globalTimeout`, which is why a
+  complete local run was the only way to see them. All eight were stale, each
+  asserting something the UI programme replaced: a rail UIX-05 turned into two
+  screens, an inline field UIX-06 took off the task row, a lower-case noun UIX-06
+  capitalised, the retired floating action button, a task row's retired quick
+  actions, Today's renamed region, and a card family whose hairline and resting
+  shadow M3X removed on purpose. Each is repaired against what the product does
+  now, and two weak assertions were made real while repairing them. A ninth was a
+  seed defect: the search fixture's COMPLETION was never reset, so once any run
+  completed that task it stayed completed on that machine forever.
+- **A documentation truth pass over the high-authority documents**: the README's
+  "backup/restore not in V2" and "AI is not built" contradictions, its Eisenhower
+  Matrix description, Help's denial of the colour schemes that shipped the same
+  day, `SETUP_AND_CI.md`'s reversed browser-install claim, one unreachable state
+  documented in `TODAY_DASHBOARD.md`, and a duplicated roadmap entry.
+- **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no selector widened,
+  no test deleted, no new feature, no new CI job, no production contact.
 
 ### NEXT
 
