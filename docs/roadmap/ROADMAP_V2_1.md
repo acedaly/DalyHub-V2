@@ -473,19 +473,50 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   `postSameOrigin` helper, which derives its `Origin` honestly and cannot bless a
   cross-origin request. **No migration; nothing deployed; production data untouched.**
 
-### ☐ AUDIT-FIX-05 — Documentation truth pass (P2/P3)
+### ☑ AUDIT-FIX-05 — Documentation truth pass (P2/P3) — **DELIVERED 2026-08-11**
 
 - **Findings.** [AUDIT-06](../product/END_TO_END_AUDIT_2026_08_05.md#audit-06--production-state-documentation-drift-production-unverifiable-here--p2)
   (README/DEPLOYMENT disagree about what production runs; migrations 0026–0028 not
   recorded as applied; AUDIT-IDENTITY-01 marked resolved in debt but "outstanding"
   in the roadmap closure log) and
   [AUDIT-09](../product/END_TO_END_AUDIT_2026_08_05.md#audit-09--help-contradicts-the-shipped-theme-count--p3)
-  (Help says "choose from the five themes" while seven ship).
-- **Fix.** One authoritative production-state statement; correct the Help sentence,
-  the README "Status" section, the DEPLOYMENT migration-count prose, and the
-  AUDIT-IDENTITY-01 roadmap wording. Pair with the §19 production verification
-  checklist in the audit report. **Debt.** DEBT-84. **Size.** Small (docs).
-  **Priority.** P3 (P2 for the production-state confusion).
+  (Help contradicts the shipped theme count).
+- **Delivered by [HARDEN-01](../product/HARDEN_01_RELEASE_RELIABILITY_2026_08.md).**
+  What was corrected, and how:
+  - **One authoritative production statement.** `DEPLOYMENT.md` now opens with a
+    single table answering what the Worker is, what the database is, how migrations
+    are applied, which commands change production and which only inspect it — each
+    row paired with the command that checks it. The 2026-07-18 record is kept and
+    relabelled as the historical record it is.
+  - **The migration count is no longer stated.** It had drifted to three different
+    numbers in one document (`0027`, `0035`, `0001`–`0025`) while the committed
+    sequence had reached `0038`. A repository cannot know what a database has
+    applied, so the document now says so and points at
+    `pnpm run db:production:list` — the only honest answer.
+  - **`/health` is NOT public, and the docs said it was.** Measured from an
+    unauthenticated network on 2026-08-11: `GET https://hub.daly.id.au/health`
+    returns `302` to the Cloudflare Access login, because Access protects the whole
+    hostname — which is the origin hardening the rest of the document enforces.
+    `scripts/deploy-production.mjs` treated that redirect as a deployment failure,
+    so under the old rule **every successful deploy would have ended in a failed
+    health assertion**. It now distinguishes three outcomes and reports the Access
+    challenge as protected-but-unverified.
+  - **Help stopped contradicting the product.** Its "not here yet" list still said
+    "There is no AI in DalyHub yet" directly below the AI assistance topic, and
+    offered a choice of five themes in a product that has had no theme feature
+    since M3-01.
+  - **The README "Status" section** no longer lists shipped work as planned.
+  - **AUDIT-IDENTITY-01's closure wording** in `ROADMAP_V2.md` is dated and
+    corrected in place rather than rewritten.
+  - **One new read-only command**, `pnpm run verify:production`, so the §19
+    checklist is executed the same way every time. It never deploys, migrates,
+    writes or prints a secret value, and reports `SKIPPED` rather than a pass for
+    anything it cannot check.
+- **What is NOT delivered, and stays open:** production itself is **NOT VERIFIED**.
+  The implementation environment has no Cloudflare credentials, so the applied
+  migration set, the Worker's secret names and the running release remain unknown.
+  That is owner action, and `verify:production` is the command for it. **Debt.**
+  DEBT-84.
 
 ### ☑ AUDIT-FIX-06 — Concurrency, and one owner day (P3) — **DELIVERED 2026-08-08**
 
