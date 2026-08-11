@@ -175,7 +175,16 @@ test.describe("AI-01 — AI is off by default and says so", () => {
   }) => {
     await createMeeting(page, uniqueMeetingTitle("ai-off"));
 
-    await page.getByRole("tab", { name: "AI" }).click();
+    /*
+     * `exact: true`, here and at every other AI-tab query in this file.
+     * `getByRole`'s `name` matches as a SUBSTRING by default, and a Meeting's
+     * tab rail also carries "Details" — which contains "ai" — so the plain
+     * query resolves to two tabs and every use of it dies on a strict-mode
+     * violation rather than on anything to do with AI. It is the kind of
+     * collision that only appears once a neighbouring tab is renamed, which is
+     * why it reads as a sudden unexplained failure across seven tests at once.
+     */
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
     await expect(
       page.getByText("AI assistance is turned off", { exact: false }),
     ).toBeVisible();
@@ -193,7 +202,7 @@ test.describe("AI-01 — AI is off by default and says so", () => {
   }) => {
     await createNote(page, uniqueNoteTitle("ai-off"));
 
-    await page.getByRole("tab", { name: "AI" }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
     await expect(
       page.getByText("AI assistance is turned off", { exact: false }),
     ).toBeVisible();
@@ -843,7 +852,7 @@ test.describe("AI-01 — responsive and accessible across the phone matrix", () 
         height: viewport.height,
       });
       await createMeeting(page, uniqueMeetingTitle(`ai-${viewport.label}`));
-      await page.getByRole("tab", { name: "AI" }).click();
+      await page.getByRole("tab", { name: "AI", exact: true }).click();
       await expectNoHorizontalOverflow(page);
     });
   }
@@ -852,7 +861,7 @@ test.describe("AI-01 — responsive and accessible across the phone matrix", () 
     page,
   }) => {
     await createMeeting(page, uniqueMeetingTitle("ai-axe"));
-    await page.getByRole("tab", { name: "AI" }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
     await expectNoAxeViolations(page);
 
     await page.emulateMedia({ colorScheme: "dark" });
@@ -877,10 +886,9 @@ test.describe("AI-01 — responsive and accessible across the phone matrix", () 
       await page.keyboard.press("ArrowRight");
     }
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("tab", { name: "AI" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    await expect(
+      page.getByRole("tab", { name: "AI", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
     // The state is announced, not merely styled.
     await expect(
       page.getByText("AI assistance is turned off", { exact: false }),
