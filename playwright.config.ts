@@ -147,7 +147,46 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         ...(chromiumExecutablePath
           ? { launchOptions: { executablePath: chromiumExecutablePath } }
-          : {}),
+          : /*
+             * HARDEN-02 — the FULL Chromium build, chosen at LAUNCH.
+             *
+             * DEBT-125's crash is a SIGSEGV inside `chrome-headless-shell`, and
+             * HARDEN-01 answered it by installing the full Chromium build in CI.
+             * That was the right diagnosis and the wrong lever: `playwright
+             * install chromium` installs BOTH binaries, and which one runs is
+             * decided at launch, not at install. Playwright's own selection is
+             *
+             *   getExecutableName({ channel, headless }) {
+             *     …
+             *     return options.headless ? "chromium-headless-shell" : "chromium";
+             *   }
+             *
+             * so a headless run with no channel takes the shell no matter what
+             * was installed. MEASURED locally at Playwright 1.62.1:
+             *
+             *   launch({ headless: true })
+             *     → …/chromium_headless_shell-<rev>/…/chrome-headless-shell
+             *   launch({ headless: true, channel: "chromium" })
+             *     → …/chromium-<rev>/chrome-linux64/chrome
+             *
+             * CI therefore kept running the crashing binary after HARDEN-01, and
+             * the crash duly recurred on `main` @ b806246 (run 31488073976,
+             * shard 1): `Received signal 11 SEGV_MAPERR 0000000001b0` with every
+             * frame inside `chromium_headless_shell-1234/…/chrome-headless-shell`.
+             * That is NOT the falsifier HARDEN-01 wrote down — the hypothesis was
+             * never actually tested, because the change never reached the launch.
+             *
+             * `channel: "chromium"` is the documented way to ask for the full
+             * browser in headless mode, and it is set only when this environment
+             * does not already pin an explicit executable (the managed sandbox's
+             * `/opt/pw-browsers/chromium` IS the full build — which is exactly why
+             * the crash has never reproduced locally).
+             *
+             * The falsifier, restated so the next person can act on it: if the
+             * SIGSEGV recurs with `chrome-linux64/chrome` in the frames, the
+             * binary is not the cause and DEBT-125 reopens with that evidence.
+             */
+            { channel: "chromium" }),
       },
     },
   ],

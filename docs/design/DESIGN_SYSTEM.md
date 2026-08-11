@@ -351,7 +351,7 @@ The script writes **both** the colour blocks in `tokens.css` and the typed mirro
 
 ## Appearance, colour scheme, design system
 
-Three things are deliberately separate, and confusing them is the most expensive mistake available here ([ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)):
+Three things are deliberately separate, and confusing them is the most expensive mistake available here ([ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)):
 
 | | What it decides | Where it lives | Values |
 | --- | --- | --- | --- |
@@ -415,11 +415,11 @@ Step 6 is the acceptance test: every contrast, ladder, chart-separation, semanti
 
 ### How both preferences are stored and applied
 
-Identical architecture, twice ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation) for the appearance, [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance) for the scheme):
+Identical architecture, twice ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation) for the appearance, [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance) for the scheme):
 
 | | Appearance | Colour scheme |
 | --- | --- | --- |
-| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0039`) |
+| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0040`) |
 | Default | `system` | `violet` |
 | First-paint cookie | `dh_appearance` | `dh_color_scheme` |
 | Action | `POST /preferences/appearance` | `POST /preferences/color-scheme` |

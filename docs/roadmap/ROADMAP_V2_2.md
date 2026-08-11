@@ -344,7 +344,7 @@ against the design system, not another whole-app pass.
 
 Five genuinely distinct colour schemes over ONE design system, so DalyHub stops
 meaning "the violet app" without becoming five applications. Accepted as
-[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
+[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
 
 > **The identifier is reused deliberately.** The V2 `THEME-01`
 > ([Phase 12b](ROADMAP_V2.md#-theme-01--the-curated-theme-system)) was the seven-,
@@ -381,7 +381,7 @@ meaning "the violet app" without becoming five applications. Accepted as
   name, a sentence and a three-dot preview drawn from generated per-scheme preview
   tokens, so a row shows its OWN scheme in the current appearance. Switching is
   immediate and optimistic; nothing reloads.
-- **Persistence and first paint.** Owner-scoped column (migration `0039`,
+- **Persistence and first paint.** Owner-scoped column (migration `0040`,
   additive, `DEFAULT 'violet'`), record as authority, `dh_color_scheme` cookie as
   a first-paint mirror reconciled by the shell loader, attribute written
   server-side. An unknown or stale value matches no scheme block and lands on the
@@ -390,15 +390,6 @@ meaning "the violet app" without becoming five applications. Accepted as
   downloaded palettes, a theme marketplace, per-Project or per-module schemes, and
   any change to typography, spacing, shape, layout, motion, icons or charts.
 
-### ☐ DS-17 - Select clear-control names
-
-Complete the cross-product select accessibility follow-up.
-
-- Convert the affected tests away from brittle substring `getByLabel` queries.
-- Rename `SelectField` and `SelectSheetControl` clear controls so each names the
-  field it clears, matching `InlineSelectField`.
-- **Non-goals:** redesigning selects or changing unset/empty semantics, which are
-  already correct.
 ### ☑ DS-17 - Select clear-control names - **DELIVERED 2026-08-11**
 
 The cross-product select accessibility follow-up, delivered inside
@@ -480,6 +471,43 @@ opening the application first.
   See [`UNIVERSAL_CAPTURE.md`](../development/UNIVERSAL_CAPTURE.md), which carries the
   Apple Shortcut setup, the required Cloudflare Access bypass, and the manual iPhone
   and email acceptance checklists.
+
+### ☑ HARDEN-02 - Release trust and the residual defects - **DELIVERED 2026-08-11**
+
+The second hardening pass, taken after CAPTURE-01 and THEME-01 landed on top of
+HARDEN-01. No feature, no redesign. Full record:
+[`HARDEN_02_RELEASE_TRUST_2026_08.md`](../product/HARDEN_02_RELEASE_TRUST_2026_08.md).
+
+- **Three merge collisions, from two pull requests that were open at once.**
+  `CHANGELOG.md` failed `format:check`; two migrations both claimed `0039` (unit
+  test, red); and two ADRs both claimed `088` (nothing checks that, so it was red
+  nowhere). The later-merged claimant renumbered in each case: migration `0040`
+  and [ADR-089](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
+  The older `ADR-082` collision is recorded rather than renumbered.
+- **The DEBT-125 crash fix had never reached the browser.** HARDEN-01 changed
+  what CI INSTALLS; Playwright chooses the binary at LAUNCH
+  (`headless && !channel → chromium-headless-shell`), so CI kept running the
+  binary that segfaults and the crash duly recurred. `playwright.config.ts` now
+  sets `channel: "chromium"`. Retries stay `0`, no browser recycling, no shard
+  change.
+- **Two of the four residual E2E failures were PRODUCT defects**, not the test
+  drift they had been read as: a phone user could not search People by name
+  (UIX-05's own stated rule was made inert by the shared phone rule), and the
+  capture sheet's "More note options" hand-off did nothing on the first tap
+  (a blur-triggered error summary displaced the link between `pointerdown` and
+  `pointerup`, so no click was ever produced). Both fixed, with regression
+  coverage.
+- **Two more had not RUN on `main` for several commits** — they sat inside the
+  tests shards 4 and 8 never started before `globalTimeout`. Both were stale and
+  are repaired against what the product does now, and two weak assertions were
+  made real while repairing them.
+- **A documentation truth pass over the high-authority documents**: the README's
+  "backup/restore not in V2" and "AI is not built" contradictions, its Eisenhower
+  Matrix description, Help's denial of the colour schemes that shipped the same
+  day, `SETUP_AND_CI.md`'s reversed browser-install claim, one unreachable state
+  documented in `TODAY_DASHBOARD.md`, and a duplicated roadmap entry.
+- **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no selector widened,
+  no test deleted, no new feature, no new CI job, no production contact.
 
 ### NEXT
 

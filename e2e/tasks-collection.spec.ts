@@ -530,6 +530,18 @@ test.describe("TASKS-03 — Today integration", () => {
     await planForToday(page, title);
     await expect(card).toBeVisible();
 
+    /*
+     * The plan LANDED — asserted against the canonical `today` system view
+     * rather than only against Today's screen. Today lists unplanned work too
+     * (the always-present backlog band), so "it is on Today" is satisfied by a
+     * task that was never planned at all, and the clearing half below has
+     * nothing to prove without this.
+     */
+    await gotoFixture(page, "/tasks?view=list&system=today");
+    await expect(
+      page.getByRole("article", { name: `Open ${title}` }),
+    ).toBeVisible();
+
     // Today reads the SAME canonical planning field — there is no second
     // definition of "today" to keep in step.
     await gotoFixture(page, "/today");
@@ -549,14 +561,49 @@ test.describe("TASKS-03 — Today integration", () => {
     );
     const again = page.getByRole("article", { name: `Open ${title}` });
     await again.hover();
-    // TASKS-05 — clearing the planned date is the inline field's own Clear command,
-    // beside the value, rather than an entry in the row's overflow menu.
-    await again.getByRole("button", { name: /^Planned date/ }).click();
+    /*
+     * HARDEN-02 — the planned date is edited from the row's QUICK-EDIT panel.
+     *
+     * This reached for the row's inline "Planned date" field, which TASKS-05 did
+     * put there and UIX-06 then removed from the list presentation: the whole
+     * `low` metadata tier (planned date, sector, delegate) is `display: none` in
+     * `.dh-card-collection--list`, because "true, rarely the reason to act, and
+     * on the record" is not worth a column fifty times down a list
+     * (`tasks.css`). The control is still IN the DOM, so the old locator
+     * resolved and then waited out its timeout on an element no user can see.
+     *
+     * The path the product kept is the one `tasks.css` names in the same breath
+     * — the row's overflow → "Priority, dates and repeat…" — which is also the
+     * path a touch device has always used, so this now drives what a phone
+     * drives.
+     */
+    await again.getByRole("button", { name: /^More actions for / }).click();
     await page
-      .getByRole("dialog", { name: "Edit planned date" })
-      .getByRole("button", { name: "Clear", exact: true })
+      .getByRole("menu")
+      .last()
+      .getByRole("menuitem", { name: "Priority, dates and repeat…" })
       .click();
-    await expect(again).not.toContainText(/Scheduled today/);
+    const quickEdit = page.getByTestId("task-quick-edit");
+    await expect(quickEdit).toBeVisible();
+    await quickEdit.getByLabel("Scheduled date").fill("");
+    // The panel announces the SERVER's answer, not the optimistic guess, through
+    // the drawer's own live region — so this is also the wait: navigating on the
+    // keystroke would abandon the mutation in flight and then assert against a
+    // plan that was never cleared.
+    await expect(
+      page.getByRole("status").filter({ hasText: /Cleared the planned date/ }),
+    ).toHaveCount(1);
+
+    /*
+     * And the OUTCOME is asserted where the plan actually lives: the canonical
+     * `today` system view, which is the same rule Today reads. The previous
+     * assertion — that the row no longer says "Scheduled today" — could not fail,
+     * because no row says it any more.
+     */
+    await gotoFixture(page, "/tasks?view=list&system=today");
+    await expect(
+      page.getByRole("article", { name: `Open ${title}` }),
+    ).toHaveCount(0);
   });
 
   test("choosing a DEFAULT Tasks view does not change the Today dashboard", async ({

@@ -15,7 +15,7 @@ THEME-01 later grew that one generated pair to **five colour schemes** — Daly
 Violet, Electric, Pulse, Ocean and Graphite — and none of the argument above
 changed: they are five generated TOKEN MAPS over one design system, not five
 stylesheets, and no module rule may branch on one. See
-**[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)**
+**[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)**
 and [`DESIGN_SYSTEM.md → Appearance, colour scheme, design system`](DESIGN_SYSTEM.md#appearance-colour-scheme-design-system).
 
 ## What replaced this document

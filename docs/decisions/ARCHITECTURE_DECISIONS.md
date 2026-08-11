@@ -25,6 +25,16 @@ An **Architecture Decision Record** captures a single significant decision: the 
 
 Statuses below are **Accepted** unless noted. Numbering is stable and permanent.
 
+**Two ADRs carry the number `082`** — the nonce-based Content-Security-Policy and
+the one saved-view system — because two branches were open at once and both took
+the next free number. They are NOT renumbered: each already has cross-references
+that resolve by anchor, and `PRODUCT_DEBT.md`'s rule for exactly this case is
+"renumber while it is cheap; record the collision when it is not". Recorded here
+so it is a known fact rather than a puzzle. Identify each by its title, and do not
+issue `ADR-082` again. (A third collision, on `088`, was caught while it was still
+cheap: THEME-01's became [ADR-089](#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance), and CAPTURE-01 — which
+landed on `main` first — kept `088`.)
+
 ---
 
 ## ADR-001: Area Hierarchy
@@ -2824,9 +2834,9 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 ---
 
-## ADR-088: Five generated colour schemes over one design system — a second root attribute, orthogonal to appearance
+## ADR-089: Five generated colour schemes over one design system — a second root attribute, orthogonal to appearance
 
-**Status:** Accepted · **Date:** 2026-08-11 · **Item:** [THEME-01 — DalyHub colour schemes](../roadmap/ROADMAP_V2.md#-theme-01-2026-08--dalyhub-colour-schemes)
+**Status:** Accepted · **Date:** 2026-08-11 · **Item:** [THEME-01 — DalyHub colour schemes](../roadmap/ROADMAP_V2_2.md#-theme-01---dalyhub-colour-schemes--delivered-2026-08-11)
 
 **Extends** [ADR-074 decision 5](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) (one generated pair, no theme feature) and [ADR-075](#adr-075-the-appearance-preference-and-one-authority-for-routine-creation) (the appearance preference). It does **not** reinstate [ADR-061](#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)'s curated theme system, and the difference is the substance of this decision rather than a disclaimer — see decision 1.
 
@@ -2855,7 +2865,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 - **Decision 7 — the Settings picker previews schemes through GENERATED tokens, and it is the only place a rule names a scheme.** A picker must show four schemes that are not painting, which no semantic token can express, so the generator emits every scheme's three preview colours into every appearance block and `.dh-scheme-tone[data-scheme]` in `tokens.css` resolves a scheme NAME to them — the same shape as `.dh-tone[data-tone]`. The exception is therefore bounded to one block in the token layer, selects on the row's *offer* rather than the document's *state*, and still contains no authored hex.
 
-- **Decision 8 — persistence and validation follow the appearance's architecture exactly.** Owner-scoped column (`owner_app_preferences.color_scheme`, migration `0039`, additive with a `CHECK` and `DEFAULT 'violet'`), record as authority, `dh_color_scheme` HttpOnly cookie as a first-paint mirror reconciled by the app-shell loader, a strict validator on the write path and a coercing one on every read path. Its own POST-only JSON action rather than a shared one, because the two settings are independent and a shared endpoint would make every appearance change assert a scheme it did not mean to.
+- **Decision 8 — persistence and validation follow the appearance's architecture exactly.** Owner-scoped column (`owner_app_preferences.color_scheme`, migration `0040`, additive with a `CHECK` and `DEFAULT 'violet'`), record as authority, `dh_color_scheme` HttpOnly cookie as a first-paint mirror reconciled by the app-shell loader, a strict validator on the write path and a coercing one on every read path. Its own POST-only JSON action rather than a shared one, because the two settings are independent and a shared endpoint would make every appearance change assert a scheme it did not mean to.
 
 - **Consequences.** *Easy:* adding a sixth scheme is one entry in `COLOR_SCHEMES`, one entry in the kernel list, one descriptor and a widened `CHECK` — and every contrast, ladder, chart and semantic assertion runs against it automatically. *Hard:* every token-layer test now runs ten times instead of twice, and the token stylesheet is 4× longer. *Accepted:* `entity-project` and `priority-p3` sit near the primary's hue under the blue-primary schemes, because entity identity is deliberately global — "what colour is a Project?" must not have five answers. *Accepted:* the generated stylesheet duplicates each scheme's dark declarations twice (media query and explicit block), which is plain CSS having no way to share a declaration list; a test proves the copies cannot drift.
 

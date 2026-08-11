@@ -99,16 +99,17 @@ test.describe("HELP-01 Help", () => {
     expect(text).toContain("changes nothing until you confirm");
   });
 
-  test("tells the owner about the three appearance choices, and names no theme", async ({
+  test("tells the owner about the appearance choices and the five colour schemes", async ({
     page,
   }) => {
     await gotoFixture(page, "/help?topic=themes");
 
     const themes = page.locator("#themes");
     const text = await themes.innerText();
-    // APPEARANCE-01 — Help names all three choices and says where the setting
-    // lives, because "where do I change this?" is the question the topic exists
-    // to answer. It still names no PALETTE: M3-01 retired those.
+    // APPEARANCE-01 — Help names all three appearance choices and says where the
+    // setting lives, because "where do I change this?" is the question the topic
+    // exists to answer. THEME-01 added a second, independent choice, so it names
+    // the five schemes too — and still names none of the palettes M3-01 retired.
     for (const required of [
       "System",
       "Light",
@@ -116,6 +117,9 @@ test.describe("HELP-01 Help", () => {
       "follows your phone or computer",
       "account menu",
       "Settings",
+      "Colour scheme",
+      "Daly Violet",
+      "Graphite",
     ]) {
       expect(text, `Help no longer mentions "${required}"`).toContain(required);
     }

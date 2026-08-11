@@ -204,7 +204,17 @@ test.describe("PEOPLE-04 / DIARY-02 — contextual relationships", () => {
     const sheet = await openPersonCapture(page, name, "New note");
     await expect(sheet.getByTestId("capture-context-chip")).toContainText(name);
 
-    // Leave the quick sheet for the module's fuller creation surface.
+    /*
+     * Leave the quick sheet for the module's fuller creation surface.
+     *
+     * This is the assertion that found the HARDEN-02 capture defect: pressing the
+     * hand-off blurred the panel's empty title field, DS-06 grew an error summary
+     * and an inline error ABOVE the link, and the link moved out from under the
+     * pointer before it lifted — so no `click` was ever produced and the app
+     * simply stayed on the Person. Fixed in `useForm` (a blur error is a field's
+     * own message, not a summary) and in `CaptureSheet` (the hand-off does not
+     * take focus from the field behind it).
+     */
     await sheet.getByTestId("capture-full-form").click();
     await expect(page).toHaveURL(/\/notes\?.*drawer=new-note/);
     await waitForInteractive(page);

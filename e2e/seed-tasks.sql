@@ -635,6 +635,45 @@ VALUES
 UPDATE project_details SET status = 'planned', archived_at = NULL, updated_at = '2026-07-19T09:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-today';
 
+-- HARDEN-02 — a project that can actually REACH Today's "Continue working".
+--
+-- `pr-today` above deliberately has no child tasks, because archiving is refused
+-- while any unfinished task remains directly under a project. Today's rail
+-- filters on `openCount > 0` (the Today redesign's rule: "continue working on a
+-- project with nothing left to do is not a suggestion"), so the two rules cannot
+-- both be satisfied by one fixture — a project that can be archived can never
+-- appear in the rail, and a project that appears in the rail can never be
+-- archived. That is why the visibility half of the journey has its own project:
+-- Planned to begin with, directly under Area `a-dh`, with ONE open task so it
+-- qualifies the moment it is made Active.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-today-work', 'local-dev-workspace', 'project', 'Today rail project', '2026-07-19T09:00:30.000Z', '2026-07-19T09:00:30.000Z', NULL),
+  ('pt-today-work', 'local-dev-workspace', 'task', 'Today rail open task', '2026-07-19T09:00:31.000Z', '2026-07-19T09:00:31.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-today-work', 'project', NULL),
+  ('local-dev-workspace', 'pt-today-work', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prtodaywork-area', 'local-dev-workspace', 'pr-today-work', 'a-dh', 'project.belongs_to_area', '2026-07-19T09:00:30.000Z', '2026-07-19T09:00:30.000Z', NULL),
+  ('l-pttodaywork-proj', 'local-dev-workspace', 'pt-today-work', 'pr-today-work', 'task.belongs_to_project', '2026-07-19T09:00:31.000Z', '2026-07-19T09:00:31.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-today-work', 'planned', NULL, '2026-07-19T09:00:30.000Z');
+INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
+VALUES
+  ('local-dev-workspace', 'pt-today-work', 'task', 'todo', NULL, NULL, NULL, NULL, '2026-07-19T09:00:31.000Z');
+
+-- Reset this journey's mutable state: Planned, not archived, and its one task
+-- open — so the rail's `openCount > 0` precondition holds on every run.
+UPDATE project_details SET status = 'planned', archived_at = NULL, updated_at = '2026-07-19T09:00:30.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-today-work';
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-today-work';
+UPDATE task_details SET status = 'todo', due_date = NULL, scheduled_date = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-today-work';
+
 -- A second, untouched-by-mutation project starting Planned, used to prove a
 -- restored Planned Project stays absent from Today's "Continue working" (it is
 -- archived and restored directly, without ever passing through Active).

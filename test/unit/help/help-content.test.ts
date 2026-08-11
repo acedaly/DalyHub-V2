@@ -87,11 +87,13 @@ describe("HELP-01 coverage", () => {
 });
 
 describe("HELP-01 honesty", () => {
-  it("describes the three appearance choices, and names no theme", () => {
-    // APPEARANCE-01 — DalyHub has one light appearance and one dark one, and the
-    // owner picks System / Light / Dark over that pair (ADR-075). Help must name
-    // all three, say where the setting lives, and still name no PALETTE — M3-01
-    // retired those and they are not coming back (ADR-074).
+  it("describes the appearance choices and the five colour schemes", () => {
+    // APPEARANCE-01 — the owner picks System / Light / Dark (ADR-075), and
+    // THEME-01 (ADR-089) added an INDEPENDENT choice of five generated colour
+    // schemes over the one design system. Help must name all three appearance
+    // choices, name the five schemes, say where each setting lives, and still
+    // name none of the palettes M3-01 retired (ADR-074) — those are a different
+    // thing and they are not coming back.
     const themes = HELP_TOPICS.find((t) => t.id === "themes");
     const text = JSON.stringify(themes);
     for (const required of [
@@ -101,6 +103,12 @@ describe("HELP-01 honesty", () => {
       "follows your phone or computer",
       "account menu",
       "Settings",
+      "Colour scheme",
+      "Daly Violet",
+      "Electric",
+      "Pulse",
+      "Ocean",
+      "Graphite",
     ]) {
       expect(text, `Help no longer mentions "${required}"`).toContain(required);
     }

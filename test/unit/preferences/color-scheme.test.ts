@@ -4,7 +4,7 @@
  * The scheme is a persisted owner preference with a first-paint cookie mirror, an
  * owner-facing registry and a CHECK constraint. Four lists therefore have to say
  * the same five things — the kernel's `COLOR_SCHEMES`, the generator's emitted
- * palettes, the Settings registry, and migration 0039 — and none of them fails
+ * palettes, the Settings registry, and migration 0040 — and none of them fails
  * loudly when they disagree: a missing palette paints the previous block's
  * colours, a missing descriptor renders an unnamed radio, and a value the CHECK
  * rejects fails only in production. So they are pinned to each other here.
@@ -130,7 +130,7 @@ describe("THEME-01 — the scheme registry is one bounded list", () => {
     ]);
   });
 
-  it("matches the CHECK constraint migration 0039 writes", () => {
+  it("matches the CHECK constraint migration 0040 writes", () => {
     /*
      * The list, the CHECK constraint and the migration must agree. If a future
      * release adds a value to `COLOR_SCHEMES` without widening the constraint,
@@ -141,7 +141,7 @@ describe("THEME-01 — the scheme registry is one bounded list", () => {
       path.join(
         process.cwd(),
         "migrations",
-        "0039_add_owner_color_scheme_preference.sql",
+        "0040_add_owner_color_scheme_preference.sql",
       ),
       "utf8",
     );
@@ -202,7 +202,7 @@ describe("THEME-01 — parsing", () => {
       normaliseStoredPreferences({ ...STORED_SHAPE, colorScheme: "ocean" })
         .colorScheme,
     ).toBe("ocean");
-    // A row written before migration 0039, or by a future release that removed a
+    // A row written before migration 0040, or by a future release that removed a
     // scheme, still resolves to a working product.
     for (const stored of [undefined, null, "chartreuse", 3]) {
       expect(

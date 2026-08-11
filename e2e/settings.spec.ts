@@ -270,9 +270,32 @@ test.describe("SETTINGS-01A — application settings", () => {
     await gotoFixture(page, "/settings");
     await expectNoAxeViolations(page);
 
+    /*
+     * The phone is TWO SCREENS, and this used to assert it was one.
+     *
+     * It expected the section rail's "General" link to be visible at 390px while
+     * a section was open. UIX-05 deliberately replaced that composition: without
+     * `?section=` the phone shows the LIST of sections, with one it shows that
+     * section and a way back, and `data-chosen` resolves on the server so the
+     * first byte is already the right screen. The rail is `display: none` in the
+     * chosen state by design, so the old assertion could only pass on a phone
+     * that had stopped being a phone.
+     *
+     * What replaces it is the invariant that actually matters and that UIX-05
+     * introduced: every section is reachable, and the way back is real.
+     */
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoFixture(page, "/settings?section=navigation");
     await expectNoHorizontalOverflow(page);
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Navigation" }),
+    ).toBeVisible();
+    const backToList = page.getByRole("link", { name: /All settings/ });
+    await expect(backToList).toBeVisible();
+    await backToList.click();
+    // Back on the list screen the section rail IS the screen, so every
+    // destination — General included — is one tap away again.
+    await expect(page).toHaveURL(/\/settings(\?.*)?$/);
     await expect(page.getByRole("link", { name: "General" })).toBeVisible();
 
     await page.setViewportSize({ width: 320, height: 720 });
