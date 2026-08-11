@@ -117,6 +117,16 @@ export default defineConfig({
    * DEBT-125 first, then re-derive the split from a GREEN run's per-shard times
    * — `playwright-report/results.json` carries them.
    *
+   * When that re-derivation happens, size against per-shard BROWSER LIFETIME as
+   * well as per-shard minutes. Eight shards, with the ~190 capture stubs no
+   * longer padding the split, give each shard roughly 190 REAL tests in one
+   * long-lived browser — and on runs 31456794416 and 31457835020 shard 1 died
+   * with `browser.newContext: … has been closed` on the SAME test both times
+   * (an axe scan in dark mode, ~185 tests in), having been green with the
+   * identical test set one commit earlier. Always the same victim is not a
+   * random crash; it is a memory threshold this split now sits on. Fewer, fatter
+   * shards is not a free trade against a browser that has to survive all of them.
+   *
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
    */
