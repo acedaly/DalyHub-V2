@@ -23,6 +23,10 @@ import {
 } from "~/kernel/activity";
 import type { AiPreferencesRepository, AiUsageRepository } from "~/kernel/ai";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type {
+  CaptureRateLimiter,
+  CaptureTokenRepository,
+} from "~/kernel/capture";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import {
   DEFAULT_OWNER_TIME_ZONE,
@@ -82,6 +86,8 @@ import {
   createAiPreferencesRepository,
   createAiUsageRepository,
   createAlignmentRepository,
+  createCaptureRateLimiter,
+  createCaptureTokenRepository,
   createReviewInsightRepository,
   createAppPreferencesRepository,
   createAreaRepository,
@@ -291,6 +297,15 @@ export interface WorkspaceScope {
    * ONLY writer of `workspace_members` and records no Activity.
    */
   readonly members: WorkspaceMemberRepository;
+  /**
+   * CAPTURE-01 — the capture credentials that authorise EXTERNAL capture (an
+   * Apple Shortcut, Siri, the Share Sheet, inbound email) and the counter that
+   * bounds them. Both are bound to this workspace, which is what makes a capture
+   * credential permanently workspace-bound: neither has a method that takes a
+   * workspace, so no request can select one (ADR-010, ADR-088).
+   */
+  readonly captureTokens: CaptureTokenRepository;
+  readonly captureRateLimit: CaptureRateLimiter;
   /**
    * The IDENT-01 READ-ONLY actor directory: resolves a batch of Activity actor
    * references to display identities in one bounded query. EVERY surface that
@@ -552,6 +567,12 @@ export function bindWorkspaceRepositories(
   // Membership and the actor directory are the SAME workspace-bound adapter: both
   // read one joined table, and one instance keeps a single actor-resolution rule.
   const members = createWorkspaceMemberRepository(env.DB, context);
+  // CAPTURE-01 — the capture credential store and its rate-limit counter. Neither
+  // records Activity: a credential is configuration, and a counter is operational
+  // state. The `capture.received` event a successful capture appends goes through
+  // `workspaceEvents` above, into the one Activity stream (ADR-012).
+  const captureTokens = createCaptureTokenRepository(env.DB, context);
+  const captureRateLimit = createCaptureRateLimiter(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   const reviewInsights = createReviewInsightRepository(env.DB, context);
   // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
@@ -610,6 +631,8 @@ export function bindWorkspaceRepositories(
     workspaceEvents,
     members,
     actors: members,
+    captureTokens,
+    captureRateLimit,
     alignment,
     reviewInsights,
     appPreferences,

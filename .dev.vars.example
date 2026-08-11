@@ -63,3 +63,25 @@ DEV_AUTH_EMAIL="owner@example.invalid"
 #   AI_GATEWAY_ACCOUNT_ID="<your-cloudflare-account-id>"
 #   AI_GATEWAY_ID="<your-gateway-name>"
 #   AI_GATEWAY_TOKEN="<your-gateway-token-if-authenticated>"
+
+# CAPTURE-01 EMAIL CAPTURE (optional) — Worker values, never repository values.
+# Email capture is OFF unless BOTH are set: an unconfigured deployment accepts no
+# inbound mail at all, which is the correct default for a feature that writes into
+# someone's life when it is on. Neither address is hard-coded anywhere in the
+# application; both are deploy-time configuration supplied with
+# `wrangler secret put`.
+#
+# CAPTURE_EMAIL_RECIPIENTS       the address(es) Cloudflare Email Routing delivers
+#                                to this Worker, comma-separated.
+# CAPTURE_EMAIL_ALLOWED_SENDERS  the address(es) permitted to write into DalyHub,
+#                                comma-separated. Keep this extremely narrow — for
+#                                a single-owner installation, one address. It is
+#                                matched against the SMTP ENVELOPE sender, and the
+#                                message must additionally pass SPF, DKIM or DMARC.
+#
+# The HTTP capture endpoint (`POST /api/capture`) needs NO configuration here: it
+# is authenticated by scoped `dhcap_` tokens the owner creates in
+# Settings -> Capture. See docs/development/UNIVERSAL_CAPTURE.md — including the
+# one required Cloudflare Access bypass policy for `/api/capture`.
+#   CAPTURE_EMAIL_RECIPIENTS="capture@example.invalid"
+#   CAPTURE_EMAIL_ALLOWED_SENDERS="owner@example.invalid"

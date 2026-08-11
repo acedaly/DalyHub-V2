@@ -551,6 +551,14 @@ describe("module discovery", () => {
           moduleId: "settings",
           file: "routes/restore.tsx",
         },
+        // CAPTURE-01 adds the capture-credential endpoints as one POST-only
+        // resource route (`settings/capture/:action`). No nav entry: minting a
+        // credential returns a secret, so it is never reachable by a link.
+        {
+          id: "settings.capture",
+          moduleId: "settings",
+          file: "routes/capture.tsx",
+        },
         // SET-03 — the two Account & security history endpoints (POST-only).
         {
           id: "settings.account.security",

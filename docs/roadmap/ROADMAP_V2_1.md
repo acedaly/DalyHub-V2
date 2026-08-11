@@ -1627,9 +1627,18 @@ None of the following exists, none is scheduled, and each is written down here
 because a reader would otherwise wonder whether it was forgotten:
 
 - two-way Obsidian sync (V2 exports a vault; it does not read one back);
-- email ingestion, webhook capture and Pushover or any other notification channel
+- ~~email ingestion~~ — **this changed.** CAPTURE-01 (2026-08-11) ships inbound
+  email capture through a Cloudflare Email Worker, gated by envelope sender,
+  allowlist and SPF/DKIM/DMARC. See
+  [`UNIVERSAL_CAPTURE.md`](../development/UNIVERSAL_CAPTURE.md);
+- **webhook capture and Pushover or any other notification channel** remain
+  unbuilt. CAPTURE-01 deliberately did NOT expose a generic unauthenticated
+  webhook merely because future integrations might use one — a future integration
+  gets a purpose-specific authentication adapter over the same capture contract.
+  Notification channels are a separate concern: capture is INPUT, and
   ([DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)
-  records the honest consequence for Asset obligations);
+  still records the honest consequence for Asset obligations, which CAPTURE-01
+  does not address);
 - transcription and advanced analytics;
 - ~~offline mode~~ — **this changed.** A first offline milestone has shipped: an
   installable PWA, a service worker, a read-only seven-day snapshot and an

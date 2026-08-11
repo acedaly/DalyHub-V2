@@ -748,6 +748,10 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   // PWA-05 offline capture receipts reference workspaces ON DELETE RESTRICT, so
   // they must clear before workspaces (they do not reference entities).
   await env.DB.prepare("DELETE FROM offline_capture_receipts").run();
+  // CAPTURE-01 capture credentials and their rate-limit counters. Both reference
+  // workspaces ON DELETE RESTRICT and neither references entities.
+  await env.DB.prepare("DELETE FROM capture_tokens").run();
+  await env.DB.prepare("DELETE FROM capture_rate_windows").run();
   // IDENT-01 membership references entities (the linked Person) AND workspaces,
   // both ON DELETE RESTRICT, so it must clear before either.
   await env.DB.prepare("DELETE FROM workspace_members").run();

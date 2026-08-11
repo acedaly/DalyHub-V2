@@ -64,6 +64,12 @@ import {
 } from "~/kernel/ai";
 import { resolveAiConfiguration } from "~/platform/ai";
 import { resolveAuthConfig } from "~/platform/auth";
+import {
+  captureEmailIsEnabled,
+  resolveCaptureEmailConfig,
+  type CaptureEmailConfigEnv,
+} from "~/kernel/capture";
+import { CAPTURE_PATH } from "~/platform/request";
 import { AiSettingsSection } from "../AiSettingsSection";
 import {
   AccountSecuritySection,
@@ -78,6 +84,8 @@ import { SelectField, Switch } from "~/shared/forms";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import { ExportDownloads } from "../ExportDownloads";
+import { CaptureSection, type CaptureSettingsData } from "../CaptureSection";
+import { toCaptureDeviceView } from "./capture";
 import { RestoreFromBackup } from "../RestoreFromBackup";
 
 import type { Route } from "./+types/index";
@@ -85,6 +93,7 @@ import type { Route } from "./+types/index";
 type SectionId =
   | "general"
   | "ai"
+  | "capture"
   | "account-security"
   | "date-time"
   | "navigation"
@@ -151,6 +160,15 @@ const SECTIONS: readonly {
     group: "data",
     summary:
       "Which features may use a model, what they may send, and a budget.",
+  },
+  {
+    // CAPTURE-01 — external capture sits in "Your data" beside AI and Account &
+    // security, because what it really configures is who may write into DalyHub
+    // from outside it.
+    id: "capture",
+    label: "Capture",
+    group: "data",
+    summary: "Capture from your phone, Siri, the Share Sheet or email.",
   },
   {
     id: "account-security",
@@ -265,6 +283,38 @@ export function meta() {
   ];
 }
 
+/**
+ * CAPTURE-01 — the Capture section's server data.
+ *
+ * Everything here is either public configuration (the endpoint URL, the
+ * configured email addresses) or a credential's non-secret metadata. The stored
+ * digest is never selected by the repository and the token never existed on the
+ * server after creation, so there is nothing in this payload that could
+ * authenticate anything.
+ */
+async function readCaptureSettings(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  request: Request,
+): Promise<CaptureSettingsData> {
+  const now = new Date();
+  const devices = await scope.captureTokens.list();
+  // The capture email addresses are deploy-time configuration, deliberately not
+  // declared as committed `vars` (like the Access values), so they are absent
+  // from the generated `Env` type and read through the optional config shape.
+  const emailConfig = resolveCaptureEmailConfig(
+    env as unknown as CaptureEmailConfigEnv,
+  );
+  return {
+    devices: devices.map((device) => toCaptureDeviceView(device, now)),
+    endpoint: new URL(CAPTURE_PATH, new URL(request.url).origin).toString(),
+    email: {
+      enabled: captureEmailIsEnabled(emailConfig),
+      recipients: emailConfig.recipients,
+      allowedSenders: emailConfig.allowedSenders,
+    },
+  };
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
@@ -286,6 +336,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       section === "account-security"
         ? await readAccountSecurity(scope, session)
         : null,
+    // CAPTURE-01 — read ONLY for the section that renders it, like the Account &
+    // security block above. No token, digest or fingerprint-bearing secret
+    // crosses this boundary: `toCaptureDeviceView` cannot express one.
+    capture:
+      section === "capture" ? await readCaptureSettings(scope, request) : null,
     preferences: {
       timezone: preferences.timezone,
       dateFormat: preferences.dateFormat,
@@ -940,6 +995,9 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
           <NavigationSection data={loaderData} />
         ) : null}
         {active === "ai" ? <AiSettingsSection data={loaderData.ai} /> : null}
+        {active === "capture" && loaderData.capture ? (
+          <CaptureSection data={loaderData.capture} />
+        ) : null}
         {active === "account-security" && loaderData.accountSecurity ? (
           <AccountSecuritySection data={loaderData.accountSecurity} />
         ) : null}
