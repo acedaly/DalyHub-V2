@@ -497,12 +497,17 @@ HARDEN-01. No feature, no redesign. Full record:
   (a blur-triggered error summary displaced the link between `pointerdown` and
   `pointerup`, so no click was ever produced). Both fixed, with regression
   coverage.
-- **Three more had not RUN on `main` for several commits** — they sat inside the
-  tests shards 4 and 8 never started before `globalTimeout`. All three were stale
-  (a phone asserting a rail UIX-05 replaced with two screens; a row asserting an
-  inline field UIX-06 removed from the list; a subtitle asserting the lower-case
-  noun UIX-06 capitalised) and are repaired against what the product does now,
-  and two weak assertions were made real while repairing them.
+- **Eight more had not RUN on `main` for several commits** — they sat inside the
+  tests shards 4 and 8 never started before `globalTimeout`, which is why a
+  complete local run was the only way to see them. All eight were stale, each
+  asserting something the UI programme replaced: a rail UIX-05 turned into two
+  screens, an inline field UIX-06 took off the task row, a lower-case noun UIX-06
+  capitalised, the retired floating action button, a task row's retired quick
+  actions, Today's renamed region, and a card family whose hairline and resting
+  shadow M3X removed on purpose. Each is repaired against what the product does
+  now, and two weak assertions were made real while repairing them. A ninth was a
+  seed defect: the search fixture's COMPLETION was never reset, so once any run
+  completed that task it stayed completed on that machine forever.
 - **A documentation truth pass over the high-authority documents**: the README's
   "backup/restore not in V2" and "AI is not built" contradictions, its Eisenhower
   Matrix description, Help's denial of the colour schemes that shipped the same

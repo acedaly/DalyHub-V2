@@ -414,6 +414,35 @@ because the distinction matters for anyone repeating this:
 All five pass on a fresh server with nothing else running (45/45 across the three
 spec files).
 
+### 6.0b Five more, from the half of the suite the first run never reached
+
+Running the remaining 37 spec files produced **743 passed, 5 failed** — and every
+one of the five is the same story as §3D, §3E and §6.0: an assertion the UI
+programme left behind, in a spec that had not RUN on `main` for days because it
+sat inside the tests shards 4 and 8 never started before `globalTimeout`.
+
+| Failing test | What it asserted | What the product does now |
+| --- | --- | --- |
+| `search.spec.ts:131` | the search fixture's task reads "Overdue" | It read "Completed" — the seed resets that task's `task_details` and never its COMPLETION, which lives on the spine. Once any run completed it, it stayed completed for every later run. Fixed in the seed |
+| `tooltip.spec.ts:153` | hover `button.dh-fab` at the window's right edge | UIX-01 retired the floating capture button. The top bar's Help utility is the last tooltip-carrying control before the account menu, so it is now the one nearest the edge; the geometry asserted is unchanged |
+| `ui-quality.spec.ts:143` | focus `.dh-card__action` on a task row | UIX-01 took every permanent action button off the row; the rail holds one control, the overflow trigger. Asking the RAIL for its buttons keeps the DS-04 contract and survives quick actions returning |
+| `ux-01-daily-driver.spec.ts:111` | a level-2 "My day" heading on Today | UIX-01 redrew Today as three regions and named this one **Focus** |
+| `visual-system.spec.ts:140` | `.dh-ecard` takes one hairline and an elevation-1 shadow | No shipped surface renders that class (Projects took `.dh-pcard`, Goals `.dh-gcard`, Areas became rows), and M3X removed BOTH treatments from the family on purpose — "separation is now carried by surface VALUE", `--app-elevation-resting: none`. Now measured on a real seeded card, pinning the current rule in BOTH directions |
+
+The last one is the only place this pass removed an assertion rather than
+re-pointing it, and it is removed because the design system retired the thing it
+asserted, in writing, in the file that owns it. What it was bought for — a card
+is never the page's colour — was already asserted three lines below and still is,
+and the sibling test that a surface which genuinely floats keeps its elevation is
+untouched and passing.
+
+**The seed defect is worth stating on its own**, because it is the same shape as
+§3B: a rule that stopped applying without anyone noticing. `seed-tasks.sql` says
+"Completion is cleared for all seeded tasks" two hundred lines above the block
+that resets `t-search-e2e`, and that block only touches `task_details`.
+Completion is spine state, so it survived every reset — invisible in CI, where
+every shard gets a fresh database, and permanent on a developer's machine.
+
 ### 6.1 `tasks-collection.spec.ts:340` — CI-only, undiagnosed
 
 The saved-views journey failed in CI at the baseline (a 90-second timeout waiting
