@@ -204,6 +204,17 @@ UPDATE task_details
 SET status = 'todo', priority = 'p1', due_date = '2026-07-29', scheduled_date = NULL,
     description = 'Search E2E task description.', waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-search-e2e';
+-- HARDEN-02 — and its COMPLETION, which the block above cannot reach.
+--
+-- Completion lives on the spine, not in `task_details`, so resetting the details
+-- alone leaves a completed fixture completed for every later run — permanently,
+-- because nothing else ever clears it. The seed's own rule two hundred lines
+-- above says "Completion is cleared for all seeded tasks"; this one escaped it,
+-- and the cost is a `search.spec.ts` assertion that expects "Overdue" reading
+-- "Completed" on a machine where any run once completed it. Invisible in CI,
+-- where every shard gets a fresh database, and permanent locally.
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-search-e2e';
 INSERT OR IGNORE INTO note_details (workspace_id, entity_id, entity_type, content, updated_at)
 VALUES ('local-dev-workspace', 'n-search-e2e', 'note', '# Search Body Heading E2E\n\nSyntax-free body match sentinel.', '2026-07-19T02:20:04.000Z');
 UPDATE note_details
