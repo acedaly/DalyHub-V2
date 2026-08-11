@@ -113,9 +113,17 @@ test.describe("UX-01 — Today answers what is on today", () => {
   }) => {
     await gotoFixture(page, "/today");
 
-    // The day is the surface: a "My day" region with the owner's work in it.
+    /*
+     * The day is the surface: a region carrying the owner's work for today.
+     *
+     * HARDEN-02 — this asked for a level-2 "My day". UIX-01 redrew Today as three
+     * balanced regions and named this one **Focus** (`today-day-heading`); the
+     * claim the test makes is unchanged, only the region's name moved. It had
+     * been failing since, unseen, inside the tests shards 4 and 8 never started
+     * before `globalTimeout`.
+     */
     await expect(
-      page.getByRole("heading", { level: 2, name: "My day" }),
+      page.getByRole("heading", { level: 2, name: "Focus" }),
     ).toBeVisible();
 
     // The Meetings SECTION is conditional now — a day with no meetings renders

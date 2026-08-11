@@ -164,17 +164,24 @@ test.describe("visual system — surface hierarchy", () => {
      */
     await page.setViewportSize({ width: 1440, height: 900 });
     /*
-     * UIX-02 — GOALS rather than Projects.
+     * HARDEN-02 — the subject is the card FAMILY, on a surface that has one.
      *
-     * The subject of this test is `.dh-ecard`, the shared entity card, and
-     * Projects moved off it to its own `.dh-pcard`. Goals (and Assets) still
-     * render the shared card, so pointing here keeps the assertion about the
-     * component it was written for instead of quietly re-aiming it at a new one.
+     * This measured `.dh-ecard` — first on `/projects`, then re-pointed to
+     * `/goals`. Neither renders one now: UIX-02 gave Projects `.dh-pcard`, UIX-03
+     * gave Goals `.dh-gcard`, and UIX-05 turned Areas into rows, so the only
+     * `.dh-ecard` left is a deleted-Goal grid a seeded workspace has no rows for.
+     * The locator matched nothing and the test spent its whole timeout on it,
+     * unseen inside the tests shards 4 and 8 never started before
+     * `globalTimeout`.
+     *
+     * `.dh-gcard` on `/goals` is a real, seeded, in-flow card of the same family,
+     * governed by the same block of `card-family.css`, so the contract below is
+     * the one this test was written to pin — asserted on a card that exists.
      */
     await gotoFixture(page, "/goals");
 
     const widgetStyle = await page
-      .locator(".dh-ecard")
+      .locator(".dh-gcard")
       .first()
       .evaluate((element) => {
         const style = getComputedStyle(element);
@@ -191,12 +198,30 @@ test.describe("visual system — surface hierarchy", () => {
         };
       });
 
-    // One hairline, `corner-large`, and a real elevation-1 shadow — the three
-    // treatments the card family names, none of which may quietly disappear.
-    expect(widgetStyle.borderStyle).toBe("solid");
-    expect(parseFloat(widgetStyle.borderWidth)).toBeGreaterThan(0);
+    /*
+     * The card surface, `--app-shape-entity-card`, and a real resting elevation —
+     * the treatments the family names, none of which may quietly disappear.
+     *
+     * The HAIRLINE is deliberately not among them any more, and this is the one
+     * assertion HARDEN-02 removed rather than re-pointed. `card-family.css` says
+     * why in its own words: "M3X removed the hairline AND the shadow. Both were
+     * bought to solve one problem — a card sitting only 2.5 tones above the page
+     * has an ambiguous edge — and the M3X canvas solves it at the source by
+     * taking the page down to tone 97 … Separation is now carried by surface
+     * VALUE." Nothing is lost by dropping it, because the thing it was bought
+     * for is asserted directly below: the card is never the page's colour.
+     *
+     * The RESTING SHADOW went with it, for the same stated reason. `tokens.css`:
+     * "`resting` is what an ordinary card gets — nothing, because separation
+     * comes from surface VALUE — and `raised` is what a hero and a hovered
+     * interactive card get. Anything that genuinely floats (menus, dialogs)
+     * keeps its own M3 level." So this pins the rule in BOTH directions: an
+     * ordinary in-flow card takes no border and no resting depth, and the
+     * sibling test below pins that a surface which genuinely floats still does.
+     */
+    expect(widgetStyle.borderStyle).toBe("none");
     expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(15);
-    expect(widgetStyle.boxShadow).not.toBe("none");
+    expect(widgetStyle.boxShadow).toBe("none");
 
     // The tokens resolve at all (a renamed token silently returns "").
     expect(widgetStyle.card).not.toBe("");
