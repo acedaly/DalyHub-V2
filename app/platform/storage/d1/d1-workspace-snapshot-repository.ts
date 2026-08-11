@@ -857,7 +857,8 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
                 default_landing_destination, default_tasks_view,
                 default_task_view_id, default_task_destination,
                 default_task_capture_parent_id, default_task_capture_parent_kind,
-                default_diary_mode, appearance, navigation_config, version,
+                default_diary_mode, appearance, color_scheme,
+                navigation_config, version,
                 created_at, updated_at
          FROM owner_app_preferences
          WHERE workspace_id = ? AND owner_id = ?
@@ -881,6 +882,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
         defaultTaskCaptureParentKind: null,
         defaultDiaryMode: "day",
         appearance: "system",
+        colorScheme: "violet",
         navigationConfig: { version: 1, hiddenModuleIds: [] },
         version: 0,
         createdAt: null,
@@ -900,6 +902,7 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
       defaultTaskCaptureParentKind: text(row.default_task_capture_parent_kind),
       defaultDiaryMode: requiredText(row.default_diary_mode),
       appearance: requiredText(row.appearance),
+      colorScheme: requiredText(row.color_scheme),
       navigationConfig: jsonValue(row.navigation_config),
       version: requiredInteger(row.version, 1),
       createdAt: text(row.created_at),

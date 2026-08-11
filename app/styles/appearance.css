@@ -10,9 +10,13 @@
  * Nothing here is a new visual vocabulary. The options are M3 list items on the
  * menu's own surface, the selected one takes the `secondary-container` pair the
  * navigation drawer's active indicator already uses, and the shape, spacing and
- * type all come from tokens. There is no appearance card, no preview swatch and no
- * theme gallery — the product has one light/dark pair, and the whole screen is the
- * preview.
+ * type all come from tokens. There is no appearance card and no gallery — the
+ * appearance is one binary choice and the whole screen is its preview.
+ *
+ * THEME-01 adds the COLOUR-SCHEME picker at the bottom of this file. It is the
+ * same control with one extra element (a three-dot preview), because a scheme
+ * picker genuinely cannot be previewed by the screen it is on: four of the five
+ * rows offer a scheme that is not currently painting.
  *
  * ── Why the selected state is never colour alone ─────────────────────────────
  * Three signals carry it, and each survives on its own: the NATIVE radio's dot
@@ -200,5 +204,65 @@
   .dh-appearance__glyph,
   .dh-appearance__check {
     forced-color-adjust: auto;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* THEME-01 — the colour-scheme picker                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The scheme picker REUSES the appearance selector's anatomy wholesale — the
+ * fieldset, the option row, the native radio, the two-line text block, the check
+ * glyph and every state that goes with them. It is the same control answering a
+ * neighbouring question, so it is the same component's CSS plus one element: a
+ * three-dot preview.
+ *
+ * The preview COLOURS are not chosen here. `.dh-scheme-tone[data-scheme]` in
+ * `tokens.css` resolves a scheme NAME to that scheme's three generated preview
+ * roles, exactly as `.dh-tone[data-tone]` resolves an identity name to an accent
+ * ramp — so this file paints with `--app-scheme-preview-*` and never learns what
+ * colour Electric is.
+ */
+
+.dh-scheme__preview {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  /* Aligned to the first LINE of the two-line row, like the radio and glyph. */
+  margin-block-start: var(--app-space-px);
+}
+
+.dh-scheme__swatch {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border-radius: var(--md-sys-shape-corner-full);
+  /* A hairline, so a swatch whose colour is close to the surface it sits on is
+   * still a legible shape rather than an invisible circle. */
+  border: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+.dh-scheme__swatch--primary {
+  background: var(--app-scheme-preview-primary);
+}
+
+.dh-scheme__swatch--secondary {
+  background: var(--app-scheme-preview-secondary);
+}
+
+.dh-scheme__swatch--tertiary {
+  background: var(--app-scheme-preview-tertiary);
+}
+
+/* Under forced colours the platform discards our swatch fills, and it is right
+ * to: the OS's accessibility decision outranks DalyHub's branding (THEME-01 §33).
+ * The preview then carries no information the row does not already state in
+ * words, so it is simply removed rather than left as five identical circles
+ * pretending to be a choice. */
+@media (forced-colors: active) {
+  .dh-scheme__preview {
+    display: none;
   }
 }

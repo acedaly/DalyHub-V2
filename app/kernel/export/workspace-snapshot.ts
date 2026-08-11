@@ -184,6 +184,14 @@ export interface SnapshotOwnerPreferences {
    * and a reader defaults it to `"system"`.
    */
   readonly appearance: string;
+  /**
+   * THEME-01 — the owner's colour scheme, carried for exactly the reason above:
+   * a restore that silently reset it would be an unfaithful reconstruction of
+   * configuration the snapshot already claims to carry. Additive in the same way
+   * — an archive written before this field existed omits the key, and a reader
+   * defaults it to `"violet"`, which is what was true when it was written.
+   */
+  readonly colorScheme: string;
   readonly navigationConfig: JsonValue;
   /** The preference record's optimistic version; `0` when no row exists yet. */
   readonly version: number;

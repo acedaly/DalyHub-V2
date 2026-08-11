@@ -22,6 +22,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   BREAKPOINTS,
+  COLOR_SCHEME_PALETTES,
+  GENERATED_COLOR_SCHEMES,
   REQUIRED_TOKEN_NAMES,
   SCHEME_ROLE_NAMES,
   DARK_SCHEME,
@@ -38,14 +40,34 @@ import {
   lightSchemeTokens,
   readAppFile,
   repoRelative,
+  schemeDarkTokens,
+  schemeLightTokens,
   tokensCss,
 } from "./token-css";
 
-/** Both schemes, labelled, for assertions that must hold in each. */
+/** Both appearances of the DEFAULT scheme, for assertions that name it. */
 const BOTH_SCHEMES = [
   ["light", LIGHT_SCHEME],
   ["dark", DARK_SCHEME],
 ] as const;
+
+/**
+ * THEME-01 — every scheme in every appearance, labelled.
+ *
+ * Each structural guarantee below is a statement about what the APPLICATION looks
+ * like, not about one palette, so it has to hold ten times over rather than
+ * twice. A ladder that only holds for the default scheme is a ladder that breaks
+ * the first time an owner picks another one.
+ */
+const EVERY_SCHEME = GENERATED_COLOR_SCHEMES.flatMap((scheme) =>
+  (["light", "dark"] as const).map(
+    (appearance) =>
+      [
+        `${scheme}/${appearance}`,
+        COLOR_SCHEME_PALETTES[scheme][appearance],
+      ] as const,
+  ),
+);
 
 /** The three sRGB channels of a `#rrggbb` string. */
 function rgb(hex: string): [number, number, number] {
@@ -141,17 +163,47 @@ describe("M3-01 colour role coverage", () => {
     }
   });
 
-  it("mirrors the CSS values in the TS scheme data", () => {
-    for (const role of SCHEME_ROLE_NAMES) {
-      // Every role — system, custom and application alike — is a literal hex in
-      // both artefacts. The application surfaces used to be `var()` aliases onto
-      // the system container ramp and needed dereferencing here; they now come
-      // out of their own generated app-neutral palette, so there is nothing left
-      // to special-case.
-      const token = tokenNameFor(role);
-      expect(light.get(token), `light --${token}`).toBe(LIGHT_SCHEME[role]);
-      expect(dark.get(token), `dark --${token}`).toBe(DARK_SCHEME[role]);
+  it("defines every role in EVERY colour scheme, in both appearances", () => {
+    // THEME-01 §41 — a scheme that is missing a role does not fail loudly: the
+    // browser falls through to whatever the previous block left behind, and the
+    // product looks almost right. So the check is exhaustive and cheap rather
+    // than sampled.
+    for (const scheme of GENERATED_COLOR_SCHEMES) {
+      for (const role of SCHEME_ROLE_NAMES) {
+        for (const [appearance, value] of [
+          ["light", COLOR_SCHEME_PALETTES[scheme].light[role]],
+          ["dark", COLOR_SCHEME_PALETTES[scheme].dark[role]],
+        ] as const) {
+          expect(value, `${scheme}/${appearance} is missing ${role}`).toMatch(
+            /^#[0-9a-f]{6}$/,
+          );
+        }
+      }
     }
+  });
+
+  it("mirrors the CSS values in the TS scheme data, for every scheme", () => {
+    // Every role — system, custom and application alike — is a literal hex in
+    // both artefacts. The application surfaces used to be `var()` aliases onto
+    // the system container ramp and needed dereferencing here; they now come
+    // out of their own generated app-neutral palette, so there is nothing left
+    // to special-case.
+    for (const scheme of GENERATED_COLOR_SCHEMES) {
+      const cssLight = schemeLightTokens(scheme);
+      const cssDark = schemeDarkTokens(scheme);
+      for (const role of SCHEME_ROLE_NAMES) {
+        const token = tokenNameFor(role);
+        expect(cssLight.get(token), `${scheme} light --${token}`).toBe(
+          COLOR_SCHEME_PALETTES[scheme].light[role],
+        );
+        expect(cssDark.get(token), `${scheme} dark --${token}`).toBe(
+          COLOR_SCHEME_PALETTES[scheme].dark[role],
+        );
+      }
+    }
+    // The default scheme's aliases still point at the default scheme.
+    expect(LIGHT_SCHEME).toBe(COLOR_SCHEME_PALETTES.violet.light);
+    expect(DARK_SCHEME).toBe(COLOR_SCHEME_PALETTES.violet.dark);
   });
 
   it("actually changes colour between the two schemes", () => {
@@ -195,21 +247,55 @@ describe("the generated application surfaces", () => {
     "app-surface-raised",
   ] as const;
 
-  it("keeps every application surface low-chroma, so there is no purple wash", () => {
-    // The defect this replaces measured chroma 9.0–10.2 on every surface. 6 is a
-    // ceiling with real headroom under it (the shipped values sit at 2.9–4.3)
-    // and well under the ~8 at which a tint becomes a colour at these tones.
-    for (const [name, scheme] of BOTH_SCHEMES) {
+  /**
+   * The chroma ceiling for an application surface, per appearance.
+   *
+   * LIGHT is unchanged at 6, and deliberately so: the defect this rule replaces
+   * measured chroma 9.0–10.2 on every surface, and at the near-white tones a
+   * light canvas uses (92–100) that is a visible lavender wash over the entire
+   * product. 6 leaves real headroom under it and sits well under the ~8 at which
+   * a tint becomes a colour at those tones.
+   *
+   * DARK is 14, and the difference is the same one the generated tint-strength
+   * table already makes: there is no white to tint at tones 6–26, so the same
+   * chroma that washes a light canvas reads as a deep navy or a charcoal-plum —
+   * a dark NEUTRAL with a temperature, which is precisely what "Electric's shell
+   * is blue-black" means. Holding dark to the light ceiling made Electric's dark
+   * frame indistinguishable from Daly Violet's, which is a scheme unable to state
+   * its own headline claim. 14 still refuses a surface that has become a colour:
+   * the shipped values run 3.1–11.4.
+   */
+  const CHROMA_CEILING = { light: 6, dark: 14 } as const;
+
+  it("keeps every application surface low-chroma, so there is no colour wash", () => {
+    for (const [name, scheme] of EVERY_SCHEME) {
+      const ceiling = name.endsWith("/dark")
+        ? CHROMA_CEILING.dark
+        : CHROMA_CEILING.light;
       for (const role of APP_SURFACES) {
         expect(
           chroma(scheme[role]),
           `${name} --md-app-color-${role.slice("app-".length)} must stay near-neutral`,
-        ).toBeLessThan(6);
+        ).toBeLessThan(ceiling);
       }
       expect(
         chroma(scheme["app-outline-hairline"]),
         `${name}: the card hairline must stay near-neutral too`,
-      ).toBeLessThan(6);
+      ).toBeLessThan(ceiling);
+    }
+  });
+
+  it("keeps every LIGHT canvas under the original wash ceiling", () => {
+    // Stated separately as well as inside the sweep above, because this is the
+    // rule PR #120 broke and the one a future scheme is most likely to be tempted
+    // to relax. A light working surface is neutral. There is no exception.
+    for (const scheme of GENERATED_COLOR_SCHEMES) {
+      for (const role of APP_SURFACES) {
+        expect(
+          chroma(COLOR_SCHEME_PALETTES[scheme].light[role]),
+          `${scheme} light ${role}`,
+        ).toBeLessThan(6);
+      }
     }
   });
 
@@ -218,7 +304,7 @@ describe("the generated application surfaces", () => {
     // lowering the chroma of M3's own neutral ramp yields a faint lilac. The
     // generator rotates the app-neutral hue to the cool end; blue never being
     // below red is the cheap, unambiguous statement of that.
-    for (const [name, scheme] of BOTH_SCHEMES) {
+    for (const [name, scheme] of EVERY_SCHEME) {
       for (const role of APP_SURFACES) {
         const [r, , b] = rgb(scheme[role]);
         expect(
@@ -240,7 +326,7 @@ describe("the generated application surfaces", () => {
     // the app-neutral hairline where the boundary has to be unambiguous. What
     // this rules out is the PR #120 state, where dark navigation and the dark
     // page were the SAME hex and the step was zero.
-    for (const [name, scheme] of BOTH_SCHEMES) {
+    for (const [name, scheme] of EVERY_SCHEME) {
       const page = tone(scheme["app-surface-page"]);
       for (const role of [
         "app-surface-navigation",
@@ -258,7 +344,7 @@ describe("the generated application surfaces", () => {
     // Both schemes recede DOWNWARD — a well is darker than what surrounds it in
     // light and in dark alike. The page is already near black in dark, which is
     // exactly why sunken needs its own rung below it rather than an alias.
-    for (const [name, scheme] of BOTH_SCHEMES) {
+    for (const [name, scheme] of EVERY_SCHEME) {
       expect(
         tone(scheme["app-surface-sunken"]),
         `${name}: sunken must be recessed below the page`,
@@ -275,15 +361,18 @@ describe("the generated application surfaces", () => {
     // it darker than the card is exactly what made PR #120's Today hero read as
     // sunken on the product's most-visited screen. In DARK shadow barely reads
     // against a near-black page, so raised steps up the ramp instead.
-    expect(
-      tone(LIGHT_SCHEME["app-surface-raised"]),
-      "light: raised must never be darker than a card",
-    ).toBeGreaterThanOrEqual(tone(LIGHT_SCHEME["app-surface-card"]));
-    expect(
-      tone(DARK_SCHEME["app-surface-raised"]) -
-        tone(DARK_SCHEME["app-surface-card"]),
-      "dark: raised must lift clearly off the card",
-    ).toBeGreaterThanOrEqual(4);
+    for (const scheme of GENERATED_COLOR_SCHEMES) {
+      const light = COLOR_SCHEME_PALETTES[scheme].light;
+      const dark = COLOR_SCHEME_PALETTES[scheme].dark;
+      expect(
+        tone(light["app-surface-raised"]),
+        `${scheme} light: raised must never be darker than a card`,
+      ).toBeGreaterThanOrEqual(tone(light["app-surface-card"]));
+      expect(
+        tone(dark["app-surface-raised"]) - tone(dark["app-surface-card"]),
+        `${scheme} dark: raised must lift clearly off the card`,
+      ).toBeGreaterThanOrEqual(4);
+    }
   });
 });
 
@@ -374,8 +463,14 @@ describe("M3-01 no consumer references an undefined token", () => {
   });
 });
 
-describe("M3-01 the seven-theme mechanism is gone", () => {
+describe("the retired seven-theme mechanism has not come back", () => {
   it("declares no `data-theme` palette in the stylesheet", () => {
+    // THEME-01 added five colour schemes and did NOT reinstate this. The
+    // difference is the whole point: `data-theme` selected between seven
+    // hand-authored palettes that carried their own component rules;
+    // `data-color-scheme` selects between five GENERATED token maps over one
+    // component system, and no module stylesheet may branch on it (asserted in
+    // `appearance-cascade.test.ts`).
     expect(tokensCss).not.toContain('[data-theme="');
   });
 

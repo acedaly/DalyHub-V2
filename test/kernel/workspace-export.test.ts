@@ -300,6 +300,15 @@ describe("workspace export (D1)", () => {
     expect(JSON.stringify(snapshot.owner)).not.toContain(OWNER);
   });
 
+  it("carries both display preferences, so a restore cannot silently reset them", () => {
+    // SET-02 added `appearance` for this reason; THEME-01 added `colorScheme`
+    // for the same one. A snapshot that claims to carry owner configuration and
+    // then drops the two settings that decide what the product LOOKS like is an
+    // unfaithful reconstruction, and the owner would only find out by looking.
+    expect(snapshot.owner.preferences.appearance).toBeTruthy();
+    expect(snapshot.owner.preferences.colorScheme).toBeTruthy();
+  });
+
   it("is deterministic — two exports of unchanged data are identical", async () => {
     const again = await exportSnapshot();
     expect(JSON.stringify(again)).toBe(JSON.stringify(snapshot));

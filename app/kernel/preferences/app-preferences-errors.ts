@@ -4,6 +4,7 @@ export class AppPreferencesValidationError extends Error {
     readonly field:
       | "ownerId"
       | "appearance"
+      | "colorScheme"
       | "timezone"
       | "dateFormat"
       | "firstDayOfWeek"

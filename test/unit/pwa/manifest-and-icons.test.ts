@@ -41,7 +41,12 @@ import {
   markReach,
   maskableMarkScale,
 } from "../../../scripts/icons/geometry.mjs";
-import { DARK_SCHEME, LIGHT_SCHEME } from "~/shared/tokens";
+import {
+  COLOR_SCHEME_PALETTES,
+  DARK_SCHEME,
+  GENERATED_COLOR_SCHEMES,
+  LIGHT_SCHEME,
+} from "~/shared/tokens";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 
@@ -228,9 +233,20 @@ describe("the document metadata", () => {
     // reference a custom property. Rather than duplicating a hex in `root.tsx`
     // and guarding the copy, the document imports the SAME generated module the
     // stylesheet is written alongside — so there is nothing left to drift.
+    //
+    // THEME-01 made that import the whole PALETTE TABLE rather than the default
+    // scheme's two maps: the installed window's chrome has to continue the page
+    // the owner actually chose, so it is looked up by the resolved scheme.
     expect(rootTsx).toContain('from "./shared/tokens"');
-    expect(rootTsx).toContain('LIGHT_SCHEME["app-surface-page"]');
-    expect(rootTsx).toContain('DARK_SCHEME["app-surface-page"]');
+    expect(rootTsx).toContain("COLOR_SCHEME_PALETTES[colorScheme]");
+    expect(rootTsx).toContain('palette.light["app-surface-page"]');
+    expect(rootTsx).toContain('palette.dark["app-surface-page"]');
+    for (const scheme of GENERATED_COLOR_SCHEMES) {
+      expect(
+        COLOR_SCHEME_PALETTES[scheme].light["app-surface-page"],
+        `${scheme}: the two appearances must not share a page colour`,
+      ).not.toBe(COLOR_SCHEME_PALETTES[scheme].dark["app-surface-page"]);
+    }
     expect(LIGHT_SCHEME["app-surface-page"]).not.toBe(
       DARK_SCHEME["app-surface-page"],
     );

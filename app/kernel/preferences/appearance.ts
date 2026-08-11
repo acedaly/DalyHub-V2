@@ -26,6 +26,13 @@
  * lives in `app/shared/shell/appearance.ts`.
  */
 
+import {
+  PREFERENCE_COOKIE_MAX_AGE,
+  isSecurePreferenceCookieEnvironment,
+  readPreferenceCookie,
+  serializePreferenceCookie,
+} from "./preference-cookies";
+
 /** Everything the owner can choose. Exactly three values, in presentation order. */
 export const APPEARANCE_PREFERENCES = ["system", "light", "dark"] as const;
 
@@ -94,7 +101,7 @@ export function resolveAppearance(
 export const APPEARANCE_COOKIE_NAME = "dh_appearance";
 
 /** Bounded cookie lifetime: one year, in seconds. */
-export const APPEARANCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+export const APPEARANCE_COOKIE_MAX_AGE = PREFERENCE_COOKIE_MAX_AGE;
 
 /**
  * Read the mirrored preference from a raw `Cookie` header. A missing header, a
@@ -103,40 +110,28 @@ export const APPEARANCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 export function readAppearancePreference(
   cookieHeader: string | null | undefined,
 ): AppearancePreference {
-  if (!cookieHeader) {
-    return DEFAULT_APPEARANCE;
-  }
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) {
-      continue;
-    }
-    if (part.slice(0, eq).trim() === APPEARANCE_COOKIE_NAME) {
-      return parseAppearancePreference(part.slice(eq + 1).trim());
-    }
-  }
-  return DEFAULT_APPEARANCE;
+  return parseAppearancePreference(
+    readPreferenceCookie(cookieHeader, APPEARANCE_COOKIE_NAME),
+  );
 }
-
-/** Environments where the appearance cookie must be marked `Secure`. */
-const SECURE_ENVIRONMENTS: ReadonlySet<string> = new Set([
-  "production",
-  "staging",
-  "preview",
-]);
 
 /**
  * Whether the cookie should carry `Secure`, given the raw `ENVIRONMENT` value.
  *
  * Both writers — the appearance action and the app-shell loader's cookie
  * reconciliation — go through this, so the two cannot disagree about the
- * security attributes of the same cookie. Kept here rather than in either caller
- * because a cookie written from two places with different flags is two cookies.
+ * security attributes of the same cookie.
+ *
+ * THEME-01 moved the RULE into `preference-cookies.ts`, because the colour-scheme
+ * mirror is the same cookie in every respect that matters and two independent
+ * copies of "when is this Secure?" is how two cookies that are meant to behave
+ * alike quietly stop doing so. This stays as the appearance's name for it, so no
+ * call site had to change.
  */
 export function isSecureAppearanceEnvironment(
   environment: string | undefined,
 ): boolean {
-  return SECURE_ENVIRONMENTS.has((environment ?? "").trim().toLowerCase());
+  return isSecurePreferenceCookieEnvironment(environment);
 }
 
 /**
@@ -151,15 +146,9 @@ export function serializeAppearanceCookie(
   preference: AppearancePreference,
   options: { readonly secure: boolean },
 ): string {
-  const attributes = [
-    `${APPEARANCE_COOKIE_NAME}=${parseAppearancePreference(preference)}`,
-    "Path=/",
-    `Max-Age=${APPEARANCE_COOKIE_MAX_AGE}`,
-    "SameSite=Lax",
-    "HttpOnly",
-  ];
-  if (options.secure) {
-    attributes.push("Secure");
-  }
-  return attributes.join("; ");
+  return serializePreferenceCookie(
+    APPEARANCE_COOKIE_NAME,
+    parseAppearancePreference(preference),
+    options,
+  );
 }

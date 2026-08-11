@@ -80,6 +80,7 @@ import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 // `AppShell`, and importing it here would pull the whole application frame into
 // the Settings route chunk for the sake of one control.
 import { AppearanceSelector } from "~/shared/shell/AppearanceSelector";
+import { ColorSchemeSelector } from "~/shared/shell/ColorSchemeSelector";
 import { SelectField, Switch } from "~/shared/forms";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
@@ -352,6 +353,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       defaultTaskCaptureParentKind: preferences.defaultTaskCaptureParentKind,
       defaultDiaryMode: preferences.defaultDiaryMode,
       appearance: preferences.appearance,
+      colorScheme: preferences.colorScheme,
       version: preferences.version,
     },
     defaultTaskCaptureParent:
@@ -1025,7 +1027,7 @@ function GeneralSection({
           owner is looking at while they look at it. */}
       <SettingsGroup
         title="Appearance"
-        description="DalyHub has one light and one dark appearance. Choose which one to use, or follow your device."
+        description="Light or dark. Every colour scheme has both, so this and the scheme below are independent choices."
       >
         <SettingsRow
           align="start"
@@ -1033,6 +1035,25 @@ function GeneralSection({
             <AppearanceSelector
               value={data.preferences.appearance}
               variant="settings"
+              hideLegend
+            />
+          }
+        />
+      </SettingsGroup>
+      {/* THEME-01 — the colour-scheme picker, its own group directly under
+       * Appearance. Two groups rather than one, because they are two settings
+       * that are read together and stored, posted and applied separately; and
+       * because "Colour scheme" needs to be a heading the owner can find, not a
+       * label buried inside a group called something else. */}
+      <SettingsGroup
+        title="Colour scheme"
+        description="Colour only — layout, type, spacing and shape are the same in every scheme. Changing it applies straight away."
+      >
+        <SettingsRow
+          align="start"
+          control={
+            <ColorSchemeSelector
+              value={data.preferences.colorScheme}
               hideLegend
             />
           }

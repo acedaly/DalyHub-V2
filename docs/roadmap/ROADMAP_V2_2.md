@@ -340,6 +340,65 @@ them.
 **Broad UI redesign is complete.** Future UI work is targeted feature work
 against the design system, not another whole-app pass.
 
+### ☑ THEME-01 - DalyHub colour schemes — **DELIVERED 2026-08-11**
+
+Five genuinely distinct colour schemes over ONE design system, so DalyHub stops
+meaning "the violet app" without becoming five applications. Accepted as
+[ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
+
+> **The identifier is reused deliberately.** The V2 `THEME-01`
+> ([Phase 12b](ROADMAP_V2.md#-theme-01--the-curated-theme-system)) was the seven-,
+> then five-, palette CURATED theme system, retired wholesale by M3-01/ADR-074.
+> This is not a revival of it: those were hand-authored palettes carrying their own
+> component rules, and these are five GENERATED token maps over the Material
+> Design 3 architecture ADR-074 built, with a test forbidding any module stylesheet
+> from branching on one.
+
+- **The schemes.** **Daly Violet** (default, and byte-identical to what M3X
+  shipped, so nobody's colours changed), **Electric** (cobalt · violet · magenta
+  over a deep blue-black shell), **Pulse** (magenta · plum · a disciplined lime
+  tertiary on charcoal), **Ocean** (royal blue · teal · cyan on cool slate) and
+  **Graphite** (charcoal brand, full-colour semantics).
+- **Three concepts, kept apart.** Design system (never varies) · colour scheme
+  (`data-color-scheme`) · appearance (`data-appearance`). The last two are
+  independent: every scheme has a first-class light AND dark pair, so
+  "Electric, Light" is as real a state as "Electric, Dark".
+- **A scheme is a token map.** One generator, one role list, one variant, 205
+  roles per scheme — no per-scheme stylesheet, no per-scheme component rule, and
+  a test that fails the build if any stylesheet outside `tokens.css` so much as
+  mentions the attribute. Measured cost of four extra schemes: **+8 kB gzipped**.
+- **Neutral surfaces still dominate.** Working surfaces come from each scheme's
+  own near-neutral palette, capped at HCT chroma 6 in light and 14 in dark (there
+  is no white to tint at tone 10, which is why the ceiling is per appearance).
+  Navigation is where a scheme is allowed to be strongest — Electric's dark
+  navigation sits BELOW its canvas so the shell reads as a blue-black frame.
+- **Semantics do not belong to the scheme.** Error, warning, success, the four
+  priorities, the five record states, entity identity and the accent ramp use the
+  same sources everywhere, harmonised to each seed. Asserted, per scheme, in both
+  appearances: brand ≥25° from error and overdue, the priority ramp cannot
+  collapse, no two entity identities share a colour, six chart series ≥25° apart.
+- **Settings.** One picker under Appearance — five native radios, each with a
+  name, a sentence and a three-dot preview drawn from generated per-scheme preview
+  tokens, so a row shows its OWN scheme in the current appearance. Switching is
+  immediate and optimistic; nothing reloads.
+- **Persistence and first paint.** Owner-scoped column (migration `0039`,
+  additive, `DEFAULT 'violet'`), record as authority, `dh_color_scheme` cookie as
+  a first-paint mirror reconciled by the shell loader, attribute written
+  server-side. An unknown or stale value matches no scheme block and lands on the
+  base `:root` — Daly Violet — so the safe fallback is a property of the cascade.
+- **Non-goals, and they stay non-goals:** a custom colour picker, user-authored or
+  downloaded palettes, a theme marketplace, per-Project or per-module schemes, and
+  any change to typography, spacing, shape, layout, motion, icons or charts.
+
+### ☐ DS-17 - Select clear-control names
+
+Complete the cross-product select accessibility follow-up.
+
+- Convert the affected tests away from brittle substring `getByLabel` queries.
+- Rename `SelectField` and `SelectSheetControl` clear controls so each names the
+  field it clears, matching `InlineSelectField`.
+- **Non-goals:** redesigning selects or changing unset/empty semantics, which are
+  already correct.
 ### ☑ DS-17 - Select clear-control names - **DELIVERED 2026-08-11**
 
 The cross-product select accessibility follow-up, delivered inside

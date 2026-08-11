@@ -43,6 +43,24 @@ export {
   appearanceOption,
   type AppearanceDescriptor,
 } from "./appearance";
+/**
+ * THEME-01 — the ONE colour-scheme control and its presentation registry. Only
+ * Settings composes it; there is no scheme control in the account menu or in a
+ * page header.
+ */
+export {
+  ColorSchemeSelector,
+  COLOR_SCHEME_ACTION_PATH,
+  type ColorSchemeSelectorProps,
+} from "./ColorSchemeSelector";
+export {
+  COLOR_SCHEME_LABEL,
+  COLOR_SCHEME_OPTIONS,
+  COLOR_SCHEME_PREVIEW_SLOTS,
+  colorSchemeLabel,
+  colorSchemeOption,
+  type ColorSchemeDescriptor,
+} from "./color-scheme";
 export {
   displayNameFromEmail,
   greetingNameFor,

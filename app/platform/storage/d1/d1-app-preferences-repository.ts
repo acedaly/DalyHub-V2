@@ -46,6 +46,7 @@ interface AppPreferencesRow {
   readonly workspace_id: string;
   readonly owner_id: string;
   readonly appearance: string | null;
+  readonly color_scheme: string | null;
   readonly timezone: string;
   readonly date_format: string;
   readonly first_day_of_week: string;
@@ -168,15 +169,15 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
         this.#db
           .prepare(
             `INSERT INTO owner_app_preferences (
-               workspace_id, owner_id, appearance, timezone, date_format,
-               first_day_of_week,
+               workspace_id, owner_id, appearance, color_scheme, timezone,
+               date_format, first_day_of_week,
                default_landing_destination, default_tasks_view,
                default_task_destination, default_task_view_id,
                default_task_capture_parent_id, default_task_capture_parent_kind,
                default_diary_mode,
                navigation_config, version, created_at, updated_at
              )
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
              ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
                ${assignments},
                version = owner_app_preferences.version + 1,
@@ -188,6 +189,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
             this.#workspaceId,
             owner,
             next.appearance,
+            next.colorScheme,
             next.timezone,
             next.dateFormat,
             next.firstDayOfWeek,
@@ -234,6 +236,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
     const navigationRaw = safeJson(row.navigation_config);
     const preferences: AppPreferences = normaliseStoredPreferences({
       appearance: row.appearance,
+      colorScheme: row.color_scheme,
       timezone: row.timezone,
       dateFormat: row.date_format,
       firstDayOfWeek: row.first_day_of_week,
@@ -267,6 +270,7 @@ const PATCH_COLUMNS: readonly {
   readonly column: string;
 }[] = [
   { key: "appearance", column: "appearance" },
+  { key: "colorScheme", column: "color_scheme" },
   { key: "timezone", column: "timezone" },
   { key: "dateFormat", column: "date_format" },
   { key: "firstDayOfWeek", column: "first_day_of_week" },
@@ -300,6 +304,7 @@ function safeJson(value: string): unknown {
 function preferencesEqual(a: AppPreferences, b: AppPreferences): boolean {
   return (
     a.appearance === b.appearance &&
+    a.colorScheme === b.colorScheme &&
     a.timezone === b.timezone &&
     a.dateFormat === b.dateFormat &&
     a.firstDayOfWeek === b.firstDayOfWeek &&

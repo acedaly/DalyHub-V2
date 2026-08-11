@@ -75,6 +75,10 @@ export default [
   // first-paint cookie. It renders no shell, so it stays OUTSIDE the app-shell
   // layout — and it must, because the account menu submits it from every route.
   route("preferences/appearance", "routes/appearance-action.ts"),
+  // THEME-01 — the colour-scheme preference action, the appearance action's twin
+  // for the other half of the display preference. Same shape, same reasons: a
+  // POST-only JSON resource route outside the shell layout.
+  route("preferences/color-scheme", "routes/color-scheme-action.ts"),
   // DS-08 global Search endpoint — a JSON resource route behind the Worker auth
   // boundary. It renders no shell, so it stays OUTSIDE the app-shell layout.
   route("search", "routes/search.ts"),
