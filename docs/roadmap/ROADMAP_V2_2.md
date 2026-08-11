@@ -384,6 +384,44 @@ something before another large change lands on top of it. Full record:
 - **Non-goals held:** no redesign, no new module, no retry raised, no test
   weakened, no shard count changed without evidence.
 
+### ☑ CAPTURE-01 - Universal DalyHub capture - **DELIVERED 2026-08-11**
+
+Make DalyHub easier to put a thought INTO than it is to forget the thought. Capture
+from an iPhone - by Shortcut, Siri, the Share Sheet or a forwarded email - without
+opening the application first.
+
+- **One capture contract, many thin transports.** `app/kernel/capture` owns a single
+  `CaptureRequest`; the HTTP endpoint, inbound email and any future client produce
+  one. Adding a browser extension, a Raycast command or a native iOS app later means
+  an auth adapter and a transport, not a second capture backend.
+- **It terminates in the EXISTING domain.** A captured Task is the same atomic
+  `TaskRepository.createTask` `/tasks/new` uses, through the same deterministic
+  TASKS-01 parser; a captured Note is the same entity create plus the Note's own
+  content mutation. Migration `0039` adds credentials and rate-limit counters and
+  stores no captured record - there is no `shortcut_tasks` and no `email_notes`.
+- **Inbox is the safety net.** `auto` classification is deterministic, conservative
+  and AI-free; anything ambiguous becomes an unassigned Task, which is what DalyHub's
+  Inbox already is. No Project, Area or Goal is ever guessed.
+- **The credential can only bring thoughts in.** A `dhcap_` token creates Tasks and
+  Notes and nothing else - and that is structural, because CAPTURE-01 adds exactly one
+  endpoint and no read, update or delete surface for a leaked token to reach. Only a
+  SHA-256 digest is stored; revocation is immediate; the workspace is resolved
+  server-side and cannot be named by a request.
+- **Idempotency, bounds and rate limits reuse what existed.** The PWA-05 receipt
+  protocol (key namespaced by credential) makes a retried POST a no-op; request size
+  is bounded before the domain; per-credential fixed windows bound abuse without ever
+  bounding the owner.
+- **Email is another transport.** A Cloudflare Email Worker on the same Worker, gated
+  by envelope sender + allowlist + SPF/DKIM/DMARC, with a two-prefix syntax and HTML
+  converted to plain text.
+- **Not built, deliberately:** a native app, Apple Watch, a browser extension,
+  attachments, AI classification, any read or general CRUD API, imports or sync.
+- Accepted via
+  [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-universal-capture--one-capture-contract-many-thin-transports-and-a-credential-that-can-only-bring-thoughts-in).
+  See [`UNIVERSAL_CAPTURE.md`](../development/UNIVERSAL_CAPTURE.md), which carries the
+  Apple Shortcut setup, the required Cloudflare Access bypass, and the manual iPhone
+  and email acceptance checklists.
+
 ### NEXT
 
 ### ☐ TASKS-11 - Deterministic natural-language capture v2
@@ -414,6 +452,14 @@ After TODAY-09, refine the Focus panel only if the evidence shows that one combi
 
 - **TASKS-12 - Ordinal monthly recurrence**, only if owner routines need patterns
   such as "first Monday of every month".
+- **Capture surfaces beyond the phone**, each of which is an authentication adapter
+  plus a transport over the CAPTURE-01 contract rather than new capture
+  infrastructure: a native iOS app, Apple Watch, a browser extension, a macOS
+  Shortcut or Raycast command, Pushover.
+- **Review Inbox with AI** - a proposal-shaped triage capability over what capture
+  collected. Explicitly separate from capture, which must never depend on a provider.
+- **Attachment capture, inbound calendar sync and a broader external CRUD API** -
+  each a real capability, none of them input, and none of them a CAPTURE-01 defect.
 - Broader mobile polish after Tasks/Today acceptance is stable.
 - Richer review surfaces after daily capture and attention are trusted. (The
   **Analytics** half of this line shipped in UIX-05, and shipped early precisely

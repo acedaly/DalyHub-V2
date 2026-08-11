@@ -17,6 +17,10 @@ import type {
   WorkspaceEventRecorder,
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type {
+  CaptureRateLimiter,
+  CaptureTokenRepository,
+} from "~/kernel/capture";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import { TASK_VIEW_CODEC, type TaskViewRepository } from "~/kernel/task-views";
@@ -60,6 +64,15 @@ import type {
 } from "~/kernel/workspaces";
 
 import { D1ActivityRepository } from "./d1-activity-repository";
+import {
+  D1CaptureRateLimiter,
+  pruneCaptureRateWindows,
+  type D1CaptureRateLimiterOptions,
+} from "./d1-capture-rate-limiter";
+import {
+  D1CaptureTokenRepository,
+  type D1CaptureTokenRepositoryOptions,
+} from "./d1-capture-token-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
@@ -633,6 +646,35 @@ export function createCrossViewQueryRepository(
 
 export { D1SavedViewRepository, type D1SavedViewRepositoryOptions };
 export { D1CrossViewQueryRepository };
+
+/**
+ * CAPTURE-01 — the capture credential store and the capture rate-limit counter.
+ * Both are workspace-bound, so a capture credential can never be read, used or
+ * counted outside the workspace it was minted in (§36).
+ */
+export {
+  D1CaptureTokenRepository,
+  type D1CaptureTokenRepositoryOptions,
+  D1CaptureRateLimiter,
+  type D1CaptureRateLimiterOptions,
+  pruneCaptureRateWindows,
+};
+
+export function createCaptureTokenRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1CaptureTokenRepositoryOptions,
+): CaptureTokenRepository {
+  return new D1CaptureTokenRepository(db, context, options);
+}
+
+export function createCaptureRateLimiter(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1CaptureRateLimiterOptions,
+): CaptureRateLimiter {
+  return new D1CaptureRateLimiter(db, context, options);
+}
 
 export function createAppPreferencesRepository(
   db: D1Database,

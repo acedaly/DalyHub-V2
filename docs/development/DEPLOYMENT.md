@@ -894,6 +894,43 @@ Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md) §5.
 
 ---
 
+## External capture configuration (CAPTURE-01, 2026-08-11)
+
+DalyHub deploys perfectly well with **no capture configuration at all**. The HTTP
+capture endpoint needs none: it is authenticated by scoped `dhcap_` tokens the
+owner creates in **Settings → Capture**, and those live in D1 as digests rather
+than as deployment values. Email capture is a separate, opt-in surface.
+
+| Secret | Purpose | Required? |
+|---|---|---|
+| `CAPTURE_EMAIL_RECIPIENTS` | the capture address(es) Email Routing delivers to this Worker | optional; email capture is OFF without it |
+| `CAPTURE_EMAIL_ALLOWED_SENDERS` | the address(es) permitted to write into DalyHub by email | optional; email capture is OFF without it |
+
+Both are supplied with `wrangler secret put` and, like the Access and AI values,
+are deliberately **not** declared in `wrangler.jsonc` — a committed `var` of the
+same name would override the deploy-time secret. Email capture requires BOTH: a
+half-configured deployment accepts nothing, which is the correct default for a
+feature that writes into someone's life when it is on. Neither address is
+hard-coded anywhere in application logic.
+
+**The one required Cloudflare-side step.** Cloudflare Access intercepts requests to
+`hub.daly.id.au` *before* the Worker runs, and an Apple Shortcut has no browser
+with which to complete an Access challenge. On the Access application protecting
+the Custom Domain, add a **Bypass** policy scoped to the path `/api/capture`.
+Without it, every capture is answered with a login redirect the Shortcut cannot
+follow; with it, authentication for that one path is DalyHub's own scoped capture
+token, which is exactly what CAPTURE-01 exists to provide. The full rationale,
+the policy shape and a `curl` verification are in
+[`UNIVERSAL_CAPTURE.md` §7](UNIVERSAL_CAPTURE.md#7-deployment-configuration).
+
+**Email Routing.** To enable email capture, add the capture address in the
+Cloudflare dashboard under **Email → Email Routing** and route it to **Send to a
+Worker → dalyhub-v2**. The Worker's `email` handler is inert until both that
+routing and the two secrets above exist, so adding the handler changed nothing for
+a deployment that does not want it.
+
+---
+
 ## Response security headers, and the one Cloudflare owns (AUDIT-10, 2026-08-08)
 
 Every response the Worker emits carries its security headers from ONE place,

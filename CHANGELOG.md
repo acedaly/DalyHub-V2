@@ -17,6 +17,56 @@ no version number to group them under.
 
 ---
 
+## Capture from your phone without opening DalyHub (CAPTURE-01)
+
+A thought does not wait for an app to load. Until now, catching one meant
+unlocking the phone, finding the DalyHub icon, waiting for it to open, waiting to
+be signed in, waiting for the page, then finding Quick Capture. Every step was
+small; together they were longer than the thought lasted.
+
+Now there is a much shorter path, and several ways onto it.
+
+**A Shortcut on your Home Screen.** Tap it, choose Task, Note or Inbox, dictate or
+type, done. Put it on the Home Screen, in a widget, on the Action Button, or make
+two even faster ones — **New DalyHub Task** and **New DalyHub Note** — that skip
+the choice entirely.
+
+**Siri.** _"Hey Siri, Capture to DalyHub."_ → _"What do you want to capture?"_ →
+_"Call Mum tomorrow afternoon."_ → _"Saved to DalyHub."_ Nothing extra to set up;
+the Shortcut's name is the phrase.
+
+**The Share Sheet.** Share a page from Safari and keep it as a Note, with the
+page's own title and a real link back to it in the note's body — or as a Task,
+with the link kept out of the task's title where it would only be noise.
+
+**Email.** Forward anything to your capture address and it lands in your Inbox,
+cleaned up: a readable subject, a readable body, no wall of raw email. Start the
+subject with `task:` or `note:` if you already know what it is.
+
+**It goes where you would put it yourself.** A task with a date or a priority in
+it is read the same way DalyHub already reads what you type into Quick Capture —
+_"Call Sarah tomorrow p1"_ becomes a P1 task scheduled for tomorrow. Anything
+DalyHub is not sure about goes to your Inbox rather than being guessed at.
+Nothing is ever filed under a Project or an Area automatically, and nothing is
+ever sent to an AI to be classified.
+
+**Losing your phone does not mean losing DalyHub.** A capture device can create
+tasks and notes and _nothing else_ — it cannot read your records, change them,
+delete them or export anything. **Settings → Capture** shows every device, when
+each last captured something, and a Revoke button that takes effect immediately.
+The token is shown once when you create it, because DalyHub does not keep a copy.
+
+**A lost connection does not lose your words.** If DalyHub cannot be reached, the
+Shortcut says so plainly and puts your text on the clipboard. Nothing ever
+pretends to have saved. And if a capture is sent twice because the phone lost the
+reply, you get one task, not two.
+
+Setup takes a few minutes in Apple's own Shortcuts app — there is no DalyHub app
+to install. Step-by-step instructions are in
+[`UNIVERSAL_CAPTURE.md`](docs/development/UNIVERSAL_CAPTURE.md).
+
+---
+
 ## Goals now show where you are, where you started, and how far is left (UIX-03)
 
 Goals could already track a real measurement — a weight, a savings balance, a

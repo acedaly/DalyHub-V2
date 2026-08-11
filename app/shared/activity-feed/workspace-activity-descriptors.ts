@@ -101,6 +101,11 @@ import {
   PERSON_RESTORED,
   PERSON_UPDATED,
 } from "~/kernel/people";
+import {
+  CAPTURE_RECEIVED,
+  CAPTURE_SOURCE_LABELS,
+  isCaptureSource,
+} from "~/kernel/capture";
 import { APP_PREFERENCES_CHANGED } from "~/kernel/preferences";
 import {
   PROJECT_ARCHIVED,
@@ -234,6 +239,39 @@ function ownerAction(label: string, verb: string): ActivityTypeDescriptor {
   };
 }
 
+/**
+ * CAPTURE-01 — a descriptor for an external capture.
+ *
+ * This is the one descriptor that reads the payload, and it reads exactly one
+ * field: the capture SOURCE, which is a bounded enum, not text anybody typed. The
+ * whole value of the event is the answer to "how did this get here?" — "Task
+ * created via Apple Shortcut" — and dropping the source would leave a line that
+ * says nothing the record's own `entity.created` event does not.
+ *
+ * It emits no captured text, no title, no URL and no device-supplied string.
+ * An unrecognised source degrades to a calm generic phrase rather than echoing
+ * whatever was stored.
+ */
+function captureReceived(): ActivityTypeDescriptor {
+  return {
+    label: "Captured from outside DalyHub",
+    describe: (base) => {
+      const source = base.payload.source;
+      const via = isCaptureSource(source)
+        ? CAPTURE_SOURCE_LABELS[source]
+        : "an external capture device";
+      const kind = base.payload.kind === "note" ? "note" : "task";
+      return {
+        segments: [
+          { kind: "actor" },
+          { kind: "text", text: ` captured a ${kind} via ${via}` },
+        ],
+        entityType: kind,
+      };
+    },
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* The curated cross-module set                                               */
 /* -------------------------------------------------------------------------- */
@@ -296,6 +334,9 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
   [GOAL_COMPLETED]: event("Completed goal", "goal", "success"),
   [GOAL_REOPENED]: event("Reopened goal", "goal"),
   [GOAL_DETAILS_UPDATED]: event("Updated goal", "goal"),
+
+  /* External capture (CAPTURE-01) ------------------------------------------- */
+  [CAPTURE_RECEIVED]: captureReceived(),
 
   /* Account & security (SET-03) --------------------------------------------- */
   [SECURITY_SIGNED_OUT]: ownerAction("Signed out", "signed out of DalyHub"),
