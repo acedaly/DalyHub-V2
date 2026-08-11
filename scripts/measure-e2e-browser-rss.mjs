@@ -23,9 +23,8 @@
  * so the two can be joined on time and the curve read against test index.
  */
 
-import { spawn } from "node:child_process";
-import { mkdirSync, createWriteStream } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { createWriteStream, mkdirSync } from "node:fs";
 
 const argv = process.argv.slice(2);
 const separator = argv.indexOf("--");
@@ -55,7 +54,7 @@ const elapsed = () => ((Date.now() - started) / 1000).toFixed(1);
  * failures with different answers, and one column cannot tell them apart.
  */
 function sampleRss() {
-  let out = "";
+  let out;
   try {
     out = execFileSync("ps", ["-eo", "rss=,comm=,args="], {
       encoding: "utf8",
@@ -85,9 +84,7 @@ function sampleRss() {
 const timer = setInterval(() => {
   const sample = sampleRss();
   if (sample) {
-    rss.write(
-      `${elapsed()},${sample.total},${sample.peak},${sample.count}\n`,
-    );
+    rss.write(`${elapsed()},${sample.total},${sample.peak},${sample.count}\n`);
   }
 }, INTERVAL_MS);
 
