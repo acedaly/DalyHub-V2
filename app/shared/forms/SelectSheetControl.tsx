@@ -31,6 +31,7 @@ import { useRef, useState } from "react";
 import { ChevronDownIcon } from "~/shared/icons";
 import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
 
+import { clearControlLabel } from "./clear-label";
 import { composeDescribedBy, deriveFieldIds } from "./field-ids";
 import type { SingleSelectFieldProps } from "./SelectField";
 import type { SelectOption } from "./types";
@@ -245,6 +246,11 @@ export function SelectSheetControl({
             An OPTIONAL field must be able to return to genuinely empty. A
             required one has no such state, so it is not offered a way to create
             one — the prompt lives in the placeholder, never as a pickable row.
+
+            DS-17 — the row names the FIELD it clears ("Clear due date"), not the
+            act of clearing, so two selects on one surface are two distinguishable
+            commands rather than two rows reading "Clear selection". The wording
+            is shared with `SelectField` and `InlineSelectField`.
           */}
           {!required && value ? (
             <button
@@ -257,7 +263,7 @@ export function SelectSheetControl({
               }}
               data-testid={`${baseId}-clear`}
             >
-              Clear selection
+              {clearControlLabel(label)}
             </button>
           ) : null}
         </Sheet>

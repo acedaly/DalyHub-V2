@@ -180,7 +180,9 @@ describe("the compact select sheet", () => {
   it("lets an OPTIONAL field return to empty, and a required one never can", () => {
     const { unmount } = render(<Host initial="vehicle" required={false} />);
     fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    // DS-17 — the command names the FIELD, so two selects on one surface are two
+    // distinguishable commands rather than two rows reading "Clear selection".
+    fireEvent.click(screen.getByRole("button", { name: "Clear type" }));
     expect(trigger()).toHaveTextContent("Choose a type…");
     unmount();
 

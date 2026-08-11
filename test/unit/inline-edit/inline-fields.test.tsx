@@ -249,7 +249,9 @@ describe("InlineDateField", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Due date: 2026-09-03" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    // DS-17 — the accessible name says WHICH field it empties; the visible word
+    // stays "Clear", which WCAG 2.5.3 requires the accessible name to contain.
+    fireEvent.click(screen.getByRole("button", { name: "Clear due date" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(null));
   });
 
@@ -266,7 +268,7 @@ describe("InlineDateField", () => {
       screen.getByRole("button", { name: "Due date: 2026-09-03" }),
     );
     expect(
-      screen.queryByRole("button", { name: "Clear" }),
+      screen.queryByRole("button", { name: "Clear due date" }),
     ).not.toBeInTheDocument();
   });
 

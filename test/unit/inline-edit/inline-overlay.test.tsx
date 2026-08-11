@@ -437,7 +437,11 @@ describe("InlineDateField — the full date-selection interface", () => {
       screen.getByRole("button", { name: "Tomorrow" }),
     ).toBeInTheDocument();
     expect(dialog.querySelector('input[type="date"]')).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+    // DS-17 — the clear command names the field it empties, so a surface with two
+    // dates on it offers two distinguishable commands.
+    expect(
+      screen.getByRole("button", { name: "Clear due date" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Tomorrow" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-08-10"));
@@ -537,7 +541,7 @@ describe("InlineDateField — the full date-selection interface", () => {
     ).toBeInTheDocument();
     expect(sheet.querySelector('input[type="date"]')).not.toBeNull();
     expect(
-      within(sheet).getByRole("button", { name: "Clear" }),
+      within(sheet).getByRole("button", { name: "Clear due date" }),
     ).toBeInTheDocument();
   });
 });

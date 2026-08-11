@@ -43,6 +43,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 
 import { AnchoredSurface } from "~/shared/anchored";
+import { clearControlLabel } from "~/shared/forms/clear-label";
 import { Sheet } from "~/shared/sheet";
 import { useCompactViewport } from "~/shared/viewport";
 
@@ -193,6 +194,17 @@ export function InlineDateField({
             type="button"
             className="dh-btn dh-btn--ghost dh-btn--sm"
             disabled={field.pending}
+            /*
+             * DS-17 — the accessible name says which field this empties, the
+             * same wording every other clear control in the product uses. The
+             * visible word stays "Clear" because the popover it lives in is
+             * already titled "Edit <field>", so repeating the field in the
+             * button's own text would be noise; the accessible name is where a
+             * screen-reader user, who may reach the button without having heard
+             * the dialog title again, needs the context. WCAG 2.5.3 holds — the
+             * visible label is a prefix of the accessible name.
+             */
+            aria-label={clearControlLabel(label)}
             onClick={() => field.submit(null)}
           >
             Clear
