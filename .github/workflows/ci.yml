@@ -69,11 +69,28 @@ jobs:
             echo "Could not resolve a non-empty diff — running everything."
             echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          echo "Changed files:"; echo "$files" | sed 's/^/  /'
+          echo "Changed files:"; printf '%s\n' "$files" | sed 's/^/  /'
           # Anything NOT matching the inert allowlist forces the full run.
-          if echo "$files" | grep -qvE '^(docs/.*|.*\.md|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp)$'; then
+          #
+          # Decided on the CONTENT of the non-inert list, not on grep's exit
+          # code, and computed with a here-string rather than a pipe. The first
+          # version of this did `echo "$files" | grep -qvE …` under
+          # `set -o pipefail`, which is a trap: `grep -q` exits at its FIRST
+          # match, `echo` is then killed by SIGPIPE (141), and `pipefail`
+          # reports 141 as the pipeline's status — so "there are executable
+          # paths" was read as "there are none". It skipped Unit, Build and E2E
+          # on a pull request that changed `playwright.config.ts`, four specs
+          # and two stylesheets, which is the exact silent-skip this filter was
+          # written to be incapable of.
+          #
+          # The rewrite cannot fail that way: no pipe, so no SIGPIPE; `|| true`
+          # absorbs grep's ordinary exit-1-on-no-match; and the question asked
+          # is "is the non-inert list non-empty", which has no third answer.
+          executable="$(grep -vE '^(docs/.*|.*\.md|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp)$' <<<"$files" || true)"
+          if [ -n "$executable" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "Executable paths changed — running everything."
+            echo "Executable paths changed — running everything:"
+            printf '%s\n' "$executable" | sed 's/^/  /'
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
             echo "Documentation/imagery only — Static alone is sufficient."
@@ -351,7 +368,7 @@ jobs:
             | select(.value.result != "success" and .value.result != "skipped")
             | .key' needs.json)"
           if [ -n "$bad" ]; then
-            echo "::error::CI Gate failed. Not successful: $(echo "$bad" | tr '\n' ' ')"
+            echo "::error::CI Gate failed. Not successful: $(tr "\n" " " <<<"$bad")"
             exit 1
           fi
           # A skipped `static` would mean the workflow structure changed without
@@ -359,5 +376,24 @@ jobs:
           if [ '${{ needs.static.result }}' != 'success' ]; then
             echo "::error::CI Gate failed: Static did not succeed."
             exit 1
+          fi
+          # Defence in depth: a skip is only ever legitimate when `Scope` asked
+          # for one. Accepting "skipped" above is what lets a documentation-only
+          # pull request go green, and it is also what would let a BROKEN scope
+          # job wave a real change through with nothing but Static run — which
+          # is not hypothetical: the first version of this pipeline did exactly
+          # that, because a `grep -q` in a pipeline under `pipefail` inverted
+          # its answer. The scope decision and the skips it is supposed to cause
+          # are cross-checked here, so that failure mode is a red gate rather
+          # than a silent one, whatever future edit reintroduces it.
+          if [ '${{ needs.changes.outputs.code }}' = 'true' ]; then
+            vacuous="$(jq -r 'to_entries[]
+              | select(.value.result == "skipped")
+              | .key' needs.json)"
+            if [ -n "$vacuous" ]; then
+              list="$(tr '\n' ' ' <<<"$vacuous")"
+              echo "::error::CI Gate failed: Scope says this change is executable, but these jobs were skipped: $list"
+              exit 1
+            fi
           fi
           echo "All required jobs succeeded (documentation-only skips allowed)."
