@@ -120,14 +120,15 @@ export default defineConfig({
    * When that re-derivation happens, size against per-shard BROWSER LIFETIME as
    * well as per-shard minutes. Eight shards, with the ~190 capture stubs no
    * longer padding the split, give each shard roughly 190 REAL tests in one
-   * long-lived browser — and on runs 31456794416 and 31457835020 shard 1 died
-   * with `browser.newContext: … has been closed` on the SAME test both times
-   * (an axe scan in dark mode, ~185 tests in) — and then passed on 31458924652.
-   * Two of three: intermittent in RATE, but not in victim, which is a memory
-   * threshold this split sits directly on rather than a random crash. A green
-   * shard 1 is one sample on the lucky side of that line, not an all-clear.
-   * Fewer, fatter shards is not a free trade against a browser that has to
-   * survive all of them.
+   * long-lived browser — and shard 1 died with `browser.newContext: … has been
+   * closed` on THREE of the four runs sampled (31456794416, 31457835020 and
+   * 31460437989; 31458924652 passed clean). What repeats is the POSITION, not
+   * the test: always ~185 tests in, always inside `ai-assistance.spec.ts`'s
+   * responsive/phone-matrix block, but on three different tests. A failure that
+   * lands at a position rather than on a test is not a bug in those tests — it
+   * is the process running out of something at about that point, in the most
+   * axe-heavy stretch of the shard. Fewer, fatter shards is not a free trade
+   * against a browser that has to survive all of them.
    *
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
