@@ -59,9 +59,27 @@ test.describe("Today — the day surface", () => {
     if ((await taskStat.count()) > 0) {
       await expect(taskStat).toBeVisible();
     }
+    /*
+     * TODAY-09 renamed the day's one band from "Due today" to "For today",
+     * because the band held due-today AND scheduled-today work and only named
+     * half of it. TODAY-10 answered that mismatch the other way round: the band
+     * became two bands that each name exactly what they hold, so "Due today"
+     * is a legitimate label again — over due-today work alone. What must never
+     * come back is the ONE combined band that named half its contents.
+     */
     await expect(
-      page.locator(".dh-day-section__label", { hasText: "Due today" }),
+      page.locator(".dh-day-section__label", { hasText: "For today" }),
     ).toHaveCount(0);
+    // The band labels are upper-cased by `text-transform`, so the rendered text
+    // is compared against the source vocabulary case-insensitively.
+    const bands = await page
+      .locator(".dh-today__timeline .dh-day-section__label")
+      .allInnerTexts();
+    for (const band of bands) {
+      expect(["overdue", "due today", "planned today"]).toContain(
+        band.trim().toLowerCase(),
+      );
+    }
 
     // "Plan day" is a navigation to the canonical Tasks view of today's work —
     // Today does not own a planning flow.
@@ -172,6 +190,18 @@ test.describe("Today — the day surface", () => {
     const dialog = page.getByRole("dialog", { name: "New task" });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("Title").fill(title);
+    /*
+     * P1, so the row is inside Focus's eight-row display bound (TODAY-10)
+     * however many other Tasks the shared workspace has dated today by the time
+     * this journey runs. The bound is ordered priority-first, so this is the
+     * documented way to be certain the row is drawn — not a workaround for it.
+     */
+    const priority = dialog.getByRole("combobox", { name: "Priority" });
+    await priority.click();
+    await priority.fill("P1");
+    await dialog
+      .getByRole("option", { name: "P1 · Urgent", exact: true })
+      .click();
     await dialog.locator("summary", { hasText: "More details" }).click();
     await dialog.getByLabel("Due date").fill(today);
     const [response] = await Promise.all([

@@ -30,6 +30,7 @@ function task(
     parent: null,
     dueDate: TODAY,
     scheduledDate: null,
+    priority: null,
     completed: false,
     completedDate: null,
     ...overrides,
@@ -293,13 +294,14 @@ describe("the day timeline", () => {
     expect(screen.getByText(/Nothing planned today/)).toBeInTheDocument();
     // No section labels, because there are no sections.
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
-    expect(screen.queryByText("For today")).not.toBeInTheDocument();
+    expect(screen.queryByText("Due today")).not.toBeInTheDocument();
+    expect(screen.queryByText("Planned today")).not.toBeInTheDocument();
   });
 
   it("omits the Meetings section entirely when there are none", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(
-      within(timelineSection()).getByText("For today"),
+      within(timelineSection()).getByText("Due today"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
   });
@@ -414,6 +416,165 @@ describe("the day timeline", () => {
     // The first row inside the day column is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* TODAY-10 — the Focus bands                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe("TODAY-10: the Focus panel says WHY each task is there", () => {
+  it("names the three bands, in the order the day happens in", () => {
+    renderScreen(
+      day({
+        overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
+        today: [
+          task("d", "Deadline"),
+          task("p", "Intention", { dueDate: null, scheduledDate: TODAY }),
+        ],
+      }),
+    );
+    const labels = [
+      ...timelineSection().querySelectorAll(".dh-day-section__label"),
+    ].map((node) => node.textContent);
+    expect(labels).toEqual(["Overdue", "Due today", "Planned today"]);
+  });
+
+  it("draws only the bands that hold work — no empty heading", () => {
+    renderScreen(day({ today: [task("d", "Deadline")] }));
+    const labels = [
+      ...timelineSection().querySelectorAll(".dh-day-section__label"),
+    ].map((node) => node.textContent);
+    expect(labels).toEqual(["Due today"]);
+  });
+
+  it("puts a task that is BOTH due and planned today in ONE band, once", () => {
+    renderScreen(day({ today: [task("b", "Both", { scheduledDate: TODAY })] }));
+    const panel = timelineSection();
+    expect(within(panel).getAllByText("Both")).toHaveLength(1);
+    expect(within(panel).queryByText("Planned today")).not.toBeInTheDocument();
+  });
+
+  it("keeps the Project on the row — the band carries the date meaning", () => {
+    renderScreen(
+      day({
+        today: [
+          task("d", "Deadline", {
+            parent: { kind: "project", id: "p1", title: "Kitchen renovation" },
+          }),
+        ],
+      }),
+    );
+    const row = within(timelineSection()).getByText("Deadline").closest("li")!;
+    expect(within(row).getByText("Kitchen renovation")).toBeInTheDocument();
+  });
+
+  it("shows priority only where there IS one, using the shared indicator", () => {
+    const { container } = renderScreen(
+      day({
+        today: [
+          task("a", "Urgent", { priority: "p1" }),
+          task("b", "Untriaged"),
+        ],
+      }),
+    );
+    const urgent = within(timelineSection()).getByText("Urgent").closest("li")!;
+    expect(within(urgent).getByText("P1")).toBeInTheDocument();
+    // Not colour alone: the indicator carries the priority in words for AT.
+    expect(urgent.textContent).toContain("priority");
+    const plain = within(timelineSection())
+      .getByText("Untriaged")
+      .closest("li")!;
+    expect(plain.querySelector(".dh-priority")).toBeNull();
+    // And the whole panel draws exactly one, so nothing gained a placeholder.
+    expect(container.querySelectorAll(".dh-day-row .dh-priority")).toHaveLength(
+      1,
+    );
+  });
+
+  it("orders a band by priority rather than alphabetically", () => {
+    renderScreen(
+      day({
+        today: [task("a", "Aardvark"), task("z", "Zebra", { priority: "p1" })],
+      }),
+    );
+    const titles = [
+      ...timelineSection().querySelectorAll(".dh-day-row__title"),
+    ].map((node) => node.textContent);
+    expect(titles).toEqual(["Zebra", "Aardvark"]);
+  });
+
+  it("bounds the day's rows, states the true total and routes to Tasks", () => {
+    renderScreen(
+      day({
+        today: Array.from({ length: 14 }, (_, index) =>
+          task(`t${index}`, `Task ${String(index).padStart(2, "0")}`),
+        ),
+      }),
+    );
+    expect(
+      timelineSection().querySelectorAll(".dh-day-row__title"),
+    ).toHaveLength(8);
+    expect(
+      screen.getByRole("link", { name: "View all 14 tasks for today" }),
+    ).toHaveAttribute("href", "/tasks?system=today");
+  });
+
+  it("says nothing about a remainder when the whole day fits", () => {
+    renderScreen(day({ today: [task("a", "Alpha")] }));
+    expect(screen.queryByText(/View all/)).not.toBeInTheDocument();
+  });
+
+  it("distinguishes 'overdue but nothing on today' from an empty day", () => {
+    renderScreen(
+      day({ overdue: [task("o", "Late", { dueDate: "2026-08-01" })] }),
+    );
+    expect(screen.getByText("Nothing else planned today.")).toBeInTheDocument();
+    // Not the empty-day line, which would deny the overdue row above it.
+    expect(screen.queryByText(/Capture anything new/)).not.toBeInTheDocument();
+  });
+
+  it("counts the canonical today set on the figure, not the rows drawn", () => {
+    renderScreen(
+      day({
+        // Due today but its PLAN slipped: filed under Overdue here, and counted
+        // by `/tasks?system=today`, which the figure links to.
+        overdue: [
+          task("slipped", "Slipped plan", { scheduledDate: "2026-08-01" }),
+        ],
+        today: [task("a", "Alpha")],
+      }),
+    );
+    const card = screen.getByTestId("today-stat-tasks");
+    expect(within(card).getByText("2")).toBeInTheDocument();
+    expect(card.closest("a") ?? card.querySelector("a")).toHaveAttribute(
+      "href",
+      "/tasks?system=today",
+    );
+  });
+
+  it("does not move a row between bands when it is ticked", () => {
+    const onCompleteTask = vi.fn();
+    renderScreen(
+      day({
+        overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
+        today: [task("a", "Alpha")],
+      }),
+      onCompleteTask,
+    );
+    const bandOf = (title: string) =>
+      within(timelineSection())
+        .getByText(title)
+        .closest(".dh-day-section")!
+        .querySelector(".dh-day-section__label")!.textContent;
+
+    expect(bandOf("Late")).toBe("Overdue");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Complete Late" }));
+    expect(onCompleteTask).toHaveBeenCalledWith("o", true);
+    // Still under Overdue, dimmed — not fifteen rows down under "Due today".
+    expect(bandOf("Late")).toBe("Overdue");
+    // And the overdue FIGURE stops counting it, because it is done.
+    expect(screen.queryByTestId("today-stat-overdue")).not.toBeInTheDocument();
   });
 });
 

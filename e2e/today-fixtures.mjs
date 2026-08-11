@@ -21,7 +21,7 @@
  * exactly like `setup-local-db.mjs`. It never touches a remote database.
  *
  * Usage:
- *   node e2e/today-fixtures.mjs typical|morning|heavy|empty|restore
+ *   node e2e/today-fixtures.mjs typical|morning|heavy|focus|empty|restore
  */
 
 import { execFileSync } from "node:child_process";
@@ -206,12 +206,16 @@ function task(
     completedAt = null,
     waitingSince = null,
     waitingNote = null,
+    // TODAY-10 — the workflow status, so a scenario can seed a PARKED Task.
+    // `on_hold` is the one state whose absence from the day was a real defect,
+    // and a fixture that cannot express it cannot prove the fix.
+    status = "todo",
   } = {},
 ) {
   entity(id, "task", title);
   spine(id, "task", completedAt);
   push(
-    `INSERT INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, waiting_since, waiting_note, updated_at) VALUES (${ws}, ${q(id)}, 'task', 'todo', ${q(priority)}, ${q(due)}, ${q(scheduled)}, NULL, ${q(waitingSince)}, ${q(waitingNote)}, ${q(stamp())});`,
+    `INSERT INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, waiting_since, waiting_note, updated_at) VALUES (${ws}, ${q(id)}, 'task', ${q(status)}, ${q(priority)}, ${q(due)}, ${q(scheduled)}, NULL, ${q(waitingSince)}, ${q(waitingNote)}, ${q(stamp())});`,
   );
   if (project) {
     link(`${id}-l-project`, id, project, "task.belongs_to_project");
@@ -839,6 +843,153 @@ function heavy() {
     "entity.updated",
     "tf-proj-training",
     ownerInstant(addDays(TODAY, -50), 10, 0),
+  );
+}
+
+/**
+ * TODAY-10 — the FOCUS day: one Task of every kind the Focus panel must classify.
+ *
+ * `typical` and `heavy` were written against the conditional-rendering contract,
+ * and between them they hold no Task that is planned for today without also being
+ * due today, and none that is parked. Those are precisely the two cases TODAY-10
+ * is about, so the panel's whole reason for having bands was unprovable on either
+ * of them. This scenario is small on purpose — one clear example per rule, so a
+ * failure names the rule rather than a row number:
+ *
+ *   overdue · due today · planned today · both due and planned today · future ·
+ *   completed today · waiting · on hold (parked) · Inbox · several priorities ·
+ *   Tasks across two Projects and an Area · a measurable Goal · an Asset
+ *   obligation, so "Needs attention" has a real, non-Task row beside them.
+ */
+function focus() {
+  baseSpine();
+  area("tf-area-health", "Health");
+
+  goal("tf-goal-ship", "Ship DalyHub V2");
+  // One measurable Goal, so Goal progress is a real section under the day and
+  // the hierarchy (immediate work → attention → longer-term progress) is real.
+  goal("tf-goal-weight", "Reach 70 kg", {
+    areaId: "tf-area-health",
+    createdAt: ownerInstant(addDays(TODAY, -40), 8, 0),
+    targetDate: addDays(TODAY, 90),
+    measurementType: "target_value",
+    unit: "kg",
+    baselineValue: 85,
+    targetValue: 70,
+    measurements: [
+      [85.0, -40],
+      [81.2, -20],
+      [79.5, -5],
+    ],
+  });
+
+  project("tf-proj-today", "Today screen redesign", { goal: "tf-goal-ship" });
+  project("tf-proj-house", "Kitchen renovation", { areaId: "tf-area-home" });
+
+  // Slipped: two of them, so the band is plainly a band and the ordering
+  // (oldest first) is observable.
+  task("tf-t-overdue-old", "Send the quarterly summary", {
+    due: addDays(TODAY, -6),
+    priority: "p2",
+    project: "tf-proj-today",
+  });
+  task("tf-t-overdue-plan", "Chase the invoice", {
+    scheduled: addDays(TODAY, -2),
+    project: "tf-proj-house",
+  });
+
+  // DUE today. Deliberately reverse-alphabetical against priority, so a panel
+  // ordered A–Z and a panel ordered by priority cannot both pass.
+  task("tf-t-due-p1", "Ship the release notes", {
+    due: TODAY,
+    priority: "p1",
+    project: "tf-proj-today",
+  });
+  task("tf-t-due-plain", "Book the dentist", {
+    due: TODAY,
+    area: "tf-area-home",
+  });
+  // Both due AND planned today — the duplicate-prevention case. It must appear
+  // once, under Due today, because a deadline outranks an intention.
+  task("tf-t-due-and-planned", "Approve the design tokens", {
+    due: TODAY,
+    scheduled: TODAY,
+    priority: "p3",
+    project: "tf-proj-today",
+  });
+
+  // PLANNED today and NOT due today — the case neither existing scenario had.
+  // Its due date is six weeks out, which is exactly what made the combined
+  // bucket misleading: on the old panel this read as a deadline.
+  task("tf-t-planned-far", "Draft the migration runbook", {
+    scheduled: TODAY,
+    due: addDays(TODAY, 42),
+    priority: "p2",
+    project: "tf-proj-house",
+  });
+  task("tf-t-planned-only", "Tidy the reference photos", {
+    scheduled: TODAY,
+    area: "tf-area-home",
+  });
+
+  // Already finished today — stays visible, dimmed, in the band it was in.
+  task("tf-t-done", "Clear the inbox", {
+    due: TODAY,
+    completedAt: ownerInstant(TODAY, 8, 15),
+    project: "tf-proj-today",
+  });
+
+  // Present in the workspace and NOT on the day, each for a different reason.
+  task("tf-t-future", "Prepare the board pack", {
+    due: addDays(TODAY, 9),
+    project: "tf-proj-today",
+  });
+  task("tf-t-waiting", "Legal sign-off on the contract", {
+    due: TODAY,
+    waitingSince: ownerInstant(addDays(TODAY, -5), 9, 0),
+    waitingNote: "Chasing legal",
+    project: "tf-proj-today",
+  });
+  // Parked: due today, but the owner paused it. Neither Today nor
+  // `/tasks?system=today` counts it — that agreement is the TODAY-10 fix.
+  task("tf-t-on-hold", "Rewrite the onboarding email", {
+    due: TODAY,
+    status: "on_hold",
+    project: "tf-proj-house",
+  });
+
+  // Inbox: unfiled work, which reaches Today as an attention COUNT, never as a
+  // second copy of a Focus row.
+  task("tf-t-inbox-1", "Idea: weekly review template", { area: null });
+  task("tf-t-inbox-2", "Ask Sam about the offsite", { area: null });
+
+  meeting("tf-m-1", "Design review", {
+    hour: 9,
+    minute: 30,
+    location: "Studio",
+    mode: "in_person",
+  });
+
+  // A non-Task attention row, so the Focus/Needs-attention boundary is visible
+  // on the same screen: obligations are exceptional STATES, Focus is the work.
+  asset("tf-asset-mower", "Mower", { assetType: "equipment" });
+  obligation("tf-ob-mower", "tf-asset-mower", "Sharpen the blades", {
+    category: "service",
+    dueOffset: 3,
+  });
+
+  activity(
+    "tf-a-1",
+    "task.completed",
+    "tf-t-done",
+    ownerInstant(TODAY, 8, 15),
+    ["tf-proj-today"],
+  );
+  activity(
+    "tf-a-2",
+    "entity.updated",
+    "tf-proj-house",
+    ownerInstant(addDays(TODAY, -1), 16, 0),
   );
 }
 
@@ -2326,6 +2477,7 @@ const SCENARIOS = {
   typical: () => typical({ completedToday: 3 }),
   morning: () => typical({ completedToday: 0 }),
   heavy,
+  focus,
   empty,
   gallery,
   goals,
