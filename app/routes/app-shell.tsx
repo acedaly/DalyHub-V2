@@ -20,7 +20,7 @@
  * note on the `Set-Cookie` below.
  */
 
-import { Outlet, data } from "react-router";
+import { Outlet, data, type ShouldRevalidateFunctionArgs } from "react-router";
 import { env } from "cloudflare:workers";
 
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
@@ -40,9 +40,38 @@ import {
   readColorSchemePreference,
   serializeColorSchemeCookie,
 } from "~/kernel/preferences/color-scheme";
+import { isSameDocumentParameterChange } from "~/shared/router/revalidation";
 import { AppShell } from "~/shared/shell/AppShell";
 
 import type { Route } from "./+types/app-shell";
+
+/**
+ * The shell's data does not depend on the URL, so a same-page navigation must not
+ * re-read it.
+ *
+ * This loader reads the session, the owner's preferences and the module registry
+ * — none of which a search parameter can change. Yet React Router re-ran all of
+ * it on every Drawer open and close, because opening a Drawer is a navigation
+ * that writes `?drawer=…`: a preferences read and a workspace resolution, per
+ * open, to produce byte-for-byte the same payload.
+ *
+ * PWA-12 — it is also the second half of what stops opening a task while OFFLINE
+ * taking the page down. `/tasks` already declines to re-run its own query for a
+ * Drawer parameter; the shell's loader sat behind it, and a loader that cannot
+ * reach the server throws into the global error boundary. The fix in both places
+ * is the same and is not a weakening: a request that is never needed cannot fail.
+ *
+ * A SUBMISSION still revalidates, and so does an EXPLICIT revalidation. A
+ * preference change is a POST, and the shell showing a stale identity or
+ * navigation after one would be exactly the kind of quiet wrongness this rule
+ * must not introduce — see `isSameDocumentParameterChange` for the distinction
+ * that makes the skip safe.
+ */
+export function shouldRevalidate(args: ShouldRevalidateFunctionArgs): boolean {
+  return isSameDocumentParameterChange(args)
+    ? false
+    : args.defaultShouldRevalidate;
+}
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);

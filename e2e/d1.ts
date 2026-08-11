@@ -57,8 +57,8 @@ function isTransientD1Error(output: string): boolean {
   );
 }
 
-function runOnce(command: string): void {
-  execFileSync(
+function runOnce(command: string, json = false): string {
+  return execFileSync(
     "pnpm",
     [
       "exec",
@@ -67,6 +67,7 @@ function runOnce(command: string): void {
       "execute",
       "DB",
       "--local",
+      ...(json ? ["--json"] : []),
       "--command",
       command,
     ],
@@ -74,6 +75,7 @@ function runOnce(command: string): void {
       cwd: process.cwd(),
       env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
       stdio: "pipe",
+      encoding: "utf8",
     },
   );
 }
@@ -108,4 +110,45 @@ export function d1Execute(command: string | readonly string[]): void {
       if (attempt === ATTEMPTS || !isTransientD1Error(output)) throw error;
     }
   }
+}
+
+/**
+ * Run one SELECT and return its rows.
+ *
+ * The read half of the same helper, with the same retry rule, added by PWA-12
+ * because a recurrence assertion has to be able to COUNT what the domain wrote
+ * — "exactly one successor" is not observable from the interface alone once the
+ * completed occurrence leaves the default view.
+ *
+ * `--json` is what makes this parseable; without it wrangler prints a table
+ * whose formatting is not a contract. A caller whose SQL is not a pure read must
+ * use `d1Execute` instead.
+ */
+export function d1Query<T = Record<string, unknown>>(
+  command: string,
+): readonly T[] {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    try {
+      const output = runOnce(command, true);
+      // Wrangler prefixes its JSON with human-readable lines; the payload is the
+      // first well-formed array in the output.
+      const start = output.indexOf("[");
+      if (start === -1) return [];
+      const parsed = JSON.parse(output.slice(start)) as {
+        results?: T[];
+      }[];
+      return parsed[0]?.results ?? [];
+    } catch (error) {
+      const err = error as {
+        message?: string;
+        stdout?: unknown;
+        stderr?: unknown;
+      };
+      const output = [err.message, err.stdout, err.stderr]
+        .map((part) => String(part ?? ""))
+        .join("\n");
+      if (attempt === ATTEMPTS || !isTransientD1Error(output)) throw error;
+    }
+  }
+  return [];
 }

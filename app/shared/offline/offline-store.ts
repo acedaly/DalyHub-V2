@@ -21,9 +21,11 @@
 import {
   OFFLINE_INDEXES,
   OFFLINE_STORES,
+  orderMutations,
   recordKey,
   summariseQueue,
   type OfflineDiaryEntry,
+  type OfflineMutationRecord,
   type OfflineMeeting,
   type OfflineNote,
   type OfflineQueueRecord,
@@ -589,23 +591,132 @@ export async function summariseNamespaceQueue(
 }
 
 /* -------------------------------------------------------------------------- */
+/* PWA-12 — the Task mutation queue                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Write one queued mutation. Keyed by `id`, so a re-write replaces in place. */
+export async function putMutationRecord(
+  record: OfflineMutationRecord,
+): Promise<OfflineStoreResult<OfflineMutationRecord>> {
+  return withDatabase(async (database) => {
+    const transaction = database.transaction(
+      OFFLINE_STORES.mutations,
+      "readwrite",
+    );
+    transaction.objectStore(OFFLINE_STORES.mutations).put(record);
+    await transactionToPromise(transaction);
+    return record;
+  });
+}
+
+/**
+ * Read every queued mutation for a namespace, in CAUSAL order.
+ *
+ * Ordering is by `sequence`, never by timestamp: see `offline-mutation.ts` for
+ * why a device clock cannot be trusted to order the owner's intent.
+ */
+export async function readMutations(
+  namespace: string,
+): Promise<OfflineStoreResult<readonly OfflineMutationRecord[]>> {
+  return withDatabase(async (database) => {
+    const rows = (await readNamespace(
+      database,
+      OFFLINE_STORES.mutations,
+      OFFLINE_INDEXES.mutationsByNamespace,
+      namespace,
+    )) as OfflineMutationRecord[];
+    return orderMutations(rows);
+  });
+}
+
+/** Read the mutation queue across every namespace — Settings totals only. */
+export async function readAllMutations(): Promise<
+  OfflineStoreResult<readonly OfflineMutationRecord[]>
+> {
+  return withDatabase(async (database) => {
+    const transaction = database.transaction(
+      OFFLINE_STORES.mutations,
+      "readonly",
+    );
+    const rows = (await requestToPromise(
+      transaction.objectStore(OFFLINE_STORES.mutations).getAll(),
+    )) as OfflineMutationRecord[];
+    await transactionToPromise(transaction);
+    return rows;
+  });
+}
+
+/** Remove one queued mutation. Only ever called after explicit confirmation. */
+export async function deleteMutationRecord(
+  id: string,
+): Promise<OfflineStoreResult<void>> {
+  return withDatabase(async (database) => {
+    const transaction = database.transaction(
+      OFFLINE_STORES.mutations,
+      "readwrite",
+    );
+    transaction.objectStore(OFFLINE_STORES.mutations).delete(id);
+    await transactionToPromise(transaction);
+  });
+}
+
+/**
+ * Drop the mutations the server has confirmed.
+ *
+ * PWA-12 retention (§42): a synced mutation has served its whole purpose the
+ * moment the server confirms it, and the Activity stream — not this queue — is
+ * DalyHub's audit authority. Keeping settled intents here would turn a transport
+ * buffer into a second, permanent, unaudited history of the owner's edits. The
+ * queue therefore holds only work that is still owed or still owned by the owner.
+ */
+export async function pruneSyncedMutations(
+  namespace: string,
+): Promise<OfflineStoreResult<number>> {
+  return withDatabase(async (database) => {
+    const rows = (await readNamespace(
+      database,
+      OFFLINE_STORES.mutations,
+      OFFLINE_INDEXES.mutationsByNamespace,
+      namespace,
+    )) as OfflineMutationRecord[];
+    const synced = rows.filter((row) => row.status === "synced");
+    if (synced.length === 0) return 0;
+
+    const transaction = database.transaction(
+      OFFLINE_STORES.mutations,
+      "readwrite",
+    );
+    const store = transaction.objectStore(OFFLINE_STORES.mutations);
+    for (const row of synced) store.delete(row.id);
+    await transactionToPromise(transaction);
+    return synced.length;
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Device-level controls                                                      */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Delete EVERYTHING DalyHub stores on this device: the snapshot, the metadata and
- * the queue, for every namespace. Server records are not touched — this file has
- * no path to a server mutation.
+ * Delete EVERYTHING DalyHub stores on this device: the snapshot, the metadata,
+ * the capture queue and the mutation queue, for every namespace. Server records
+ * are not touched — this file has no path to a server mutation.
  */
 export async function clearAllOfflineData(): Promise<OfflineStoreResult<void>> {
   return withDatabase(async (database) => {
     const transaction = database.transaction(
-      [OFFLINE_STORES.records, OFFLINE_STORES.meta, OFFLINE_STORES.queue],
+      [
+        OFFLINE_STORES.records,
+        OFFLINE_STORES.meta,
+        OFFLINE_STORES.queue,
+        OFFLINE_STORES.mutations,
+      ],
       "readwrite",
     );
     transaction.objectStore(OFFLINE_STORES.records).clear();
     transaction.objectStore(OFFLINE_STORES.meta).clear();
     transaction.objectStore(OFFLINE_STORES.queue).clear();
+    transaction.objectStore(OFFLINE_STORES.mutations).clear();
     await transactionToPromise(transaction);
   });
 }

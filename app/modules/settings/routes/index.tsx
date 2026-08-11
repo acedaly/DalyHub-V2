@@ -41,7 +41,7 @@ import { buildInfo } from "~/lib/version";
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { OfflineSettingsPanel } from "~/shared/offline";
+import { OfflineChangesPanel, OfflineSettingsPanel } from "~/shared/offline";
 import {
   AI_MODEL_TIERS,
   budgetPeriodKeys,
@@ -1251,6 +1251,9 @@ function OfflineSection() {
       description="What DalyHub keeps on this device so it still opens and stays useful without a connection — and how to remove it."
     >
       <OfflineSettingsPanel />
+      {/* PWA-12 — renders nothing when this device holds no unsynchronised Task
+          changes, which is the steady state. */}
+      <OfflineChangesPanel headingLevel={2} />
     </SettingsLayout>
   );
 }

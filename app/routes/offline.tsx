@@ -40,6 +40,7 @@ import {
   OfflineDiagnosticsPanel,
   OfflineProvider,
   OfflineSnapshotView,
+  OfflineChangesPanel,
   OfflineSyncPanel,
 } from "~/shared/offline";
 
@@ -156,6 +157,7 @@ export default function OfflineRoute({ loaderData }: Route.ComponentProps) {
 
         <OfflineCaptureForm headingLevel={2} />
         <OfflineSyncPanel headingLevel={2} />
+        <OfflineChangesPanel headingLevel={2} />
         <OfflineSnapshotView />
         <OfflineDiagnosticsPanel />
 
