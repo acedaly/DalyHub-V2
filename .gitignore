@@ -15,6 +15,14 @@
 /blob-report/
 /playwright/.cache/
 
+# Measurement output: a machine-readable run summary written outside the HTML
+# report directory (`PLAYWRIGHT_JSON_OUTPUT_NAME`), and the browser RSS samples
+# `scripts/measure-e2e-browser-rss.mjs` collects. Both are EVIDENCE for a
+# specific investigation, cited in the audit that used them — they are not
+# checked in, for the same reason #158 took the screenshot dumps back out.
+/rss-evidence/
+/*-results.json
+
 # Cloudflare / Wrangler local state and generated types
 .mf
 .wrangler
