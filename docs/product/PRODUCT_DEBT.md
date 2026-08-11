@@ -1512,14 +1512,27 @@ undiagnosed, and the next occurrence owes evidence.
   restore.
 - **Related roadmap item.** [TODAY-09](../roadmap/ROADMAP_V2_2.md#-today-09---attention-rail-truth-and-taskstoday-wording).
 
-### ☐ DEBT-118 — Quick capture cannot author after-completion recurrence — P2
+### ☑ DEBT-118 — Quick capture cannot author after-completion recurrence — P2 — RESOLVED 2026-08-11
 
 - **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
 - **Current issue.** The recurrence model and editor support both `fixed` and `after_completion` modes, but the deterministic quick-capture parser emits only the recurrence fields needed for the default fixed rule. A phrase such as "Service Hilux every 6 months after completion" can create a recurring task, but not with the after-completion mode the owner meant without opening the recurrence editor afterwards.
 - **Impact.** Medium because this is exactly the kind of personal routine DalyHub should capture quickly: maintenance, bills, health and household tasks often repeat from completion, not from the scheduled date.
 - **Desired future state.** The parser recognizes a small, high-confidence set of after-completion phrases and serializes the recurrence mode through the existing atomic task creation route.
 - **Closing condition.** Parser unit tests and one create-route/browser journey prove that "every 6 months after completion" creates an `after_completion` recurrence rule without AI or a second mutation.
-- **Related roadmap item.** [TASKS-11](../roadmap/ROADMAP_V2_2.md#-tasks-11---deterministic-natural-language-capture-v2).
+- **Resolved by TASKS-11.** The parser recognises a closed set of six
+  after-completion suffixes (with an optional `repeat` lead-in) and emits the
+  scheduling MODE alongside the frequency, interval, date kind and weekdays it
+  already emitted; `/tasks/new` binds `recurrenceMode` from the same closed set the
+  recurrence editor posts, and the CAPTURE-01 service carries it through unchanged.
+  Coverage: a table-driven unit suite
+  (`test/unit/tasks/quick-capture-after-completion.test.ts`), a real-D1 integration
+  suite proving the captured rule is column-for-column identical to an
+  editor-authored one and that completion advances through the TASKS-07 engine
+  (`test/kernel/task-capture-language.test.ts`), and a browser journey that captures,
+  completes and finds the successor six months from the completion day
+  (`e2e/tasks-capture-language.spec.ts`). No AI, no second mutation, no second
+  recurrence representation.
+- **Related roadmap item.** [TASKS-11](../roadmap/ROADMAP_V2_2.md#-tasks-11---deterministic-natural-language-capture-v2--delivered-2026-08-11).
 
 ### ☐ DEBT-119 — Offline Tasks is capture-idempotent but not mutation-complete — P2
 

@@ -34,14 +34,17 @@ import {
   SpineValidationError,
 } from "~/kernel/spine";
 import {
+  DEFAULT_TASK_RECURRENCE_MODE,
   TASK_RECURRENCE_DATE_KINDS,
   TASK_RECURRENCE_FREQUENCIES,
+  TASK_RECURRENCE_MODES,
   TaskValidationError,
   type CommitmentState,
   type TaskPriority,
   type TaskRecurrenceDateKind,
   type TaskRecurrenceFrequency,
   type TaskRecurrenceInput,
+  type TaskRecurrenceMode,
   type TimeSector,
 } from "~/kernel/tasks";
 
@@ -124,11 +127,22 @@ function readRecurrenceFields(form: FormData): TaskRecurrenceInput | null {
     Number.isInteger(intervalRaw) && intervalRaw >= 1 && intervalRaw <= 99
       ? intervalRaw
       : 1;
+  // TASKS-11 — the TASKS-07 scheduling mode, bound from the same closed set the
+  // recurrence editor posts. An unrecognised value falls back to the documented
+  // default (`fixed`) rather than being guessed at, and the kernel still validates the
+  // combination (an after-completion rule may not be weekday-pinned).
+  const modeRaw = String(
+    form.get("recurrenceMode") ?? DEFAULT_TASK_RECURRENCE_MODE,
+  );
+  const mode = (TASK_RECURRENCE_MODES as readonly string[]).includes(modeRaw)
+    ? (modeRaw as TaskRecurrenceMode)
+    : DEFAULT_TASK_RECURRENCE_MODE;
   const weekdays = parseWeekdayList(form.get("recurrenceWeekdays"));
   return {
     frequency: frequency as TaskRecurrenceFrequency,
     dateKind,
     interval,
+    mode,
     weekdays,
   };
 }

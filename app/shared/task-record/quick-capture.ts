@@ -1,10 +1,11 @@
 /**
- * TASKS-01 quick-capture parser (pure, React-free, testable) — ADR-043 §14.
+ * TASKS-01 quick-capture parser (pure, React-free, testable) — ADR-043 §14,
+ * extended by TASKS-11.
  *
  * A DELIBERATELY BOUNDED, deterministic token vocabulary — NOT natural-language
  * understanding and NOT AI. It scans a captured line for a small closed set of
  * trailing/inline tokens (`p1`…`p4`, the Time Sectors, `someday`, `routine`,
- * `waiting`, `delegate`), bounded calendar phrases and basic `every ...`
+ * `waiting`, `delegate`), bounded calendar phrases and bounded `every ...`
  * recurrence, then returns the remaining text as the title plus a structured
  * interpretation the UI shows as a preview the user can correct before saving.
  * Calendar language is intentionally small, owner-day driven and explicit; this
@@ -18,9 +19,25 @@
  * The title is what remains after removing recognised tokens; if removing tokens
  * would empty the title, the ORIGINAL text is kept as the title (the tokens are
  * then treated as literal words) so capture never produces an empty task.
+ *
+ * TASKS-11 adds ONE new idea and no new machinery: a recurrence phrase may carry an
+ * explicit AFTER-COMPLETION suffix ("every 6 months after completion"), which selects
+ * the TASKS-07 `after_completion` scheduling mode instead of the default fixed
+ * schedule. The mode is never inferred — a phrase without one of the six recognised
+ * suffixes still means a fixed schedule, exactly as it did before — and a phrase the
+ * grammar cannot fully recognise (an interval outside the canonical 1–99, an
+ * after-completion suffix on a weekday-pinned rule) is left as ORDINARY WORDS rather
+ * than clamped into a rule the owner did not ask for.
  */
 
-import type { CommitmentState, TaskPriority, TimeSector } from "~/kernel/tasks";
+import type {
+  CommitmentState,
+  TaskPriority,
+  TaskRecurrenceMode,
+  TimeSector,
+} from "~/kernel/tasks";
+
+import { taskRecurrenceLabel } from "./task-view";
 
 /** The structured interpretation of a captured line. */
 export interface QuickCaptureInterpretation {
@@ -66,6 +83,14 @@ export type QuickCaptureRecurrence = {
   readonly frequency: "day" | "weekday" | "week" | "month" | "year";
   readonly interval: number;
   readonly weekdays: readonly number[];
+  /**
+   * TASKS-11 — the TASKS-07 scheduling mode the phrase selected. `fixed` unless the
+   * capture said "after completion" (or one of the five other recognised suffixes)
+   * in so many words. There is no inference from the title, the frequency or the
+   * kind of work: crossing modes silently is the one thing a recurring-task parser
+   * must never do.
+   */
+  readonly mode: TaskRecurrenceMode;
   readonly dateKind: "scheduled" | "due" | null;
   readonly needsDate: boolean;
   readonly label: string;
@@ -134,16 +159,6 @@ const MONTH_LABELS = [
   "Oct",
   "Nov",
   "Dec",
-];
-
-const WEEKDAY_LABELS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
 ];
 
 /**
@@ -258,6 +273,80 @@ function nextWeekdayIso(todayIso: string, target: number): string {
   return addDaysIso(todayIso, delta);
 }
 
+/**
+ * The counted units a `every N <unit>` phrase may use, singular and plural. The set is
+ * exactly the kernel's four countable frequencies — "every 3 weekdays" is not a rule
+ * the model has, so it is not a phrase the grammar pretends to read.
+ */
+const COUNTED_RECURRENCE_UNITS: Record<
+  string,
+  "day" | "week" | "month" | "year"
+> = {
+  day: "day",
+  days: "day",
+  week: "week",
+  weeks: "week",
+  month: "month",
+  months: "month",
+  year: "year",
+  years: "year",
+};
+
+/**
+ * TASKS-11 — the CLOSED set of suffixes that select the after-completion mode.
+ *
+ * Six phrases, each an exact whole-word sequence. This is deliberately a list and not
+ * a pattern: "prefer a small grammar with clear boundaries over hundreds of synonyms",
+ * and every entry here is covered by a test. Anything else — "when needed", "every so
+ * often", "after the service" — is not recognised, so the capture keeps its words and
+ * the Task keeps whatever fixed schedule (or none) the rest of the line described.
+ */
+const AFTER_COMPLETION_SUFFIXES: ReadonlyArray<readonly string[]> = [
+  ["after", "completion"],
+  ["after", "completed"],
+  ["after", "completing"],
+  ["after", "finishing"],
+  ["after", "i", "complete", "it"],
+  ["after", "i", "finish", "it"],
+];
+
+/**
+ * The index of the LAST word of a recognised after-completion suffix beginning at
+ * `index`, or null. Whole words only, so "aftercompletion" and "after completions"
+ * are ordinary text.
+ */
+function matchAfterCompletion(
+  lower: readonly string[],
+  index: number,
+): number | null {
+  for (const suffix of AFTER_COMPLETION_SUFFIXES) {
+    let matched = true;
+    for (let offset = 0; offset < suffix.length; offset++) {
+      if (lower[index + offset] !== suffix[offset]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return index + suffix.length - 1;
+  }
+  return null;
+}
+
+/**
+ * Read ONE complete recurrence phrase starting at `index`, or null.
+ *
+ * The phrase is read in three ordered parts, and a failure in any of them abandons the
+ * WHOLE phrase rather than keeping a partial reading — which is what stops a title
+ * being damaged by a half-recognised rule:
+ *
+ *   1. an optional `repeat` / `repeats` lead-in, then the mandatory `every`;
+ *   2. the unit spec — `day`, `weekday`, a weekday name, a bare `week`/`month`/`year`,
+ *      or `N day|week|month|year` (singular or plural) with N inside the CANONICAL
+ *      1–99 interval bound the kernel enforces;
+ *   3. an optional after-completion suffix (TASKS-11), refused for the two shapes the
+ *      kernel refuses — `every weekday` and a weekday-pinned weekly rule — because
+ *      "every Monday, three days after I finish it" is not a thing anyone means.
+ */
 function parseRecurrencePhrase(
   words: readonly string[],
   lower: readonly string[],
@@ -267,93 +356,85 @@ function parseRecurrencePhrase(
   readonly end: number;
   readonly raw: string;
 } | null {
-  if (lower[index] !== "every") return null;
-  const next = lower[index + 1];
-  if (!next) return null;
-  if (next === "day") {
-    return {
-      recurrence: {
-        frequency: "day",
-        interval: 1,
-        weekdays: [],
-        label: "Repeat: Every day",
-      },
-      end: index + 1,
-      raw: words.slice(index, index + 2).join(" "),
-    };
-  }
-  if (next === "weekday") {
-    return {
-      recurrence: {
-        frequency: "weekday",
-        interval: 1,
-        weekdays: [],
-        label: "Repeat: Every weekday",
-      },
-      end: index + 1,
-      raw: words.slice(index, index + 2).join(" "),
-    };
-  }
-  if (next in WEEKDAYS) {
-    const weekday = WEEKDAYS[next]!;
-    return {
-      recurrence: {
-        frequency: "week",
-        interval: 1,
-        weekdays: [weekday],
-        label: `Repeat: Every ${WEEKDAY_LABELS[weekday]}`,
-      },
-      end: index + 1,
-      raw: words.slice(index, index + 2).join(" "),
-    };
-  }
-  const simple = (
-    unit: "week" | "month" | "year",
-  ): ReturnType<typeof parseRecurrencePhrase> => ({
-    recurrence: {
-      frequency: unit,
-      interval: 1,
-      weekdays: [],
-      label: `Repeat: Every ${unit}`,
-    },
-    end: index + 1,
-    raw: words.slice(index, index + 2).join(" "),
-  });
-  if (next === "week" || next === "weeks") return simple("week");
-  if (next === "month" || next === "months") return simple("month");
-  if (next === "year" || next === "years") return simple("year");
-
-  const interval = Number(next);
-  const unit = lower[index + 2];
+  let cursor = index;
   if (
-    Number.isInteger(interval) &&
-    interval >= 2 &&
-    interval <= 99 &&
-    (unit === "weeks" ||
-      unit === "week" ||
-      unit === "months" ||
-      unit === "month" ||
-      unit === "years" ||
-      unit === "year")
+    (lower[cursor] === "repeat" || lower[cursor] === "repeats") &&
+    lower[cursor + 1] === "every"
   ) {
-    const frequency =
-      unit === "weeks" || unit === "week"
-        ? "week"
-        : unit === "months" || unit === "month"
-          ? "month"
-          : "year";
-    return {
-      recurrence: {
+    cursor += 1;
+  }
+  if (lower[cursor] !== "every") return null;
+
+  const next = lower[cursor + 1];
+  if (!next) return null;
+
+  let frequency: QuickCaptureRecurrence["frequency"];
+  let interval = 1;
+  let weekdays: readonly number[] = [];
+  let end: number;
+
+  if (next === "day") {
+    frequency = "day";
+    end = cursor + 1;
+  } else if (next === "weekday") {
+    frequency = "weekday";
+    end = cursor + 1;
+  } else if (next in WEEKDAYS) {
+    frequency = "week";
+    weekdays = [WEEKDAYS[next]!];
+    end = cursor + 1;
+  } else if (next === "week" || next === "weeks") {
+    frequency = "week";
+    end = cursor + 1;
+  } else if (next === "month" || next === "months") {
+    frequency = "month";
+    end = cursor + 1;
+  } else if (next === "year" || next === "years") {
+    frequency = "year";
+    end = cursor + 1;
+  } else if (/^\d+$/.test(next)) {
+    const unitWord = lower[cursor + 2];
+    const unit = unitWord ? COUNTED_RECURRENCE_UNITS[unitWord] : undefined;
+    if (!unit) return null;
+    const counted = Number(next);
+    // The kernel's canonical bound, not a parser-specific one. Out of range means the
+    // phrase is NOT a rule: "every 999999 months after completion" keeps its words
+    // rather than being clamped into a repeat the owner never asked for.
+    if (!Number.isInteger(counted) || counted < 1 || counted > 99) return null;
+    frequency = unit;
+    interval = counted;
+    end = cursor + 2;
+  } else {
+    return null;
+  }
+
+  let mode: TaskRecurrenceMode = "fixed";
+  const afterCompletionEnd = matchAfterCompletion(lower, end + 1);
+  if (afterCompletionEnd !== null) {
+    if (frequency === "weekday" || weekdays.length > 0) return null;
+    mode = "after_completion";
+    end = afterCompletionEnd;
+  }
+
+  return {
+    recurrence: {
+      frequency,
+      interval,
+      weekdays,
+      mode,
+      // The ONE shared formatter, so the preview chip, the custom editor's summary,
+      // the task row and the record all state the same rule in the same words.
+      label: `Repeat: ${taskRecurrenceLabel({
         frequency,
         interval,
-        weekdays: [],
-        label: `Repeat: Every ${interval} ${frequency}s`,
-      },
-      end: index + 2,
-      raw: words.slice(index, index + 3).join(" "),
-    };
-  }
-  return null;
+        weekdays,
+        mode,
+        dateKind: "scheduled",
+      })}`,
+    },
+    end,
+    raw: words.slice(index, end + 1).join(" "),
+  };
 }
 
 /**
@@ -568,6 +649,18 @@ export function parseQuickCapture(
         );
         dateKind = "scheduled";
       }
+      // TASKS-11 — an after-completion interval with no date in the capture starts
+      // TODAY. This is the same restraint the weekday rule above already applies, not
+      // a new liberty: an `after_completion` rule measures from the day the work is
+      // finished, so its FIRST occurrence has to be the day the owner asked for it —
+      // there is no other non-arbitrary reading, and the kernel refuses an anchorless
+      // rule outright. A FIXED schedule is deliberately NOT treated this way: "Pay
+      // rent every month" with no date still carries `needsDate`, and the rule is
+      // dropped rather than pinned to an arbitrary day of the month.
+      if (dateKind === null && recurrence.mode === "after_completion") {
+        scheduledDate = options.todayIso;
+        dateKind = "scheduled";
+      }
       recurrence = { ...recurrence, dateKind, needsDate: dateKind === null };
     }
   }
@@ -656,6 +749,10 @@ export function applyRecurrenceFields(
   body.set("recurrenceFrequency", recurrence.frequency);
   body.set("recurrenceDateKind", dateKind);
   body.set("recurrenceInterval", String(recurrence.interval));
+  // TASKS-11 — the scheduling MODE travels with the rule. Omitting it would let a
+  // recognised "after completion" arrive at the create route as a fixed schedule,
+  // which is exactly the silent mode crossing the parser exists to prevent.
+  body.set("recurrenceMode", recurrence.mode);
   if (recurrence.weekdays.length > 0) {
     body.set("recurrenceWeekdays", recurrence.weekdays.join(","));
   }

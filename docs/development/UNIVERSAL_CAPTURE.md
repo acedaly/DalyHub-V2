@@ -104,7 +104,7 @@ those are absent, not merely rejected.
 
 | `kind` | What happens |
 |---|---|
-| `task` | Creates a Task. The deterministic parser reads dates, priority, sector, recurrence, waiting and delegate tokens. |
+| `task` | Creates a Task. The deterministic parser reads dates, priority, sector, recurrence (both scheduling modes), waiting and delegate tokens. |
 | `note` | Creates a Note with a Markdown body. |
 | `inbox` | Creates an intentionally unclassified Task with no parent — DalyHub's existing Inbox. |
 | `auto` | Deterministic, conservative classification. Falls back to Inbox. |
@@ -170,6 +170,30 @@ Inbox. Everything ambiguous stays.
 
 No AI, no network, no model. Capture works with AI disabled, unavailable, or out
 of credits.
+
+### The parser is the Task module's, not capture's (TASKS-11)
+
+A captured Task is parsed by the SAME bounded grammar `/tasks` uses, documented in
+[`TASKS_MODULE.md → Quick-capture grammar`](TASKS_MODULE.md#quick-capture-grammar-deliberately-bounded).
+Capture has no syntax of its own and never will: the same sentence produces the same
+structured Task whether it was typed into the quick-add row, sent by the Apple
+Shortcut, spoken to Siri or received by email.
+
+TASKS-11 therefore reached every transport at once. A Shortcut can now say:
+
+```
+Service Hilux every 6 months after completion
+```
+
+and get a Task titled `Service Hilux` carrying the canonical TASKS-07
+after-completion rule (`month` / `6` / `after_completion`), anchored to the owner's
+today. There is deliberately **no** recurrence field in the capture contract for
+this — the endpoint exists to accept a sentence, and adding a structured recurrence
+parameter would create the second capture protocol CAPTURE-01 was built to avoid.
+
+The restraint travels too. A phrase the grammar cannot read whole is left as the
+owner's words, and an unrecognisable capture still lands in the Inbox with its text
+intact rather than being given invented structure.
 
 ---
 
@@ -694,6 +718,7 @@ see §17.
 | Unit | `test/unit/request/capture-boundary.test.ts` | The Worker carve-out: exactly one path, one method, no session granted |
 | Integration | `test/kernel/capture-route.test.ts` | The endpoint against real D1: domain termination, authentication, revocation, workspace isolation, idempotency (including concurrency), Activity exactly once, bounds, rate limits, no leakage |
 | Integration | `test/kernel/capture-email-route.test.ts` | The Email Worker against real D1: acceptance, refusal, HTML safety, idempotency, workspace isolation |
+| Integration | `test/kernel/task-capture-language.test.ts` | TASKS-11: the same sentence through `/tasks/new` and `POST /api/capture` produces the same Task and the same recurrence rule, anchored in the owner's timezone |
 | Browser | `e2e/capture-settings.spec.ts` | Creating a device, the one-time token, revocation, axe + 320px |
 
 Deliberately **not** a dozen Playwright journeys: the capture endpoint is HTTP,

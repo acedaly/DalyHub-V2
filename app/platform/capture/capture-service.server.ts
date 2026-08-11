@@ -317,6 +317,11 @@ async function createCapturedTask(
             frequency: recurrence.frequency,
             dateKind,
             interval: recurrence.interval,
+            // TASKS-11 — the scheduling mode the phrase selected, carried through the
+            // transport unchanged. `POST /api/capture` gains no recurrence FIELD for
+            // this: the endpoint's contract is natural-language capture through the
+            // shared parser, so the sentence is the whole input (CAPTURE-01 §7).
+            mode: recurrence.mode,
             weekdays: [...recurrence.weekdays],
           },
         }

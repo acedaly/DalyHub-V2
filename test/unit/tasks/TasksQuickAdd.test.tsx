@@ -108,6 +108,45 @@ describe("quick add", () => {
     expect(body.get("scheduledDate")).toBe("2026-07-25");
   });
 
+  it("submits a TASKS-11 after-completion phrase as the structured rule, mode included", async () => {
+    const fetchMock = mockFetch({ kind: "create", ok: true, taskId: "t-1" });
+    renderRow();
+
+    fireEvent.change(input(), {
+      target: { value: "Service Hilux every 6 months after completion" },
+    });
+    fireEvent.submit(input().closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
+      .body as FormData;
+    expect(body.get("title")).toBe("Service Hilux");
+    expect(body.get("recurrenceFrequency")).toBe("month");
+    expect(body.get("recurrenceInterval")).toBe("6");
+    expect(body.get("recurrenceMode")).toBe("after_completion");
+    expect(body.get("recurrenceDateKind")).toBe("scheduled");
+    // The first occurrence is the owner's day — the anchor an interval measured from
+    // completion has to start from.
+    expect(body.get("scheduledDate")).toBe("2026-07-30");
+  });
+
+  it("submits an ordinary repeat as a FIXED schedule", async () => {
+    const fetchMock = mockFetch({ kind: "create", ok: true, taskId: "t-1" });
+    renderRow();
+
+    fireEvent.change(input(), {
+      target: { value: "Pay rent tomorrow every month" },
+    });
+    fireEvent.submit(input().closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
+      .body as FormData;
+    expect(body.get("title")).toBe("Pay rent");
+    expect(body.get("recurrenceFrequency")).toBe("month");
+    expect(body.get("recurrenceMode")).toBe("fixed");
+  });
+
   it("clears and REFOCUSES after a save, so the next task is one keystroke away", async () => {
     mockFetch({ kind: "create", ok: true, taskId: "t-1" });
     renderRow();
