@@ -478,6 +478,7 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "default_task_capture_parent_kind",
       "default_diary_mode",
       "appearance",
+      "color_scheme",
       "navigation_config",
       "version",
       "created_at",
@@ -551,6 +552,9 @@ function stageRows(
           // Additive field: an archive written before APPEARANCE-01 joined the
           // snapshot simply has no key, and the schema's own default applies.
           appearance: p.appearance ?? "system",
+          // Additive in the same way: an archive written before THEME-01 joined
+          // the snapshot has no key, and the schema's own default applies.
+          color_scheme: p.colorScheme ?? "violet",
           navigation_config: jsonText(p.navigationConfig),
           version: p.version,
           created_at: p.createdAt ?? snapshot.meta.exportedAt,

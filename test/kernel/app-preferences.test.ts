@@ -252,6 +252,118 @@ describe("AppPreferencesRepository — D1", () => {
     expect((await repo.get(OWNER)).appearance).toBe("system");
   });
 
+  /* THEME-01 — the colour scheme is a persisted owner preference (migration
+   * 0039), and the same round trip matters for the same reasons: the record is
+   * the authority, the cookie is only a mirror, and a value the CHECK does not
+   * name must never reach an HTML attribute. */
+
+  it("defaults an owner with no row to Daly Violet", async () => {
+    const repo = makeAppPreferencesRepository(makeContext(WS));
+    expect((await repo.get(OWNER)).colorScheme).toBe("violet");
+  });
+
+  it("round-trips every colour scheme", async () => {
+    const repo = makeAppPreferencesRepository(makeContext(WS));
+    for (const colorScheme of [
+      "electric",
+      "pulse",
+      "ocean",
+      "graphite",
+      "violet",
+    ] as const) {
+      const result = await repo.update(OWNER, { colorScheme });
+      expect(result.preferences.colorScheme).toBe(colorScheme);
+      expect((await repo.get(OWNER)).colorScheme).toBe(colorScheme);
+    }
+  });
+
+  it("keeps the appearance and the colour scheme independent", async () => {
+    // The two settings compose: choosing Electric must not disturb an explicit
+    // Dark, and vice versa. They are separate columns and separate actions, so
+    // this is the assertion that the patch really does write only what it names.
+    const repo = makeAppPreferencesRepository(makeContext(WS));
+    await repo.update(OWNER, { appearance: "dark" });
+    await repo.update(OWNER, { colorScheme: "electric" });
+    let preferences = await repo.get(OWNER);
+    expect(preferences.appearance).toBe("dark");
+    expect(preferences.colorScheme).toBe("electric");
+
+    await repo.update(OWNER, { appearance: "light" });
+    preferences = await repo.get(OWNER);
+    expect(preferences.appearance).toBe("light");
+    expect(preferences.colorScheme).toBe("electric");
+  });
+
+  it("isolates the colour scheme by workspace and owner", async () => {
+    const repo = makeAppPreferencesRepository(makeContext(WS));
+    const otherWorkspace = makeAppPreferencesRepository(makeContext(OTHER_WS));
+    await repo.update(OWNER, { colorScheme: "pulse" });
+    await repo.update(OTHER_OWNER, { colorScheme: "ocean" });
+    await otherWorkspace.update(OWNER, { colorScheme: "graphite" });
+    expect((await repo.get(OWNER)).colorScheme).toBe("pulse");
+    expect((await repo.get(OTHER_OWNER)).colorScheme).toBe("ocean");
+    expect((await otherWorkspace.get(OWNER)).colorScheme).toBe("graphite");
+  });
+
+  it("refuses a colour scheme the CHECK constraint does not name", async () => {
+    // The validator rejects it first in the application, but the storage boundary
+    // is the last line of defence for a value that ends up in an HTML attribute.
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO owner_app_preferences (
+          workspace_id, owner_id, color_scheme, timezone, date_format,
+          first_day_of_week, default_landing_destination, default_tasks_view,
+          default_diary_mode, navigation_config, version, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      )
+        .bind(
+          WS,
+          OWNER,
+          "chartreuse",
+          "Australia/Sydney",
+          "d_mmm_yyyy",
+          "monday",
+          "today",
+          "focus",
+          "day",
+          JSON.stringify({ version: 1, hiddenModuleIds: [] }),
+          "2026-08-06T00:00:00.000Z",
+          "2026-08-06T00:00:00.000Z",
+        )
+        .run(),
+    ).rejects.toThrow();
+  });
+
+  it("reads a row written before the colour-scheme column as Daly Violet", async () => {
+    // Migration 0039 is additive with a default, so an existing row cannot be
+    // missing the column — but an INSERT that omits it is exactly what a
+    // pre-0039 code path does, and it must land on the shipped default rather
+    // than on an unstyled page.
+    await env.DB.prepare(
+      `INSERT INTO owner_app_preferences (
+        workspace_id, owner_id, timezone, date_format, first_day_of_week,
+        default_landing_destination, default_tasks_view, default_diary_mode,
+        navigation_config, version, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    )
+      .bind(
+        WS,
+        OWNER,
+        "Australia/Sydney",
+        "d_mmm_yyyy",
+        "monday",
+        "today",
+        "focus",
+        "day",
+        JSON.stringify({ version: 1, hiddenModuleIds: [] }),
+        "2026-08-06T00:00:00.000Z",
+        "2026-08-06T00:00:00.000Z",
+      )
+      .run();
+    const repo = makeAppPreferencesRepository(makeContext(WS));
+    expect((await repo.get(OWNER)).colorScheme).toBe("violet");
+  });
+
   it("does not create Activity rows for non-entity preference changes", async () => {
     const repo = makeAppPreferencesRepository(makeContext(WS));
     await repo.update(OWNER, { firstDayOfWeek: "sunday" });

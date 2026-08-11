@@ -781,6 +781,7 @@ export function makeSnapshot(
         defaultTaskCaptureParentKind: null,
         defaultDiaryMode: "day",
         appearance: "system",
+        colorScheme: "violet",
         navigationConfig: { version: 1, hiddenModuleIds: [] },
         version: 3,
         createdAt: T(0),

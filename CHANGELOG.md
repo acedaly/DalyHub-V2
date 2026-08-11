@@ -17,6 +17,46 @@ no version number to group them under.
 
 ---
 
+## Five colour schemes, and DalyHub stops being "the violet app" (THEME-01)
+
+DalyHub has always had one colour. It is a good colour — but a tool you sit in
+front of for years should be able to change its mood without changing what it is.
+**Settings → General → Colour scheme** now offers five:
+
+- **Daly Violet** — the one you already have, unchanged. If you do nothing, nothing
+  changes.
+- **Electric** — cobalt blue with violet and magenta accents, over a deep blue-black
+  shell. Modern and energetic.
+- **Pulse** — magenta and plum over dark neutrals, with a lime accent kept for small
+  positive detail. The boldest of the five.
+- **Ocean** — royal blue, teal and cyan on cool slate. Calm and focused, with no
+  violet in it at all.
+- **Graphite** — charcoal and slate. The quietest option, and deliberately _not_ a
+  grey mode: overdue is still red, done is still green, and every status keeps its
+  full colour.
+
+**Colour scheme and Light/Dark are separate choices.** Every scheme has a proper
+light version and a proper dark version, so "Ocean, Light" and "Ocean, Dark" are
+both real. Changing one never disturbs the other.
+
+**Only the colour changes.** Layout, type, spacing, corners, icons and every
+interaction are identical in all five — you are not learning a new app when you
+switch, and nothing moves.
+
+**It applies immediately.** Tap a scheme and the page is repainted: no reload, no
+sign-out, nothing to restart on an installed app. The choice is stored with your
+other preferences, so it follows you to another browser or your phone, and the
+right colours are already there in the first frame of a page rather than flashing
+in afterwards.
+
+**Working surfaces stay calm on purpose.** A scheme spends its colour on the
+things that mean something — the buttons you press, what is selected, where you
+are in the navigation, progress, charts — not on the page behind your work. That
+is why five schemes still read as one product, and why Pulse's lime stays a small
+accent rather than a wall.
+
+---
+
 ## Goals now show where you are, where you started, and how far is left (UIX-03)
 
 Goals could already track a real measurement — a weight, a savings balance, a

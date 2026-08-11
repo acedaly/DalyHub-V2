@@ -12,6 +12,12 @@
 // nothing to run before paint, and nothing for React to disagree with at
 // hydration, because the server and the client render the attribute from the same
 // loader data.
+//
+// THEME-01 resolves the owner's COLOUR SCHEME the same way, into
+// `<html data-color-scheme>`, through the same two-source fallback. The two
+// attributes are independent: the appearance chooses light or dark, the scheme
+// chooses which palette's light and dark, and the stylesheet resolves them
+// separately. Nothing else about the document changes with either.
 import {
   isRouteErrorResponse,
   Links,
@@ -29,7 +35,12 @@ import {
   readAppearancePreference,
   type AppearancePreference,
 } from "./kernel/preferences/appearance";
-import { DARK_SCHEME, LIGHT_SCHEME } from "./shared/tokens";
+import {
+  DEFAULT_COLOR_SCHEME,
+  readColorSchemePreference,
+  type ColorScheme,
+} from "./kernel/preferences/color-scheme";
+import { COLOR_SCHEME_PALETTES } from "./shared/tokens";
 import "./app.css";
 
 /**
@@ -42,8 +53,10 @@ import "./app.css";
  * app shell supplies the authoritative value when it resolves.
  */
 export function loader({ request }: Route.LoaderArgs) {
+  const cookie = request.headers.get("Cookie");
   return {
-    appearance: readAppearancePreference(request.headers.get("Cookie")),
+    appearance: readAppearancePreference(cookie),
+    colorScheme: readColorSchemePreference(cookie),
   };
 }
 
@@ -64,21 +77,24 @@ export function loader({ request }: Route.LoaderArgs) {
  */
 function ThemeColor({
   appearance,
+  colorScheme,
 }: {
   readonly appearance: AppearancePreference;
+  readonly colorScheme: ColorScheme;
 }) {
+  const palette = COLOR_SCHEME_PALETTES[colorScheme];
   if (appearance === "system") {
     return (
       <>
         <meta
           name="theme-color"
           media="(prefers-color-scheme: light)"
-          content={LIGHT_SCHEME["app-surface-page"]}
+          content={palette.light["app-surface-page"]}
         />
         <meta
           name="theme-color"
           media="(prefers-color-scheme: dark)"
-          content={DARK_SCHEME["app-surface-page"]}
+          content={palette.dark["app-surface-page"]}
         />
       </>
     );
@@ -88,8 +104,8 @@ function ThemeColor({
       name="theme-color"
       content={
         appearance === "dark"
-          ? DARK_SCHEME["app-surface-page"]
-          : LIGHT_SCHEME["app-surface-page"]
+          ? palette.dark["app-surface-page"]
+          : palette.light["app-surface-page"]
       }
     />
   );
@@ -126,11 +142,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const rootData = useRouteLoaderData<typeof loader>("root");
   const shellData = useRouteLoaderData<{
     appearance?: AppearancePreference;
+    colorScheme?: ColorScheme;
   }>("app-shell");
   const appearance: AppearancePreference =
     shellData?.appearance ?? rootData?.appearance ?? DEFAULT_APPEARANCE;
+  // THEME-01 — the same three-source resolution, for the same reasons. The
+  // attribute is ALWAYS written, including for the default scheme: an explicit
+  // `violet` and an absent attribute paint identically (the generated stylesheet
+  // makes the bare `:root` the default scheme), but writing it means the client
+  // has one thing to patch when the owner switches rather than an attribute to
+  // add and later remove.
+  const colorScheme: ColorScheme =
+    shellData?.colorScheme ?? rootData?.colorScheme ?? DEFAULT_COLOR_SCHEME;
   return (
-    <html lang="en" data-appearance={appearance}>
+    <html
+      lang="en"
+      data-appearance={appearance}
+      data-color-scheme={colorScheme}
+    >
       <head>
         <meta charSet="utf-8" />
         {/* `viewport-fit=cover` opts the document into the display's full width
@@ -200,7 +229,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
          * background so an installed window's chrome continues the page rather
          * than framing it. Both halves are emitted with a media attribute, so
          * the OS picks the one that matches what the stylesheet is painting. */}
-        <ThemeColor appearance={appearance} />
+        <ThemeColor appearance={appearance} colorScheme={colorScheme} />
         {/* Standalone launch. `mobile-web-app-capable` is the standard name;
          * `apple-mobile-web-app-capable` is kept ALONGSIDE it because current
          * iOS Safari still reads only the Apple-prefixed name when deciding

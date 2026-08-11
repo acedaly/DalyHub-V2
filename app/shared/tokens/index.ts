@@ -23,9 +23,15 @@ export {
 } from "./tokens";
 
 export {
+  COLOR_SCHEME_PALETTES,
+  COLOR_SCHEME_SEEDS,
+  COLOR_SCHEME_TINT_STRENGTHS,
   DARK_SCHEME,
+  GENERATED_COLOR_SCHEMES,
   LIGHT_SCHEME,
   SCHEME,
   SOURCE_COLOR,
+  type GeneratedColorScheme,
   type SchemeColorMap,
+  type SchemeColorPair,
 } from "./scheme";

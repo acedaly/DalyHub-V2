@@ -307,6 +307,60 @@ describe("workspace backup and restore (D1)", () => {
     }
   });
 
+  it("restores the owner's appearance AND colour scheme, not just the defaults", async () => {
+    /*
+     * The defining test above compares whole snapshots, which covers this only if
+     * the fixture actually carries NON-default display preferences — and the
+     * shipped defaults are exactly what a silently-dropped field looks like. So
+     * both are set explicitly here first.
+     *
+     * SET-02 added `appearance` to the snapshot because a restore that reset it
+     * would be an unfaithful reconstruction of configuration the archive claims
+     * to carry. THEME-01 added `colorScheme` for the same reason, and this is the
+     * assertion that keeps the claim true.
+     */
+    // An UPSERT, not an UPDATE: the fixture workspace may have no preferences
+    // row at all, in which case the export reports the DEFAULTS at version 0 —
+    // which is exactly what a dropped field looks like, so the test would pass
+    // by accident and prove nothing.
+    await env.DB.prepare(
+      `INSERT INTO owner_app_preferences (
+         workspace_id, owner_id, appearance, color_scheme,
+         timezone, date_format, first_day_of_week,
+         default_landing_destination, default_tasks_view, default_diary_mode,
+         navigation_config, version, created_at, updated_at
+       ) VALUES (?, ?, 'dark', 'electric', 'Australia/Sydney', 'd_mmm_yyyy',
+                 'monday', 'today', 'focus', 'day', ?, 1, ?, ?)
+       ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
+         appearance = 'dark', color_scheme = 'electric'`,
+    )
+      .bind(
+        SOURCE,
+        OWNER,
+        JSON.stringify({ version: 1, hiddenModuleIds: [] }),
+        "2026-08-03T09:00:00.000Z",
+        "2026-08-03T09:00:00.000Z",
+      )
+      .run();
+    const withPreferences = await exportSnapshot(SOURCE);
+    expect(withPreferences.owner.preferences.appearance).toBe("dark");
+    expect(withPreferences.owner.preferences.colorScheme).toBe("electric");
+
+    const bytes = (await buildStructuredExportArchive(withPreferences)).bytes;
+    // Entity ids are globally unique, so the source has to let go of them before
+    // the same snapshot can be restored elsewhere — the same step every other
+    // cross-workspace restore in this file takes.
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, bytes);
+    await applyRestore(deps, preview.operationId);
+
+    const restored = await exportSnapshot(TARGET);
+    expect(restored.owner.preferences.appearance).toBe("dark");
+    expect(restored.owner.preferences.colorScheme).toBe("electric");
+  });
+
   it("manufactures no Activity: history is restored, not re-enacted", async () => {
     await loseWorkspaceRecords(SOURCE);
     await ensureWorkspace(TARGET);

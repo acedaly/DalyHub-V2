@@ -1,6 +1,7 @@
 import type { WorkspaceId } from "~/kernel/workspaces";
 
 import { DEFAULT_APPEARANCE, type AppearancePreference } from "./appearance";
+import { DEFAULT_COLOR_SCHEME, type ColorScheme } from "./color-scheme";
 
 export const APP_PREFERENCES_CHANGED = "settings.preferences_changed";
 
@@ -68,6 +69,14 @@ export interface AppPreferences {
    * by the appearance action.
    */
   readonly appearance: AppearancePreference;
+  /**
+   * THEME-01 — which of the five DalyHub colour schemes to paint. Independent of
+   * {@link AppPreferences.appearance}: every scheme has a first-class light and
+   * dark pair, so the two settings compose rather than override one another.
+   * Stored here for the same reason the appearance is, and mirrored into its own
+   * first-paint cookie by the colour-scheme action.
+   */
+  readonly colorScheme: ColorScheme;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly firstDayOfWeek: FirstDayOfWeek;
@@ -98,6 +107,7 @@ export interface AppPreferenceRecord extends AppPreferences {
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   appearance: DEFAULT_APPEARANCE,
+  colorScheme: DEFAULT_COLOR_SCHEME,
   timezone: DEFAULT_OWNER_TIME_ZONE,
   dateFormat: "d_mmm_yyyy",
   firstDayOfWeek: "monday",
@@ -116,6 +126,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
 
 export type AppPreferencePatch = Partial<{
   readonly appearance: AppearancePreference;
+  readonly colorScheme: ColorScheme;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly firstDayOfWeek: FirstDayOfWeek;

@@ -23,6 +23,11 @@ import {
   DEFAULT_APPEARANCE,
   type AppearancePreference,
 } from "./appearance";
+import {
+  COLOR_SCHEMES,
+  DEFAULT_COLOR_SCHEME,
+  type ColorScheme,
+} from "./color-scheme";
 
 const OWNER_ID_MAX_LENGTH = 256;
 
@@ -111,6 +116,24 @@ export function parseAppearance(value: unknown): AppearancePreference {
     value,
     APPEARANCE_PREFERENCES,
     "Choose System, Light or Dark.",
+  );
+}
+
+/**
+ * THEME-01 — the STRICT colour-scheme parser, used on the write path.
+ *
+ * `parseColorSchemePreference` (the kernel contract) coerces, because a bad value
+ * arriving from a cookie or a stored row must never break a page. A PATCH is
+ * different: it is a deliberate write, and an unknown value there means the
+ * caller and the value set disagree — a bug worth surfacing rather than silently
+ * storing Daly Violet over the owner's actual choice.
+ */
+export function parseColorScheme(value: unknown): ColorScheme {
+  return parseEnum(
+    "colorScheme",
+    value,
+    COLOR_SCHEMES,
+    "Choose one of the DalyHub colour schemes.",
   );
 }
 
@@ -269,6 +292,8 @@ export function validateAppPreferencesPatch(
   } = {};
   if (patch.appearance !== undefined)
     out.appearance = parseAppearance(patch.appearance);
+  if (patch.colorScheme !== undefined)
+    out.colorScheme = parseColorScheme(patch.colorScheme);
   if (patch.timezone !== undefined)
     out.timezone = parseTimezone(patch.timezone);
   if (patch.dateFormat !== undefined)
@@ -313,6 +338,7 @@ export function validateAppPreferencesPatch(
 
 export function normaliseStoredPreferences(input: {
   readonly appearance?: unknown;
+  readonly colorScheme?: unknown;
   readonly timezone: unknown;
   readonly dateFormat: unknown;
   readonly firstDayOfWeek: unknown;
@@ -334,6 +360,14 @@ export function normaliseStoredPreferences(input: {
       (APPEARANCE_PREFERENCES as readonly string[]).includes(input.appearance)
         ? (input.appearance as AppearancePreference)
         : DEFAULT_APPEARANCE,
+    // Same rule for the colour scheme: a row written before the column existed,
+    // or naming a scheme a later release removed, reads as Daly Violet rather
+    // than failing the whole preferences read (THEME-01 §30).
+    colorScheme:
+      typeof input.colorScheme === "string" &&
+      (COLOR_SCHEMES as readonly string[]).includes(input.colorScheme)
+        ? (input.colorScheme as ColorScheme)
+        : DEFAULT_COLOR_SCHEME,
     timezone: isSupportedTimezone(input.timezone)
       ? input.timezone
       : DEFAULT_APP_PREFERENCES.timezone,

@@ -1,0 +1,41 @@
+-- THEME-01: persist the owner's chosen COLOUR SCHEME on the preferences record.
+--
+-- ADDITIVE ONLY. One column with a default is added to an existing table. No
+-- table is rebuilt, no existing row is rewritten and no existing preference value
+-- is touched, so this is safe to apply to the populated production database and
+-- to a fresh one alike. It is the same shape as 0023 and 0033, and deliberately
+-- NOT the table rebuild 0026 and 0031 needed. Those had to widen or drop a CHECK,
+-- which SQLite cannot do in place. Adding one does not.
+--
+-- Why a column at all: DalyHub's owner preferences are EXPLICIT TYPED COLUMNS on
+-- owner_app_preferences (0017), not a JSON blob. There is no existing slot a new
+-- preference can occupy, so storing a preference in the preference model is a
+-- column by construction. Device-local storage was rejected for the reason
+-- ADR-061 already recorded when the theme first moved into the database: a
+-- personal choice that does not follow the owner to their phone is a broken one.
+-- The cookie still exists, but only as a FIRST-PAINT MIRROR of this column. This
+-- row is the authority.
+--
+-- DEFAULT 'violet' is the deliberate migration outcome for every existing owner.
+-- Daly Violet is byte-for-byte the palette the product already paints, so
+-- applying this migration changes nobody's colours and nobody is silently moved
+-- onto one of the four new schemes (THEME-01 rule 45).
+--
+-- This is NOT the seven-palette theme column 0031 removed, and it is not a return
+-- to it. That column selected between seven hand-authored palettes that carried
+-- their own component rules. This one selects between five GENERATED schemes over
+-- the one Material Design 3 token architecture ADR-074 established, with no module
+-- CSS branching on the value and no second component system. The appearance
+-- preference (0033) is unchanged and remains independent: appearance chooses light
+-- or dark, this column chooses which palette's light and dark.
+--
+-- The CHECK names the five schemes, so a bad write fails at the storage boundary
+-- as well as in the validator. parseColorScheme in
+-- app/kernel/preferences/app-preferences-validation.ts is the matching
+-- application guard, and COLOR_SCHEMES in
+-- app/kernel/preferences/color-scheme.ts is the one list both derive from. A unit
+-- test pins that list to this constraint so the two cannot drift.
+
+ALTER TABLE owner_app_preferences
+  ADD COLUMN color_scheme TEXT NOT NULL DEFAULT 'violet'
+  CHECK (color_scheme IN ('violet', 'electric', 'pulse', 'ocean', 'graphite'));

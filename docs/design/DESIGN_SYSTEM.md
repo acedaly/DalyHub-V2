@@ -16,8 +16,8 @@ This matters because it changes where design questions get answered. "What radiu
 
 | Token family | What it carries |
 | --- | --- |
-| `--md-sys-color-*` | Every colour role, **generated** from one seed |
-| `--md-app-color-*` | Four application surface aliases onto that ramp |
+| `--md-sys-color-*` | Every colour role, **generated** per colour scheme |
+| `--md-app-color-*` | The application surfaces, from a near-neutral palette of their own |
 | `--md-ref-typeface-*` | The two reference typefaces |
 | `--md-sys-typescale-*` | The fifteen type styles |
 | `--md-sys-shape-*` | The corner scale |
@@ -333,39 +333,120 @@ is the design, not a divergence to reconcile.
 
 ## Colour is generated, never authored
 
-Every colour in the product comes out of [`scripts/generate-m3-scheme.mjs`](../../scripts/generate-m3-scheme.mjs), which runs the M3 tonal-palette algorithm over a single seed:
+Every colour in the product comes out of [`scripts/generate-m3-scheme.mjs`](../../scripts/generate-m3-scheme.mjs), which runs the M3 tonal-palette algorithm over a small, documented set of source colours — one per colour scheme:
 
-```
-SOURCE_COLOR = #6D4AE6   // M3X: violet. Was #2563EB.
-```
+| Scheme | Key | Seed | Character |
+| --- | --- | --- | --- |
+| **Daly Violet** *(default)* | `violet` | `#6D4AE6` | DalyHub's own violet — personal, warm, expressive without being loud |
+| **Electric** | `electric` | `#2764ff` | Cobalt primary, violet secondary, magenta tertiary, over a deep blue-black shell |
+| **Pulse** | `pulse` | `#d31dbc` | Magenta primary, plum secondary, a disciplined lime tertiary, on charcoal |
+| **Ocean** | `ocean` | `#0067a8` | Royal blue, teal and cyan on cool slate — no violet identity at all |
+| **Graphite** | `graphite` | `#41474f` | Charcoal brand, full-colour semantics — the quiet option, never greyscale |
 
 The script writes **both** the colour blocks in `tokens.css` and the typed mirror `app/shared/tokens/scheme.ts`, so the stylesheet and the tests cannot disagree. `pnpm run scheme:check` regenerates both in memory and byte-compares them; it runs inside `pnpm run verify`, so a hand-edited hex fails the build rather than surviving review.
 
-**To change a colour, change the seed.** Re-branding the product is one line and one command.
+**To change a scheme's colour, change its palettes in the generator.** Nothing about colour is authored in a stylesheet, in any scheme.
 
-### One light/dark pair, and no theme feature
+---
 
-There is one light scheme and one dark one. There is no `data-theme`, no picker, no palettes and no theme column — the seven curated themes and their machinery are retired ([ADR-074 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism), migration `0031`). A component styled once is correct in both appearances, and nothing in the cascade branches on a theme.
+## Appearance, colour scheme, design system
 
-**Appearance is the one thing the owner chooses about that pair** ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation)). Three values, and only three: **System** (the default — follow `prefers-color-scheme`, and keep following it while DalyHub is open), **Light** and **Dark**. Never *Auto*, *Default* or *Night mode*.
+Three things are deliberately separate, and confusing them is the most expensive mistake available here ([ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)):
 
-- It is stored on the owner's preference record (`owner_app_preferences.appearance`, migration `0033`) so it follows the owner between devices, and mirrored into a `dh_appearance` cookie so a document that never reaches the shell loader still paints correctly on its first byte.
-- The server writes it to `<html data-appearance>` during SSR. There is **no bootstrapping script**: nothing to exempt from the CSP, no flash, and no hydration mismatch, because the server and the client render the attribute from the same loader data.
-- The cascade lives entirely in the generated block of `tokens.css`: `:root` is light, `@media (prefers-color-scheme: dark) :root:not([data-appearance="light"])` is the device's dark, and `:root[data-appearance="dark"]` is an explicit dark. `color-scheme` is pinned alongside each, so native controls, scrollbars and the default canvas follow the same decision.
-- One shared control renders it in exactly two places — the account menu and Settings → General — as a native radio group. There is no theme button in a page header.
+| | What it decides | Where it lives | Values |
+| --- | --- | --- | --- |
+| **Design system** | components, layout, typography, shape, motion | this document | one, always |
+| **Colour scheme** | which palette the design system is painted in | `<html data-color-scheme>` | Daly Violet · Electric · Pulse · Ocean · Graphite |
+| **Appearance** | which half of that palette paints | `<html data-appearance>` | System · Light · Dark |
 
-### The four application surfaces
+The last two are **independent by construction**. Every scheme has a first-class light *and* dark pair — neither derived from the other — so "Electric, Light" and "Electric, Dark" are both real states, and changing one setting never disturbs the other.
 
-`--md-app-color-surface-{page,card,raised,sunken}` alias different rungs of the system ramp in each scheme:
+### It is a "colour scheme", not a "theme"
 
-| Token | Light | Dark |
+In the owner-facing product, and in new code, the word is **colour scheme**. "Theme" invites the reader to expect different typography, spacing, component shapes, layout or animation — none of which a scheme touches, and all of which are explicit non-goals. Existing code whose name predates this may keep it where renaming would be churn; new names may not.
+
+### What a scheme changes, and what it must not
+
+A scheme is **token substitution**. Its identity comes from where colour is *spent*:
+
+- primary actions, links, focus, selection and active navigation
+- tonal containers, progress, expressive surfaces, chart series
+- the navigation shell, which may legitimately carry a stronger tonal expression than a working surface (Electric's dark navigation is a deep navy *below* its canvas rather than above it)
+
+It must **not** come from painting the application. Working surfaces stay on the near-neutral `--md-app-color-*` ramp in every scheme — light surfaces are held under HCT chroma 6, dark under 14 (there is no white to tint at tone 10, which is why the ceiling is per appearance) — and both ceilings are asserted for all five schemes. A productivity application is read for hours; the scheme is the personality, not the paint.
+
+### The rule for module code
+
+> **Module CSS must never branch on a named colour scheme to make a module look better.**
+> If a module needs a new colour role, add a semantic token. Do not check whether the scheme is Violet or Electric.
+
+`[data-color-scheme="electric"] .projects-card { … }` is forbidden, and a test in `test/unit/tokens/appearance-cascade.test.ts` fails the build if any stylesheet outside `tokens.css` mentions the attribute at all. 95%+ of every scheme's behaviour is token substitution; the remainder is the Settings picker, below.
+
+The one sanctioned exception is the **preview swatch**, because a picker has to show four schemes that are *not* painting and no semantic token can express that. The generator emits `--md-app-color-preview-<scheme>-{primary,secondary,tertiary}` into every appearance block, and `.dh-scheme-tone[data-scheme]` in `tokens.css` resolves a scheme *name* to them — the same shape as `.dh-tone[data-tone]`. It selects on the row's **offer**, never on the document's **state**.
+
+### Semantic colour does not belong to the scheme
+
+Error, warning, success, the four task priorities, the five record states, entity identity and the decorative accent ramp use the **same sources in every scheme**, harmonised toward each seed by at most 15° so they still belong to it. A status means the same thing whichever scheme the owner has chosen. Asserted, for all five schemes in both appearances, in `test/unit/tokens/color-schemes.test.ts`:
+
+- the brand stays ≥25° of hue from `error`, `state-overdue` and `priority-p1` — so "the brand" and "something is wrong" are never the same statement
+- `success`, `warning` and `error` stay ≥25° from one another
+- the P1→P4 ramp cannot collapse, and P4 stays neutral
+- no two entity identities share a colour
+- every semantic role stays within ~30° of its default-scheme value
+
+**Pulse's lime tertiary is the colour most easily abused.** It is a tertiary and stays one: an accent, a positive figure, a chart series, a small expressive detail. It is never a container background, a navigation fill, a card surface or body text — a structural test asserts no surface in Pulse resolves to a lime.
+
+**Graphite is restrained in its BRAND, not in its information.** Its semantic ramps carry exactly as much colour as every other scheme's; only the primary is a charcoal. A "greyscale mode" would be a different, worse feature.
+
+### Charts
+
+The chart palette is **bounded at six series in every scheme**, and no two may sit within 25° of hue — a legend is the one place in this product where colour genuinely *is* the signal. A scheme may substitute a hue when its seed makes the shared ramp collide (Pulse does, once, for exactly that reason), but it may not change the palette's size or drop the separation rule. Series are also distinguished by label and by position; colour is never the only signal.
+
+### Adding a future scheme
+
+1. Add an entry to `COLOR_SCHEMES` in `scripts/generate-m3-scheme.mjs` — a key, a seed, five palettes, an app-neutral hue/chroma (per appearance if it needs one), and any surface-ladder or tint override.
+2. Add the same key to `COLOR_SCHEMES` in `app/kernel/preferences/color-scheme.ts`.
+3. Add a descriptor (name + one sentence) to `COLOR_SCHEME_OPTIONS` in `app/shared/shell/color-scheme.ts`.
+4. Add a `.dh-scheme-tone[data-scheme="<key>"]` block to `tokens.css` republishing its three preview roles.
+5. Widen the `CHECK` constraint with a new additive migration.
+6. Run `pnpm run scheme:generate`, then `pnpm run test:unit`.
+
+Step 6 is the acceptance test: every contrast, ladder, chart-separation, semantic-distinctness and role-coverage assertion runs against the new scheme automatically, in both appearances, and names the combination that fails. **A scheme that does not pass them does not ship**, and the passing bar is the whole system — not "its primary button clears 4.5:1".
+
+### How both preferences are stored and applied
+
+Identical architecture, twice ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation) for the appearance, [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance) for the scheme):
+
+| | Appearance | Colour scheme |
 | --- | --- | --- |
-| `--md-app-color-surface-page` | `surface-container-low` | `surface` |
-| `--md-app-color-surface-card` | `surface-container-lowest` | `surface-container` |
-| `--md-app-color-surface-raised` | `surface-container-high` | `surface-container-high` |
-| `--md-app-color-surface-sunken` | `surface-container` | `surface-container-low` |
+| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0039`) |
+| Default | `system` | `violet` |
+| First-paint cookie | `dh_appearance` | `dh_color_scheme` |
+| Action | `POST /preferences/appearance` | `POST /preferences/color-scheme` |
+| Attribute | `<html data-appearance>` | `<html data-color-scheme>` |
+| Control | account menu **and** Settings → Appearance | Settings → Colour scheme only |
 
-These exist because one requirement — **a card is lighter than the page it sits on, in both schemes** — cannot be expressed by a single system alias: light lifts the card toward white while dark lifts it away from black. Naming the four rungs the application actually paints with means every card in the product agrees by definition. A test asserts the lift in both schemes.
+- Both are **owner-scoped** on the preference record, so a choice follows the owner between devices. The record is the authority; each cookie is a first-paint mirror, HttpOnly, `SameSite=Lax`, bounded to a year and re-validated on write, and the app-shell loader reconciles either one from the record when they disagree.
+- Both are written **server-side into the attribute** during SSR. There is no bootstrapping script: nothing to exempt from the CSP, nothing to run before paint, and no hydration mismatch, because the server and the client render from the same loader data.
+- Changing either is a `useFetcher` POST, not a navigation, and the control repaints the document **optimistically** by writing its one attribute — so a scheme applies the instant it is tapped, and a rejected write reverts it. No reload, no logout, nothing to restart.
+- Reads **coerce** (a bad cookie or stale row lands on the default); writes **reject** (a malformed submission is a 400 that stores nothing, rather than silently replacing an explicit choice with the default).
+- The scheme picker is deliberately **not** in the account menu. An appearance is flipped often; a scheme is chosen and then lived in, and five preview rows in a dropdown would make the menu a theme gallery.
+
+### Accessibility
+
+WCAG 2.2 AA is the bar for **every** scheme in **both** appearances, and it is asserted rather than reviewed: every `on-*` pair on its own colour and container, the text ramp and the outline on all fifteen surfaces, the focus ring on every application surface, the selected-navigation pairing, progress against its track, every identity mark on its composed tile, and every washed widget surface. Colour is never the only signal anywhere — selection carries a shape, a weight step and `aria-current`; priority carries a P1–P4 label; state carries a glyph and a word.
+
+Under **forced colours** the platform's decisions outrank DalyHub's branding entirely. Nothing in the scheme system fights them, and the Settings preview swatches — which carry no information the row does not already state in words — are removed rather than left as five identical circles.
+
+### The application surfaces
+
+`--md-app-color-surface-{page,navigation,app-bar,card,card-subtle,raised,sunken}` and `--md-app-color-outline-hairline` come from an **app-neutral palette of their own** — a near-neutral tonal palette at a hue and chroma each scheme names — not from the system container ramp.
+
+They exist because one requirement — **a card is lighter than the page it sits on, in both appearances** — cannot be expressed by a single system alias: light lifts the card toward white while dark lifts it away from black. Naming the rungs the application actually paints with means every card in the product agrees by definition.
+
+They are also what makes five schemes possible without five colour washes: `SchemeVibrant` builds its neutral ramp at chroma 10, and at the near-white tones an application uses that is a visible tint over the entire product (the PR #120 defect). Each scheme's surfaces are held under chroma 6 in light and 14 in dark, and the ladder's ORDER is asserted for every scheme in both appearances — card above page, sunken recessed, card-subtle below card, navigation and the app bar tonally distinct from the page, raised lifting clearly off the card in dark.
+
+Navigation is where a scheme is allowed to be strongest: Electric's dark navigation sits *below* its canvas (tone 8 against 11) so the shell reads as a deep blue-black frame, while Daly Violet's sits above it. The ladder rule is about DISTINCTNESS, not direction.
 
 ### Custom colours
 
@@ -1153,7 +1234,7 @@ every consumer (Area, Goal, Project, Note, Task) gets it identically:
 - The **summary** and the **active tab panel / no-tabs content region** share ONE
   contained surface treatment: `--md-app-color-surface-card` fill,
   `--md-sys-shape-corner-large` and elevation 1 — so the tab content no longer
-  blends into the canvas, in both appearances, from the one generated scheme.
+  blends into the canvas, in both appearances, in every colour scheme.
 - **No doubled / stacked-card borders.** Cards inside a tab sit on
   `--md-app-color-surface-raised` (one shade above the panel), so nested cards stay
   distinct without a second concentric border; a state slot that carries its own

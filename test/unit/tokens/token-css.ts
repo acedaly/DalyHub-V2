@@ -79,46 +79,112 @@ export function generatedSection(): string {
   return tokensCss.slice(begin + GENERATED_BEGIN.length, end);
 }
 
-/** The LIGHT scheme block — the `:root` inside the generated section. */
-export function lightSchemeTokens(): Map<string, string> {
-  return parseDeclarations(blockBody(generatedSection(), /:root\s*\{/));
+/**
+ * THEME-01 — the generated section now carries FIVE schemes, so every block
+ * accessor takes a scheme key. The default scheme is the one whose light block is
+ * the bare `:root` and whose dark blocks also match a document with no attribute
+ * at all, which is what makes it the safe fallback.
+ */
+export const DEFAULT_SCHEME_KEY = "violet";
+
+/** Every scheme the generated section defines, in emission order. */
+export const GENERATED_SCHEME_KEYS = [
+  "violet",
+  "electric",
+  "pulse",
+  "ocean",
+  "graphite",
+] as const;
+
+/** Escape a string for use inside a `RegExp`. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
- * The DARK scheme block — the rule inside the generated `prefers-color-scheme`
- * media query.
+ * The LIGHT block for a scheme.
  *
- * APPEARANCE-01 narrowed that rule's selector from `:root` to
- * `:root:not([data-appearance="light"])`, so a device set to dark no longer
- * overrides an owner who explicitly chose Light. The declarations are unchanged,
- * and `explicitDarkSchemeTokens()` asserts that the explicit-dark block outside
- * the media query carries exactly the same ones.
+ * The default scheme's is the bare `:root` — it is the base every document gets
+ * before any attribute is considered, which is exactly why an unknown or stale
+ * `data-color-scheme` lands on it.
  */
-export function darkSchemeTokens(): Map<string, string> {
+export function schemeLightTokens(
+  scheme: string = DEFAULT_SCHEME_KEY,
+): Map<string, string> {
+  const header =
+    scheme === DEFAULT_SCHEME_KEY
+      ? /:root\s*\{/
+      : new RegExp(
+          `:root\\[data-color-scheme="${escapeForRegExp(scheme)}"\\]\\s*\\{`,
+        );
+  return parseDeclarations(blockBody(generatedSection(), header));
+}
+
+/** The default scheme's light block — the base `:root`. */
+export function lightSchemeTokens(): Map<string, string> {
+  return schemeLightTokens();
+}
+
+/**
+ * The DARK block a scheme takes from the DEVICE — the rule inside the generated
+ * `prefers-color-scheme` media query.
+ *
+ * The selector carries two attribute clauses so it outranks every light block
+ * whatever the source order: `:not([data-appearance="light"])`, so a device set
+ * to dark cannot override an owner who explicitly chose Light, and the scheme's
+ * own attribute. The default scheme's rule is a selector LIST, because it must
+ * also match a document carrying no `data-color-scheme` at all.
+ */
+export function schemeDarkTokens(
+  scheme: string = DEFAULT_SCHEME_KEY,
+): Map<string, string> {
   const media = blockBody(
     generatedSection(),
     /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/,
   );
   return parseDeclarations(
-    blockBody(media, /:root:not\(\[data-appearance="light"\]\)\s*\{/),
+    blockBody(
+      media,
+      new RegExp(
+        `:root\\[data-color-scheme="${escapeForRegExp(scheme)}"\\]:not\\(\\[data-appearance="light"\\]\\)[^{]*\\{`,
+      ),
+    ),
   );
 }
 
+/** The default scheme's device-dark block. */
+export function darkSchemeTokens(): Map<string, string> {
+  return schemeDarkTokens();
+}
+
 /**
- * The EXPLICIT dark block — `:root[data-appearance="dark"]`, which paints dark on
- * a device set to light. It must carry the same declarations as the media-query
- * block, or an explicit Dark would be a different (partial) dark appearance.
+ * The EXPLICIT dark block for a scheme — `[data-appearance="dark"]`, which paints
+ * dark on a device set to light. It must carry the same declarations as the
+ * media-query block, or an explicit Dark would be a different (partial) dark
+ * appearance.
  */
-export function explicitDarkSchemeTokens(): Map<string, string> {
+export function schemeExplicitDarkTokens(
+  scheme: string = DEFAULT_SCHEME_KEY,
+): Map<string, string> {
   return parseDeclarations(
-    blockBody(generatedSection(), /:root\[data-appearance="dark"\]\s*\{/),
+    blockBody(
+      generatedSection(),
+      new RegExp(
+        `:root\\[data-color-scheme="${escapeForRegExp(scheme)}"\\]\\[data-appearance="dark"\\]\\s*\\{`,
+      ),
+    ),
   );
+}
+
+/** The default scheme's explicit-dark block. */
+export function explicitDarkSchemeTokens(): Map<string, string> {
+  return schemeExplicitDarkTokens();
 }
 
 /**
  * The EXPLICIT light block — `:root[data-appearance="light"]`. It carries no
- * colour declarations (the base `:root` already paints light); its whole job is to
- * pin `color-scheme` so native controls do not follow a dark device.
+ * colour declarations (each scheme's light block already paints); its whole job is
+ * to pin `color-scheme` so native controls do not follow a dark device.
  */
 export function explicitLightBlock(): string {
   return blockBody(generatedSection(), /:root\[data-appearance="light"\]\s*\{/);
