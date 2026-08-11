@@ -260,6 +260,50 @@ Content-Type: application/json
 A response never contains SQL, a D1 error, a stack trace, a Cloudflare detail or
 any token representation.
 
+### Representative requests
+
+Copy-paste fixtures for verifying a deployment, or for building another client.
+Substitute the origin and a real token.
+
+```bash
+TOKEN=dhcap_…
+HUB=https://hub.daly.id.au
+
+# The smallest possible capture — DalyHub decides what it is.
+curl -sS -X POST "$HUB/api/capture" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"text":"Look into camper solar"}'
+
+# An explicit Task, with a client-generated idempotency key.
+curl -sS -X POST "$HUB/api/capture" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"kind":"task","text":"Book Hilux service next Friday",
+       "source":"ios-shortcut","clientCaptureId":"'"$(uuidgen)"'"}'
+
+# Run the SAME command twice: one task, and the second answer says so.
+#   {"ok":true,"capture":{…,"replayed":true}}
+
+# A Share Sheet Note, with the page's title and URL.
+curl -sS -X POST "$HUB/api/capture" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"kind":"note","title":"An article","text":"Worth reading",
+       "source":"ios-share-sheet","sourceUrl":"https://example.com/article",
+       "sourceTitle":"An article"}'
+
+# An explicit Inbox capture.
+curl -sS -X POST "$HUB/api/capture" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"kind":"inbox","text":"That thing Dad mentioned"}'
+
+# Refusals, for checking the boundary is doing its job.
+curl -sS -X POST "$HUB/api/capture" -H 'content-type: application/json' \
+  -d '{"text":"no credential"}'                       # 401 invalid_capture_token
+curl -sS -X GET  "$HUB/api/capture" -H "authorization: Bearer $TOKEN"  # 405
+curl -sS -X POST "$HUB/api/capture" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"kind":"Task","text":"x"}'                     # 400 invalid_capture
+```
+
 ### Idempotency
 
 ```
