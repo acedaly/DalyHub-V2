@@ -91,6 +91,13 @@ export default [
   // (list/search/summary via GET, link/unlink via POST) every record's Linked
   // Items section uses, so no module needs bespoke link routes. Renders no shell.
   route("links", "routes/links.ts"),
+  // CAPTURE-01 — the ONE external capture endpoint. A POST-only JSON resource
+  // route authenticated by a scoped capture token rather than by Cloudflare
+  // Access, so an Apple Shortcut, Siri or the Share Sheet can reach it from a
+  // phone with no DalyHub session. The Worker request boundary knows this exact
+  // path and only bypasses Access for it (see `request-boundary.ts`). It renders
+  // no shell, so it stays OUTSIDE the app-shell layout.
+  route("api/capture", "routes/api-capture.ts"),
   // MOBILE-01 shared Quick Capture context — the owner timezone, today's calendar
   // date and the re-verified default Task capture parent the shared capture sheet
   // needs. A shell-owned JSON resource route; it renders no shell.

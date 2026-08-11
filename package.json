@@ -26,6 +26,7 @@
     "deploy:production:release-check": "node scripts/deploy-production.mjs --release-check-only",
     "deploy:production:verify": "node scripts/deploy-production.mjs --verify-health-only",
     "deploy:production": "node scripts/deploy-production.mjs",
+    "verify:production": "node scripts/verify-production.mjs",
     "scheme:generate": "node scripts/generate-m3-scheme.mjs",
     "scheme:check": "node scripts/generate-m3-scheme.mjs --check",
     "icons:generate": "node scripts/generate-icons.mjs",

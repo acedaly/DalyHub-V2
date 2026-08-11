@@ -383,6 +383,56 @@ literal, validated by the kernel's own parsers; the actor, workspace, timestamp
 and event id all come from the trusted composition.
 
 
+## Capture (CAPTURE-01, 2026-08-11)
+
+`Settings → Capture` sits in the **Your data** group, beside AI and Account &
+security, because what it really configures is *who may write into DalyHub from
+outside it*.
+
+The section answers four questions and nothing else:
+
+1. **What is external capture, and what can it do?** A capture device creates
+   tasks and notes. It cannot read, change, delete or export anything. That is
+   stated in words on the page, because a permission model nobody reads is a
+   permission model nobody trusts.
+2. **Which devices exist, and when did each last capture something?**
+3. **How do I create one?** Two fields — a name and the permissions — and a
+   button. Not a wizard, and never a trip to developer tools.
+4. **How do I stop one?** One control per device. Revocation is immediate.
+
+### The token is shown exactly once
+
+Creating a device returns the complete `dhcap_…` token in that one response,
+under a panel that says *"Copy this token now. It will not be shown again."* This
+is not a UI convention — it is the only truthful thing the page can say, because
+DalyHub stores a SHA-256 digest and there is no read path that could return the
+token a second time. The E2E journey reloads the page and asserts the prefix is
+absent, so a future "reveal" control would fail the build rather than quietly
+appear.
+
+### The language is the product's, not an API console's
+
+"Capture device", "Permissions", "Last used", "Revoke". Never "OAuth principal",
+"service account grant", "API consumer" or "resource scope binding". The
+implementation underneath is rigorous; the surface is a person's settings page.
+
+### Mutations go through the canonical boundary
+
+`POST /settings/capture/:action` (`create`, `revoke`) is a POST-only resource route
+with no `GET` — nothing that returns a secret should be reachable by following a
+link. It is authenticated by Cloudflare Access with same-origin provenance already
+enforced at the request boundary (AUDIT-FIX-04), exactly like the Account &
+security endpoints, and there is no route-specific CSRF token because the one
+canonical boundary already covers every mutation.
+
+A capture token can never reach this route: it holds no Access session, and the
+boundary's capture carve-out is one exact path that is not this one. That
+separation is what stops a leaked capture token from minting itself a sibling.
+
+Full contract: [`UNIVERSAL_CAPTURE.md`](UNIVERSAL_CAPTURE.md).
+
+---
+
 ## The AI section (AI-01 / AI-04, 2026-08-05)
 
 `/settings?section=ai` is the owner's AI policy surface. It shows whether AI is

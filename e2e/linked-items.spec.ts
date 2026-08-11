@@ -46,8 +46,30 @@ async function createNote(page: Page, title: string): Promise<string> {
  */
 async function openLinkedTab(page: Page): Promise<void> {
   // `exact` matters: "Backlinks" also contains "Links".
-  await page.getByRole("tab", { name: "Links", exact: true }).click();
+  const tab = page.getByRole("tab", { name: "Links", exact: true });
+  await tab.click();
+  // Assert the tab actually took, rather than assuming the click landed.
+  // Server-rendered markup is present and visible well before React attaches its
+  // handlers, so a click dispatched in that window is silently dropped: the tab
+  // is there, the click "succeeds", and the record stays on "Note". That is how
+  // this spec failed — not on the linking it tests, but on a tab that never
+  // opened — and `toHaveAttribute` turns it back into a wait.
+  await expect(tab).toHaveAttribute("aria-selected", "true");
   await page.waitForLoadState("networkidle");
+}
+
+/**
+ * The shared Linked Items section itself.
+ *
+ * Every assertion about what IS or IS NOT linked has to be scoped to it, because
+ * a Note record legitimately names the same note in three places: this section,
+ * the NOTES-02 outgoing-links list beside it, and UIX-04's Notes rail, which
+ * lists every note in the workspace. An unscoped `getByRole("link", …)` was
+ * asking the rail whether a relationship existed, which it cannot answer — and
+ * that is exactly how both of this file's failures read (DEBT-125).
+ */
+function linkedItems(page: Page) {
+  return page.locator(".dh-linked-items");
 }
 
 test.describe("REL-01 — shared Linked Items", () => {
@@ -84,10 +106,12 @@ test.describe("REL-01 — shared Linked Items", () => {
     await option.click();
 
     // The linked target appears as a navigable link (optimistic, then reconciled).
-    // Scoped to the Linked Items section: the NOTES-02 outgoing-links list in the
-    // same tab shows the SAME relationship read from the other side, so an
-    // unscoped locator legitimately matches twice.
-    const linkedLink = page
+    // Scoped to the Linked Items section for two reasons, both of which are the
+    // page legitimately showing this note elsewhere: the NOTES-02 outgoing-links
+    // list in the same tab shows the SAME relationship read from the other side,
+    // and UIX-04's Notes rail lists every note in the workspace — including this
+    // one — as a navigable link of its own.
+    const linkedLink = linkedItems(page)
       .getByRole("link", { name: new RegExp(targetTitle) })
       .first();
     await expect(linkedLink).toBeVisible();
@@ -101,7 +125,9 @@ test.describe("REL-01 — shared Linked Items", () => {
     ).toBeVisible();
 
     // Back to the anchor's Linked tab and remove the link.
-    await page.goto(anchorUrl);
+    // `gotoFixture`, not a bare `goto`: the next thing this journey does is click
+    // a tab, and a click dispatched before hydration is dropped silently.
+    await gotoFixture(page, anchorUrl);
     await openLinkedTab(page);
     const remove = page.getByRole("button", {
       name: new RegExp(`Remove link to ${targetTitle}`),
@@ -109,9 +135,15 @@ test.describe("REL-01 — shared Linked Items", () => {
     await expect(remove).toBeVisible();
     await remove.click();
 
-    // The link is gone (optimistic) and an Undo toast confirms the removal.
+    // The link is gone from the Linked Items section (optimistic) and an Undo
+    // toast confirms the removal.
+    //
+    // Scoped for the same reason as above, and this one is why the test was red:
+    // unscoped, it asserted that NO link on the page names this note — which the
+    // Notes rail contradicts by design, because removing a RELATIONSHIP does not
+    // remove the note. The assertion was measuring the rail, not the removal.
     await expect(
-      page.getByRole("link", { name: new RegExp(targetTitle) }),
+      linkedItems(page).getByRole("link", { name: new RegExp(targetTitle) }),
     ).toHaveCount(0);
     // The Undo toast confirms the removal (scope to the notifications region so
     // the polite live-region copy doesn't double-match).
@@ -140,8 +172,17 @@ test.describe("REL-01 — shared Linked Items", () => {
     await page.waitForLoadState("networkidle");
 
     // In Read mode the wiki link renders as an internal resolver link.
+    //
+    // Scoped to the rendered PROSE, not the page: UIX-04's Notes rail lists every
+    // note as a link, so an unscoped `getByRole("link", { name: targetTitle })`
+    // resolves to the rail's entry for the target as well as to the wiki link —
+    // a strict-mode violation that says nothing about wiki links. The subject
+    // here is what the Markdown pipeline emitted, and `.markdown-content` is the
+    // one place it reaches the DOM.
     await page.getByRole("button", { name: /Read/ }).click();
-    const wikiLink = page.getByRole("link", { name: targetTitle });
+    const wikiLink = page
+      .locator(".markdown-content")
+      .getByRole("link", { name: targetTitle });
     await expect(wikiLink).toHaveAttribute("href", /\/notes\/resolve\?title=/);
   });
 });

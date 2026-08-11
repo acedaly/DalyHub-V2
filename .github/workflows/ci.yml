@@ -287,11 +287,33 @@ jobs:
           path: .
 
       - name: Install Playwright browser
-        # Headless-shell only: this suite runs headless with no video recording,
-        # headed mode or PDF generation, so the full Chromium binary and ffmpeg
-        # download are unused weight. Playwright already prefers the headless
-        # shell for a headless "chromium" project when both are installed.
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+        # The FULL Chromium build, not `--only-shell`.
+        #
+        # #158 installed `chrome-headless-shell` alone, on the sound reasoning
+        # that this suite runs headless with no video, headed mode or PDF
+        # generation, so the full binary and ffmpeg were unused weight. What that
+        # reasoning could not know is that the shell is a DIFFERENT binary, and
+        # HARDEN-01 caught it crashing: run 31479232198's shard 4 died with
+        #
+        #   [pid=11376][err] Received signal 11 SEGV_MAPERR 0000000001b0
+        #   ...chrome-headless-shell-linux64/chrome-headless-shell+0x4265412
+        #
+        # — a SEGFAULT inside `chrome-headless-shell`, followed by every later
+        # test failing `browser.newContext: Target page, context or browser has
+        # been closed` and 43 never running. That is the DEBT-125 signature, and
+        # it is a crash rather than the memory exhaustion everyone had assumed:
+        # Chromium's RSS across a full shard is FLAT (measured, −5.5 MB/min).
+        #
+        # The same suite, at the same commit, on the FULL Chromium build does not
+        # crash — that is the browser the diagnosis was run on, over a complete
+        # shard 1 and most of a single-process run of all 1492 tests. The binary
+        # was the one uncontrolled difference between the two environments, so CI
+        # now uses the same one. It costs ~30s of download per shard, which is
+        # the price of the crash not being there.
+        #
+        # If the crash recurs on the full build, this is not the cause and the
+        # change should be reverted with that recorded — see DEBT-125.
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Run E2E suite (shard ${{ matrix.shard }}/${{ strategy.job-total }})
         id: e2e

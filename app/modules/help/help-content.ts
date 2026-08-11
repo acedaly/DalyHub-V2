@@ -730,12 +730,12 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           {
             kind: "list",
             items: [
-              "Automatic backups on your behalf. You can download a full export and restore it (see \u201cGetting your data out\u201d), but DalyHub does not keep copies for you or take one on a schedule. Downloading one after a significant week is worth the ten seconds.",
+              "A backup you can restore from without doing anything. You can download a full export and restore it (see \u201cGetting your data out\u201d), and the owner's infrastructure takes a nightly encrypted copy of the database \u2014 but that copy is a disaster-recovery dump, not a restore point you can reach from inside DalyHub. Downloading an export after a significant week is worth the ten seconds.",
               "Import and calendar sync. Nothing connects to Todoist, Notion or a calendar.",
               "Weather on Today. There is no weather data source, so there is no weather widget.",
               "Notifications and reminders. DalyHub will not email you, push to you or nag you.",
-              "AI. There is no AI in DalyHub yet. When there is, it will propose changes for you to accept or reject — it will never edit your data on its own.",
-              "Building your own theme. You can choose from the five; you cannot yet make a sixth.",
+              "AI that acts on its own. DalyHub's AI reads your records and proposes changes for you to accept or reject (see \u201cAI assistance\u201d); it never edits your data itself, and it is off until you turn it on.",
+              "Choosing a colour scheme. There is one light appearance and one dark one, generated from a single seed. There is no palette to pick from and no theme to build.",
             ],
           },
           {

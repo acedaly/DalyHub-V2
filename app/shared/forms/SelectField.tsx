@@ -45,6 +45,7 @@ import type { ReactNode } from "react";
 
 import { useCompactViewport } from "~/shared/viewport";
 
+import { clearControlLabel } from "./clear-label";
 import { composeDescribedBy, deriveFieldIds } from "./field-ids";
 import type { BaseControlProps } from "./control-props";
 import { SelectSheetControl } from "./SelectSheetControl";
@@ -173,6 +174,9 @@ function SelectCombobox(props: SelectFieldProps) {
   // the field points every association at it and renders no second one.
   const labelId = labelledBy ?? `${baseId}-label`;
   const invalid = Boolean(error);
+  // DS-17 — one wording for "clear this field", shared with InlineSelectField
+  // and SelectSheetControl so the product has a single answer to it.
+  const clearLabel = clearControlLabel(label);
 
   const selectedValues: readonly string[] = useMemo(
     () =>
@@ -399,19 +403,20 @@ function SelectCombobox(props: SelectFieldProps) {
               type="button"
               className="dh-combobox__clear"
               /*
-               * Every populated select offers one of these, so a form with two
-               * of them has two buttons with one name between them — a real
-               * ambiguity, recorded as DEBT-112 rather than fixed here.
+               * DS-17 — named after the field it clears, matching
+               * `InlineSelectField`, so a form with three selects offers three
+               * distinguishable clear controls rather than three buttons with
+               * one name between them (DEBT-112).
                *
-               * Naming it after its field (`Clear owner timezone`) is the right
-               * answer and was tried: it makes the FIELD's own label a substring
-               * of the button's, and Playwright's `getByLabel` matches
-               * substrings, so it turned every `getByLabel("<select label>")` in
-               * the suite into a strict-mode violation. That is a suite-wide
-               * migration to role-based queries (AGENTS.md §23), not a passenger
-               * on an E2E-repair PR.
+               * This deliberately makes the FIELD's own label a substring of the
+               * BUTTON's ("Priority" inside "Clear priority"), which is why the
+               * previous attempt was reverted: Playwright's `getByLabel` matches
+               * substrings, so an inexact `getByLabel("<a select's label>")`
+               * becomes a strict-mode violation. The accessibility contract wins
+               * and the specs adapt — they ask for a select by role
+               * (`getByRole("combobox", { name })`), which cannot match a button.
                */
-              aria-label="Clear selection"
+              aria-label={clearLabel}
               disabled={disabled}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {

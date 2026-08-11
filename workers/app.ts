@@ -4,8 +4,17 @@
 // Changes (FND-09, ADR-016 §5.5, §10): delegate to the authenticated request
 // boundary, which authenticates BEFORE the React Router handler runs so no
 // protected loader or action can execute before authentication succeeds.
+// Changes (CAPTURE-01): add the `email` handler so inbound capture mail reaches
+// the SAME Worker, with the SAME bindings and the SAME capture application
+// service the HTTP endpoint uses. It is inert unless Cloudflare Email Routing is
+// configured to deliver to this Worker AND the capture addresses are configured,
+// so an ordinary deployment gains nothing it did not ask for.
 import { createRequestHandler } from "react-router";
 
+import {
+  handleCaptureEmail,
+  type EmailCaptureEnv,
+} from "~/platform/capture/email-capture.server";
 import { handleAuthenticatedRequest } from "~/platform/request";
 
 const requestHandler = createRequestHandler(
@@ -16,5 +25,8 @@ const requestHandler = createRequestHandler(
 export default {
   async fetch(request, env) {
     return handleAuthenticatedRequest(request, env, requestHandler);
+  },
+  async email(message, env) {
+    await handleCaptureEmail(message, env as unknown as EmailCaptureEnv);
   },
 } satisfies ExportedHandler<Env>;

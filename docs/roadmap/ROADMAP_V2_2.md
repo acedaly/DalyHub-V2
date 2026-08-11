@@ -399,6 +399,87 @@ Complete the cross-product select accessibility follow-up.
   field it clears, matching `InlineSelectField`.
 - **Non-goals:** redesigning selects or changing unset/empty semantics, which are
   already correct.
+### ☑ DS-17 - Select clear-control names - **DELIVERED 2026-08-11**
+
+The cross-product select accessibility follow-up, delivered inside
+[HARDEN-01](../product/HARDEN_01_RELEASE_RELIABILITY_2026_08.md).
+
+- `SelectField`, `SelectSheetControl` and `InlineDateField` now name their clear
+  control after the field it clears, through one shared helper
+  (`app/shared/forms/clear-label.ts`) that DERIVES the name from the field's own
+  label — so a new select cannot forget to supply one. `InlineSelectField`
+  already did this and is the wording they match.
+- The `getByLabel` migration turned out not to be needed. Every `getByLabel`
+  string in `e2e/` was cross-referenced against every select label; the three
+  candidates ("Date", "Due date", "When") each operate a date field rather than a
+  select, and a full suite run after the rename confirmed no call site became
+  ambiguous. The reason the first attempt was reverted was an unmeasured blast
+  radius, not a real one — recorded in
+  [DEBT-112](../product/PRODUCT_DEBT.md), now closed.
+- Unit coverage asserts the contract directly: two populated selects on one
+  surface expose two differently-named clear controls, clearing one leaves the
+  other alone, and an empty field offers none.
+- **Non-goals held:** selects were not redesigned and unset/empty semantics are
+  unchanged.
+
+### ☑ HARDEN-01 - CI reliability, accessibility cleanup and production truth - **DELIVERED 2026-08-11**
+
+The hardening pass between the end of the UIX programme and the start of the next
+substantial UI project. No feature work; the point was that `main`'s gate means
+something before another large change lands on top of it. Full record:
+[`HARDEN_01_RELEASE_RELIABILITY_2026_08.md`](../product/HARDEN_01_RELEASE_RELIABILITY_2026_08.md).
+
+- **The deterministic E2E failures are gone**, and one of them was a real product
+  defect rather than a stale test: a Tasks row's hover action rail overlaid the
+  last inline editor, so a mouse user could not open it (the reserve that was
+  supposed to prevent this had been made inert by UIX-06's `display: contents`).
+- **DEBT-125 narrowed with measurement, not closed on a lucky green.** Chromium's
+  RSS across a full shard is flat; the resource-exhaustion hypothesis for the
+  browser is refuted and the sampler now measures the harness cohorts the
+  question was really about.
+- **DS-17** delivered (above). **AUDIT-FIX-05** delivered as a documentation-truth
+  pass, with production verification left explicitly open — see
+  [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md#-audit-fix-05--documentation-truth-pass-p2p3--delivered-2026-08-11).
+- **Non-goals held:** no redesign, no new module, no retry raised, no test
+  weakened, no shard count changed without evidence.
+
+### ☑ CAPTURE-01 - Universal DalyHub capture - **DELIVERED 2026-08-11**
+
+Make DalyHub easier to put a thought INTO than it is to forget the thought. Capture
+from an iPhone - by Shortcut, Siri, the Share Sheet or a forwarded email - without
+opening the application first.
+
+- **One capture contract, many thin transports.** `app/kernel/capture` owns a single
+  `CaptureRequest`; the HTTP endpoint, inbound email and any future client produce
+  one. Adding a browser extension, a Raycast command or a native iOS app later means
+  an auth adapter and a transport, not a second capture backend.
+- **It terminates in the EXISTING domain.** A captured Task is the same atomic
+  `TaskRepository.createTask` `/tasks/new` uses, through the same deterministic
+  TASKS-01 parser; a captured Note is the same entity create plus the Note's own
+  content mutation. Migration `0039` adds credentials and rate-limit counters and
+  stores no captured record - there is no `shortcut_tasks` and no `email_notes`.
+- **Inbox is the safety net.** `auto` classification is deterministic, conservative
+  and AI-free; anything ambiguous becomes an unassigned Task, which is what DalyHub's
+  Inbox already is. No Project, Area or Goal is ever guessed.
+- **The credential can only bring thoughts in.** A `dhcap_` token creates Tasks and
+  Notes and nothing else - and that is structural, because CAPTURE-01 adds exactly one
+  endpoint and no read, update or delete surface for a leaked token to reach. Only a
+  SHA-256 digest is stored; revocation is immediate; the workspace is resolved
+  server-side and cannot be named by a request.
+- **Idempotency, bounds and rate limits reuse what existed.** The PWA-05 receipt
+  protocol (key namespaced by credential) makes a retried POST a no-op; request size
+  is bounded before the domain; per-credential fixed windows bound abuse without ever
+  bounding the owner.
+- **Email is another transport.** A Cloudflare Email Worker on the same Worker, gated
+  by envelope sender + allowlist + SPF/DKIM/DMARC, with a two-prefix syntax and HTML
+  converted to plain text.
+- **Not built, deliberately:** a native app, Apple Watch, a browser extension,
+  attachments, AI classification, any read or general CRUD API, imports or sync.
+- Accepted via
+  [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-088-universal-capture--one-capture-contract-many-thin-transports-and-a-credential-that-can-only-bring-thoughts-in).
+  See [`UNIVERSAL_CAPTURE.md`](../development/UNIVERSAL_CAPTURE.md), which carries the
+  Apple Shortcut setup, the required Cloudflare Access bypass, and the manual iPhone
+  and email acceptance checklists.
 
 ### NEXT
 
@@ -430,6 +511,14 @@ After TODAY-09, refine the Focus panel only if the evidence shows that one combi
 
 - **TASKS-12 - Ordinal monthly recurrence**, only if owner routines need patterns
   such as "first Monday of every month".
+- **Capture surfaces beyond the phone**, each of which is an authentication adapter
+  plus a transport over the CAPTURE-01 contract rather than new capture
+  infrastructure: a native iOS app, Apple Watch, a browser extension, a macOS
+  Shortcut or Raycast command, Pushover.
+- **Review Inbox with AI** - a proposal-shaped triage capability over what capture
+  collected. Explicitly separate from capture, which must never depend on a provider.
+- **Attachment capture, inbound calendar sync and a broader external CRUD API** -
+  each a real capability, none of them input, and none of them a CAPTURE-01 defect.
 - Broader mobile polish after Tasks/Today acceptance is stable.
 - Richer review surfaces after daily capture and attention are trusted. (The
   **Analytics** half of this line shipped in UIX-05, and shipped early precisely

@@ -11,6 +11,15 @@ test.describe("AREA-02 — Goals", () => {
   test("create, edit details, link a Project, complete/reopen, review Activity", async ({
     page,
   }) => {
+    /*
+     * A real budget for the longest journey in this file. It creates a Goal,
+     * edits its details, retargets its date through the inline picker, creates
+     * and links a Project, completes and reopens the Goal, then reads the
+     * Activity feed and scans it with axe — a dozen product navigations, each
+     * settling the network. The default 30s was never sized for it; this is a
+     * budget correction, not a retry, and every assertion is unchanged.
+     */
+    test.setTimeout(120_000);
     const stamp = Date.now();
     const goalTitle = `Goal e2e ${stamp}`;
     const projectTitle = `Goal e2e project ${stamp}`;
@@ -76,7 +85,11 @@ test.describe("AREA-02 — Goals", () => {
     await expect(targetTrigger).toBeFocused();
 
     await targetTrigger.click();
-    await datePopover.getByLabel("Target date").fill("2027-01-01");
+    // A ROLE query, not `getByLabel`: DS-17 named the popover's clear control
+    // "Clear target date", which CONTAINS "Target date".
+    await datePopover
+      .getByRole("textbox", { name: "Target date" })
+      .fill("2027-01-01");
     await datePopover.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByText(/1 Jan 2027/).first()).toBeVisible();
@@ -107,7 +120,7 @@ test.describe("AREA-02 — Goals", () => {
     await page.getByRole("button", { name: /^Target date: / }).click();
     await page
       .getByRole("dialog", { name: "Edit target date" })
-      .getByLabel("Target date")
+      .getByRole("textbox", { name: "Target date" })
       .fill("2027-02-01");
     await page
       .getByRole("dialog", { name: "Edit target date" })

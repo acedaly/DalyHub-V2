@@ -37,6 +37,15 @@ const routes: readonly RouteContribution[] = [
     file: "routes/restore.tsx",
   },
   {
+    // CAPTURE-01 — the capture-credential endpoints (`create`, `revoke`). A
+    // POST-only resource route with no navigation entry, driven from the Capture
+    // section. It has no GET on purpose: minting a credential returns a secret,
+    // and nothing that returns a secret should be reachable by following a link.
+    id: "settings.capture",
+    path: "settings/capture/:action",
+    file: "routes/capture.tsx",
+  },
+  {
     // SET-03 — the two Account & security history endpoints. A POST-only
     // resource route with no navigation entry, driven from the Account &
     // security section and from the sign-out control in the account menu. It

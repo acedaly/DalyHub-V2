@@ -331,6 +331,19 @@ test.describe("UIX-03 — the responsive matrix", () => {
   test("a measurable Goal record never scrolls sideways at any supported width", async ({
     page,
   }) => {
+    /*
+     * A real budget for a journey that is genuinely long, rather than the
+     * default 30s it had been failing against since UIX-03 added the eleventh
+     * viewport: this test CREATES a measurable Goal, logs two measurements
+     * through the product, and then loads the record at ELEVEN widths, each
+     * `gotoFixture` waiting for the network to settle. It was one of the
+     * failures DEBT-125 carried as "not yet diagnosed", and it is a budget
+     * defect, not a flake — it exceeds 30s deterministically, on a CI runner and
+     * locally. Nothing is retried and no assertion is relaxed; the same eleven
+     * widths are still asserted. `linked-items.spec.ts` sets its own budget for
+     * the same reason.
+     */
+    test.setTimeout(120_000);
     const url = await createMeasurableGoal(page, {
       title: `Cycle 2,000 km ${RUN}`,
       unit: "km",

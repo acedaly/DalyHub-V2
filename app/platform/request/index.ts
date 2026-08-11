@@ -47,6 +47,8 @@ export {
 export {
   handleAuthenticatedRequest,
   isPublicPath,
+  isCaptureRequest,
+  CAPTURE_PATH,
   PUBLIC_PATHS,
   type ReactRouterRequestHandler,
   type AuthenticatorFactory,
