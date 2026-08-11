@@ -107,6 +107,16 @@ export default defineConfig({
    * shards bought no wall-clock at all — they only added a setup each. Eight
    * starts immediately, in one wave.
    *
+   * 2026-08-11, measured on the first run of the eight-way split
+   * (31452508395): shards 4 and 8 reached this ceiling with 27 and 60 tests
+   * NEVER RUN. That is a real coverage gap and it is recorded, not shrugged at
+   * — but it must NOT be answered by re-splitting yet. A failing test burns its
+   * whole timeout, and that run carried ~42 pre-existing failures across four
+   * shards (DEBT-125), several of which time out rather than assert. The budget
+   * it measured is therefore inflated by the breakage, not by the suite. Fix
+   * DEBT-125 first, then re-derive the split from a GREEN run's per-shard times
+   * — `playwright-report/results.json` carries them.
+   *
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
    */
