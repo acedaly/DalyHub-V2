@@ -198,14 +198,12 @@ Four changes to the shared primitives came before any module moved:
   item, an unset value reading as empty with no clear command offered, clearing,
   a date set/changed/cleared from the record, no horizontal page overflow with a
   menu or popover open at 320/390/700/1024/1440, and axe in both appearances.
-- **`e2e/editing-consistency-screenshots.spec.ts`** is the opt-in approval
-  capture (`CAPTURE_SCREENSHOTS=1`). Every capture is a PAIR — the value at
-  rest and the same value while being edited — because a single tidy screenshot
-  of a record proves nothing about how it is edited. It covers the Note and
-  Project titles, the Task priority sequence (set → menu → different set →
-  unset → set), the Goal's date and definition editors, the Diary and Meeting
-  writing surfaces side by side, and the phone at 390px, each in both
-  appearances. It restores every fixture it touches.
+- **The opt-in approval capture for this gate has been removed.** It paired
+  every value at rest with the same value being edited, which was the right
+  evidence while the gate was open; once the behaviour it illustrated was
+  locked down by `e2e/editing-consistency.spec.ts` above, the capture set was
+  only a snapshot of a decision already enforced by assertions. The behavioural
+  contract is unchanged — see the E2E and unit rows either side of this one.
 - **Unit and integration**: the shared multiline field (Enter is a paragraph,
   ⌘/Ctrl+Enter saves, blur does not, a refusal keeps the paragraph), the
   clearable select (empty reads empty, direct replacement, the clear command's

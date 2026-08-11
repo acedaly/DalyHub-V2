@@ -315,6 +315,39 @@ async function openRowMenuNear(page: Page, targetY: number): Promise<Locator> {
       best = candidate;
     }
   }
+  /*
+   * The nearest row is only nearest — it is not necessarily NEAR. This helper
+   * used to hand back whatever row happened to be closest to `targetY` and let
+   * the caller assert a placement that only holds if the trigger really does
+   * sit low in the viewport, so the result depended on how many tasks the
+   * fixture had and how tall UIX-06 had most recently made a row. When the
+   * densest layout put every row in the top half, "the trigger near the bottom"
+   * was at y≈200, the menu correctly opened BELOW, and the test failed for a
+   * reason that had nothing to do with the placement logic.
+   *
+   * So the precondition is now MADE true rather than hoped for: scroll the
+   * chosen row to `targetY`, then assert it actually got there. If the list is
+   * too short to scroll, this fails saying exactly that instead of failing as
+   * though the menu flipped the wrong way.
+   */
+  const before = await best.boundingBox();
+  if (before) {
+    await page.evaluate(
+      (delta) => window.scrollBy(0, delta),
+      before.y - targetY,
+    );
+  }
+  const settled = await best.boundingBox();
+  expect(
+    settled,
+    "the row chosen for a bottom-of-viewport trigger disappeared",
+  ).not.toBeNull();
+  expect(
+    Math.abs(settled!.y - targetY),
+    `could not place a task row near y=${targetY} (it sits at y=${settled!.y}); ` +
+      "the fixture is too short for this test's premise",
+  ).toBeLessThanOrEqual(32);
+
   // UIQ-002 — row actions are a hover-revealed overlay on a fine pointer.
   await best.hover();
   await best.getByRole("button", { name: /More actions for/ }).click();

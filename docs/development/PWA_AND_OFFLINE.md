@@ -755,7 +755,7 @@ reinterpreting it.
 | The sidebar's product identity (product first, workspace secondary, no tagline in the rail) | `test/unit/shell/SidebarBrand.test.tsx`, `e2e/product-frame.spec.ts` |
 | The full lockup: live text rather than artwork, the exact approved wording, and no second `h1` | `test/unit/brand/BrandLockup.test.tsx`, `e2e/help-about.spec.ts` |
 | That the superseded PWA-01 icon urls are no longer served by the production build | `e2e/pwa-offline.spec.ts` |
-| Branding review screenshots (sidebar light/dark, phone, About lockup, every icon size, Apple full-bleed, the three masks) | `e2e/brand-screenshots.spec.ts` (opt-in: `CAPTURE_SCREENSHOTS=1`) |
+| Branding review screenshots (sidebar light/dark, phone, About lockup, every icon size, Apple full-bleed, the three masks) | Removed with the BRAND-01 gate — the branding contract is asserted by the unit and E2E rows above, which do not depend on captured imagery |
 
 Two things the E2E setup forced into the open, both handled rather than worked
 around:

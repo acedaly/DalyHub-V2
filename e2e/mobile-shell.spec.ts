@@ -218,10 +218,24 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     const title = sheet.getByLabel("Title");
     await expect(title).toBeFocused();
 
-    // The seeded owner has a valid UX-01 default capture parent, so the fast
-    // path applies: the panel states where the task will be filed and asks for
-    // nothing else.
-    await expect(sheet.getByText(/Filing under/)).toBeVisible();
+    /*
+     * TASKS-04's contract is unchanged — the sheet ALWAYS states where the task
+     * will be filed, because "somewhere" is the one thing a trustworthy inbox
+     * may never be. UIX-01 changed only WHERE it says so: the "Filing under …"
+     * sentence and its two chip rows are gone, and the destination is now a
+     * metadata row like every other.
+     *
+     * TaskCapturePanel draws that row two ways — a fixed read-only row when the
+     * capture has a default parent, and the Project picker (empty value reading
+     * "Inbox", a real destination rather than the absence of one) when it does
+     * not — and which one the seeded owner gets is fixture state this test has
+     * no business pinning. Asserting the ROW rather than either rendering keeps
+     * the contract exactly as strong: the test fails if the sheet stops saying
+     * where the task goes, and passes for either way of saying it.
+     */
+    await expect(
+      sheet.locator(".dh-capture-row").filter({ hasText: "Project" }).first(),
+    ).toBeVisible();
 
     await title.fill("Phone-captured task");
     await title.press("Enter");

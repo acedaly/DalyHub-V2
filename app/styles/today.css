@@ -444,6 +444,34 @@
   white-space: nowrap;
 }
 
+/*
+ * …except where the row is narrower than the phrase.
+ *
+ * `flex: none` plus `nowrap` is right at every ordinary width: a due date is
+ * read as one unit and must not be broken across lines while there is room for
+ * it. Together they also mean the label CANNOT yield, so at 200% zoom on a
+ * phone (a 195px CSS viewport) a 112px "Overdue — 3 days" starting at x=90 ran
+ * to x=202 and scrolled the whole page sideways — a WCAG 1.4.10 reflow failure
+ * caused by one label refusing to wrap.
+ *
+ * Below the width where the phrase and the title can share a line, the date
+ * wraps instead of overflowing. It is still whole and still tabular; it simply
+ * takes a second line, which is what reflow means.
+ */
+@media (max-width: 15rem) {
+  .dh-day-row__due {
+    /* Both halves are required. `white-space: normal` only lets a box wrap once
+     * something constrains its width, and `flex: none` (`0 0 auto`) is exactly
+     * what refuses to: the label keeps its max-content 112px however little room
+     * the row has. Allowing it to shrink, with the `min-inline-size: 0` that
+     * stops the flex item's automatic minimum from re-imposing max-content, is
+     * what actually lets the wrap happen. */
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    white-space: normal;
+  }
+}
+
 /* The honest remainder. It states the TRUE count and goes to the canonical
  * overdue view, which is defined by exactly the rule that put these rows here.
  * It keeps the row's target floor: a link is a control, and a control on a
@@ -599,6 +627,28 @@
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+}
+
+/*
+ * Deep zoom: the quiet line may take a second row rather than push the page.
+ *
+ * `.dh-today__quiet` is a flex container, which is right for its two glyph
+ * variants ("All clear" beside a tick). The third use is PROSE with an inline
+ * link — "No measurable Goals yet. Add a target to a <Goal> and your progress
+ * shows up here." — and flex turns that sentence into three items (two
+ * anonymous text runs either side of the link) on one `nowrap` line. Each item
+ * carries the automatic minimum of a flex item, so the line's floor is the SUM
+ * of their min-contents: measured at 209px against a 195px viewport, which is
+ * the whole of the remaining horizontal overflow at 200% zoom on a phone.
+ *
+ * Allowing the line to wrap lets those items stack instead of forcing the
+ * document wider. Scoped to the width where it matters, so the single-line
+ * composition every ordinary phone gets is untouched.
+ */
+@media (max-width: 15rem) {
+  .dh-today__quiet {
+    flex-wrap: wrap;
+  }
 }
 
 .dh-today__quiet-glyph {

@@ -362,7 +362,24 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
       page.getByRole("link", { name: `Open ${title}` }),
     ).toBeVisible();
 
-    // Remove the ASSOCIATION — the note survives.
+    /*
+     * Remove the ASSOCIATION — the note survives.
+     *
+     * The card must be HOVERED first. UIQ-002 made a list card's action rail a
+     * hover-revealed overlay that is `pointer-events: none` while concealed —
+     * deliberately, so a click in a row's empty trailing space cannot activate
+     * an unseen action. Playwright hit-tests the target BEFORE it moves the
+     * pointer there, so without a prior hover the rail is still transparent to
+     * pointer events and the check resolves to the card title sitting under it:
+     * the click then retries against an interception for the full timeout.
+     * (A person never sees this, because their pointer crosses the row on the
+     * way and reveals the rail before they press.)
+     *
+     * `collection-header.spec.ts` already drives the same overlay this way, and
+     * says so in `openRowMenuNear`. This is that same known requirement, not a
+     * new allowance — nothing about the assertion below is weakened.
+     */
+    await page.locator(".dh-card").first().hover();
     await page
       .getByRole("button", { name: "Remove from project" })
       .first()
@@ -441,6 +458,19 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     await gotoFixture(page, "/notes");
     const form = page.getByRole("search", { name: "Filter and search notes" });
     await expectMinTouchTarget(form.getByLabel("Search notes"));
+    /*
+     * Tag, Project, Area and Links live behind a "More filters" `<details>`
+     * that is only open when one of them is APPLIED (see NotesFilterBar) — a
+     * deliberate choice, so a phone's filter band is one row rather than five.
+     * The touch-target contract still applies to them, so this opens the
+     * disclosure the way a person does rather than asserting against a control
+     * the product intends to be collapsed. The summary itself is a target too,
+     * and is checked first: it is the thing a thumb has to hit to get here.
+     */
+    const moreFilters = form.getByText("More filters");
+    await expectMinTouchTarget(moreFilters);
+    await moreFilters.click();
+    await expect(form.getByLabel("Tag")).toBeVisible();
     await expectMinTouchTarget(form.getByLabel("Tag"));
     await expectMinTouchTarget(form.getByRole("button", { name: "Apply" }));
     await expectNoHorizontalOverflow(page);

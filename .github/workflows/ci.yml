@@ -5,149 +5,210 @@ on:
     branches: [main]
   pull_request:
 
-# Cancel superseded runs for the same ref (e.g. new push to a PR branch).
+# Cancel superseded PR runs, never superseded `main` runs.
+#
+# The previous `cancel-in-progress: true` was unconditional, so merging twice in
+# quick succession cancelled the FIRST merge's verification of `main` — the one
+# run whose result actually gates the branch. A cancelled job is also
+# indistinguishable at a glance from a failed one, so this quietly manufactured
+# red on `main`. PRs keep the behaviour that matters: push a new commit and the
+# obsolete run stops consuming runners.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Least privilege: this workflow only needs to read the repository. It requires
-# no Cloudflare credentials — ordinary pull-request validation never deploys.
+# Least privilege: this workflow only reads the repository. It holds no
+# Cloudflare credentials and never deploys — ordinary validation must not be
+# able to touch production. It also never contacts hub.daly.id.au: that origin
+# is behind Cloudflare Access, so an unauthenticated probe returns an auth
+# challenge rather than the application, and treating that as a source-code
+# failure is exactly the false red this pipeline must not produce. Deployment
+# verification is a separate, credentialled concern.
 permissions:
   contents: read
 
 jobs:
-  static-quality:
-    name: Static quality (format, lint, types)
+  # ---------------------------------------------------------------------------
+  # Tier gate. Decides whether the expensive jobs have anything to check.
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need the merge base to diff a PR against its target.
+          fetch-depth: 0
+
+      - name: Does this change touch anything executable?
+        id: scope
+        # Deliberately FAIL-OPEN, in both directions that matter:
+        #
+        #   - a push to `main` never consults the filter at all;
+        #   - any error, any unknown state, an empty diff, a merge base that
+        #     cannot be resolved — all fall through to `code=true`.
+        #
+        # So the only way to skip the heavy jobs is for the diff to resolve
+        # cleanly AND for every changed path to be documentation or an image.
+        # A rule that can only ever skip by proving the change is inert is the
+        # kind of path filtering that is safe to read six months from now; a
+        # rule that skips whenever it fails to understand something is not.
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Not a pull request — running everything."
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          if ! files="$(git diff --name-only "$base" "$head" 2>/dev/null)" || [ -z "$files" ]; then
+            echo "Could not resolve a non-empty diff — running everything."
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "Changed files:"; printf '%s\n' "$files" | sed 's/^/  /'
+          # Anything NOT matching the inert allowlist forces the full run.
+          #
+          # Decided on the CONTENT of the non-inert list, not on grep's exit
+          # code, and computed with a here-string rather than a pipe. The first
+          # version of this did `echo "$files" | grep -qvE …` under
+          # `set -o pipefail`, which is a trap: `grep -q` exits at its FIRST
+          # match, `echo` is then killed by SIGPIPE (141), and `pipefail`
+          # reports 141 as the pipeline's status — so "there are executable
+          # paths" was read as "there are none". It skipped Unit, Build and E2E
+          # on a pull request that changed `playwright.config.ts`, four specs
+          # and two stylesheets, which is the exact silent-skip this filter was
+          # written to be incapable of.
+          #
+          # The rewrite cannot fail that way: no pipe, so no SIGPIPE; `|| true`
+          # absorbs grep's ordinary exit-1-on-no-match; and the question asked
+          # is "is the non-inert list non-empty", which has no third answer.
+          executable="$(grep -vE '^(docs/.*|.*\.md|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp)$' <<<"$files" || true)"
+          if [ -n "$executable" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Executable paths changed — running everything:"
+            printf '%s\n' "$executable" | sed 's/^/  /'
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Documentation/imagery only — Static alone is sufficient."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Tier 1 — every push and every pull request.
+  # ---------------------------------------------------------------------------
+  static:
+    name: Static
+    # Always runs, including for documentation-only changes: prettier formats
+    # Markdown, so a docs PR still has something real to fail.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
+      - name: Set up toolchain
+        uses: ./.github/actions/setup
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        # The postinstall hook (`wrangler types`) generates worker-configuration.d.ts
-        # exactly once here; `pnpm run typecheck` below does not regenerate it.
-        run: pnpm install --frozen-lockfile
-
-      - name: Check formatting
+      - name: Formatting
         run: pnpm run format:check
 
-      - name: Lint
+      - name: ESLint
         run: pnpm run lint
 
-      - name: Type-check
+      - name: TypeScript
         run: pnpm run typecheck
 
-      # PWA-01 — the committed icon assets must be exactly what the canonical
-      # geometry produces. The rasteriser and encoders are deterministic, so this
-      # regenerates in memory and compares bytes: a hand-edited PNG, or a
-      # geometry change committed without regenerating, fails here rather than
-      # shipping artwork that no longer matches its source.
+      - name: Generated colour scheme matches its source
+        # `pnpm run verify` has always run this locally, but CI never did — so
+        # a hand-edited scheme, or a source change committed without
+        # regenerating, could reach `main` with the gate green. Same shape as
+        # the icon check below, same reason.
+        run: pnpm run scheme:check
+
       - name: Icon assets match the canonical geometry
+        # The rasteriser and encoders are deterministic, so this regenerates in
+        # memory and compares bytes: a hand-edited PNG, or a geometry change
+        # committed without regenerating, fails here rather than shipping
+        # artwork that no longer matches its source.
         run: pnpm run icons:check
 
-  unit-test:
-    name: Unit & component tests
+  test:
+    name: Unit
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Set up toolchain
+        uses: ./.github/actions/setup
 
       - name: Unit & component tests
         run: pnpm run test:unit
 
-  kernel-test:
-    name: Kernel tests (Workers runtime + D1)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Kernel integration tests (Workers runtime + D1)
-        # Runs the data-kernel suite inside the real Workers runtime with an
-        # isolated, local D1 (Miniflare). The committed migrations are applied
-        # to a fresh test database — D1 is not mocked. No Cloudflare credentials
-        # or remote database are used. This runner's Miniflare/D1 state is
-        # local to the job and is discarded when the job ends.
+      - name: Kernel tests (Workers runtime + real D1)
+        # The data-kernel suite inside the real Workers runtime against an
+        # isolated local D1 (Miniflare), with the committed migrations applied
+        # to a fresh database — D1 is not mocked, and no Cloudflare credentials
+        # or remote database are involved. Merged into this job rather than
+        # standing alone: it is a second `vitest` invocation against a second
+        # config, it shares this job's install exactly, and it was never on the
+        # critical path (E2E is). One fewer status, one fewer install, no lost
+        # coverage — and the step names below still say which suite failed.
         run: pnpm run test:kernel
 
   build:
-    name: Production build
+    name: Build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Set up toolchain
+        uses: ./.github/actions/setup
 
       - name: Production build
         run: pnpm run build
 
+      - name: Cloudflare deployment config is valid
+        # DalyHub is Cloudflare-first, and until now NOTHING in CI checked that
+        # the thing it builds can actually be deployed — a broken binding, a
+        # malformed `wrangler.jsonc` or a compatibility-date mistake only
+        # surfaced at deploy time, on production. `--dry-run` resolves the
+        # config, bundles the Worker and prints the bindings it would attach,
+        # then exits without contacting Cloudflare. It needs NO credentials and
+        # NO account access, which is why it is safe on a `contents: read`
+        # workflow and on pull requests from anywhere.
+        #
+        # A step of the build job rather than a path-conditional job of its own:
+        # it costs ~20 seconds against a build that already exists here, so
+        # gating it behind a path filter would add a rule to maintain and a
+        # status to read in exchange for nothing.
+        run: pnpm exec wrangler deploy --dry-run --config build/server/wrangler.json
+
       - name: Strip any local env file from the build output
         # Defence in depth: a fresh CI checkout never has `.dev.vars`, so the
         # build should not produce `build/server/.dev.vars`. Remove it anyway
-        # before it becomes a shared artifact, so a local-only dev auth
-        # override can never travel into the Playwright jobs' production-mode
-        # preview server.
+        # before it becomes a shared artifact, so a local-only dev auth override
+        # can never travel into the E2E jobs' production-mode preview server.
         run: rm -f build/server/.dev.vars
 
       - name: Upload production build artifact
         # `.wrangler/deploy/config.json` is a tiny, deterministic pointer file
-        # (just a relative path to build/server/wrangler.json, no secrets, no
-        # absolute paths, no timestamps — verified identical across rebuilds)
-        # that the Cloudflare Vite plugin writes as a build side effect and
-        # requires again at `vite preview` time. It has to travel with the
-        # build/ output, or the Playwright jobs' production-mode preview
-        # server fails to start with no build/ output to reuse it against.
-        # include-hidden-files is required: upload-artifact excludes dotfiles/
-        # dot-directories by default, which would otherwise silently drop the
-        # whole .wrangler/ path from the artifact.
+        # (a relative path to build/server/wrangler.json — no secrets, no
+        # absolute paths, no timestamps) that the Cloudflare Vite plugin writes
+        # as a build side effect and needs again at `vite preview` time. It has
+        # to travel with build/, or the E2E production-mode server cannot start.
+        # include-hidden-files is required: upload-artifact excludes dot-paths by
+        # default, which would silently drop the whole .wrangler/ directory.
         uses: actions/upload-artifact@v4
         with:
           name: production-build
@@ -158,258 +219,143 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  playwright:
+  e2e:
     # `strategy.job-total` is the size of the matrix below, so the shard COUNT
     # has exactly one source of truth — the `shard:` list. Adding or removing an
     # entry rebalances the suite with no other edit and no chance of a
     # `--shard=n/N` that disagrees with the matrix.
-    name: Playwright E2E (shard ${{ matrix.shard }}/${{ strategy.job-total }})
-    needs: build
+    name: E2E ${{ matrix.shard }}/${{ strategy.job-total }}
+    needs: [changes, build]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    # Budget headroom, sized from measurement rather than guesswork (DEBT-41).
-    # On run 30310393566 (3 shards) the slowest shard spent 14.0 min in tests and
-    # 14m34s in the job — 26 seconds inside the old 15-minute budget. It had no
-    # slack at all, so on a marginally slower runner the job was cancelled, and a
-    # CANCELLED job skips the report/trace upload steps: the failures that
-    # mattered left no artefacts behind.
-    #
-    # Two independent changes fix that, and the order matters:
-    #   1. Five shards instead of three. MEASURED on run 30314062657 (all five
-    #      green): tests took 8m40s / 11m09s / 5m24s / 5m03s / 7m53s, so the
-    #      worst shard is 11m09s of tests and 11m55s of job — 74% of the
-    #      Playwright ceiling below and 60% of this job budget, against 97% of
-    #      the old budget before. Note the spread is WIDER than at three shards
-    #      (5.0-11.2 min vs 11.7-14.0): Playwright shards by test COUNT, and the
-    #      finer the split the more per-test duration variance shows through.
-    #      That is acceptable — the worst shard is what the budget must cover —
-    #      and `playwright-report/results.json` now carries the per-test
-    #      durations needed to revisit the split if shard 2 keeps growing.
-    #   2. Playwright's own `globalTimeout` (15 min, playwright.config.ts) fires
-    #      BEFORE this job timeout, so an overrunning shard is stopped by
-    #      Playwright — which writes its report and traces and exits non-zero —
-    #      instead of by GitHub, which cancels and destroys them.
-    # This value is therefore a backstop for the whole job (install, browser,
-    # artifact download, servers, teardown) around a run Playwright already
-    # bounds, not the mechanism that bounds the tests.
-    #
-    # 2026-07-28 — raised 20 → 30, because the invariant in (2) was not actually
-    # holding. It requires `timeout-minutes` > globalTimeout + setup, so at 20 it
-    # only held while setup stayed under 5 minutes. Setup is not that stable: the
-    # `--with-deps` step installs fonts through apt, and on a slow
-    # azure.archive.ubuntu.com mirror single packages stalled 101s, 165s, 87s and
-    # 217s — about 9.5 minutes of setup, against 15 seconds on a good run.
-    # Whenever that happened GitHub reached its cap first and cancelled the job,
-    # which is the exact outcome (2) exists to prevent: no report, no traces, and
-    # a "cancelled" that has to be told apart from a real failure by hand. It cost
-    # two runs in a row (shard 1, then shard 2) with every test passing.
-    # 30 = 15 (Playwright's ceiling) + ~10 (worst observed setup) + margin, so
-    # Playwright still fires first and keeps its evidence. It does NOT loosen what
-    # bounds the tests: globalTimeout is untouched, so a genuinely hung suite is
-    # still stopped at 15 minutes and still reports.
-    timeout-minutes: 30
+    # Backstop for the whole job (install, browser, artifact download, servers,
+    # teardown) around a run that Playwright's own `globalTimeout` already bounds
+    # at 25 minutes. It must stay comfortably ABOVE that ceiling plus worst-case
+    # setup, or GitHub cancels first and a cancelled job uploads nothing — which
+    # is the one case where the evidence matters most. Worst observed setup is
+    # ~9.5 minutes (the `--with-deps` apt step stalling on a slow Ubuntu
+    # mirror), so 40 = 25 + ~10 + margin.
+    timeout-minutes: 40
     strategy:
       # Never cancel sibling shards on a failure: every shard's result is
       # reported, so one red shard does not hide the state of the others.
       fail-fast: false
       matrix:
-        # 2026-07-28 — five shards became seven, which is the revisit the note
-        # above anticipated ("if shard 2 keeps growing"). It did: shard 2 hit
-        # Playwright's own 900s globalTimeout with 148 passed, 0 failed and 3
-        # never run. That is not a flaky test and not a slow machine — the slice
-        # simply no longer fits the ceiling. Five feature PRs landed the same day
-        # (#79-#83), each adding specs, and MEASURED on run 30364653396 the five
-        # slices came to ~49 min of tests with the worst at 15m+.
+        # EIGHT shards, down from eighteen. The four previous re-splits (3 → 5 →
+        # 7 → 10 → 14 → 18) each responded to a shard hitting the ceiling by
+        # slicing finer, and each was locally correct. What none of them checked
+        # was whether the extra slices were still buying parallelism.
         #
-        # Seven puts the average near 7 min and the worst around 10-11, which is
-        # the same ~70% of the ceiling the split was originally tuned to. Raising
-        # globalTimeout instead was the alternative and is rejected: it would
-        # keep the worst shard pinned against whatever the new ceiling is, and
-        # each raise also has to drag `timeout-minutes` up with it to preserve
-        # the ordering above. Splitting finer fixes the cause; raising the
-        # ceiling only moves the line the cause is measured against.
+        # They were not. MEASURED on run 31445526789 (`main` @ e1e8bab): shards
+        # 5, 9, 10, 12, 16 and 17 sat QUEUED for 5.5–7.0 minutes waiting for a
+        # runner, and shard 17 began 5m30s after shard 1. Past roughly twelve
+        # concurrent jobs the pool is saturated, so shards 13–18 contributed
+        # nothing to wall-clock and cost a full setup each (~1.5–2 min of
+        # checkout, install, artifact download and browser install). That is
+        # ~30 minutes of the ~150-minute compute bill spent on overhead.
         #
-        # 2026-07-31 — seven shards became ten, for the same reason and by the
-        # same reasoning. MEASURED on run 30619695918: shard 7 reached the 900s
-        # globalTimeout with 111 passed, ZERO failed and 26 never run, and shard
-        # 3 did the same with 133 passed and 1 never run. Again not a flake and
-        # not a slow runner — the THEME-01/HELP-01 specs added roughly 60 tests
-        # (the theme acceptance matrix alone is 25 axe-scanned surface x theme
-        # combinations) and the slices stopped fitting.
+        # The same run measured the suite itself: the twelve shards that
+        # completed spent 73.4 minutes of test time, mean 6.1, worst 9.5 — so the
+        # whole suite is close to 110 minutes single-worker. Over eight slices
+        # that is a 13.8-minute mean against Playwright's re-derived 25-minute
+        # ceiling (see playwright.config.ts), which is the same ~55–70% of the
+        # ceiling this split has always been tuned to, and eight shards all start
+        # in one wave.
         #
-        # Two changes were made together, and only one of them is this list.
-        # First, `e2e/themes.spec.ts` stopped shelling out to `wrangler d1
-        # execute` once per test to set the stored theme and once more to reset
-        # it — ~80 subprocess spawns, about two seconds each — and posts to the
-        # real `/preferences/theme` action instead. That removed waste, not
-        # coverage. Ten shards then buys headroom for the coverage that is left:
-        # the slice size drops ~30%, putting the worst shard back near the ~70%
-        # of the ceiling this split has always been tuned to.
-        #
-        # Raising `globalTimeout` is again rejected, for the reason recorded
-        # above: it would pin the worst shard against whatever the new ceiling
-        # is, and it hides a growing suite instead of splitting it.
-        #
-        # 2026-08-01 (V2 release closure) — ten shards became fourteen, for the
-        # third time and by the same reasoning. MEASURED on run 30693899680
-        # (`main` @ ed666ca) shard 4 reached the 900s globalTimeout with 102
-        # passed, ZERO failed and 1 never run.
-        #
-        # Correction (V2.0.1): this note originally claimed run 30698894216
-        # (`main` @ 6b50930, the X-04 merge) "reproduced the same shape". It did
-        # not — that run's failure was shard 10/10 failing ordinarily after
-        # ~7.5 minutes with its report uploaded, nowhere near the ceiling, and
-        # shard 4/10 succeeded. The split decision stands on 30693899680 alone. The per-shard test
-        # times on 30693899680 were 6m24 / 10m22 / 8m11 / 15m01+ / 4m28 / 4m21 /
-        # 4m14 / 4m11 / 13m41 / 7m46 — about 79 minutes of tests against a
-        # ten-way split, so the mean was ~8 min and the worst shard was over the
-        # ceiling. NOTES-05, ASSET-02, UX-01 and X-04 each added specs and the
-        # slices stopped fitting again.
-        #
-        # Fourteen puts the mean near 5.7 min. The spread is roughly 1.9x the
-        # mean at this suite's mix (the axe and responsive-matrix tests are much
-        # slower than the rest, and Playwright shards by test COUNT), which puts
-        # the worst shard near 11 min — the same ~70% of the ceiling this split
-        # has always been tuned to.
-        #
-        # Intra-runner `workers` stays 1 and is NOT the knob to turn: the shard's
-        # tests share one dev server and one local D1, and some of them mutate
-        # owner-level state (theme preference, Today widget arrangement), so
-        # concurrent workers inside a shard would trade a budget problem for a
-        # correctness one.
-        #
-        # 2026-08-06 (Gate D, Areas and Projects) — fourteen shards became
-        # eighteen, for the fourth time and by the same reasoning. MEASURED on
-        # run 31099208098 (PR #122 @ 51e1a3c) shard 6 reached the 900s
-        # globalTimeout with 85 passed, ZERO failed and 1 never run — the
-        # identical shape to every previous split, and again not a flake and not
-        # a slow runner. Shard 3 hit it in the same run.
-        #
-        # The cause is the usual one. Gate D added roughly a dozen browser tests
-        # across `areas.spec.ts` and `projects.spec.ts` — the collections' new
-        # icon, count, status, progress, empty-state, 320px and hit-testing
-        # contracts — and shard 6 was already carrying the two heaviest files in
-        # the suite: `people.spec.ts` (3.2 min, ten viewport tests at ~14s each)
-        # and `notes-knowledge.spec.ts` (2.4 min). It had no headroom to absorb
-        # anything, which is exactly the condition the previous notes describe.
-        #
-        # Eighteen restores the ~70% of the ceiling this split has always been
-        # tuned to: shard 6's slice drops from 86 tests to about 67, i.e. from
-        # 15m+ to roughly 11m at the same per-test cost.
-        #
-        # Raising `globalTimeout` is rejected for the fourth time, for the reason
-        # recorded above: it pins the worst shard against whatever the new
-        # ceiling is, and it hides a growing suite instead of splitting it.
-        # Deleting or weakening the new coverage was the other alternative and is
-        # also rejected — the tests that tipped the budget are the ones that
-        # caught a dead click area and a duplicated count.
-        #
-        # `strategy.job-total` derives from this list, so `--shard=N/total` and
-        # the job names follow automatically — this array is the only knob.
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        # `workers` stays 1, and this is NOT the knob to turn. It was checked
+        # rather than assumed: `e2e/owner-timezone.spec.ts` sets the OWNER's
+        # timezone — genuinely global, persisted state — for the duration of its
+        # journey, and `e2e/appearance.spec.ts` resets the stored appearance
+        # before each of its tests. Either one running concurrently with any
+        # date-sensitive or themed test would corrupt it. Raising `workers` would
+        # trade a budget problem for a correctness one until those two specs stop
+        # mutating owner-level state, which is a test-design change, not a CI one.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Set up toolchain
+        uses: ./.github/actions/setup
 
       - name: Download production build artifact
-        # Restores both build/ and .wrangler/deploy/ (see the build job's
-        # upload step) at their original repo-root-relative paths.
+        # Restores both build/ and .wrangler/deploy/ (see the build job's upload
+        # step) at their original repo-root-relative paths.
         uses: actions/download-artifact@v4
         with:
           name: production-build
           path: .
 
       - name: Install Playwright browser
-        # Headless-shell only: this suite runs headless in CI with no video
-        # recording, headed mode or PDF generation (verified against every
-        # e2e/*.spec.ts and helpers.ts), so the full Chrome/Chromium binary and
-        # ffmpeg download are unused weight. Playwright already prefers the
-        # headless shell at runtime for a headless "chromium" project when
-        # both are installed, so installing only the shell removes the
-        # redundant ~115 MB Chromium download without changing which binary
-        # executes tests.
+        # Headless-shell only: this suite runs headless with no video recording,
+        # headed mode or PDF generation, so the full Chromium binary and ffmpeg
+        # download are unused weight. Playwright already prefers the headless
+        # shell for a headless "chromium" project when both are installed.
         run: pnpm exec playwright install --with-deps --only-shell chromium
 
-      - name: Playwright E2E, accessibility & responsive regression (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+      - name: Run E2E suite (shard ${{ matrix.shard }}/${{ strategy.job-total }})
         id: e2e
-        # Runs this shard's slice of the full Playwright suite — functional
-        # journeys, auth fail-closed checks, the DS-11 axe WCAG 2.2 AA scans,
-        # dark mode, mobile/touch-target and responsive-overflow coverage,
-        # keyboard/Drawer/history behaviour, and real local D1 journeys.
-        # Playwright's built-in `--shard` distributes test GROUPS, and with
-        # `fullyParallel: true` (and no `describe.serial` anywhere in e2e/,
-        # verified) each independent test is its own group — so shards split
-        # at individual-test granularity, not whole spec files; a single spec
-        # file's tests can land on different shards/runners. The union of all
-        # shards still runs the entire suite exactly once — no test is
-        # skipped or excluded. This is safe here because every test creates
-        # and tears down its own fixtures (unique per-test titles/prefixes,
-        # `afterEach` cleanup) rather than depending on a preceding test's
-        # state. `workers` stays 1 (see playwright.config.ts): within a given
-        # shard's runner, tests still execute one at a time; the parallelism
-        # axis is GitHub Actions shards (separate runners, separate isolated
-        # local D1), not intra-runner workers.
+        # This shard's slice of the functional journeys, auth fail-closed
+        # checks, axe WCAG 2.2 AA scans, dark mode, mobile/touch-target and
+        # responsive-overflow coverage, keyboard/Drawer/history behaviour and
+        # real local D1 journeys. The union of all shards runs the whole suite
+        # exactly once. Safe to split at test granularity because every test
+        # creates and tears down its own fixtures rather than depending on a
+        # predecessor's state.
         #
         # PLAYWRIGHT_SKIP_BUILD reuses the build/ artifact downloaded above
-        # instead of letting the production-mode webServer rebuild it once per
-        # shard.
+        # instead of letting the production-mode webServer rebuild it per shard.
         env:
           PLAYWRIGHT_SKIP_BUILD: "1"
         run: pnpm exec playwright test --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
       # Both uploads are conditioned on the RUN STEP's own outcome, not on
-      # `failure()`. `failure()` is false when a job is cancelled — which is
-      # exactly what a `timeout-minutes` overrun produces — so the old condition
-      # skipped the uploads in the one case where the evidence was most needed
-      # (DEBT-41). `always()` plus an explicit `outcome != 'success'` uploads on a
-      # failed, timed-out or cancelled shard and stays skipped on a green one.
-      - name: Upload Playwright HTML report (shard ${{ matrix.shard }})
+      # `failure()`. `failure()` is false when a job is cancelled — which is what
+      # a `timeout-minutes` overrun produces — so a `failure()` condition skips
+      # the uploads in the one case where the evidence is most needed.
+      # `always()` plus an explicit `outcome != 'success'` uploads on a failed,
+      # timed-out or cancelled shard and stays skipped on a green one, so a
+      # successful run produces no artifacts at all.
+      - name: Upload Playwright report (shard ${{ matrix.shard }})
         if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-shard-${{ matrix.shard }}
+          name: e2e-report-shard-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Upload Playwright traces & screenshots (shard ${{ matrix.shard }})
+      - name: Upload Playwright traces & failure screenshots (shard ${{ matrix.shard }})
         if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-test-results-shard-${{ matrix.shard }}
+          name: e2e-traces-shard-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
 
+  # ---------------------------------------------------------------------------
+  # The one required status.
+  # ---------------------------------------------------------------------------
   gate:
     name: CI Gate
-    # Every required job — the stable check to require in branch protection,
-    # independent of internal job/matrix structure. Fails if any dependency
-    # fails, is cancelled, or (via `if: always()`) never ran.
-    needs: [static-quality, unit-test, kernel-test, build, playwright]
+    needs: [changes, static, test, build, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check all required jobs succeeded
+      - name: Check every required job succeeded
         # `needs.<job>.result` collapses a whole matrix to one value, and it is
         # never "success" unless EVERY shard succeeded — a cancelled shard
-        # (a `timeout-minutes` overrun) reports "cancelled", a failed one
-        # "failure", and a job that never ran "skipped". All three fail the gate.
-        # The result of each dependency is printed by name so the reason is
-        # legible from the gate alone, rather than only from whichever job
-        # happens to be red in the run summary.
+        # reports "cancelled", a failed one "failure", one that never ran
+        # "skipped".
+        #
+        # "skipped" is accepted here, and only here, because the `changes` job
+        # above can legitimately skip `test`, `build` and `e2e` for a
+        # documentation-only pull request. That is the single intended path to a
+        # skip; `static` and `changes` themselves have no `if:` and so can never
+        # be skipped, which means a green gate always represents at least a full
+        # static pass. Every other non-success result fails the gate.
         run: |
           set -euo pipefail
           echo '${{ toJson(needs) }}' > needs.json
@@ -418,9 +364,36 @@ jobs:
             echo "| --- | --- |"
             jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"' needs.json
           } | tee -a "$GITHUB_STEP_SUMMARY"
-          failed="$(jq -r 'to_entries[] | select(.value.result != "success") | .key' needs.json)"
-          if [ -n "$failed" ]; then
-            echo "::error::CI Gate failed. Not successful: $(echo "$failed" | tr '\n' ' ')"
+          bad="$(jq -r 'to_entries[]
+            | select(.value.result != "success" and .value.result != "skipped")
+            | .key' needs.json)"
+          if [ -n "$bad" ]; then
+            echo "::error::CI Gate failed. Not successful: $(tr "\n" " " <<<"$bad")"
             exit 1
           fi
-          echo "All required jobs succeeded."
+          # A skipped `static` would mean the workflow structure changed without
+          # this check being revisited; refuse rather than pass vacuously.
+          if [ '${{ needs.static.result }}' != 'success' ]; then
+            echo "::error::CI Gate failed: Static did not succeed."
+            exit 1
+          fi
+          # Defence in depth: a skip is only ever legitimate when `Scope` asked
+          # for one. Accepting "skipped" above is what lets a documentation-only
+          # pull request go green, and it is also what would let a BROKEN scope
+          # job wave a real change through with nothing but Static run — which
+          # is not hypothetical: the first version of this pipeline did exactly
+          # that, because a `grep -q` in a pipeline under `pipefail` inverted
+          # its answer. The scope decision and the skips it is supposed to cause
+          # are cross-checked here, so that failure mode is a red gate rather
+          # than a silent one, whatever future edit reintroduces it.
+          if [ '${{ needs.changes.outputs.code }}' = 'true' ]; then
+            vacuous="$(jq -r 'to_entries[]
+              | select(.value.result == "skipped")
+              | .key' needs.json)"
+            if [ -n "$vacuous" ]; then
+              list="$(tr '\n' ' ' <<<"$vacuous")"
+              echo "::error::CI Gate failed: Scope says this change is executable, but these jobs were skipped: $list"
+              exit 1
+            fi
+          fi
+          echo "All required jobs succeeded (documentation-only skips allowed)."

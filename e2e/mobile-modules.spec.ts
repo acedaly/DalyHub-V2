@@ -208,8 +208,26 @@ test.describe("MOBILE-01 secondary module journeys", () => {
     page,
   }) => {
     await gotoFixture(page, "/people");
-    await page.locator(".dh-card__open").first().click();
-    await page.waitForLoadState("networkidle");
+    /*
+     * UIX-05 replaced the generic `Card` on /people with the bespoke
+     * `PersonRow`, so the open affordance is `.dh-prow__open` rather than
+     * `.dh-card__open` and this stopped resolving at all. Queried by ROLE and
+     * accessible name instead of by class (AGENTS.md §23): `Open <name>` is the
+     * contract every collection in the product keeps, and it survives the next
+     * component swap in a way a BEM class does not.
+     *
+     * `networkidle` is also gone. It is discouraged by Playwright, and it is
+     * not what this test is waiting for — the record header below is. Waiting
+     * for a real, named piece of the destination is both faster and immune to
+     * a background poll keeping the network busy.
+     */
+    await page
+      .getByRole("link", { name: /^Open / })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("button", { name: /^More actions for / }),
+    ).toBeVisible();
 
     /*
      * UIQ-011 moved the four "create some OTHER record" pills off the summary
@@ -263,7 +281,31 @@ test.describe("MOBILE-01 secondary module journeys", () => {
   test("Settings: preference rows stack and remain operable", async ({
     page,
   }) => {
+    /*
+     * UIX-05 made Settings TWO screens on a phone rather than one: without
+     * `?section=` the phone shows the section LIST, and choosing one replaces
+     * the list with that section and a way back (`settings.css`, resolved
+     * server-side from the URL so Back works and there is no hydration
+     * mismatch). This test used to open `/settings` and assert both a
+     * preference row AND the section rail were visible at once, which the
+     * product deliberately no longer does — and cannot, since each hides the
+     * other. It now walks the two screens the way a person does. The contract
+     * it protects is unchanged and slightly stronger: a control still fills a
+     * stacked row rather than being squeezed into a second column.
+     */
     await gotoFixture(page, "/settings");
+    await expectNoHorizontalOverflow(page);
+
+    // Screen one: the list of sections, and no section content behind it.
+    const nav = page.locator(".dh-settings-page__nav");
+    await expect(nav).toBeVisible();
+    await expect(page.locator(".dh-settings-row").first()).toBeHidden();
+    await expectNoAxeViolations(page);
+
+    // Screen two: choosing a section replaces the list with that section.
+    await nav.getByRole("link", { name: "General" }).click();
+    await expect(page).toHaveURL(/section=general/);
+    await expect(nav).toBeHidden();
     await expectNoHorizontalOverflow(page);
 
     const rows = page.locator(".dh-settings-row");
@@ -280,8 +322,9 @@ test.describe("MOBILE-01 secondary module journeys", () => {
       expect(controlBox.width).toBeGreaterThan(rowBox.width * 0.6);
     }
 
-    // The section navigation is a reachable scrolling row, not a hidden column.
-    await expect(page.locator(".dh-settings-page__nav")).toBeVisible();
+    // …and there is a way back to the list, which is what makes two screens
+    // navigable rather than a dead end.
+    await expect(page.locator(".dh-settings-page__back")).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

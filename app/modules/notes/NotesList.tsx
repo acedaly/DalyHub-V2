@@ -119,6 +119,19 @@ export function NotesList({
                 to={`/notes/${encodeURIComponent(note.id)}`}
                 className="dh-notes-list__item"
                 prefetch="intent"
+                /*
+                 * Without this the link's accessible name is everything inside
+                 * it — title, excerpt, tag list and relative date run together —
+                 * so a screen-reader user hears the whole row read out as the
+                 * name of the thing they are about to activate, and the name
+                 * changes whenever the excerpt or the date does. Every other
+                 * collection in the product (Projects, Goals, Tasks, and the
+                 * Project → Knowledge tab, which lists these same notes) names
+                 * its open affordance `Open <title>`; the Notes list was the one
+                 * that did not. Naming it explicitly is the UIX-06 convergence
+                 * contract applied to the surface that was missed by it.
+                 */
+                aria-label={`Open ${note.title}`}
               >
                 {body}
               </Link>

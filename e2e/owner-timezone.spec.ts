@@ -180,8 +180,13 @@ test("every date-sensitive module names the OWNER's calendar day, not the runner
     }
 
     // 5. DIARY opens on the same day, stated machine-readably by its picker.
+    //    UIX-04 renamed the picker from "Select date" to "Go to a date —
+    //    showing <the day it is on>", so its accessible name now carries the
+    //    state as well as the purpose. Matched on the stable leading phrase:
+    //    the trailing day is exactly what varies here, and asserting the
+    //    input's VALUE is still what proves the day, machine-readably.
     await gotoFixture(page, "/diary");
-    await expect(page.getByLabel("Select date")).toHaveValue(ownerDay);
+    await expect(page.getByLabel(/^Go to a date/)).toHaveValue(ownerDay);
   } finally {
     await setTimezone(page, DEFAULT_TIMEZONE);
   }
@@ -189,7 +194,7 @@ test("every date-sensitive module names the OWNER's calendar day, not the runner
   // 6. Restoring the preference restores the day everywhere — the timezone is
   //    the only thing that was deciding it.
   await gotoFixture(page, "/diary");
-  await expect(page.getByLabel("Select date")).toHaveValue(
+  await expect(page.getByLabel(/^Go to a date/)).toHaveValue(
     calendarDay(new Date(), DEFAULT_TIMEZONE),
   );
 });

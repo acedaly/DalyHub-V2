@@ -14,11 +14,11 @@ comparison (`SHOT_PREFIX=before-` and no prefix) against the same seeded
 workspace, so nothing between a `before-` and its pair differs except the
 product.
 
-The reference design is the third PNG in the repository root:
+The reference design lives in [`assets/references/`](assets/references/):
 
 | File | What it specifies |
 | --- | --- |
-| `ChatGPT Image Aug 10, 2026 at 06_24_38 AM.png` | Projects (desktop, phone), Areas, Goals, Notes, Diary, People and Analytics |
+| [`assets/references/uix-02-modules-reference.png`](assets/references/uix-02-modules-reference.png) | Projects (desktop, phone), Areas, Goals, Notes, Diary, People and Analytics |
 
 It is unchanged by this work and must stay that way — it is the specification,
 not an asset the product ships. The two UIX-01 references are likewise untouched.

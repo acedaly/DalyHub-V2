@@ -1,0 +1,30 @@
+name: Set up DalyHub toolchain
+description: >-
+  Corepack/pnpm, Node from .nvmrc with a pnpm store cache, and a frozen-lockfile
+  install. Every CI job needs exactly this, so it lives in one place: the same
+  steps were previously copy-pasted into five jobs and then into eighteen
+  Playwright shards, which is where versions quietly drift apart.
+
+  Callers must run `actions/checkout` FIRST — a local composite action is loaded
+  from the workspace, so it cannot check out the repository it lives in.
+
+  The install runs the `postinstall` hook (`wrangler types`), which generates
+  `worker-configuration.d.ts`. Type-checking depends on that file existing, so
+  no job may skip this action and then run `tsc`.
+
+runs:
+  using: composite
+  steps:
+    - name: Enable Corepack (pnpm)
+      shell: bash
+      run: corepack enable
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
