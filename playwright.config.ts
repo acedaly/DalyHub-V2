@@ -122,10 +122,12 @@ export default defineConfig({
    * longer padding the split, give each shard roughly 190 REAL tests in one
    * long-lived browser — and on runs 31456794416 and 31457835020 shard 1 died
    * with `browser.newContext: … has been closed` on the SAME test both times
-   * (an axe scan in dark mode, ~185 tests in), having been green with the
-   * identical test set one commit earlier. Always the same victim is not a
-   * random crash; it is a memory threshold this split now sits on. Fewer, fatter
-   * shards is not a free trade against a browser that has to survive all of them.
+   * (an axe scan in dark mode, ~185 tests in) — and then passed on 31458924652.
+   * Two of three: intermittent in RATE, but not in victim, which is a memory
+   * threshold this split sits directly on rather than a random crash. A green
+   * shard 1 is one sample on the lucky side of that line, not an all-clear.
+   * Fewer, fatter shards is not a free trade against a browser that has to
+   * survive all of them.
    *
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
