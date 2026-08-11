@@ -419,7 +419,7 @@ Identical architecture, twice ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#
 
 | | Appearance | Colour scheme |
 | --- | --- | --- |
-| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0040`) |
+| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0039`) |
 | Default | `system` | `violet` |
 | First-paint cookie | `dh_appearance` | `dh_color_scheme` |
 | Action | `POST /preferences/appearance` | `POST /preferences/color-scheme` |

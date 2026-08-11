@@ -67,17 +67,47 @@ producing is indistinguishable from a pass.
 
 **`CHANGELOG.md`** — reformatted. One blank line.
 
-**Migration `0039`** — CAPTURE-01 merged first (11:44) and keeps the number;
-THEME-01's became **`0040_add_owner_color_scheme_preference.sql`**, with its four
-references (a unit test's expected filename, `DESIGN_SYSTEM.md`,
-`ROADMAP_V2_2.md`, ADR text) updated with it. This is the rule the numbering test
-states in its own failure message — "claim the next free number at PR-open time,
-and renumber before merge if another PR took it. Never rename a migration that
-has already been applied" — and the second clause is satisfied because neither
-migration can have been applied anywhere but a local database: both merged on the
-day of this pass, and applying migrations to production is an explicit operator
-command that HARDEN-01 recorded as not performed. **Before deploying, confirm it
-with `pnpm run db:production:list`**, which is the only thing that can answer it.
+**Migration `0039`** — **recorded, not renumbered.** Both files keep their names.
+
+This pass got it wrong first, and the mistake is worth keeping because it is a
+trap the failure message invites. HARDEN-02 renumbered THEME-01's to
+`0040_add_owner_color_scheme_preference.sql`, reading the numbering test's own
+instruction ("renumber before merge if another PR took it. Never rename a
+migration that has already been applied") as satisfied — on the reasoning that
+both files had merged hours earlier, and that applying migrations to production is
+an explicit operator command HARDEN-01 recorded as not performed.
+
+**That reasoning confuses "not deployed to production" with "not applied."**
+Wrangler records an applied migration in `d1_migrations` by its COMPLETE
+FILENAME and applies whatever is not in that table. The parent commit is on
+`main`, so every developer's local D1, every CI shard's database and any operator
+who had run an apply already held the `0039` name. Renaming an identical file
+makes it unapplied, so its `ALTER TABLE` runs a second time:
+
+```
+duplicate column name: color_scheme
+```
+
+— and a failed migration stops the run, so it blocks every later migration too.
+Reproduced by review, on the real parent-to-current upgrade path.
+
+So the rename is reverted and the pair is grandfathered by exact filename beside
+the `0013` pair, which is on this list for precisely the same reason and has been
+since DEBT-40. The two halves are independent (one `ALTER`s
+`owner_app_preferences`, the other `CREATE`s two tables) and sort
+deterministically, exactly as the `0013` pair does.
+
+**The rule, stated by the moment it applies:** before merge, a duplicate is cheap
+and renumbering is right — nothing has applied the file. After merge, the
+collision is a fact about every ledger that exists, and recording it is the only
+safe action.
+
+Two tests now enforce that rather than describing it.
+[`applied-ledger.test.ts`](../../test/unit/migrations/applied-ledger.test.ts)
+holds the shipped filenames and fails if any is renamed or removed, models what
+Wrangler would apply against a parent-commit ledger, and asserts nothing already
+applied re-runs; `migration-numbering.test.ts` now says in its failure message
+which half of the rule applies when.
 
 **ADR-088** — the same rule, the same tie-break: CAPTURE-01 landed first and
 keeps `ADR-088`; THEME-01's became **`ADR-089`**, with every cross-reference

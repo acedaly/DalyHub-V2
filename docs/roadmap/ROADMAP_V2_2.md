@@ -381,7 +381,7 @@ meaning "the violet app" without becoming five applications. Accepted as
   name, a sentence and a three-dot preview drawn from generated per-scheme preview
   tokens, so a row shows its OWN scheme in the current appearance. Switching is
   immediate and optimistic; nothing reloads.
-- **Persistence and first paint.** Owner-scoped column (migration `0040`,
+- **Persistence and first paint.** Owner-scoped column (migration `0039`,
   additive, `DEFAULT 'violet'`), record as authority, `dh_color_scheme` cookie as
   a first-paint mirror reconciled by the shell loader, attribute written
   server-side. An unknown or stale value matches no scheme block and lands on the
@@ -481,9 +481,13 @@ HARDEN-01. No feature, no redesign. Full record:
 - **Three merge collisions, from two pull requests that were open at once.**
   `CHANGELOG.md` failed `format:check`; two migrations both claimed `0039` (unit
   test, red); and two ADRs both claimed `088` (nothing checks that, so it was red
-  nowhere). The later-merged claimant renumbered in each case: migration `0040`
-  and [ADR-089](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance).
-  The older `ADR-082` collision is recorded rather than renumbered.
+  nowhere). The ADR renumbered — [ADR-089](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)
+  — and the MIGRATIONS deliberately did not: Wrangler keys `d1_migrations` on the
+  complete filename, so renaming a file the parent commit already applied re-runs
+  it (`duplicate column name: color_scheme`) and blocks every migration after it.
+  The `0039` pair is grandfathered by exact filename beside the `0013` pair, and
+  two tests now enforce that instead of describing it. The older `ADR-082`
+  collision is likewise recorded rather than renumbered.
 - **The DEBT-125 crash fix had never reached the browser.** HARDEN-01 changed
   what CI INSTALLS; Playwright chooses the binary at LAUNCH
   (`headless && !channel → chromium-headless-shell`), so CI kept running the

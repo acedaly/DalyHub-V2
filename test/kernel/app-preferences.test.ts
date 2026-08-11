@@ -253,7 +253,7 @@ describe("AppPreferencesRepository — D1", () => {
   });
 
   /* THEME-01 — the colour scheme is a persisted owner preference (migration
-   * 0040), and the same round trip matters for the same reasons: the record is
+   * 0039), and the same round trip matters for the same reasons: the record is
    * the authority, the cookie is only a mirror, and a value the CHECK does not
    * name must never reach an HTML attribute. */
 
@@ -335,9 +335,9 @@ describe("AppPreferencesRepository — D1", () => {
   });
 
   it("reads a row written before the colour-scheme column as Daly Violet", async () => {
-    // Migration 0040 is additive with a default, so an existing row cannot be
+    // Migration 0039 is additive with a default, so an existing row cannot be
     // missing the column — but an INSERT that omits it is exactly what a
-    // pre-0040 code path does, and it must land on the shipped default rather
+    // pre-0039 code path does, and it must land on the shipped default rather
     // than on an unstyled page.
     await env.DB.prepare(
       `INSERT INTO owner_app_preferences (

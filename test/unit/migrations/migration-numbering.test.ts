@@ -10,9 +10,31 @@
  *
  * DEBT-40 named the fix precisely: **do not rename an applied migration** (both
  * `0013`s are live in production, and renaming one would make Wrangler re-apply it),
- * and instead add a check that fails on a NEW duplicate. That is what this is. The
- * one historical collision is grandfathered by exact filename, so it cannot be used
- * to excuse a second one, and adding a third file numbered `0013` still fails.
+ * and instead add a check that fails on a NEW duplicate. That is what this is. A
+ * recorded collision is grandfathered by exact filename, so it cannot be used to
+ * excuse another one, and adding a third file numbered `0013` still fails.
+ *
+ * ── Which half of the rule bites, and when (HARDEN-02) ──────────────────────
+ *
+ * The two halves apply at different moments, and reading the failure message as
+ * an instruction to renumber AFTER a merge is how this check turned into an
+ * outage:
+ *
+ *   - **Before merge**, a duplicate is cheap and renumbering is right. Nothing
+ *     has applied the file, so no ledger names it.
+ *   - **After merge, renumbering is the DEFECT.** Wrangler records an applied
+ *     migration by its COMPLETE FILENAME in `d1_migrations` and applies whatever
+ *     is not in that table. Renaming an identical file therefore makes it
+ *     unapplied: `0039_add_owner_color_scheme_preference.sql` renamed to `0040_…`
+ *     re-runs its `ALTER TABLE`, fails with `duplicate column name: color_scheme`,
+ *     and takes every later migration down with it — on every database that
+ *     applied the parent commit, which is every developer's, every CI shard's and
+ *     potentially production's.
+ *
+ * So the moment a colliding pair reaches `main`, the collision is a fact about
+ * the ledger and the only safe action is to record it. That is what
+ * {@link GRANDFATHERED_COLLISIONS} is for, and why it is keyed by exact filename
+ * rather than by number.
  */
 
 import { readdirSync } from "node:fs";
@@ -23,17 +45,30 @@ import { describe, expect, it } from "vitest";
 const migrationsDir = path.join(process.cwd(), "migrations");
 
 /**
- * The one historical collision, grandfathered by EXACT filename.
+ * The collisions that reached `main` and can therefore never be renumbered,
+ * grandfathered by EXACT filename.
  *
- * Both were authored in parallel (#65 and #66), both claimed `0013`, and both are
- * applied in production. They are independent slices, so the alphabetical order
- * Wrangler gives them (`area_details` then `person_details`) is deterministic and
- * harmless. This list is not a policy — it is a record of two specific files.
+ * This list is not a policy — it is a record of specific files whose names are
+ * already written into `d1_migrations` tables that exist. Each pair is here
+ * because renaming either half would re-run it.
+ *
+ *   - **`0013`** — authored in parallel (#65 and #66), both applied in
+ *     production. Independent slices, so the alphabetical order Wrangler gives
+ *     them (`area_details` then `person_details`) is deterministic and harmless.
+ *   - **`0039`** — CAPTURE-01 (#161) and THEME-01 (#162), merged 27 minutes
+ *     apart on 2026-08-11, both on `main` at `b806246`. Also independent: one
+ *     `ALTER`s `owner_app_preferences`, the other `CREATE`s two new tables, and
+ *     `add_owner_color_scheme_preference` sorts before `create_capture_credentials`
+ *     deterministically. HARDEN-02 renumbered the second one and had to put it
+ *     back — see the header above for what that broke.
  */
-const GRANDFATHERED_COLLISION: ReadonlySet<string> = new Set([
-  "0013_create_area_details.sql",
-  "0013_create_person_details.sql",
-]);
+const GRANDFATHERED_COLLISIONS: readonly ReadonlySet<string>[] = [
+  new Set(["0013_create_area_details.sql", "0013_create_person_details.sql"]),
+  new Set([
+    "0039_add_owner_color_scheme_preference.sql",
+    "0039_create_capture_credentials.sql",
+  ]),
+];
 
 function migrationFiles(): string[] {
   return readdirSync(migrationsDir)
@@ -60,10 +95,12 @@ describe("migration numbering", () => {
       .filter(([, files]) => files.length > 1)
       .filter(
         ([, files]) =>
-          // Only the two recorded files, and only as a PAIR, are excused.
-          !(
-            files.length === 2 &&
-            files.every((file) => GRANDFATHERED_COLLISION.has(file))
+          // Only a recorded pair, and only as a PAIR, is excused: a third file
+          // sharing either number still fails.
+          !GRANDFATHERED_COLLISIONS.some(
+            (recorded) =>
+              files.length === recorded.size &&
+              files.every((file) => recorded.has(file)),
           ),
       )
       .map(([number, files]) => `${number}: ${files.join(", ")}`);
@@ -71,8 +108,11 @@ describe("migration numbering", () => {
     expect(
       collisions,
       "A new migration claimed a number that is already taken. Claim the next free " +
-        "number at PR-open time, and renumber before merge if another PR took it. " +
-        "Never rename a migration that has already been applied.",
+        "number at PR-open time, and renumber BEFORE MERGE if another PR took it. " +
+        "If the pair has already reached `main`, do NOT renumber: Wrangler keys " +
+        "`d1_migrations` on the complete filename, so renaming an applied file " +
+        "re-runs it and blocks every migration after it. Record it in " +
+        "GRANDFATHERED_COLLISIONS instead.",
     ).toEqual([]);
   });
 

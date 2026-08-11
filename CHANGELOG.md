@@ -19,6 +19,12 @@ no version number to group them under.
 
 ## Two fixes you would have met on a phone (HARDEN-02)
 
+> **A note for anyone who upgraded from an interim build of this branch.** An
+> earlier revision renamed a database migration, which would have made your copy
+> of DalyHub try to apply it a second time and stop upgrading. The rename is
+> reverted and the released path is clean: nothing your database has already
+> applied is applied again.
+
 Both of these were found by tests that had been failing for days and had been read
 as the tests being out of date. They were not.
 
