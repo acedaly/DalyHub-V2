@@ -1346,13 +1346,43 @@ Nothing accumulates. Contexts are being released and pages are being closed; the
 
 **Where the pressure IS remains unanswered, and the tool that was meant to answer it could not.** It measured Chromium alone — the one cohort the curve above exonerates — while the entry's own question is whether the pressure is the browser tree, a single renderer, the Node runner or `workerd`. HARDEN-01 fixed the instrument rather than guessing: it now samples all three cohorts plus the system's `MemAvailable`, **scoped to the spawned run's process tree**, so a second checkout or an unrelated dev server can no longer be attributed to the shard. On every sample taken, `MemAvailable` stayed above ~12 GB of 16 — nothing in the implementation environment was near a ceiling of any kind.
 
+#### The cause: a SIGSEGV in `chrome-headless-shell`
+
+It was not found by a benchmark. It was found by reading the log of an occurrence. CI run [`31479232198`](https://github.com/acedaly/DalyHub-V2/actions/runs/31479232198), shard 4, verbatim:
+
+```
+[pid=11376][err] Received signal 11 SEGV_MAPERR 0000000001b0
+[pid=11376][err] #0 0x55e65208c413 (/home/runner/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell+0x4265412)
+...
+  5 failed
+  43 did not run
+  139 passed (25.0m)
+```
+
+In order: the browser **segfaults**, every later test fails `browser.newContext: Target page, context or browser has been closed`, and the shard walks into `globalTimeout` with 43 tests never run. That is this entry's signature exactly, and it settles the mechanism question — **the process is not killed, it crashes.** Signal 11 at a near-null fault address is a null dereference inside the binary; an out-of-memory decision sends SIGKILL and leaves a different record. The flat RSS curve above and this crash agree.
+
+**The crashing binary is `chrome-headless-shell`, which is not the binary any of this was diagnosed on.** #158 switched CI to `playwright install --only-shell chromium` on sound reasoning — headless suite, no video, no PDFs, so the full download is unused weight — but the headless shell is a *separate build*, not a subset of Chromium. Locally, on the FULL build, a complete shard 1 and most of a whole-suite single-process run produced no crash. The binary was the one uncontrolled difference between the environment where this reproduces and the environment where it never has, so `.github/workflows/ci.yml` now installs the full build, at ~30s of download per shard.
+
+**Stated as a falsifier, deliberately: if the crash recurs on the full Chromium build, this is not the cause, and the CI change should be reverted with that result recorded here.**
+
 #### What is still open, honestly
 
-The failure did not reproduce in the implementation environment — not across a full shard 1, and not across a full single-process run of the entire suite. Shard 1 was also green in CI on the baseline commit. So the mechanism is refuted but the cause is not identified, and the remaining candidates (runner scheduling, the `--only-shell` build's behaviour under the runner's shm/seccomp configuration, a transient host kill) cannot be distinguished from here.
+A cause identified from one log and a fix applied is not a closed case. An intermittent CI-only crash is only shown to be gone by runs that do not have it, and those runs have not accumulated yet.
 
-- **Retries stay at 0.** A retry would destroy the position property that makes this diagnosable, which is the one thing this entry has always asked not to lose.
+- **Retries stay at 0.** A retry would have hidden this outright — the position property is what made the log worth reading. It also remains the one thing this entry has always asked not to lose.
+- **No browser recycling was added.** Restarting Chromium every N tests would have made the symptom vanish without the segfault ever being found.
 - **The shard count stays at 8.** All eight shards started within twenty seconds of each other on the baseline run and none queued, so the runner-pool constraint #158 re-split against is satisfied. The per-shard budget that run measured is contaminated — shards 4 and 8 reached `globalTimeout` with tests never run, and a failing test burns its whole timeout — so re-deriving the split from it would be measuring the breakage. That re-derivation is now unblocked and is the next step, from a green run.
-- **Closing condition (revised).** A full Playwright run on `main` is green with no spec excluded, no `.skip`/`.fixme` added, no retry raised and no shard reaching `globalTimeout` — **and** either the browser death has not recurred across a meaningful number of runs, or a cause has been identified with evidence from the widened sampler.
+- **Four deterministic failures remain, and are KEPT IN THE GATE — failing and visible.** No `.skip`, no `.fixme`, no retry, no removal from a shard. All four are in this entry's own original table (`people-diary-context.spec.ts | 2`; `mobile-capture-journeys` and `project-settings` at `1 each`, all under "not yet diagnosed"), so they predate HARDEN-01, and nothing in that pass touches capture routing, the People/Diary surfaces or `rankContinueProjects`.
+
+  | Failing test | Diagnosis | Class |
+  |---|---|---|
+  | `mobile-capture-journeys.spec.ts:207` | `page.waitForResponse` never settles in 30s; the awaited request is not made because the context switch is handled client-side | needs re-diagnosis against the current capture flow |
+  | `people-diary-context.spec.ts:144` | `getByPlaceholder(/Search name/)` resolves but is not visible — the test sets a PHONE viewport and UIX-05 CSS-hides the desktop `filterBar` in favour of `mobileControls` | **stale test** |
+  | `people-diary-context.spec.ts:196` | after `capture-full-form` the test expects `/notes?…drawer=new-note`; the app stays on `/person/<id>`. Either the hand-off regressed or it moved | **undetermined** |
+  | `project-settings.spec.ts:213` | `pr-today` is absent from "Continue working": `rankContinueProjects` filters `openCount > 0`, sorts by `lastMeaningfulActivityAt` (from the Activity stream, deliberately not `updated_at`) and slices to `CONTINUE_MAX = 3` | **test defect**, most likely |
+
+  Three of the four are genuine product questions — *should* the capture hand-off navigate, *should* a just-touched Project appear on Today — and answering them is product work, not hardening. Guessing at them to make a gate green is the failure mode this entry exists to end.
+- **Closing condition (revised).** A full Playwright run on `main` is green with no spec excluded, no `.skip`/`.fixme` added, no retry raised and no shard reaching `globalTimeout`, sustained across enough runs that a green one is not a lucky sample — **and** the four failures above each diagnosed to a class and either fixed or converted into a test of what the product now does, with the product decision recorded. The crash clause closes with those runs, or is reopened by the falsifier above.
 - **Related.** [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat) · [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) · [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md).
 
 ### ☑ DEBT-112 — Every select's clear control said "Clear selection", so a form with two of them had one name between them — P3 — RESOLVED 2026-08-11

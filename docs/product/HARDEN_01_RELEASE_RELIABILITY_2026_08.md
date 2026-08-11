@@ -159,30 +159,80 @@ What is safe to say from the scoped instrument is that `MemAvailable` never fell
 below ~12 GB of 16 on any sample, so nothing in this environment was near a
 ceiling of any kind.
 
-### Question 3 — what causes it, then?
+Question 3 then made the question moot: the failure is not pressure anywhere. It
+is a crash. The widened sampler is kept because it is now a correct instrument
+and the next intermittent failure deserves one, not because the answer still
+depends on it.
 
-**Not answered, and not guessed at.** The failure did not reproduce in this
-environment across a full shard 1 and a full single-process run of the entire
-suite, and the hypothesis the tooling was built to test is refuted. What is left
-is a CI-only, intermittent process death whose remaining candidates — runner
-scheduling, the `--only-shell` Chromium build's behaviour under the runner's
-seccomp/shm configuration, or a transient kill by the host — cannot be
-distinguished from here.
+### Question 3 — what causes it, then? A SIGSEGV in `chrome-headless-shell`.
 
-### What was done instead of guessing
+The answer did not come from a benchmark. It came from reading the CI log of the
+occurrence itself. Run
+[`31479232198`](https://github.com/acedaly/DalyHub-V2/actions/runs/31479232198),
+shard 4, verbatim:
+
+```
+[pid=11376][err] Received signal 11 SEGV_MAPERR 0000000001b0
+[pid=11376][err] #0 0x55e65208c413 (/home/runner/.cache/ms-playwright/
+    chromium_headless_shell-1234/chrome-headless-shell-linux64/
+    chrome-headless-shell+0x4265412)
+...
+  5 failed
+  43 did not run
+  139 passed (25.0m)
+  2 errors were not a part of any test, see above for details
+```
+
+Read it in order: the browser **segfaults**, every subsequent test fails
+`browser.newContext: Target page, context or browser has been closed`, and the
+shard then walks into `globalTimeout` with 43 tests never run. That is the exact
+DEBT-125 signature, and it is now attributable: **the browser process is not
+killed, it crashes.** Signal 11 with a near-null fault address is a null
+dereference inside the binary, not an out-of-memory decision — the kernel's OOM
+killer sends SIGKILL and writes a different record entirely. The flat RSS curve
+above and this crash are the same finding from two directions.
+
+The binary that crashed is `chrome-headless-shell`, and that matters, because it
+is not the binary anything here was diagnosed on:
+
+| | Local diagnosis | CI before HARDEN-01 |
+| --- | --- | --- |
+| Install | `playwright install chromium` (full) | `--only-shell chromium` |
+| Binary | `chromium-<rev>/chrome-linux/chrome` | `chromium_headless_shell-<rev>/chrome-headless-shell` |
+| Full shard 1 | no crash | crashes at a position |
+| ~220 tests of a whole-suite run | no crash | — |
+
+**The binary was the one uncontrolled difference between the environment where
+this reproduces and the environment where it never has.** #158 switched to
+`--only-shell` on sound reasoning — this suite is headless, records no video and
+generates no PDFs, so the full download is unused weight — but the headless shell
+is a *separate build*, not a subset, and it is the one that faults.
+
+So `.github/workflows/ci.yml` now installs the full Chromium build. It costs
+~30s of download per shard. The comment on that step quotes the crash and states
+the falsifier plainly: **if the crash recurs on the full build, this is not the
+cause and the change should be reverted with that recorded.**
+
+### What else was done, and what was deliberately not
 
 1. **The deterministic failures were fixed** (§1), including one that was a real
    product defect. That matters for this entry specifically: with 25 fewer tests
    burning a full timeout, the shard budget stops being contaminated and the
    split can finally be re-derived from a green run — which is the closing
    condition DEBT-125 set for itself.
-2. **Retries stayed at 0.** A retry would destroy the position property that
-   makes this diagnosable, which is the one thing the entry asks not to lose.
-3. **The sampler was widened** so the next occurrence produces evidence about the
-   right processes rather than only about the browser.
-4. **DEBT-125 is NARROWED, not closed.** Its browser-death clause now records
-   what has been ruled out, with the measurement, rather than repeating a
-   hypothesis nobody had tested.
+2. **Retries stayed at 0.** A retry would have hidden this. The position property
+   is what made the log worth reading in the first place, and a retried run
+   averages it away.
+3. **No browser recycling was added.** Restarting Chromium every N tests would
+   have made the symptom disappear without the segfault ever being found, which
+   is the outcome the brief names as forbidden.
+4. **The sampler was widened and scoped** so the next occurrence — if there is
+   one — produces evidence about the right processes rather than only about the
+   browser.
+5. **DEBT-125 is NARROWED, not closed.** A cause is now identified with evidence
+   and a fix is applied, but a fix for an intermittent CI-only crash is a
+   hypothesis until enough runs have gone by without it. Closing it needs those
+   runs, and they have not happened yet.
 
 ---
 
@@ -244,6 +294,32 @@ Yes, and the evidence says so twice over. MEASURED on the baseline run
 **So the shard count was left alone.** Changing it on a measurement this
 contaminated would have been optimising because HARDEN-01 existed, which is
 exactly what the brief forbids.
+
+There is a second reason not to have re-split on this run, and it only became
+visible later: **shard 4 did not run long, it crashed early and then burned the
+clock.** §2 quotes the segfault. A shard whose browser dies at test 139 and
+reports `25m01` has not measured 25 minutes of work — it has measured a crash
+followed by 43 tests that never started. Re-deriving a split from that number
+would have encoded the crash into the shard geometry.
+
+### What the repair actually moved
+
+MEASURED on run
+[`31479232198`](https://github.com/acedaly/DalyHub-V2/actions/runs/31479232198),
+the same suite after §1's repairs, against the baseline `31473135291`:
+
+| | Baseline `31473135291` | After repairs `31479232198` |
+| --- | --- | --- |
+| Shard 3 failures | 25 | **4** |
+| Shard 4 | failed — `globalTimeout`, tests unrun | still failed — the segfault, 43 unrun |
+| Statuses | 6 | 6 |
+| Retries | 0 | 0 |
+
+Shard composition shifted between the two runs (19 tests were deleted, so the
+1/8th boundaries moved), which is why the honest comparison is total failures
+rather than a per-shard diff. The remaining four are listed in §8 with their
+diagnoses; they are the ones DEBT-125 raised and never diagnosed, and they stay
+in the gate.
 
 ### Retries
 
@@ -493,4 +569,81 @@ future deploy's health assertion will no longer fail on a correct deployment.
 
 ## 8. Remaining debt
 
-DEBT_PLACEHOLDER
+Four things are left. None is hidden, none is excluded from the gate, and each
+one names what would close it.
+
+### 8.1 Four deterministic E2E failures remain, all of them pre-existing
+
+They are **kept in the gate**, failing and visible. No `.skip`, no `.fixme`, no
+retry, no removal from a shard. Each was reproduced locally at `workers: 1`,
+`retries: 0`, and each was diagnosed far enough to say what it is:
+
+| Failing test | Diagnosis | Class |
+| --- | --- | --- |
+| `mobile-capture-journeys.spec.ts:207` — *clears Task context when switching to unsupported Task capture* | `page.waitForResponse` never settles within 30s on the context switch. The awaited request is not made — the switch is handled client-side | needs re-diagnosis against the current capture flow |
+| `people-diary-context.spec.ts:144` — *journey 2, an existing Diary entry gains and loses a Person* | `getByPlaceholder(/Search name/)` resolves but is not visible. The test sets a PHONE viewport; UIX-05 CSS-hides the desktop `filterBar` in favour of `mobileControls`, so the element it finds is the hidden one | **B — stale test** |
+| `people-diary-context.spec.ts:196` — *journey 3, the full-form hand-off keeps the Person context* | after `capture-full-form` the test expects `/notes?…drawer=new-note`; the app stays on `/person/<id>`. Either the hand-off regressed or it moved | **A or B — undetermined, and that is the point** |
+| `project-settings.spec.ts:213` — *Planned → Active → On hold → Active → Archive → Restore, reflected live on Today* | `pr-today` is absent from the "Continue working" rail. `rankContinueProjects` filters `openCount > 0`, sorts by `lastMeaningfulActivityAt` (from the Activity stream, deliberately **not** `updated_at`) and slices to `CONTINUE_MAX = 3`; a fixture workspace with three more recently-active Projects crowds it out | **C — test implementation defect**, most likely |
+
+**Proof they predate HARDEN-01.** Every one appears in DEBT-125's original table
+as raised by #158, at the same counts, under "not yet diagnosed":
+`people-diary-context.spec.ts | 2`, and `mobile-capture-journeys` ·
+`project-settings` at `1 each`. That table was written before this branch existed.
+Nothing in this pass touches capture routing, the People/Diary surfaces or
+`rankContinueProjects`.
+
+They were not fixed here for a stated reason rather than an unstated one: three of
+the four are genuine product questions — *should* the capture hand-off navigate,
+*should* a Project the user just touched appear on Today — and answering them is
+product work, not hardening. Guessing at them to make a gate green is the failure
+mode this whole pass exists to end.
+
+**Closing condition:** each is diagnosed to a class and either fixed or converted
+into a test that asserts what the product now does, with the product decision
+recorded.
+
+### 8.2 DEBT-125 is narrowed, not closed
+
+A cause is identified with evidence (§2: SIGSEGV in `chrome-headless-shell`) and
+a fix is applied (the full Chromium build). That is a hypothesis with a good log
+behind it, not a closed case: an intermittent CI-only crash is only shown to be
+gone by runs that do not have it.
+
+**Closing condition:** a full Playwright run on `main` is green with no spec
+excluded, no `.skip`/`.fixme`, no retry raised and no shard reaching
+`globalTimeout` — sustained across enough runs that a green one is not a lucky
+sample — **or** the crash recurs on the full build, in which case the CI change is
+reverted and that result recorded, because it falsifies the diagnosis.
+
+### 8.3 The shard split still has not been re-derived from a green run
+
+Eight was **kept** (§3), and the reasoning is that the only per-shard budget
+available is contaminated: shards 4 and 8 reached `globalTimeout` with tests
+never run, and a failing test burns its whole timeout. That measurement is
+unblocked by §1 and §2 but has not been taken, because it needs the green run
+8.2 also needs.
+
+**Closing condition:** per-shard times measured on a green run, and the split
+either re-derived from them or explicitly kept with those numbers cited.
+
+### 8.4 Production is documented, not verified
+
+§7 says `NOT VERIFIED` and means it. `DEBT-84` is now `◐` — **documentation
+corrected, production still unverified** — and the distinction is the one the
+brief asked for: this pass fixed what the repository *claims*, and changed
+nothing about what anybody *knows* about the running Worker.
+
+**Closing condition:** an owner runs `pnpm run verify:production` with real
+credentials and records the verdict, and reads `/about` through Access for the
+live commit.
+
+### Not remaining debt, recorded so it is not re-opened
+
+- **The 200% zoom residual** (§4) did not reproduce at the baseline and no fix was
+  invented for it. The check was widened to six routes so a future shell change
+  cannot re-introduce it unseen.
+- **DS-17 / DEBT-112** is `☑` (§5). Nothing about it is deferred.
+- **Question 2 of DEBT-125** — *where is the pressure, if not the browser* — is
+  moot rather than open. There is no pressure; there is a crash. The sampler was
+  fixed anyway, because a broken instrument in the repository is worse than no
+  instrument.
