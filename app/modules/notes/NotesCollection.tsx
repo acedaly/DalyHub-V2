@@ -21,6 +21,7 @@ import { useNavigate } from "react-router";
 
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -262,25 +263,17 @@ function NotesCollection({
   const filtered = hasActiveFilters(filters);
   // Never present the loaded-row count as the TOTAL while more pages remain —
   // say how many are "loaded" so far, not how many exist.
-  const noun =
-    state === "deleted"
-      ? "deleted notes"
-      : state === "archived"
-        ? "archived notes"
-        : "notes";
-  const singular =
-    state === "deleted"
-      ? "1 deleted note"
-      : state === "archived"
-        ? "1 archived note"
-        : "1 note";
+  // The lifecycle state qualifies the noun; it never replaces the count.
+  const scope =
+    state === "deleted" ? "deleted" : state === "archived" ? "archived" : "";
+  /** The same qualified noun, for the error and "Load more" copy. */
+  const noun = scope ? `${scope} Notes` : "Notes";
   const subtitle = failed
-    ? `We couldn\u2019t load your ${noun}.`
-    : hasMore
-      ? `${count} ${noun} loaded`
-      : count === 1
-        ? singular
-        : `${count} ${noun}`;
+    ? `We couldn\u2019t load your ${scope ? `${scope} ` : ""}Notes.`
+    : collectionCountLabel(count, "Note", "Notes", {
+        hasMore,
+        ...(scope ? { scope } : {}),
+      });
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // (a filter, a view, a page) shows the shared skeleton instead of leaving the
@@ -291,7 +284,6 @@ function NotesCollection({
       isLoading={isReloading}
       title="Notes"
       subtitle={subtitle}
-      entityType="note"
       // UIQ-013 — Active / Archived / Deleted is Notes' principal mode, in the
       // shared header view slot; the search, tag, Project, Area, link-state and
       // ordering controls stay filters, in the band beneath.

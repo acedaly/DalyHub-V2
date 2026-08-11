@@ -8,7 +8,6 @@ describe("PX-03 ModuleComingSoon", () => {
     render(
       <ModuleComingSoon
         name="Notes"
-        entityType="note"
         summary="Markdown records that document any entity in DalyHub."
         fit="Notes attach across the spine via EntityLinks."
         roadmapStatus="It’s planned for Phase 5 — Notes (NOTES-01 → NOTES-04)."
@@ -46,22 +45,16 @@ describe("PX-03 ModuleComingSoon", () => {
     expect(screen.getByText("Link to the day’s context")).toBeInTheDocument();
   });
 
-  it("shows the entity identity glyph only when an entity type is given", () => {
-    const { container, rerender } = render(
-      <ModuleComingSoon
-        name="AI"
-        summary="A propose → review → apply loop."
-        fit="AI is a proposer, never an autonomous actor."
-        roadmapStatus="It’s planned for Phase 11 — AI."
-        capabilities={["A propose → review → apply loop"]}
-      />,
-    );
-    expect(container.querySelector(".dh-entity-icon")).toBeNull();
-
-    rerender(
+  /*
+   * UIX-06 — the placeholder's header draws no glyph, because no page header in
+   * the product does: the badge gave collections a page origin 40px right of
+   * Today's and Analytics', and repeated the glyph the sidebar was already
+   * showing for the same route.
+   */
+  it("draws no entity glyph in the page header", () => {
+    const { container } = render(
       <ModuleComingSoon
         name="Reviews"
-        entityType="review"
         summary="Guided rituals."
         fit="Review is DalyHub’s ritual layer."
         roadmapStatus="It’s planned for Phase 10 — Review."
@@ -69,8 +62,8 @@ describe("PX-03 ModuleComingSoon", () => {
       />,
     );
     expect(
-      container.querySelector('.dh-entity-icon[data-entity="review"]'),
-    ).not.toBeNull();
+      container.querySelector(".dh-pane-header .dh-entity-icon"),
+    ).toBeNull();
   });
 
   it("never renders placeholder lorem-ipsum copy", () => {

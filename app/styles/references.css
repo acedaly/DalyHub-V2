@@ -239,19 +239,22 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/*
+ * LAYOUT only. UIX-06 removed this rule's copy of the height, padding, border,
+ * corner, surface and font: the shared control baseline in `base.css` now
+ * states all six for every native control, and the copy had drifted from it
+ * (`outline-variant` where the baseline uses `outline`, and a symmetric padding
+ * that left no room for the select's drawn chevron).
+ */
 .dh-notes-filters__control {
-  /* A flex item now that its label sits beside it, so it grows into the field
-   * rather than resolving `width: 100%` against a box it no longer fills. */
+  /* A flex item, so it grows into the field. `width: 100%` is deliberately NOT
+   * set: on an auto-width field it makes the control's own basis circular, and
+   * the select resolved to a box narrower than its longest option — "Sort:
+   * Recently updated" was clipped to "Sort: Newest". `flex-grow` already fills
+   * the one field that has width to give (`--grow`), and everything else sizes
+   * to its content, which is what a select must do. */
   flex: 1 1 auto;
   min-inline-size: 0;
-  min-height: var(--app-touch-target-min);
-  width: 100%;
-  padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
-  font: inherit;
 }
 
 .dh-notes-filters__actions {

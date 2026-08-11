@@ -377,19 +377,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* What is applied, before the sheet is opened — a filtered list is never
- * silently short. */
-.dh-collection-controls__summary {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dh-collection-sheet {
   display: flex;
   flex-direction: column;

@@ -86,12 +86,16 @@
   margin: 0;
   color: var(--md-sys-color-on-surface);
   /* `headline-medium`, matching every other page title in the product — Today
-   * is a page, and its greeting is its heading. It keeps the emphasized weight
-   * it took when it had to compete with a hero; with the hero gone that weight
-   * is simply what a personal greeting reads best at. */
+   * is a page, and its greeting is its heading.
+   *
+   * UIX-06 dropped the EMPHASIZED weight it kept from the era when it had to
+   * compete with a hero. The hero is gone, and a bolder heading on exactly one
+   * of thirteen pages is the unexplained weight change §32 rules out; the
+   * justification that survived the hero ("what a personal greeting reads best
+   * at") is a preference, not a reason the other twelve pages do not share. */
   font-size: var(--md-sys-typescale-headline-medium-size);
   line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight-emphasized);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
   letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
   overflow-wrap: anywhere;
 }

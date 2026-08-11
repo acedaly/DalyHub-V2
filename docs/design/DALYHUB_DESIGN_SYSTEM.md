@@ -89,7 +89,8 @@ a coincidence, not a hierarchy.
 | **Typography** | `tokens.css` | One family (Roboto Flex, `wght` axis). **Emphasis is weight, not size** |
 | **Shape** | `tokens.css` | Six semantic rungs — hero, entity-card, card, metric, supporting, control (20 · 16 · 16 · 12 · 12 · 8). Nesting always steps *down* |
 | **Spacing / sizing** | `tokens.css` (`--app-*`) | Structural values M3 does not own |
-| **Elevation** | `tokens.css` | Two names: `resting` (none) and `raised`. Separation is surface *value*; depth is for things that genuinely float |
+| **Elevation** | `tokens.css` | Two names: `resting` (none) and `raised`. Separation is surface *value*; depth is for things that genuinely float. Since UIX-06 every card family obeys D1, including the three that predate it |
+| **Controls** | `base.css` — the control baseline | One rung for every native `input`/`select`/`textarea` and for `.dh-btn`: `--app-control-height-lg` on `--app-shape-control`. A module never restates it (UIX-06) |
 | **Motion** | `tokens.css` | M3 duration and easing tokens. Nothing animates on load |
 
 Application code — CSS and components alike — never hard-codes a raw hex, pixel,
@@ -132,6 +133,9 @@ specification does not, because the specification's answer was worse *here*.
 | D27 | **An ASSET card spends its colour on STATE, not on identity** (UIX-05) | Every other record family paints its mark with the owner's own classification — a Project's Area, a Person's circle. An Asset's classification is its TYPE, and thirteen types over a six-accent ramp collide two times in three, so the tint would be a coincidence rather than a signal. The type glyph is far stronger (a car and a shield are told apart instantly), so the mark stays neutral and the colour goes to the one thing that screen exists to answer: what is overdue. This does not breach D21 — the identity mark is still never repainted by state; the mark and the due block are separate objects, and the state always carries its own words |
 | D28 | **A completed Review draws NO progress bar** (UIX-05) | "An absence is not a zero" pointed the other way: a settled fact is not a live measure. Once a Review is closed, "how much is written?" has stopped being interesting, and a full bar on every past Review turns the gallery into a wall of identical green with nothing to scan. It states when it closed instead — the fact that matters afterwards |
 | D29 | **Analytics states a comparison as a SENTENCE, never a percentage or a coloured arrow** (UIX-05) | "6 more than the previous period (18)" is checkable; "+33%" hides its base, and from a base of zero it is not a figure at all — so the evaluator refuses that case in words rather than inventing one. Nor is the direction painted: a week with fewer completed Tasks may be a week of one large Project, and green-for-up/red-for-down would make the product an opinion rather than a record |
+| D30 | **A COLLECTION header draws no glyph beside its title; a RECORD header does** (UIX-06) | The badge was decoration — the same glyph the sidebar is already showing, highlighted, for the same route — and it made three page origins impossible to reconcile, because Today and Analytics have no entity type to badge and so started 40px to the left of every collection. A record's mark is not decoration: it carries the Area's identity accent (D22/§6.2), which is the only thing that groups a gallery visually without a heading |
+| D31 | **A `<select>` is REPAINTED, never replaced** (UIX-06) | Four collection headers shipped the user-agent chevron beside a designed control. Replacing the element with a bespoke listbox costs the platform picker on touch, the free keyboard behaviour, the assistive-technology semantics and the no-JS form submit — for a visual problem `appearance: none` solves outright, since it changes only how the CLOSED control is painted. The chevron is a gradient pair rather than an asset, so it takes `currentColor` and is correct in both appearances and in forced colours by construction |
+| D32 | **A task row draws its LOW tier nowhere** (UIX-06) | D18 already put the sector, the delegate and the waiting note "on hover, in the overflow, or on the record"; the row drew all three permanently anyway, which is what made its two "aligned trailing columns" impossible to align — the marks spread over 200px, and `Sector: This Week` wrapped to a second line inside a 45px row. Squaring the columns up only made the cost visible: the facts compressed to "Se… De…", and a fact that ellipsises to two letters has stopped carrying information |
 
 ## 5a. Projects and Areas — related, and deliberately not alike
 
@@ -400,7 +404,7 @@ Recorded so the next pass starts from a decision rather than from a re-reading.
 | # | Decision | Why it is still outstanding |
 | --- | --- | --- |
 | A5 | **A common chart language** — line, sparkline, ring, horizontal progress, milestone track — over the existing series tokens | VIS-01 quietened the two charts a Goal draws; UIX-03 added the **sparkline** and gave `TrendLine` its grid, references and readout; UIX-05 built **Analytics** on those same primitives and added the horizontal proportion split, choosing bars over the reference's donut precisely because this list is the agreed language (see [§5d](#5d-analytics--what-a-figure-has-to-earn)). All five now exist as shared primitives. What is outstanding is the unifying pass ACROSS them — one legend anatomy, one empty-state, one summary contract — not the components |
-| A6 | **Component consolidation** across buttons, chips, toolbars and empty states | Requires an inventory pass first; consolidating without one trades duplication for churn. UIX-02 took the **tabs** out of this list: the view rail is now one shared `.dh-viewtabs`, drawn once and consumed by both the saved-view switcher and `ViewTabs` |
+| A6 | **Component consolidation** across chips and toolbars | Requires an inventory pass first; consolidating without one trades duplication for churn. UIX-02 took the **tabs** out of this list (one shared `.dh-viewtabs`). UIX-06 took the **controls** and the **empty state** out of it: every native `input`/`select`/`textarea` now reads one control baseline in `base.css` (three module-local copies deleted), the empty state is one card obeying D1, and one shared `collectionCountLabel` replaced nine hand-rolled subtitles. What remains is chips and toolbars |
 | A9 | **A Goal trend on Today.** A target-value Goal's card shows a bar where its shape would say more | UIX-03 built the read a sparkline needs (`listMeasurementSeries`, one grouped statement for a page) and used it on the **gallery** card, but deliberately NOT on Today: Today's row already carries a bar, and a second drawing of the same Goal would be the two-visuals-per-card rule broken on the one surface that must stay a glance. Today gained the Area accent instead. Revisit only if the bar goes |
 
 **Delivered since this section was written.** UIX-05 closed the **components**
@@ -423,6 +427,38 @@ record families (Person, Asset, Review), the People circle, the Analytics surfac
 and Settings' phone composition — see
 [§5b](#5b-the-record-surface-families--six-and-none-a-variant-of-another) onward
 and `UIX_05_REMAINING_MODULES_2026_08.md`.
+
+---
+
+---
+
+# The DalyHub design language, in one paragraph
+
+*Canonical as of UIX-06.*
+
+DalyHub is a bespoke personal-productivity design system built on Material 3
+foundations and edited down by Apple-like restraint. **What is bespoke** is
+everything the owner recognises a screen by: six record surface families that are
+told apart by SHAPE before a word of them is read, a decorative identity ramp
+that is never a semantic one, a 216px permanent navigation drawer, a 60px phone
+navigation bar, a one-line 45px task row with two aligned trailing columns,
+writing surfaces with no box at all, and the thirty-two documented departures
+that record each of those decisions. **What remains MD3-derived** is the
+machinery rather than the look: the colour roles — generated from one violet
+seed, never authored — the typescale, the shape and elevation scales, the state
+layer, the motion tokens and the whole accessibility contract. **Apple-like
+restraint** means the specification's answer is the floor, not the target: one
+card draws no border and no resting shadow, a pill is reserved for the one
+primary or destructive action on a surface, tone is spent on a mark rather than a
+container, and a level of hierarchy is separated on every axis at once or not
+claimed at all. **Mobile is a different composition of the same data, routes and
+components** — not a narrower desktop: Today becomes one priority stream,
+Settings becomes two screens, a collection's persistent controls become one
+sheet, and the task row drops its middle rather than wrapping. **Colour carries
+identity, state and series, and nothing else** — a record's accent is its Area's
+and never repaints for status, a slipped Task is `state-overdue` rather than
+`error`, and every accent, tint and state has a word beside it, so nothing in the
+product is legible only in colour.
 
 ---
 

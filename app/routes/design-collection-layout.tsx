@@ -202,7 +202,6 @@ function CollectionDemo() {
   return (
     <CollectionLayout
       title="Projects"
-      entityType="project"
       subtitle={`${filtered.length} of ${source.length} shown`}
       viewSwitcher={
         <ViewSwitcher value={presentation} onChange={setPresentation} />

@@ -289,6 +289,57 @@ give Settings a phone composition instead of a scrolling rail.
 - Record:
   [`UIX_05_REMAINING_MODULES_2026_08.md`](../design/UIX_05_REMAINING_MODULES_2026_08.md).
 
+### ☑ UIX-06 - Whole-application convergence, visual QA and final polish — **DELIVERED 2026-08-11**
+
+The point at which broad UI redesign STOPS. Not a sixth redesign: UIX-01 → UIX-05
+each made one module coherent, and this pass asks the question none of them
+could — do thirteen modules read as one product? A BEFORE suite capturing every
+index, every detail family and the shared overlays in ONE run, at the same widths
+in both appearances, answered it: coherent within each module, divergent between
+them.
+
+- **One page origin.** Three existed at 1280: a collection's title started 40px
+  right of Today's and Analytics' behind a generic entity badge, and Settings'
+  16px left of both on its own page padding, at a title rung six points smaller.
+  The badge is gone (D30) — the documented header anatomy has always drawn the
+  title leading, and it was the same glyph the sidebar shows for the same route.
+  A RECORD header keeps its mark, because that mark carries the Area's accent.
+- **One control baseline.** Native inputs and selects were 36px on 4px corners
+  while every button, segment and filter trigger is 45px on `--app-shape-control`
+  — so five collection headers drew a search field and a "Filter & sort" pill at
+  two heights and two corner values, and four of them shipped the user-agent
+  select chevron beside a designed control. `base.css` now states the rung and
+  draws the chevron itself (D31); three module-local copies of the same six
+  declarations are deleted.
+- **One collection count line.** Nine collections hand-rolled the same subtitle
+  in five conventions; Assets showed the current VIEW's name instead of a count,
+  and "1 notes loaded" was a plural bug in two of them.
+- **Made D18 true.** The task row's "two aligned trailing columns" had never
+  aligned — the Project mark's auto-margin had no free space to absorb, so on six
+  consecutive rows the marks began at x = 630, 510, 724, 672, 638, 670 while
+  titles ellipsised with 200px of empty row beside them. Measured after: one
+  Project x and one date right edge at every width from 320 to 1920.
+- **Took the second control rail off Goals** and stopped an absence being drawn
+  as a state — a Goal with no measurement drew a full-width slab in its Area's
+  accent containing the words "Not measured", which §6 rule 3 forbids outright.
+- **Made D1 reach the three card families that predate it**, untinted Today's
+  glance row (D11, and both root references), gave the search field a container
+  in dark — `card-subtle` and `app-bar` generate to the same value there — and
+  designed the not-found surface, which was still the framework template's.
+- **Fixed a 1:1 contrast bug** the 404 work surfaced: `.page a` repainted an
+  `<a class="dh-btn">` in the link colour, so a filled button's label was the
+  same colour as its container.
+- **Non-goals:** any new module, widget, metric, dependency or UI framework; any
+  change to a domain rule, repository, schema or write path; any change to the
+  filter ARCHITECTURE of the four modules whose native GET forms are a deliberate
+  no-JS choice; and a Goal create action on the Goals index, which would need an
+  Area picker and therefore a new flow.
+- Record:
+  [`UIX_06_WHOLE_APP_CONVERGENCE_2026_08.md`](../design/UIX_06_WHOLE_APP_CONVERGENCE_2026_08.md).
+
+**Broad UI redesign is complete.** Future UI work is targeted feature work
+against the design system, not another whole-app pass.
+
 ### ☐ DS-17 - Select clear-control names
 
 Complete the cross-product select accessibility follow-up.

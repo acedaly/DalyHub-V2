@@ -38,6 +38,7 @@ import { AssetCard, EntityCardGrid, type AssetCardTone } from "~/shared/card";
 import {
   CollectionControls,
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
   type CollectionControlGroup,
 } from "~/shared/collection-layout";
@@ -236,6 +237,23 @@ export function AssetsCollectionView({
 
   const viewLabel = VIEWS.find((v) => v.view === data.view)?.label ?? "Assets";
 
+  /*
+   * UIX-06 — the subtitle is a COUNT, like every other collection's.
+   *
+   * Assets was the one screen whose subtitle was the current view's NAME
+   * ("All", "Service due"), which is a fact the view switcher two inches to the
+   * right already states, and which answers a different question from the one
+   * the other eight collections answer in the same slot. The scope qualifies
+   * the noun where it is not simply everything.
+   */
+  const scope = data.view === "all" ? "" : viewLabel.toLocaleLowerCase();
+  const subtitle = data.failed
+    ? "We couldn’t load your Assets."
+    : collectionCountLabel(pagination.items.length, "Asset", "Assets", {
+        hasMore: pagination.hasMore,
+        ...(scope ? { scope } : {}),
+      });
+
   // UIQ-013 — the five Asset scopes are the collection's principal mode, on the
   // ONE shared switcher. Each view is its own route, so the option carries its
   // own href (with the current filters preserved and the scope-bound cursor
@@ -394,8 +412,7 @@ export function AssetsCollectionView({
     <CollectionLayout
       isLoading={isReloading}
       title="Assets"
-      entityType="asset"
-      subtitle={viewLabel}
+      subtitle={subtitle}
       presentation="grid"
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}

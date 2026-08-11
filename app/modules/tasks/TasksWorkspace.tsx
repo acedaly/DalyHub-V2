@@ -47,6 +47,7 @@ import type {
 import {
   CollectionControls,
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -1632,16 +1633,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const count = isGrouped ? groupedTotal : items.length;
   const filterCount = taskViewFilterCount(config);
   const subtitle = data.failed
-    ? "We couldn’t load your tasks."
-    : isGrouped
-      ? count === 1
-        ? "1 task"
-        : `${count} tasks`
-      : hasMore
-        ? `${count} tasks loaded`
-        : count === 1
-          ? "1 task"
-          : `${count} tasks`;
+    ? "We couldn’t load your Tasks."
+    : collectionCountLabel(count, "Task", "Tasks", {
+        // A GROUPED view has already loaded every group it draws, so its figure
+        // is the whole collection rather than a page of it.
+        hasMore: !isGrouped && hasMore,
+      });
 
   const isReloading = useCollectionLoading();
   const currentQuery = useMemo(() => {
@@ -1690,7 +1687,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       isLoading={isReloading}
       title="Tasks"
       subtitle={subtitle}
-      entityType="task"
       density={density}
       // UIQ-014 — Review Inbox is a SECONDARY action, and now sits in the
       // secondary slot rather than borrowing the primary one. Tasks

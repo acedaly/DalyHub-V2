@@ -1587,6 +1587,10 @@ The at-a-glance aggregates a record's [Summary Panel](#summary-panel) shows are 
 
 The [Forms](#forms) pattern above is realised by ONE reusable, **entity-agnostic** forms system (the **Shared Forms** system, [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls), in [`app/shared/forms`](../../app/shared/forms)). There is no `TaskForm`/`ProjectForm`/`NoteForm`: consumers supply typed values, field definitions, validation and persistence callbacks and compose the shared controls, the form host and the declared save model. The shared UI knows nothing of Tasks/Projects/Goals/Areas/People/Notes, D1/SQL, workspace selection, routes, product modules or a central entity-type switch — server loaders/actions keep the trusted workspace scope and data access. It builds entirely on [DS-01 tokens](#design-tokens-ds-01), renders Markdown through the [FND-08 pipeline](../development/MARKDOWN_PIPELINE.md), creates relationships through the [FND-04 EntityLink kernel](../../AGENTS.md#95-entitylinks), and is accepted in [ADR-022](../decisions/ARCHITECTURE_DECISIONS.md#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker).
 
+**The control baseline (UIX-06).** Height, padding, surface, border, corner and — for a `<select>` — the disclosure chevron are stated ONCE, at the element, in [`base.css`](../../app/styles/base.css), for every native `input`/`select`/`textarea` whether or not a module reached for a shared field. The rung is `--app-control-height-lg` on `--app-shape-control`, which is the rung `.dh-btn` takes, so a field and the button beside it in a filter row are the same object. A module never restates it: three local copies existed before UIX-06 and all three had drifted.
+
+A `<select>` is **repainted, never replaced** (D31): `appearance: none` changes only how the closed control is painted, so the platform picker on touch, the native keyboard behaviour, the assistive-technology semantics and the no-JS form submit are all preserved. The chevron is a gradient pair rather than an asset, so it takes `currentColor` and is correct in both appearances and in forced colours by construction. **A class that sets the `background` SHORTHAND on a select clears it** — set `background-color`.
+
 **Public anatomy.** A small, typed surface (`app/shared/forms/index.ts`), plus a **React-free model** entry ([`~/shared/forms/model`](../../app/shared/forms/model.ts)) imported by non-UI code:
 
 ```text
@@ -1842,6 +1846,10 @@ count / supporting context
 ───────────────────────────────────────────────────────────────────────────────
 filters (search · selects · tags · chips)
 ```
+
+**The title LEADS — a collection header draws no glyph beside it** (UIX-06, D30). The band briefly resolved a generic entity badge from an `entityType` prop; that gave the product three different page origins, because Today, Analytics and Settings have no entity type to badge and started 40px to the left of every collection, and it repeated the glyph the sidebar was already showing, highlighted, for the same route. `PaneHeader` still accepts an `icon` — a RECORD header passes one, because a record's mark carries its Area's identity accent (D22, §6.2) rather than restating its type.
+
+**The count line is `collectionCountLabel`** (`~/shared/collection-layout`), not per-module wording. Nine collections hand-rolled the same subtitle in five conventions before UIX-06, one showed the current view's NAME rather than a count, and two produced "1 notes loaded". The noun is capitalised (the product's own nouns, AGENTS.md §7); a bounded page says "loaded"; a scope qualifies the noun without replacing the count ("3 current Reviews").
 
 **Semantic ownership is the contract, not the pixels.** Which slot a control lives in is fixed product-wide and does not vary by module:
 

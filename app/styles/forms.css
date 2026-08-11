@@ -236,9 +236,23 @@
   line-height: var(--md-sys-typescale-body-large-line-height);
   letter-spacing: var(--md-sys-typescale-body-large-tracking);
   color: var(--md-sys-color-on-surface);
-  background: transparent;
+  /*
+   * `background-color`, not the `background` SHORTHAND (UIX-06).
+   *
+   * The shorthand resets `background-image` too, and the shared control
+   * baseline draws a `<select>`'s chevron with one — so every select wearing
+   * `.dh-input` (Meetings' sort, the link picker's type select) silently lost
+   * its disclosure and read as a plain box. This rule only ever meant to state
+   * a colour.
+   */
+  background-color: transparent;
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  /* UIX-06 — the CONTROL rung. M3's text field is `corner-extra-small`, but
+   * `.dh-tags` beside it in the same form was already `corner-small`, and every
+   * button, segment and filter trigger in the product is `--app-shape-control`
+   * (also `corner-small`). One form was therefore drawing two corner values on
+   * adjacent fields. The field joins the rung the rest of the product uses. */
+  border-radius: var(--app-shape-control);
   transition: border-color var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
 }
@@ -653,7 +667,8 @@
   color: var(--md-sys-color-on-surface);
   background: transparent;
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  /* UIX-06 — matches `.dh-input`, which is the control it stands in for. */
+  border-radius: var(--app-shape-control);
   text-align: start;
   cursor: pointer;
 }

@@ -14,6 +14,7 @@ import { Link, useSearchParams } from "react-router";
 
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -37,10 +38,15 @@ const VIEW_LINKS = [
   { id: "archived", label: "Archived", href: "/meetings/archived" },
 ] as const;
 
+/*
+ * UIX-06 — each option names its own dimension, so the control needs no visible
+ * label beside it and the band stays one row at one baseline. Same wording as
+ * People, Notes and Reviews.
+ */
 const SORT_LABELS = {
-  start: "Start date",
-  updated: "Updated date",
-  title: "Title",
+  start: "Sort: Start date",
+  updated: "Sort: Updated date",
+  title: "Sort: Title",
 } as const;
 
 export function MeetingsCollection({
@@ -90,12 +96,10 @@ export function MeetingsCollection({
   });
 
   const subtitle = failed
-    ? "We couldn’t load your meetings."
+    ? "We couldn’t load your Meetings."
     : pagination.hasMore
       ? `${pagination.items.length} of ${total} loaded`
-      : total === 1
-        ? "1 meeting"
-        : `${total} meetings`;
+      : collectionCountLabel(total, "Meeting", "Meetings");
 
   const updateParam = useCallback(
     (name: string, value: string) => {
@@ -129,7 +133,6 @@ export function MeetingsCollection({
     <CollectionLayout
       isLoading={isReloading}
       title="Meetings"
-      entityType="meeting"
       subtitle={subtitle}
       // Shell cleanup: the header's "New meeting" button is gone. It navigated to
       // the generic `/new/meeting` form with no context the global capture
@@ -182,7 +185,9 @@ export function MeetingsCollection({
             />
           </label>
           <label className="dh-field dh-meetings-sort">
-            <span className="dh-field__label-text">Sort</span>
+            <span className="dh-field__label-text dh-visually-hidden">
+              Sort
+            </span>
             <select
               className="dh-input"
               value={sort}

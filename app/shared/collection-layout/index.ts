@@ -14,6 +14,12 @@ export {
 export { useCollectionLoading } from "./use-collection-loading";
 
 /**
+ * UIX-06 — the ONE collection count line, so every collection's subtitle answers
+ * "how many, and is this all of them?" in the same words.
+ */
+export { collectionCountLabel, type CountLabelOptions } from "./count-label";
+
+/**
  * MOBILE-01 — the ONE shared phone filter/sort/view sheet, and its pure model.
  * Pass a `<CollectionControls>` as the layout's `mobileControls`; never build a
  * module-specific mobile filter surface.

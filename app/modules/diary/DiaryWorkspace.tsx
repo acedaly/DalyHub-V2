@@ -418,7 +418,6 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
         className="dh-diary-collection"
         title="Diary"
         subtitle={subtitle}
-        entityType="diary"
         viewSwitcher={<DiaryModeTabs mode={mode} />}
         primaryAction={
           // PX-06: the SAME primary-create affordance as every other module —

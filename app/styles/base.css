@@ -335,22 +335,66 @@ body {
   select,
   textarea
 ) {
-  min-block-size: var(--app-control-height-md);
-  padding: var(--app-space-1) var(--app-space-3);
+  /*
+   * UIX-06 — the floor is the CONTROL rung, not a smaller one of its own.
+   *
+   * DS-14 set this at 36px/4px, which is the size and shape of nothing else in
+   * the product: `.dh-btn` is 45px on `--app-shape-control` (8px), and so is
+   * every segment, filter trigger and overflow control. A collection header
+   * therefore drew a 36px 4px-cornered search field beside a 45px 8px-cornered
+   * "Filter & sort" pill, on five modules, and the mismatch read as two
+   * different design systems sharing a row — which is exactly what §15 rules
+   * out ("mismatched radii on adjacent controls"). 45px is also the target
+   * floor this product commits to (AGENTS.md §15), and an input is a target.
+   */
+  min-block-size: var(--app-control-height-lg);
+  padding: var(--app-space-2) var(--app-space-3);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--md-sys-typescale-body-medium-size);
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--app-shape-control);
 }
 
+/*
+ * UIX-06 — a `<select>` stops looking like a browser.
+ *
+ * DS-14 left the user-agent arrow in place, reasoning that removing it would
+ * break the platform picker on touch. It does not: `appearance: none` changes
+ * only how the closed control is PAINTED. Tapping still opens the iOS wheel and
+ * the Android dialog, the keyboard behaviour is the native one, the element is
+ * still a `<select>` to assistive tech, and a no-JS form still submits it. What
+ * it does remove is the one thing that made Notes, Meetings, People and Reviews
+ * read as unfinished: a Windows/macOS chevron, at the user agent's own size and
+ * colour, inside a product that draws every other disclosure itself.
+ *
+ * The replacement chevron is a background gradient pair rather than an SVG, so
+ * it takes `currentColor` — it is correct in both appearances and in forced
+ * colours by construction, with no second asset to keep in step.
+ */
 :where(select) {
-  /* A select keeps its native disclosure arrow (drawing our own would break the
-   * platform picker on touch); the inline-end inset just stops the value text
-   * colliding with it. */
-  padding-inline-end: var(--app-space-2);
+  appearance: none;
+  /* Room for the drawn chevron, which sits `--app-space-4` from the edge. */
+  padding-inline-end: var(--app-space-8);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - var(--app-space-4) - 5px) center,
+    calc(100% - var(--app-space-4)) center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
   cursor: pointer;
+}
+
+/* A multiple/sized select is a LIST, not a closed control — it has no chevron
+ * to draw and no room to reserve for one. */
+:where(select[multiple], select[size]:not([size="1"])) {
+  padding-inline-end: var(--app-space-3);
+  background-image: none;
 }
 
 :where(textarea) {
@@ -460,6 +504,41 @@ body {
   margin: 0 0 var(--app-space-2);
 }
 
+/*
+ * UIX-06 — the route error / not-found surface.
+ *
+ * It cannot render the app shell (see `root.tsx`), so it borrows the product's
+ * EMPTY-STATE anatomy instead: centred, one heading, one line, one action. Same
+ * shape as every other "nothing here" in the application, drawn with the same
+ * tokens, so the one screen an owner reaches by accident stops being the one
+ * screen that looks like a different product.
+ */
+.dh-route-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-space-2);
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-route-error h1 {
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+}
+
+.dh-route-error p {
+  margin: 0;
+  max-width: var(--app-width-narrow);
+}
+
+.dh-route-error__actions {
+  margin-block-start: var(--app-space-4);
+}
+
 .page h2,
 .dh-pane-body h2 {
   font-size: var(--md-sys-typescale-title-medium-size);
@@ -477,8 +556,23 @@ body {
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.page a,
-.dh-pane-body a {
+/*
+ * PROSE links inside a generic page or pane body.
+ *
+ * UIX-06 excluded anchors that are BUTTONS. `.dh-btn--primary` paints
+ * `on-primary` on a `primary` container; this rule then repainted the label
+ * `primary` — the same colour as the container — so an anchor styled as a
+ * filled button rendered as an empty violet pill with an invisible label. It
+ * was live on the not-found surface's only action in both appearances, and it
+ * is a 1:1 contrast failure wherever else an `<a class="dh-btn">` sits inside
+ * one of these two containers (WCAG 1.4.3).
+ *
+ * `:not(.dh-btn)` rather than a `.dh-btn` override, because the button already
+ * states its own colour correctly for all five variants — the bug is that a
+ * container rule was reaching into a component.
+ */
+.page a:not(.dh-btn),
+.dh-pane-body a:not(.dh-btn) {
   color: var(--md-sys-color-primary);
 }
 

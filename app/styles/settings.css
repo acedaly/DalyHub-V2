@@ -65,8 +65,10 @@
   gap: var(--app-space-3);
   padding: var(--app-space-5);
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  /* UIX-06 — D1. A Settings group is the same card a collection and a record
+   * use, and it was the last family drawing a hairline around one. */
+  border: none;
+  border-radius: var(--app-shape-card);
 }
 
 .dh-settings-group__header {
@@ -296,20 +298,20 @@
   opacity: 0.6;
 }
 
-/* A native select skin, for an immediate select in a row. */
+/*
+ * An immediate select in a Settings row.
+ *
+ * UIX-06 — the CONTROL rung, like every other control in the product. This drew
+ * a 36px box on 12px corners while the shared baseline is 45px on
+ * `--app-shape-control`, so a Settings select and a Settings button in the same
+ * row were two different objects. Its surface, border and chevron now come from
+ * `base.css`; only the row-local width cap stays.
+ */
 .dh-settings-select {
-  min-height: var(--app-control-height-md);
   max-width: 100%;
-  padding: 0 var(--app-space-3);
-  font-family: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-card);
-  /* A form control's boundary is what identifies it, so it uses the 3:1
-   * `control-border` token rather than the decorative border (WCAG 1.4.11). */
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-medium);
-  cursor: pointer;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  /* `background-color`: the shorthand would clear the baseline's chevron. */
+  background-color: var(--md-app-color-surface-card);
 }
 
 .dh-settings-select:focus-visible {
@@ -337,7 +339,8 @@
 
 /* The destructive button on a dangerous-action row. */
 .dh-settings-danger-button {
-  min-height: var(--app-control-height-md);
+  /* UIX-06 — the product's control height and touch floor, like `.dh-btn`. */
+  min-height: var(--app-control-height-lg);
   padding: 0 var(--app-space-4);
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
@@ -462,15 +465,11 @@
   color: var(--md-sys-color-on-surface);
 }
 
+/* UIX-06 — the shared control baseline supplies height, padding, border and
+ * corner; a destructive confirmation is not the place to invent a control. */
 .dh-confirm__input {
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  font-family: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
   background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .dh-confirm__input:focus-visible {
@@ -627,7 +626,15 @@
   gap: var(--app-space-6);
   width: 100%;
   max-width: var(--app-width-wide);
-  padding: var(--app-space-6);
+  /*
+   * UIX-06 — the same page origin as every other route.
+   *
+   * Settings padded to `--app-space-6` (24px) where every collection, Today and
+   * Analytics pad to `--app-page-padding` (40px at desktop), so its title
+   * started 16px left of theirs and the whole screen sat a step out of line
+   * with the rest of the product. §7: no route shifts the page origin.
+   */
+  padding: var(--app-space-6) var(--app-page-padding) var(--app-space-8);
   margin: 0 auto;
 }
 
@@ -768,19 +775,31 @@
   min-width: 0;
 }
 
+/*
+ * UIX-06 — the page-title rung, not a rung of its own.
+ *
+ * Settings drew its title at `title-large` (22px) with a hand-written weight
+ * and line height, while every other page title in the product is
+ * `headline-medium` (28px) through `.dh-pane-header__title`. Two page titles
+ * six points apart is the "inconsistent font sizes" §10 opens with, and it made
+ * Settings read as a sub-page of something rather than as a destination.
+ */
 .dh-settings-page__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-large-size);
-  font-weight: 500;
-  line-height: 1.2;
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
   color: var(--md-sys-color-on-surface);
 }
 
+/* The shared subtitle rung (`body-medium`), matching `.dh-pane-header__subtitle`. */
 .dh-settings-page__description {
   max-width: 44rem;
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: 1.5;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
   color: var(--md-sys-color-on-surface-variant);
 }
 

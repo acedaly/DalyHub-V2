@@ -80,9 +80,22 @@ function Select({
   readonly placeholder: string;
   readonly options: readonly NoteFilterOption[];
 }) {
+  /*
+   * UIX-06 — the label is for assistive technology; the VALUE is what names the
+   * dimension on screen.
+   *
+   * Every placeholder here already says which dimension it belongs to ("Any
+   * tag", "Any project", "Sort: Newest first"), so a visible label beside it was
+   * a second statement of the same word — and five of them turned the band into
+   * the labelled form row §29 rules out. This is the rule the search field above
+   * has followed since UIX-04; the band now applies it to all six controls.
+   */
   return (
     <p className="dh-notes-filters__field">
-      <label className="dh-notes-filters__label" htmlFor={id}>
+      <label
+        className="dh-notes-filters__label dh-visually-hidden"
+        htmlFor={id}
+      >
         {label}
       </label>
       <select
@@ -187,8 +200,8 @@ export function NotesFilterBar({
           name="sort"
           label="Sort"
           value={filters.sort === "created" ? "" : filters.sort}
-          placeholder="Newest first"
-          options={[{ value: "recent", label: "Recently updated" }]}
+          placeholder="Sort: Newest first"
+          options={[{ value: "recent", label: "Sort: Recently updated" }]}
         />
 
         {/*
@@ -251,7 +264,7 @@ export function NotesFilterBar({
               name="links"
               label="Links"
               value={filters.links === "all" ? "" : filters.links}
-              placeholder="Any"
+              placeholder="Any link state"
               options={[
                 { value: "linked", label: "Linked to something" },
                 { value: "unlinked", label: "Unlinked" },

@@ -156,7 +156,7 @@ describe("Notes collection", () => {
      */
     const link = screen.getByRole("link", { name: /Reading list/ });
     expect(link).toHaveAttribute("href", "/notes/n1");
-    expect(screen.getByText("1 note")).toBeInTheDocument();
+    expect(screen.getByText("1 Note")).toBeInTheDocument();
     // Shell cleanup: a POPULATED Notes collection carries no create action of its
     // own. "New Note" duplicated the global capture control, which is on every
     // page at every width and posts to the same `POST /notes/new` route, so the
@@ -175,7 +175,7 @@ describe("Notes collection", () => {
 
   it("shows a calm, retryable error state distinct from empty", () => {
     renderCollection({ notes: [], nextCursor: null, failed: true });
-    expect(screen.getByText("We couldn’t load your notes")).toBeInTheDocument();
+    expect(screen.getByText("We couldn’t load your Notes")).toBeInTheDocument();
     expect(screen.queryByText("No Notes yet")).not.toBeInTheDocument();
   });
 
@@ -203,19 +203,19 @@ describe("Notes collection", () => {
       },
     );
 
-    await screen.findByText("1 notes loaded");
-    expect(screen.queryByText("1 note")).not.toBeInTheDocument();
+    await screen.findByText("1 Note loaded");
+    expect(screen.queryByText("1 Note")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Load more notes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load more Notes" }));
 
     await waitFor(() => expect(screen.getByText("Bravo")).toBeInTheDocument());
 
     const list = screen.getByRole("list", { name: "Notes" });
     expect(within(list).getAllByText("Alpha")).toHaveLength(1);
     expect(
-      screen.queryByRole("button", { name: "Load more notes" }),
+      screen.queryByRole("button", { name: "Load more Notes" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("2 notes")).toBeInTheDocument();
+    expect(screen.getByText("2 Notes")).toBeInTheDocument();
   });
 
   it("opens a note via a real link (accessible, not a div onClick)", () => {
@@ -261,7 +261,7 @@ describe("Notes collection", () => {
       expect(
         screen.getByRole("button", { name: "Restore" }),
       ).toBeInTheDocument();
-      expect(screen.getByText("1 deleted note")).toBeInTheDocument();
+      expect(screen.getByText("1 deleted Note")).toBeInTheDocument();
     });
 
     it("restoring a Note posts the restore intent and removes it from view with a success toast", async () => {
@@ -375,10 +375,10 @@ describe("Notes collection", () => {
       );
 
       // Let the router's initial navigation commit before interacting.
-      await screen.findByText("1 notes loaded");
+      await screen.findByText("1 Note loaded");
 
       // Start "Load more" in the Active view — the fetch stays pending.
-      fireEvent.click(screen.getByRole("button", { name: "Load more notes" }));
+      fireEvent.click(screen.getByRole("button", { name: "Load more Notes" }));
 
       // The user switches to Deleted BEFORE that fetch resolves — the same
       // prop change a real `?state=deleted` navigation would produce.
@@ -407,7 +407,7 @@ describe("Notes collection", () => {
         screen.queryByText("Bravo (stale active page)"),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: "Load more deleted notes" }),
+        screen.queryByRole("button", { name: "Load more deleted Notes" }),
       ).not.toBeInTheDocument();
       expect(screen.getByText("No deleted Notes")).toBeInTheDocument();
     });
@@ -428,7 +428,7 @@ describe("Notes collection", () => {
       });
 
       expect(
-        screen.getByRole("button", { name: "Load more deleted notes" }),
+        screen.getByRole("button", { name: "Load more deleted Notes" }),
       ).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Restore" }));
@@ -447,7 +447,7 @@ describe("Notes collection", () => {
       // and Load More must still be there to reach them.
       expect(screen.queryByText("No deleted Notes")).not.toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: "Load more deleted notes" }),
+        screen.getByRole("button", { name: "Load more deleted Notes" }),
       ).toBeInTheDocument();
 
       vi.unstubAllGlobals();

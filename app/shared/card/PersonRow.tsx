@@ -143,14 +143,22 @@ export function PersonRow({
         {context ? <p className="dh-prow__context">{context}</p> : null}
       </div>
 
-      {reach || secondaryReach ? (
-        <div className="dh-prow__reach">
-          {reach ? <ReachLink reach={reach} name={title} /> : null}
-          {secondaryReach ? (
-            <ReachLink reach={secondaryReach} name={title} secondary />
-          ) : null}
-        </div>
-      ) : null}
+      {/*
+       * UIX-06 — always rendered, even with nothing in it.
+       *
+       * The row is a grid with FIXED reach and rhythm tracks precisely so a
+       * directory's columns agree down the page. Omitting this cell defeated
+       * that: a Person with no email and no phone had one fewer child, so
+       * auto-placement moved the rhythm cell into the reach track and their
+       * "No shared history yet" sat 200px left of everyone else's. An empty
+       * cell holds the track and draws nothing.
+       */}
+      <div className="dh-prow__reach">
+        {reach ? <ReachLink reach={reach} name={title} /> : null}
+        {secondaryReach ? (
+          <ReachLink reach={secondaryReach} name={title} secondary />
+        ) : null}
+      </div>
 
       {rhythm ? (
         <p

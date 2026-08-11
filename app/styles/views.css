@@ -128,7 +128,8 @@
   gap: var(--app-space-1);
   min-width: 0;
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
+  border: none;
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
 }

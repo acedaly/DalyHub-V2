@@ -163,7 +163,6 @@ export function TasksReviewWorkspace({
     <CollectionLayout
       title="Review Inbox"
       subtitle={subtitle}
-      entityType="task"
       primaryAction={
         <Link className="dh-btn dh-btn--secondary" to={backToTasks}>
           Back to Tasks

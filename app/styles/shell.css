@@ -703,7 +703,23 @@
     inline-size: 18rem;
     max-inline-size: 100%;
     padding-inline: var(--app-space-4) var(--app-space-3);
-    background: var(--md-app-color-surface-card-subtle);
+    /*
+     * UIX-06 — SUNKEN, not `card-subtle`.
+     *
+     * In the dark scheme `--md-app-color-surface-card-subtle` and
+     * `--md-app-color-surface-app-bar` are generated to the SAME value
+     * (#202225), so the product's most-used control had no visible container at
+     * all in dark: a magnifier, the words "Search DalyHub" and a `/` badge
+     * floating on the bar, while in light it was a filled pill. That is the
+     * "mismatched surfaces in dark" §45 opens with, and it was invisible to
+     * light-only review precisely because the light value is fine.
+     *
+     * `sunken` is the one application surface that is a step DOWN from the bar
+     * in both appearances (#eeedf1 light, #141618 dark), which is what a field
+     * inset into a chrome bar should be. The `/` hint keeps `surface-page`, a
+     * step back up, so it still reads as a badge inside the field.
+     */
+    background: var(--md-app-color-surface-sunken);
   }
 
   .dh-topbar__search-label {

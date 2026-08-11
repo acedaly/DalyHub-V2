@@ -250,26 +250,61 @@ export default function App() {
   return <Outlet />;
 }
 
+/**
+ * The document-level error surface — including the NOT-FOUND route.
+ *
+ * ── UIX-06 ──────────────────────────────────────────────────────────────────
+ * This was the template's own boundary, and it showed: a mistyped URL produced
+ * the heading "404" and the sentence "The requested page could not be found."
+ * on a bare canvas, with no shell, no navigation and no way back. It was the
+ * one screen in the product that had never been designed, and it broke two
+ * rules at once — AGENTS.md §6 ("no dead ends: every error explains the
+ * recovery") and §42's "readable, actionable, safe".
+ *
+ * It cannot render the app shell: the boundary runs for documents where the
+ * authenticated shell never resolved, so reaching for it here would fail in
+ * exactly the cases that need this surface most. It uses the product's own
+ * empty-state ANATOMY instead — a heading, one explanatory line, one primary
+ * action — drawn with the shared tokens, which is the same shape the owner sees
+ * for every other "nothing here" in the application.
+ *
+ * The stack stays development-only, so a deployed Worker never shows one (§42).
+ */
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
+  let message = "We couldn’t find that page";
+  let details =
+    "The address may have changed, or the record may have been deleted.";
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
+    if (error.status !== 404) {
+      message = "Something went wrong";
+      details =
+        error.statusText ||
+        "DalyHub could not complete that request. Your data is unaffected.";
+    }
+  } else {
+    message = "Something went wrong";
     details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
+      "DalyHub could not complete that request. Your data is unaffected.";
+    if (import.meta.env.DEV && error && error instanceof Error) {
+      details = error.message;
+      stack = error.stack;
+    }
   }
 
   return (
-    <main className="page">
+    <main className="page dh-route-error">
       <h1>{message}</h1>
       <p>{details}</p>
+      {/* A real anchor, not a router `Link`: the boundary renders outside the
+          shell's route context, and a dead end that offers a broken control is
+          worse than one that offers none. */}
+      <p className="dh-route-error__actions">
+        <a className="dh-btn dh-btn--primary" href="/today">
+          Go to Today
+        </a>
+      </p>
       {stack && (
         <pre>
           <code>{stack}</code>

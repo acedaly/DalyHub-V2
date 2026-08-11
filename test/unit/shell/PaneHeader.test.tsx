@@ -27,14 +27,25 @@ describe("PX-02 PaneHeader", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows an entity identity glyph when an entity type is given", () => {
-    const { container } = render(
-      <PaneHeader title="Projects" entityType="project" />,
+  /*
+   * UIX-06 — a COLLECTION header draws no glyph beside its title.
+   *
+   * The band used to resolve one from an `entityType` prop, which gave the
+   * product three different page origins: a collection's title started 40px
+   * right of Today's and Analytics', neither of which has an entity type to
+   * badge. A RECORD still passes `icon`, because a record's mark carries its
+   * Area's identity accent rather than repeating the sidebar's glyph.
+   */
+  it("renders a supplied identity node, and nothing when none is given", () => {
+    const withIcon = render(
+      <PaneHeader title="Kitchen fit-out" icon={<span data-testid="mark" />} />,
     );
-    const icon = container.querySelector(
-      '.dh-entity-icon[data-entity="project"]',
-    );
-    expect(icon).not.toBeNull();
+    expect(withIcon.getByTestId("mark")).toBeInTheDocument();
+
+    const plain = render(<PaneHeader title="Projects" />);
+    expect(
+      plain.container.querySelector(".dh-pane-header__lead .dh-entity-icon"),
+    ).toBeNull();
   });
 
   it("is not a banner landmark (the sidebar owns banner)", () => {

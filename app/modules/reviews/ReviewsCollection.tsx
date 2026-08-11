@@ -42,6 +42,7 @@ import {
 import { EntityCardGrid, ReviewCard, type ReviewCardTone } from "~/shared/card";
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -61,9 +62,15 @@ const VIEWS: readonly { readonly view: ReviewView; readonly label: string }[] =
     { view: "archived", label: "Archived" },
   ];
 
+/*
+ * UIX-06 — each option names its own dimension, because the visible "Sort"
+ * label above the control is gone (the two labels put the selects on a second
+ * baseline below the search field). This is the wording People's sort select
+ * has used since UIX-05.
+ */
 const SORTS = [
-  { value: "recent", label: "Recently updated" },
-  { value: "period", label: "Period" },
+  { value: "recent", label: "Sort: Recently updated" },
+  { value: "period", label: "Sort: Period" },
 ] as const;
 
 type SerializedReviewRow = ReviewsCollectionData["reviews"][number];
@@ -81,11 +88,10 @@ function reviewCount(
   view: ReviewView,
   hasMore: boolean,
 ): string {
-  const noun = loaded === 1 ? "Review" : "Reviews";
-  const scope = VIEW_NOUNS[view];
-  return hasMore
-    ? `${loaded} ${scope} ${noun} loaded`
-    : `${loaded} ${scope} ${noun}`;
+  return collectionCountLabel(loaded, "Review", "Reviews", {
+    hasMore,
+    scope: VIEW_NOUNS[view],
+  });
 }
 
 function hrefFor(
@@ -226,8 +232,18 @@ export function ReviewsCollectionView({
           }}
         />
       </label>
+      {/*
+       * UIX-06 — the dimension is named by the VALUE, not by a label above it.
+       *
+       * Two stacked labels pushed the two selects a row below the search field
+       * beside them, so a three-control bar had two baselines and three heights.
+       * "Every cadence" and "Sort: …" already say what each control is, which is
+       * the rule this collection's own search field has followed since UIX-04;
+       * the label element stays, visually hidden, so nothing is lost to a screen
+       * reader.
+       */}
       <label className="dh-reviews-filters__field">
-        <span className="dh-reviews-filters__label">Cadence</span>
+        <span className="dh-visually-hidden">Cadence</span>
         <select
           className="dh-select"
           value={data.type}
@@ -253,7 +269,7 @@ export function ReviewsCollectionView({
         </select>
       </label>
       <label className="dh-reviews-filters__field">
-        <span className="dh-reviews-filters__label">Sort</span>
+        <span className="dh-visually-hidden">Sort</span>
         <select
           className="dh-select"
           value={data.sort}
@@ -288,7 +304,6 @@ export function ReviewsCollectionView({
     <CollectionLayout
       isLoading={isReloading}
       title="Reviews"
-      entityType="review"
       /*
        * A COUNT, not a sentence.
        *

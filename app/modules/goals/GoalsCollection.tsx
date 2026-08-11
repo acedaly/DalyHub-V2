@@ -41,6 +41,7 @@ import {
 import { Sparkline } from "~/shared/charts";
 import {
   CollectionLayout,
+  collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -643,7 +644,6 @@ function GoalsCollection({
                 ? "1 deleted Goal"
                 : `${deleted.length} deleted Goals`
         }
-        entityType="goal"
         presentation="grid"
         viewSwitcher={
           <ViewSwitcher
@@ -702,13 +702,7 @@ function GoalsCollection({
   const count = items.length;
   const subtitle = failed
     ? "We couldn’t load your Goals."
-    : hasMore
-      ? count === 1
-        ? "1 Goal loaded"
-        : `${count} Goals loaded`
-      : count === 1
-        ? "1 Goal"
-        : `${count} Goals`;
+    : collectionCountLabel(count, "Goal", "Goals", { hasMore });
   const summary = failed ? null : alignmentSummary(items);
   /*
    * The view counts, over the Goals LOADED — the same per-page honesty the
@@ -729,7 +723,6 @@ function GoalsCollection({
       isLoading={isReloading}
       title="Goals"
       subtitle={subtitle}
-      entityType="goal"
       presentation="grid"
       // UIQ-013 — Active/Deleted is the collection's principal mode (the two
       // are different collections of Goals, not a narrowing of one), so it sits
@@ -741,6 +734,41 @@ function GoalsCollection({
           value={state}
           label="Goal views"
         />
+      }
+      /*
+       * UIX-06 — the status rail is a FILTER, so it lives in the filter band.
+       *
+       * It used to render into the CONTENT slot, which put a second, differently
+       * drawn control rail loose between the header and the gallery: the
+       * lifecycle segments in the header's view slot, and four bordered status
+       * chips floating below the divider with nothing containing them. Two rails
+       * in two presentations on one screen was the single clearest convergence
+       * failure the UIX-06 audit found.
+       *
+       * The header contract settles which slot it belongs in: a view "cannot be
+       * unset" and changes the principal mode (Active/Deleted); a filter narrows
+       * which records are included and composes with its siblings. "On track",
+       * "Needs attention" and "Completed" narrow — "All" is the unset state —
+       * so they are filters, and the filter band is where Notes' search, People's
+       * circles and Assets' tags already are.
+       */
+      filterBar={
+        counts.total > 0 ? (
+          <div className="dh-goals-views" data-testid="goals-views">
+            <SegmentedFilter
+              param="view"
+              options={GOAL_COLLECTION_VIEWS.map((option) => ({
+                value: option,
+                label:
+                  option === "all"
+                    ? GOAL_COLLECTION_VIEW_LABELS[option]
+                    : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
+              }))}
+              value={view}
+              label="Filter Goals by status"
+            />
+          </div>
+        ) : undefined
       }
       error={
         failed ? (
@@ -780,22 +808,6 @@ function GoalsCollection({
        * survives as the quiet note beneath — same words, same live region, a
        * twentieth of the space.
        */}
-      {counts.total > 0 ? (
-        <div className="dh-goals-views" data-testid="goals-views">
-          <SegmentedFilter
-            param="view"
-            options={GOAL_COLLECTION_VIEWS.map((option) => ({
-              value: option,
-              label:
-                option === "all"
-                  ? GOAL_COLLECTION_VIEW_LABELS[option]
-                  : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
-            }))}
-            value={view}
-            label="Filter Goals by status"
-          />
-        </div>
-      ) : null}
       {summary ? (
         <p className="dh-goals-alignment-summary" role="status">
           {summary}
