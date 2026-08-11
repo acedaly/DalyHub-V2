@@ -1473,20 +1473,10 @@
   .dh-bottomnav__control {
     min-inline-size: 0;
   }
-
-  /*
-   * The indicator is the other floor, and dropping the control's alone is not
-   * enough: it is a fixed 2.5rem (40px) pill — 2.5rem square for Capture — so
-   * five of them plus the controls' padding still measured 209px inside a 195px
-   * viewport. Capping it to the room actually available keeps the shape (the
-   * `max-inline-size` preserves the exact 40px pill at every width that can
-   * afford it) while letting it give way at the widths that cannot.
-   */
-  .dh-bottomnav__indicator {
-    inline-size: 100%;
-    max-inline-size: 2.5rem;
-  }
 }
+/* The indicator's half of this override is NOT here — it has to come after the
+ * rules that set its width, so it lives at the end of the bottom-bar section
+ * below. See the note there. */
 
 /*
  * The ACTIVE-INDICATOR, at VIS-01's size: a 40×26 soft rectangle behind the
@@ -1579,6 +1569,36 @@
 
 .dh-bottomnav__control--capture .dh-bottomnav__icon {
   font-size: 1.5rem;
+}
+
+/*
+ * Deep zoom, part two: the indicator gives up its fixed width.
+ *
+ * The control's `min-inline-size` floor is dropped further up, next to the rule
+ * that sets it. This half has to be HERE, after every rule that gives the
+ * indicator a width, and that placement is the whole point rather than a
+ * formatting preference. The first version of this sat beside the control
+ * override, before `.dh-bottomnav__indicator`'s own `inline-size: 2.5rem`
+ * declaration — a media query adds no specificity, so the later base rule
+ * simply won and the override did nothing. It measured 40px at a 195px
+ * viewport with the override "applied", which is what sent the original
+ * investigation looking for a phantom.
+ *
+ * The Capture variant needs saying separately: `.dh-bottomnav__control--capture
+ * .dh-bottomnav__indicator` is a two-class selector, so it outranks a bare
+ * `.dh-bottomnav__indicator` no matter where that appears.
+ *
+ * `max-inline-size` keeps the exact 40px pill at every width that can afford
+ * one; `inline-size: 100%` is what lets it give way at the widths that cannot.
+ * Five 40px pills plus the controls' padding demand ~209px, which is why they
+ * overflowed a 195px viewport (200% zoom on a 390px phone) before this.
+ */
+@media (max-width: 15rem) {
+  .dh-bottomnav__indicator,
+  .dh-bottomnav__control--capture .dh-bottomnav__indicator {
+    inline-size: 100%;
+    max-inline-size: 2.5rem;
+  }
 }
 
 /* Forced colours: the indicator must survive when the accent is replaced. */

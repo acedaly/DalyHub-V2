@@ -629,6 +629,28 @@
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }
 
+/*
+ * Deep zoom: the quiet line may take a second row rather than push the page.
+ *
+ * `.dh-today__quiet` is a flex container, which is right for its two glyph
+ * variants ("All clear" beside a tick). The third use is PROSE with an inline
+ * link — "No measurable Goals yet. Add a target to a <Goal> and your progress
+ * shows up here." — and flex turns that sentence into three items (two
+ * anonymous text runs either side of the link) on one `nowrap` line. Each item
+ * carries the automatic minimum of a flex item, so the line's floor is the SUM
+ * of their min-contents: measured at 209px against a 195px viewport, which is
+ * the whole of the remaining horizontal overflow at 200% zoom on a phone.
+ *
+ * Allowing the line to wrap lets those items stack instead of forcing the
+ * document wider. Scoped to the width where it matters, so the single-line
+ * composition every ordinary phone gets is untouched.
+ */
+@media (max-width: 15rem) {
+  .dh-today__quiet {
+    flex-wrap: wrap;
+  }
+}
+
 .dh-today__quiet-glyph {
   display: inline-flex;
   flex: none;
