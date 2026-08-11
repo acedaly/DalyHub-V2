@@ -129,12 +129,36 @@ describe("HELP-01 honesty", () => {
       expect(text, `"${subject}" is not named as missing`).toContain(subject);
     }
     // X-04 shipped export and SET-02 shipped restore, so "backup and restore"
-    // has LEFT this list. What has not shipped is DalyHub keeping copies on the
-    // owner's behalf, and that distinction is the one this assertion protects:
-    // being able to restore a file you hold is not the same as being backed up.
+    // has LEFT this list. What has not shipped is a restore point the owner can
+    // reach without doing anything, and that distinction is what this assertion
+    // protects: being able to restore a file you hold is not the same as being
+    // backed up.
     expect(text).not.toContain("cannot read one back in");
-    expect(text).toContain("Automatic backups on your behalf");
-    expect(text).toContain("does not keep copies for you");
+    expect(text).toContain(
+      "A backup you can restore from without doing anything",
+    );
+    expect(text).toContain("not a restore point you can reach from inside");
+    // AUDIT-FIX-05 — the entry said "DalyHub does not keep copies for you or
+    // take one on a schedule", which the nightly encrypted production D1 export
+    // contradicts. Help now names that copy and says what it is NOT.
+    expect(text).not.toContain("does not keep copies for you");
+    expect(text).toContain("nightly encrypted copy");
+  });
+
+  it("does not deny a feature it documents two topics earlier", () => {
+    // AUDIT-FIX-05 — the "not here yet" list carried "There is no AI in DalyHub
+    // yet" for the whole of the AI programme, directly below Help's own "AI
+    // assistance" topic; and it offered a choice of five themes in a product
+    // that has had no theme feature since M3-01. A help page that documents a
+    // feature the product does not have is worse than no help page, and the
+    // reverse — denying one it does have, on the same page — is worse still.
+    const notYet = JSON.stringify(HELP_TOPICS.find((t) => t.id === "not-yet"));
+    expect(notYet).not.toContain("There is no AI in DalyHub yet");
+    expect(notYet).not.toContain("choose from the five");
+    expect(
+      HELP_TOPICS.some((t) => t.id === "ai"),
+      "Help documents AI assistance, so the not-yet list must not deny it",
+    ).toBe(true);
   });
 
   it("documents the export, and now the restore that reads it back", () => {

@@ -57,13 +57,15 @@ function fakeRunner({
     { name: "OWNER_EMAIL" },
   ]),
   status = 0,
+  stderr = "",
 } = {}) {
   const calls: { command: string; args: string[] }[] = [];
   const runner = vi.fn((command: string, args: string[]) => {
     calls.push({ command, args });
-    if (args[0] === "deployments") return { status, stdout: deployments };
-    if (args[0] === "secret") return { status, stdout: secrets };
-    return { status: 0, stdout: "" };
+    if (args[0] === "deployments")
+      return { status, stdout: deployments, stderr };
+    if (args[0] === "secret") return { status, stdout: secrets, stderr };
+    return { status: 0, stdout: "", stderr: "" };
   });
   return Object.assign(runner, { calls });
 }
@@ -217,6 +219,33 @@ describe("verify:production — what it calls a real failure", () => {
     expect(secrets.detail).toContain("OWNER_EMAIL");
     expect(outcome.exitCode).toBe(1);
     expect(outcome.verdict).toContain("NOT VERIFIED");
+  });
+
+  it("FAILS on a Worker Wrangler says does not exist, rather than calling it unchecked", async () => {
+    // Wrangler reports a missing Worker and a missing credential the same way —
+    // a non-zero exit — and collapsing them would let a DELETED production
+    // Worker report SKIPPED and exit 0, which this script's own contract calls a
+    // definitive failure.
+    const outcome = await run({
+      runner: fakeRunner({
+        status: 1,
+        stderr:
+          "A request to the Cloudflare API failed. workers.api.error.not_found [code: 10007]",
+      }),
+    });
+    const worker = outcome.checks.find((c) => c.name === "Worker deployment")!;
+    expect(worker.status).toBe("FAIL");
+    expect(outcome.exitCode).toBe(1);
+  });
+
+  it("still SKIPS an error it does not recognise, rather than inventing a failure", async () => {
+    const outcome = await run({
+      runner: fakeRunner({ status: 1, stderr: "connect ETIMEDOUT" }),
+    });
+    const worker = outcome.checks.find((c) => c.name === "Worker deployment")!;
+    expect(worker.status).toBe("SKIPPED");
+    expect(verify.isWorkerNotFound("connect ETIMEDOUT")).toBe(false);
+    expect(verify.isWorkerNotFound("Worker not found")).toBe(true);
   });
 
   it("FAILS on pending migrations, and refuses to apply them", async () => {

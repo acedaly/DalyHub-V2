@@ -760,23 +760,37 @@ export function accessServiceTokenHeaders(env = process.env) {
  * Access answers an unauthenticated browser-shaped request with a 302 to
  * `<team>.cloudflareaccess.com/cdn-cgi/access/login/…`; some clients and paths
  * see a 401/403 instead. Either way the body is Access's, not the Worker's.
+ *
+ * **`authenticated` narrows this deliberately.** When a service token was SENT,
+ * the probe was supposed to pass through Access and reach the application, so a
+ * bare 401/403 is the opposite of reassuring: it means the token was rejected,
+ * or the Worker's own auth is refusing a request it should serve. Treating that
+ * as "Access is doing its job" would convert a real, named failure into
+ * `{ ok: true, verified: false }` and let a deploy exit 0 without saying why the
+ * verification it was asked for did not happen. With a token in hand, only a
+ * redirect that NAMES Access counts as a challenge; everything else is a
+ * failure and is reported as one.
  */
-export function isAccessChallenge(response) {
+export function isAccessChallenge(response, { authenticated = false } = {}) {
   const status = Number(response?.status ?? 0);
   const location =
     typeof response?.headers?.get === "function"
       ? (response.headers.get("location") ?? "")
       : "";
+  const namesAccess = /cloudflareaccess\.com|\/cdn-cgi\/access\//.test(
+    location,
+  );
   if (status >= 300 && status < 400) {
-    // A redirect off this origin to the Access login is unambiguous; a redirect
-    // with no readable Location still means the origin did not answer with the
-    // application, and on an Access-protected hostname that is what it is.
-    return (
-      location === "" ||
-      /cloudflareaccess\.com|\/cdn-cgi\/access\//.test(location)
-    );
+    if (authenticated) return namesAccess;
+    // Unauthenticated: a redirect off this origin to the Access login is
+    // unambiguous, and a redirect with no readable Location still means the
+    // origin did not answer with the application — which, on an Access-protected
+    // hostname, is what it is.
+    return location === "" || namesAccess;
   }
-  return status === 401 || status === 403;
+  // A 401/403 is Access's ordinary answer to an unauthenticated non-browser
+  // request. It is NOT an acceptable answer to an authenticated one.
+  return !authenticated && (status === 401 || status === 403);
 }
 
 /**
@@ -844,7 +858,7 @@ export async function assertProductionHealth({
         redirect: "manual",
         ...(headers ? { headers } : {}),
       });
-      if (isAccessChallenge(response)) {
+      if (isAccessChallenge(response, { authenticated: headers !== null })) {
         if (requirePublic) {
           problems.push(
             `${url} answered ${response.status} — Cloudflare Access intercepted the probe, but PRODUCTION_HEALTH_REQUIRE_PUBLIC=1 says this endpoint is supposed to be publicly reachable. Either the bypass policy is missing or the flag is wrong.`,
@@ -852,7 +866,9 @@ export async function assertProductionHealth({
         } else {
           // Not a failure, and not a verification either. Say exactly that.
           log(
-            `deploy:production — health NOT verified: ${url} answered ${response.status}, which is Cloudflare Access protecting the hostname (the intended configuration). The Worker upload is reported by Wrangler above; the RUNNING version is confirmed on the authenticated About screen, or here by supplying PRODUCTION_ACCESS_SERVICE_TOKEN_ID / _SECRET.`,
+            headers !== null
+              ? `deploy:production — health NOT verified: ${url} answered ${response.status} and redirected to Cloudflare Access despite the service token, so the probe never reached the application. Check the token's Access policy.`
+              : `deploy:production — health NOT verified: ${url} answered ${response.status}, which is Cloudflare Access protecting the hostname (the intended configuration). The Worker upload is reported by Wrangler above; the RUNNING version is confirmed on the authenticated About screen, or here by supplying PRODUCTION_ACCESS_SERVICE_TOKEN_ID / _SECRET.`,
           );
           return {
             ok: true,

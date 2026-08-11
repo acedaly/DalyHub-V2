@@ -405,7 +405,14 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    await gotoFixture(page, "/settings");
+    // `?section=general`, not bare `/settings`. On a phone the Settings route is
+    // an INDEX of sections — the controls themselves live one level down, which
+    // is the whole point of that layout — so a bare `/settings` at 320px renders
+    // a list of links and no Appearance group at all. The desktop tests above
+    // keep the bare URL because both panes are on screen there. This test was
+    // asserting the desktop composition at a phone width and had been failing
+    // since Settings gained the index (one of DEBT-125's undiagnosed failures).
+    await gotoFixture(page, "/settings?section=general");
     for (const label of ["System", "Light", "Dark"]) {
       // The measurable target is the row, not the 16px radio inside it.
       await expectMinTouchTarget(

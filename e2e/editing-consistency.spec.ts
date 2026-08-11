@@ -256,7 +256,11 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
 
     const popover = page.getByRole("dialog", { name: "Edit due date" });
     await expect(popover).toBeVisible();
-    await popover.getByLabel("Due date").fill("2026-08-15");
+    // A ROLE query, not `getByLabel`: DS-17 named this popover's clear control
+    // after the field it clears, so "Clear due date" CONTAINS "Due date" and a
+    // substring label query resolves to two elements. The date input is the
+    // only textbox in the popover.
+    await popover.getByRole("textbox", { name: "Due date" }).fill("2026-08-15");
     await popover.getByRole("button", { name: "Save" }).click();
     await expect(
       record.getByRole("button", { name: /^Due date: .*15 Aug 2026/ }),
@@ -275,7 +279,7 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     // …and the fixture goes back to the date it was seeded with.
     await record.getByRole("button", { name: /^Due date: / }).click();
     const restore = page.getByRole("dialog", { name: "Edit due date" });
-    await restore.getByLabel("Due date").fill("2026-07-29");
+    await restore.getByRole("textbox", { name: "Due date" }).fill("2026-07-29");
     await restore.getByRole("button", { name: "Save" }).click();
     await expect(
       record.getByRole("button", { name: /^Due date: .*29 Jul 2026/ }),

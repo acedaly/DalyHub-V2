@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  TOUCH_TARGET_MIN,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -350,11 +351,61 @@ test.describe("MOBILE-01 phone shell baseline", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("stays usable at 200% zoom", async ({ page }) => {
-    // 200% zoom at a phone width is equivalent to halving the CSS viewport.
-    await page.setViewportSize({ width: 195, height: 422 });
-    await gotoFixture(page, "/today");
-    await expectNoHorizontalOverflow(page);
-    await expect(page.locator(bottomNav)).toBeVisible();
-  });
+  /*
+   * WCAG 1.4.10 reflow, at the width the requirement actually implies.
+   *
+   * 200% zoom on a 390px phone is equivalent to halving the CSS viewport, which
+   * is ~195px — narrower than any width in the shared responsive matrix, and the
+   * width at which two reflow defects were measured and fixed by #158.
+   *
+   * HARDEN-01 widened this from `/today` alone to the core routes. The shell is
+   * shared, so a change to it (this pass made one, to the Tasks row's trailing
+   * band) can move the overflow from the page that was checked to one that was
+   * not — and a reflow check on one route is a check on one route, not on the
+   * shell. `/today` stays first because it is where the residual was reported.
+   */
+  for (const path of [
+    "/today",
+    "/tasks",
+    "/projects",
+    "/goals",
+    "/notes",
+    "/settings",
+  ]) {
+    test(`stays usable at 200% zoom: ${path}`, async ({ page }) => {
+      await page.setViewportSize({ width: 195, height: 422 });
+      await gotoFixture(page, path);
+      // The document must not require sideways scrolling…
+      await expectNoHorizontalOverflow(page);
+      // …and navigation must still be REACHABLE, because "no overflow" is
+      // trivially satisfiable by hiding things and that is not the contract.
+      const bar = page.locator(bottomNav);
+      await expect(bar).toBeVisible();
+      const capture = bar.getByRole("button", { name: "Capture" });
+      await expect(capture).toBeVisible();
+
+      /*
+       * Target size against WCAG 2.2 AA (SC 2.5.8, 24x24 CSS px), NOT against
+       * DalyHub's own 44px floor.
+       *
+       * MEASURED: five destinations across a 195px viewport give each one 39px
+       * of width. That is the arithmetic of the width, not a defect — the bar
+       * keeps its 44px HEIGHT, which is the axis a thumb travels on, and every
+       * control stays hittable. Asserting 44 on both axes here would be
+       * inventing a requirement the specification does not make and that no
+       * arrangement of five labelled destinations can meet at 195px, and the
+       * only way to "pass" it would be to redesign the bar.
+       */
+      const box = await capture.boundingBox();
+      expect(box, "the Capture control has a box").not.toBeNull();
+      expect(
+        Math.min(box?.width ?? 0, box?.height ?? 0),
+        "WCAG 2.2 AA target size (24x24)",
+      ).toBeGreaterThanOrEqual(24);
+      expect(
+        box?.height ?? 0,
+        "the bar keeps its 44px height",
+      ).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN - 0.5);
+    });
+  }
 });

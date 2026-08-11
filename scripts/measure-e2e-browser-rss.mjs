@@ -16,15 +16,18 @@
  *
  * ── HARDEN-01 widened what it samples, because the first version could not
  * answer the question it was built to answer ────────────────────────────────
- * It measured Chromium alone. Run against a full shard that told us Chromium's
- * tree is FLAT — and left the actual answer invisible, because on this suite the
- * two local servers dwarf the browser: a `react-router dev` Node process past a
- * gigabyte and a `workerd` past half of one, against a Chromium tree of ~1.4 GB
- * spread over eleven processes. "Is the pressure the browser, the test runner or
- * the Cloudflare worker?" is exactly the question DEBT-125 poses, and one column
- * cannot tell them apart. So each cohort is now its own column, plus the
+ * It measured Chromium alone. Run against a full shard, that told us Chromium's
+ * tree is FLAT — no accumulation over nineteen minutes — and then had nothing
+ * left to say, because "is the pressure the browser, the test runner or the
+ * Cloudflare worker?" is exactly the question DEBT-125 poses and one column
+ * cannot tell them apart. Each cohort is now its own pair of columns, plus the
  * system's own `MemAvailable`, which is the number a kernel OOM decision is
  * actually made against.
+ *
+ * Every cohort is SCOPED to the spawned run's process tree, and that scoping is
+ * what makes the extra columns evidence rather than noise: unscoped, a second
+ * checkout, an editor's language server or somebody else's dev server lands in
+ * the `node` column and the curve describes the machine instead of the run.
  *
  * Usage:
  *   node scripts/measure-e2e-browser-rss.mjs -- <playwright args...>
@@ -95,7 +98,68 @@ function memAvailableKb() {
 const emptyCohort = () => ({ total: 0, peak: 0, count: 0 });
 
 /**
- * Every process the run owns, summed BY COHORT.
+ * The PIDs of `root` and everything descended from it, from one `ps` snapshot.
+ *
+ * **This scoping is the difference between evidence and noise.** Without it the
+ * cohorts below sweep the WHOLE machine, so any other Node, Vite, Playwright or
+ * `workerd` process — a second checkout, an editor's language server, an
+ * unrelated dev server — is attributed to this shard, and a curve that is
+ * supposed to answer "what is this run consuming?" answers "what is this
+ * computer running?" instead. On a CI runner that owns nothing else the two are
+ * the same; on a developer machine they are not, and a measurement that is only
+ * true on one of them is not one to reason from.
+ *
+ * Playwright's `webServer` processes are spawned by the runner, so they ARE
+ * descendants and are counted — except when `reuseExistingServer` picks up a
+ * server that was already running, in which case it belongs to whoever started
+ * it and is deliberately NOT counted. Under-counting a process this run does not
+ * own is the safe direction; attributing one to it is not.
+ */
+function descendantPids(rows, root) {
+  const children = new Map();
+  for (const { pid, ppid } of rows) {
+    if (!children.has(ppid)) children.set(ppid, []);
+    children.get(ppid).push(pid);
+  }
+  const owned = new Set([root]);
+  const queue = [root];
+  while (queue.length > 0) {
+    for (const child of children.get(queue.pop()) ?? []) {
+      if (owned.has(child)) continue;
+      owned.add(child);
+      queue.push(child);
+    }
+  }
+  return owned;
+}
+
+/** One `ps` snapshot, parsed. */
+function processRows() {
+  let out;
+  try {
+    out = execFileSync("ps", ["-eo", "pid=,ppid=,rss=,args="], {
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  } catch {
+    return null;
+  }
+  const rows = [];
+  for (const line of out.split("\n")) {
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/.exec(line);
+    if (!match) continue;
+    rows.push({
+      pid: Number(match[1]),
+      ppid: Number(match[2]),
+      rss: Number(match[3]),
+      args: match[4],
+    });
+  }
+  return rows;
+}
+
+/**
+ * Every process THIS RUN owns, summed BY COHORT.
  *
  * Three cohorts, because DEBT-125 asks which of them the pressure is in and one
  * column cannot tell them apart:
@@ -104,24 +168,17 @@ const emptyCohort = () => ({ total: 0, peak: 0, count: 0 });
  *     tree total and the largest single process matter: a renderer hitting a
  *     per-process ceiling and the whole tree exhausting the machine are
  *     different failures with different answers.
- *   - **node** — the Playwright runner and the `react-router dev` server. On
- *     this suite the dev server alone is the largest single process in the run,
- *     which is not what "the browser ran out of memory" would predict.
- *   - **workerd** — the Cloudflare runtime behind both local servers.
+ *   - **node** — the Playwright runner and, when it starts them, the local
+ *     servers.
+ *   - **workerd** — the Cloudflare runtime behind those servers.
  *
- * The sampler's own `ps` is excluded from every cohort, and the node cohort
- * excludes this script so the measurement never measures itself.
+ * Scoped to the spawned run's process tree (see {@link descendantPids}), and the
+ * sampler's own process is excluded so the measurement never measures itself.
  */
-function sampleRss() {
-  let out;
-  try {
-    out = execFileSync("ps", ["-eo", "rss=,comm=,args="], {
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-    });
-  } catch {
-    return null;
-  }
+function sampleRss(rootPid) {
+  const rows = processRows();
+  if (rows === null) return null;
+  const owned = descendantPids(rows, rootPid);
   const chromium = emptyCohort();
   const node = emptyCohort();
   const workerd = emptyCohort();
@@ -130,26 +187,30 @@ function sampleRss() {
     cohort.peak = Math.max(cohort.peak, kb);
     cohort.count += 1;
   };
-  for (const line of out.split("\n")) {
-    if (!line.trim()) continue;
-    if (/measure-e2e-browser-rss/.test(line)) continue;
-    const kb = Number.parseInt(line.trim().split(/\s+/)[0], 10);
-    if (!Number.isFinite(kb)) continue;
+  for (const row of rows) {
+    if (!owned.has(row.pid)) continue;
+    if (/measure-e2e-browser-rss/.test(row.args)) continue;
+    if (!Number.isFinite(row.rss)) continue;
     // Order matters: the browser cohort is decided first, because a node
     // process whose ARGV happens to mention chromium is still node.
-    if (/headless_shell|\/chrome\b|\/chromium\b/i.test(line)) {
-      add(chromium, kb);
-    } else if (/(^|\s|\/)workerd(\s|$)/.test(line)) {
-      add(workerd, kb);
-    } else if (/(^|\s|\/)node(\s|$)|\bvite\b|playwright/i.test(line)) {
-      add(node, kb);
+    if (/headless_shell|\/chrome\b|\/chromium\b/i.test(row.args)) {
+      add(chromium, row.rss);
+    } else if (/(^|\s|\/)workerd(\s|$)/.test(row.args)) {
+      add(workerd, row.rss);
+    } else {
+      add(node, row.rss);
     }
   }
   return { chromium, node, workerd, memAvailable: memAvailableKb() };
 }
 
+const child = spawn("npx", ["playwright", ...playwrightArgs], {
+  env: { ...process.env, FORCE_COLOR: "0" },
+  stdio: ["ignore", "pipe", "inherit"],
+});
+
 const timer = setInterval(() => {
-  const sample = sampleRss();
+  const sample = sampleRss(child.pid);
   if (sample) {
     rss.write(
       [
@@ -168,11 +229,6 @@ const timer = setInterval(() => {
     );
   }
 }, INTERVAL_MS);
-
-const child = spawn("npx", ["playwright", ...playwrightArgs], {
-  env: { ...process.env, FORCE_COLOR: "0" },
-  stdio: ["ignore", "pipe", "inherit"],
-});
 
 // The `list` reporter's per-test line carries the index and the outcome, which
 // is what turns a memory curve into "…and it died HERE, at test N".

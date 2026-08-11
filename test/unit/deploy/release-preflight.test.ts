@@ -435,6 +435,70 @@ describe("assertProductionHealth", () => {
     expect(result.problems.join("\n")).toContain("Cloudflare Access");
   });
 
+  it("REFUSES a 401/403 when a service token WAS sent — that is a rejected token, not Access doing its job", async () => {
+    // The unauthenticated path reads a 401/403 as Access answering for the
+    // Worker, which is right. With a token in hand the probe was supposed to
+    // reach the application, so the same status means the token was rejected or
+    // the Worker's own auth is refusing a request it should serve — and
+    // reporting that as "protected, not verified" would let a deploy exit 0
+    // without saying why the verification it was asked for did not happen.
+    for (const status of [401, 403]) {
+      const result = await assertHealth(fetchAnswering({}, { status }), {
+        headers: {
+          "CF-Access-Client-Id": "id",
+          "CF-Access-Client-Secret": "s",
+        },
+      });
+      expect(result.ok).toBe(false);
+      expect(result.problems.join("\n")).toContain(String(status));
+    }
+  });
+
+  it("still reports an Access LOGIN redirect as protected-but-unverified with a token, because the probe never arrived", async () => {
+    const result = await assertHealth(
+      fetchAnswering(
+        {},
+        {
+          status: 302,
+          location: "https://team.cloudflareaccess.com/cdn-cgi/access/login/x",
+        },
+      ),
+      {
+        headers: {
+          "CF-Access-Client-Id": "id",
+          "CF-Access-Client-Secret": "s",
+        },
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.verified).toBe(false);
+  });
+
+  it("classifies a challenge by whether the probe was authenticated", () => {
+    const redirect = {
+      status: 302,
+      headers: {
+        get: () => "https://team.cloudflareaccess.com/cdn-cgi/access/login/x",
+      },
+    };
+    const bareRedirect = { status: 302, headers: { get: () => null } };
+    const forbidden = { status: 403, headers: { get: () => null } };
+    expect(deploy.isAccessChallenge(redirect)).toBe(true);
+    expect(deploy.isAccessChallenge(redirect, { authenticated: true })).toBe(
+      true,
+    );
+    // A redirect with no readable Location is a challenge only when nobody
+    // claimed to be authenticated.
+    expect(deploy.isAccessChallenge(bareRedirect)).toBe(true);
+    expect(
+      deploy.isAccessChallenge(bareRedirect, { authenticated: true }),
+    ).toBe(false);
+    expect(deploy.isAccessChallenge(forbidden)).toBe(true);
+    expect(deploy.isAccessChallenge(forbidden, { authenticated: true })).toBe(
+      false,
+    );
+  });
+
   it("sends Access service-token headers when they are supplied, and none otherwise", async () => {
     const withToken = fetchAnswering(healthy);
     await assertHealth(withToken, {

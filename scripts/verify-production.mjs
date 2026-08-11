@@ -159,6 +159,24 @@ export function newestDeployment(stdout) {
   return stamped[stamped.length - 1] ?? null;
 }
 
+/**
+ * PURE. Does this Wrangler error say the Worker does not exist, as opposed to
+ * "I could not ask"?
+ *
+ * The distinction is the whole contract of this script. Wrangler reports both a
+ * missing Worker and a missing credential as a non-zero exit, and collapsing
+ * them means a DELETED production Worker — which this script's own rules call a
+ * definitive failure — reports SKIPPED and exits 0. Matched on the message
+ * rather than on an exit code because Wrangler does not distinguish them by
+ * code; deliberately narrow, so an unrecognised error still degrades to
+ * SKIPPED rather than inventing a failure.
+ */
+export function isWorkerNotFound(stderr) {
+  return /not\s*found|could\s+not\s+find|does\s+not\s+exist|\[code:\s*10007\]/i.test(
+    String(stderr ?? ""),
+  );
+}
+
 function checkWorkerDeployment({ runner = spawnSync, workerName } = {}) {
   const run = runner(
     "wrangler",
@@ -166,17 +184,24 @@ function checkWorkerDeployment({ runner = spawnSync, workerName } = {}) {
     { cwd: ROOT, encoding: "utf8" },
   );
   if (run.status !== 0) {
+    const detail = String(run.stderr ?? "")
+      .trim()
+      .split("\n")
+      .slice(-3)
+      .join(" ");
+    if (isWorkerNotFound(run.stderr)) {
+      return result(
+        "Worker deployment",
+        FAIL,
+        `Wrangler reports no Worker named ${workerName}. Either nothing is deployed under that name or the name is wrong — both are failures, not "could not check".`,
+        [detail].filter(Boolean),
+      );
+    }
     return result(
       "Worker deployment",
       SKIPPED,
-      `could not list deployments for ${workerName} — Wrangler is not authenticated, or the account cannot see this Worker.`,
-      [
-        String(run.stderr ?? "")
-          .trim()
-          .split("\n")
-          .slice(-3)
-          .join(" "),
-      ].filter(Boolean),
+      `could not list deployments for ${workerName} — Wrangler is not authenticated, or the account cannot reach it.`,
+      [detail].filter(Boolean),
     );
   }
   const newest = newestDeployment(run.stdout ?? "");

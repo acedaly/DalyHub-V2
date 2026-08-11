@@ -599,9 +599,19 @@ test("the collection surfaces the obligation signal and filters on it", async ({
   await gotoFixture(page, "/assets");
   await expect(page.getByText("1 obligation overdue")).toBeVisible();
 
-  await page
-    .getByRole("combobox", { name: "Obligations" })
-    .selectOption("overdue");
+  // The obligation facet lives in the shared Filter & sort SHEET, not inline on
+  // the collection header — UIX-05 moved every control except search and the tag
+  // field behind that one trigger, and this test had been reaching for a
+  // combobox that is not in the document until the sheet is open (one of the
+  // failures DEBT-125 carried as "not yet diagnosed").
+  await page.getByRole("button", { name: "Filter & sort" }).click();
+  const controls = page.getByRole("dialog", { name: "Filter and sort assets" });
+  await controls
+    .getByRole("group", { name: "Obligations" })
+    .getByRole("button", { name: "Overdue" })
+    .click();
+  await controls.getByRole("button", { name: "Apply" }).click();
+  await expect(controls).toBeHidden();
   await expect(
     page.getByRole("link", { name: new RegExp(overdue) }),
   ).toBeVisible();

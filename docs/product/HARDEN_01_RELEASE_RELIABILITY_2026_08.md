@@ -138,23 +138,26 @@ closes that browser, it is not Chromium growing until it runs out.
 
 ### Question 2 — if not the browser, where IS the pressure?
 
-The sampler could not answer this, because it only measured Chromium. That was
-its own defect and HARDEN-01 fixed it: it now samples three cohorts plus the
-system's `MemAvailable`. What that shows on this suite is the opposite of the
-assumption everyone was working from:
+**Not answered, and the tool that was supposed to answer it could not.** The
+sampler measured Chromium alone, which is precisely the cohort the measurement
+above has now exonerated. DEBT-125 asks whether the pressure is the browser tree,
+a single renderer, the Node test runner or the Cloudflare worker process; one
+column cannot tell them apart.
 
-| Cohort | Tree RSS | Largest single process | Processes |
-| --- | --- | --- | --- |
-| Chromium | ~1.3–1.5 GB | ~500 MB | 11–12 |
-| **Node** (Playwright runner + `react-router dev`) | **~2.1–2.9 GB** | **~0.76–1.2 GB** | 10 |
-| `workerd` | ~0.9 GB | ~0.78 GB | 2 |
+HARDEN-01 fixed the tool rather than guessing the answer. It now samples three
+cohorts — Chromium, Node, `workerd` — plus the system's own `MemAvailable`, which
+is the number a kernel out-of-memory decision is actually made against, and it
+**scopes every cohort to the spawned run's process tree**. That scoping is the
+part that makes it evidence: without it the cohorts sweep the whole machine, so a
+second checkout, an editor's language server or an unrelated dev server is
+attributed to the shard, and a curve meant to answer "what is this run
+consuming?" answers "what is this computer running?" instead. An early
+unscoped reading suggested the harness was larger than the browser; it is not
+quoted here, because it was a measurement of a machine rather than of a run.
 
-**The largest process in an E2E run is not a browser process — it is the dev
-server**, and the Node cohort as a whole is roughly twice the Chromium tree. On a
-16 GB runner none of this is near a ceiling (`MemAvailable` stayed above 12 GB
-throughout), but it relocates the question: "fewer, fatter shards give each
-BROWSER more to survive" was the wrong axis to reason on, because the browser is
-the smaller half of the run.
+What is safe to say from the scoped instrument is that `MemAvailable` never fell
+below ~12 GB of 16 on any sample, so nothing in this environment was near a
+ceiling of any kind.
 
 ### Question 3 — what causes it, then?
 
@@ -252,7 +255,58 @@ diagnosable — that it repeats by position — is intact.
 
 ## 4. The 200%-zoom / narrow-width overflow
 
-ZOOM_PLACEHOLDER
+### What the residual turned out to be
+
+The brief describes a known residual on `/today` after #158: an effective CSS
+viewport of ~195px, ~14px of scrollable horizontal overflow, and no obvious
+element extending past the viewport.
+
+**It does not reproduce at the HARDEN-01 baseline.** Measured directly against
+`main` @ `3579100`, at 195x422 with mobile emulation, on `/today`:
+
+```
+documentElement.scrollWidth  195
+documentElement.clientWidth  195
+overflow                       0
+```
+
+A DOM sweep for every element whose border box passes the viewport's right edge
+returns none. The suite agrees: `mobile-shell.spec.ts` › *"stays usable at 200%
+zoom"* passes at that commit. The two WCAG 1.4.10 reflow defects #158 measured
+and fixed appear to have been the whole of it, and the residual was recorded
+before the last of those fixes landed. **No overflow fix was needed, and none was
+invented** — in particular no `overflow-x: hidden` was added anywhere, which
+would have hidden the symptom and made content unreachable.
+
+### What HARDEN-01 changed instead: the check itself
+
+A reflow check on one route is a check on one route. The shell is shared, this
+pass changed part of it (the Tasks row's trailing band, §1), and a shell change
+can move an overflow from the page that is checked to one that is not. So the
+195px case now runs across the core routes rather than `/today` alone:
+
+| Route | `scrollWidth <= clientWidth` at 195px | Navigation reachable |
+| --- | --- | --- |
+| `/today` | ✅ | ✅ |
+| `/tasks` | ✅ | ✅ |
+| `/projects` | ✅ | ✅ |
+| `/goals` | ✅ | ✅ |
+| `/notes` | ✅ | ✅ |
+| `/settings` | ✅ | ✅ |
+
+And the usability half is asserted rather than assumed, because "no overflow" is
+trivially satisfiable by hiding things: the phone navigation bar must still be
+visible and its Capture control still hittable.
+
+**One honest measurement came out of that.** At 195px the five bottom-bar
+destinations get 39px of width each — the arithmetic of the viewport, not a
+defect. The bar keeps its 44px HEIGHT, which is the axis a thumb travels on, and
+39x44 clears WCAG 2.2 AA's target-size minimum (SC 2.5.8, 24x24) comfortably.
+The test therefore asserts **24x24 on both axes plus 44 on the height**, not
+DalyHub's 44x44 design floor: no arrangement of five labelled destinations meets
+44px of width at 195px, and the only way to "pass" a 44x44 assertion there would
+be to redesign the bottom bar — which is a requirement the specification does not
+make and a redesign this pass is not.
 
 ---
 
@@ -271,14 +325,21 @@ field's own label a substring of the button's ("Priority" inside "Clear
 priority"), and Playwright's `getByLabel` matches substrings — so the change
 looked like a suite-wide migration from `getByLabel` to `getByRole`.
 
-**It was not, and the difference is that this time it was measured.** Every
-`getByLabel` string in `e2e/` was cross-referenced against every
-`SelectField`/`SelectSheetControl` label. Three strings are substrings of a select
-label — "Date", "Due date" and "When" — and each of those call sites operates a
-`DateField` or `WhenField`, which has no clear button to be confused with. **No
-`getByLabel` call site needed to change**, and a full local run of the whole suite
-after the rename confirms it. The revert had been avoiding a cost that did not
-exist.
+**The estimate was an order of magnitude out, and this time it was measured
+rather than estimated again.** **Five** call sites needed changing — not a
+suite-wide migration — and, instructively, **none of them was a select**. They
+were the inline DATE popovers, because DS-17 renamed `InlineDateField`'s clear
+command as well: "Clear due date" contains "Due date", so a
+`getByLabel("Due date")` scoped to the `Edit due date` dialog resolves to the
+input *and* the button. Each became `getByRole("textbox", { name })`, which is
+the direction the register already pointed at and which cannot match a button.
+
+The check that mattered turned out not to be the one the original analysis ran.
+"Which `getByLabel` strings are also a SELECT's label?" gives three candidates
+("Date", "Due date", "When") and all three operate date fields — which is exactly
+why this looked safe. The question that finds the five is "which are the label of
+**any** field whose clear control was renamed?". CI found them; a static
+cross-reference did not.
 
 **The fix.** One shared helper, `clearControlLabel(label)` in
 [`app/shared/forms/clear-label.ts`](../../app/shared/forms/clear-label.ts),
