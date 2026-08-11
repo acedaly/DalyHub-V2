@@ -497,10 +497,12 @@ HARDEN-01. No feature, no redesign. Full record:
   (a blur-triggered error summary displaced the link between `pointerdown` and
   `pointerup`, so no click was ever produced). Both fixed, with regression
   coverage.
-- **Two more had not RUN on `main` for several commits** — they sat inside the
-  tests shards 4 and 8 never started before `globalTimeout`. Both were stale and
-  are repaired against what the product does now, and two weak assertions were
-  made real while repairing them.
+- **Three more had not RUN on `main` for several commits** — they sat inside the
+  tests shards 4 and 8 never started before `globalTimeout`. All three were stale
+  (a phone asserting a rail UIX-05 replaced with two screens; a row asserting an
+  inline field UIX-06 removed from the list; a subtitle asserting the lower-case
+  noun UIX-06 capitalised) and are repaired against what the product does now,
+  and two weak assertions were made real while repairing them.
 - **A documentation truth pass over the high-authority documents**: the README's
   "backup/restore not in V2" and "AI is not built" contradictions, its Eisenhower
   Matrix description, Help's denial of the colour schemes that shipped the same

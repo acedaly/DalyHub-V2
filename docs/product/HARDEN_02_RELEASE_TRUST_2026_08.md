@@ -388,6 +388,32 @@ amendment into a hardening pass is exactly what that condition exists to prevent
 
 ## 6. What remains
 
+### 6.0 One more stale assertion, found by running the whole suite in one process
+
+`projects.spec.ts:193` asserted the subtitle read `/\d+ projects loaded/`. UIX-06
+gave every collection ONE count line through `collectionCountLabel`, whose first
+rule is that the noun is CAPITALISED because these are the product's own nouns —
+"50 **P**rojects loaded". The assertion had been failing ever since, and **nobody
+could see it**: this spec is in the tests shards 4 and 8 never started before
+`globalTimeout`. It is the same class as §3D and §3E, found the same way, and it
+is repaired against the shared helper's stated rule.
+
+Two other failures in that run were artefacts of the run itself, and are recorded
+because the distinction matters for anyone repeating this:
+
+- `project-health.spec.ts:31`/`:97` — the at-risk fixture's overdue task had been
+  completed by an earlier spec in the same process. The suite is designed to be
+  SHARDED, with each shard seeding a fresh local D1 at server start; running all
+  115 spec files in one process against one database is not that, and it leaks
+  state between files that never share a shard in CI.
+- `pwa-offline.spec.ts:255`/`:288` — a `pnpm run build` was running concurrently
+  and replaced `build/` under the production-mode preview server the assertions
+  fetch from. Self-inflicted, and a reminder that the E2E servers own `build/`
+  for the duration of a run.
+
+All five pass on a fresh server with nothing else running (45/45 across the three
+spec files).
+
 ### 6.1 `tasks-collection.spec.ts:340` — CI-only, undiagnosed
 
 The saved-views journey failed in CI at the baseline (a 90-second timeout waiting
