@@ -444,6 +444,34 @@
   white-space: nowrap;
 }
 
+/*
+ * …except where the row is narrower than the phrase.
+ *
+ * `flex: none` plus `nowrap` is right at every ordinary width: a due date is
+ * read as one unit and must not be broken across lines while there is room for
+ * it. Together they also mean the label CANNOT yield, so at 200% zoom on a
+ * phone (a 195px CSS viewport) a 112px "Overdue — 3 days" starting at x=90 ran
+ * to x=202 and scrolled the whole page sideways — a WCAG 1.4.10 reflow failure
+ * caused by one label refusing to wrap.
+ *
+ * Below the width where the phrase and the title can share a line, the date
+ * wraps instead of overflowing. It is still whole and still tabular; it simply
+ * takes a second line, which is what reflow means.
+ */
+@media (max-width: 15rem) {
+  .dh-day-row__due {
+    /* Both halves are required. `white-space: normal` only lets a box wrap once
+     * something constrains its width, and `flex: none` (`0 0 auto`) is exactly
+     * what refuses to: the label keeps its max-content 112px however little room
+     * the row has. Allowing it to shrink, with the `min-inline-size: 0` that
+     * stops the flex item's automatic minimum from re-imposing max-content, is
+     * what actually lets the wrap happen. */
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    white-space: normal;
+  }
+}
+
 /* The honest remainder. It states the TRUE count and goes to the canonical
  * overdue view, which is defined by exactly the rule that put these rows here.
  * It keeps the row's target floor: a link is a control, and a control on a

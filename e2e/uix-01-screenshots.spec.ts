@@ -2,7 +2,8 @@
  * UIX-01 — the product-redesign screenshot matrix.
  *
  * The brief for this pass is comparative: capture the product BEFORE any visual
- * code changes, redesign against the two supplied root reference PNGs, then
+ * code changes, redesign against the two supplied reference PNGs (they live in
+ * `docs/design/assets/references/`), then
  * capture the SAME matrix again and put the pairs beside the references. So this
  * spec captures one matrix and writes it under a `before-` prefix or none,
  * chosen by an environment variable — the same code, the same seeded day, the

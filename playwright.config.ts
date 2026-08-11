@@ -32,8 +32,30 @@ const chromiumExecutablePath = existsSync(LOCAL_CHROMIUM)
 // same-origin mutation headers the request boundary now requires.
 const baseURL = DEV_ORIGIN;
 
+/*
+ * The `*-screenshots.spec.ts` passes are opt-in capture runs: each one is
+ * wrapped in a `test.skip(process.env.CAPTURE_SCREENSHOTS !== "1", …)` (or the
+ * `CAPTURE_EVIDENCE` equivalent), so in an ordinary run every one of their
+ * ~190 tests is collected, distributed to a shard and then skipped.
+ *
+ * Skipping is nearly free in TIME but not in DISTRIBUTION: Playwright's
+ * `--shard` splits by test COUNT, so a slice that happened to draw many capture
+ * stubs did almost no work while its siblings did all of theirs. That is a
+ * meaningful part of why the shard spread was ~1.9x the mean, and why the split
+ * had to keep growing to keep the worst shard under the ceiling.
+ *
+ * Ignoring the files outright when nothing has opted in removes the no-ops from
+ * the distribution entirely, so every shard's slice is real work. Setting either
+ * capture variable brings them back, which is the only mode in which they do
+ * anything at all.
+ */
+const capturing =
+  process.env.CAPTURE_SCREENSHOTS === "1" ||
+  process.env.CAPTURE_EVIDENCE === "1";
+
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: capturing ? [] : ["**/*-screenshots.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
@@ -61,14 +83,34 @@ export default defineConfig({
    * `timeout-minutes` (see `.github/workflows/ci.yml`). It exists so a runaway
    * shard is terminated by Playwright — which then writes its HTML report,
    * traces and screenshots and exits non-zero — rather than by GitHub, which
-   * cancels the job and destroys that evidence. Sized against the measured
-   * worst shard: on run 30314062657 (five shards, all green) the slowest spent
-   * 11m09s on tests, so 15 minutes leaves roughly a third again in headroom for
-   * runner variance while still catching a hang before the job backstop.
+   * cancels the job and destroys that evidence.
+   *
+   * 2026-08-11 — raised 15 → 25 as the deliberate other half of cutting the
+   * split from eighteen shards to eight. It is NOT a response to a suite that
+   * outgrew its budget, which is what the four previous re-splits were, and it
+   * does not pin the worst shard against a moving ceiling: the ceiling is
+   * re-derived from measurement each time the split changes.
+   *
+   * MEASURED on run 31445526789 (`main` @ e1e8bab): the twelve shards that
+   * completed spent 73.4 minutes of test time between them, a mean of 6.1 and a
+   * worst of 9.5 — so the whole suite is very close to 110 minutes of
+   * single-worker test time. Over EIGHT slices that is a 13.8-minute mean. The
+   * observed max/mean on that run was 1.56, and the capture-stub exclusion above
+   * pulls it in further by removing the no-op-heavy fast slices, so the worst
+   * shard should land near 20 minutes. 25 leaves ~25% headroom on that and still
+   * fires well before the job's 40-minute backstop, preserving the ordering the
+   * whole arrangement depends on.
+   *
+   * Eight, rather than fewer, because the runner pool is the real constraint:
+   * on that same run shards 5, 9, 10, 12, 16 and 17 sat QUEUED for 5.5–7.0
+   * minutes waiting for a runner. Past roughly twelve concurrent jobs the extra
+   * shards bought no wall-clock at all — they only added a setup each. Eight
+   * starts immediately, in one wave.
+   *
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
    */
-  globalTimeout: process.env.CI ? 15 * 60_000 : undefined,
+  globalTimeout: process.env.CI ? 25 * 60_000 : undefined,
   use: {
     baseURL,
     trace: "retain-on-failure",

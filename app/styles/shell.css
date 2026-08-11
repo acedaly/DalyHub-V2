@@ -1449,6 +1449,46 @@
 }
 
 /*
+ * Deep zoom: the five targets stop having a floor, because at that width the
+ * floor is arithmetically impossible and holding it breaks the page.
+ *
+ * `--app-touch-target-min` is `max(2.75rem, 45px)`, and the bar carries FIVE
+ * controls, so it demands at least 225px of inline space. At 200% zoom on a
+ * 390px phone the CSS viewport is 195px — the bar measured 209px wide inside
+ * it, which is a horizontally scrolling PAGE, and a page that scrolls sideways
+ * is a WCAG 1.4.10 reflow failure affecting every surface, not just this bar.
+ *
+ * Dropping the floor here does not shrink the target a finger has to hit. The
+ * floor exists to guarantee a physical size, and a CSS pixel at 200% zoom is
+ * two device pixels: a 39px control under 2x zoom is ~78 device px, comfortably
+ * larger than the 45 device px the floor buys at 1x. Holding the CSS number
+ * through zoom would protect the units while damaging the thing the units are a
+ * proxy for.
+ *
+ * Scoped to the width where five of them genuinely cannot fit, so every
+ * ordinary phone width — including the 320px baseline `mobile-shell.spec.ts`
+ * asserts the full 44px target at — is untouched.
+ */
+@media (max-width: 15rem) {
+  .dh-bottomnav__control {
+    min-inline-size: 0;
+  }
+
+  /*
+   * The indicator is the other floor, and dropping the control's alone is not
+   * enough: it is a fixed 2.5rem (40px) pill — 2.5rem square for Capture — so
+   * five of them plus the controls' padding still measured 209px inside a 195px
+   * viewport. Capping it to the room actually available keeps the shape (the
+   * `max-inline-size` preserves the exact 40px pill at every width that can
+   * afford it) while letting it give way at the widths that cannot.
+   */
+  .dh-bottomnav__indicator {
+    inline-size: 100%;
+    max-inline-size: 2.5rem;
+  }
+}
+
+/*
  * The ACTIVE-INDICATOR, at VIS-01's size: a 40×26 soft rectangle behind the
  * glyph rather than M3's 64×32 capsule.
  *

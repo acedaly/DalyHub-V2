@@ -6,6 +6,16 @@
  * can see what shipped at desktop and iPhone dimensions without installing
  * anything. It asserts nothing beyond "the surface rendered" — the behavioural
  * assertions live in `pwa-offline.spec.ts`.
+ *
+ * Opt-in, like every other `*-screenshots.spec.ts` pass. It used to be the one
+ * capture spec that ran in the ordinary gate, which meant every PR paid for six
+ * full-page screenshots whose only assertions ("the surface rendered") are a
+ * strict subset of what `pwa-offline.spec.ts` already proves — that spec covers
+ * the offline shell, the service worker, the IndexedDB snapshot and the Settings
+ * offline section behaviourally. Nothing is now unprotected that was protected
+ * before; the gate simply stopped photographing it.
+ *
+ *     CAPTURE_SCREENSHOTS=1 pnpm exec playwright test e2e/pwa-screenshots.spec.ts
  */
 
 import { mkdirSync } from "node:fs";
@@ -18,6 +28,11 @@ const OUTPUT = join(process.cwd(), "test-results", "pwa-screenshots");
 const DESKTOP = { width: 1440, height: 900 };
 /** iPhone 15/16 logical resolution. */
 const IPHONE = { width: 393, height: 852 };
+
+test.skip(
+  process.env.CAPTURE_SCREENSHOTS !== "1",
+  "Screenshot capture is opt-in (set CAPTURE_SCREENSHOTS=1).",
+);
 
 test.beforeAll(() => {
   mkdirSync(OUTPUT, { recursive: true });
