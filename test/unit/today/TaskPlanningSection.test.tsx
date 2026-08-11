@@ -79,7 +79,9 @@ describe("TaskPlanningSection", () => {
     const { onSetDue } = setup({ dueDate: "2026-08-01" });
     fireEvent.click(screen.getByRole("button", { name: /^Due date: / }));
     const dialog = screen.getByRole("dialog", { name: "Edit due date" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Clear" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Clear due date" }),
+    );
     await waitFor(() => expect(onSetDue).toHaveBeenCalledWith(null));
   });
 
@@ -114,7 +116,11 @@ describe("TaskPlanningSection", () => {
     // to "what is the plan?", and routine task editing must not get slower
     // (§13). An earlier revision removed it and command-palette.spec.ts caught
     // the regression.
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    //
+    // DS-17 — asked for by its accessible name, "Clear plan". The visible word
+    // is still "Clear"; the name distinguishes this quick action from the
+    // picker's own clear command, which the next test exercises.
+    fireEvent.click(screen.getByRole("button", { name: "Clear plan" }));
     await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
   });
 
@@ -124,7 +130,7 @@ describe("TaskPlanningSection", () => {
     fireEvent.click(
       within(
         screen.getByRole("dialog", { name: "Edit scheduled date" }),
-      ).getByRole("button", { name: "Clear" }),
+      ).getByRole("button", { name: "Clear scheduled date" }),
     );
     await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
   });
@@ -133,14 +139,14 @@ describe("TaskPlanningSection", () => {
     setup();
     // Neither the quick action…
     expect(
-      screen.queryByRole("button", { name: "Clear" }),
+      screen.queryByRole("button", { name: "Clear plan" }),
     ).not.toBeInTheDocument();
     // …nor the picker's command, because there is nothing to clear.
     fireEvent.click(screen.getByRole("button", { name: /^Scheduled date: / }));
     expect(
       within(
         screen.getByRole("dialog", { name: "Edit scheduled date" }),
-      ).queryByRole("button", { name: "Clear" }),
+      ).queryByRole("button", { name: "Clear scheduled date" }),
     ).not.toBeInTheDocument();
   });
 

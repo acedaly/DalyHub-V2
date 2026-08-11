@@ -221,7 +221,11 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expect(targetTrigger).toBeFocused();
 
     await targetTrigger.click();
-    await datePopover.getByLabel("Target date").fill("2027-03-15");
+    // A ROLE query, not `getByLabel`: DS-17 named the sheet's clear control
+    // "Clear target date", which CONTAINS "Target date".
+    await datePopover
+      .getByRole("textbox", { name: "Target date" })
+      .fill("2027-03-15");
     await expectMinTouchTarget(
       datePopover.getByRole("button", { name: "Save" }),
     );

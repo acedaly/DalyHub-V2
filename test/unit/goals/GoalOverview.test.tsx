@@ -323,7 +323,7 @@ describe("GoalOverview", () => {
     // Clearing is a first-class outcome (`null`), reachable without leaving the
     // record — the data model permits an unset target.
     fireEvent.click(screen.getByRole("button", { name: /^Target date: / }));
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear target date" }));
     await waitFor(() => expect(onSetTargetDate).toHaveBeenCalledWith(null));
   });
 

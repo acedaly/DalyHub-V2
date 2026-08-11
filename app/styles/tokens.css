@@ -1040,6 +1040,19 @@
    */
   --app-card-action-rail-reserve: 12rem;
 
+  /*
+   * The same band, for a row whose rail carries ONLY the overflow trigger — the
+   * Tasks arrangement, where the supporting run is a fixed track and 12rem of it
+   * would be a third of the row reserved for a 36px button.
+   *
+   * 5rem = the 2.25rem trigger, the rail's 1.5rem inline-end offset, and enough
+   * clearance either side that a chip's focus ring is not tucked under the
+   * overlay's edge. It is a token rather than a literal because the rule that
+   * consumes it (tasks.css) and the rule that positions the rail (card.css) have
+   * to agree, and they live in different files.
+   */
+  --app-card-action-rail-reserve-compact: 5rem;
+
   /* Measures. There is now ONE prose measure: the Reading region and its serif
    * column are retired, so the 46ch serif cap has nothing left to cap. */
   --app-width-prose: 65ch;

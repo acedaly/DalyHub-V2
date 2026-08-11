@@ -8,12 +8,38 @@
 
 ---
 
-## Verified production deployment (2026-07-18)
+## What production IS — the one authoritative statement
 
-The first production deployment is **complete and verified** (FND-01 is
-`☑ Done`). The verified facts:
+Read this table first. Everything below it is either the procedure that
+maintains one of these facts, or a dated historical record of how one of them
+came to be true.
 
-| Item | Value |
+| Question | Answer | How you check it yourself |
+| --- | --- | --- |
+| What Worker is production? | `dalyhub-v2-production` (never `dalyhub-v2-production-production`) | `pnpm run verify:production` → *Worker deployment* |
+| What hostname? | <https://hub.daly.id.au>, a **dashboard-managed** Custom Domain; Wrangler must never add or remove a route for it | Cloudflare dashboard |
+| What D1 database? | the provisioned remote D1 named `dalyhub-v2`, whose UUID is supplied at run time as `CLOUDFLARE_D1_DATABASE_ID` and is **never committed** | `pnpm run db:production:list` |
+| How is it protected? | **Cloudflare Access** over the whole hostname, owner-restricted. `*.workers.dev` and Preview URLs are disabled, so there is no unprotected origin | `pnpm run verify:production` |
+| How is it configured? | `ENVIRONMENT` and `AUTH_MODE` are committed `var`s in `env.production`; `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `OWNER_EMAIL` are Worker **secrets** uploaded atomically with the code; AI keys are optional secrets | `pnpm run verify:production` → *Worker secrets* (NAMES only) |
+| How are migrations applied? | `pnpm run db:production:apply`, a separate deliberate command. Deploying never migrates | `pnpm run db:production:list` |
+| Which commands CHANGE production? | exactly two: `pnpm run deploy:production` and `pnpm run db:production:apply` | — |
+| Which commands only INSPECT it? | `pnpm run verify:production`, `db:production:list`, `db:production:export`, `deploy:production:preflight`, `deploy:production:release-check`, `deploy:production:verify` | — |
+| Why does `curl /health` not return JSON? | because Access protects the hostname and answers the unauthenticated request itself — see [`/health` under Cloudflare Access](#health-under-cloudflare-access) | `curl -sI https://hub.daly.id.au/health` |
+| How do I identify the running build? | sign in and read **/about**, which shows the version and the deployed commit; `BUILD_COMMIT` is recorded by every deploy | — |
+
+**Migration state on production is NOT asserted here**, because it cannot be
+asserted from a repository. `pnpm run db:production:list` is the only honest
+answer, and it needs the owner's credentials. See
+[Production migrations](#production-migrations--the-committed-sequence).
+
+## First production deployment (2026-07-18) — historical record
+
+The first production deployment was completed and verified on 2026-07-18
+(FND-01 is `☑ Done`). This is the record of THAT deployment, kept because it is
+where the facts above were established; it is not a statement about what
+production runs today.
+
+| Item | Value at 2026-07-18 |
 | --- | --- |
 | Live hostname | <https://hub.daly.id.au> |
 | Production Worker name | `dalyhub-v2-production` |
@@ -24,7 +50,7 @@ The first production deployment is **complete and verified** (FND-01 is
 | Custom hostname protection | **Cloudflare Access** (owner-restricted) |
 | `*.workers.dev` origin | **disabled** (direct production URL returns 404) |
 | Preview URLs | **disabled** |
-| `/health` | returns the production health response (public) |
+| `/health` | reachable and reporting the production payload **from an authenticated context**. This row previously read "(public)", which was wrong — see the correction below |
 | Authenticated owner shell | loads successfully through Access |
 
 The **Custom Domain** for `hub.daly.id.au` is **managed through the Cloudflare
@@ -188,17 +214,20 @@ loudly when used — there is no `--force`:
 Run the release checks on their own (no build, no upload) with
 `pnpm run deploy:production:release-check`.
 
-**After a successful upload, the deploy asserts production health.** It fetches
-the public `/health` endpoint with redirects disabled and requires: a direct
-`200` (a Cloudflare Access redirect is a misconfiguration, not a health
-response — `/health` is public by design), `status: "ok"`, `name: "DalyHub"`,
-`environment: "production"`, and `version` exactly equal to the release being
-deployed (`package.json`, pinned to `app/lib/version.ts` by test). The payload
-deliberately carries no commit (it is public; the commit is on the
-authenticated About screen), so build identity is asserted only if a `commit`
-field is ever present. A failed assertion exits non-zero and says so plainly —
-the Worker is live but unverified. Run the assertion on its own at any time
-with `pnpm run deploy:production:verify`. Covered by
+**After a successful upload, the deploy probes production health.** It fetches
+`/health` with redirects disabled and reports one of three outcomes — see
+[`/health` under Cloudflare Access](#health-under-cloudflare-access) for why
+there are three rather than two. When the application answers it requires
+`status: "ok"`, `name: "DalyHub"`, `environment: "production"` and `version`
+exactly equal to the release being deployed (`package.json`, pinned to
+`app/lib/version.ts` by test); build identity is asserted only if a `commit`
+field is present, which on the public payload it deliberately is not. A real
+health failure exits non-zero and says so plainly — the Worker is live but
+wrong. An **Access challenge** does not fail the deploy, and does not count as a
+verification either: the deploy prints that the running release was not
+confirmed from there and points at `/about`. Run the probe on its own at any
+time with `pnpm run deploy:production:verify`, or as part of the full read-only
+sweep with `pnpm run verify:production`. Covered by
 `test/unit/deploy/release-preflight.test.ts` with every external command and
 request injected — no real git remote, GitHub API, database or Worker is
 touched by tests.
@@ -387,25 +416,45 @@ Then extract the vault and open `DalyHub Export/` as a folder in Obsidian. If
 `Home.md` renders and its links navigate, the export is good. Delete both files
 from any shared machine afterwards: they contain the whole workspace.
 
-### Production migrations — the V2 upgrade
+### Production migrations — the committed sequence
 
-> **Superseded (2026-08-01).** This section previously carried a stack of
-> per-PR notes, each written "as of this PR" and each describing a different
-> pending migration gap (`0006`–`0008` for PROJ-05, then `0009` for AREA-02, and
-> so on). Read together they no longer described any real deployment. The V2
-> release closure replaced them with **one** statement of the actual upgrade.
-> The per-release notes for `0023`, `0025`, NOTES-05 and X-04 above are kept
-> because each records a genuine rollback/ordering property that is still true.
+> **Corrected 2026-08-11 (HARDEN-01).** This section stated a fixed migration
+> number three times, in three places, and all three had drifted: the prose said
+> the sequence ended at `0027`, the ordered procedure below said `0035`, and the
+> "Current status" section said production ran `0001`–`0025`. A document that
+> answers "how far does the schema go?" three different ways cannot be used to
+> plan a deployment, so it no longer answers it at all — because a repository
+> cannot know what a database has applied.
+>
+> The section before that carried a stack of per-PR notes, each written "as of
+> this PR"; the V2 release closure replaced them with one statement. The
+> per-release notes for `0023`, `0025`, NOTES-05 and X-04 above are kept because
+> each records a genuine rollback/ordering property that is still true.
 
-**The gap, stated once.** Production has migrations **`0001`–`0005`** applied
-(verified 2026-07-18 — see [Verified production deployment](#verified-production-deployment-2026-07-18)).
-The V2 release shipped **`0025`**; THEME-02 added **`0026`** and the PWA/offline
-milestone adds **`0027`**. So going live is a **twenty-two-migration step**,
-`0006` through `0027`, over a database that already holds the owner's data.
-(`0027` is a single new table — see
-[its note above](#pwa--offline-migration-0027--deployment-notes).)
+**The committed sequence is whatever is in [`migrations/`](../../migrations),
+and that is the only number this document will state.** Count it with
+`ls migrations | wc -l`; the newest file is the head of the sequence. Hard-coding
+it here creates a fourth place to forget to update.
 
-**Every migration in that range is additive and existing-data-safe.** No column
+**What production has applied is a question only production can answer:**
+
+```bash
+pnpm run db:production:list      # names the UNAPPLIED migrations; empty output means up to date
+```
+
+That command needs the owner's `CLOUDFLARE_D1_DATABASE_ID` and Cloudflare
+credentials, so it cannot be run from CI or from a contributor's checkout, and
+**no statement in this repository should be read as evidence that a migration is
+applied.** `pnpm run verify:production` runs the same check as part of its
+read-only sweep and reports `SKIPPED` rather than a pass when it cannot.
+
+The last direct observation on record is `0001`–`0005` at the first deployment
+(2026-07-18), plus the V2 upgrade performed in 2026-08 — see
+[Current status](#current-status). Neither is a substitute for running the
+command.
+
+**Every migration from `0006` onward is additive and existing-data-safe.** No
+column
 changes type, gains a narrowing constraint, or is dropped; no row of any table that
 exists at `0005` is rewritten. Three migrations (`0012`, `0015`, `0021`) do rebuild a
 table with SQLite's copy-and-rename pattern, but only `task_details` and
@@ -461,15 +510,20 @@ each migration individually; this one proves the deployment.
    [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 2. **Preflight**: `pnpm run deploy:production:preflight` — credential-free
    validation, no upload.
-3. **Migrate**: `pnpm run db:production:apply` (applies every pending migration in
-   order — `0035_create_workspace_restore.sql` is the latest; it is additive and
-   forward-only, creating the two SET-02 restore tables and one index and
-   touching no existing table, row or index).
-4. **Verify**: `pnpm run db:production:list` reports **no pending migrations**.
-5. **Deploy**: `pnpm run deploy:production` — only after step 4 passes.
-6. **Smoke test**: `/health` returns `ok` with version `2.0.0`; the authenticated
-   shell loads through Access; `/about` shows the same version.
-7. **Identity check (IDENT-01, after any deploy that includes migration 0028)**:
+3. **Look before you apply**: `pnpm run db:production:list` names exactly what is
+   pending. The sequence is forward-only and every migration in it is additive
+   (see above), but reading what is about to run is the whole point of keeping
+   this a deliberate, separate command.
+4. **Migrate**: `pnpm run db:production:apply` — applies every pending migration
+   in order.
+5. **Verify the schema**: `pnpm run db:production:list` reports **no pending
+   migrations**.
+6. **Deploy**: `pnpm run deploy:production` — only after step 5 passes.
+7. **Verify the deployment**: `pnpm run verify:production`, then sign in and
+   check `/about` shows the release version and the expected commit. Do **not**
+   expect an unauthenticated `curl /health` to return JSON — see
+   [`/health` under Cloudflare Access](#health-under-cloudflare-access).
+8. **Identity check (IDENT-01, after any deploy that includes migration 0028)**:
    sign in once so the request boundary provisions membership, then run the
    read-only report and repair as documented in
    [`IDENTITY_AND_ACTORS.md`](IDENTITY_AND_ACTORS.md):
@@ -542,20 +596,81 @@ does not need it gone. If the application must be rolled back, roll back the Wor
 and leave the schema where it is.
 
 
-### Verify
+### Verifying a deployment
 
-Wrangler prints the deployed URL (or your configured route). Verify by opening it
-and checking:
+Run the one read-only verifier:
 
-- `GET /health` returns `{"status":"ok","name":"DalyHub","version":"<the current release version>","environment":"production"}` (public — `2.0.1` for the V2.0.1 release).
-  Since RELEASE-01 the `version` comes from the ONE version authority
-  (`app/lib/version.ts`), the same value the in-app **About** screen shows — so a
-  deployment check and the running application can never disagree about which build
-  is live. A test pins the two together. The commit identifier is deliberately NOT in
-  this payload; it is shown only on the authenticated About screen;
+```bash
+pnpm run verify:production
+```
+
+It checks configuration presence (names, never values), the Worker's most recent
+deployment, the secret NAMES set on the Worker, the D1 migration state and the
+`/health` response class — and it **never** deploys, migrates, writes a secret,
+prints a secret value or bypasses Cloudflare Access. A check it cannot run
+reports `SKIPPED`, never a pass, and the summary line says `VERIFIED`,
+`PARTIALLY VERIFIED` or `NOT VERIFIED` so an operator reads the state rather
+than an exit code.
+
+Then finish, as the owner, the two things no unauthenticated command can do:
+
 - the authenticated shell renders **through Cloudflare Access** (document title
   `DalyHub`, the owner email in the header) — a request to a protected route
-  without a valid Access token must be rejected, not served.
+  without a valid Access token must be rejected, not served;
+- **/about** shows the version and the deployed commit. This is the
+  authoritative answer to "which build is live". Since RELEASE-01 the version
+  comes from the ONE version authority (`app/lib/version.ts`), the same value
+  `/health` reports, so the deployment check and the running application cannot
+  disagree; a test pins the two together, and `BUILD_COMMIT` is recorded by
+  every deploy.
+
+### `/health` under Cloudflare Access
+
+**An unauthenticated `curl https://hub.daly.id.au/health` returns `302` to the
+Cloudflare Access login, not the JSON payload. That is correct, and it is not a
+misconfiguration.**
+
+This document, the deploy script and the
+[end-to-end audit's §19 checklist](../product/END_TO_END_AUDIT_2026_08_05.md)
+all previously said the opposite — "`/health` is public by design, so an Access
+redirect means the endpoint is misconfigured". That claim could not be true of
+this deployment and was never tested against it. Access protects the **whole
+hostname**, which is precisely the
+[origin hardening](#workersdev--preview-urls--custom-domain-origin-hardening)
+the rest of this document exists to enforce: there is no unprotected origin, so
+there is no unauthenticated path to `/health` either. Under the old rule
+`deploy:production` would have ended every successful deployment with a failed
+health assertion.
+
+Three states, kept distinct because collapsing them is what produced the false
+rule:
+
+| What you observe | What it means |
+| --- | --- |
+| `302` to `…cloudflareaccess.com/cdn-cgi/access/login/…`, or `401`/`403` | Access is protecting the hostname — the intended configuration. The Worker was **not asked**, so the running release is **NOT verified** by this probe |
+| `200` with `{"status":"ok","name":"DalyHub","environment":"production","version":"<release>"}` | the application answered and reports this release. This is the only observation that proves WHICH build is live |
+| anything else — `5xx`, a non-JSON body, a wrong name/environment/version | a real failure. `deploy:production` exits non-zero |
+
+So **"the Worker was successfully deployed" and "an unauthenticated curl to
+`/health` returned 200" are different claims**, and only the first is available
+without credentials. `wrangler deploy`'s own output is the evidence for the
+upload; `/about` behind Access is the evidence for the running build.
+
+Two ways to make the payload assertable when you want it:
+
+- **A Cloudflare Access service token.** Set
+  `PRODUCTION_ACCESS_SERVICE_TOKEN_ID` and
+  `PRODUCTION_ACCESS_SERVICE_TOKEN_SECRET`; the deploy's health assertion and
+  `verify:production` send them as `CF-Access-Client-Id` /
+  `CF-Access-Client-Secret`. This is the documented machine path THROUGH
+  Access, not around it — the policy is unchanged for everyone else.
+- **An Access bypass policy for `/health`,** if you ever decide the endpoint
+  should genuinely be public. Then set `PRODUCTION_HEALTH_REQUIRE_PUBLIC=1`, and
+  an Access challenge becomes a failure again — because at that point it would
+  mean the bypass policy is missing.
+
+The commit identifier is deliberately absent from the `/health` payload even
+when it is reachable: it is shown only on the authenticated About screen.
 
 ## Authentication & Access configuration (FND-09)
 
@@ -612,7 +727,9 @@ The going-live checklist (all satisfied for the verified deployment):
 - confirm the Worker validates JWTs (issuer/AUD/owner) — as implemented here;
 - apply D1 migrations before deployment;
 - smoke-test **both** the protected hostname (authenticated shell) and the direct
-  origin (rejected), plus public `/health`.
+  origin (rejected). `/health` on the protected hostname answers with the Access
+  challenge, which is the point of the hardening rather than a gap — see
+  [`/health` under Cloudflare Access](#health-under-cloudflare-access).
 
 ### Authenticating Wrangler: OAuth vs API token
 
@@ -645,7 +762,7 @@ using these secrets from an untrusted pull request.
 > **Historical.** This is the audit taken at the V2 Final Polish milestone, when
 > `0023` was the newest migration. It is kept because each row records a property
 > that is still true of that change. **For the V2 release itself, use
-> [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade)
+> [Production migrations](#production-migrations--the-committed-sequence)
 > and [`RELEASE_CHECKLIST_V2.md`](../release/RELEASE_CHECKLIST_V2.md).**
 
 The release check performed for the **V2 Final Polish & Release Readiness**
@@ -673,7 +790,7 @@ than from memory.
 ### Deploying that milestone (superseded)
 
 This four-step sequence applied when `0023` was the pending migration. It is
-superseded by [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade),
+superseded by [Production migrations](#production-migrations--the-committed-sequence),
 which covers the real `0006`–`0025` step and adds the backup as step 1.
 
 ### Recording the build identifier
@@ -706,26 +823,30 @@ The deploy prints which identifier it is shipping before it uploads. Verified by
 
 ## Current status
 
-Deployment configuration is **valid** (`deploy:dry-run` passes) **and a real
-production deployment has been performed and verified**:
+Deployment configuration is **valid**: `pnpm run deploy:dry-run` passes, and CI
+runs `wrangler deploy --dry-run` against the generated production config on
+every change, so a broken binding or a malformed config is a red build rather
+than a surprise at deploy time.
 
-- **Deployed URL:** <https://hub.daly.id.au>
-- **Verified on:** 2026-07-18 — authenticated owner shell (through Cloudflare
-  Access) and public `/health` confirmed; production Worker `dalyhub-v2-production`
-  on the provisioned remote D1 database and workspace, migrations `0001`–`0005`
-  applied; the direct `workers.dev` origin returns 404 and Preview URLs are
-  disabled.
+**What has been directly OBSERVED about the live environment, and when:**
 
-**V2 (`2.0.0`) is deployed to production (2026-08).** The twenty-migration
-upgrade documented in
-[Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade)
-has been performed; production runs the V2 Worker on the `0001`–`0025` schema.
-That section is kept as the record of how the upgrade was proven and sequenced.
+| Observation | Date | By |
+| --- | --- | --- |
+| Worker `dalyhub-v2-production` live on <https://hub.daly.id.au>; authenticated owner shell loads through Access; `workers.dev` returns 404 and Preview URLs disabled; D1 at `0001`–`0005` | 2026-07-18 | owner, at the first deployment |
+| The V2 Worker deployed and the V2 migration upgrade performed | 2026-08 | owner |
+| An unauthenticated `GET /health` answers `302` to the Cloudflare Access login — i.e. Access is protecting the hostname, and the endpoint is **not** publicly readable | 2026-08-11 | HARDEN-01, from an unauthenticated network |
 
-**Next: the V2.0.1 hotfix.** V2.0.1 ships **no new migration** (the sequence is
-unchanged at `0025`), so deploying it is: release preflight → deploy → health
-assertion, with a fresh backup first. The exact sequence is in
-[`RELEASE_CHECKLIST_V2_0_1.md`](../release/RELEASE_CHECKLIST_V2_0_1.md).
+**What has NOT been verified from this repository, and remains owner action:**
+
+- which release the running Worker reports (read `/about` through Access);
+- which migrations production has applied (`pnpm run db:production:list`);
+- which secret names are set on the Worker (`pnpm run verify:production`).
+
+`pnpm run verify:production` performs all three when it has credentials, and
+reports `SKIPPED` — never a pass — when it does not. **A statement in this
+repository is not evidence about production.** The distinction that matters:
+*documentation corrected* and *production verified* are different claims, and
+only the first is in a pull request's power to make.
 
 FND-01 is `☑ Done` (see [ROADMAP_V2](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold)).
 Real production identifiers and secrets remain uncommitted.

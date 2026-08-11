@@ -1,35 +1,32 @@
 /**
- * CAPTURE-02 — the global Capture affordance, as GEOMETRY.
+ * CAPTURE-02 — the global Capture affordance, and the rule that there is ONE.
  *
  * PR #123 made global Capture DalyHub's primary routine-creation mechanism and
- * removed the duplicate create buttons from collection headers. The August 2026
- * interaction audit then found two things still wrong with it, and this file is
- * the regression net for both:
+ * removed the duplicate create buttons from collection headers. DEBT-96 then
+ * found that a phone still had the same global action twice — a floating button
+ * and the bottom bar's Capture slot, in the same corner — and this file is the
+ * regression net for the rule that settled it: **at any window size there is
+ * exactly one global capture control, and it is the one that belongs to that
+ * shell.**
  *
- *   1. **The floating button covered content** (finding 1, high). It is
- *      `position: fixed` in the bottom-right corner, and content that reached
- *      that corner ended up underneath it. The contract this file pins is that
- *      nothing is ever TRAPPED there: `.dh-pane` reserves `--app-fab-band` at
- *      the end of its scroll, so the last interactive control on any page clears
- *      the button, and a page that does not scroll at all never puts one under
- *      it. A fixed button may still float OVER content mid-scroll — that is what
- *      floating means, and M3 says so. Reserving the button's COLUMN as well was
- *      implemented and reverted: it cost the entity galleries a whole grid track
- *      (2→1 columns at 900px, 4→3 at 1440px), which is the shared card geometry
- *      paying for the shell. The last test in this file pins that reversal.
- *   2. **A phone had the same global action twice** (DEBT-96) — the floating
- *      button and the bottom bar's Capture slot, in the same corner. The bar
- *      wins at those widths and the button is not rendered at all.
+ * ── What UIX-01 changed under this file (HARDEN-01, 2026-08-11) ─────────────
+ * The floating button is GONE at every width. M3 gives an application one FAB
+ * for its most frequent creative act and DalyHub's was capture; UIX-01 moved
+ * Create to the top app bar (`.dh-topbar__create`), where the reference design
+ * puts it and where it is in normal flow. The geometry half of this file — an
+ * overlap sweep proving a `position: fixed` circle trapped nothing in the
+ * bottom-right corner — therefore lost its subject entirely, and is deleted
+ * rather than re-pointed. See the note on the second block for why that was the
+ * right call rather than the lazy one.
  *
- * Everything here is measured from the real DOM rather than compared against a
- * screenshot: an overlap is a fact about two rectangles, and a screenshot
- * baseline would fail for a hundred reasons that are not this one.
+ * What survives is measured from the real DOM rather than compared against a
+ * screenshot: which control exists is a fact about the document, and a
+ * screenshot baseline would fail for a hundred reasons that are not this one.
  */
 
 import { expect, test, type Page } from "@playwright/test";
 
 import {
-  enterTaskSelection,
   expectMinTouchTarget,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -42,19 +39,9 @@ const MEDIUM = { width: 700, height: 1000 }; // 600–839
 const EXPANDED = { width: 900, height: 1000 }; // 840–1199
 const LARGE = { width: 1400, height: 1000 }; // 1200+
 
-/** The pages whose content genuinely reaches the bottom-right corner. */
-const SURFACES = [
-  "/settings",
-  "/settings?section=ai",
-  "/today",
-  "/tasks",
-  "/projects",
-  "/notes",
-] as const;
-
-/** The floating global Capture control. */
-function fab(page: Page) {
-  return page.locator("button.dh-fab");
+/** The desktop top app bar's Create control — the global capture action above `md`. */
+function topBarCreate(page: Page) {
+  return page.getByTestId("topbar-create");
 }
 
 /** The phone bar's Capture slot. */
@@ -64,99 +51,30 @@ function barCapture(page: Page) {
     .getByRole("button", { name: "Capture" });
 }
 
-/**
- * Every interactive element whose rectangle currently intersects the FAB's.
- *
- * Returns a short, human-readable description of each, so a failure names the
- * control that got covered rather than just saying "1 !== 0".
- */
-async function overlappedControls(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const button = document.querySelector("button.dh-fab");
-    if (!button) {
-      return [];
-    }
-    const rect = button.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-      return [];
-    }
-    const INTERACTIVE = [
-      "a[href]",
-      "button",
-      "input",
-      "select",
-      "textarea",
-      "[role='button']",
-      "[role='combobox']",
-      "[role='checkbox']",
-      "[role='switch']",
-      "[role='link']",
-      "[tabindex]:not([tabindex='-1'])",
-    ].join(", ");
-
-    const hits: string[] = [];
-    for (const element of document.querySelectorAll(INTERACTIVE)) {
-      if (element === button || button.contains(element)) {
-        continue;
-      }
-      const box = element.getBoundingClientRect();
-      if (box.width === 0 || box.height === 0) {
-        continue;
-      }
-      // A tooltip is deliberately click-through and can be asked to appear
-      // beside the button itself; it is not content the button is covering.
-      if (element.closest("[role='tooltip']")) {
-        continue;
-      }
-      const intersects =
-        box.left < rect.right &&
-        box.right > rect.left &&
-        box.top < rect.bottom &&
-        box.bottom > rect.top;
-      if (intersects) {
-        const name =
-          element.getAttribute("aria-label") ??
-          element.textContent?.trim().slice(0, 40) ??
-          "";
-        hits.push(
-          `${element.tagName.toLowerCase()}.${String(element.className).split(" ")[0]} “${name}”`,
-        );
-      }
-    }
-    return hits;
-  });
-}
-
-/** Scroll the document to its very end and let layout settle. */
-async function scrollToEnd(page: Page): Promise<void> {
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.waitForTimeout(150);
-}
-
 test.describe("compact widths — ONE global Capture affordance, not two", () => {
   for (const viewport of [COMPACT_SMALL, COMPACT, MEDIUM]) {
-    test(`at ${viewport.width}px the bottom bar owns Capture and the floating button is absent`, async ({
+    test(`at ${viewport.width}px the bottom bar owns Capture, and it is the only one`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
       await gotoFixture(page, "/today");
 
       // Exactly one global capture control, and it is the bar's.
-      await expect(fab(page)).toBeHidden();
       await expect(barCapture(page)).toBeVisible();
       await expectMinTouchTarget(barCapture(page));
 
-      // Hidden means GONE — not merely invisible. A `visibility`/opacity hide
-      // would leave a phantom Tab stop and a phantom node in the accessibility
-      // tree, which is the duplicate all over again for a keyboard or screen
-      // reader user.
-      expect(await fab(page).count()).toBeGreaterThan(0);
-      expect(
-        await page.evaluate(() => {
-          const node = document.querySelector("button.dh-fab");
-          return node ? getComputedStyle(node).display : null;
-        }),
-      ).toBe("none");
+      // The desktop bar's Create is the OTHER global capture control, and it
+      // must be GONE here rather than merely invisible. A `visibility`/opacity
+      // hide would leave a phantom Tab stop and a phantom node in the
+      // accessibility tree, which is DEBT-96's duplicate all over again for a
+      // keyboard or screen-reader user — so the display value is asserted, not
+      // just `toBeHidden()`.
+      await expect(topBarCreate(page)).toBeHidden();
+      const topBarDisplay = await page.evaluate(() => {
+        const bar = document.querySelector(".dh-topbar");
+        return bar ? getComputedStyle(bar).display : null;
+      });
+      expect(topBarDisplay).toBe("none");
 
       await expectNoHorizontalOverflow(page);
     });
@@ -218,182 +136,58 @@ test.describe("compact widths — ONE global Capture affordance, not two", () =>
   });
 });
 
-test.describe("larger windows — the floating button stays, and covers nothing", () => {
+test.describe("larger windows — Create is the top bar's, and it floats over nothing", () => {
+  /*
+   * UIX-01 RETIRED the floating button, and this block used to assert it.
+   *
+   * What stood here was ~150 lines proving that a `position: fixed` 56px circle
+   * in the bottom-right corner covered nothing: an overlap sweep across six
+   * surfaces at two widths, a dark-appearance repeat, a three-width check that
+   * it took no inline width from the pane, and a bulk-selection suppression
+   * journey. Every one of them opened with `await expect(fab(page)).toBeVisible()`
+   * against a `button.dh-fab` that no longer exists, and all 19 failed for that
+   * one reason (measured on run 31473135291, shard 3).
+   *
+   * They were DELETED rather than re-pointed at `.dh-topbar__create`, and that
+   * is the whole judgement: a button in normal flow at the top of the page
+   * cannot cover, trap or float over anything, so the assertions have no subject
+   * left. Retargeting them would have produced 19 green tests that prove
+   * nothing — which is worse than none, because the next person would trust
+   * them. `--app-fab-band` survives under its historical name and now measures
+   * the phone navigation bar; the band it reserves is asserted where it is
+   * still real, in the compact block above and in `mobile-shell.spec.ts`.
+   *
+   * What IS still true at these widths, and is worth one test rather than
+   * nineteen, is the invariant the whole file exists for: exactly ONE global
+   * capture affordance, whatever the window is.
+   */
   for (const viewport of [EXPANDED, LARGE]) {
-    test(`at ${viewport.width}px Capture floats, is a ≥44px target, and has an accessible name`, async ({
+    test(`at ${viewport.width}px Create is the top bar's, and the phone bar is not also on screen`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
       await gotoFixture(page, "/today");
 
-      await expect(fab(page)).toBeVisible();
-      await expect(fab(page)).toHaveAccessibleName(/capture/i);
-      await expectMinTouchTarget(fab(page));
-      // ...and the bar it replaces is not also on screen.
+      const create = topBarCreate(page);
+      await expect(create).toBeVisible();
+      await expect(create).toHaveAccessibleName(/new/i);
+      await expectMinTouchTarget(create);
+
+      // The phone bar's Capture slot is the same action, so it must not be here.
       await expect(barCapture(page)).toBeHidden();
+
+      // In normal FLOW, at the top: it takes its own space rather than floating
+      // over the canvas. That is the property that made the deleted overlap
+      // sweep meaningful and makes this arrangement not need one — so it is
+      // asserted, rather than left as a claim in a comment. `relative` counts
+      // (the control carries a state layer, which needs a containing block);
+      // `fixed` or `absolute` would not, and would put the sweep back on the
+      // table.
+      expect(["static", "relative", "sticky"]).toContain(
+        await create.evaluate((node) => getComputedStyle(node).position),
+      );
+
+      await expectNoHorizontalOverflow(page);
     });
   }
-
-  for (const viewport of [EXPANDED, LARGE]) {
-    for (const path of SURFACES) {
-      test(`at ${viewport.width}px nothing is trapped under the button on ${path}`, async ({
-        page,
-      }) => {
-        await page.setViewportSize(viewport);
-        await gotoFixture(page, path);
-        await expect(fab(page)).toBeVisible();
-
-        // Scrolled to the very end of the document, where the LAST interactive
-        // control of the page lives. This is the case the reserved band buys and
-        // the one that actually traps a user: a control they cannot reach by
-        // scrolling, because there is no further to scroll.
-        await scrollToEnd(page);
-        expect(await overlappedControls(page)).toEqual([]);
-
-        // A page that does not scroll at all has no "scroll it clear" escape
-        // hatch, so it must be clear where it opens.
-        const scrollable = await page.evaluate(
-          () =>
-            document.documentElement.scrollHeight >
-            document.documentElement.clientHeight + 1,
-        );
-        if (!scrollable) {
-          expect(await overlappedControls(page)).toEqual([]);
-        }
-
-        await expectNoHorizontalOverflow(page);
-      });
-    }
-  }
-
-  test("traps nothing in the DARK appearance either", async ({ page }) => {
-    // The reservation is layout, not colour, so this is a cheap proof that the
-    // fix is not accidentally appearance-specific — and it exercises the same
-    // page the audit's own screenshot came from.
-    await page.emulateMedia({ colorScheme: "dark" });
-    await page.setViewportSize(LARGE);
-    await gotoFixture(page, "/settings");
-    await expect(fab(page)).toBeVisible();
-    await scrollToEnd(page);
-    expect(await overlappedControls(page)).toEqual([]);
-    await expectNoHorizontalOverflow(page);
-    await page.emulateMedia({ colorScheme: null });
-  });
-
-  test("a control the button floats over can always be scrolled clear", async ({
-    page,
-  }) => {
-    // The Settings combobox in the audit's own screenshot. A fixed button floats
-    // over it where the page opens; what must be true is that the owner can get
-    // it out from under the button, and that the page HAS somewhere to scroll to
-    // do it. "Reachable by scrolling" is the honest contract for a floating
-    // control — "never overlapped at any offset" was the stronger one, and it
-    // cost the galleries a column to buy.
-    await page.setViewportSize(LARGE);
-    await gotoFixture(page, "/settings");
-
-    const combobox = page.getByRole("combobox", {
-      name: "Default task destination",
-    });
-    await expect(combobox).toBeVisible();
-
-    await scrollToEnd(page);
-    expect(await overlappedControls(page)).toEqual([]);
-    // ...and it is still on screen down there, rather than having been scrolled
-    // past — so "scroll it clear" is a real remedy and not a technicality.
-    await expect(combobox).toBeInViewport();
-  });
-
-  /**
-   * The FAB never buys its clearance from the content's width.
-   *
-   * An earlier draft reserved the button's COLUMN on `.dh-pane` as well as its
-   * end band. It worked — nothing was under the button at any scroll offset —
-   * and it was reverted, because the bill landed on the entity galleries: at
-   * 900px Areas/Projects/Goals dropped from two columns to one (by EIGHT pixels
-   * of `minmax()` boundary) and at 1440px from four to three, making a Projects
-   * page 45% longer to scroll. That is the shared card/grid geometry paying for
-   * the shell, and it lands hardest on the window class the audit's findings 4
-   * and 5 already call starved.
-   *
-   * This asserts the reversal directly, at the widths where it cost the most, so
-   * nobody re-introduces it without meeting this test.
-   */
-  /** The gallery column count each window earns from its own measure. */
-  const GALLERY_COLUMNS: Readonly<Record<number, number>> = {
-    900: 2,
-    1024: 2,
-    1440: 4,
-  };
-
-  for (const width of [900, 1024, 1440]) {
-    test(`at ${width}px the button takes no inline width from the pane`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width, height: 1000 });
-      await gotoFixture(page, "/projects");
-      await expect(fab(page)).toBeVisible();
-
-      const pane = await page.evaluate(() => {
-        const node = document.querySelector(".dh-pane") as HTMLElement;
-        const style = getComputedStyle(node);
-        return {
-          inlineEnd: Math.round(parseFloat(style.paddingInlineEnd)),
-          inlineStart: Math.round(parseFloat(style.paddingInlineStart)),
-        };
-      });
-      expect(pane.inlineEnd).toBe(0);
-      expect(pane.inlineStart).toBe(0);
-
-      // ...and the gallery still gets every column its own measure affords.
-      const columns = await page.evaluate(() => {
-        const grid = document.querySelector(".dh-ecard-grid");
-        if (!grid) return null;
-        return getComputedStyle(grid)
-          .gridTemplateColumns.split(" ")
-          .filter(Boolean).length;
-      });
-      expect(columns).toBe(GALLERY_COLUMNS[width]);
-    });
-  }
-
-  test("steps aside while a bulk selection is live, and comes back after", async ({
-    page,
-  }) => {
-    // The bulk-action bar sits in normal flow at the end of the collection, so
-    // its trailing Cancel lands in the button's corner. The suppression rule
-    // PR #121 added still holds — it simply matters at these widths now rather
-    // than on a phone, where there is no floating button to suppress.
-    //
-    // Driven against `/tasks` rather than `/today`: the Today redesign replaced
-    // the dashboard's multi-select collection with plain rows, so the Tasks
-    // collection is where a bulk selection now lives. The rule under test — a
-    // live selection hides the floating button so it cannot eat the bar's
-    // trailing control — is unchanged, and is a SHARED CollectionLayout
-    // behaviour rather than a Today one.
-    await page.setViewportSize(EXPANDED);
-    await gotoFixture(page, "/tasks?system=all");
-    await expect(fab(page)).toBeVisible();
-
-    // TASKS-06 made multi-selection an explicit MODE, so the row checkboxes only
-    // exist once it is entered. The toggle is the labelled, keyboard-reachable
-    // way in — the same one a person uses.
-    await enterTaskSelection(page);
-    await page
-      .getByRole("checkbox", { name: /^Select / })
-      .first()
-      .check();
-
-    const bulkBar = page.getByRole("group", { name: "Bulk task actions" });
-    await expect(bulkBar).toBeVisible();
-    await expect(fab(page)).toBeHidden();
-
-    // The click the button used to intercept — the bar's trailing control, which
-    // TASKS-06 named "Done".
-    await bulkBar.getByRole("button", { name: "Done" }).click();
-    await expect(
-      page.getByRole("group", { name: "Bulk task actions" }),
-    ).toHaveCount(0);
-    await expect(fab(page)).toBeVisible();
-  });
 });

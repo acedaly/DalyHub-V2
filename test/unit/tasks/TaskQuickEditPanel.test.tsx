@@ -15,13 +15,7 @@
  */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
@@ -210,16 +204,15 @@ describe("TaskQuickEditPanel", () => {
     const picker = screen.getByRole("combobox", { name: /Project or Area/ });
     fireEvent.click(picker);
     /*
-     * Scoped to the parent field's own element, because every populated select
-     * on this panel offers a clear and they all say "Clear selection" —
-     * recorded as DEBT-112. This used to scope by `[role="group"]`, which the
-     * field no longer carries: a single select's name belongs to its combobox
-     * alone, and naming the wrapper as well was the duplicate-accessible-name
-     * defect this PR fixed.
+     * DS-17 — asked for by NAME, unscoped, because that is the whole point of
+     * the change: this panel renders three populated selects and therefore three
+     * clear controls, and until DS-17 they shared one accessible name
+     * ("Clear selection", DEBT-112), so a test had to reach for the field's DOM
+     * wrapper to say which one it meant. If this query ever needs re-scoping,
+     * the names have regressed.
      */
-    const field = picker.closest(".dh-field--select") as HTMLElement;
     fireEvent.click(
-      within(field).getByRole("button", { name: /Clear selection/ }),
+      screen.getByRole("button", { name: "Clear project or area" }),
     );
 
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));

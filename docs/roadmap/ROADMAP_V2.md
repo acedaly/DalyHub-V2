@@ -1317,11 +1317,26 @@ pass are all delivered. What each step of the old order actually became:
 15. **Build the AI proposal and approval system — AI-01 … AI-04.** ⊘ After V2.1, last
     by design. AI may propose; the user disposes; AI must not silently mutate data.
 
-**Carried forward as outstanding, and not addressed by the V2 release closure:**
+**Carried forward as outstanding at the V2 release closure (2026-08-01):**
 **AUDIT-IDENTITY-01 — Production actor names and unrecognised activity events.** It is
 recorded in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) so it is not lost between
 changes, and it is P2 rather than release-blocking: it degrades an Activity row's
 actor label, and touches no data-integrity or isolation boundary.
+
+> **Superseded 2026-08-04, corrected here 2026-08-11 (AUDIT-FIX-05).** IDENT-01
+> shipped the fix (migration `0028` and the identity repair script) and
+> `PRODUCT_DEBT.md` records AUDIT-IDENTITY-01 as RESOLVED. This paragraph said
+> "outstanding" for a week after that, which is the contradiction
+> [AUDIT-06](../product/END_TO_END_AUDIT_2026_08_05.md#audit-06--production-state-documentation-drift-production-unverifiable-here--p2)
+> found. The paragraph is kept, dated and marked rather than deleted, because it
+> was accurate at the closure it belongs to.
+>
+> One distinction survives the correction and matters: the fix is a claim about
+> `main`, not about production. Whether migration `0028` has been applied to the
+> production database, and whether the historical Activity rows have been
+> repaired, is answered only by
+> `pnpm run db:production:list` and `pnpm run identity:report:production` — see
+> [`DEPLOYMENT.md`](../development/DEPLOYMENT.md#what-production-is--the-one-authoritative-statement).
 
 ---
 

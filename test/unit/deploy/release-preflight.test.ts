@@ -11,9 +11,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
  *     pushed `main`, a HEAD that is not `origin/main`, a missing/red/pending
  *     CI Gate, and unacknowledged pending production D1 migrations — each with
  *     its own explicit, named, logged override flag and no general `--force`;
- *   - the health assertion refuses a Cloudflare Access redirect (a login page
- *     is not an application health response), a wrong application name or
- *     environment, and any version other than the release being shipped.
+ *   - the health assertion refuses a wrong application name, status or
+ *     environment, any version other than the release being shipped, a non-JSON
+ *     body and an unreachable host — and, since HARDEN-01, reports a Cloudflare
+ *     Access challenge as the third thing it is: the hostname doing its job,
+ *     with the running release left UNVERIFIED rather than either failed or
+ *     falsely passed.
  *
  * Every external dependency (git, the GitHub API, the production-d1 wrapper,
  * the live health endpoint) is INJECTED here — these tests run no real git
@@ -319,20 +322,42 @@ describe("assertProductionHealth", () => {
 
   function fetchAnswering(
     body: Record<string, unknown>,
-    init: { status?: number; notJson?: boolean } = {},
+    init: {
+      status?: number;
+      notJson?: boolean;
+      location?: string;
+    } = {},
   ) {
-    return vi.fn(async () => ({
-      ok: (init.status ?? 200) < 300,
-      status: init.status ?? 200,
-      json: async () => {
-        if (init.notJson) throw new Error("not json");
-        return body;
+    // The call arguments are RECORDED rather than read back off `mock.calls`,
+    // so a test can assert what the probe sent — including that it sent no
+    // `headers` at all when no Access service token is configured.
+    const seen: { url: string; options: Record<string, unknown> }[] = [];
+    const fetcher = vi.fn(
+      async (url: string, options: Record<string, unknown> = {}) => {
+        seen.push({ url, options });
+        return {
+          ok: (init.status ?? 200) < 300,
+          status: init.status ?? 200,
+          headers: {
+            get: (name: string) =>
+              name.toLowerCase() === "location"
+                ? (init.location ?? null)
+                : null,
+          },
+          json: async () => {
+            if (init.notJson) throw new Error("not json");
+            return body;
+          },
+        };
       },
-    }));
+    );
+    return Object.assign(fetcher, { seen });
   }
 
   function assertHealth(
-    fetcher: ReturnType<typeof fetchAnswering>,
+    // Deliberately loose: the injected fetcher is a stub, and different cases
+    // need different shapes (a recording one, a throwing one, a flaky one).
+    fetcher: unknown,
     options: Record<string, unknown> = {},
   ) {
     return deploy.assertProductionHealth({
@@ -342,24 +367,174 @@ describe("assertProductionHealth", () => {
       attempts: 1,
       log: () => undefined,
       ...options,
-    }) as Promise<{ ok: boolean; problems: string[] }>;
+    }) as Promise<{
+      ok: boolean;
+      verified: boolean;
+      reason?: string;
+      problems: string[];
+    }>;
   }
 
   it("passes for a direct, healthy production payload with the release version", async () => {
     const result = await assertHealth(fetchAnswering(healthy));
-    expect(result).toEqual({ ok: true, problems: [] });
+    expect(result).toEqual({ ok: true, verified: true, problems: [] });
   });
 
-  it("REFUSES a Cloudflare Access redirect — a login page is not a health response", async () => {
-    const fetcher = fetchAnswering({}, { status: 302 });
+  /*
+   * HARDEN-01 corrected this pair. The rule used to be "a 3xx is a failure,
+   * because /health is public by design" — but Cloudflare Access protects the
+   * whole `hub.daly.id.au` hostname, which is the origin hardening this file
+   * enforces everywhere else, so an unauthenticated probe is ALWAYS answered by
+   * Access. Under the old rule every successful deployment ended in a failed
+   * assertion. The states are now distinguished rather than collapsed:
+   * "Access answered" is not "the Worker is broken", and it is not "verified"
+   * either.
+   */
+  it("reads a Cloudflare Access challenge as protected-but-unverified, not as a failure", async () => {
+    const fetcher = fetchAnswering(
+      {},
+      {
+        status: 302,
+        location: "https://team.cloudflareaccess.com/cdn-cgi/access/login/x",
+      },
+    );
     const result = await assertHealth(fetcher);
-    expect(result.ok).toBe(false);
-    expect(result.problems.join("\n")).toContain("Cloudflare Access");
+    expect(result.ok).toBe(true);
+    expect(result.verified).toBe(false);
+    expect(result.reason).toBe("access-protected");
     // And it must not follow the redirect looking for a 200 login page.
     expect(fetcher).toHaveBeenCalledWith(
       "https://example.test/health",
       expect.objectContaining({ redirect: "manual" }),
     );
+  });
+
+  it("treats a 401/403 from Access the same way as the redirect", async () => {
+    for (const status of [401, 403]) {
+      const result = await assertHealth(fetchAnswering({}, { status }));
+      expect(result.ok).toBe(true);
+      expect(result.verified).toBe(false);
+      expect(result.reason).toBe("access-protected");
+    }
+  });
+
+  it("REFUSES the challenge when the endpoint is declared publicly reachable", async () => {
+    // The strict rule still exists, behind an explicit declaration: if a bypass
+    // policy is supposed to make /health public, a challenge means it is missing.
+    const result = await assertHealth(
+      fetchAnswering(
+        {},
+        {
+          status: 302,
+          location: "https://team.cloudflareaccess.com/cdn-cgi/access/login/x",
+        },
+      ),
+      { requirePublic: true },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.problems.join("\n")).toContain("Cloudflare Access");
+  });
+
+  it("REFUSES a 401/403 when a service token WAS sent — that is a rejected token, not Access doing its job", async () => {
+    // The unauthenticated path reads a 401/403 as Access answering for the
+    // Worker, which is right. With a token in hand the probe was supposed to
+    // reach the application, so the same status means the token was rejected or
+    // the Worker's own auth is refusing a request it should serve — and
+    // reporting that as "protected, not verified" would let a deploy exit 0
+    // without saying why the verification it was asked for did not happen.
+    for (const status of [401, 403]) {
+      const result = await assertHealth(fetchAnswering({}, { status }), {
+        headers: {
+          "CF-Access-Client-Id": "id",
+          "CF-Access-Client-Secret": "s",
+        },
+      });
+      expect(result.ok).toBe(false);
+      expect(result.problems.join("\n")).toContain(String(status));
+    }
+  });
+
+  it("still reports an Access LOGIN redirect as protected-but-unverified with a token, because the probe never arrived", async () => {
+    const result = await assertHealth(
+      fetchAnswering(
+        {},
+        {
+          status: 302,
+          location: "https://team.cloudflareaccess.com/cdn-cgi/access/login/x",
+        },
+      ),
+      {
+        headers: {
+          "CF-Access-Client-Id": "id",
+          "CF-Access-Client-Secret": "s",
+        },
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.verified).toBe(false);
+  });
+
+  it("classifies a challenge by whether the probe was authenticated", () => {
+    const redirect = {
+      status: 302,
+      headers: {
+        get: () => "https://team.cloudflareaccess.com/cdn-cgi/access/login/x",
+      },
+    };
+    const bareRedirect = { status: 302, headers: { get: () => null } };
+    const forbidden = { status: 403, headers: { get: () => null } };
+    expect(deploy.isAccessChallenge(redirect)).toBe(true);
+    expect(deploy.isAccessChallenge(redirect, { authenticated: true })).toBe(
+      true,
+    );
+    // A redirect with no readable Location is a challenge only when nobody
+    // claimed to be authenticated.
+    expect(deploy.isAccessChallenge(bareRedirect)).toBe(true);
+    expect(
+      deploy.isAccessChallenge(bareRedirect, { authenticated: true }),
+    ).toBe(false);
+    expect(deploy.isAccessChallenge(forbidden)).toBe(true);
+    expect(deploy.isAccessChallenge(forbidden, { authenticated: true })).toBe(
+      false,
+    );
+  });
+
+  it("sends Access service-token headers when they are supplied, and none otherwise", async () => {
+    const withToken = fetchAnswering(healthy);
+    await assertHealth(withToken, {
+      headers: { "CF-Access-Client-Id": "id", "CF-Access-Client-Secret": "s" },
+    });
+    expect(withToken).toHaveBeenCalledWith(
+      "https://example.test/health",
+      expect.objectContaining({
+        headers: {
+          "CF-Access-Client-Id": "id",
+          "CF-Access-Client-Secret": "s",
+        },
+      }),
+    );
+
+    const withoutToken = fetchAnswering(healthy);
+    await assertHealth(withoutToken, { headers: null });
+    expect(withoutToken.seen[0]?.options).not.toHaveProperty("headers");
+  });
+
+  it("builds service-token headers only when BOTH halves are present", () => {
+    expect(deploy.accessServiceTokenHeaders({})).toBeNull();
+    expect(
+      deploy.accessServiceTokenHeaders({
+        PRODUCTION_ACCESS_SERVICE_TOKEN_ID: "id",
+      }),
+    ).toBeNull();
+    expect(
+      deploy.accessServiceTokenHeaders({
+        PRODUCTION_ACCESS_SERVICE_TOKEN_ID: "id",
+        PRODUCTION_ACCESS_SERVICE_TOKEN_SECRET: "secret",
+      }),
+    ).toEqual({
+      "CF-Access-Client-Id": "id",
+      "CF-Access-Client-Secret": "secret",
+    });
   });
 
   it("refuses a version other than the release being shipped", async () => {
@@ -417,6 +592,7 @@ describe("assertProductionHealth", () => {
       return {
         ok: true,
         status: 200,
+        headers: { get: () => null },
         json: async () => healthy,
       };
     });

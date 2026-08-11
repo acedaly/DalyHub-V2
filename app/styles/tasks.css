@@ -1078,6 +1078,37 @@
 }
 
 /*
+ * …and the run STOPS before the hover action rail (HARDEN-01).
+ *
+ * `card.css` reserves the rail's band so no row control ends up underneath the
+ * overlay, and states the reservation on `.dh-card__support`. In a task row that
+ * rule is INERT, because the rule above makes `__support` `display: contents`
+ * and a padding on a box that generates none does nothing — the same trap this
+ * file already records at its 46rem container query, missed here.
+ *
+ * What it cost was not cosmetic. Measured at 1280 before this fix: the metadata
+ * run ended at x=1208 and the revealed rail sat at 1164–1200 on the same line,
+ * so the Due date chip's own centre resolved to the overflow trigger. A mouse
+ * user could not open the last inline editor on a task row at all — hovering to
+ * reach it is what summons the thing that covers it — and
+ * `e2e/inline-editor-overlay.spec.ts` had been failing on exactly that click
+ * since UIX-06, one of the failures DEBT-125 carried as "not yet diagnosed".
+ *
+ * Stated as a MARGIN rather than padding so the run keeps its 27.5rem track:
+ * the columns the trailing facts square up into are the point of that track, and
+ * padding would have eaten them. The compact reserve rather than the full 12rem
+ * because a task row's rail carries only the overflow trigger — see the token.
+ */
+@media (hover: hover) and (pointer: fine) and (min-width: 48rem) {
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card--list:has(.dh-card__actions)
+    .dh-card__metadata {
+    margin-inline-end: var(--app-card-action-rail-reserve-compact);
+  }
+}
+
+/*
  * Nothing in a one-line row is allowed to become two lines.
  *
  * `Sector: This Week` and `Delegated to: Sam Okafor` wrapped inside their own

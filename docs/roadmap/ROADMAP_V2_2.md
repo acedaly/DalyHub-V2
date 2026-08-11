@@ -340,15 +340,49 @@ them.
 **Broad UI redesign is complete.** Future UI work is targeted feature work
 against the design system, not another whole-app pass.
 
-### ☐ DS-17 - Select clear-control names
+### ☑ DS-17 - Select clear-control names - **DELIVERED 2026-08-11**
 
-Complete the cross-product select accessibility follow-up.
+The cross-product select accessibility follow-up, delivered inside
+[HARDEN-01](../product/HARDEN_01_RELEASE_RELIABILITY_2026_08.md).
 
-- Convert the affected tests away from brittle substring `getByLabel` queries.
-- Rename `SelectField` and `SelectSheetControl` clear controls so each names the
-  field it clears, matching `InlineSelectField`.
-- **Non-goals:** redesigning selects or changing unset/empty semantics, which are
-  already correct.
+- `SelectField`, `SelectSheetControl` and `InlineDateField` now name their clear
+  control after the field it clears, through one shared helper
+  (`app/shared/forms/clear-label.ts`) that DERIVES the name from the field's own
+  label — so a new select cannot forget to supply one. `InlineSelectField`
+  already did this and is the wording they match.
+- The `getByLabel` migration turned out not to be needed. Every `getByLabel`
+  string in `e2e/` was cross-referenced against every select label; the three
+  candidates ("Date", "Due date", "When") each operate a date field rather than a
+  select, and a full suite run after the rename confirmed no call site became
+  ambiguous. The reason the first attempt was reverted was an unmeasured blast
+  radius, not a real one — recorded in
+  [DEBT-112](../product/PRODUCT_DEBT.md), now closed.
+- Unit coverage asserts the contract directly: two populated selects on one
+  surface expose two differently-named clear controls, clearing one leaves the
+  other alone, and an empty field offers none.
+- **Non-goals held:** selects were not redesigned and unset/empty semantics are
+  unchanged.
+
+### ☑ HARDEN-01 - CI reliability, accessibility cleanup and production truth - **DELIVERED 2026-08-11**
+
+The hardening pass between the end of the UIX programme and the start of the next
+substantial UI project. No feature work; the point was that `main`'s gate means
+something before another large change lands on top of it. Full record:
+[`HARDEN_01_RELEASE_RELIABILITY_2026_08.md`](../product/HARDEN_01_RELEASE_RELIABILITY_2026_08.md).
+
+- **The deterministic E2E failures are gone**, and one of them was a real product
+  defect rather than a stale test: a Tasks row's hover action rail overlaid the
+  last inline editor, so a mouse user could not open it (the reserve that was
+  supposed to prevent this had been made inert by UIX-06's `display: contents`).
+- **DEBT-125 narrowed with measurement, not closed on a lucky green.** Chromium's
+  RSS across a full shard is flat; the resource-exhaustion hypothesis for the
+  browser is refuted and the sampler now measures the harness cohorts the
+  question was really about.
+- **DS-17** delivered (above). **AUDIT-FIX-05** delivered as a documentation-truth
+  pass, with production verification left explicitly open — see
+  [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md#-audit-fix-05--documentation-truth-pass-p2p3--delivered-2026-08-11).
+- **Non-goals held:** no redesign, no new module, no retry raised, no test
+  weakened, no shard count changed without evidence.
 
 ### NEXT
 

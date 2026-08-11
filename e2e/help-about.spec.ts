@@ -67,10 +67,20 @@ test.describe("HELP-01 Help", () => {
     expect(text).toContain("AI");
     expect(text).toContain("Import");
     // X-04 shipped EXPORT and SET-02 shipped RESTORE, so both left this list.
-    // What remains missing is DalyHub taking copies on the owner's behalf, and
-    // this assertion is what stops that being quietly rounded up to "backed up".
+    // What remains missing is a restore point the owner can reach without doing
+    // anything, and this assertion is what stops that being quietly rounded up
+    // to "backed up".
     expect(text).not.toContain("cannot read one back in");
-    expect(text).toContain("Automatic backups on your behalf");
+    expect(text).toContain(
+      "A backup you can restore from without doing anything",
+    );
+    // AUDIT-FIX-05 — and the page must not DENY something it documents two
+    // topics earlier. It said "There is no AI in DalyHub yet" for the whole of
+    // the AI programme, directly below Help's own AI assistance topic, and
+    // offered a choice of five themes in a product that has had no theme feature
+    // since M3-01.
+    expect(text).not.toContain("There is no AI in DalyHub yet");
+    expect(text).not.toContain("choose from the five");
   });
 
   test("documents the export, and now the restore that reads it back", async ({

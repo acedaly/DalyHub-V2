@@ -243,6 +243,77 @@ describe("SelectField — replacing a selection without clearing it first", () =
 });
 
 /**
+ * DS-17 — a clear control says WHICH field it clears.
+ *
+ * Every populated select renders one, so a form with three of them used to have
+ * three buttons with one accessible name between them ("Clear selection",
+ * DEBT-112). A screen-reader user tabbing the Task quick-edit panel heard the
+ * same three words three times and could not tell which field each would empty.
+ */
+describe("SelectField — the clear control names its field", () => {
+  function renderTwoSelects() {
+    function Host() {
+      const [priority, setPriority] = useState("todo");
+      const [status, setStatus] = useState("done");
+      return (
+        <>
+          <SelectField
+            label="Priority"
+            options={OPTIONS}
+            value={priority}
+            onChange={setPriority}
+          />
+          <SelectField
+            label="Workflow status"
+            options={OPTIONS}
+            value={status}
+            onChange={setStatus}
+          />
+        </>
+      );
+    }
+    return render(<Host />);
+  }
+
+  it("gives two selects on one surface two distinguishable clear controls", () => {
+    renderTwoSelects();
+    // Named after the field, lower-cased, because the label is a fragment inside
+    // the command rather than a heading of its own.
+    expect(
+      screen.getByRole("button", { name: "Clear priority" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Clear workflow status" }),
+    ).toBeInTheDocument();
+    // …and nothing is left saying only "Clear selection".
+    expect(
+      screen.queryByRole("button", { name: "Clear selection" }),
+    ).toBeNull();
+  });
+
+  it("still clears the field it names, and only that field", () => {
+    renderTwoSelects();
+    fireEvent.click(screen.getByRole("button", { name: "Clear priority" }));
+    expect(screen.getByRole("combobox", { name: "Priority" })).toHaveValue("");
+    expect(
+      screen.getByRole("combobox", { name: "Workflow status" }),
+    ).toHaveValue("Done");
+  });
+
+  it("offers no clear control on a field that is already empty", () => {
+    render(
+      <SelectField
+        label="Priority"
+        options={OPTIONS}
+        value=""
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Clear priority" })).toBeNull();
+  });
+});
+
+/**
  * SETTINGS-LABEL — one setting, one control, one label.
  *
  * A `SettingsRow` already renders the setting's name beside its control, so a

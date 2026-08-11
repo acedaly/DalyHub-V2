@@ -208,6 +208,16 @@ export function TaskPlanningSection({
                 type="button"
                 variant="ghost"
                 disabled={pending}
+                /*
+                 * DS-17 — "Clear" alone is the ambiguity this pass exists to
+                 * remove, and this row has TWO clear controls once the picker is
+                 * open: this quick action and the inline field's own command.
+                 * The visible word stays "Clear" (it reads as one of four
+                 * one-press answers beside Today / Tomorrow / Next week, and
+                 * WCAG 2.5.3 needs the visible label inside the accessible one);
+                 * the accessible name says which of the two it is.
+                 */
+                aria-label="Clear plan"
                 onClick={() => void run(() => onClear())}
               >
                 Clear

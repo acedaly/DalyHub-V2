@@ -77,37 +77,63 @@ CI is defined in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
 and runs on pull requests and pushes to `main`. Playwright is by far the
 slowest part of the suite, so the workflow is split into independent jobs that
 run **concurrently** instead of one long sequential job, with Playwright itself
-sharded across multiple runners:
+sharded across multiple runners.
 
-| Job | What it does |
-| --- | --- |
-| **Static quality** | `format:check` → `lint` → `typecheck` |
-| **Unit & component tests** | `pnpm run test:unit` |
-| **Kernel tests** | `pnpm run test:kernel` (real Workers runtime + local D1) |
-| **Production build** | `pnpm run build`, then uploads `build/` as the `production-build` artifact |
-| **Playwright E2E** | A **14-way** matrix (`shard 1/14` … `14/14`); each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner |
-| **CI Gate** | Depends on every job above; the one stable required check (see below) |
+**Five names, and each one answers a different question.** #158 (2026-08-11)
+collapsed a 23-status pipeline into this, on the principle that a developer
+reading a red run should be able to tell what CLASS of thing broke without
+opening a job:
 
-All jobs start as soon as their own dependencies are met — static quality,
-unit tests, kernel tests and the production build have no dependency on each
-other and run in parallel; only the Playwright jobs wait on the build job (they
-need its artifact).
+| Job | What it does | What its red means |
+| --- | --- | --- |
+| **Scope** | Decides whether the change touches anything executable | (never red in practice — it fails open) |
+| **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `icons:check` | the source does not meet the repository's own rules |
+| **Unit** | `pnpm run test:unit`, then `pnpm run test:kernel` (real Workers runtime + local D1) | application or kernel logic is wrong |
+| **Build** | `pnpm run build`, `wrangler deploy --dry-run` against the generated config, then uploads `build/` as the `production-build` artifact | it does not build, or it would not deploy |
+| **E2E _n_/8** | An **eight-way** matrix; each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner | the product misbehaves in a real browser |
+| **CI Gate** | Depends on every job above; the one stable required check (see below) | something above is not green |
+
+`Static` and `Scope` have no `if:`, so they always run. `Unit`, `Build` and the
+E2E matrix are gated on `Scope`, which fails open in every direction that
+matters: a push to `main` never consults it, and an unresolvable diff, an empty
+diff or any error all resolve to "run everything". The **only** way to skip the
+expensive jobs is for the diff to resolve cleanly and for every changed path to
+be documentation or an image — and `CI Gate` cross-checks the skips it caused,
+so a broken scope job produces a red gate rather than a vacuously green one.
+
+The kernel suite is a STEP of `Unit` rather than a job of its own: it is a
+second `vitest` invocation against a second config, it shares that job's
+install exactly, and it was never on the critical path (E2E is). One fewer
+status and one fewer install, with no coverage lost — the step names still say
+which suite failed.
 
 ### Playwright sharding
 
-The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, … 14]`), not
-fourteen copy-pasted jobs, so changing the shard count is a one-line change.
+The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, … 8]`), not
+eight copy-pasted jobs, so changing the shard count is a one-line change.
 
-**The count is expected to keep rising, and rising is the correct response.** It
-has gone 3 → 5 → 7 → 10 → 14 as the suite grew, each time for the same measured
-reason and with the same remedy. The rule, recorded so it is not re-litigated:
-**when the worst shard approaches Playwright's `globalTimeout`, split finer —
-do not raise the ceiling.** Raising it pins the worst shard against whatever the
-new ceiling is, drags `timeout-minutes` up with it to preserve the ordering
-below, and hides a growing suite instead of distributing it. The 10 → 14 split
-(V2 release closure, 2026-08-01) followed shard 4 reaching the 900s ceiling with
-102 passed, **zero failed** and 1 never run, against ~79 minutes of total test
-time.
+**The count used to be expected to keep rising, and that rule was retired.** It
+went 3 → 5 → 7 → 10 → 14 → 18 as the suite grew, each split locally correct and
+each responding to the worst shard approaching Playwright's `globalTimeout` by
+slicing finer. What none of them checked was whether the extra slices were still
+buying parallelism. #158 measured it and they were not: on run `31445526789` six
+of the eighteen shards sat QUEUED for 5.5–7.0 minutes waiting for a runner, so
+past roughly twelve concurrent jobs the pool was saturated and the extra shards
+bought no wall-clock at all while costing a full setup each.
+
+**The rule now is: size the split against the RUNNER POOL first and the ceiling
+second, and re-derive the ceiling from measurement whenever the split changes.**
+Eight shards start in a single wave — measured again on run `31473135291`, where
+all eight began within seven seconds of each other and none queued — and
+Playwright's `globalTimeout` was re-derived to 25 minutes to match. Raising the
+ceiling to hide a growing suite is still wrong; raising it as the deliberate
+other half of a measured re-split is not the same act.
+
+**Browser lifetime is a sizing variable too, not just minutes.** Fewer, fatter
+shards give each shard's one long-lived Chromium more to survive, which is the
+axis [DEBT-125](../product/PRODUCT_DEBT.md) is about. See
+`scripts/measure-e2e-browser-rss.mjs` for how to measure it.
+
 The count has a **single source of truth**: both the job name and the
 `--shard=N/TOTAL` argument read `strategy.job-total`, which GitHub derives from
 the matrix list itself, so a `--shard` denominator can never drift out of step
@@ -176,13 +202,40 @@ distinction mattered: the report/trace upload steps were conditioned on
 artefacts at all and were invisible unless someone read the raw log
 ([DEBT-41](../product/PRODUCT_DEBT.md)). Three changes make that impossible:
 
-1. **More shards.** Three became five here; five later became seven, then ten,
-   then **fourteen** (V2 release closure, 2026-08-01). The table below is the
-   original three-to-five measurement, kept because it is what established the
-   ~70%-of-ceiling target every later split has been tuned to. The most recent
-   measurement, on run `30693899680` at ten shards, was 6m24 / 10m22 / 8m11 /
-   **15m01+ (ceiling reached, 1 test never run)** / 4m28 / 4m21 / 4m14 / 4m11 /
-   13m41 / 7m46 — about **79 minutes** of tests, which is why fourteen.
+1. **Enough shards, sized against the runner pool.** Three became five here;
+   five later became seven, ten, fourteen and eighteen; #158 then cut it to
+   **eight** on the queueing measurement above, and HARDEN-01 re-measured and
+   kept it there. The table below is the original three-to-five measurement,
+   kept because it is what established the ~70%-of-ceiling target every later
+   split has been tuned to.
+
+   Measured again on run `31473135291` (eight shards, `main` @ `3579100` — the
+   HARDEN-01 baseline). Test-step time per shard:
+
+   | shard | test time | outcome |
+   | --- | --- | --- |
+   | 1/8 | 15m32 | passed |
+   | 2/8 | 21m24 | failed |
+   | 3/8 | 16m22 | failed |
+   | 4/8 | **25m01** | failed — `globalTimeout`, tests never run |
+   | 5/8 | 8m54 | passed |
+   | 6/8 | 8m38 | passed |
+   | 7/8 | 11m51 | passed |
+   | 8/8 | **25m02** | failed — `globalTimeout`, tests never run |
+
+   Two facts, and they point in opposite directions, which is why the split was
+   NOT changed on this evidence:
+
+   - **The runner pool is satisfied.** All eight shards started within twenty
+     seconds of each other and none queued. Splitting finer would buy no
+     wall-clock and cost a full setup per extra slice — the exact mistake the
+     18-way split made.
+   - **The budget this measured is inflated by breakage, not by the suite.** A
+     failing test burns its whole timeout, and this run carried the deterministic
+     failures HARDEN-01 repaired. Shards 4 and 8 reaching the ceiling is a real
+     coverage gap and is recorded as one — but it must not be answered by
+     re-splitting until a GREEN run exists to measure. `playwright-report/results.json`
+     carries the per-test numbers when it does.
 
    Measured on run `30314062657` (five shards, all green):
 
@@ -205,10 +258,11 @@ artefacts at all and were invisible unless someone read the raw log
    test was moved, skipped or reweighted to reach these numbers — at this split
    or at any of the three since.
 2. **Playwright bounds itself first.** `playwright.config.ts` sets
-   `globalTimeout` to **15 minutes in CI**, below the job's
-   `timeout-minutes: 30` (raised from 20 once the `--with-deps` apt step was
-   observed taking up to ~9.5 minutes on a slow mirror, which was letting GitHub
-   reach its cap first and cancel — the exact outcome this ordering prevents). An overrunning shard is therefore stopped by
+   `globalTimeout` to **25 minutes in CI**, below the job's
+   `timeout-minutes: 40` (sized as 25 + the worst observed setup of ~9.5 minutes,
+   which is the `--with-deps` apt step stalling on a slow Ubuntu mirror, plus
+   margin — a job that GitHub cancels first uploads nothing, which is the exact
+   outcome this ordering prevents). An overrunning shard is therefore stopped by
    *Playwright*, which writes its HTML report, traces and screenshots and exits
    non-zero — a **failure**, with evidence — instead of by GitHub, which
    cancels the job and destroys it. The job timeout is a backstop for the whole
@@ -228,15 +282,23 @@ machine-readable when the shard split next needs revisiting. Revisiting it is a
 matter of editing the `shard:` list — nothing else — and re-reading that table.
 
 `fail-fast: false` keeps every shard's result reported — one red shard never
-cancels (and so never hides) the other four — and a re-run from the Actions UI
+cancels (and so never hides) the other seven — and a re-run from the Actions UI
 re-runs only the failed shard, so successful shards are never repeated.
 
-### Failure diagnostics
+### Failure diagnostics, and what a GREEN run costs
+
+**A successful run uploads nothing.** Both upload steps are conditioned on that
+shard's own step outcome, so a green pipeline produces no artifacts at all —
+no screenshot bundle, no video, no report. Screenshots are not regenerated by
+ordinary CI either: the `*-screenshots.spec.ts` capture passes are opt-in
+(`CAPTURE_SCREENSHOTS=1` / `CAPTURE_EVIDENCE=1`) and are ignored by the config
+entirely when nothing has opted in, so they do not even take up space in the
+shard split.
 
 On a shard failure, timeout or cancellation, that shard uploads its own
-uniquely-named artifacts — `playwright-report-shard-N` (the HTML report, which
-also carries `results.json`) and `playwright-test-results-shard-N` (raw
-traces/screenshots) — so one shard's failure output can never overwrite
+uniquely-named artifacts — `e2e-report-shard-N` (the HTML report, which also
+carries `results.json`) and `e2e-traces-shard-N` (raw traces and
+failure-only screenshots) — so one shard's failure output can never overwrite
 another's. Retention is bounded at 7 days. Blob-report merging into one
 combined HTML report was evaluated and deliberately **not** added: each
 shard's standalone report is already sufficient to diagnose that shard's
@@ -246,15 +308,15 @@ doesn't justify.
 To diagnose and rerun a failed shard:
 
 1. Open the failing shard's job in the Actions run, download its
-   `playwright-report-shard-N` artifact, and open `index.html` locally for the
+   `e2e-report-shard-N` artifact, and open `index.html` locally for the
    full trace/screenshot/step breakdown.
 2. Re-run just that job from the GitHub Actions UI ("Re-run failed jobs") once
    the underlying issue is fixed — the matrix means only the failed shard(s)
    re-run, not the whole suite.
 
-### The kernel test job
+### The kernel test step
 
-The kernel job runs the data-kernel suite inside the real Workers runtime with
+The kernel suite runs inside the real Workers runtime with
 an isolated local D1 (Miniflare); it applies the committed migrations to a
 fresh test database and uses **no** Cloudflare credentials or remote database.
 It covers the entity kernel **and** workspace isolation — including sequential
@@ -272,7 +334,7 @@ without sharing filesystem state across jobs, which CI does not do. What's
 fixed is the **duplication within a single job**: `pnpm run typecheck` no
 longer re-runs `wrangler types` itself — it only runs React Router typegen and
 `tsc -b`, reusing the `worker-configuration.d.ts` that same job's install
-already generated. Only the `static-quality` job runs `typecheck`, so this
+already generated. Only the `Static` job runs `typecheck`, so this
 removes one redundant `wrangler types` invocation, not five. If you edit
 `wrangler.jsonc` locally, run `pnpm cf-typegen` (or re-run `pnpm install`)
 before typechecking so the generated `Env` type reflects the change.
@@ -291,10 +353,14 @@ real failure, or the extra cache-key complexity, for the time it would save.
 
 ### Operational properties (apply to every job)
 
-- **Concurrency:** superseded runs on the same ref are cancelled (pull request
-  pushes cancel their own PR's in-flight run; unrelated PRs use different
-  refs and never cancel each other; pushes to `main` cancel a superseded
-  `main` run the same way).
+- **Concurrency:** superseded PULL REQUEST runs are cancelled — pushing a new
+  commit stops the obsolete run consuming runners, and unrelated PRs use
+  different refs so they never cancel each other. A push to `main` is
+  deliberately **never** cancelled: `cancel-in-progress` is
+  `github.event_name == 'pull_request'`. Merging twice in quick succession used
+  to cancel the FIRST merge's verification of `main` — the one run whose result
+  actually gates the branch — and a cancelled job is indistinguishable at a
+  glance from a failed one, so it quietly manufactured red on `main`.
 - **Least privilege:** the workflow declares `permissions: contents: read`.
 - **No Cloudflare credentials** are required or used — CI never deploys.
 - **Timeouts:** every job is bounded so a hang fails rather than runs forever.
@@ -304,11 +370,19 @@ real failure, or the extra cache-key complexity, for the time it would save.
 ### The required branch-protection check
 
 Branch protection should require the **`CI Gate`** check, not any individual
-job. `CI Gate` depends on every other job (`static-quality`, `unit-test`,
-`kernel-test`, `build`, and the full `playwright` matrix) and uses `if:
-always()` so it still runs — and fails — if any dependency fails, is
-cancelled, or doesn't run. This keeps one stable required-check name even as
-the internal job/matrix structure evolves.
+job. `CI Gate` depends on every other job (`Scope`, `Static`, `Unit`, `Build`
+and the full E2E matrix) and uses `if: always()` so it still runs — and fails —
+if any dependency fails, is cancelled, or doesn't run. This keeps one stable
+required-check name even as the internal job/matrix structure evolves, which is
+what let #158 collapse 23 statuses into six without touching a branch-protection
+rule.
+
+The gate accepts `skipped`, and only for the documentation-only path `Scope`
+creates. That acceptance is also what would let a BROKEN scope job wave a real
+change through with nothing but `Static` run — not hypothetical, since the first
+version of this pipeline did exactly that — so the gate cross-checks the scope
+decision against the skips it caused, and `Static`'s own result is asserted
+separately rather than being allowed to pass vacuously.
 
 `needs.<job>.result` collapses the whole Playwright matrix to a single value
 that is `success` only when **every** shard succeeded; a cancelled shard

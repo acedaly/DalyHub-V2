@@ -733,20 +733,106 @@ export async function runReleasePreflight({
 /* V2.0.1 — post-deploy health & version assertion.                           */
 /* -------------------------------------------------------------------------- */
 
-/** Where the public production health endpoint lives. Overridable for drills. */
+/** Where the production health endpoint lives. Overridable for drills. */
 export const DEFAULT_PRODUCTION_HEALTH_URL = "https://hub.daly.id.au/health";
 
 /**
+ * Send Cloudflare Access service-token credentials when the environment supplies
+ * them, so the health probe can reach the APPLICATION rather than the Access
+ * challenge. Absent — the ordinary case — the probe is unauthenticated and the
+ * challenge is interpreted rather than treated as a failure.
+ *
+ * Values are read straight into headers and never logged. A service token is the
+ * documented machine path through Access; it is not a bypass, and it does not
+ * weaken the policy for anyone else.
+ */
+export function accessServiceTokenHeaders(env = process.env) {
+  const id = (env.PRODUCTION_ACCESS_SERVICE_TOKEN_ID ?? "").trim();
+  const secret = (env.PRODUCTION_ACCESS_SERVICE_TOKEN_SECRET ?? "").trim();
+  if (id === "" || secret === "") return null;
+  return { "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret };
+}
+
+/**
+ * True when a response is Cloudflare Access intercepting the request, rather
+ * than DalyHub answering it.
+ *
+ * Access answers an unauthenticated browser-shaped request with a 302 to
+ * `<team>.cloudflareaccess.com/cdn-cgi/access/login/…`; some clients and paths
+ * see a 401/403 instead. Either way the body is Access's, not the Worker's.
+ *
+ * **`authenticated` narrows this deliberately.** When a service token was SENT,
+ * the probe was supposed to pass through Access and reach the application, so a
+ * bare 401/403 is the opposite of reassuring: it means the token was rejected,
+ * or the Worker's own auth is refusing a request it should serve. Treating that
+ * as "Access is doing its job" would convert a real, named failure into
+ * `{ ok: true, verified: false }` and let a deploy exit 0 without saying why the
+ * verification it was asked for did not happen. With a token in hand, only a
+ * redirect that NAMES Access counts as a challenge; everything else is a
+ * failure and is reported as one.
+ */
+export function isAccessChallenge(response, { authenticated = false } = {}) {
+  const status = Number(response?.status ?? 0);
+  const location =
+    typeof response?.headers?.get === "function"
+      ? (response.headers.get("location") ?? "")
+      : "";
+  const namesAccess = /cloudflareaccess\.com|\/cdn-cgi\/access\//.test(
+    location,
+  );
+  if (status >= 300 && status < 400) {
+    if (authenticated) return namesAccess;
+    // Unauthenticated: a redirect off this origin to the Access login is
+    // unambiguous, and a redirect with no readable Location still means the
+    // origin did not answer with the application — which, on an Access-protected
+    // hostname, is what it is.
+    return location === "" || namesAccess;
+  }
+  // A 401/403 is Access's ordinary answer to an unauthenticated non-browser
+  // request. It is NOT an acceptable answer to an authenticated one.
+  return !authenticated && (status === 401 || status === 403);
+}
+
+/**
  * Assert the deployed production application is the release we just shipped.
- * `/health` is public by design, so a Cloudflare Access redirect (3xx) is NOT a
- * valid health response — it means the endpoint is misconfigured behind Access,
- * and the check refuses rather than following the redirect to a login page that
- * returns 200. The payload must report the application name, the production
- * environment and EXACTLY the version being released (read from the single
- * version authority's mirror in `package.json`). The payload deliberately
- * carries no commit (it is public; the commit is on the authenticated About
- * screen), so build identity is asserted only if a `commit` field is present.
- * Retries briefly to ride out propagation. `fetcher`/`delay` are injectable.
+ *
+ * ── What an Access-protected origin can and cannot prove (corrected 2026-08-11)
+ * This check used to REFUSE a 3xx, on the stated grounds that "`/health` is
+ * public by design, so a Cloudflare Access redirect means the endpoint is
+ * misconfigured". That was wrong about this deployment, and measurably so:
+ * Cloudflare Access protects the whole `hub.daly.id.au` hostname — which is the
+ * origin hardening the rest of this file exists to enforce — so an
+ * unauthenticated `GET /health` answers `302` to the Access login. Under the old
+ * rule every successful deployment would have ended in a failed assertion, and
+ * the honest reading of that redirect is not "the Worker is broken" but "the
+ * Worker was not asked".
+ *
+ * So the outcome is deliberately THREE-valued, because there are three states
+ * and collapsing them is what produced the false rule:
+ *
+ *   - `verified: true`  — the application answered and reports exactly this
+ *     release. The strongest result, and the only one that proves WHICH build is
+ *     live. Reachable unauthenticated only if the hostname is not gated, and
+ *     otherwise by supplying an Access service token (see
+ *     {@link accessServiceTokenHeaders}).
+ *   - `verified: false` with `reason: "access-protected"` — Access answered.
+ *     The upload is not contradicted and the version is NOT confirmed; the
+ *     caller says so plainly rather than claiming a verification it does not
+ *     have. `ok` stays true because a protected origin is the intended
+ *     configuration, not a deployment fault.
+ *   - `ok: false` — anything else: an error status, a non-JSON body, a wrong
+ *     name/environment/status, a version that is not this release, or an
+ *     unreachable host.
+ *
+ * Set `PRODUCTION_HEALTH_REQUIRE_PUBLIC=1` (or pass `requirePublic`) to restore
+ * the strict rule for a deployment that genuinely exposes `/health` publicly —
+ * then an Access challenge IS a failure, because it would mean the bypass policy
+ * that was supposed to exist does not.
+ *
+ * The payload deliberately carries no commit (it is public; the commit is on the
+ * authenticated About screen), so build identity is asserted only if a `commit`
+ * field is present. Retries briefly to ride out propagation. `fetcher`/`delay`
+ * are injectable.
  */
 export async function assertProductionHealth({
   url = process.env.PRODUCTION_HEALTH_URL ?? DEFAULT_PRODUCTION_HEALTH_URL,
@@ -757,6 +843,8 @@ export async function assertProductionHealth({
   delayMs = 3000,
   delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log = console.log,
+  requirePublic = process.env.PRODUCTION_HEALTH_REQUIRE_PUBLIC === "1",
+  headers = accessServiceTokenHeaders(),
 } = {}) {
   const version =
     expectedVersion ??
@@ -766,11 +854,30 @@ export async function assertProductionHealth({
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const problems = [];
     try {
-      const response = await fetcher(url, { redirect: "manual" });
-      if (response.status >= 300 && response.status < 400) {
-        problems.push(
-          `${url} answered ${response.status} (a redirect — almost certainly Cloudflare Access). /health must be publicly reachable; an Access login page is not an application health response.`,
-        );
+      const response = await fetcher(url, {
+        redirect: "manual",
+        ...(headers ? { headers } : {}),
+      });
+      if (isAccessChallenge(response, { authenticated: headers !== null })) {
+        if (requirePublic) {
+          problems.push(
+            `${url} answered ${response.status} — Cloudflare Access intercepted the probe, but PRODUCTION_HEALTH_REQUIRE_PUBLIC=1 says this endpoint is supposed to be publicly reachable. Either the bypass policy is missing or the flag is wrong.`,
+          );
+        } else {
+          // Not a failure, and not a verification either. Say exactly that.
+          log(
+            headers !== null
+              ? `deploy:production — health NOT verified: ${url} answered ${response.status} and redirected to Cloudflare Access despite the service token, so the probe never reached the application. Check the token's Access policy.`
+              : `deploy:production — health NOT verified: ${url} answered ${response.status}, which is Cloudflare Access protecting the hostname (the intended configuration). The Worker upload is reported by Wrangler above; the RUNNING version is confirmed on the authenticated About screen, or here by supplying PRODUCTION_ACCESS_SERVICE_TOKEN_ID / _SECRET.`,
+          );
+          return {
+            ok: true,
+            verified: false,
+            reason: "access-protected",
+            status: response.status,
+            problems: [],
+          };
+        }
       } else if (!response.ok) {
         problems.push(`${url} answered HTTP ${response.status}.`);
       } else {
@@ -822,7 +929,7 @@ export async function assertProductionHealth({
       log(
         `deploy:production — health verified: ${url} reports DalyHub ${version} in production.`,
       );
-      return { ok: true, problems: [] };
+      return { ok: true, verified: true, problems: [] };
     }
     lastProblems = problems;
     if (attempt < attempts) {
@@ -832,7 +939,7 @@ export async function assertProductionHealth({
       await delay(delayMs);
     }
   }
-  return { ok: false, problems: lastProblems };
+  return { ok: false, verified: false, problems: lastProblems };
 }
 
 function fail(message, problems = []) {
@@ -1073,7 +1180,9 @@ async function main() {
   const verifyHealthOnly = process.argv.includes("--verify-health-only");
 
   // Standalone post-deploy verification (`pnpm run deploy:production:verify`):
-  // assert the LIVE production /health reports this release, and nothing else.
+  // probe the LIVE production /health, and nothing else. Exits non-zero only on
+  // a real health failure; an Access challenge is reported as the un-verified,
+  // expected state it is (see `assertProductionHealth`).
   if (verifyHealthOnly) {
     const health = await assertProductionHealth({
       expectedCommit: resolveBuildCommitFromGit(),
@@ -1190,10 +1299,13 @@ async function main() {
     process.exit(status);
   }
 
-  // 5. Post-deploy assertion (V2.0.1): the public /health must answer directly
-  //    (never via a Cloudflare Access redirect) and report this exact release.
-  //    A deploy whose health check fails exits non-zero so the failure is never
-  //    silent — the Worker is live, but it is not verified.
+  // 5. Post-deploy assertion (V2.0.1, corrected by HARDEN-01): probe `/health`
+  //    and report what it actually proves. On this deployment the hostname is
+  //    Access-protected, so an unauthenticated probe is answered by Access and
+  //    the release version is NOT confirmed — which is stated plainly rather
+  //    than either failing the deploy or being dressed up as a verification. A
+  //    genuine health failure (bad status, wrong version, unreachable) still
+  //    exits non-zero: the Worker is live, but it is not what was shipped.
   const health = await assertProductionHealth({
     expectedCommit: readiness.values.buildCommit,
   });
@@ -1201,6 +1313,11 @@ async function main() {
     fail(
       "the Worker was deployed but the production health assertion FAILED — investigate before trusting this release.",
       health.problems,
+    );
+  }
+  if (!health.verified) {
+    console.log(
+      "deploy:production — the upload succeeded and the running release was NOT confirmed from here. Finish the check as the owner: open /about through Cloudflare Access and confirm the version and commit (see docs/development/DEPLOYMENT.md → Verifying a deployment).",
     );
   }
   process.exit(0);
