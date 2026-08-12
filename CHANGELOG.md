@@ -17,6 +17,56 @@ no version number to group them under.
 
 ---
 
+## Type the routine, not the form (TASKS-11)
+
+Some jobs do not repeat on a calendar — they repeat _from the last time you did
+them_. Servicing the Hilux six months after the last service is not the same thing
+as servicing it every 1 March, and DalyHub has known the difference since Recurrence
+2.0. Until now you had to say so in the recurrence editor after capturing the task.
+
+Now you can say it in the sentence:
+
+```
+Service Hilux every 6 months after completion
+```
+
+That creates a task called **Service Hilux** that repeats **6 months after
+completion** — the same rule, in the same words, that you would have built by hand.
+Finish it on 18 August and the next one lands on 18 February; finish it late and the
+whole schedule moves with you, which is the entire point.
+
+Five other ways of saying it work as well — _after completed_, _after completing_,
+_after finishing_, _after I complete it_, _after I finish it_ — and you can lead with
+_repeat_ if that reads more naturally to you. It works everywhere you capture: the
+quick-add row, the Create panel, the full task form, and the Shortcut on your phone
+(so Siri and the Share Sheet too). There is nothing new to learn per surface, because
+there is only one thing to learn.
+
+Two smaller things came along with it. **Days now count** — "every 14 days" was
+oddly missing while "every 2 weeks" worked — and so does **every 1 month**, for when
+that is simply how you would say it.
+
+What has _not_ changed is the promise underneath. **"Pay rent every month" still
+means a fixed schedule**, and nothing but the words _after completion_ (or one of
+those five siblings) will ever move a task from one kind of repeat to the other.
+DalyHub does not guess:
+
+- _Discuss monthly report format_ is a task called exactly that.
+- _Research six month service intervals_ keeps all five words.
+- _Review tomorrow's agenda_ is not scheduled for tomorrow.
+- _Regularly check the camper_, _Service Hilux when needed_ and _do this every so
+  often_ become ordinary tasks with your words intact — no invented date, no invented
+  repeat, no project chosen for you.
+- _every 999999 months after completion_ is not a repeat; it is a sentence, and it
+  stays one.
+
+And when DalyHub does recognise something, it shows you: the interpretation appears
+as removable chips before you save, so you can always put a word back. None of this
+uses AI. It never has, and this part never will — capture has to work the same way
+every single time.
+
+---
+
 ## Today says which work is due and which you planned (TODAY-10)
 
 Today's Focus panel had one list called **For today**, and it held two different

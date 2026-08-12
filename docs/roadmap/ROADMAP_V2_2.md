@@ -520,6 +520,43 @@ HARDEN-01. No feature, no redesign. Full record:
 - **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no selector widened,
   no test deleted, no new feature, no new CI job, no production contact.
 
+### ☑ TASKS-11 - Deterministic natural-language capture v2 — **DELIVERED 2026-08-11**
+
+Extend the existing parser only where it is reliable and testable. **One** parser,
+**one** recurrence model, no AI, and no second capture system.
+
+- **After-completion recurrence is capturable in one sentence.** "Service Hilux
+  every 6 months after completion" creates the Task the recurrence EDITOR would
+  create: title `Service Hilux`, a `month`/`6` rule in the TASKS-07
+  `after_completion` mode. Six suffixes are recognised and no more — `after
+  completion`, `after completed`, `after completing`, `after finishing`, `after I
+  complete it`, `after I finish it` — with an optional `repeat`/`repeats` lead-in.
+- **The mode is never inferred.** "Pay rent every month" is still a FIXED schedule;
+  the only thing that selects the other mode is the owner saying so. A regression
+  suite asserts the distinction, and the two modes' late-completion behaviour is
+  proved through the real engine rather than restated.
+- **Two deterministic gaps closed while in there:** counted DAYS (`every 14 days`)
+  and an interval of one (`every 1 month`) are now read, in both modes. Both were
+  arbitrary parser-only limits; the bound is now the kernel's canonical 1–99.
+- **False positives stay bounded.** A phrase that cannot be fully recognised — an
+  interval outside 1–99, an after-completion suffix on a weekday-pinned rule, a
+  near-miss like "after completions" — is left as ORDINARY WORDS rather than
+  half-read, so the title is never damaged.
+- **No new recurrence representation and no new capture backend.** The parser emits
+  the existing structured rule, `/tasks/new` binds the existing mode field, and the
+  same sentence through `POST /api/capture` produces the same Task — the endpoint
+  gained no recurrence field, because natural-language capture through the shared
+  parser is what it is for.
+- **One anchor decision, made at submission.** An after-completion rule with no date
+  anywhere starts on the owner's today, but that is resolved by the shared
+  `resolveCapturedRecurrenceAnchor` *after* the surface's own date controls are merged
+  in — so a due date the owner picked on the form always wins, and no scheduled date
+  is invented alongside it. The CAPTURE-01 service now calls that same function
+  instead of its own copy of the date-kind logic.
+- **Non-goals held:** no AI, no fuzzy inference, no Project/Area/Goal guessing, no
+  new UI surface, and no ordinal monthly patterns (that remains TASKS-12).
+- Closes [DEBT-118](../product/PRODUCT_DEBT.md).
+
 ### ☑ TODAY-10 - Focus panel refinement - **DELIVERED 2026-08-12**
 
 The roadmap asked for a refinement **only if** the evidence showed the combined
@@ -564,16 +601,6 @@ surfaces. Two further defects were found in the same pass and fixed with it.
 
 ### NEXT
 
-### ☐ TASKS-11 - Deterministic natural-language capture v2
-
-Extend the existing parser only where it is reliable and testable.
-
-- Support after-completion recurrence phrases such as "Service Hilux every 6 months
-  after completion".
-- Keep AI out of ordinary capture; AI remains a later proposal layer, not a mutation
-  path.
-- Prove parser changes with unit tests and one route/browser capture journey.
-
 ### ☐ PWA-12 - Offline Task mutation slice
 
 Define and implement the first offline Task capability beyond capture.
@@ -586,7 +613,9 @@ Define and implement the first offline Task capability beyond capture.
 ### LATER
 
 - **TASKS-12 - Ordinal monthly recurrence**, only if owner routines need patterns
-  such as "first Monday of every month".
+  such as "first Monday of every month". TASKS-11 deliberately did NOT add it to the
+  capture grammar: the recurrence model has no ordinal rule to author, so a phrase
+  for it would have nowhere to go.
 - **Capture surfaces beyond the phone**, each of which is an authentication adapter
   plus a transport over the CAPTURE-01 contract rather than new capture
   infrastructure: a native iOS app, Apple Watch, a browser extension, a macOS

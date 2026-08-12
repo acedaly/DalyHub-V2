@@ -659,15 +659,48 @@ and removing one restores the user's words exactly as typed.
 | Explicit markers | `due tomorrow`, `on friday`, `due 15/11` |
 | ISO dates | `2026-09-15` |
 | Australian dates | `14/8`, `14/08/2026` (day-first; a bare day/month rolls forward a year when it has passed) |
-| Recurrence | `every day`, `every weekday`, `every Monday`, `every week`, `every month`, `every year`, and **any `every N weeks/months/years` with N between 2 and 99** (`every 3 weeks`, `every 6 months`) |
+| Recurrence (fixed schedule) | `every day`, `every weekday`, `every Monday`, `every week`, `every month`, `every year`, and **any `every N days/weeks/months/years` with N between 1 and 99** (`every 3 weeks`, `every 14 days`, `every 6 months`) |
+| Recurrence (after completion) — TASKS-11 | any counted or bare unit phrase above, followed by one of six suffixes: `after completion`, `after completed`, `after completing`, `after finishing`, `after I complete it`, `after I finish it` (`every 6 months after completion`). An optional `repeat` / `repeats` may lead the phrase. |
 
-Two rules keep it trustworthy:
+Three rules keep it trustworthy:
 
 - an **unmarked** calendar word is a date only when it **trails** the line ("Review the
   notes today"), never mid-sentence ("Review the today show notes"). A date anywhere
   else needs `due …` or `on …`;
 - recurrence phrases are consumed **before** the date pass, so "Water the plants
-  tomorrow every week" reads as a date AND a repeat rather than as prose.
+  tomorrow every week" reads as a date AND a repeat rather than as prose;
+- a recurrence phrase is read **whole or not at all**. If any part of it fails — an
+  interval outside the canonical 1–99, a unit the model does not count (`every 3
+  weekdays`), an after-completion suffix on a shape the kernel refuses (`every Monday
+  after completion`), or a near-miss the closed list does not contain (`after
+  completions`) — the ENTIRE phrase stays as ordinary words. Half-reading a rule is
+  how a title gets damaged, so it is not a state the parser has.
+
+**The scheduling MODE is never inferred (TASKS-11).** `Pay rent every month` is a
+fixed schedule; `Service water filter every 3 months after completion` is an
+after-completion interval; nothing about the frequency, the wording of the title or
+the kind of work moves a capture from one to the other. The only thing that selects
+`after_completion` is one of the six suffixes above, in so many words.
+
+Because an after-completion interval measures from the day the work is finished, its
+FIRST occurrence needs a start. That anchor is resolved at **submission**, not while
+parsing, by the shared `resolveCapturedRecurrenceAnchor`, which sees the parser's
+reading *and* whatever dates the surface supplies through its own controls. The order
+is fixed and every real date beats the implied one:
+
+1. an explicit `due …` in the text — the date the phrase attached to;
+2. a scheduled date, from the text or from the surface;
+3. a due date from the surface;
+4. **only** for an `after_completion` rule with no date anywhere, the owner's today.
+
+So typing `Service Hilux every 6 months after completion` into `/tasks/new` *and*
+picking a due date gives a rule that advances that due date, with no scheduled date
+invented on top of it. A FIXED repeat never reaches step 4 — `Pay rent every month`
+with no date carries `needsDate` and the rule is dropped rather than pinned to an
+arbitrary day of the month.
+
+Parsing itself invents nothing: `parseQuickCapture` reports what the SENTENCE said, so
+the same function is still the whole answer to "what does this text mean?".
 
 **The parser's vocabulary is wider than the quick-edit panel's option list, and
 that is deliberate (V2.0.1).** The recurrence MODEL accepts any interval 1–99
@@ -680,18 +713,26 @@ never flatten a rule it cannot re-encode. Before V2.0.1 the panel showed the raw
 `week:3` token with a false "no longer available" note, and displayed a
 weekday-pinned rule as plain "Every week" while any interaction silently
 rewrote it. Replacing the rule with a predefined option and removing it entirely
-both still work. Authoring a custom interval outside quick capture remains
-unbuilt and is recorded as
-[DEBT-66](../product/PRODUCT_DEBT.md); the recurrence model was **not** narrowed
-to the option list.
+both still work. Authoring a custom interval outside quick capture was
+[DEBT-66](../product/PRODUCT_DEBT.md), closed by TASKS-07's shared
+[`TaskRecurrenceEditor`](../../app/shared/task-record/TaskRecurrenceEditor.tsx); the
+recurrence model was **not** narrowed to the option list.
+
+The preview chip's wording comes from the SAME `taskRecurrenceLabel` the editor's
+summary, the task row and the record use — there is one recurrence formatter, so a
+captured rule reads identically wherever it is next seen (*Every 2 weeks*, *6 months
+after completion*).
 
 Dates resolve against the **owner's calendar day**, passed from the server (ADR-022) —
 never the browser's local date and never the CI runner's timezone.
 
 A recognised repeat is **applied, not merely previewed**: the shared
-`applyRecurrenceFields` helper puts it on the same `POST /tasks/new` submission, and
-the repository writes the rule in the same atomic create as the dates it repeats
-from. A phrase with no anchor date is dropped rather than given an invented one.
+`applyRecurrenceFields` helper puts it — frequency, interval, date kind, selected
+weekdays AND the scheduling mode — on the same `POST /tasks/new` submission, and the
+repository writes the rule in the same atomic create as the dates it repeats from. A
+phrase with no anchor date is dropped rather than given an invented one. Every value
+the parser produces goes through the same kernel validation manual authoring does;
+the parser has no constants of its own and can create no rule the editor could not.
 
 ### Recurrence storage
 
@@ -1672,3 +1713,104 @@ because it describes the list, so it belongs against it.
   390, in both appearances.
 - The TASKS-10 journeys are unchanged in intent and updated only where they
   drove a control that moved.
+
+---
+
+## Deterministic capture v2 (TASKS-11, 2026-08-11)
+
+TASKS-11 taught the existing parser one new idea — an explicit **after-completion**
+recurrence phrase — and closed two arbitrary gaps in the counted-interval grammar. It
+added no parser, no recurrence model, no capture backend and no AI. The whole change
+is in
+[`quick-capture.ts`](../../app/shared/task-record/quick-capture.ts) plus one bound
+field on the create route.
+
+### What the grammar gained
+
+| Phrase family | Example | Result |
+|---|---|---|
+| After-completion interval | `Service Hilux every 6 months after completion` | `month` / `6` / `after_completion` |
+| …with the other five suffixes | `… after completed`, `… after completing`, `… after finishing`, `… after I complete it`, `… after I finish it` | the same rule |
+| …with a lead-in | `Deep clean the oven repeat every 3 months after completion` | the same rule |
+| Counted DAYS | `Water plants every 7 days after completion` | `day` / `7` |
+| An interval of one | `Flush the tank every 1 month after completion` | `month` / `1` |
+
+The counted-unit set is exactly the kernel's four countable frequencies
+(days · weeks · months · years) and the interval bound is exactly the kernel's 1–99.
+There are no parser-specific limits to keep in step with the model.
+
+### Where a phrase is refused
+
+Refusal means the WHOLE phrase stays as ordinary words — never a partially applied
+rule, and never a damaged title:
+
+| Input | Why | Title |
+|---|---|---|
+| `every 999999 months after completion` | outside the canonical 1–99 interval | unchanged |
+| `every 3 weekdays after completion` | `weekday` is not a counted frequency | unchanged |
+| `every weekday after completion` | the kernel refuses that combination | unchanged |
+| `every Monday after completion` | an after-completion rule cannot be weekday-pinned | unchanged |
+| `every 6 months after completions` | not one of the six suffixes (the fixed `every 6 months` IS still read) | `… after completions` |
+
+### Ambiguity fails safe
+
+Language DalyHub cannot read with confidence produces an ordinary Task and nothing
+else — no invented date, no invented recurrence, and no guessed Project, Area or
+Goal. `Regularly check the camper`, `Service Hilux when needed`, `Do this every so
+often` and `Do this sometime next month` all create Tasks that keep every word the
+owner typed. That is CAPTURE-01's Inbox philosophy applied to grammar: the safe
+destination for something we do not understand is the owner's own words.
+
+False positives are the expensive failure, so the parser stays literal. `Discuss
+monthly report format`, `Research six month service intervals`, `Write notes about
+recurring tasks` and `Review tomorrow's agenda` are untouched: `monthly`, `six` and
+`tomorrow's` are not the vocabulary, and a word only leaves the title when it took
+part in a complete recognised phrase.
+
+### One parser, every surface
+
+There is one deterministic contract and one place it lives. The Tasks quick-add row,
+the global capture panel, `/tasks/new`'s full form, the phone capture sheet, the
+CAPTURE-01 HTTP endpoint (and therefore the Apple Shortcut, Siri and the Share
+Sheet) and inbound email all call `parseQuickCapture` and, where they submit a rule,
+the shared `applyRecurrenceFields`. TASKS-11 therefore improved all of them at once,
+and no surface has syntax of its own. `POST /api/capture` gained no recurrence field:
+its contract is natural-language capture through the shared parser, so the sentence
+is the whole input.
+
+### Authoring the existing model, not another one
+
+The parser produces a `TaskRecurrenceInput` and nothing else. It performs no
+recurrence arithmetic, stores no prose, and never re-reads the original sentence
+later — successor dates come from `nextTaskOccurrenceDate` exactly as they do for a
+rule built in the editor. `test/kernel/task-capture-language.test.ts` proves this
+literally: a captured rule and an editor-authored rule are read back from
+`task_recurrence_rules` and compared column for column.
+
+There is likewise ONE anchor decision. `resolveCapturedRecurrenceAnchor` decides which
+date a recognised rule advances, `applyRecurrenceFields` is a thin FormData writer over
+it, and the CAPTURE-01 service calls the same function rather than keeping the copy of
+that logic it used to have. A surface therefore cannot disagree with another about what
+a captured rule repeats from.
+
+### Evidence
+
+- `test/unit/tasks/quick-capture.test.ts` — the pre-existing grammar, unchanged.
+- `test/unit/tasks/quick-capture-after-completion.test.ts` — the TASKS-11 table:
+  positive families, the six suffixes and their near-misses, fixed-schedule
+  regression, composition with priority and dates, the interval bounds, and the
+  negative/ambiguous cases.
+- `test/unit/tasks/TasksQuickAdd.test.tsx` — the surface posts `recurrenceMode`.
+- `test/kernel/task-capture-language.test.ts` — persistence, structural equivalence
+  with the editor, successor computation in both modes, the dropped anchorless fixed
+  rule, and the same sentence through `POST /api/capture` in the owner's timezone.
+- `e2e/tasks-capture-language.spec.ts` — the browser journey: capture, read the rule
+  on the row and the record, complete, and find the successor six months from the
+  completion day; plus the fixed-schedule and untouched-sentence regressions.
+
+### Deliberately not added
+
+Ordinal monthly patterns (`first Monday of every month`) are TASKS-12 and were not
+given a phrase, because the recurrence model has no ordinal rule for one to author.
+Nothing here uses AI, and nothing here proposes: capture creates the Task the owner
+described, or it keeps their words.

@@ -101,11 +101,15 @@ export function TasksQuickAdd({
         body.set("commitmentState", interpretation.commitmentState);
       }
       // A recognised `every …` phrase is APPLIED here too, through the same shared
-      // mapping every capture surface uses.
-      applyRecurrenceFields(body, interpretation.recurrence, {
-        scheduledDate,
-        dueDate: interpretation.dueDate,
-      });
+      // mapping every capture surface uses. The owner's day is passed so an
+      // after-completion rule this row could not otherwise anchor gets its first
+      // occurrence — after the session's own scheduled date has been considered.
+      applyRecurrenceFields(
+        body,
+        interpretation.recurrence,
+        { scheduledDate, dueDate: interpretation.dueDate },
+        todayIso,
+      );
 
       let result: TasksCreateResult;
       try {
