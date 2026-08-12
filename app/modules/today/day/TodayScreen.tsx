@@ -13,12 +13,23 @@
  *   └────────────┘└────────────┘└────────────┘└────────────┘
  *   ┌───────────────────────────────────┐┌──────────────────┐
  *   │ Focus                             ││ Schedule         │
- *   │  overdue (tinted)                 ││  09:30 Standup   │
- *   │  due today                        │├──────────────────┤
- *   │                                   ││ Needs attention  │
- *   │                                   │├──────────────────┤
- *   └───────────────────────────────────┘│ Continue working │
- *                                        └──────────────────┘
+ *   │  OVERDUE                          ││  09:30 Standup   │
+ *   │   ▏Send the summary  Due 2 days ago│├──────────────────┤
+ *   │  DUE TODAY                        ││ Needs attention  │
+ *   │   ☐ Draft the notes    P1  Project │├──────────────────┤
+ *   │  PLANNED TODAY                    ││ Continue working │
+ *   │   ☐ Refactor the tokens    Project ││                  │
+ *   │  View all 14 tasks for today      ││                  │
+ *   └───────────────────────────────────┘└──────────────────┘
+ *
+ * ── WHY FOCUS HAS THREE BANDS (TODAY-10) ─────────────────────────────────────
+ * It had two: an unnamed run of slipped work, and one list called "For today".
+ * That list combined two different commitments and printed neither, so a task
+ * planned for today but not due for six weeks was indistinguishable from a
+ * deadline — while the SAME record on `/tasks?system=today`, which Today's own
+ * figure links to, read "Sun, 20 Sep". The bands say it once per group instead
+ * of once per row, which is what keeps the title dominant at 320px. The SET is
+ * unchanged; only its legibility is. See `day-view.ts` for the classifier.
  *
  * ── WHY THERE IS NO HERO ─────────────────────────────────────────────────────
  * There was one: a tinted, elevated summary carrying the same three counts. The
@@ -94,15 +105,19 @@ import {
   goalCheckInLabel,
 } from "~/shared/goal-progress";
 
+import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
+
 import {
   bucketDay,
   dayChips,
   dayProgress,
+  focusTodaySlice,
   greetingFor,
   dayPartForHour,
   nextUp,
   overdueLabel,
   overdueSlice,
+  tasksForTodayCount,
   type DayTask,
 } from "./day-view";
 import {
@@ -249,8 +264,84 @@ function TaskRow({
       >
         {task.title}
       </a>
+      {/*
+       * TODAY-10 — priority, and ONLY when the task has one.
+       *
+       * Focus orders by priority, so the row has to be able to explain its own
+       * position; without it the panel is a list in an order the owner cannot
+       * see. It is the SHARED `PriorityIndicator` the Tasks collection, the
+       * Waiting card and Search all draw — one appearance, one vocabulary, no
+       * Today-only priority treatment — and it renders NOTHING when the task is
+       * untriaged, which is most rows on most days. Priority never groups this
+       * panel and never tints a row: the Matrix is not coming back.
+       *
+       * It sits AFTER the title rather than before it so every title in the
+       * panel still starts at the same x — a list is read down its left edge,
+       * and a leading badge on some rows and not others is a ragged one.
+       */}
+      <PriorityIndicator
+        priority={task.priority}
+        className="dh-day-row__priority"
+      />
       {trailing}
     </li>
+  );
+}
+
+/**
+ * TODAY-10 — one named band of the Focus panel.
+ *
+ * A band is a heading and its rows, and nothing else: no card, no surface, no
+ * count beside the label. It renders only when it holds work, so the panel's
+ * shape follows the day rather than the model — a day with only deadlines is one
+ * labelled list, not one list and an empty heading.
+ *
+ * The label is an `h3` under the panel's own `h2`, which is what makes the
+ * headings a real outline for a screen reader: Focus → Overdue / Due today /
+ * Planned today.
+ */
+function FocusBand({
+  label,
+  tasks,
+  isDone,
+  onToggle,
+  taskHref,
+  onOpen,
+}: {
+  readonly label: string;
+  readonly tasks: readonly DayTask[];
+  readonly isDone: (task: DayTask) => boolean;
+  readonly onToggle: (task: DayTask, done: boolean) => void;
+  readonly taskHref: (id: string) => string;
+  readonly onOpen: (id: string) => void;
+}) {
+  if (tasks.length === 0) {
+    return null;
+  }
+  return (
+    <div className="dh-day-section">
+      <h3 className="dh-day-section__label">{label}</h3>
+      <ul className="dh-day-list">
+        {tasks.map((task) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            done={isDone(task)}
+            // The row's ONE trailing fact stays the Project or Area: "what is
+            // this part of?" is the question asked straight after "what is it?",
+            // and the band above already answered "why is it here today?".
+            trailing={
+              task.parent ? (
+                <span className="dh-day-row__meta">{task.parent.title}</span>
+              ) : null
+            }
+            onToggle={(next) => onToggle(task, next)}
+            openHref={taskHref(task.id)}
+            onOpen={() => onOpen(task.id)}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -351,12 +442,25 @@ export function TodayScreen({
   }, [data, overrides]);
 
   const progress = dayProgress(buckets);
+  /*
+   * TODAY-10 — the figure is the CANONICAL count, not the row count.
+   *
+   * "Tasks for today" links straight to `/tasks?system=today`, so it has to be
+   * that view's number. A Task due today that has also slipped its plan is filed
+   * under Overdue here and counted by that view there; deriving the figure from
+   * the membership rule rather than from the "for today" run is what stops the
+   * card and its own destination disagreeing.
+   */
+  const todayCount = tasksForTodayCount(buckets, data.todayIso);
   const chips = dayChips({
-    taskCount: buckets.today.filter((task) => !isDone(task)).length,
+    taskCount: todayCount,
     meetingCount: data.meetings.length,
-    overdueCount: buckets.overdue.length,
+    // A task completed this morning is not overdue work any more, however far
+    // its date has passed — it stays in the band, dimmed, but it is not counted.
+    overdueCount: buckets.overdue.filter((task) => !isDone(task)).length,
   });
   const overdue = overdueSlice(buckets.overdue);
+  const focus = focusTodaySlice(buckets);
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
 
   /*
@@ -569,67 +673,116 @@ export function TodayScreen({
 
             {hasDay ? (
               <div className="dh-today__sections">
-                {/* Overdue carries NO heading: the tint is the signal, and a
-                  heading would spend a row saying what the colour already says. */}
+                {/*
+                 * TODAY-10 — Overdue is now NAMED.
+                 *
+                 * UIX-01 left it headless on the reasoning that "the tint is the
+                 * signal, and a heading would spend a row saying what the colour
+                 * already says". That was sound while it was the only band. It is
+                 * not now: with "Due today" and "Planned today" labelled beneath
+                 * it, an unnamed first run reads as an unexplained preamble, and
+                 * the one band whose meaning is carried by COLOUR would be the one
+                 * with no words (AGENTS.md §15 — never colour alone). The label is
+                 * the same quiet uppercase divider its siblings take, so naming it
+                 * costs one small-caps line and makes it no louder.
+                 */}
                 {overdue.shown.length > 0 ? (
-                  <ul className="dh-day-list dh-day-list--overdue">
-                    {overdue.shown.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        done={isDone(task)}
-                        trailing={
-                          <span className="dh-day-row__due">
-                            {overdueLabel(task, data.todayIso)}
-                          </span>
-                        }
-                        onToggle={(next) => toggle(task, next)}
-                        openHref={taskHref(task.id)}
-                        onOpen={() => openTask(task.id)}
-                      />
-                    ))}
-                    {/* The remainder row is NOT a task row: it carries no
-                      completion control and opens a collection rather than a
-                      record. It says so in its class, so anything counting the
-                      day's overdue tasks — CSS, a screen reader's list, a
-                      regression test — is not counting the link that says how
-                      many were left out. */}
-                    {overdue.hidden > 0 ? (
-                      <li className="dh-day-row dh-day-row--more">
-                        <Link
-                          className="dh-day-row__more-link"
-                          to="/tasks?system=overdue"
-                        >
-                          +{overdue.hidden} more overdue
-                        </Link>
-                      </li>
-                    ) : null}
-                  </ul>
-                ) : null}
-
-                {buckets.today.length > 0 ? (
                   <div className="dh-day-section">
-                    <h3 className="dh-day-section__label">For today</h3>
-                    <ul className="dh-day-list">
-                      {buckets.today.map((task) => (
+                    <h3 className="dh-day-section__label">Overdue</h3>
+                    <ul className="dh-day-list dh-day-list--overdue">
+                      {overdue.shown.map((task) => (
                         <TaskRow
                           key={task.id}
                           task={task}
                           done={isDone(task)}
                           trailing={
-                            task.parent ? (
-                              <span className="dh-day-row__meta">
-                                {task.parent.title}
-                              </span>
-                            ) : null
+                            <span className="dh-day-row__due">
+                              {overdueLabel(task, data.todayIso)}
+                            </span>
                           }
                           onToggle={(next) => toggle(task, next)}
                           openHref={taskHref(task.id)}
                           onOpen={() => openTask(task.id)}
                         />
                       ))}
+                      {/* The remainder row is NOT a task row: it carries no
+                      completion control and opens a collection rather than a
+                      record. It says so in its class, so anything counting the
+                      day's overdue tasks — CSS, a screen reader's list, a
+                      regression test — is not counting the link that says how
+                      many were left out. */}
+                      {overdue.hidden > 0 ? (
+                        <li className="dh-day-row dh-day-row--more">
+                          <Link
+                            className="dh-day-row__more-link"
+                            to="/tasks?system=overdue"
+                          >
+                            +{overdue.hidden} more overdue
+                          </Link>
+                        </li>
+                      ) : null}
                     </ul>
                   </div>
+                ) : null}
+
+                {/*
+                 * TODAY-10 — the day's own work, in two named bands.
+                 *
+                 * "For today" was one list of two different commitments. A task
+                 * DUE today is a deadline; a task PLANNED for today is a choice
+                 * the owner made, and it may not be due for weeks — on the
+                 * heavy fixture a task due 20 September sat in "For today"
+                 * looking exactly like a deadline, while the same record on
+                 * `/tasks?system=today` plainly read "Sun, 20 Sep". Today was
+                 * the LESS clear of the two surfaces.
+                 *
+                 * The distinction is carried by the band, not by the row,
+                 * because the row's one trailing slot is already the Project —
+                 * and at 320px a row cannot hold a title, a date phrase AND a
+                 * project without the title losing. A band label states the
+                 * fact once for every row under it and costs no width at all.
+                 * Each band draws only when it has work, so the ordinary day
+                 * with nothing planned separately is one labelled list, not two.
+                 */}
+                <FocusBand
+                  label="Due today"
+                  tasks={focus.dueToday}
+                  isDone={isDone}
+                  onToggle={toggle}
+                  taskHref={taskHref}
+                  onOpen={openTask}
+                />
+                <FocusBand
+                  label="Planned today"
+                  tasks={focus.plannedToday}
+                  isDone={isDone}
+                  onToggle={toggle}
+                  taskHref={taskHref}
+                  onOpen={openTask}
+                />
+
+                {/*
+                 * The bound, stated rather than applied silently. It names the
+                 * TRUE size of the canonical view it links to, so following it
+                 * lands on a list of exactly the promised size.
+                 */}
+                {focus.hidden > 0 ? (
+                  <p className="dh-today__panel-foot">
+                    <Link
+                      className="dh-btn dh-btn--ghost"
+                      to="/tasks?system=today"
+                      data-testid="today-focus-view-all"
+                    >
+                      View all {todayCount} tasks for today
+                    </Link>
+                  </p>
+                ) : null}
+
+                {/* Overdue work but nothing actually ON today is a real and
+                    distinct state, and a panel that just stopped after the
+                    slipped rows implied the day was full. */}
+                {buckets.today.length === 0 ? (
+                  <p className="dh-today__quiet">Nothing else planned today.</p>
                 ) : null}
               </div>
             ) : (
