@@ -105,6 +105,8 @@
 
 .dh-inspector__body {
   flex: 1 1 auto;
+  /* MOBILE-01 — the surface a sticky child inside this panel paints over. */
+  --app-surface-current: var(--md-app-color-surface-card);
   overflow-y: auto;
   padding: var(--app-space-4);
 }
@@ -141,7 +143,7 @@
   border-left: 0;
   border-top-left-radius: var(--md-sys-shape-corner-large);
   border-top-right-radius: var(--md-sys-shape-corner-large);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--app-safe-area-bottom);
   animation: dh-inspector-sheet-in var(--md-sys-motion-duration-medium2)
     var(--md-sys-motion-easing-emphasized);
 }

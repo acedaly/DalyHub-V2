@@ -160,9 +160,9 @@
   flex-direction: column;
   gap: var(--app-space-2);
   padding: var(--app-space-3) var(--app-page-padding);
-  padding-inline-start: max(var(--app-page-padding), env(safe-area-inset-left));
-  padding-inline-end: max(var(--app-page-padding), env(safe-area-inset-right));
-  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  padding-inline-start: max(var(--app-page-padding), var(--app-safe-area-left));
+  padding-inline-end: max(var(--app-page-padding), var(--app-safe-area-right));
+  padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
   background: var(--md-app-color-surface-card);
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
@@ -279,7 +279,7 @@
 .dh-record-section:has(~ .dh-meeting-capturebar),
 .record-layout:has(~ .dh-meeting-capturebar) {
   padding-bottom: calc(
-    9rem + var(--app-bottomnav-height, 0px) + env(safe-area-inset-bottom)
+    9rem + var(--app-bottomnav-height, 0px) + var(--app-safe-area-bottom)
   );
 }
 
@@ -329,7 +329,7 @@
    * clear is the device's own safe area.
    */
   .dh-meeting-capturebar {
-    padding-inline-end: env(safe-area-inset-right);
+    padding-inline-end: var(--app-safe-area-right);
   }
 
   /* The live region takes the full width so an announcement never squeezes the
@@ -342,7 +342,7 @@
   .dh-record-section:has(~ .dh-meeting-capturebar),
   .record-layout:has(~ .dh-meeting-capturebar) {
     padding-bottom: calc(
-      5.5rem + var(--app-bottomnav-height, 0px) + env(safe-area-inset-bottom)
+      5.5rem + var(--app-bottomnav-height, 0px) + var(--app-safe-area-bottom)
     );
   }
 }

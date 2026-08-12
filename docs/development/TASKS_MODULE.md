@@ -278,6 +278,28 @@ and Time Sectors deep links remain valid.
 MOBILE-01 changes the CHROME above the list and adds one-tap edits to the rows.
 It changes no query, no view model, no mutation and no URL contract.
 
+**The 2026-08 iPhone daily-driver pass** (same identifier, the polish pass ON this
+platform — see
+[`MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md`](../design/MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md))
+changed three things here, and again no query, view model, mutation or URL:
+
+- **The phone row drops the `waiting-for` fact**, joining priority and repeat in the
+  narrow tier's drop list. It is authored as the `high` tier, so it survived a list
+  that only dropped `low` and `quiet` — and because the run is `flex: none` at that
+  width (deliberately: the title, not the date, must absorb the shrink), a long
+  waiting subject could not compress. Measured on the Project record: the run
+  reached 287px inside a 320px viewport and took the whole DOCUMENT 79px wide. The
+  run now also carries a ceiling, so no future high-tier field can repeat it. The
+  subject is unchanged on the Task record and in the row's overflow sheet.
+- **The row's "open" link is a full-height target.** It was a 22px strip inside a
+  45px row; it now takes symmetric block padding up to the target floor and gives
+  it back as negative margin, so no row grew. Padding rather than an overlay
+  because the link sits inside the `overflow: hidden` that draws its ellipsis.
+- **The quick-add placeholder drops "— press Enter" on a phone**, where it was cut
+  mid-word and, at 320 with a real Project name, cost the destination as well.
+  There is no Enter key to teach on a phone and the visible **Add** button says how
+  to commit; the field's accessible name is unchanged at every width.
+
 ### One row of controls, one shared sheet
 
 At phone widths the desktop system-view rail, the view switcher and the All-view

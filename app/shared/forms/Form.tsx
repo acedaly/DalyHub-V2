@@ -114,28 +114,44 @@ export interface FormActionsProps {
   readonly children: ReactNode;
   readonly className?: string;
   /**
-   * MOBILE-01 — pin the row to the bottom of its scroll container.
+   * Whether the commitment row pins to the bottom of its scroll container.
    *
-   * Use it for forms a user genuinely scrolls on a phone (a record's Details tab,
-   * a Meeting's follow-up), so the commitment is always in reach. The row is
-   * keyboard-safe and bottom-navigation-safe by construction (forms.css), so a
-   * consumer never measures anything.
+   *   `"phone"` (the DEFAULT) — sticky below `md`, static above it.
+   *   `true`                  — sticky at every width.
+   *   `false`                 — never sticky. For a row that is already inside
+   *                             something bottom-anchored (a `Sheet` footer), or
+   *                             one that is not a commitment at all.
    *
-   * Do NOT set it on a short form: a sticky bar over three fields is chrome that
-   * costs rows and earns nothing.
+   * ── Why the default changed (MOBILE-01, iPhone daily driver) ───────────────
+   * The first MOBILE-01 pass made this an opt-in and warned against setting it
+   * on a short form. Measured on this pass: three of the twenty-nine
+   * `FormActions` in the product had opted in. The other twenty-six put Save at
+   * the END of a scrolling column on a phone — so committing a new Person, a
+   * new Project, a Note's tags, an Asset's obligation or a Diary entry meant
+   * dismissing the keyboard, scrolling to the bottom, and only then reaching the
+   * button. "Save/Done must remain reachable" is not a property a form opts
+   * into; it is the baseline, and an opt-in that twenty-six consumers did not
+   * take is a default in the wrong place.
+   *
+   * The original warning was still right about ONE thing — a sticky bar over
+   * three fields is chrome — and it stays answered, by the phone-only scope and
+   * by the CSS: on a form shorter than its container the row never actually
+   * sticks, and the treatment it adds is the hairline and the safe-area padding
+   * a phone commitment row should carry anyway.
    */
-  readonly sticky?: boolean;
+  readonly sticky?: boolean | "phone";
 }
 
 /** The explicit actions row (Save / Cancel). Kept visually distinct and last. */
 export function FormActions({
   children,
   className,
-  sticky = false,
+  sticky = "phone",
 }: FormActionsProps) {
   const rootClassName = [
     "dh-form-actions",
-    sticky ? "dh-form-actions--sticky" : null,
+    sticky === true ? "dh-form-actions--sticky" : null,
+    sticky === "phone" ? "dh-form-actions--sticky-phone" : null,
     className,
   ]
     .filter(Boolean)

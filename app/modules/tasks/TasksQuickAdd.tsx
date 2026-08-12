@@ -29,6 +29,7 @@ import {
   applyRecurrenceFields,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
+import { useCompactViewport } from "~/shared/viewport";
 
 import type { TaskParentOption, TasksCreateResult } from "./tasks-contract";
 
@@ -65,6 +66,7 @@ export function TasksQuickAdd({
   const [refocus, setRefocus] = useState(false);
   const fieldId = useId();
   const errorId = useId();
+  const compact = useCompactViewport();
 
   const submit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -157,6 +159,24 @@ export function TasksQuickAdd({
     if (error) inputRef.current?.focus();
   }, [error]);
 
+  /*
+   * MOBILE-01 (iPhone daily driver) — the phone placeholder drops the hint.
+   *
+   * The full placeholder names the destination AND teaches the keystroke. On a
+   * phone there is no Enter key to teach and no room to teach it: measured at
+   * 390px the field cut "Add a task to Inbox — press Enter" mid-word to
+   * "…Inbox — press", which is the fastest path in the product introducing
+   * itself with a broken sentence, and at 320px with a real Project name it lost
+   * the destination as well. The phone keeps the half that carries meaning —
+   * WHERE the task will land — and the visible "Add" button beside it is what
+   * says how to commit. The accessible name (the visually-hidden label, "Task
+   * title") is unchanged at every width.
+   */
+  const destination = defaultParent ? defaultParent.title : "Inbox";
+  const placeholder = compact
+    ? `Add a task to ${destination}`
+    : `Add a task to ${destination} — press Enter`;
+
   return (
     <form
       className="dh-tasks-quickadd"
@@ -174,11 +194,7 @@ export function TasksQuickAdd({
         value={title}
         maxLength={512}
         disabled={busy}
-        placeholder={
-          defaultParent
-            ? `Add a task to ${defaultParent.title} — press Enter`
-            : "Add a task to Inbox — press Enter"
-        }
+        placeholder={placeholder}
         aria-describedby={error ? errorId : undefined}
         aria-invalid={error ? true : undefined}
         onChange={(event) => {

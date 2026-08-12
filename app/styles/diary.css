@@ -991,20 +991,49 @@
    * told it may, so seven 44px cells simply won the row and the controls after
    * them left the viewport (§55 — nothing may be unreachable at 390px).
    */
+  /*
+   * ── MOBILE-01 (iPhone daily driver) — the week gets its own line ───────────
+   *
+   * The one-row arrangement above did not do what its note claimed. MEASURED at
+   * 390px before this change: five of the seven days were on screen and
+   * Saturday and Sunday were scrolled out of the `__days` track with nothing to
+   * say so, and the days that WERE visible measured 26–36px wide against a 45px
+   * floor — the smallest targets in the product, on the control the Diary is
+   * navigated by. At 320px it was six of seven days at 26–35px. The arithmetic
+   * is simply not available: seven 45px days, two arrows, a picker and Today
+   * need 372px of a 358px content box at 390 and 288 at 320.
+   *
+   * So the row splits, and the split is the cheap half. `display: contents` on
+   * the bar lets its three children take part in the week's own flex line, so
+   * the arrows join the picker and Today on the CONTROL line — the line that
+   * already existed — and the seven days take the full width of a line of their
+   * own. Nothing is hidden, nothing scrolls, and every day is the same width.
+   *
+   * The residual, stated rather than papered over: a day is 51px at 390 and 57
+   * at 430 (both clear), and 41px at 320 — still short of the floor, because
+   * seven equal targets in a 288px content box cannot each be 45px. That is the
+   * same arithmetic the phone navigation bar records for itself at deep zoom.
+   * 41 is what the width allows, it is 58% larger than what this strip drew
+   * before, and the day is also reachable from the date picker beside it, which
+   * is a full-size control.
+   */
   .dh-diary-week {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: var(--app-space-1);
   }
 
   .dh-diary-week__bar {
-    flex: 1 1 auto;
-    min-inline-size: 0;
+    display: contents;
   }
 
   .dh-diary-week__days {
-    flex: 1 1 auto;
+    order: 4;
+    flex: 1 0 100%;
     min-inline-size: 0;
-    justify-content: space-between;
+    /* The days no longer overflow, so the track must not offer to scroll: a
+     * scroll container that never scrolls still swallows a horizontal drag. */
+    overflow-x: visible;
+    gap: var(--app-space-px);
   }
 
   .dh-diary-week__caption {
@@ -1012,19 +1041,54 @@
   }
 
   .dh-diary-week__end {
+    order: 2;
+    flex: 1 1 auto;
+    justify-content: flex-end;
     gap: var(--app-space-1);
   }
 
-  /* The days tighten so seven of them plus the controls fit a 390px viewport.
-   * The 44px TOUCH TARGET is untouched — the block size is the floor, and the
-   * inline size shrinks to the number it holds. */
+  /*
+   * Every day the same width, sharing the line equally — so the strip reads as
+   * a week rather than as seven boxes sized by their own digits.
+   *
+   * Stated on the `li`, which is what the `ol` actually lays out; the link is
+   * the `li`'s only child and fills it. Written on the link alone the rule did
+   * nothing at all — the days stayed content-sized at 26–35px, which is exactly
+   * the measurement this block exists to fix.
+   */
+  .dh-diary-week__days > li {
+    flex: 1 1 0;
+    min-inline-size: 0;
+    display: flex;
+  }
+
   .dh-diary-week__day {
+    flex: 1 1 auto;
     min-inline-size: 0;
     padding-inline: var(--app-space-1);
   }
 
+  /*
+   * The arrows bracket the control line.
+   *
+   * Ordered by their POSITION RELATIVE TO THE DAY LIST rather than by
+   * `:first-child` / `:last-of-type`, because either arrow can be absent (the
+   * navigator omits one at the ends of the available range) and a positional
+   * pseudo-class then matches the surviving arrow as BOTH — putting "previous
+   * week" on the right. `display: contents` on the bar does not change DOM
+   * sibling relationships, so the general sibling combinator still reads the
+   * markup correctly.
+   */
   .dh-diary-week__step {
-    min-inline-size: var(--app-space-8);
+    order: 1;
+  }
+
+  .dh-diary-week__days ~ .dh-diary-week__step {
+    order: 3;
+  }
+
+  .dh-diary-week__step {
+    min-inline-size: var(--app-space-10);
   }
 
   .dh-diary-timeline {
