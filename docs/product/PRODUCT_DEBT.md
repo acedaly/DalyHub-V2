@@ -1551,7 +1551,10 @@ undiagnosed, and the next occurrence owes evidence.
   PWA-12's**: `e2e/settings.spec.ts:68` fails identically with PWA-12's entire
   `app/` tree replaced by the parent commit's (`git checkout 9d422b5^ -- app/`),
   reproducibly, at `workers: 1` and `retries: 0`. It is a `main` failure that
-  PWA-12 happened to run into, not a regression it caused.
+  PWA-12 happened to run into, not a regression it caused. CI says the same
+  without needing the local reproduction: `E2E 8/8` is RED on `main` itself at
+  [`2bb4b81`](https://github.com/acedaly/DalyHub-V2/actions/runs/31531917741),
+  on this journey, with every other shard in that run green.
 - **Current issue.** "opens from navigation and persists owner/workspace
   preferences" times out at 30s. The trace's last completed step is the Diary
   default-mode assertion (`link "Timeline"` carries `aria-current`); the next

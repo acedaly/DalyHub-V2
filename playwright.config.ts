@@ -130,6 +130,25 @@ export default defineConfig({
    * axe-heavy stretch of the shard. Fewer, fatter shards is not a free trade
    * against a browser that has to survive all of them.
    *
+   * 2026-08-12, measured while landing PWA-12 — the headroom above is thinner
+   * than "~25%" reads, and the reason is worth stating before someone spends a
+   * day on it. `--shard` slices by test COUNT, not by cost, so ADDING A SPEC
+   * FILE ANYWHERE RE-SLICES EVERY SHARD. On `main` @ `2bb4b81` shard 4 drew 190
+   * tests and finished in 24.3 of its 25.0 minutes. PWA-12 added ten tests, the
+   * boundaries moved, shard 4's new draw pulled in `notes-knowledge`, `people`
+   * and `notes` together, and it hit the ceiling with 46 NEVER RUN — twice, on
+   * two commits, and again locally at `--shard=4/8` with 31 never run. Merging
+   * TODAY-10 moved the boundaries a third time and shard 4 went green at 22
+   * minutes. Nothing about the tests changed across any of that; only which
+   * slice they landed in did.
+   *
+   * So the worst shard is not 24.3 minutes of work — it is whatever the draw
+   * happens to concentrate, and a green run says only that THIS draw fits. Two
+   * consequences. A shard that overruns is not evidence of a slow new test
+   * until its draw has been compared against the previous one. And the
+   * re-derivation deferred above should size by per-shard TIME, not by leaving
+   * the count-based slicer to decide which shard gets the three heaviest files.
+   *
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
    */
