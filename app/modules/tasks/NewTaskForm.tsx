@@ -237,10 +237,16 @@ export function NewTaskForm({
       // TASKS-04: a recognised `every …` phrase is APPLIED, not merely previewed.
       // The route writes the rule in the same atomic create as the dates it repeats
       // from, and drops it if neither date is present rather than guessing one.
-      applyRecurrenceFields(body, interpretation.recurrence, {
-        scheduledDate,
-        dueDate,
-      });
+      //
+      // The form's OWN date controls are merged in above and passed here, so a date
+      // the owner picked is always the anchor a rule advances — TASKS-11's implied
+      // "starts today" is reached only when there is no date at all.
+      applyRecurrenceFields(
+        body,
+        interpretation.recurrence,
+        { scheduledDate, dueDate },
+        todayIso ?? null,
+      );
 
       let data: TasksCreateResult;
       try {

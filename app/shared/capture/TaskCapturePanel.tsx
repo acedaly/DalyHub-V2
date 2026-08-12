@@ -150,10 +150,18 @@ export function TaskCapturePanel({
       if (interpretation.scheduledDate) {
         body.set("scheduledDate", interpretation.scheduledDate);
       }
-      applyRecurrenceFields(body, interpretation.recurrence, {
-        scheduledDate: interpretation.scheduledDate,
-        dueDate: dueDate || null,
-      });
+      // The panel's OWN Due date control is merged in here, so a date the owner
+      // picked outranks the anchor TASKS-11 would otherwise imply for an
+      // after-completion rule.
+      applyRecurrenceFields(
+        body,
+        interpretation.recurrence,
+        {
+          scheduledDate: interpretation.scheduledDate,
+          dueDate: dueDate || null,
+        },
+        todayIso,
+      );
 
       let data: TasksCreateResponse;
       try {
