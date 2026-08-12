@@ -433,6 +433,68 @@ Full contract: [`UNIVERSAL_CAPTURE.md`](UNIVERSAL_CAPTURE.md).
 
 ---
 
+## Calendars (CAL-01, 2026-08-12)
+
+`/settings?section=calendars` is where the owner connects read-only external
+calendars. It sits in **Your data** beside Capture and AI, because what it really
+configures is what DalyHub reads from outside itself.
+
+Four groups: what this actually does (read-only, what is imported, how often),
+**Add a calendar**, **Your calendars**, and how to find a published link in
+Outlook and iCloud.
+
+### The link is a credential, and the surface is built so it cannot leak
+
+A published ICS link is the credential: anyone holding it can read that calendar.
+Two independent structural guarantees, not one careful habit:
+
+1. **`CalendarSourceView` has no URL, host or fingerprint field.** It is the type
+   the loader returns, so a feed address cannot cross into the browser even by
+   accident — there is nowhere to put it.
+2. **The repository's ordinary read does not `SELECT` the column.** Exactly one
+   method returns the sealed value, and only the synchroniser calls it.
+
+The link is accepted in one form field, sealed before it is stored, and never
+shown again — and the surface says so on screen rather than leaving it to be
+discovered when someone goes looking for an "edit link" control that does not
+exist. The field is cleared the moment the link is accepted.
+
+Asserted by `e2e/calendar.spec.ts`, which reads the rendered HTML and the visible
+text and requires neither to contain the address.
+
+### Validation happens BEFORE anything is stored
+
+`add` normalises and policy-checks the URL, then FETCHES and PARSES it, and only
+persists a source once the feed has genuinely produced a calendar. A source stored
+first and validated later is a source the owner has to discover is broken. The
+first refresh then runs immediately, so the schedule is populated by the time the
+owner reaches Today.
+
+### It says only what is true
+
+The one sentence under each calendar comes from `describeSyncState`, which
+distinguishes four genuinely different states — never synced (which is **not**
+"Connected"), synced *n* ago, failed with nothing ever having worked, and failed
+over an earlier success (which says both, because the events on screen are real
+but old). A paused calendar says so.
+
+### Mutations go through the canonical boundary
+
+`POST /settings/calendars/:action` (`add`, `rename`, `toggle`, `refresh`,
+`remove`) is a POST-only resource route with no `GET` — every action accepts or
+acts on a credential. Authenticated by Cloudflare Access with same-origin
+provenance already enforced at the request boundary, exactly like the Capture and
+Account & security endpoints.
+
+Failures are reported from a **closed message table**: a hostile feed can return
+anything at all, and none of it — not a body, not a header, not a status text —
+reaches a string the owner sees.
+
+Full contract:
+[`CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md`](../product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md).
+
+---
+
 ## The AI section (AI-01 / AI-04, 2026-08-05)
 
 `/settings?section=ai` is the owner's AI policy surface. It shows whether AI is

@@ -107,6 +107,9 @@ import {
 
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 
+import { DayNav } from "../schedule/DayNav";
+import { ScheduleList } from "../schedule/ScheduleList";
+
 import {
   bucketDay,
   dayChips,
@@ -128,7 +131,7 @@ import {
 import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
 import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
 import { activityTrendSummary, weekdayLabel } from "./trend-view";
-import type { DayMeeting, TodayDayData } from "./load";
+import type { TodayDayData } from "./load";
 
 export type TodayScreenProps = {
   readonly data: TodayDayData;
@@ -149,6 +152,13 @@ export type TodayScreenProps = {
    * Tasks collection and the Task Drawer edit.
    */
   readonly onCompleteTask?: (taskId: string, complete: boolean) => void;
+  /**
+   * CAL-01 — open an imported calendar occurrence's detail in Today's own
+   * Drawer. Supplied by the route, which owns the Drawer, exactly as the Task
+   * record already is.
+   */
+  readonly onOpenEvent?: (entryId: string) => void;
+  readonly eventHref?: (entryId: string) => string;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -358,37 +368,6 @@ function FocusBand({
   );
 }
 
-/**
- * One meeting row. Meetings are not checkboxes — they happen to you.
- *
- * M3X-02 restructured it into the approved direction's schedule idiom: the time
- * leads in tabular figures, a small marker stands where a task's completion
- * control would be, and the location sits UNDER the title rather than competing
- * with it at the row's trailing edge — which is where it was, ellipsised, on a
- * phone. The marker is a dot rather than the entity glyph because the row's
- * position in a timed run already says what it is, and a 20px glyph beside a
- * 20px checkbox one row above said it twice.
- */
-function MeetingRow({ meeting }: { readonly meeting: DayMeeting }) {
-  return (
-    <li className="dh-day-row dh-day-row--meeting">
-      <span className="dh-day-row__time">{meeting.timeLabel}</span>
-      <span className="dh-day-row__dot" aria-hidden="true" />
-      <span className="dh-day-row__stack">
-        <Link
-          className="dh-day-row__title"
-          to={`/meetings/${encodeURIComponent(meeting.id)}`}
-        >
-          {meeting.title}
-        </Link>
-        {meeting.context ? (
-          <span className="dh-day-row__meta">{meeting.context}</span>
-        ) : null}
-      </span>
-    </li>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /* The screen                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -397,6 +376,8 @@ export function TodayScreen({
   data,
   onCompleteTask,
   onUpdateGoal,
+  onOpenEvent,
+  eventHref,
 }: TodayScreenProps) {
   const [searchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
@@ -592,6 +573,11 @@ export function TodayScreen({
         </Link>
       </header>
 
+      {/* CAL-02 — the three daily surfaces. A restrained text rail directly
+          under the page's own heading block, exactly where every other
+          collection in DalyHub puts its principal-mode rail. */}
+      <DayNav active="today" />
+
       {/*
        * The day's figures, as quiet cards on the canvas.
        *
@@ -671,7 +657,7 @@ export function TodayScreen({
        */}
       <div
         className="dh-today__body"
-        data-columns={data.meetings.length > 0 ? 3 : 2}
+        data-columns={data.schedule.count > 0 ? 3 : 2}
       >
         <div className="dh-today__col dh-today__col--focus">
           <section
@@ -813,14 +799,24 @@ export function TodayScreen({
           </section>
         </div>
 
-        {/* The day's timed events, in their own region. Absent when the day
-            holds none — a "Schedule" heading over nothing is chrome, and
-            `data-columns` above drops its track with it. */}
-        {data.meetings.length > 0 ? (
+        {/*
+         * CAL-01 — the day's unified SCHEDULE, in its own region.
+         *
+         * Every occurrence from every enabled external calendar source, plus the
+         * DalyHub Meetings no occurrence already represents, in one chronology.
+         * It replaced a panel that held Meetings alone; the region, its heading
+         * and its position are unchanged, which is deliberate — CAL-01 adds the
+         * owner's real day to Today, it does not redesign Today (§16).
+         *
+         * Absent when the day holds nothing, and `data-columns` above drops its
+         * track with it: a "Schedule" heading over nothing is chrome.
+         */}
+        {data.schedule.count > 0 ? (
           <div className="dh-today__col">
             <section
               className="dh-today__panel"
               aria-labelledby="today-schedule-heading"
+              data-testid="today-schedule"
             >
               <div className="dh-today__panel-head">
                 <h2
@@ -830,11 +826,30 @@ export function TodayScreen({
                   Schedule
                 </h2>
               </div>
-              <ul className="dh-day-list">
-                {data.meetings.map((meeting) => (
-                  <MeetingRow key={meeting.id} meeting={meeting} />
-                ))}
-              </ul>
+              <ScheduleList
+                schedule={data.schedule}
+                onOpenEvent={onOpenEvent}
+                eventHref={eventHref}
+              />
+              {/*
+               * Freshness, stated only when it is NOT fine.
+               *
+               * A line saying "everything synced" on every visit is noise; a day
+               * built from a failed refresh that says nothing is a lie. So the
+               * panel is silent when the projection is current and says so
+               * plainly when it is not — and points at the place that can fix it.
+               */}
+              {data.scheduleStale ? (
+                <p className="dh-today__panel-foot">
+                  <Link
+                    className="dh-btn dh-btn--ghost"
+                    to="/settings?section=calendars"
+                  >
+                    A calendar did not refresh — showing the last schedule
+                    DalyHub loaded
+                  </Link>
+                </p>
+              ) : null}
             </section>
           </div>
         ) : null}

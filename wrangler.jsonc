@@ -75,6 +75,20 @@
       "migrations_dir": "migrations",
     },
   ],
+  // CAL-01: the external calendar refresh runs on the Worker's own Cron Trigger
+  // -- the same Worker, the same D1 binding, no new service to provision. Every
+  // 15 minutes is a deliberate bound on cost and on how hard DalyHub polls
+  // someone else's calendar server; the product says plainly that this is not
+  // realtime synchronisation. The handler is INERT unless the owner has added a
+  // calendar source, so a deployment that never uses the feature does no work.
+  //
+  // `wrangler dev` does not fire crons automatically; use
+  // `curl "http://localhost:5173/cdn-cgi/handler/scheduled"` to run one on
+  // demand, and Settings -> Calendars -> "Refresh now" for the ordinary path.
+  // Tests never depend on the trigger: they call the handler directly.
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
   // Named production environment (selected at build/deploy time with
   // `CLOUDFLARE_ENV=production`, driven by `pnpm run deploy:production`). It
   // commits ONLY the non-secret production switches and a placeholder D1 id.
@@ -108,6 +122,12 @@
         "AUTH_MODE": "cloudflare-access",
         // DEFAULT_WORKSPACE_ID is intentionally omitted here — the real
         // provisioned workspace id is injected at deploy time, never committed.
+      },
+      // Bindings and triggers are NOT inherited by named environments, so the
+      // production environment redeclares the CAL-01 cron explicitly. Without
+      // this line production would deploy with no calendar refresh at all.
+      "triggers": {
+        "crons": ["*/15 * * * *"],
       },
       "d1_databases": [
         {

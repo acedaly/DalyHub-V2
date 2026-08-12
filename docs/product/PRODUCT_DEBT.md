@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-127** (DEBT-126 was raised by PWA-12; DEBT-125 was raised by the CI reliability pass; DEBT-123…DEBT-124 were raised by UIX-04; DEBT-120…DEBT-122 were raised by UIX-03; DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-128** (DEBT-127 was raised by CAL-01; DEBT-126 was raised by PWA-12; DEBT-125 was raised by the CI reliability pass; DEBT-123…DEBT-124 were raised by UIX-04; DEBT-120…DEBT-122 were raised by UIX-03; DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. Both are now ☑ (the pagination one on 2026-08-01, the capture-context one on 2026-08-08). Do not issue DEBT-45 again.
   - **A near-miss, resolved the other way (2026-08-08).** PEOPLE-04/DIARY-02 and AUDIT-11 both issued **DEBT-105** in parallel. AUDIT-11 landed on `main` first, so it keeps the number and the PEOPLE-04/DIARY-02 entry was renumbered to **DEBT-106** on merge. That is the opposite of the DEBT-45 decision above, and deliberately so: DEBT-45 was renumbered-averse because it already had cross-references to break, whereas this entry was one commit old with a single self-reference. Renumber while it is cheap; record the collision when it is not.
   - **Twice more, resolved the same way (2026-08-08).** The V2.2 Tasks daily-driver programme and the August 2026 UI quality audit both issued **DEBT-107** in parallel, and the same programme's second entry collided with the audit's **DEBT-108**. The audit landed on `main` first, so it keeps both numbers and the V2.2 entries became **DEBT-109** and **DEBT-110** on merge. Two ADRs collided in the same merge for the same reason — `main` landed ADR-083 and ADR-084, so V2.2's became **ADR-085**. All four were a few commits old with cross-references only inside their own programme's documents, so renumbering stayed cheap. The pattern is now frequent enough to be worth naming: **two branches open at once will both reach for the next free number, and the file cannot stop them — only the merge can.** Take the next free ID as late as you can, and re-check it when you rebase.
@@ -1587,6 +1587,47 @@ undiagnosed, and the next occurrence owes evidence.
   with the cause named rather than the wait lengthened.
 - **Do NOT close by raising a timeout or adding a retry.** The step that hangs
   never completes; a longer budget would only take longer to fail.
+
+### ☐ DEBT-127 — A TASKS-11 timezone test fails for one hour of every UTC day — P3
+
+- **Status: raised 2026-08-12 by CAL-01,** which found it while running the full
+  kernel suite, and **confirmed it is not CAL-01's**: the failing file
+  (`test/kernel/task-capture-language.test.ts`) and every module it exercises
+  (`app/kernel/tasks`, `app/kernel/preferences`, `app/platform/capture`) are
+  untouched by CAL-01, and the same suite passed on the same tree ninety minutes
+  earlier. It is a `main` flake CAL-01 happened to run into.
+- **Current issue.** *"anchors the first occurrence in the OWNER's timezone, never
+  the machine's"* captures the same sentence for an owner in `Pacific/Kiritimati`
+  (UTC+14) and one in `Pacific/Midway` (UTC-11), then asserts their resolved
+  anchor dates are **exactly one day** apart. The two zones are **25 hours**
+  apart, so for one hour of every UTC day — 10:00–11:00 UTC — their calendar
+  dates are **two** days apart and the assertion fails:
+
+  | UTC | Kiritimati | Midway | gap |
+  |---|---|---|---|
+  | 09:30 | 2026-08-12 | 2026-08-11 | 1 day |
+  | **10:30** | **2026-08-13** | **2026-08-11** | **2 days** |
+  | 11:30 | 2026-08-13 | 2026-08-12 | 1 day |
+
+- **Impact.** Low, but corrosive in the way [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--every-deterministic-failure-repaired-2026-08-11-the-browser-crash-fix-now-reaches-the-browser-and-needs-runs)
+  names: a suite that is red for a reason unrelated to the change in front of it
+  teaches the next contributor to disbelieve it. It will fail roughly 4% of CI
+  runs, at a time of day nobody associates with the change being tested.
+- **The behaviour under test is CORRECT.** The product resolves the anchor in the
+  owner's timezone, which is exactly what the test's name claims and what its
+  first assertion (`forwardTask !== backTask`) proves. Only the *arithmetic* of
+  the second assertion is wrong.
+- **Desired future state.** Assert what the test is about — that the two anchors
+  DIFFER, and that each equals the owner-calendar today for its own timezone —
+  rather than a fixed gap between two zones whose gap is not fixed. Deliberately
+  not fixed here: it is a Tasks test and CAL-01 is a Calendar change, and editing
+  another module's assertions to make one's own run green is how a suite stops
+  meaning anything.
+- **Closing condition.** The test passes at every hour of the UTC day, proven by
+  running it against a fixed clock rather than by re-running it at a luckier time.
+- **Do NOT close by loosening it to `not.toBe`.** The 25-hour spread is the point
+  of the fixture; the assertion should state the owner-calendar date it expects
+  for each zone.
 
 ## Entry template
 

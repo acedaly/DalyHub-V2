@@ -18,6 +18,10 @@ import type {
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type {
+  CalendarSourceRepository,
+  ExternalCalendarEventRepository,
+} from "~/kernel/calendar";
+import type {
   CaptureRateLimiter,
   CaptureTokenRepository,
 } from "~/kernel/capture";
@@ -73,6 +77,14 @@ import {
   D1CaptureTokenRepository,
   type D1CaptureTokenRepositoryOptions,
 } from "./d1-capture-token-repository";
+import {
+  D1CalendarSourceRepository,
+  type D1CalendarSourceRepositoryOptions,
+} from "./d1-calendar-source-repository";
+import {
+  D1ExternalCalendarEventRepository,
+  type D1ExternalCalendarEventRepositoryOptions,
+} from "./d1-calendar-event-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
@@ -674,6 +686,37 @@ export function createCaptureRateLimiter(
   options?: D1CaptureRateLimiterOptions,
 ): CaptureRateLimiter {
   return new D1CaptureRateLimiter(db, context, options);
+}
+
+/**
+ * CAL-01 — the external calendar source store and the occurrence projection.
+ *
+ * Both are workspace-bound, so a source or an imported event can never be read
+ * outside the workspace it belongs to. Neither records Activity: a source is
+ * configuration and the events are a disposable projection, not history
+ * (ADR-012, CAL-01 §7).
+ */
+export {
+  D1CalendarSourceRepository,
+  type D1CalendarSourceRepositoryOptions,
+  D1ExternalCalendarEventRepository,
+  type D1ExternalCalendarEventRepositoryOptions,
+};
+
+export function createCalendarSourceRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1CalendarSourceRepositoryOptions,
+): CalendarSourceRepository {
+  return new D1CalendarSourceRepository(db, context, options);
+}
+
+export function createExternalCalendarEventRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1ExternalCalendarEventRepositoryOptions,
+): ExternalCalendarEventRepository {
+  return new D1ExternalCalendarEventRepository(db, context, options);
 }
 
 export function createAppPreferencesRepository(

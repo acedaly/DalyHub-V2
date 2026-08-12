@@ -239,13 +239,56 @@ export function focusBand(task: DayTask, todayIso: string): FocusBand | null {
   if (overdueReference(task, todayIso) !== null) {
     return "overdue";
   }
-  if (task.dueDate === todayIso) {
+  return dateBand(task, todayIso);
+}
+
+/**
+ * CAL-02 — the DUE/PLANNED half of {@link focusBand}, for a date that is not
+ * today.
+ *
+ * Extracted rather than reimplemented, because Tomorrow asks the same two
+ * questions Today does and must not acquire a second answer to them: a deadline
+ * that lands on the date is *Due*, an intention the owner set for the date and
+ * that is not also due then is *Planned*, a deadline outranks an intention, and
+ * work finished on another day is not this day's work.
+ *
+ * The OVERDUE branch is deliberately absent, and it is not an omission: "has it
+ * slipped?" is a question about the present, and nothing can have slipped
+ * relative to a date in the future. Today remains the product's only overdue
+ * attention surface (CAL-01 §20).
+ */
+export function dateBand(
+  task: DayTask,
+  dateIso: string,
+): "due" | "planned" | null {
+  if (task.completed && task.completedDate !== dateIso) {
+    return null;
+  }
+  if (task.dueDate === dateIso) {
     return "due";
   }
-  if (task.scheduledDate === todayIso) {
+  if (task.scheduledDate === dateIso) {
     return "planned";
   }
   return null;
+}
+
+/**
+ * CAL-02 — how many open Tasks a day carries, by the SAME union rule the
+ * canonical `/tasks?system=today` view and Today's Focus panel apply
+ * (`dueDate = date` OR `scheduledDate = date`).
+ *
+ * Next 7 Days shows this as one restrained line per day ("3 planned tasks"). It
+ * counts OPEN work only, because a forward agenda is about what is still to do,
+ * and a day whose work is already finished should read as a clear day.
+ */
+export function openTaskCountForDate(
+  tasks: readonly DayTask[],
+  dateIso: string,
+): number {
+  return tasks.filter(
+    (task) => !task.completed && dateBand(task, dateIso) !== null,
+  ).length;
 }
 
 /** P1 first, P4 last, untriaged after all of them. Never a computed score. */

@@ -20,12 +20,12 @@
 
 import { env } from "cloudflare:workers";
 import { useCallback, useMemo, useState } from "react";
-import { useFetcher, useRevalidator } from "react-router";
+import { useFetcher, useRevalidator, useSearchParams } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
-import { DrawerProvider } from "~/shared/drawer";
+import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { GoalCheckInSheet, goalCheckInLabel } from "~/shared/goal-progress";
 import { greetingNameFor } from "~/shared/shell/identity-display";
 import type { TaskActionData } from "~/shared/task-record/contract";
@@ -36,6 +36,8 @@ import { emptyDay, loadTodayDay, type TodayDayData } from "../day/load";
 import type { TodayGoal } from "../day/goal-progress";
 import { TodayScreen } from "../day/TodayScreen";
 import { createTodayDrawerRenderer } from "../TodayDrawer";
+import { eventDrawerKey } from "../schedule/EventDetail";
+import { createScheduleDrawerRenderer } from "../schedule/schedule-drawer";
 import type { Route } from "./+types/index";
 
 export function meta() {
@@ -167,10 +169,35 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
     return map;
   }, [loaderData.day]);
 
-  const renderTodayDrawer = useMemo(
-    () => createTodayDrawerRenderer(taskTitles),
-    [taskTitles],
+  /*
+   * CAL-01 — the imported calendar occurrences the day holds, so the SAME
+   * Drawer that opens a Task record can open an event's detail.
+   *
+   * The detail is rendered from data the page already loaded, so opening an
+   * event costs no request. The two resolvers are composed rather than merged:
+   * Today's owns Tasks and the keyboard reference, the shared schedule resolver
+   * owns events, and neither knows about the other's keys.
+   */
+  const scheduleEntries = useMemo(
+    () =>
+      new Map(
+        [
+          ...loaderData.day.schedule.allDay,
+          ...loaderData.day.schedule.timed,
+        ].map((entry) => [entry.id, entry] as const),
+      ),
+    [loaderData.day.schedule],
   );
+
+  const renderTodayDrawer = useMemo(() => {
+    const renderTask = createTodayDrawerRenderer(taskTitles);
+    const renderEvent = createScheduleDrawerRenderer(
+      scheduleEntries,
+      loaderData.day.dateLong,
+    );
+    return (entry: Parameters<typeof renderTask>[0]) =>
+      renderTask(entry) ?? renderEvent(entry);
+  }, [taskTitles, scheduleEntries, loaderData.day.dateLong]);
 
   const onCompleteTask = useCallback(
     (taskId: string, complete: boolean) => {
@@ -184,7 +211,7 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
 
   return (
     <DrawerProvider renderDrawer={renderTodayDrawer}>
-      <TodayScreen
+      <TodayBody
         data={loaderData.day}
         onCompleteTask={onCompleteTask}
         onUpdateGoal={(goal, trigger) => setCheckIn({ goal, opener: trigger })}
@@ -205,5 +232,42 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
         />
       ) : null}
     </DrawerProvider>
+  );
+}
+
+/**
+ * The screen, INSIDE the DrawerProvider — which is what lets a schedule row open
+ * the event detail through `useDrawer`, exactly as a Focus row opens a Task.
+ */
+function TodayBody({
+  data,
+  onCompleteTask,
+  onUpdateGoal,
+}: {
+  readonly data: TodayDayData;
+  readonly onCompleteTask: (taskId: string, complete: boolean) => void;
+  readonly onUpdateGoal: (goal: TodayGoal, trigger: HTMLElement | null) => void;
+}) {
+  const [searchParams] = useSearchParams();
+  const { openDrawer } = useDrawer();
+
+  const eventHref = useCallback(
+    (id: string) =>
+      `?${withDrawerPushed(searchParams, eventDrawerKey(id)).toString()}`,
+    [searchParams],
+  );
+  const onOpenEvent = useCallback(
+    (id: string) => openDrawer(eventDrawerKey(id)),
+    [openDrawer],
+  );
+
+  return (
+    <TodayScreen
+      data={data}
+      onCompleteTask={onCompleteTask}
+      onUpdateGoal={onUpdateGoal}
+      onOpenEvent={onOpenEvent}
+      eventHref={eventHref}
+    />
   );
 }

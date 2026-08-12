@@ -55,6 +55,30 @@ const routes: readonly RouteContribution[] = [
     path: "today/activity",
     file: "routes/activity.tsx",
   },
+  // CAL-02 Tomorrow: "what does tomorrow look like?", built from the SAME daily
+  // primitives Today uses — the shared schedule read and the shared Focus date
+  // classifier. No sidebar entry: it is reached from Today's own day rail, and a
+  // second dashboard in the sidebar is exactly what CAL-01 §19 forbids.
+  {
+    id: "today.tomorrow",
+    path: "today/tomorrow",
+    file: "routes/tomorrow.tsx",
+  },
+  // CAL-02 Next 7 days: a compact forward agenda over the same primitives. Not a
+  // month calendar, not a week grid, no drag-and-drop (§21, §45).
+  {
+    id: "today.upcoming",
+    path: "today/upcoming",
+    file: "routes/upcoming.tsx",
+  },
+  // CAL-03: the ONE endpoint that turns an imported calendar occurrence into a
+  // canonical DalyHub Meeting. A POST-only resource route with no nav entry and
+  // no GET, driven from the event detail drawer.
+  {
+    id: "today.schedule",
+    path: "today/schedule/:eventId/:action",
+    file: "routes/schedule.tsx",
+  },
   // PROJ-01 / ADR-033: the task record resource routes were re-homed to the Tasks
   // module (`/tasks/:taskId*`) so a task is edited the same way from Today AND a
   // Project. The browser drawer URL (`?drawer=task:<id>`) is unchanged.

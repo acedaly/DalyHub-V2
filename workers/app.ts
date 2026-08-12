@@ -9,8 +9,15 @@
 // service the HTTP endpoint uses. It is inert unless Cloudflare Email Routing is
 // configured to deliver to this Worker AND the capture addresses are configured,
 // so an ordinary deployment gains nothing it did not ask for.
+// Changes (CAL-01): add the `scheduled` handler so the external calendar refresh
+// runs on the SAME Worker with the SAME bindings, on a Cloudflare Cron Trigger.
+// No page request ever fetches a calendar feed.
 import { createRequestHandler } from "react-router";
 
+import {
+  runScheduledCalendarRefresh,
+  type ScheduledCalendarEnv,
+} from "~/platform/calendar/scheduled-refresh.server";
 import {
   handleCaptureEmail,
   type EmailCaptureEnv,
@@ -28,5 +35,15 @@ export default {
   },
   async email(message, env) {
     await handleCaptureEmail(message, env as unknown as EmailCaptureEnv);
+  },
+  // CAL-01: the background calendar refresh, on the Worker's own cron trigger.
+  // Same Worker, same bindings, no new infrastructure. It is inert unless a
+  // cron trigger is configured AND the owner has added a calendar source, so an
+  // ordinary deployment gains nothing it did not ask for. It never throws: a
+  // failed tick costs one tick, and the next is fifteen minutes away.
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      runScheduledCalendarRefresh(env as unknown as ScheduledCalendarEnv),
+    );
   },
 } satisfies ExportedHandler<Env>;

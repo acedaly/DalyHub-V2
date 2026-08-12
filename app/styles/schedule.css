@@ -1,0 +1,367 @@
+/*
+ * CAL-01 — the unified Schedule: agenda rows, the day rail, the Next 7 Days
+ * groups and the event detail.
+ *
+ * Every value is a DS-01 token (AGENTS.md §9.8). No hex, no raw pixel where a
+ * token exists, no colour taken from a calendar feed — a source's identity mark
+ * uses the SHARED Area accent ramp, which is the one colour allocation the
+ * design system audits for contrast in both appearances and all five schemes.
+ *
+ * It composes `today.css` rather than replacing it: a schedule row IS a
+ * `.dh-day-row`, so the day still reads as one column of events with several
+ * kinds in it. What is added here is the two-line time block, the source mark,
+ * the Now/Next word, the all-day region and the seven-day grouping.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* The day rail                                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Today · Tomorrow · Next 7 days sits directly under the page's heading block,
+ * where every other collection in DalyHub puts its principal-mode rail. The
+ * negative top margin pulls it up against the header, which is otherwise spaced
+ * for the stat row that follows it.
+ */
+.dh-schedule__nav {
+  margin-block-start: calc(-1 * var(--app-space-2));
+  margin-block-end: var(--app-space-4);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Agenda rows                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-schedule__row {
+  /* Top-aligned, so the time block stays level with the title's first line
+     rather than centring against a two-line stack. */
+  align-items: start;
+}
+
+/*
+ * The two-line time block: start over end, tabular, in a fixed slot.
+ *
+ * Fixed width so every start time in the day lines up on one axis whatever the
+ * digits are — the property that makes an agenda scannable rather than read.
+ * The end time is quieter than the start because "when does it begin" is the
+ * question a schedule is scanned for; the full range is still one glance away
+ * and is stated in words in the row's accessible name.
+ */
+.dh-schedule__time {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  inline-size: 3.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-schedule__time-start {
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+
+.dh-schedule__time-end {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+}
+
+/*
+ * The source identity mark.
+ *
+ * It stands exactly where a Task's completion circle and a Meeting's dot stand,
+ * at the same width, so the schedule and the Focus panel share one left edge.
+ * It is decorative: the source's NAME is in the row's supporting line and in its
+ * accessible name, so the colour never carries meaning alone (AGENTS.md §15).
+ */
+.dh-schedule__mark {
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  /* Optically centred against the title's first line box. */
+  margin-block-start: 0.4375rem;
+  margin-inline: calc((1.25rem - 0.5rem) / 2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+}
+
+.dh-schedule__mark[data-kind="meeting"] {
+  background: var(--md-sys-color-entity-meeting);
+}
+
+.dh-schedule__mark[data-accent="1"] {
+  background: var(--md-sys-color-accent-violet);
+}
+.dh-schedule__mark[data-accent="2"] {
+  background: var(--md-sys-color-accent-blue);
+}
+.dh-schedule__mark[data-accent="3"] {
+  background: var(--md-sys-color-accent-green);
+}
+.dh-schedule__mark[data-accent="4"] {
+  background: var(--md-sys-color-accent-amber);
+}
+.dh-schedule__mark[data-accent="5"] {
+  background: var(--md-sys-color-accent-teal);
+}
+.dh-schedule__mark[data-accent="6"] {
+  background: var(--md-sys-color-accent-coral);
+}
+
+@media (forced-colors: active) {
+  .dh-schedule__mark {
+    background: CanvasText;
+  }
+}
+
+/* The title and its state word share one line; the title takes the width. */
+.dh-schedule__headline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * "Now" / "Next" / "Cancelled" — a WORD, never a colour alone.
+ *
+ * Small, uppercase and quiet: it marks a row without turning the panel into a
+ * countdown. There is deliberately no timer here and nothing that re-renders on
+ * an interval (CAL-01 §17) — the state is resolved once, on the server, against
+ * the request instant.
+ */
+.dh-schedule__state {
+  flex: none;
+  padding-inline: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: calc(var(--md-sys-typescale-label-small-line-height) + 0.25rem);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  text-transform: uppercase;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-schedule__state[data-state="current"] {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.dh-schedule__state[data-state="next"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.dh-schedule__state[data-state="cancelled"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+/* A row already finished recedes; it is still there, because the day happened. */
+.dh-schedule__row[data-state="past"] .dh-day-row__title,
+.dh-schedule__row[data-state="past"] .dh-schedule__time-start {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* A cancelled event is struck AND says "Cancelled" — never one or the other. */
+.dh-schedule__row[data-cancelled="true"] .dh-day-row__title {
+  text-decoration: line-through;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/*
+ * The supporting line sits UNDER the title, so it does not compete with it for
+ * the same line and does not need `today.css`'s one-third cap.
+ *
+ * That cap exists for a Focus row, where the trailing Project name shares the
+ * title's line; a schedule row stacks them, and inheriting the cap truncated
+ * "Personal · High Street" to "Personal · ..." inside a 330px column while the
+ * line beneath it was empty.
+ */
+.dh-schedule__row .dh-day-row__meta {
+  flex: 1 1 auto;
+  max-inline-size: none;
+}
+
+/* The row's one inline affordance, present only once a Meeting exists. */
+.dh-schedule__action {
+  align-self: start;
+  color: var(--md-sys-color-primary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+}
+
+.dh-schedule__action:hover {
+  text-decoration: underline;
+}
+
+/*
+ * MOBILE-01 — the action's TOUCH target, paid for in padding rather than height.
+ *
+ * "Open notes" is a ~20px line inside a row that is already the right height, so
+ * it takes symmetric block padding up to the target floor and gives the same
+ * amount back as negative margin — the same technique MOBILE-01 applied to
+ * `.dh-day-row__title`, for the same reason: the row is laid out exactly as it
+ * was and no list grows by a pixel.
+ *
+ * Touch only. On a pointer device a 20px link is already an easy target.
+ */
+@media (hover: none) {
+  .dh-schedule__action {
+    padding-block: calc(0.5 * (var(--app-touch-target-min) - 1.25rem));
+    margin-block: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
+  }
+}
+
+/*
+ * The all-day region.
+ *
+ * Above the timed run, with its own heading, and never drawn at 00:00 in the
+ * timed column: an all-day item has no time and the feed never claimed one
+ * (CAL-01 §27). The rows have no time slot at all, which is what makes the
+ * distinction structural rather than a matter of formatting.
+ */
+.dh-schedule__allday {
+  margin-block-end: var(--app-space-3);
+}
+
+.dh-schedule__allday .dh-schedule__row {
+  align-items: center;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Next 7 days                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-upcoming {
+  display: grid;
+  gap: var(--app-space-4);
+  /* Each day is as tall as its own contents. Without this the grid stretches
+     every panel to its row's tallest, and a quiet Friday becomes a large empty
+     card beside a busy Thursday. */
+  align-items: start;
+}
+
+/*
+ * Two columns from the tablet boundary up, so a week of mostly-quiet days does
+ * not become a very long single column on a laptop — and one column on a phone,
+ * where a week is read by scrolling. Deliberately NOT a seven-column grid: that
+ * is a week timetable, which CAL-01 is not building.
+ */
+@media (min-width: 48rem) {
+  .dh-upcoming {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Each day is one quiet tonal surface with plain rows inside it — the same panel
+   the Today columns use, never a decorative card per event. */
+.dh-upcoming__day {
+  align-content: start;
+}
+
+.dh-upcoming__relative {
+  margin-inline-start: auto;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.dh-upcoming__tasks {
+  margin-block-start: var(--app-space-3);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Event detail (in the shared Drawer)                                         */
+/* -------------------------------------------------------------------------- */
+
+.dh-event-detail {
+  display: grid;
+  gap: var(--app-space-5);
+  padding: var(--app-space-5);
+}
+
+.dh-event-detail__facts {
+  display: grid;
+  gap: var(--app-space-3);
+  margin: 0;
+}
+
+.dh-event-detail__fact {
+  display: grid;
+  gap: var(--app-space-1);
+}
+
+.dh-event-detail__fact dt {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.dh-event-detail__fact dd {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  /* An external location can be long and is untrusted text; it wraps rather
+     than overflowing, and the row it came from already truncated it. */
+  overflow-wrap: anywhere;
+}
+
+.dh-event-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+}
+
+.dh-event-detail__error {
+  margin: 0;
+  color: var(--md-sys-color-error);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.dh-event-detail__note {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phone (320-430px)                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * MOBILE-01 — the row shape at 320px.
+ *
+ * The time slot narrows and the supporting line takes the full width under the
+ * title rather than competing with it for the same line, which is the only way
+ * a title stays the widest element on the row at 320px. Nothing is hidden: the
+ * source name, the location and the meeting affordance are all still there.
+ */
+@media (max-width: 30rem) {
+  .dh-schedule__time {
+    inline-size: 2.875rem;
+  }
+
+  .dh-schedule__headline {
+    flex-wrap: wrap;
+  }
+}

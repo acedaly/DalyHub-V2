@@ -654,6 +654,60 @@ surfaces. Two further defects were found in the same pass and fixed with it.
 - Contract, ordering, bounds, the Needs-attention boundary and the phone
   composition: [`TODAY_DASHBOARD.md → The Focus contract`](../development/TODAY_DASHBOARD.md#the-focus-contract-today-10-2026-08-12).
 
+### ☑ CAL-01 - Unified External Schedule (with CAL-02, CAL-03) - **DELIVERED 2026-08-12**
+
+Make Today truthful about the day it is describing, without making DalyHub a
+calendar application. Delivered as one bounded end-to-end change and accepted as
+[ADR-091](../decisions/ARCHITECTURE_DECISIONS.md#adr-091-external-calendars-as-a-read-only-projection--a-sealed-secret-kernel-primitive-an-rfc-5545-parser-at-the-edge-and-an-explicit-link-to-the-meeting-authority).
+
+The objective, in one sentence:
+
+> **DalyHub should know what is happening in the owner's day, without becoming
+> another calendar application.**
+
+- **Read-only ICS sources, configured in Settings.** Add a calendar with a name
+  and a published link -- no Cloudflare CLI, no environment edit, no provider
+  OAuth. Rename, pause, refresh, remove. Up to ten per workspace.
+- **The link is treated as the credential it is.** Sealed with AES-256-GCM under
+  a deployment secret through a new KERNEL primitive (`app/kernel/secrets`), and
+  structurally unable to reach the browser: the Settings view type has no URL
+  field and the repository's ordinary read does not select the column.
+- **SSRF is treated as a security control, not a form check.** HTTPS (and
+  `webcal:`) only, no credentials in the URL, port 443 only, no loopback /
+  private / CGNAT / link-local / unique-local / reserved target, redirects
+  followed manually and revalidated on every hop, body bounded while streaming.
+- **RFC 5545 parsed by `ical.js`** (MPL-2.0, recorded decision), at the platform
+  edge, server-only, verified in the real Workers runtime and verified absent
+  from the client bundle. Recurrence, `EXDATE`, moved instances, cancelled
+  instances, all-day items and DST all behave.
+- **Refresh is idempotent, isolated, atomic and silent.** Identity is
+  `(source, UID, RECURRENCE-ID)` -- never the title or the time -- so a renamed
+  or moved event updates a row rather than replacing it. One failing source never
+  affects another; a failed refresh keeps the previous projection and the UI
+  states its age rather than claiming success. Nothing appends Activity.
+- **Today gained one region, not a redesign.** TODAY-10's Focus contract is
+  untouched. The Schedule panel it already had now holds the unified day -- every
+  enabled source plus the Meetings no event represents -- with Now/Next as WORDS
+  and no countdown. Today issues no additional queries.
+- **Tomorrow and Next 7 days** reuse the same schedule read and the same Task
+  date classifier (TODAY-10's `focusBand` was split so its due/planned half is
+  shared rather than copied). Seven days is one read, not seven.
+- **An imported event can explicitly become a canonical Meeting**, through the
+  existing Meeting authority. The link is keyed on external identity, so it
+  survives refresh, rename, time change, cancellation, the event disappearing,
+  the projection being pruned, and the calendar source being removed -- and
+  "one Meeting per occurrence" is a database guarantee.
+- **Two real defects found by the tests and fixed:** a completed refresh was
+  blocking the next one (the claim shared a column with "last attempt"), and
+  Today's existing meeting row linked to `/meetings/:id` when the record route is
+  `/meeting/:id`.
+- **Non-goals held:** no Graph/OAuth/CalDAV/EWS, no two-way sync, no writing to
+  any calendar, no RSVP, no attendee import, no People from attendees, no
+  description import, no month or week grid, no drag-and-drop, no time blocking,
+  no Tasks generated from events, no notifications, no realtime, and no AI.
+- Full product and security documentation:
+  [`CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md`](../product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md).
+
 ### ☑ MOBILE-01 - iPhone daily-driver polish - **DELIVERED 2026-08-12**
 
 The V2.2 half of the LATER line "broader mobile polish after Tasks/Today acceptance
@@ -741,9 +795,9 @@ drifted module code back in.
 
 ### NEXT
 
-Empty. The three entries that stood here are delivered above — TASKS-11,
-PWA-12 and MOBILE-01 — and the next thing to pick up is in LATER, or is
-whatever the next audit finds.
+Empty. Every entry that stood here is delivered above — TASKS-11, PWA-12,
+MOBILE-01 and CAL-01 — and the next thing to pick up is in LATER, or is whatever
+the next audit finds.
 
 ### LATER
 
@@ -757,12 +811,12 @@ whatever the next audit finds.
   Shortcut or Raycast command, Pushover.
 - **Review Inbox with AI** - a proposal-shaped triage capability over what capture
   collected. Explicitly separate from capture, which must never depend on a provider.
-- **Attachment capture, inbound calendar sync and a broader external CRUD API** -
-  each a real capability, none of them input, and none of them a CAPTURE-01 defect.
+- **Attachment capture and a broader external CRUD API** - each a real capability,
+  none of them input, and none of them a CAPTURE-01 defect. (Inbound calendar sync
+  shipped as **CAL-01 - Unified External Schedule** above.)
 - ~~Broader mobile polish after Tasks/Today acceptance is stable.~~ Delivered as
   **MOBILE-01 - iPhone daily-driver polish** above. What it deliberately left is
-  recorded as debt in that item's evidence document, not re-listed here.
-- Richer review surfaces after daily capture and attention are trusted. (The
+  recorded as debt in that item's evidence document, not re-listed here.- Richer review surfaces after daily capture and attention are trusted. (The
   **Analytics** half of this line shipped in UIX-05, and shipped early precisely
   because it turned out to need nothing new: every figure it shows comes from a
   read REVIEW-03 and AREA-03 had already built and already trusted. What stays

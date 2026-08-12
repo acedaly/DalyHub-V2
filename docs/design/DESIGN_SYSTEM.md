@@ -728,7 +728,7 @@ on, so it is a table rather than prose.
 | Chip row | any chip qualifies |
 | Overdue band | any overdue task. **Named** since TODAY-10 — see below |
 | `+{n} more overdue` | more than 3 overdue |
-| Meetings section | any meeting today |
+| Schedule region | the day's unified schedule holds anything (CAL-01) |
 | Due today band | any task whose DUE date is today |
 | Planned today band | any task planned for today that is not also due today |
 | `View all {N} tasks for today` | the day's own rows exceed the 8-row bound |
@@ -785,6 +785,67 @@ An overdue row's trailing label names WHICH date slipped ("Due 3 days ago" /
 A task completed earlier today stays in the day's list, **dimmed and struck at
 the end** — not omitted. The progress denominator counts it, and a denominator
 whose parts you cannot see is a number the owner has to take on trust.
+
+### The Schedule region (CAL-01)
+
+Today's third region answers *what is happening today?*, beside Focus's *what
+needs my attention today?*. It holds **one chronology**: every occurrence from
+every enabled external calendar source, plus the DalyHub Meetings that no
+occurrence already represents. Two lists would give the owner two chronologies of
+one day to reconcile — and a Meeting created FROM an event would appear in both.
+
+**CAL-01 added a region; it did not redesign Today.** The Focus contract above is
+untouched, the stat row is untouched, and the region, its heading and its position
+are the ones the Meetings panel already occupied.
+
+**The row.** A leading two-line time block (start over end) in tabular figures in a
+fixed slot, a source accent mark exactly where a Task's completion circle stands,
+then the title with one quiet supporting line (source · location) beneath it. The
+day therefore reads as ONE column of events with several kinds in it, sharing one
+left edge with Focus.
+
+| Rule | Why |
+|---|---|
+| All-day items sit in their own labelled band **above** the timed run, with no time slot at all | an all-day item has no time, and drawing it at 00:00 would be an invented claim |
+| Times are formatted in the **owner's** timezone | a merged chronology showing each row in its source's local time would put 09:00 below 17:00 |
+| **Now** / **Next** are WORDS, not colours, awarded to at most one row each, and only on the owner's actual today | never colour alone (§Accessibility); "Now" on Thursday's page would be false |
+| Now/Next are resolved ONCE on the server against the request instant | no countdown, nothing re-rendering on an interval, no notification |
+| **Next** skips a cancelled event | pointing at a cancelled 10:00 is worse than pointing at nothing |
+| A cancelled event is struck through **and** labelled "Cancelled" | it is kept, because "the 10:00 is cancelled" is what the owner needs on the day |
+| The row's only inline action is **Open notes**, and only once a Meeting exists | most rows are not meetings; "Create meeting notes" lives in the event's detail sheet, one tap away |
+| Source colour comes from the shared **Area accent ramp** by stable creation rank | never a colour from the feed: those are chosen against another product's surfaces and are unaudited here |
+| The source's **name** is beside the mark and in the row's accessible name | the mark is decorative |
+| Freshness is stated only when it is NOT fine | a line saying "everything synced" on every visit is noise; a day built from a failed refresh that says nothing is a lie |
+
+**Ordering:** all-day first; then timed by start instant; then, for identical
+starts, the shorter item first; then title, then id — so the sort is total and
+identical on the server and in the browser.
+
+**Phone (320–430px).** The supporting line takes the full width under the title
+rather than competing with it, and the time slot narrows to 2.875rem. Nothing is
+hidden: the source, the location and the meeting affordance are all still there.
+
+### The day rail: Today · Tomorrow · Next 7 days (CAL-02)
+
+Three destinations, drawn with the shared `ViewTabs` rail directly under the
+page's heading block — where every collection in DalyHub puts its principal-mode
+rail. `ViewTabs` gained an optional per-tab `to` path for this: these are three
+routes rather than three values of one search param, and the object is otherwise
+identical (text, indicator, `aria-current="page"`, native link keyboard
+behaviour). Not a segmented control — that is for a bounded toggle over one view
+of the same data — and deliberately not a date picker, which is the first step
+towards a month grid.
+
+**Tomorrow** reuses the same schedule read and the same Task date classifier as
+Today (TODAY-10's `focusBand` was split so its due/planned half is shared rather
+than copied), and deliberately carries no overdue band, no attention rail and no
+progress: nothing can have slipped relative to a future date, and Today remains
+the one overdue attention surface.
+
+**Next 7 days** is seven day groups, each with the day's schedule and one
+restrained line ("3 planned tasks") — a COUNT, not a list. Two columns from the
+tablet boundary up; deliberately not a seven-column grid, which is a week
+timetable.
 
 ### Rail inclusion rules
 

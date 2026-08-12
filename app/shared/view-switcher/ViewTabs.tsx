@@ -40,10 +40,25 @@ import { Link, useSearchParams } from "react-router";
 export type ViewTabOption = {
   readonly value: string;
   readonly label: string;
+  /**
+   * CAL-02 — an explicit destination PATH, for a rail whose tabs are different
+   * routes rather than different values of one search param.
+   *
+   * Today / Tomorrow / Next 7 days are three pages, not three readings of one
+   * collection, so the rail that names them has to link to paths. Added here
+   * rather than as a second rail component: the object is identical — text with
+   * an indicator under the current one, `aria-current="page"`, native link
+   * keyboard behaviour — and only where it points differs. When `to` is present
+   * `param`/`value` are ignored for that tab.
+   */
+  readonly to?: string;
 };
 
 export type ViewTabsProps = {
-  /** The search param the rail drives (e.g. `state`). */
+  /**
+   * The search param the rail drives (e.g. `state`). Ignored by tabs that
+   * supply their own `to` path.
+   */
   readonly param: string;
   readonly options: readonly ViewTabOption[];
   /** The active value, already resolved by the caller from the URL. */
@@ -90,7 +105,7 @@ export function ViewTabs({
         return (
           <Link
             key={option.value}
-            to={query.length > 0 ? `?${query}` : "?"}
+            to={option.to ?? (query.length > 0 ? `?${query}` : "?")}
             className="dh-viewtabs__tab"
             aria-current={option.value === value ? "page" : undefined}
             preventScrollReset

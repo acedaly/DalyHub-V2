@@ -24,6 +24,10 @@ import {
 import type { AiPreferencesRepository, AiUsageRepository } from "~/kernel/ai";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type {
+  CalendarSourceRepository,
+  ExternalCalendarEventRepository,
+} from "~/kernel/calendar";
+import type {
   CaptureRateLimiter,
   CaptureTokenRepository,
 } from "~/kernel/capture";
@@ -86,8 +90,10 @@ import {
   createAiPreferencesRepository,
   createAiUsageRepository,
   createAlignmentRepository,
+  createCalendarSourceRepository,
   createCaptureRateLimiter,
   createCaptureTokenRepository,
+  createExternalCalendarEventRepository,
   createReviewInsightRepository,
   createAppPreferencesRepository,
   createAreaRepository,
@@ -306,6 +312,23 @@ export interface WorkspaceScope {
    */
   readonly captureTokens: CaptureTokenRepository;
   readonly captureRateLimit: CaptureRateLimiter;
+  /**
+   * CAL-01 — the external calendar sources the owner has configured, and the
+   * read-only projection of their occurrences.
+   *
+   * Both are workspace-bound, so neither has a method that takes a workspace and
+   * no request can name one (ADR-010). `calendarSources` is the ONLY repository
+   * in this scope that stores a third-party credential, and it stores it sealed:
+   * its ordinary reads do not select the column at all, so a loader cannot leak
+   * a feed URL into the browser even by accident.
+   *
+   * Neither records Activity. A source is configuration and the events are a
+   * disposable projection rebuilt from the feed on every refresh — appending to
+   * the one Activity stream four times an hour would drown the events that
+   * genuinely are the owner's history (ADR-012, CAL-01 section 7).
+   */
+  readonly calendarSources: CalendarSourceRepository;
+  readonly calendarEvents: ExternalCalendarEventRepository;
   /**
    * The IDENT-01 READ-ONLY actor directory: resolves a batch of Activity actor
    * references to display identities in one bounded query. EVERY surface that
@@ -573,6 +596,10 @@ export function bindWorkspaceRepositories(
   // `workspaceEvents` above, into the one Activity stream (ADR-012).
   const captureTokens = createCaptureTokenRepository(env.DB, context);
   const captureRateLimit = createCaptureRateLimiter(env.DB, context);
+  // CAL-01 — the calendar source store and the occurrence projection. No actor:
+  // neither records Activity (see the interface above).
+  const calendarSources = createCalendarSourceRepository(env.DB, context);
+  const calendarEvents = createExternalCalendarEventRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   const reviewInsights = createReviewInsightRepository(env.DB, context);
   // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
@@ -633,6 +660,8 @@ export function bindWorkspaceRepositories(
     actors: members,
     captureTokens,
     captureRateLimit,
+    calendarSources,
+    calendarEvents,
     alignment,
     reviewInsights,
     appPreferences,

@@ -87,6 +87,16 @@ import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search
 import { ExportDownloads } from "../ExportDownloads";
 import { CaptureSection, type CaptureSettingsData } from "../CaptureSection";
 import { toCaptureDeviceView } from "./capture";
+import { toCalendarSourceView } from "./calendars";
+import {
+  CalendarSourcesSection,
+  type CalendarSettingsData,
+} from "../CalendarSourcesSection";
+import { MAX_CALENDAR_SOURCES } from "~/kernel/calendar";
+import {
+  calendarEncryptionConfigured,
+  type CalendarSecretsEnv,
+} from "~/platform/calendar";
 import { RestoreFromBackup } from "../RestoreFromBackup";
 
 import type { Route } from "./+types/index";
@@ -95,6 +105,7 @@ type SectionId =
   | "general"
   | "ai"
   | "capture"
+  | "calendars"
   | "account-security"
   | "date-time"
   | "navigation"
@@ -170,6 +181,14 @@ const SECTIONS: readonly {
     label: "Capture",
     group: "data",
     summary: "Capture from your phone, Siri, the Share Sheet or email.",
+  },
+  {
+    // CAL-01 — connected calendars sit in "Your data" beside Capture, because
+    // what they really configure is what DalyHub reads from outside itself.
+    id: "calendars",
+    label: "Calendars",
+    group: "data",
+    summary: "Read-only calendar links, and how fresh each one is.",
   },
   {
     id: "account-security",
@@ -316,6 +335,30 @@ async function readCaptureSettings(
   };
 }
 
+/**
+ * CAL-01 — the connected calendars, read ONLY for the section that shows them.
+ *
+ * `toCalendarSourceView` is the leak boundary: it has no URL, host or
+ * fingerprint field, so no feed address can cross into the loader payload even
+ * by accident. The repository's ordinary read does not select the sealed column
+ * either, so there are two independent reasons this cannot leak.
+ */
+async function readCalendarSettings(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+): Promise<CalendarSettingsData> {
+  const now = new Date();
+  const sources = await scope.calendarSources.list().catch(() => []);
+  return {
+    sources: sources.map((source) => toCalendarSourceView(source, now)),
+    // Read through the optional config shape: the key is a `wrangler secret`,
+    // never a committed `var`, so it is absent from the generated `Env` type.
+    encryptionConfigured: calendarEncryptionConfigured(
+      env as unknown as CalendarSecretsEnv,
+    ),
+    limit: MAX_CALENDAR_SOURCES,
+  };
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
@@ -342,6 +385,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // crosses this boundary: `toCaptureDeviceView` cannot express one.
     capture:
       section === "capture" ? await readCaptureSettings(scope, request) : null,
+    // CAL-01 — read ONLY for the section that renders it. No feed URL, host or
+    // fingerprint crosses this boundary: `CalendarSourceView` cannot hold one.
+    calendars:
+      section === "calendars" ? await readCalendarSettings(scope) : null,
     preferences: {
       timezone: preferences.timezone,
       dateFormat: preferences.dateFormat,
@@ -997,6 +1044,9 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
           <NavigationSection data={loaderData} />
         ) : null}
         {active === "ai" ? <AiSettingsSection data={loaderData.ai} /> : null}
+        {active === "calendars" && loaderData.calendars ? (
+          <CalendarSourcesSection data={loaderData.calendars} />
+        ) : null}
         {active === "capture" && loaderData.capture ? (
           <CaptureSection data={loaderData.capture} />
         ) : null}

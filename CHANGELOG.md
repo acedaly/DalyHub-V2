@@ -17,6 +17,60 @@ no version number to group them under.
 
 ---
 
+## Your real day, on Today (CAL-01)
+
+Today has always been honest about your tasks and completely blind to everything
+else. If you had four meetings, a workshop and a dentist appointment, it still
+showed you three tasks and implied a free afternoon.
+
+You can now **connect your calendars** — Settings → Calendars — and DalyHub shows
+your actual day alongside your work.
+
+- **Add a calendar with a name and a link.** Nothing to install, no sign-in to
+  Microsoft or Apple, no permissions to grant. Publish your calendar from Outlook,
+  iCloud or anything else that produces a standard calendar link, paste the link,
+  and give it a name you will recognise on your schedule — "Work", "Family",
+  "Kids". Add as many as you like, up to ten.
+- **Read-only, always.** DalyHub never creates, edits, moves, cancels or replies to
+  anything in your calendar. Nothing you do here can change what your calendar
+  shows.
+- **Your day, in one list.** Today's Schedule now holds every event from every
+  calendar you have connected, in time order, with all-day items — leave, a public
+  holiday, a training day — in their own small band above the timed ones rather
+  than pretending to start at midnight. **Now** and **Next** are marked, in words.
+- **Tomorrow and Next 7 days.** Three tabs under the greeting: _Today · Tomorrow ·
+  Next 7 days_. Tomorrow shows tomorrow's schedule and the work you have due or
+  planned for it. Next 7 days is a compact forward agenda — what is on each day,
+  and one line saying how much work you have planned. It is deliberately not a
+  month grid: DalyHub is not trying to replace your calendar.
+- **Turn an event into meeting notes, when you want to.** Tap any event to see it
+  in full — time, place, which calendar it came from, and a **Join meeting** button
+  when there is an online link. If it is the kind of meeting you want to prepare
+  for and follow up, **Create meeting notes** makes an ordinary DalyHub Meeting,
+  with agenda, notes, decisions, outcomes and actions. After that the event shows
+  **Open notes** instead, and it can never accidentally make a second one.
+- **Your notes are yours.** If the meeting is renamed or moved in Outlook, the
+  event on your schedule updates and your notes do not — DalyHub will not rewrite
+  something you wrote. If the meeting is cancelled, the event says so and your
+  notes stay. Even removing the whole calendar leaves your meetings untouched.
+- **It tells you the truth about freshness.** Calendars refresh in the background
+  roughly every 15 minutes, and there is a **Refresh now** button. A calendar that
+  has never worked says "Never synced" — never "Connected". If a refresh fails,
+  DalyHub keeps showing the last schedule it did load and says so, rather than
+  quietly showing you an empty day.
+- **Your calendar link is treated like a password.** It is encrypted before it is
+  stored and never shown again — not on the page, not in an error, not anywhere.
+  Anyone holding that link can read your calendar, so DalyHub treats it that way.
+- **Only what a schedule needs.** DalyHub imports the title, the time, the location
+  and an online meeting link. It does not import event descriptions, attendees,
+  organisers or attachments, and it never creates People from your calendar.
+
+Two smaller fixes came with it: **the meeting rows on Today used to lead to a
+"page not found"**, and are now correct; and **pressing Refresh shortly after a
+background refresh** used to silently do nothing and claim one was already running.
+
+---
+
 ## DalyHub on an iPhone, sanded down (MOBILE-01)
 
 DalyHub already worked on a phone. This is the pass that makes it feel like it was
