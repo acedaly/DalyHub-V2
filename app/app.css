@@ -59,6 +59,10 @@
  * switch variant renders it, and because a switch is a form control. */
 @import "./styles/switch.css";
 @import "./styles/today.css";
+/* CAL-01 — the unified Schedule (agenda rows, the day rail, Next 7 Days, the
+ * event detail). After today.css because a schedule row COMPOSES `.dh-day-row`
+ * and only adds to it. */
+@import "./styles/schedule.css";
 @import "./styles/tasks.css";
 @import "./styles/views.css";
 @import "./styles/segmented-filter.css";

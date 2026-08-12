@@ -23,6 +23,14 @@ const contents = [
   // browser journey exercises the SAME actor-name resolution production uses.
   "DEV_AUTH_NAME=Local Developer",
   "DEFAULT_WORKSPACE_ID=local-dev-workspace",
+  // CAL-01: the application encryption key that protects owner-configured
+  // third-party credentials (today: external calendar feed URLs). This is a
+  // FIXED, OBVIOUSLY NON-PRODUCTION development value -- it is the literal
+  // string "dalyhub-e2e-development-key-1234", base64-encoded, and it exists so
+  // the E2E fixtures can seal a synthetic feed address the dev server can then
+  // open. Production generates a real random key with `openssl rand -base64 32`
+  // and supplies it with `wrangler secret put`; see .dev.vars.example.
+  "APP_ENCRYPTION_KEY=ZGFseWh1Yi1lMmUtZGV2ZWxvcG1lbnQta2V5LTEyMzQ=",
   "",
 ].join("\n");
 

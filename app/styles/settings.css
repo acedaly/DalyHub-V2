@@ -1135,3 +1135,35 @@
   font-size: var(--md-sys-typescale-body-small-size);
   font-variant-numeric: tabular-nums;
 }
+
+/* -------------------------------------------------------------------------- */
+/* CAL-01 — Settings -> Calendars                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A calendar's four controls, as ONE wrapping row.
+ *
+ * Each control is its own `<form>` (each posts to a different action), and four
+ * block-level forms stack into four full-width rows — which on a phone made one
+ * calendar four screens tall. Laying the forms out as flex items keeps them a
+ * single row of small buttons that wraps when it has to, at the same 44px target
+ * size the rest of Settings uses.
+ */
+.dh-calendar-source__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-calendar-source__controls form {
+  display: contents;
+}
+
+/* The rename form is the exception: a field plus two buttons is a small stack. */
+.dh-calendar-source__controls form:has(.dh-field) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--app-space-2);
+}

@@ -33,6 +33,10 @@ function day(overrides: Partial<TodayDayData> = {}): TodayDayData {
     today: [],
     completedToday: [],
     meetings: [],
+    // CAL-01 — a quiet day has no external calendar schedule either.
+    schedule: { dateIso: TODAY, allDay: [], timed: [], count: 0 },
+    scheduleHasSources: false,
+    scheduleStale: false,
     attention: [],
     continueProjects: [],
     goals: [],

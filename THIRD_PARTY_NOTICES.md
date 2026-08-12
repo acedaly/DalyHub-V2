@@ -172,6 +172,44 @@ in the deployed Worker, and it is absent from every shipped bundle. It is used
 unmodified; DalyHub's four documented deviations (ADR-074 decision 3) are choices
 about *which* of the library's own APIs to call, not changes to its code.
 
+### External calendar parsing (CAL-01) — recorded MPL-2.0 decision
+
+**`ical.js`** (mozilla-comm), a **runtime** dependency, is licensed **MPL-2.0**
+(Mozilla Public License 2.0). `AGENTS.md` §11 places MPL-2.0 in *"requires an
+explicit, documented decision"*; this is that decision.
+
+| Package | Version | License | Source |
+|---|---|---|---|
+| `ical.js` | 2.2.1 | MPL-2.0 | https://github.com/mozilla-comm/ical.js |
+
+**Why it is used.** RFC 5545 is not a format that can be parsed by splitting
+strings: a conforming calendar feed folds long lines at 75 octets, escapes
+commas/semicolons/newlines inside TEXT values, carries `VTIMEZONE` components that
+define their own DST rules, expresses recurrence as `RRULE` + `RDATE` − `EXDATE`,
+and expresses exceptions to a recurring series as separate `VEVENT`s bound by
+`RECURRENCE-ID`. `ical.js` is the reference JavaScript implementation, maintained
+by the Mozilla calendar project and used by Thunderbird's calendar.
+
+**How the copyleft obligation is met.** MPL-2.0 is *file-level* weak copyleft: its
+obligations attach to modified MPL files, and it explicitly permits combination
+into a Larger Work under other terms (MPL-2.0 §3.3). `ical.js` is consumed as an
+**unmodified npm dependency** — never vendored into this repository, never patched,
+and never forked — so no MPL-covered file is modified and no MPL-covered source
+needs to be redistributed beyond this notice and the upstream link above.
+
+**How it is isolated.** It is imported from exactly ONE module,
+`app/platform/calendar/ics-parser.server.ts`, whose public surface is a single
+function returning plain domain objects; `ical.js` types never appear in that
+signature. The kernel domain (`app/kernel/calendar`) does not depend on it at all.
+It is server-only and verified absent from `build/client/`.
+
+**Where this is recorded.** The full evaluation — Workers compatibility, bundle
+impact, licence, focus, health, and the alternatives rejected — is in
+[`docs/product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md` §7](docs/product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md#7-ics-parsing--the-dependency-decision)
+and in ADR-091.
+
+---
+
 ### Accessibility test tooling (DS-11) — recorded MPL-2.0 decision
 
 The DS-11 automated accessibility gate uses **axe-core** via

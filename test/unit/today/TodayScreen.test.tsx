@@ -51,6 +51,52 @@ function meeting(
   return { id, title, timeLabel, context: null, upcoming: false, ...overrides };
 }
 
+/**
+ * CAL-01 — one row of the day's unified Schedule.
+ *
+ * The Schedule panel now draws the schedule read model rather than the
+ * `meetings` array: an entry is either an imported calendar occurrence or a
+ * DalyHub Meeting no occurrence represents. `meetings` survives as the input to
+ * the "Meetings today" FIGURE and to `nextUp`, which is what these fixtures keep
+ * separate.
+ */
+function scheduleEntry(
+  id: string,
+  title: string,
+  timeLabel: string,
+  overrides: Partial<TodayDayData["schedule"]["timed"][number]> = {},
+): TodayDayData["schedule"]["timed"][number] {
+  return {
+    id,
+    kind: "meeting",
+    title,
+    startsAtIso: `${TODAY}T00:00:00.000Z`,
+    endsAtIso: `${TODAY}T01:00:00.000Z`,
+    allDay: false,
+    timeLabel,
+    timeRangeLabel: timeLabel,
+    timeAccessibleLabel: timeLabel,
+    spanLabel: null,
+    location: null,
+    meetingUrl: null,
+    cancelled: false,
+    tentative: false,
+    sourceId: null,
+    sourceName: null,
+    sourceRank: null,
+    meetingId: id,
+    relative: "upcoming",
+    ...overrides,
+  };
+}
+
+/** A day whose Schedule panel holds `timed`. */
+function scheduleOf(
+  timed: readonly TodayDayData["schedule"]["timed"][number][],
+): TodayDayData["schedule"] {
+  return { dateIso: TODAY, allDay: [], timed, count: timed.length };
+}
+
 /** A project with open work, as the rail's focus surface and panel read it. */
 function project(
   overrides: Partial<TodayDayData["continueProjects"][number]> = {},
@@ -81,6 +127,10 @@ function day(overrides: Partial<TodayDayData> = {}): TodayDayData {
     today: [],
     completedToday: [],
     meetings: [],
+    // CAL-01 — a quiet day has no external calendar schedule either.
+    schedule: { dateIso: TODAY, allDay: [], timed: [], count: 0 },
+    scheduleHasSources: false,
+    scheduleStale: false,
     attention: [],
     // GOAL-02 — a quiet day has no measurable Goals and no workload trend.
     goals: [],
@@ -306,20 +356,31 @@ describe("the day timeline", () => {
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
   });
 
-  it("renders meetings in time order, with a time and no checkbox", () => {
+  it("renders the day's schedule in time order, with a time and no checkbox", () => {
     renderScreen(
       day({
         meetings: [
           meeting("m1", "Design review", "09:30", { context: "Studio" }),
           meeting("m2", "1:1", "11:00"),
         ],
+        // CAL-01 — the Schedule panel draws the schedule read model. The
+        // `meetings` array is now the "Meetings today" FIGURE's input alone.
+        schedule: scheduleOf([
+          scheduleEntry("m1", "Design review", "09:30", { location: "Studio" }),
+          scheduleEntry("m2", "1:1", "11:00"),
+        ]),
       }),
     );
     expect(screen.getByText("09:30")).toBeInTheDocument();
+    // The Meeting RECORD route is `/meeting/:id` (singular); `/meetings` is the
+    // collection. This row used to link to the collection path with an id
+    // appended and therefore 404ed — fixed when the row moved into the shared
+    // `ScheduleList` (CAL-01).
     expect(screen.getByRole("link", { name: "Design review" })).toHaveAttribute(
       "href",
-      "/meetings/m1",
+      "/meeting/m1",
     );
+    // A meeting happens TO you: the row has no completion control.
     expect(
       screen.queryByRole("checkbox", { name: /Design review/ }),
     ).not.toBeInTheDocument();
@@ -619,13 +680,19 @@ describe("the Schedule panel", () => {
           meeting("m1", "Design review", "09:30", { context: "Studio" }),
           meeting("m2", "1:1", "11:00"),
         ],
+        schedule: scheduleOf([
+          scheduleEntry("m1", "Design review", "09:30", {
+            location: "Studio",
+          }),
+          scheduleEntry("m2", "1:1", "11:00"),
+        ]),
       }),
     );
     const panel = scheduleSection();
     expect(within(panel).getByText("09:30")).toBeInTheDocument();
     expect(
       within(panel).getByRole("link", { name: "Design review" }),
-    ).toHaveAttribute("href", "/meetings/m1");
+    ).toHaveAttribute("href", "/meeting/m1");
     expect(
       within(panel).queryByRole("checkbox", { name: /Design review/ }),
     ).not.toBeInTheDocument();

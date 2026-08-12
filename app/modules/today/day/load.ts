@@ -12,6 +12,7 @@
  * aggregation table, no Today-only status vocabulary.
  */
 
+import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import {
   composeGoalAlignmentFacts,
@@ -49,6 +50,7 @@ import {
   type TodayActivityTrend,
   type TodayGoal,
 } from "./goal-progress";
+import { loadScheduleWindow, scheduleForDate } from "./schedule-load";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
@@ -66,8 +68,6 @@ const PLANNING_BACKLOG_LIMIT = 100;
 const PLANNING_COMPLETED_LIMIT = 100;
 /** How many waiting items are read to count them and age the oldest. */
 const WAITING_LIMIT = 50;
-/** How many meetings are read from each side of "now" before filtering to today. */
-const MEETINGS_LIMIT = 12;
 /**
  * How many active projects are read before ranking.
  *
@@ -82,23 +82,26 @@ const PROJECTS_LIMIT = 12;
 /* Shapes                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** One meeting on today, resolved to the strings the timeline draws. */
+/**
+ * One DalyHub Meeting on today, reduced to what the day's FIGURES need.
+ *
+ * CAL-01 note: this is no longer the Schedule panel's model — that is the
+ * unified `DaySchedule` below, which holds external calendar occurrences and
+ * Meetings in one chronology. What survives here is the input to the "Meetings
+ * today" figure and to `nextUp`, and it is now DERIVED from the same schedule
+ * read rather than from a second pair of Meeting queries.
+ */
 export interface DayMeeting {
   readonly id: string;
   readonly title: string;
-  /** The 24-hour start time in the MEETING's own timezone ("09:30"). */
+  /** The start time in the OWNER's timezone ("09:30"), or "All day". */
   readonly timeLabel: string;
   /** Location or mode — the one supporting fact, or null. */
   readonly context: string | null;
   /**
-   * M3X-02 — whether the meeting has NOT started yet, decided against the
-   * request instant on the SERVER.
-   *
-   * "What is next?" is the one question Today's supporting surface answers, and
-   * it cannot be answered in the browser: `timeLabel` is formatted in the
-   * MEETING's own timezone, so comparing it to the owner's clock is wrong the
-   * moment the two differ. The comparison is made once, here, against the same
-   * `now` every other section on this screen was read with.
+   * Whether the meeting has NOT started yet, decided against the request instant
+   * on the SERVER — the owner's clock is not the authority on a page rendered
+   * before it was read.
    */
   readonly upcoming: boolean;
 }
@@ -125,6 +128,24 @@ export interface TodayDayData {
   readonly today: readonly DayTask[];
   readonly completedToday: readonly DayTask[];
   readonly meetings: readonly DayMeeting[];
+  /**
+   * CAL-01 — the day's unified Schedule: every occurrence from every enabled
+   * external calendar source, plus the DalyHub Meetings no occurrence already
+   * represents, in one chronology.
+   *
+   * Today consumes a clean schedule read model. It knows nothing about ICS,
+   * providers, recurrence or synchronisation, and no feed is fetched to produce
+   * it — this is a local read of an already-synchronised projection.
+   */
+  readonly schedule: DaySchedule;
+  /**
+   * Whether ANY calendar source is configured and enabled. "Nothing is on today"
+   * and "no calendar is connected" are different states and get different
+   * sentences.
+   */
+  readonly scheduleHasSources: boolean;
+  /** Whether at least one enabled source's last refresh failed. */
+  readonly scheduleStale: boolean;
   readonly attention: readonly AttentionItem[];
   readonly continueProjects: readonly ContinueProject[];
   /** GOAL-02 — the measurable Goals worth a look today (up to four). */
@@ -150,6 +171,9 @@ export function emptyDay(input: {
     today: [],
     completedToday: [],
     meetings: [],
+    schedule: { dateIso: input.todayIso, allDay: [], timed: [], count: 0 },
+    scheduleHasSources: false,
+    scheduleStale: false,
     attention: [],
     continueProjects: [],
     goals: [],
@@ -240,49 +264,56 @@ async function loadAssetAttention(
   );
 }
 
-/** Owner-facing labels for a meeting's mode — the same words its record uses. */
-const MEETING_MODE_LABELS: Record<string, string> = {
-  in_person: "In person",
-  phone: "Phone",
-  online: "Online",
-};
-
 /**
- * The meetings on the owner's day, in time order.
+ * CAL-01 — the day's unified Schedule, and the Meeting figures derived from it.
  *
- * Two bounded reads, because a day has a before and an after; both are filtered
- * to the OWNER's calendar day, and each time is formatted in the MEETING's own
- * timezone so it reads identically here and on the record. A meeting that has
- * already started is still on today — the timeline is the day, not a countdown.
+ * ONE read, where there used to be two Meeting queries. `loadScheduleWindow`
+ * already reads today's Meetings (to merge them into the chronology), so the
+ * "Meetings today" figure and `nextUp`'s input are DERIVED from the same result
+ * rather than fetched again — which also means the figure and the panel can
+ * never disagree about what is on.
+ *
+ * The figure counts DalyHub Meetings, exactly as it always has. An imported
+ * calendar event is NOT a Meeting and is not counted; an imported event the
+ * owner has explicitly turned into a Meeting is, because by then it is one.
  */
-async function loadMeetings(
+async function loadSchedule(
   scope: WorkspaceScope,
   now: Date,
   todayIso: string,
   timezone: string,
-): Promise<readonly DayMeeting[]> {
-  const [started, upcoming] = await Promise.all([
-    scope.meetings.list({ view: "recent", limit: MEETINGS_LIMIT }),
-    scope.meetings.list({ view: "upcoming", limit: MEETINGS_LIMIT }),
-  ]);
-  const onToday = [...started.items, ...upcoming.items].filter(
-    (meeting) => ownerCalendarIso(meeting.startsAt, timezone) === todayIso,
-  );
-  onToday.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-  return onToday.map((meeting) => ({
-    id: meeting.id,
-    title: meeting.title,
-    timeLabel: new Intl.DateTimeFormat("en-AU", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: meeting.timezone,
-    }).format(meeting.startsAt),
-    context:
-      meeting.location?.trim() ||
-      (meeting.mode ? (MEETING_MODE_LABELS[meeting.mode] ?? null) : null),
-    upcoming: meeting.startsAt.getTime() > now.getTime(),
-  }));
+): Promise<{
+  readonly schedule: DaySchedule;
+  readonly meetings: readonly DayMeeting[];
+  readonly hasSources: boolean;
+  readonly stale: boolean;
+}> {
+  const data = await loadScheduleWindow(scope, {
+    fromDateIso: todayIso,
+    toDateIso: todayIso,
+    timeZone: timezone,
+  });
+  const schedule = scheduleForDate(data, {
+    dateIso: todayIso,
+    timeZone: timezone,
+    now,
+    isToday: true,
+  });
+  const meetings: DayMeeting[] = [...schedule.allDay, ...schedule.timed]
+    .filter((entry) => entry.meetingId !== null)
+    .map((entry) => ({
+      id: entry.meetingId!,
+      title: entry.title,
+      timeLabel: entry.timeLabel ?? "All day",
+      context: entry.location,
+      upcoming: Date.parse(entry.startsAtIso) > now.getTime(),
+    }));
+  return {
+    schedule,
+    meetings,
+    hasSources: data.hasSources,
+    stale: data.anySourceFailing,
+  };
 }
 
 /** The waiting count and the age of the oldest — the fact that earns the row. */
@@ -446,7 +477,7 @@ export async function loadTodayDay(
     tasks,
     inboxCount,
     assetAttention,
-    meetings,
+    scheduleResult,
     waiting,
     projects,
     goals,
@@ -466,7 +497,12 @@ export async function loadTodayDay(
       trackedAsTasksCount: 0,
       overdueCount: 0,
     }),
-    safely(() => loadMeetings(scope, now, todayIso, timezone), []),
+    safely(() => loadSchedule(scope, now, todayIso, timezone), {
+      schedule: { dateIso: todayIso, allDay: [], timed: [], count: 0 },
+      meetings: [] as readonly DayMeeting[],
+      hasSources: false,
+      stale: false,
+    }),
     safely(() => loadWaiting(scope, todayIso, timezone), {
       count: 0,
       oldestDays: null,
@@ -494,7 +530,10 @@ export async function loadTodayDay(
     overdue: tasks.overdue,
     today: tasks.today,
     completedToday: tasks.completedToday,
-    meetings,
+    meetings: scheduleResult.meetings,
+    schedule: scheduleResult.schedule,
+    scheduleHasSources: scheduleResult.hasSources,
+    scheduleStale: scheduleResult.stale,
     attention: buildAttention({
       inboxCount,
       waiting,

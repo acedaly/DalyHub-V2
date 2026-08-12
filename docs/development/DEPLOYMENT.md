@@ -931,6 +931,94 @@ a deployment that does not want it.
 
 ---
 
+## External calendar configuration (CAL-01, 2026-08-12)
+
+DalyHub deploys perfectly well with **no calendar configuration at all**: the
+Calendars section says encrypted storage is not configured and refuses to store a
+link, the scheduled refresh is a no-op, and every other part of the product is
+unaffected.
+
+### The one secret
+
+| Secret | Purpose | Required? |
+|---|---|---|
+| `APP_ENCRYPTION_KEY` | the application encryption key protecting owner-configured third-party credentials — today, external calendar feed URLs | required to connect a calendar; optional otherwise |
+
+A published ICS link **is** a credential: anyone holding it can read that
+calendar. It is also the first value DalyHub has that is both a secret AND
+owner-supplied data the server must be able to recover — the owner adds several
+and removes them, so it has to live in D1, and the synchroniser has to fetch the
+exact URL, so a one-way digest (the way capture tokens are stored) is not an
+option. It is therefore sealed with AES-256-GCM under this key, bound to its
+workspace by the AEAD additional data, before it is stored.
+
+**Generate and set it:**
+
+```bash
+# 32 random bytes, base64. Any equivalent CSPRNG output is fine.
+openssl rand -base64 32
+
+# Set it once. It survives ordinary deploys (see the AI section above for why).
+pnpm exec wrangler secret put APP_ENCRYPTION_KEY --env production
+```
+
+Like the Access and AI values it is deliberately **not** declared in
+`wrangler.jsonc` — a committed `var` of the same name, even an empty one, would
+override the deploy-time secret and clobber it. It is read through an optional
+config shape (`CalendarSecretsEnv`), so it need not appear in the generated `Env`
+type.
+
+**If it is ever changed or lost**, stored calendar links can no longer be opened:
+those sources report a configuration error and the owner re-adds each calendar.
+Nothing else in DalyHub is encrypted with it, so no other data is at risk. There
+is deliberately no rotation mechanism — see
+[`CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md` §5](../product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md#5-encryption-strategy).
+
+**Never commit a real value.** `.dev.vars` is git-ignored;
+`.dev.vars.example` documents the shape only.
+
+### The cron trigger
+
+The background refresh runs on the Worker's own **Cloudflare Cron Trigger** —
+the same Worker, the same D1 binding, no new service to provision:
+
+```jsonc
+"triggers": { "crons": ["*/15 * * * *"] }
+```
+
+It is declared **twice** in `wrangler.jsonc`: once at the top level (local
+development) and once inside `env.production`, because triggers — like bindings
+and `vars` — are **not inherited by named environments**. Omitting the production
+copy would deploy production with no calendar refresh at all.
+
+The handler is inert unless a calendar source exists, and it never throws: a
+failed tick costs one tick, and the next is fifteen minutes away.
+
+**Local development.** `wrangler dev` does not fire crons automatically. Run one
+on demand with:
+
+```bash
+curl "http://localhost:5173/cdn-cgi/handler/scheduled"
+```
+
+or use **Settings → Calendars → Refresh now**, which is the ordinary owner path.
+No developer ever needs a real external feed: the Workers-runtime tests drive the
+whole fetch/parse/reconcile path against synthetic ICS fixtures
+(`test/support/ics-fixtures.ts`), and the browser journeys run against a seeded
+projection (`e2e/calendar-fixtures.ts`).
+
+### Outbound requests
+
+This is the first DalyHub feature that makes the Worker issue outbound HTTP
+requests to an owner-supplied address. If the deployment sits behind an egress
+policy, calendar hosts must be reachable over HTTPS on port 443. DalyHub itself
+refuses loopback, private, CGNAT, link-local, unique-local, multicast and reserved
+targets, non-standard ports, plain `http:`, credentials in the URL, unbounded
+redirects and oversized bodies — see
+[`CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md` §6](../product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md#6-ssrf-protections).
+
+---
+
 ## Response security headers, and the one Cloudflare owns (AUDIT-10, 2026-08-08)
 
 Every response the Worker emits carries its security headers from ONE place,

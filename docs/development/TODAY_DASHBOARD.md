@@ -37,6 +37,13 @@ app/modules/today/
   day/attention-view.ts      — the PURE rail model: inclusion rules, caps, priority,
                                and the activity-recency ranking
   day/load.ts                — the workspace reads, assembled into TodayDayData
+  day/schedule-load.ts       — CAL-01: the ONE schedule read behind Today,
+                               Tomorrow and Next 7 Days
+  schedule/                  — CAL-01: ScheduleList, EventDetail (in the Drawer),
+                               DayNav, and the shared drawer resolver
+  routes/tomorrow.tsx        — CAL-02: /today/tomorrow
+  routes/upcoming.tsx        — CAL-02: /today/upcoming (next 7 days)
+  routes/schedule.tsx        — CAL-03: the ONE write, an event → a canonical Meeting
   day/TodayScreen.tsx        — the composition
   TodayDrawer.tsx            — drawer key → panel (the Task record, and the
                                keyboard reference)
@@ -44,6 +51,8 @@ app/modules/today/
                                per-task command builder, waiting-view, WaitingTaskCard)
   keyboard/KeyboardHelp.tsx  — the shared shortcut reference, hosted in the Drawer
 app/styles/today.css         — the Today screen; every value a DS-01 token
+app/styles/schedule.css      — CAL-01: the agenda rows, day rail, Next 7 Days
+                               groups and event detail; composes today.css
 app/styles/tasks.css         — the /tasks workspace (extracted from today.css)
 app/styles/task-drawer.css   — the task record layout
 ```
@@ -378,6 +387,61 @@ drives the ACTUAL loader (not just the repository predicate
 Slice 4 — Today integration` describe block) exercising the complete
 Planned → Active → On hold → Active → Archive → Restore round trip live against
 Today, plus a separate proof that a restored Planned project stays absent.
+
+## The Schedule region (CAL-01/CAL-02, 2026-08-12)
+
+Today's third region now holds the owner's REAL day. The contract is in
+[`DESIGN_SYSTEM.md → The Schedule region`](../design/DESIGN_SYSTEM.md#the-schedule-region-cal-01);
+the product and security document is
+[`CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md`](../product/CAL_01_UNIFIED_EXTERNAL_SCHEDULE_2026_08.md).
+What this note adds is how it is built and what it did NOT change.
+
+### What did not change
+
+TODAY-10's Focus contract is untouched: the same three bands, the same
+classifier, the same ordering, the same bounds, the same empty states, the same
+stat row. Today's query count is unchanged.
+
+### The one read
+
+`day/schedule-load.ts` is the ONE workspace read behind Today's Schedule,
+Tomorrow and Next 7 Days. It issues one projection read (the occurrences in the
+window, with their source name, source rank and linked Meeting id already joined)
+and two bounded Meeting reads, whatever the range's size — so Next 7 Days costs
+the same number of queries as Today.
+
+**No feed is fetched in a page request.** Today reads the local projection, so the
+page renders at the same speed whether Outlook is up, down or slow, and a calendar
+outage empties the section rather than failing the page (the same degrade-never-
+blank rule every other section follows).
+
+### Why Meetings moved into it
+
+Today already had a Schedule panel and it held Meetings. Putting external events
+in a second list beside it would have given the owner two chronologies of one day
+— and a Meeting created FROM an event would have appeared in both. So the panel
+holds one list: external occurrences, plus the Meetings no occurrence represents.
+
+The **"Meetings today" figure** still counts DalyHub Meetings and still links to
+`/meetings`, but it is now DERIVED from that same read rather than from a second
+pair of Meeting queries. The figure and the panel therefore cannot disagree.
+
+`MeetingRow` is gone from `TodayScreen`, and with it a pre-existing defect: it
+linked to `/meetings/:id` when the Meeting RECORD route is `/meeting/:id`
+(singular), so every meeting row on Today led to "page not found". `ScheduleList`
+draws that link once, correctly, for every surface.
+
+### The shared classifier
+
+Tomorrow needs "due tomorrow" and "planned tomorrow" to mean exactly what Today's
+"Due today" and "Planned today" mean. Rather than reimplement them, `focusBand`
+was split: its DUE/PLANNED half is now `dateBand(task, dateIso)`, and `focusBand`
+is the overdue check followed by a call to it. Tomorrow calls `dateBand`; Next 7
+Days calls `openTaskCountForDate`, which is built on it.
+
+The OVERDUE branch is deliberately absent from `dateBand`, and that is not an
+omission: nothing can have slipped relative to a date in the future, and Today
+remains the product's one overdue attention surface.
 
 ## The Task Drawer (TODAY-02)
 

@@ -189,6 +189,25 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/activity.tsx",
         },
+        // CAL-02 adds Tomorrow and Next 7 days as real routes under Today (no
+        // nav entry — they are reached from Today's own day rail), and CAL-03
+        // the POST-only endpoint that turns an imported occurrence into a
+        // canonical Meeting.
+        {
+          id: "today.tomorrow",
+          moduleId: "today",
+          file: "routes/tomorrow.tsx",
+        },
+        {
+          id: "today.upcoming",
+          moduleId: "today",
+          file: "routes/upcoming.tsx",
+        },
+        {
+          id: "today.schedule",
+          moduleId: "today",
+          file: "routes/schedule.tsx",
+        },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "areas.new", moduleId: "areas", file: "routes/new.tsx" },
         {
@@ -558,6 +577,13 @@ describe("module discovery", () => {
           id: "settings.capture",
           moduleId: "settings",
           file: "routes/capture.tsx",
+        },
+        // CAL-01 adds the calendar-source endpoints as one POST-only resource
+        // route. No nav entry: every action accepts or acts on a credential.
+        {
+          id: "settings.calendars",
+          moduleId: "settings",
+          file: "routes/calendars.tsx",
         },
         // SET-03 — the two Account & security history endpoints (POST-only).
         {

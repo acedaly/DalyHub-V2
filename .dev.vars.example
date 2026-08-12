@@ -85,3 +85,30 @@ DEV_AUTH_EMAIL="owner@example.invalid"
 # one required Cloudflare Access bypass policy for `/api/capture`.
 #   CAPTURE_EMAIL_RECIPIENTS="capture@example.invalid"
 #   CAPTURE_EMAIL_ALLOWED_SENDERS="owner@example.invalid"
+
+# CAL-01 EXTERNAL CALENDARS (required to connect a calendar) — a Worker secret,
+# never a repository value and never a committed `var`.
+#
+# APP_ENCRYPTION_KEY is the application encryption key that protects the small
+# number of owner-configured third-party credentials DalyHub has to keep USABLE.
+# Today that is exactly one thing: a published ICS calendar link, which is a
+# credential (anyone holding it can read that calendar) and which the
+# synchroniser has to be able to recover in order to fetch it — so a one-way
+# digest, the way capture tokens are stored, is not an option.
+#
+# It is 32 random bytes, base64-encoded. Generate one with:
+#
+#   openssl rand -base64 32
+#
+# Set it with `wrangler secret put APP_ENCRYPTION_KEY` in production, and in
+# `.dev.vars` (git-ignored) for local work. Do NOT commit a real value.
+#
+# WITHOUT IT: nothing breaks. The Calendars section says encrypted storage is not
+# configured and refuses to store a link; every other part of DalyHub is
+# unaffected, and the scheduled refresh is a no-op.
+#
+# IF IT CHANGES: existing stored calendar links can no longer be opened, so their
+# refreshes fail with a configuration error and the owner re-adds each calendar.
+# Nothing else in DalyHub is encrypted with it, so no other data is at risk. See
+# docs/development/DEPLOYMENT.md.
+#   APP_ENCRYPTION_KEY="<32-random-bytes-base64>"
