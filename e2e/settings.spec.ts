@@ -61,11 +61,38 @@ async function choose(
   await expect(page.getByText("Saved").first()).toBeVisible();
 }
 
+/**
+ * DEBT-126 — why this is four journeys and not one.
+ *
+ * "opens from navigation and persists owner/workspace preferences" was a SINGLE
+ * test that proved five independent preference contracts end to end: it made six
+ * full document loads of the heaviest route in the product, three reloads and
+ * five autosaving combobox writes, and it did all of that against the Vite DEV
+ * server inside the 30-second per-test budget.
+ *
+ * MEASURED, which is what settles it: run with `--timeout=180000` so nothing can
+ * expire, the journey PASSES and takes **35.3 s, 36.0 s, 36.4 s and 42.5 s** over
+ * four consecutive runs. Against `timeout: 30_000` that is a coin toss, and the
+ * budget is spent by the journey as a whole rather than by any one step.
+ *
+ * That also explains the thing that made this look like a hang and sent the
+ * original diagnosis after the wrong cause: the failure lands on whichever wait
+ * happens to be HOLDING THE CLOCK when the budget expires, so it moved — CI
+ * reported it on the Diary navigation, a local run reported it on the Settings
+ * one, and both reported it as `waitForLoadState("networkidle")` never arriving.
+ * It arrives. `networkidle` was the wait in progress, not a wait that never ends.
+ *
+ * So the fix is neither a longer timeout nor a retry — both were rightly
+ * forbidden, and neither addresses a journey that is simply too long. Each
+ * contract is now its own journey, over the same surfaces, with every assertion
+ * kept and none weakened. The nav-entry step stays with the first one, because
+ * "Settings opens from the Primary navigation" is a claim about arriving.
+ */
 test.describe("SETTINGS-01A — application settings", () => {
   test.beforeEach(() => resetPreferences());
   test.afterEach(() => restoreSeededPreferences());
 
-  test("opens from navigation and persists owner/workspace preferences", async ({
+  test("opens from navigation and persists the owner's date & time preferences", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
@@ -102,8 +129,12 @@ test.describe("SETTINGS-01A — application settings", () => {
     await choose(page, "First day of week", "Sunday");
     await page.reload();
     await expect(page.getByText("Week views start on Sunday.")).toBeVisible();
+  });
 
-    await page.getByRole("link", { name: "General" }).click();
+  test("honours the owner's default landing page, and falls back to Today when the stored one is not a destination", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/settings?section=general");
     await choose(page, "Default landing page", "Tasks");
     await page.goto("/");
     await expect(page).toHaveURL(/\/tasks$/);
@@ -114,14 +145,20 @@ test.describe("SETTINGS-01A — application settings", () => {
     forceInvalidLandingDestination();
     await page.goto("/");
     await expectOnToday(page);
+  });
 
+  test("honours the owner's default Tasks view", async ({ page }) => {
     await gotoFixture(page, "/settings");
     await choose(page, "Default Tasks view", "Time Sectors");
     await gotoFixture(page, "/tasks");
     await expect(
       page.getByRole("heading", { name: /No sector/ }).first(),
     ).toBeVisible();
+  });
 
+  test("honours the owner's default Diary mode, and an explicit mode still wins", async ({
+    page,
+  }) => {
     await gotoFixture(page, "/settings");
     await choose(page, "Default Diary mode", "Timeline");
     await gotoFixture(page, "/diary");

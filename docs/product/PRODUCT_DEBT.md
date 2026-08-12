@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-128** (DEBT-127 was raised by CAL-01; DEBT-126 was raised by PWA-12; DEBT-125 was raised by the CI reliability pass; DEBT-123…DEBT-124 were raised by UIX-04; DEBT-120…DEBT-122 were raised by UIX-03; DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-130** (DEBT-128 and DEBT-129 were raised by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md); DEBT-127 was raised by CAL-01; DEBT-126 was raised by PWA-12; DEBT-125 was raised by the CI reliability pass; DEBT-123…DEBT-124 were raised by UIX-04; DEBT-120…DEBT-122 were raised by UIX-03; DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. Both are now ☑ (the pagination one on 2026-08-01, the capture-context one on 2026-08-08). Do not issue DEBT-45 again.
   - **A near-miss, resolved the other way (2026-08-08).** PEOPLE-04/DIARY-02 and AUDIT-11 both issued **DEBT-105** in parallel. AUDIT-11 landed on `main` first, so it keeps the number and the PEOPLE-04/DIARY-02 entry was renumbered to **DEBT-106** on merge. That is the opposite of the DEBT-45 decision above, and deliberately so: DEBT-45 was renumbered-averse because it already had cross-references to break, whereas this entry was one commit old with a single self-reference. Renumber while it is cheap; record the collision when it is not.
   - **Twice more, resolved the same way (2026-08-08).** The V2.2 Tasks daily-driver programme and the August 2026 UI quality audit both issued **DEBT-107** in parallel, and the same programme's second entry collided with the audit's **DEBT-108**. The audit landed on `main` first, so it keeps both numbers and the V2.2 entries became **DEBT-109** and **DEBT-110** on merge. Two ADRs collided in the same merge for the same reason — `main` landed ADR-083 and ADR-084, so V2.2's became **ADR-085**. All four were a few commits old with cross-references only inside their own programme's documents, so renumbering stayed cheap. The pattern is now frequent enough to be worth naming: **two branches open at once will both reach for the next free number, and the file cannot stop them — only the merge can.** Take the next free ID as late as you can, and re-check it when you rebase.
@@ -1316,7 +1316,7 @@ authority now.)
 - **Closing condition.** A collection loader resolves relationships for a page of records in a bounded number of statements that does not grow with the page size, and the Meetings list shows its attendees.
 - **Related.** [`app/kernel/entity-links/entity-link-repository.ts`](../../app/kernel/entity-links/entity-link-repository.ts) · [`app/platform/entity-links/note-references.ts`](../../app/platform/entity-links/note-references.ts) (the batching precedent) · [`app/modules/meetings/MeetingsList.tsx`](../../app/modules/meetings/MeetingsList.tsx).
 
-### ◐ DEBT-125 — `main`'s E2E suite is red for reasons unrelated to the change that finds it — P1 — EVERY DETERMINISTIC FAILURE REPAIRED 2026-08-11; THE BROWSER CRASH FIX NOW REACHES THE BROWSER, AND NEEDS RUNS
+### ◐ DEBT-125 — `main`'s E2E suite is red for reasons unrelated to the change that finds it — P1 — NO LONGER BROADLY RED AND THE BROWSER FIX IS HOLDING; THE SUITE STILL CANNOT FINISH (HARDEN-03, 2026-08-12)
 
 - **Status: raised 2026-08-11 by the CI reliability pass (#158),** which measured it rather than inferred it. This was [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) recurring three days after it was closed, by the same mechanism: six UIX passes redesigned thirteen modules in nine days, and the specs asserting the surfaces they replaced were not updated with them. **Worked 2026-08-11 by [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md).**
 - **These failures were NOT flaky, and that was the important part.** Every one reproduced locally at `workers: 1`, `retries: 0`, deterministically. A red DalyHub CI has overwhelmingly meant "a real thing is broken", and nobody could tell because it was always red.
@@ -1433,7 +1433,77 @@ failed in CI at the baseline and passes locally at `workers: 1`, `retries: 0`
 repeatedly. It stays in the gate, failing and visible. It is not "flaky" — it is
 undiagnosed, and the next occurrence owes evidence.
 
-- **Closing condition (unchanged in substance).** A full Playwright run on `main` is green with no spec excluded, no `.skip`/`.fixme` added, no retry raised and no shard reaching `globalTimeout`, sustained across enough runs that a green one is not a lucky sample. The deterministic half of this entry is now met: every failure it raised has been diagnosed to a class and either fixed or converted into a test of what the product does, with the product decision recorded. What remains is the crash clause, which closes with runs — or is reopened by the restated falsifier above.
+#### HARDEN-03, 2026-08-12 — the crash fix is holding; the suite still cannot FINISH
+
+Worked by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md) at `main` @
+`40038de`. **This entry stays OPEN**, and the reason is specific rather than
+"it seems unfinished": in the seven `main` runs since HARDEN-02 merged, **not one
+has produced a completed E2E result**, so the closing condition below has not been
+met and has not even been evaluable.
+
+**Every `main` run since HARDEN-02, read from Actions rather than from memory.**
+Static, Unit and Build were green on **all seven**; the only failing jobs in every
+run were E2E shards and the Gate that aggregates them.
+
+| Run | Commit | Failing E2E shards |
+|---|---|---|
+| [`31531917741`](https://github.com/acedaly/DalyHub-V2/actions/runs/31531917741) | `2bb4b81` HARDEN-02 | **8**: 1 failed, **71 did not run**, 116 passed |
+| [`31558733303`](https://github.com/acedaly/DalyHub-V2/actions/runs/31558733303) | `fbce125` TODAY-10 | **4**: **0 failed**, 40 did not run · **8**: **0 failed**, 74 did not run |
+| [`31560988429`](https://github.com/acedaly/DalyHub-V2/actions/runs/31560988429) | `757417f` TASKS-11 | **1**: 1 failed, finished · **4**: 2 failed, 43 did not run · **8**: 2 failed, 27 did not run |
+| [`31567486731`](https://github.com/acedaly/DalyHub-V2/actions/runs/31567486731) | `2f05dee` PWA-12 | **4**: 0 failed, 28 did not run · **8**: 1 failed, 87 did not run |
+| [`31578924324`](https://github.com/acedaly/DalyHub-V2/actions/runs/31578924324) | `48bd97f` MOBILE-01 | **4**: 1 failed, 46 did not run · **8**: 3 failed, 87 did not run |
+| [`31590635607`](https://github.com/acedaly/DalyHub-V2/actions/runs/31590635607) | `71158e7` CAL-01 | **4**: 1 failed, 42 did not run · **5**: 1 failed, finished · **8**: 1 failed, 87 did not run |
+| [`31641975444`](https://github.com/acedaly/DalyHub-V2/actions/runs/31641975444) | `40038de` **tip** | **4**: **0 failed**, 38 did not run · **5**: 1 failed, finished · **8**: 3 failed, 80 did not run |
+
+**The finding this table forces.** In six of the seven runs, shards 4 and/or 8
+reached `globalTimeout` — each printing `Timed out waiting 1500s for the test suite
+to run` — leaving **27 to 118 tests per run that never executed at all**. On run
+`31558733303` `main` was red with **no failing test whatsoever**: both red shards
+simply ran out of time. HARDEN-02 already wrote the rule that this breaks — *"a
+suite that cannot finish stops reporting, and a report that stops is
+indistinguishable from a pass"* — and it is now the DOMINANT cause of red `main`,
+arriving by a different route than the breakage this entry was raised for. Raised
+as [DEBT-128](#-debt-128--playwrights-count-based-shard-slicer-concentrates-the-heaviest-specs-so-two-shards-never-finish--p1).
+
+**The browser fix reaches the browser, and is holding.** Searched across all seven
+runs' failed jobs for `SIGSEGV`, `SEGV_MAPERR`, `Received signal`,
+`chromium_headless_shell`, `chrome-headless-shell`, `Target page, context or
+browser has been closed` and `browser.newContext`: **zero hits** outside the
+install-time download lines, over **56 shard jobs**. The crash's CONSEQUENCE
+signature is absent too, which matters more than the string search — a segfault
+fails every later test with `browser.newContext: … has been closed` and leaves the
+rest unrun (the original read `5 failed / 43 did not run`), whereas here the
+largest failure count in any shard is **3** and every "did not run" is paired with
+the explicit `Timed out waiting 1500s` line. HARDEN-02's restated falsifier did not
+fire.
+
+**The launched binary, established rather than inferred from configuration.** The
+selection rule is read out of the INSTALLED `playwright-core@1.62.1`
+(`lib/coreBundle.js:43104-43106`): `if (options.channel) return options.channel;`
+precedes `return options.headless ? "chromium-headless-shell" : "chromium"`, so
+`channel: "chromium"` resolves `chromium-<rev>/chrome-linux64/chrome`. CI's install
+logs confirm both binaries are present to choose between. **Stated as a limitation:
+CI never prints the path it actually launched**, so this is a sound chain rather
+than a direct observation, and one log line naming the resolved executable would
+make it decisive.
+
+**Four deterministic failures remain on the tip, each named and owned** —
+`tasks-v22-daily-driver.spec.ts:158` (Tasks/TASKS-05, 4 of 7 runs),
+`today-focus.spec.ts:290` and `:331` (Today/TODAY-10),
+`pwa-offline-tasks.spec.ts:386` (Offline/PWA-12). None is the browser crash, none
+is hidden, and none is HARDEN-03's to fix: sweeping four feature defects into a
+reliability-closure PR is the failure mode this entry exists to prevent. Raised as
+[DEBT-129](#-debt-129--four-named-deterministic-e2e-failures-on-main-each-owned-by-the-feature-that-shipped-it--p1) so they cannot sit here as unexplained.
+
+**`main` is no longer BROADLY red.** That much this entry can claim: Static, Unit
+and Build green on all seven runs, and four named E2E failures rather than the
+thirty-six across nineteen files it was raised against. What it cannot claim is
+that required CI is a readable signal, because the suite has not finished.
+
+- **Closing condition (unchanged in substance).** A full Playwright run on `main` is green with no spec excluded, no `.skip`/`.fixme` added, no retry raised and no shard reaching `globalTimeout`, sustained across enough runs that a green one is not a lucky sample.
+  - **Exactly what is still missing, as at 2026-08-12:** one run in which every
+    shard FINISHES. Until DEBT-128 is answered, no run can satisfy this clause,
+    whatever the tests do. The deterministic half of this entry is now met: every failure it raised has been diagnosed to a class and either fixed or converted into a test of what the product does, with the product decision recorded. What remains is the crash clause, which closes with runs — or is reopened by the restated falsifier above.
 - **Related.** [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat) · [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) · [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md) · [HARDEN-02](HARDEN_02_RELEASE_TRUST_2026_08.md).
 
 ### ☑ DEBT-112 — Every select's clear control said "Clear selection", so a form with two of them had one name between them — P3 — RESOLVED 2026-08-11
@@ -1557,8 +1627,47 @@ undiagnosed, and the next occurrence owes evidence.
 - **Closing condition.** PWA/offline tests prove at least one offline completion/reopen journey and one offline date/priority edit replay correctly, including the visible recovery path for a conflict.
 - **Related roadmap item.** [PWA-12](../roadmap/ROADMAP_V2_2.md#-pwa-12---offline-task-mutation-slice).
 
-### ☐ DEBT-126 — The Settings preferences journey hangs on `networkidle` after the Diary default-mode step — P2
+### ☑ DEBT-126 — The Settings preferences journey hangs on `networkidle` after the Diary default-mode step — P2 — **RESOLVED 2026-08-12 by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md)**
 
+- **Resolved 2026-08-12. It was not a hang, and the title above is wrong — kept as
+  raised, because how it was misread is the useful part.** The journey did not stop
+  at a step; it **exceeded its own 30-second budget**, and the failure landed on
+  whichever wait happened to be holding the clock when the budget expired. That is
+  why the reported step MOVED — CI put it on the Diary navigation
+  (`settings.spec.ts:132`), a local run put it on the Settings one (`:118`) — and
+  why "the next `gotoFixture` never resolves its `waitForLoadState`" read as a
+  stall.
+- **MEASURED, which is what settles it.** Run with `--timeout=180000` so nothing
+  can expire, the journey **passes** on the unmodified `networkidle` gate and takes
+  **35.3 s, 36.0 s, 36.4 s, 42.5 s** over four consecutive runs, against
+  `timeout: 30_000`. `networkidle` arrives. One test was proving five independent
+  preference contracts end to end — six full document loads of the heaviest route
+  in the product, three reloads and five autosaving combobox writes, against the
+  Vite dev server — in a budget it needed 35–42 seconds for.
+- **What was ruled out, with measurement rather than reasoning.** Instrumenting the
+  journey with `request`/`requestfinished`: at the moment of failure 60 requests
+  were open (103 on a second run), every one a Vite dev-module request, and the
+  **oldest was 146 ms old** — saturated and progressing, not blocked. No polling
+  loop exists (`grep -rn setInterval app/` is empty); Diary's `navigate` calls are
+  all user-action-driven; the service worker calls `respondWith` only for document
+  navigations and static assets, so it never touches a dev-module request, and its
+  navigation handler is a plain network-first `await fetch(request)`; and
+  `afterPageIdle` already defers every offline-priming request past `load`.
+- **Fixed by splitting the journey into four,** one per contract: date & time
+  preferences (with the nav-entry step, because "Settings opens from the Primary
+  navigation" is a claim about arriving), default landing page including the
+  invalid-destination fallback, default Tasks view, and default Diary mode with an
+  explicit `?mode=` override. **Every assertion is kept and none is weakened.**
+- **Evidence.** `e2e/settings.spec.ts` in full, `--repeat-each=3`, `workers: 1`,
+  `retries: 0`: **30 passed, 0 failed.** The four journeys run in 11.6–18.2 s
+  against their 30 s budget, where the combined journey used 117–140% of it.
+- **The forbidden fixes were not used, and one was actively rejected.** No timeout
+  raised, no retry, no `.skip`, no `.fixme`, no sleep, no broadened selector. The
+  shared `waitForLoadState("networkidle")` gate in `e2e/helpers.ts` is
+  **unchanged**: it was suspected, measured, found not to be the cause, and left
+  alone rather than changed on a hunch across ~1,000 tests. It does cost this
+  journey ~5 s of its ~40, which is worth knowing and is not worth a suite-wide
+  change inside a reliability-closure PR.
 - **Status: raised 2026-08-11 by PWA-12,** which found it while verifying that a
   change to route revalidation had not broken anything, and **confirmed it is not
   PWA-12's**: `e2e/settings.spec.ts:68` fails identically with PWA-12's entire
@@ -1568,6 +1677,18 @@ undiagnosed, and the next occurrence owes evidence.
   without needing the local reproduction: `E2E 8/8` is RED on `main` itself at
   [`2bb4b81`](https://github.com/acedaly/DalyHub-V2/actions/runs/31531917741),
   on this journey, with every other shard in that run green.
+  - **Correction, HARDEN-03 2026-08-12.** That run/commit citation is wrong, and
+    the correction is recorded rather than the original quietly edited. Run
+    `31531917741` (`2bb4b81`) is red on `E2E 8/8`, but its only failing test is
+    `tasks-v22-daily-driver.spec.ts:158`; `settings.spec.ts` merely appears in that
+    shard's slow-file list at 1.6 m. This journey's actual `main` failures are runs
+    [`31567486731`](https://github.com/acedaly/DalyHub-V2/actions/runs/31567486731)
+    (`2f05dee`) and
+    [`31578924324`](https://github.com/acedaly/DalyHub-V2/actions/runs/31578924324)
+    (`48bd97f`). The entry's substance is unaffected — the failure is real and
+    reproduces locally — and the intermittency the wrong citation hides is
+    explained by the resolution above: a journey 17–40% over its budget fails or
+    passes on how fast the run happens to be.
 - **Current issue.** "opens from navigation and persists owner/workspace
   preferences" times out at 30s. The trace's last completed step is the Diary
   default-mode assertion (`link "Timeline"` carries `aria-current`); the next
@@ -1577,7 +1698,7 @@ undiagnosed, and the next occurrence owes evidence.
 - **Impact.** Medium. It is one journey, but it is the one that proves the owner's
   stored preferences survive a reload — and while it is red, `settings.spec.ts` is
   a file whose result nobody can read at a glance, which is the exact condition
-  [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--every-deterministic-failure-repaired-2026-08-11-the-browser-crash-fix-now-reaches-the-browser-and-needs-runs)
+  [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--no-longer-broadly-red-and-the-browser-fix-is-holding-the-suite-still-cannot-finish-harden-03-2026-08-12)
   exists to stop recurring.
 - **Desired future state.** Either the journey stops waiting on `networkidle`
   after a navigation that legitimately keeps a request open, or the request that
@@ -1588,8 +1709,37 @@ undiagnosed, and the next occurrence owes evidence.
 - **Do NOT close by raising a timeout or adding a retry.** The step that hangs
   never completes; a longer budget would only take longer to fail.
 
-### ☐ DEBT-127 — A TASKS-11 timezone test fails for one hour of every UTC day — P3
+### ☑ DEBT-127 — A TASKS-11 timezone test fails for one hour of every UTC day — P3 — **RESOLVED 2026-08-12 by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md)**
 
+- **Resolved 2026-08-12, and reproduced deterministically first rather than waited
+  for.** The capture route resolves the owner's day from `new Date()` at request
+  time (`api-capture.ts` → `captureOwnerDay`), and the Workers test pool honours
+  `vi.useFakeTimers({ toFake: ["Date"] })` — so the failing instant can be NAMED.
+  Pinned at `2026-08-13T10:30:00.000Z`: Kiritimati `2026-08-14`, Midway
+  `2026-08-12`, `AssertionError: expected 172800000 to be 86400000`. Exactly the
+  table above, on demand, at any hour.
+- **Root cause, as this entry already suspected: the arithmetic, not the product.**
+  Two owners 25 hours apart cannot be a fixed number of calendar days apart,
+  because 25 hours does not fit in a 24-hour day.
+- **Fixed by a table of seven PINNED instants,** each stating the one calendar date
+  each zone is in — `09:59:59.999Z` (last instant before the window),
+  `10:00:00.000Z` (it opens), `10:30:00.000Z` (**where the old assertion failed**),
+  `11:00:00.000Z` (it closes), `2026-08-12T23:59:59.999Z` and
+  `2026-08-13T00:00:00.000Z` (either side of UTC midnight, which neither owner
+  shares) and `14:00:00.000Z` (Kiritimati's own midnight). One correct answer per
+  row, no dependence on when CI runs.
+- **The assertion was NOT loosened — it is strictly stronger.** The old test proved
+  a gap between two dates; the new one proves each owner's exact date, so a product
+  that resolved both anchors from the machine clock now fails the per-owner
+  assertion as well as `not.toBe`. The neighbouring CAPTURE-01 journey had the same
+  class of race (it derived its expectation from `ownerDay("Australia/Sydney", new
+  Date())` milliseconds after the capture) and is pinned at `2026-08-13T14:30:00Z`
+  — 00:30 on the FOLLOWING Sydney day, so a machine-clock anchor writes the wrong
+  date and is caught — asserting the literal `2026-08-14`.
+- **Evidence.** `grep -n "new Date()" test/kernel/task-capture-language.test.ts`
+  now matches only prose in comments: the file reads no wall clock at all.
+  **16 passed** on three consecutive runs (10 before; the six added rows are the
+  boundary cases), and the full kernel suite is **2,463 passed across 159 files**.
 - **Status: raised 2026-08-12 by CAL-01,** which found it while running the full
   kernel suite, and **confirmed it is not CAL-01's**: the failing file
   (`test/kernel/task-capture-language.test.ts`) and every module it exercises
@@ -1609,7 +1759,7 @@ undiagnosed, and the next occurrence owes evidence.
   | **10:30** | **2026-08-13** | **2026-08-11** | **2 days** |
   | 11:30 | 2026-08-13 | 2026-08-12 | 1 day |
 
-- **Impact.** Low, but corrosive in the way [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--every-deterministic-failure-repaired-2026-08-11-the-browser-crash-fix-now-reaches-the-browser-and-needs-runs)
+- **Impact.** Low, but corrosive in the way [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--no-longer-broadly-red-and-the-browser-fix-is-holding-the-suite-still-cannot-finish-harden-03-2026-08-12)
   names: a suite that is red for a reason unrelated to the change in front of it
   teaches the next contributor to disbelieve it. It will fail roughly 4% of CI
   runs, at a time of day nobody associates with the change being tested.
@@ -1628,6 +1778,88 @@ undiagnosed, and the next occurrence owes evidence.
 - **Do NOT close by loosening it to `not.toBe`.** The 25-hour spread is the point
   of the fixture; the assertion should state the owner-calendar date it expects
   for each zone.
+
+### ☐ DEBT-128 — Playwright's count-based shard slicer concentrates the heaviest specs, so two shards never finish — P1
+
+- **Status: raised 2026-08-12 by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md),** which measured it while
+  establishing whether [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--no-longer-broadly-red-and-the-browser-fix-is-holding-the-suite-still-cannot-finish-harden-03-2026-08-12)
+  could close. It is the single thing standing between `main` and a readable CI
+  result, and it is split out because answering it is a deliberate design decision
+  rather than a repair.
+- **Current issue.** `--shard=n/N` slices by test **COUNT**, not by cost. Shards 4
+  and 8 draw the heaviest spec files and reach the 25-minute `globalTimeout` with
+  tests never started. MEASURED across the seven `main` runs after HARDEN-02: this
+  happened in **six of seven**, leaving **27–118 tests per run that never ran**. On
+  run [`31558733303`](https://github.com/acedaly/DalyHub-V2/actions/runs/31558733303)
+  `main` was red with **no failing test at all** — both shards simply ran out of
+  time.
+- **A bigger `globalTimeout` does not fix it, and the arithmetic is the point.**
+  Shard 8 completed 102–160 of its ~190 tests in 25.0 minutes across these runs; at
+  the same rate the full slice needs **31–46 minutes**, which is past the job's own
+  40-minute `timeout-minutes` backstop. Raising the ceiling would move the failure
+  from Playwright (which writes its report, traces and screenshots) to GitHub
+  (which cancels the job and destroys them) — inverting the ordering
+  `playwright.config.ts` deliberately depends on.
+- **Impact.** P1, and specifically on TRUST rather than on any feature: a suite
+  that cannot finish stops reporting, and a report that stops is indistinguishable
+  from a pass. It also silently hides real failures — HARDEN-02 found
+  `settings.spec.ts:261` and `tasks-collection.spec.ts:514` had not RUN on `main`
+  for several commits for exactly this reason.
+- **Desired future state.** Every shard finishes inside its budget on `main`, with
+  the split derived from **measured per-shard time** rather than left to the
+  count-based slicer to decide which shard gets the three heaviest files.
+- **How it would be done, so the path is not re-derived.** `playwright.config.ts`
+  already writes `playwright-report/results.json` with per-test durations for
+  exactly this, and its own comments carry the constraints any answer has to
+  respect: the runner pool saturates past roughly twelve concurrent jobs (so more
+  shards buy no wall-clock, only setup), and per-shard BROWSER LIFETIME matters as
+  well as per-shard minutes. Note the trap that comment records: adding a spec file
+  anywhere re-slices every shard, so a green run says only that THIS draw fits.
+- **Closing condition.** Three consecutive `main` runs in which **no shard reaches
+  `globalTimeout` and no test is reported as "did not run"** — with the split
+  justified from measured per-shard times rather than from a count.
+- **Related.** [`playwright.config.ts`](../../playwright.config.ts) · [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md) (the 18 → 8 re-split) · [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md).
+
+### ☐ DEBT-129 — Four named deterministic E2E failures on `main`, each owned by the feature that shipped it — P1
+
+- **Status: raised 2026-08-12 by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md),** which found them while
+  inspecting post-HARDEN-02 CI and deliberately did **not** fix them. They are
+  feature defects surfaced by a reliability pass, and folding four modules' repairs
+  into a reliability-closure PR is the failure mode
+  [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--no-longer-broadly-red-and-the-browser-fix-is-holding-the-suite-still-cannot-finish-harden-03-2026-08-12)
+  exists to end.
+- **This entry is a NAMED LIST, not a bucket.** Nothing may be added to it without
+  its own row, module and closing condition; an unexplained failure belongs in a
+  new entry, not here.
+
+  | Failing test | Runs seen (of 7) | Module |
+  |---|---|---|
+  | `tasks-v22-daily-driver.spec.ts:158` — renames, prioritises, dates and re-files a task without opening a form | 4 — `2bb4b81`, `48bd97f`, `71158e7`, `40038de` | Tasks — TASKS-05 inline editing |
+  | `today-focus.spec.ts:290` — bounds a large day, states the true total and routes to Tasks | 2 — `757417f`, `40038de` | Today — TODAY-10 Focus panel |
+  | `today-focus.spec.ts:331` — keeps the title dominant and the panel accessible on a phone | 1 — `40038de` | Today — TODAY-10 Focus panel |
+  | `pwa-offline-tasks.spec.ts:386` — a queued change survives a reload before it has been sent | 2 — `71158e7`, `40038de` | Offline — PWA-12 mutation queue |
+
+- **Not on the tip, recorded so a recurrence is not read as new.** `notes.spec.ts:379`/`:421`
+  (NOTES-05, runs `757417f` and `48bd97f`), `tasks-collection.spec.ts:471`
+  (TASKS-03, run `48bd97f`), `mobile-shell.spec.ts:313` (MOBILE-01, run `71158e7`),
+  `ai-assistance.spec.ts:348` (AI-01, run `757417f`). Several of these appear and
+  disappear as [DEBT-128](#-debt-128--playwrights-count-based-shard-slicer-concentrates-the-heaviest-specs-so-two-shards-never-finish--p1)
+  re-slices which shard runs them at all, so "it passed this time" is not evidence
+  either way until that is answered.
+- **None of them is the browser crash.** No shard shows the SIGSEGV signature or
+  the `browser.newContext: … has been closed` cluster it produces; each is an
+  ordinary test failure, failing visibly in the gate with `retries: 0`.
+- **Impact.** P1 while they last, because each one is a red required check that a
+  contributor learns to scroll past — but bounded and attributable, which is the
+  difference between this and DEBT-125's original condition.
+- **Desired future state.** Each is diagnosed to a class (product defect / test
+  defect / assumption drift) by the module that owns it, and either fixed or
+  converted into a test of what the product does, with the product decision
+  recorded — the method HARDEN-01 and HARDEN-02 established.
+- **Closing condition.** Every row above is diagnosed to a class and resolved, with
+  the reasoning recorded against its own roadmap item; this entry then closes and
+  is not reused.
+- **Related.** [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md) · [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat).
 
 ## Entry template
 
