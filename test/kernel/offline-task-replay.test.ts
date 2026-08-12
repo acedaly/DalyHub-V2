@@ -562,6 +562,72 @@ describe("a task deleted elsewhere", () => {
   });
 });
 
+describe("a domain refusal", () => {
+  it("does NOT settle the receipt, and does not report itself as applied", async () => {
+    // The Task handlers report an expected refusal by RETURNING an error result
+    // rather than by throwing. A guard that settled on "apply() returned" would
+    // record it as applied, and the client — reading the envelope — would prune a
+    // queued change that never reached the Task.
+    const taskId = await createTask({ title: "Bounded" });
+    const k = key();
+
+    const f = new FormData();
+    f.set("intent", "rename");
+    f.set("title", "x".repeat(4_000));
+    const refused = await post(taskId, replay(f, "set_title", k, "Bounded"));
+
+    expect(refused.offline?.kind).toBe("invalid");
+    expect((await taskRepo().getTask(taskId))?.title).toBe("Bounded");
+
+    // And the claim was RELEASED, so the owner can fix the value and send the
+    // same intent again rather than being answered from a row for ever.
+    const fixed = new FormData();
+    fixed.set("intent", "rename");
+    fixed.set("title", "Bounded properly");
+    const applied = await post(
+      taskId,
+      replay(fixed, "set_title", k, "Bounded"),
+    );
+    expect(applied.offline).toEqual({ kind: "applied", replayed: false });
+    expect((await taskRepo().getTask(taskId))?.title).toBe("Bounded properly");
+  });
+
+  it("keeps the Task's description when a sparse field replay applies", async () => {
+    // A replayed priority or date change carries ONLY the field it changed. Every
+    // key the submission omits must be left alone — an absent `description` used
+    // to read as `null`, which silently erased the owner's notes alongside
+    // applying their queued change.
+    const taskId = await createTask({ title: "Has notes" });
+    await taskRepo().updateTask(taskId, {
+      description: "The long-form notes the owner wrote.",
+    });
+
+    const f = new FormData();
+    f.set("intent", "update");
+    f.set("priority", "p2");
+    const body = await post(taskId, replay(f, "set_priority", key(), ""));
+    expect(body.offline).toEqual({ kind: "applied", replayed: false });
+
+    const task = await taskRepo().getTask(taskId);
+    expect(task?.priority).toBe("p2");
+    expect(task?.description).toBe("The long-form notes the owner wrote.");
+  });
+
+  it("keeps the description through a replayed due-date change too", async () => {
+    const taskId = await createTask({ title: "Also has notes" });
+    await taskRepo().updateTask(taskId, { description: "Keep me." });
+
+    const f = new FormData();
+    f.set("intent", "update");
+    f.set("dueDate", "2026-08-20");
+    await post(taskId, replay(f, "set_due", key(), ""));
+
+    const task = await taskRepo().getTask(taskId);
+    expect(task?.dueDate).toBe("2026-08-20");
+    expect(task?.description).toBe("Keep me.");
+  });
+});
+
 describe("a malformed replay", () => {
   it("is refused, and nothing is applied", async () => {
     const taskId = await createTask({ title: "Service Hilux" });

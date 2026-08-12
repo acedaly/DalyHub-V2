@@ -30,11 +30,57 @@
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 
 /**
- * True when this is a plain navigation, within the same document, that changed
- * only the search string — the one case a loader may decline.
+ * Whether this device currently cannot reach DalyHub.
  *
- * Callers still decide WHICH parameters they care about; this answers the
- * prior question of whether declining is legitimate at all.
+ * Published by `OfflineProvider`, which owns the ONE connection state in the
+ * product and derives it from real request outcomes rather than from
+ * `navigator.onLine` (`offline-connection.ts` explains at length why the
+ * browser's flag is not the answer). A module-level value because
+ * `shouldRevalidate` is a route module export with no access to React context —
+ * the same shape, and for the same reason, as the mutation queue's active
+ * namespace.
+ *
+ * It defaults to FALSE, so a surface rendered before the provider has said
+ * anything behaves exactly as it did before PWA-12.
+ */
+let knownOffline = false;
+
+/** Publish the connection state for the revalidation rule. */
+export function setRevalidationOffline(offline: boolean): void {
+  knownOffline = offline;
+}
+
+/** True when the offline layer has said this device cannot reach DalyHub. */
+export function isRevalidationOffline(): boolean {
+  return knownOffline;
+}
+
+/**
+ * True when a loader may legitimately decline to re-read itself.
+ *
+ * Two conditions, and the second one is the one that took two regressions to
+ * learn.
+ *
+ * **It must be a same-document parameter change.** A submission and an explicit
+ * `useRevalidator().revalidate()` are not navigations — the latter arrives with
+ * an IDENTICAL url — and both are how DalyHub asks a surface to catch up after a
+ * mutation. Declining either is how a task created, renamed or completed stops
+ * appearing.
+ *
+ * **And this device must be OFFLINE.** Declining online looked free: a Drawer
+ * parameter changes nothing `root`, the app shell or `/tasks` read, so the
+ * request only ever confirmed that. But a navigation SUPERSEDES an in-flight
+ * revalidation, and previously the navigation's own re-read is what replaced it.
+ * Removing the re-read therefore turned "mutate, then navigate" — create a task
+ * and close the Drawer — into a permanently stale list. Two browser journeys
+ * caught it; a quieter surface might not have.
+ *
+ * So the skip is scoped to the case that actually needs it. Offline, the request
+ * cannot succeed, and a failed navigation loader throws into the global error
+ * boundary — which is why a previously loaded Tasks page answered a tap on a row
+ * with "Something went wrong". Not making a request that cannot succeed is the
+ * fix; the boundary is untouched, and online behaviour is byte-for-byte what it
+ * was.
  */
 export function isSameDocumentParameterChange(
   args: Pick<
@@ -42,6 +88,7 @@ export function isSameDocumentParameterChange(
     "currentUrl" | "nextUrl" | "formMethod"
   >,
 ): boolean {
+  if (!knownOffline) return false;
   if (args.formMethod !== undefined) return false;
   if (args.currentUrl.pathname !== args.nextUrl.pathname) return false;
   // An identical url is a deliberate re-read, not a move.

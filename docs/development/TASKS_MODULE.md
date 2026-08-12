@@ -1766,6 +1766,9 @@ online-only, and each of them says so by simply refusing when the request fails.
 
 Opening a Task's Drawer needs a connection: it reads the full record and its links.
 It no longer takes the page down when it cannot — `/tasks`, the app shell and the
-root now all decline to revalidate for a navigation that only moves the `drawer`
-parameter, so a Drawer open makes no request at all and the Drawer's own load
-failure is handled where it happens.
+root each decline to revalidate for a navigation that only moves the `drawer`
+parameter **while the device is offline**, so offline a Drawer open makes no
+request at all and the Drawer's own load failure is handled where it happens.
+Online the skip does not apply and every navigation revalidates exactly as it did
+before; see [`PWA_AND_OFFLINE.md` §15.15](PWA_AND_OFFLINE.md#1515-the-offline-failure-experience)
+for the two regressions that scoped it.

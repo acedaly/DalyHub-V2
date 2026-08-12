@@ -46,7 +46,7 @@ export function useReplayRevalidation(): void {
   const revalidator = useRevalidator();
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onApplied = () => revalidator.revalidate();
+    const onApplied = () => void revalidator.revalidate();
     window.addEventListener(OFFLINE_REPLAY_APPLIED_EVENT, onApplied);
     return () =>
       window.removeEventListener(OFFLINE_REPLAY_APPLIED_EVENT, onApplied);

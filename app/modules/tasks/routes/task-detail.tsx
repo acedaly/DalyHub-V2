@@ -198,6 +198,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       replay,
       currentFieldValue(task, replay.operation),
       () => dispatchTaskIntent(scope, taskId, task, intent, form),
+      taskResultApplied,
+      taskResultRefusal,
     );
     return json({
       ...(outcome.applied
@@ -344,6 +346,50 @@ function readTaskReplay(
   if (valueKey !== "" && !form.has(valueKey)) return "malformed";
   if (intent === "plan" && intended === null) return "malformed";
   return replay;
+}
+
+/**
+ * Did the Task domain actually apply this intent?
+ *
+ * The handlers above report an EXPECTED refusal — a title the domain will not
+ * accept, an archived parent Project, a date it rejects — by returning an error
+ * result rather than by throwing. Replay must not record one of those as applied
+ * and let the client drop the owner's queued change: nothing was written, and
+ * the owner's intent is still the only copy.
+ */
+function taskResultApplied(result: TaskActionData): boolean {
+  switch (result.kind) {
+    case "completion":
+    case "link":
+    case "unlink":
+      return result.ok;
+    case "update":
+    case "planning":
+    case "waiting":
+      return result.status === "success";
+  }
+}
+
+/** The domain's own wording for a refusal, for the replay report. */
+function taskResultRefusal(result: TaskActionData): string {
+  const fallback = "DalyHub could not accept this change.";
+  if (result.kind === "completion") {
+    return result.ok ? fallback : result.message;
+  }
+  if (
+    result.kind === "update" ||
+    result.kind === "planning" ||
+    result.kind === "waiting"
+  ) {
+    if (result.status === "error") {
+      return (
+        result.formError ??
+        Object.values(result.fieldErrors ?? {})[0] ??
+        fallback
+      );
+    }
+  }
+  return fallback;
 }
 
 /** The refusal for a replay whose own fields do not agree with each other. */
@@ -497,11 +543,19 @@ async function handleUpdate(
         ? (String(form.get("commitmentState")) as CommitmentState)
         : undefined,
       delegation,
-      // `description` is Markdown source; an empty field clears it.
-      description:
-        form.get("description") === null
-          ? null
-          : String(form.get("description")),
+      // `description` is Markdown source, and — like every other key above — an
+      // ABSENT field means unchanged while a present empty one clears it.
+      //
+      // It was the one field that read absence as `null`, which was harmless for
+      // as long as the only submission reaching here was the Details form (which
+      // always carries it). PWA-12 introduced a second: a replayed offline
+      // priority or due-date change carries ONLY the field it changed, and would
+      // otherwise have silently erased the Task's description alongside applying
+      // it. Making it a PATCH key like its neighbours fixes that at the cause,
+      // and leaves the Details form byte-for-byte unchanged.
+      description: form.has("description")
+        ? String(form.get("description"))
+        : undefined,
     });
     return {
       kind: "update",

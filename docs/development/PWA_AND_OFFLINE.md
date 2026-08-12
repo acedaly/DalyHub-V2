@@ -1554,11 +1554,34 @@ navigating, a navigation re-runs the route's loader, and a loader that cannot re
 the server throws into the global error boundary — so a previously loaded Tasks
 surface answered a tap on a row with "Something went wrong".
 
-The fix is **not to make the request**, not to soften the boundary: `/tasks` now
-declares `shouldRevalidate`, so a navigation that changes only the `drawer`
-parameter does not re-run a query whose answer cannot change. That is worth doing
-on its own merits — the same precedent already exists in the Notes collection — and
-the offline behaviour follows from it. The global error boundary is untouched.
+The fix is **not to make the request**, not to soften the boundary: `root`, the
+app shell and `/tasks` each declare `shouldRevalidate`, and a navigation that
+changes only the `drawer` parameter re-runs none of them. All three are needed,
+because React Router batches a navigation's loaders into ONE `.data` request —
+`root` alone was enough to keep every Drawer open hitting the network after the
+other two had declined.
+
+**The skip is scoped to being offline, and that took two regressions to learn.**
+It first shipped unconditionally, on the reasoning that a Drawer parameter
+changes nothing any of the three loaders read, so the request only ever confirmed
+that. Both of the following were false:
+
+1. An explicit `useRevalidator().revalidate()` arrives with an IDENTICAL url. A
+   rule written as "same pathname → skip" silenced every deliberate re-read in
+   the product, so a task created, renamed or completed stopped appearing.
+2. A navigation SUPERSEDES an in-flight revalidation, and it was the navigation's
+   own re-read that previously replaced it. Removing that turned "mutate, then
+   navigate" — create a task in the Drawer, then close it — into a permanently
+   stale list.
+
+So the rule now requires a same-document parameter change (never a submission,
+never an identical url) **and** that the offline layer has said this device
+cannot reach DalyHub. Online, nothing is declined and behaviour is byte-for-byte
+what it was; offline, a request that cannot succeed is not made. The connection
+state comes from `OfflineProvider`, which owns it, published to the route modules
+through `~/shared/router/revalidation` — the same module-level shape the mutation
+queue's active namespace uses, and for the same reason: a route module export has
+no React context. The global error boundary is untouched.
 
 ### 15.16 Browser assumptions
 

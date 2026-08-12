@@ -374,6 +374,20 @@ export async function withTaskMutationReplay<TResult>(
   replay: TaskReplayRequest,
   currentValue: OfflineMutationValue | undefined,
   apply: () => Promise<TResult>,
+  /**
+   * Did the domain actually apply it?
+   *
+   * Required, and the reason is load-bearing. The Task handlers report an
+   * EXPECTED refusal — an invalid title, a date the domain will not accept, a
+   * mutation against an archived Project — by RETURNING an error result rather
+   * than by throwing. A guard that settled on "apply() returned" would therefore
+   * record those refusals as `applied`, and the client, reading the envelope,
+   * would prune a queued change that never reached the Task. So the caller,
+   * which is the only thing that understands its own result shape, says.
+   */
+  didApply: (result: TResult) => boolean,
+  /** The refusal's own wording, for the report. */
+  refusalReason: (result: TResult) => string,
 ): Promise<TaskReplayOutcome<TResult>> {
   const claim = await claimMutation(context, replay.idempotencyKey);
   if (claim.kind === "settled") {
@@ -446,6 +460,22 @@ export async function withTaskMutationReplay<TResult>(
     await releaseMutation(context, replay.idempotencyKey);
     throw cause;
   }
+
+  if (!didApply(result)) {
+    // The domain REFUSED it, by returning rather than throwing. Nothing was
+    // written, so the claim is released for the same reason a conflict releases
+    // its own: a settled receipt would answer the owner's next attempt from a
+    // row instead of from the record. The report is `invalid` — terminal for the
+    // automatic replay, and surfaced with the domain's own wording rather than
+    // retried against a rule that will refuse it identically.
+    await releaseMutation(context, replay.idempotencyKey);
+    return {
+      applied: true,
+      result,
+      report: { kind: "invalid", message: refusalReason(result) },
+    };
+  }
+
   await settleMutation(context, replay.idempotencyKey, OUTCOME_APPLIED);
   return {
     applied: true,

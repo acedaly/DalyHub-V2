@@ -385,16 +385,30 @@ describe("authentication expiry", () => {
     expect(blocked.attempts).toBe(0);
   });
 
-  it("keeps blocked work out of automatic replay until it is requeued", () => {
+  it("tries blocked work again once the pass runs, so a recovered sign-in resumes", () => {
+    // §24 — resuming must not require the owner to press anything. DalyHub
+    // cannot know the session recovered except by trying, and a rule that
+    // admitted only `pending` would strand their work behind a Retry button
+    // they were never told about.
     const blocked = applyMutationOutcome(
       record(),
       { kind: "blocked", reason: "expired" },
       T0,
     );
-    expect(selectReplayBatch([blocked], NS, T0, 10)).toEqual([]);
-    expect(
-      selectReplayBatch([requeueMutation(blocked)], NS, T0, 10),
-    ).toHaveLength(1);
+    const later = new Date(T0.getTime() + 5_000);
+    expect(selectReplayBatch([blocked], NS, later, 10)).toHaveLength(1);
+  });
+
+  it("still stops a pass at the first blocked record", () => {
+    // Trying again is cheap only because it is bounded: one identity-provider
+    // redirect per pass, never one per queued record.
+    const first = record({ entityId: "a", sequence: 1 });
+    const second = record({ entityId: "b", sequence: 2 });
+    const batch = selectReplayBatch([first, second], NS, T0, 10);
+    expect(batch).toHaveLength(2);
+    // The engine's own loop breaks on the first `blocked` outcome; this asserts
+    // the SELECTION does not pre-empt that by excluding the rest.
+    expect(batch.map((r) => r.entityId)).toEqual(["a", "b"]);
   });
 });
 

@@ -158,6 +158,37 @@ export async function enqueueTaskMutation(
   intent: TaskMutationIntent,
   now: Date = new Date(),
 ): Promise<EnqueueResult> {
+  // SERIALISED, and it has to be. Enqueueing reads the queue to choose the next
+  // sequence and then writes — two awaits — so two controls used in quick
+  // succession offline (ticking a task, then setting its priority) can both read
+  // before either writes, and both claim the same sequence. Equal sequences make
+  // the replay order fall back to whatever the store returns them in, which is
+  // primary-key order over random UUIDs: the owner's completion and their field
+  // edit would replay in a coin-flip order, and causal ordering is the one thing
+  // this queue exists to preserve.
+  //
+  // A promise chain rather than a lock: IndexedDB has no cross-transaction lock
+  // that spans a read and a later write, and the queue is only ever written from
+  // this one gateway, so making the gateway itself serial is both sufficient and
+  // the smallest possible mechanism. The cost is that two simultaneous edits are
+  // stored one after the other, which is what "one after the other" means.
+  const run = enqueueTail.then(() => enqueueOne(intent, now));
+  // Swallow on the TAIL only: the chain must survive a failed enqueue, while the
+  // caller still receives the real outcome from `run`.
+  enqueueTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/** The serialisation point. See {@link enqueueTaskMutation}. */
+let enqueueTail: Promise<void> = Promise.resolve();
+
+async function enqueueOne(
+  intent: TaskMutationIntent,
+  now: Date,
+): Promise<EnqueueResult> {
   const namespace = activeNamespace;
   if (!namespace) {
     return { ok: false, reason: NO_NAMESPACE, refusal: "unavailable" };

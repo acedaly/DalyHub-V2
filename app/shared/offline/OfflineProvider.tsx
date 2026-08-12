@@ -35,6 +35,7 @@ import {
 import {
   applyMutationOutcome,
   applyReplayOutcome,
+  canReachBackend,
   beginMutationAttempt,
   beginReplayAttempt,
   createQueueRecord,
@@ -54,6 +55,7 @@ import {
   type OfflineStatus,
 } from "~/kernel/offline";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { setRevalidationOffline } from "~/shared/router/revalidation";
 
 import {
   installOfflineDiagnostics,
@@ -628,6 +630,17 @@ export function OfflineProvider({
       clearTimeout(timer);
     };
   }, [connection, probe]);
+
+  /* ---- PWA-12: publish the connection state for the router ------------- */
+  // `shouldRevalidate` is a route module export with no access to React
+  // context, and it needs ONE fact from here: can this device reach DalyHub? A
+  // navigation that only moves a Drawer parameter re-reads loaders whose answer
+  // cannot have changed, and offline that re-read fails into the global error
+  // boundary — so the routes decline it, but ONLY when declining is safe.
+  useEffect(() => {
+    setRevalidationOffline(!canReachBackend(connection));
+    return () => setRevalidationOffline(false);
+  }, [connection]);
 
   /* ---- PWA-12: publish the namespace, and follow the queue ------------- */
   // The gateway (`mutation-queue.ts`) is a plain module, because the seam every

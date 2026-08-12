@@ -489,12 +489,24 @@ export function selectReplayBatch(
  * stalled attempt is reclaimed first, so the interruption is recorded as an
  * attempt and shown to the owner rather than being replayed as though it had
  * never been tried.
+ *
+ * `blocked` IS eligible, and that is the whole of "resume safely after
+ * authentication is restored" (§24). A blocked record is waiting on a valid
+ * sign-in, not on the owner pressing anything, and DalyHub cannot know the
+ * session recovered except by trying: a rule that admitted only `pending` would
+ * strand the owner's work behind a Retry button they were never told to press.
+ *
+ * Trying is cheap and cannot become hammering. A blocked attempt spends no retry
+ * budget, the replay pass STOPS at the first one (so an expired session costs
+ * one identity-provider redirect per pass, not one per record), passes are
+ * event-driven rather than timed, and the unhealthy heartbeat pauses entirely
+ * for `authRequired`.
  */
 export function isMutationReplayable(
   record: OfflineMutationRecord,
   now: Date,
 ): boolean {
-  if (record.status !== "pending") return false;
+  if (record.status !== "pending" && record.status !== "blocked") return false;
   if (record.lastAttemptAt === null) return true;
   return (
     now.getTime() - Date.parse(record.lastAttemptAt) >=

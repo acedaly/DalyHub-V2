@@ -9,12 +9,14 @@
  * This file is what stops it coming back.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 
 import {
+  isRevalidationOffline,
   isSameDocumentParameterChange,
   parametersUnchanged,
+  setRevalidationOffline,
 } from "~/shared/router/revalidation";
 
 function args(
@@ -29,7 +31,32 @@ function args(
   };
 }
 
+describe("the offline gate", () => {
+  afterEach(() => setRevalidationOffline(false));
+
+  it("defaults to online, so a surface behaves as it did before PWA-12", () => {
+    expect(isRevalidationOffline()).toBe(false);
+  });
+
+  it("declines NOTHING while the device can reach DalyHub", () => {
+    // The regression this clause exists for: declining online looked free, but a
+    // navigation supersedes an in-flight revalidation and previously the
+    // navigation's own re-read replaced it. Removing that turned "create a task,
+    // close the Drawer" into a permanently stale list.
+    expect(
+      isSameDocumentParameterChange(
+        args("/tasks?view=list", "/tasks?view=list&drawer=task%3A1"),
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("isSameDocumentParameterChange", () => {
+  // Every case below is about what happens OFFLINE, which is the only state in
+  // which a loader may decline at all.
+  beforeEach(() => setRevalidationOffline(true));
+  afterEach(() => setRevalidationOffline(false));
+
   it("is true for a Drawer opening on the same page", () => {
     // The case worth skipping: nothing a loader reads has moved.
     expect(
