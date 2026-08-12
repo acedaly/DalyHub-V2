@@ -100,6 +100,172 @@ A row's trailing label names WHICH date slipped ("Due 3 days ago" / "Planned
 yesterday"), because those are different facts and printing one when the other is
 true would be an invented claim.
 
+## The Focus contract (TODAY-10, 2026-08-12)
+
+TODAY-09 made the union truthful. TODAY-10 made it **legible**: the set of Tasks
+Focus holds is unchanged, and the panel now says why each one is there. This
+section is the authoritative statement of the contract; the pure model is
+[`day-view.ts`](../../app/modules/today/day/day-view.ts).
+
+### Inclusion, exclusion and the bands
+
+One classifier, `focusBand(task, todayIso)`, decides everything. It reads DATES
+only, so completion changes how a row is drawn and never where it sits:
+
+| Band | A Task is in it when |
+|---|---|
+| **Overdue** | `dueDate < today` **OR** `scheduledDate < today` |
+| **Due today** | not slipped, and `dueDate = today` |
+| **Planned today** | not slipped, not due today, and `scheduledDate = today` |
+| *(absent)* | none of the above, **or** completed on an earlier day |
+
+Excluded before the model ever sees them, by the planning read: Cancelled,
+Someday/Maybe, **Waiting** (blocked on someone else — it has its own view and one
+attention row) and **On hold** (deliberately paused). Excluded *here*, because
+the read does return them: future-dated work, undated work, and anything
+completed on an earlier day. Existing is not a reason to appear.
+
+Three properties follow **by construction** rather than by careful rendering:
+
+- **A Task appears exactly once.** The bands are branches of one `if`, so "due
+  today AND planned today", "overdue AND high priority" and "on today AND an
+  attention signal" cannot draw two rows.
+- **A deadline outranks an intention.** When both dates land today the Task is
+  *Due today*; when both have passed the overdue label names the DUE date.
+- **Completion never moves a row.** Before TODAY-10 it did: ticking an overdue
+  row removed it from the overdue band and re-drew it at the foot of "For today",
+  and the overdue cap pulled a hidden row up into the gap.
+
+### Ordering
+
+Stated in one sentence, because a rule that cannot be stated cannot be trusted:
+
+> **Overdue first (oldest slip first); then Due today; then Planned today — and
+> inside each band, priority, then the nearest deadline, then the title.**
+
+`id` is the final tie-break, so the sort is total and identical on the server and
+in the browser. Every input is a stored field the row itself can show. There is
+no composite importance metric, no hidden score, and priority never groups or
+tints the panel — the Matrix is not coming back (TASKS-05).
+
+The row draws the shared `PriorityIndicator` (P1–P4), which renders **nothing**
+for an untriaged Task, so the ordinary row is unchanged. It is present so the
+order can be read off the screen; below the 48rem breakpoint it is not drawn (see
+[Mobile](#mobile-320430px)).
+
+### Display bounds
+
+| Band | Bound | What is said instead |
+|---|---|---|
+| Overdue | 3 rows (`OVERDUE_SHOWN`) | `+n more overdue` → `/tasks?system=overdue` |
+| Due today + Planned today | 8 rows together (`FOCUS_TODAY_SHOWN`) | `View all N tasks for today` → `/tasks?system=today` |
+
+`N` is the **canonical** count — `tasksForTodayCount`, the size of the
+`/tasks?system=today` set — not the number hidden and not the number drawn, so
+following the link lands on a list of exactly the size it promised. It is the
+same figure the "Tasks for today" card above the panel shows.
+
+**Both bounds count OPEN rows, and neither ever hides a completion.** That is
+one rule serving two requirements that pull against each other:
+
+- the remainder has to be true of the view it links to, and that view holds only
+  open work — counting today's completions towards "+n more overdue" would
+  promise a list of a size `/tasks?system=overdue` does not have;
+- and a row the owner has just ticked must not vanish. Completing a row moves it
+  to the end of its band, so a bound covering completions could carry it past
+  the slice — gone from the panel, and excluded from the canonical view as
+  completed, with nowhere left to see it.
+
+Completions are self-limiting — they appear only as the owner works — so drawing
+all of them cannot recreate the unbounded list the bound exists to prevent.
+
+Deadlines take the larger share of the eight, but never all of it: when both
+bands have work, "Planned today" keeps up to `FOCUS_BAND_MIN` (3) rows. Losing
+rows inside a band is a bound; losing a whole band would tell the owner they had
+planned nothing.
+
+Eight, because the typical day (five open plus three completed) must never be
+truncated — a bound that fires on an ordinary Wednesday is one the owner learns
+to distrust. This is a deliberate, documented exception to the Bounded-section
+preview rule's "today's tasks are never truncated" clause; see
+[`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md#bounded-section-preview-polish-02).
+
+### Focus and Needs attention — the boundary
+
+Focus holds **Tasks**: the work deliberately relevant today, and what has slipped.
+Needs attention holds **everything else that is exceptional** — the Inbox count,
+the Waiting count and age, Asset obligations not already represented by an open
+Task, Projects the shared health evaluator flags, Goals the shared alignment
+evaluator flags. Overdue Tasks are BANNED from the rail (`attention-view.ts`), so
+no Task is ever a row in both places.
+
+One overlap is deliberate and is a COUNT, not a second row: an unfiled Task dated
+today is a Focus row and is also one of the "2 unfiled tasks" the Inbox attention
+row counts. The Inbox row is about a state of the collection, not about that Task.
+
+### Empty states
+
+| The day holds | Focus says |
+|---|---|
+| nothing at all | "Nothing planned today. Capture anything new with the **+** button." |
+| slipped work but nothing on today | the Overdue band, then "Nothing else planned today." |
+| work on today | the bands; no empty line |
+
+A failed read never becomes a confident claim: `load.ts` degrades each section
+independently to an empty one, and an empty Focus prints the calm line above
+rather than "You have no overdue Tasks" or "Everything is on track"
+(UIX-05/HARDEN-02 truthfulness).
+
+### Today ↔ Tasks `today`
+
+The equivalence is the contract, and TODAY-10 closed the one gap in it. Today's
+Focus composition (all three bands) holds every Task in `/tasks?system=today`,
+plus outright-overdue work, which is banded as such. The one divergence that
+existed — `on_hold` — was resolved in the CANONICAL view rather than on Today:
+the three date-driven system views now exclude parked work (waiting **and** on
+hold) exactly as the planning read has since TASKS-04 resolved
+[DEBT-37](../product/PRODUCT_DEBT.md). `inbox` is untouched: it is about filing,
+not dating.
+
+Proven, not asserted: [`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts)
+runs the real loader and the real workspace read model over real D1 and compares
+the two sets, and [`e2e/today-focus.spec.ts`](../../e2e/today-focus.spec.ts) does
+the same in a browser after a completion.
+
+### Mobile (320–430px)
+
+The row composition is the desktop one minus the priority tag, not a shrunken
+desktop: `[✓] title … project`. Measured on the `focus` fixture at 320/375/390/430
+(and 768/1024/1280/1440/1920), every row is a single 45px line, the title is the
+widest element on every row, and no width overflows horizontally. The priority tag
+would cost 43px of a 200px content line at 320px and made the project name wider
+than the title, so it is drawn only above the 48rem breakpoint; the ORDER it
+explains is the same at every width, and priority is one tap away on the record.
+
+The one exception is an overdue row's age phrase ("Planned 2 days ago"), which is
+`flex: none` by the UIX-01 one-line rule and can exceed a very short title at
+320px. It is one unit of meaning and predates this work.
+
+### Performance
+
+No new server reads, and no new queries. Priority comes from the same
+`listPlanningTasks` row every other field on the day comes from; the bands, the
+order, the bound and the canonical count are all pure derivations of that one
+result. Query count is unchanged from TODAY-09.
+
+### Retained evidence
+
+Five captures of the PANEL (not the page), in
+[`docs/design/assets/today-10-2026-08/`](../design/assets/today-10-2026-08), over
+the `focus` fixture unless noted — deliberately bounded, per the repository's
+screenshot-cleanup rule:
+
+| File | Shows |
+|---|---|
+| `focus-390-light.png` / `focus-390-dark.png` | the three bands on a phone, in both appearances, with the priority tag correctly absent |
+| `focus-1440-light.png` / `focus-1440-dark.png` | the same day on a laptop, with the priority tag drawn |
+| `bounded-day-1440-light.png` | the `heavy` fixture: both bounds firing at once — "+2 more overdue" and "View all 12 tasks for today" |
+
 ### Bounds
 
 The day is read through the existing `listPlanningTasks` query, whose three bands
@@ -397,7 +563,17 @@ What survives, and where it lives:
   and that a completed task is never overdue), which date the overdue label names,
   bucket ordering and the completed-at-the-end placement, progress suppression
   before the first completion, every chip's condition and destination, the overdue
-  cap, and the greeting boundaries at 11:59/12:00 and 16:59/17:00.
+  cap, and the greeting boundaries at 11:59/12:00 and 16:59/17:00. TODAY-10 adds
+  the band classifier (due / planned / both / slipped / future / no dates /
+  completed-earlier), duplicate prevention over the whole composition, that
+  completion does not move a row between bands, the execution order and its
+  totality, the canonical today count, and every case of the display bound.
+- **Focus in the browser** — [`e2e/today-focus.spec.ts`](../../e2e/today-focus.spec.ts):
+  the TODAY-10 acceptance journey over Tasks it creates itself through the real
+  create action — banding and single-appearance, the parked-work agreement with
+  `/tasks?system=today`, complete-from-Today → the canonical set follows → return
+  and the state holds, the bound and its truthful total, the 320–430px row
+  measurements, axe in both appearances, and the `h2 → h3` heading outline.
 - **Rail model** — [`test/unit/today/attention-view.test.ts`](../../test/unit/today/attention-view.test.ts):
   each item type's inclusion rule, the waiting row's age, the caps (2 projects, 2
   goals, 5 overall) and the priority order, and that "Continue working" ranks by
@@ -424,9 +600,14 @@ What survives, and where it lives:
 - **End-to-end** — [`e2e/today.spec.ts`](../../e2e/today.spec.ts) and
   [`e2e/today-mobile.spec.ts`](../../e2e/today-mobile.spec.ts).
 - **Day fixtures** — [`e2e/today-fixtures.mjs`](../../e2e/today-fixtures.mjs) seeds a
-  whole reproducible DAY (typical / morning / heavy / empty) into the local D1,
-  parking the shared dev seed reversibly so a scenario is exactly what it says it
-  is. [`e2e/today-shots.mjs`](../../e2e/today-shots.mjs) captures the evidence set.
+  whole reproducible DAY (typical / morning / heavy / **focus** / empty) into the
+  local D1, parking the shared dev seed reversibly so a scenario is exactly what it
+  says it is. [`e2e/today-shots.mjs`](../../e2e/today-shots.mjs) captures the
+  evidence set. TODAY-10 added `focus`: one Task of every kind the panel must
+  classify — overdue, due today, planned today, both, future, completed, waiting,
+  on hold, Inbox, several priorities, two Projects and an Area, a measurable Goal
+  and an Asset obligation — because neither `typical` nor `heavy` held a Task that
+  is planned for today without also being due today, or a parked one.
 
 ## The redesigned day (UIX-01, 2026-08-09)
 

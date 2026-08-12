@@ -674,10 +674,12 @@ on, so it is a table rather than prose.
 | `{n} meetings` chip | meetings today > 0 (singular/plural handled) |
 | `{n} overdue` chip | overdue > 0. The ONLY coloured chip: `error-container` / `on-error-container` |
 | Chip row | any chip qualifies |
-| Overdue block | any overdue task. No heading — the tint is the signal |
+| Overdue band | any overdue task. **Named** since TODAY-10 — see below |
 | `+{n} more overdue` | more than 3 overdue |
 | Meetings section | any meeting today |
-| For today section | any task on today |
+| Due today band | any task whose DUE date is today |
+| Planned today band | any task planned for today that is not also due today |
+| `View all {N} tasks for today` | the day's own rows exceed the 8-row bound |
 | Timeline empty line | no meetings, no tasks on today, nothing overdue |
 | Needs attention rows | per the rail rules below |
 | "All clear" | the rail has NO rows — never alongside one |
@@ -692,11 +694,39 @@ meeting and never beside a task, and there is **no Morning/Afternoon grouping**:
 it would be honest only for the timed minority, and there are too few of those
 to justify it.
 
-- **Overdue** — open, and `dueDate < today` OR `scheduledDate < today`.
-- **On today** — open, not overdue, and `dueDate = today` OR `scheduledDate = today`.
+- **Overdue** — `dueDate < today` OR `scheduledDate < today`.
+- **On today** — not overdue, and `dueDate = today` OR `scheduledDate = today`.
 
 Both are deliberately the rule the canonical `/tasks` system views already use,
 so the "+n more overdue" row lands on a list of exactly the size it promised.
+
+**TODAY-10 split "on today" into two named bands inside the one Focus panel**,
+because it was one list holding two different commitments and naming neither: a
+task DUE today is a deadline, and a task PLANNED for today may not be due for
+weeks. The set is unchanged; only its legibility is.
+
+- **Overdue** · **Due today** · **Planned today**, in that order, each drawn only
+  when it holds work. A task that is both due and planned today is a *Due today*
+  task and appears once — a deadline outranks an intention, the same precedence
+  the overdue label already applied when both dates had passed.
+- The distinction is carried by the **band**, not by the row: the row's one
+  trailing slot is the Project, and at 320px a row cannot hold a title, a date
+  phrase and a project without the title losing. A band states the fact once for
+  every row under it and costs no width.
+- **Overdue is now named.** It was headless on the reasoning that "the tint is the
+  signal"; with two labelled siblings beneath it an unnamed run reads as an
+  unexplained preamble, and it would be the one band whose meaning depended on
+  colour. The label is the same quiet uppercase divider, so naming it makes it no
+  louder.
+- **Order:** slipped work oldest-first, then Due today, then Planned today; inside
+  each band **priority, then the nearest deadline, then the title**, with the id as
+  a total tie-break. Every input is a stored field the row can show. No composite
+  score, and priority never groups or tints the panel.
+- **Completion never moves a row between bands** — a finished task stays where it
+  was, dimmed, at the end of its own band.
+
+The full contract, including bounds, the Needs-attention boundary and the phone
+composition, is in [`TODAY_DASHBOARD.md` → The Focus contract](../development/TODAY_DASHBOARD.md#the-focus-contract-today-10-2026-08-12).
 An overdue row's trailing label names WHICH date slipped ("Due 3 days ago" /
 "Planned yesterday") because those are different facts about the same task.
 
@@ -1092,7 +1122,7 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
 ### Bounded section preview (POLISH-02)
 **Purpose.** Let a landing surface show a band of a large collection without becoming that collection.
 **Anatomy.** A section heading carrying the **true** total, a bounded slice of rows, and one "View all *N*" link in the heading row pointing at the same records in their canonical collection view.
-**Behaviour.** Only *discretionary* bands are previewed. Anything the owner has committed to — today's tasks, overdue work — is never truncated: a commitment you can only see by following a link is one the product has hidden. Any keyboard/roving model over the section is built from the **rendered** slice, so an arrow key can never travel to a row that is not on the page.
+**Behaviour.** Only *discretionary* bands are previewed. Anything the owner has committed to — today's tasks, overdue work — is never truncated *below a bound generous enough that an ordinary day never meets it*: a commitment you can only see by following a link is one the product has hidden, but a dashboard that draws fifty rows has stopped being a dashboard. Today is the one surface that carries such a bound, and it states both halves — 3 overdue rows plus "+n more overdue", and 8 of the day's own rows plus "View all N tasks for today", where N is the true size of the view the link goes to. Any keyboard/roving model over the section is built from the **rendered** slice, so an arrow key can never travel to a row that is not on the page.
 **Rules.** The heading count is the total, not the slice. The link goes in the heading row, not after the rows — inside a roving collection a control placed after the last card sits between the owner and the exit from a long list. Never truncate silently.
 
 ### Guided step flow (REVIEW-02)

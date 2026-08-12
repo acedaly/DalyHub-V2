@@ -113,6 +113,14 @@ export interface TodayDayData {
   readonly hour: number;
   /** The owner's first name, or null. */
   readonly ownerName: string | null;
+  /**
+   * The Focus bands, as `bucketDay` resolved them on the server.
+   *
+   * `overdue` and `today` are both carried (rather than one flat list) because
+   * the screen re-runs the SAME pure bucketing over its optimistic completion
+   * overrides — passing the two bands back in is what lets it do that without a
+   * second definition of the day.
+   */
   readonly overdue: readonly DayTask[];
   readonly today: readonly DayTask[];
   readonly completedToday: readonly DayTask[];
@@ -171,6 +179,9 @@ async function loadTasks(
     parent: item.parent,
     dueDate: item.dueDate,
     scheduledDate: item.scheduledDate,
+    // TODAY-10 — carried from the SAME planning row the rest of the day is built
+    // from, so Focus can order by it without a second read or an N+1.
+    priority: item.priority,
     completed: item.completedAt !== null,
     // Completion is a UTC instant; resolve its OWNER-calendar date so "completed
     // today" means the owner's day, not the runtime's.
@@ -444,6 +455,8 @@ export async function loadTodayDay(
   ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
       overdue: [],
+      dueToday: [],
+      plannedToday: [],
       today: [],
       completedToday: [],
     }),

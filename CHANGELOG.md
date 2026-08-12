@@ -67,6 +67,45 @@ every single time.
 
 ---
 
+## Today says which work is due and which you planned (TODAY-10)
+
+Today's Focus panel had one list called **For today**, and it held two different
+kinds of commitment without saying which was which: work whose deadline is today,
+and work you deliberately planned for today but that may not be due for weeks. A
+task due in six weeks sat in that list looking exactly like a deadline — and the
+same task on **Tasks → Today** plainly showed its real due date, so the dashboard
+was the less clear of the two screens.
+
+- **Focus now has up to three named bands** — **Overdue**, **Due today** and
+  **Planned today** — inside the same one panel. Each appears only when it holds
+  work, so an ordinary day with nothing separately planned is still one list. A
+  task that is both due and planned today appears **once**, under Due today: a
+  deadline outranks an intention.
+- **The order is priority, then the nearest deadline, then the title.** It was
+  alphabetical, which meant a P1 could sit ninth because its title began with a
+  W. Where a task has a priority the row now shows it, using the same P1–P4 tag
+  the Tasks list uses. Nothing is grouped or coloured by priority.
+- **Ticking an overdue task no longer makes it jump.** It used to vanish from the
+  overdue rows and reappear at the very bottom of the day's list, under a heading
+  that was not true of it, while a previously hidden overdue task took its place.
+  A completed task now stays, dimmed, exactly where it was.
+- **A big day stays a dashboard.** Focus draws at most eight of the day's own
+  rows and then says _View all 14 tasks for today_, linking to the full list.
+  Nothing is truncated silently, and the planned band is never squeezed out
+  entirely to make room for deadlines.
+- **Overdue with nothing else on** now says so — _Nothing else planned today_ —
+  instead of ending after the slipped rows and implying the day was full.
+- **A paused task is no longer counted as today's work by one screen and not the
+  other.** A task you put On hold is not today's work, which is what Today
+  already believed; **Tasks → Today**, **Upcoming** and **Overdue** now agree
+  with it, exactly as all four already agreed about a task you are waiting on.
+  Both remain fully reachable in **All active** and through the status filter.
+
+On a phone the row keeps the title and the project and drops the priority tag, so
+the task's name stays the widest thing on every line from 320px up.
+
+---
+
 ## Two fixes you would have met on a phone (HARDEN-02)
 
 > **A note for anyone who upgraded from an interim build of this branch.** An

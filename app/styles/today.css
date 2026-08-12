@@ -344,10 +344,33 @@
   text-decoration: underline;
 }
 
-/* The row's one trailing fact: the project, the location, the waiting age. */
+/*
+ * TODAY-10 — the priority tag on a Focus row.
+ *
+ * The SHARED `.dh-priority` object (task-signals.css), unchanged in appearance:
+ * this rule only stops it stretching or shrinking inside the row's flex line,
+ * and holds it out of the title's way. It is absent from every untriaged row,
+ * because `PriorityIndicator` renders nothing for a null priority — which is why
+ * adding it costs the ordinary row no width at all.
+ */
+.dh-day-row__priority {
+  flex: none;
+}
+
+/*
+ * The row's one trailing fact: the project, the location, the waiting age.
+ *
+ * Capped at a third rather than at the 40% it took before TODAY-10, and capped
+ * at the SAME third at every width instead of two numbers that had to be kept
+ * in step. 40% was already close at 1280, where the three-region body gives
+ * Focus a ~318px column; with a priority tag now on some rows it INVERTED the
+ * row — a 96px title beside a 127px project name, which is a list you read by
+ * its metadata. A third keeps the title the widest thing on every row at every
+ * measured width from 320 to 1920 (see TODAY_DASHBOARD.md → Mobile).
+ */
 .dh-day-row__meta {
   flex: none;
-  max-inline-size: 40%;
+  max-inline-size: 33%;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
@@ -710,6 +733,24 @@
    */
   .dh-day-row {
     flex-wrap: nowrap;
+  }
+
+  /*
+   * TODAY-10 — the priority tag is a POINTER-WIDTH affordance.
+   *
+   * Its job is to explain why the panel is ordered the way it is, and on a
+   * phone the panel is at most eight rows: the order is legible from position
+   * alone. Keeping it would cost 43px of a 200px content line, which measured
+   * at 320px as a 72px title beside an 84px project — the row read by its
+   * metadata, which is the failure §20 of the brief names. Nothing is lost that
+   * is only here: priority is on the Task record a tap away and on every
+   * `/tasks` row. The ORDER is unchanged — it is the same order at every width.
+   */
+  /* Two class selectors, because the shared `.dh-priority` sets its own
+   * `display` and is loaded after this file — a single class would tie on
+   * specificity and lose on source order. */
+  .dh-day-row .dh-day-row__priority {
+    display: none;
   }
 
   .dh-day-row__meta {

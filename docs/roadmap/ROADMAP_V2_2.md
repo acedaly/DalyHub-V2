@@ -557,6 +557,48 @@ Extend the existing parser only where it is reliable and testable. **One** parse
   new UI surface, and no ordinal monthly patterns (that remains TASKS-12).
 - Closes [DEBT-118](../product/PRODUCT_DEBT.md).
 
+### ☑ TODAY-10 - Focus panel refinement - **DELIVERED 2026-08-12**
+
+The roadmap asked for a refinement **only if** the evidence showed the combined
+"For today" bucket was still unclear. It did, and the evidence was specific rather
+than aesthetic: a Task planned for today but not due for six weeks rendered in
+that list as a bare title with no date fact at all, indistinguishable from a
+deadline — while the same record on `/tasks?system=today`, which Today's own
+figure links to, plainly read "Sun, 20 Sep". Today was the LESS clear of the two
+surfaces. Two further defects were found in the same pass and fixed with it.
+
+- **Three named bands inside the one Focus panel** — Overdue · Due today ·
+  Planned today — each drawn only when it holds work. The SET is unchanged; a
+  Task both due and planned today appears once, under Due today. The distinction
+  is carried by the band rather than by the row, because the row's one trailing
+  slot is the Project and a 320px line cannot hold all three.
+- **A stated order that replaces an alphabetical one**: slipped work oldest-first,
+  then Due today, then Planned today; within each band priority, then the nearest
+  deadline, then the title, with the id as a total tie-break. The row draws the
+  shared P1–P4 indicator so the order can be read off the screen. No composite
+  score, no priority grouping, no Matrix.
+- **Completion no longer moves a row between bands.** Ticking an overdue row used
+  to remove it from the overdue band and re-draw it fifteen rows lower under
+  "For today", pulling a previously-hidden overdue row up into the gap — the
+  opposite of what the module documentation claimed. One classifier now decides
+  placement from dates alone, for open and completed work alike, which also took
+  completed overdue work back out of the progress denominator it was never
+  supposed to be in.
+- **A stated display bound**: 8 of the day's own rows, then "View all N tasks for
+  today", where N is the TRUE size of `/tasks?system=today` rather than the slice
+  or the remainder. Neither band can be deleted whole to make room for the other.
+- **The last Today ↔ Tasks divergence closed, centrally and in the canonical
+  view.** An on-hold Task due today was counted by `/tasks?system=today` and not
+  by Today (measured: 14 against 12). TASKS-04 had already decided the intent
+  once — a paused Task is not today's work — so the three DATE-driven system
+  views now exclude parked work (waiting **and** on hold) exactly as the planning
+  read does. `inbox` is untouched; it is about filing, not dating.
+- **Non-goals held:** no Today redesign, no new Task field or view, no AI, no
+  productivity score, streak or gamification, no calendar or weather, no new Goal
+  or Analytics measure, no second definition of "today".
+- Contract, ordering, bounds, the Needs-attention boundary and the phone
+  composition: [`TODAY_DASHBOARD.md → The Focus contract`](../development/TODAY_DASHBOARD.md#the-focus-contract-today-10-2026-08-12).
+
 ### NEXT
 
 ### ☐ PWA-12 - Offline Task mutation slice
@@ -567,11 +609,6 @@ Define and implement the first offline Task capability beyond capture.
   wording.
 - Keep the slice small enough to validate the queue contract before broader offline
   editing.
-
-### ☐ TODAY-10 - Focus panel refinement
-
-After TODAY-09, refine the Focus panel only if the evidence shows that one combined
-"For today" bucket is still unclear.
 
 ### LATER
 

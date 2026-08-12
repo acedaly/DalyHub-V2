@@ -542,3 +542,187 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
     expect(data.day.dateLong.length).toBeGreaterThan(0);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* TODAY-10 — Today Focus ↔ the canonical Tasks `today` view                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The equivalence contract, driven over real D1 through the ACTUAL loader.
+ *
+ * TODAY-09 made Today and `/tasks?system=today` agree about what "today" means;
+ * TODAY-10 is what stops them drifting apart again. The whole point of this
+ * block is that neither side is re-implemented here: it runs the real loader and
+ * the real workspace read model and compares the two SETS. Focus may file a Task
+ * in a different BAND (a Task due today whose plan has slipped belongs under
+ * Overdue), so the comparison is against the panel's whole composition —
+ * everything the Focus panel can draw — which is exactly the claim being made.
+ */
+describe("TODAY-10 — Today Focus holds the canonical Tasks `today` set", () => {
+  /** Every open Task id the canonical `/tasks?system=today` view returns. */
+  async function canonicalTodayIds(): Promise<readonly string[]> {
+    const page = await makeTaskRepository(makeContext(WS)).listWorkspaceTasks({
+      view: "today",
+      todayIso: ownerToday(),
+      limit: 100,
+    });
+    return page.items.map((item) => item.id).sort();
+  }
+
+  /** Every Task id the Focus panel can draw, across all three of its bands. */
+  function focusIds(day: {
+    readonly overdue: readonly { readonly id: string }[];
+    readonly today: readonly { readonly id: string }[];
+  }): readonly string[] {
+    return [...day.overdue, ...day.today].map((task) => task.id).sort();
+  }
+
+  async function seedTask(
+    title: string,
+    fields: {
+      readonly dueDate?: string | null;
+      readonly scheduledDate?: string | null;
+      readonly priority?: "p1" | "p2" | "p3" | "p4";
+      readonly status?: "todo" | "in_progress" | "on_hold";
+    } = {},
+  ): Promise<string> {
+    const tasks = makeTaskRepository(makeContext(WS));
+    const record = await tasks.createTask({ title });
+    await tasks.updateTask(record.id, fields);
+    return record.id;
+  }
+
+  it("agrees on a day holding every kind of Task at once", async () => {
+    const today = ownerToday();
+    const dueOnly = await seedTask("Due today", { dueDate: today });
+    const plannedOnly = await seedTask("Planned today", {
+      scheduledDate: today,
+    });
+    const both = await seedTask("Due and planned today", {
+      dueDate: today,
+      scheduledDate: today,
+    });
+    // Due today, but the PLAN slipped: one of today's Tasks on both surfaces,
+    // and Focus files it under Overdue because that is where the owner needs it.
+    const slippedPlan = await seedTask("Due today, planned Monday", {
+      dueDate: today,
+      scheduledDate: shiftDays(today, -4),
+    });
+    // Present but NOT today's work on either surface.
+    await seedTask("Overdue", { dueDate: shiftDays(today, -2) });
+    await seedTask("Future", { dueDate: shiftDays(today, 5) });
+    await seedTask("No dates at all");
+
+    const data = await runToday();
+    const canonical = await canonicalTodayIds();
+
+    expect(canonical).toEqual([dueOnly, plannedOnly, both, slippedPlan].sort());
+    // Focus draws the canonical set (plus outright-overdue work, which is the
+    // one deliberate difference and is banded as such).
+    for (const id of canonical) {
+      expect(focusIds(data.day)).toContain(id);
+    }
+    expect(data.day.overdue.map((task: { id: string }) => task.id)).toContain(
+      slippedPlan,
+    );
+    // …and each of them exactly once, however many signals it carries.
+    const drawn = [...data.day.overdue, ...data.day.today].map(
+      (task: { id: string }) => task.id,
+    );
+    expect(new Set(drawn).size).toBe(drawn.length);
+  });
+
+  it("agrees that a PARKED Task is not dated work (waiting and on hold alike)", async () => {
+    const today = ownerToday();
+    const ordinary = await seedTask("Ordinary", { dueDate: today });
+    const onHold = await seedTask("Paused", {
+      dueDate: today,
+      status: "on_hold",
+    });
+    const waiting = await seedTask("Blocked on someone", { dueDate: today });
+    await makeTaskRepository(makeContext(WS)).setWaiting(waiting, {
+      target: { kind: "text", note: "Chasing legal" },
+    });
+
+    const data = await runToday();
+    expect(await canonicalTodayIds()).toEqual([ordinary]);
+    expect(focusIds(data.day)).toEqual([ordinary]);
+    expect(focusIds(data.day)).not.toContain(onHold);
+    // Both stay reachable where they belong — nothing was destroyed, only
+    // filed: the on-hold Task is still in `all`, the waiting one in `waiting`.
+    const repo = makeTaskRepository(makeContext(WS));
+    const all = await repo.listWorkspaceTasks({
+      view: "all",
+      todayIso: today,
+      limit: 100,
+    });
+    expect(all.items.map((item) => item.id)).toEqual(
+      expect.arrayContaining([onHold, waiting]),
+    );
+    const parked = await repo.listWorkspaceTasks({
+      view: "waiting",
+      todayIso: today,
+      limit: 100,
+    });
+    expect(parked.items.map((item) => item.id)).toEqual([waiting]);
+  });
+
+  it("drops a Task from BOTH surfaces the moment it is completed", async () => {
+    const today = ownerToday();
+    const open = await seedTask("Still to do", { dueDate: today });
+    const done = await seedTask("Already finished", { dueDate: today });
+    // Completed through the real task-domain operation on the REAL clock, so
+    // the completion instant resolves to the owner's calendar day.
+    await makeTaskRepository(makeContext(WS)).completeTask(done);
+
+    const data = await runToday();
+    // The canonical view holds only what is left to do…
+    expect(await canonicalTodayIds()).toEqual([open]);
+    // …while Focus still SHOWS the completion, dimmed, in the band it was in,
+    // because the day's progress figure counts it. It is not active work: the
+    // completion is what `completedToday` reports.
+    expect(
+      data.day.completedToday.map((task: { id: string }) => task.id),
+    ).toEqual([done]);
+    expect(
+      data.day.today
+        .filter((task: { completed: boolean }) => !task.completed)
+        .map((task: { id: string }) => task.id),
+    ).toEqual([open]);
+  });
+
+  it("resolves the day boundary in the OWNER's timezone, not the runtime's", async () => {
+    // `ownerToday()` formats in Australia/Sydney, the same zone the loader uses
+    // (SET-01 `appPreferences.timezone`). On a UTC runtime the two calendar days
+    // differ for most of the day, so a Task dated by the owner's day must land
+    // on the day and one dated by UTC's must not when they disagree.
+    const ownerDay = ownerToday();
+    const utcDay = new Date().toISOString().slice(0, 10);
+    const onOwnerDay = await seedTask("Owner's today", { dueDate: ownerDay });
+
+    const data = await runToday();
+    expect(data.day.todayIso).toBe(ownerDay);
+    expect(data.day.today.map((task: { id: string }) => task.id)).toContain(
+      onOwnerDay,
+    );
+    if (utcDay !== ownerDay) {
+      const onUtcDay = await seedTask("UTC's today", { dueDate: utcDay });
+      const after = await runToday();
+      expect(
+        after.day.today.map((task: { id: string }) => task.id),
+      ).not.toContain(onUtcDay);
+    }
+  });
+
+  it("orders the day by priority, then deadline — not alphabetically", async () => {
+    const today = ownerToday();
+    const plain = await seedTask("Aardvark", { dueDate: today });
+    const urgent = await seedTask("Zebra", { dueDate: today, priority: "p1" });
+
+    const data = await runToday();
+    expect(data.day.today.map((task: { id: string }) => task.id)).toEqual([
+      urgent,
+      plain,
+    ]);
+  });
+});

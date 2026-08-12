@@ -2365,9 +2365,10 @@ export class D1TaskRepository implements TaskRepository {
 
   /**
    * Append the WHERE fragments for a system view (ADR-043 §5–§6). Active-execution
-   * views exclude completed, cancelled, someday and (for Inbox/Today/Overdue)
-   * waiting; the terminal/parked views select exactly their state; `all` is every
-   * non-deleted task.
+   * views exclude completed, cancelled and someday; the three DATE views
+   * (Today/Upcoming/Overdue) additionally exclude the parked states, waiting and
+   * on-hold (TODAY-10); the terminal/parked views select exactly their state; `all`
+   * is every non-deleted task.
    */
   /**
    * The LIFECYCLE predicate of a workspace read: ordinary views see live Tasks, and
@@ -2392,6 +2393,28 @@ export class D1TaskRepository implements TaskRepository {
   ): void {
     const notTerminal =
       "sr.completed_at IS NULL AND COALESCE(td.status, 'todo') <> 'cancelled' AND COALESCE(td.commitment_state, 'active') <> 'someday'";
+    /*
+     * TODAY-10 — parked work is not DATED work.
+     *
+     * The three date-driven views (`today`/`upcoming`/`overdue`) already excluded
+     * one parked state, `waiting`: a Task blocked on someone else is not the
+     * owner's work today, and it has a view of its own. `on_hold` — a Task the
+     * owner deliberately paused — is the same kind of state and was NOT excluded,
+     * which left one Task in two places at once: `/tasks?system=today` counted it
+     * and Today's Focus panel did not (Today reads `listPlanningTasks`, which has
+     * excluded `on_hold` since TASKS-04 resolved DEBT-37 by "deciding the intent
+     * once"). Measured on the heavy fixture with one on-hold Task due today,
+     * `/tasks?system=today` said "14 Tasks" while Today's own figure — a link
+     * straight to that view — said 12.
+     *
+     * That decision is honoured here rather than reversed: the exclusion moves to
+     * the canonical view, so the two surfaces agree by construction and there is
+     * still exactly one rule. It applies to the DATE views alone. `inbox` is about
+     * FILING, not dating — a paused unfiled Task still needs a home — which is why
+     * `waiting` was never excluded from it either.
+     */
+    const notParked =
+      "td.waiting_since IS NULL AND COALESCE(td.status, 'todo') <> 'on_hold'";
     switch (view) {
       case "all":
         return;
@@ -2431,19 +2454,19 @@ export class D1TaskRepository implements TaskRepository {
         return;
       case "today":
         whereParts.push(
-          `${notTerminal} AND td.waiting_since IS NULL AND (td.scheduled_date = ? OR td.due_date = ?)`,
+          `${notTerminal} AND ${notParked} AND (td.scheduled_date = ? OR td.due_date = ?)`,
         );
         params.push(todayIso, todayIso);
         return;
       case "upcoming":
         whereParts.push(
-          `${notTerminal} AND td.waiting_since IS NULL AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date > ?) OR (td.due_date IS NOT NULL AND td.due_date > ?))`,
+          `${notTerminal} AND ${notParked} AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date > ?) OR (td.due_date IS NOT NULL AND td.due_date > ?))`,
         );
         params.push(todayIso, todayIso);
         return;
       case "overdue":
         whereParts.push(
-          `${notTerminal} AND td.waiting_since IS NULL AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date < ?) OR (td.due_date IS NOT NULL AND td.due_date < ?))`,
+          `${notTerminal} AND ${notParked} AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date < ?) OR (td.due_date IS NOT NULL AND td.due_date < ?))`,
         );
         params.push(todayIso, todayIso);
         return;

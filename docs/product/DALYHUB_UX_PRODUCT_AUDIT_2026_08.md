@@ -296,7 +296,7 @@ None found.
 - **TASKS-11:** Extend deterministic quick capture for after-completion recurrence and a small set of high-confidence personal-task phrases.
 - **PWA-12:** Define and implement the first offline Task mutation slice after capture: completion/reopen, title/date/priority edits, conflict behavior and recurrence replay.
 - **DS-17:** Give select clear controls field-specific accessible names and migrate brittle label selectors in tests.
-- **TODAY-10:** Review whether Today should show "For today" as one bucket or split planned vs due inside the Focus panel.
+- **TODAY-10:** Review whether Today should show "For today" as one bucket or split planned vs due inside the Focus panel. — **Answered 2026-08-12: split**, into named bands inside the one panel. A Task planned for today but not due for six weeks rendered as a bare title indistinguishable from a deadline, while the same record on `/tasks?system=today` read "Sun, 20 Sep". See [ROADMAP_V2_2 → TODAY-10](../roadmap/ROADMAP_V2_2.md) and [`TODAY_DASHBOARD.md` → The Focus contract](../development/TODAY_DASHBOARD.md#the-focus-contract-today-10-2026-08-12).
 
 ### P3 - Polish
 
