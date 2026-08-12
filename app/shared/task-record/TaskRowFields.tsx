@@ -89,10 +89,21 @@ export function InlineTaskPriority({
 }: TaskRowFieldProps & { readonly priority: TaskPriority | null }) {
   const save = useCallback(
     async (next: string): Promise<InlineSaveOutcome> => {
-      const outcome = await saveTaskBulkField(taskId, {
-        intent: "set_priority",
-        priority: next,
-      });
+      const outcome = await saveTaskBulkField(
+        taskId,
+        { intent: "set_priority", priority: next },
+        // PWA-12 — the SAME control, offline. Nothing about the interaction
+        // changes: there is no "offline editor", no second field and no mode.
+        // If the request cannot reach DalyHub the intent is queued instead, and
+        // the row's pending indication (not this outcome) is what says so.
+        {
+          offline: {
+            operation: "set_priority",
+            value: next.length === 0 ? null : next,
+            baseValue: priority,
+          },
+        },
+      );
       if (outcome.ok) {
         onSaved?.({
           taskId,
@@ -108,7 +119,7 @@ export function InlineTaskPriority({
       }
       return outcome;
     },
-    [onSaved, taskId, title],
+    [onSaved, priority, taskId, title],
   );
   return (
     <InlineSelectField
@@ -175,18 +186,35 @@ export function InlineTaskDate({
     todayIso === undefined ? null : relativeCalendarDate(value, todayIso);
   const save = useCallback(
     async (next: string | null): Promise<InlineSaveOutcome> => {
+      // PWA-12 — `next` is ALREADY the canonical `YYYY-MM-DD` the owner chose,
+      // resolved against the owner's server-derived calendar day before it
+      // reaches here (`plan-targets.ts`). That is what makes a date queued on the
+      // 12th still mean the 13th when it replays on the 14th: there is no
+      // relative phrase left in the queue to re-interpret (§12).
+      const offline = {
+        operation:
+          kind === "due" ? ("set_due" as const) : ("set_planned" as const),
+        value: next,
+        baseValue: value,
+      };
       const outcome =
         kind === "due"
-          ? await saveTaskBulkField(taskId, {
-              intent: "set_due",
-              dueDate: next ?? "",
-            })
+          ? await saveTaskBulkField(
+              taskId,
+              { intent: "set_due", dueDate: next ?? "" },
+              { offline },
+            )
           : next === null
-            ? await saveTaskRecordField(taskId, { intent: "clear_plan" })
-            : await saveTaskRecordField(taskId, {
-                intent: "plan",
-                scheduledDate: next,
-              });
+            ? await saveTaskRecordField(
+                taskId,
+                { intent: "clear_plan" },
+                { offline },
+              )
+            : await saveTaskRecordField(
+                taskId,
+                { intent: "plan", scheduledDate: next },
+                { offline },
+              );
       if (outcome.ok) {
         onSaved?.({
           taskId,
@@ -203,7 +231,7 @@ export function InlineTaskDate({
       }
       return outcome;
     },
-    [kind, onSaved, taskId, title],
+    [kind, onSaved, taskId, title, value],
   );
   return (
     <InlineDateField

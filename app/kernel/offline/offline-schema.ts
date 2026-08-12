@@ -18,9 +18,10 @@
  *     affected store and lets the snapshot be rebuilt from the server — which is
  *     always safe, because the snapshot is a cache of server data, never the
  *     original.
- *   - **The capture queue is never dropped by a migration.** It is the one store
- *     holding data that exists ONLY on the device. A step that cannot preserve it
- *     must fail rather than discard the owner's un-synced work.
+ *   - **The QUEUES are never dropped by a migration.** The capture queue and (from
+ *     PWA-12) the mutation queue are the two stores holding data that exists ONLY
+ *     on the device. A step that cannot preserve them must fail rather than
+ *     discard the owner's un-synced work.
  *   - **A newer database is never opened by an older release.** IndexedDB refuses
  *     this itself (it throws `VersionError`), and the adapter reports it as a
  *     recoverable "this browser holds newer DalyHub data" state rather than
@@ -33,8 +34,6 @@
  * server mutation.
  */
 
-import { OFFLINE_SCHEMA_VERSION } from "./offline-identity";
-
 /** The IndexedDB database name. Versioned data lives inside, not in the name. */
 export const OFFLINE_DATABASE_NAME = "dalyhub-offline";
 
@@ -46,6 +45,8 @@ export const OFFLINE_STORES = {
   records: "records",
   /** The append-only capture queue. NEVER dropped by a migration. */
   queue: "queue",
+  /** PWA-12 — the Task mutation queue. NEVER dropped by a migration. */
+  mutations: "mutations",
 } as const;
 
 /** Index names, kept here so the adapter and the tests name them identically. */
@@ -58,6 +59,10 @@ export const OFFLINE_INDEXES = {
   queueByNamespace: "by_namespace",
   /** `queue` by status, for "what is still pending". */
   queueByNamespaceStatus: "by_namespace_status",
+  /** `mutations` by namespace, for scoped reads. */
+  mutationsByNamespace: "by_namespace",
+  /** `mutations` by namespace + entity, for "what is queued for this Task". */
+  mutationsByNamespaceEntity: "by_namespace_entity",
 } as const;
 
 /** One rung of the ladder. `apply` runs inside the `versionchange` transaction. */
@@ -113,10 +118,53 @@ export const OFFLINE_SCHEMA_STEPS: readonly OfflineSchemaStep[] = [
       }
     },
   },
+  {
+    version: 2,
+    description: "PWA-12: the Task mutation queue.",
+    apply(database) {
+      if (!database.objectStoreNames.contains(OFFLINE_STORES.mutations)) {
+        // Keyed by `id`, which is ALSO the server idempotency key. One row per
+        // intent, so a replay can never find two rows claiming the same key.
+        const mutations = database.createObjectStore(OFFLINE_STORES.mutations, {
+          keyPath: "id",
+        });
+        mutations.createIndex(
+          OFFLINE_INDEXES.mutationsByNamespace,
+          "namespace",
+          { unique: false },
+        );
+        mutations.createIndex(
+          OFFLINE_INDEXES.mutationsByNamespaceEntity,
+          ["namespace", "entityId"],
+          { unique: false },
+        );
+      }
+    },
+  },
 ];
 
-/** The version the running release expects. Must match the last ladder step. */
-export const OFFLINE_DATABASE_VERSION = OFFLINE_SCHEMA_VERSION;
+/**
+ * The version the running release expects. Must match the last ladder step.
+ *
+ * PWA-12 — deliberately DERIVED from the ladder rather than aliased to
+ * `OFFLINE_SCHEMA_VERSION`, which is what it was until this milestone. The two
+ * answer different questions and this release is the first where they diverge:
+ *
+ *   - `OFFLINE_DATABASE_VERSION` is the IndexedDB structure. It advances whenever
+ *     a store or index is added, which is a purely local, additive event.
+ *   - `OFFLINE_SCHEMA_VERSION` is part of the NAMESPACE digest — the identity a
+ *     device's data is filed under. Advancing it re-files everything: the next
+ *     sync derives a different namespace, `clearOtherNamespaces` discards the old
+ *     snapshot, and any capture queued under the old namespace can never be
+ *     replayed, because replay refuses to send a record whose namespace does not
+ *     match the signed-in session.
+ *
+ * Adding a store does not change what a namespace MEANS, so it must not strand
+ * the owner's un-synced work. Keeping them separate is what makes this migration
+ * additive in the way the ladder's own rules require.
+ */
+export const OFFLINE_DATABASE_VERSION =
+  OFFLINE_SCHEMA_STEPS[OFFLINE_SCHEMA_STEPS.length - 1].version;
 
 /**
  * The steps to run for an upgrade from `fromVersion` to `toVersion`. Pure, so the

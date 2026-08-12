@@ -25,14 +25,25 @@
 | Capture a new Inbox task | ✅ queued, syncs later |
 | Capture a new quick note | ✅ queued, syncs later |
 | Capture a new diary entry | ✅ queued, syncs later |
-| Complete a task | ❌ needs a connection |
-| Edit any existing record | ❌ needs a connection |
-| Delete or archive anything | ❌ needs a connection |
-| Change a relationship, parent or workspace | ❌ needs a connection |
+| Complete or reopen a Task (PWA-12) | ✅ queued, syncs later |
+| Rename a Task (PWA-12) | ✅ queued, syncs later |
+| Change a Task's priority (PWA-12) | ✅ queued, syncs later |
+| Change a Task's due or planned date (PWA-12) | ✅ queued, syncs later |
+| Move a Task to another Project or Area | ❌ needs a connection |
+| Edit a Task's description, delegation, waiting or recurrence RULE | ❌ needs a connection |
+| Edit any record that is not a Task | ❌ needs a connection |
+| Delete, restore or archive anything | ❌ needs a connection |
 | Bulk actions, attachments, export, AI | ❌ needs a connection |
 
 Unsupported actions are not merely disabled: the offline surface **does not render
 them at all**, so there is no control that silently fails.
+
+**PWA-12 is the first offline MUTATION slice, not "full offline mode".** It exists
+to prove that DalyHub's queue, replay, idempotency, recurrence handling and
+conflict model are trustworthy over one bounded set of Task operations before
+offline editing is offered anywhere else. Every other module — Projects, Goals,
+Areas, Notes, Diary, Meetings, Assets, Reviews — remains online-only, by decision
+rather than by omission. See [§15](#15-pwa-12--the-offline-task-mutation-slice).
 
 ---
 
@@ -1223,3 +1234,373 @@ production policy rather than inherited from `default-src`, because a service
 worker and a manifest are exactly the kind of thing a policy should be explicit
 about. Registration, the offline shell, the install prompt, safe mode and offline
 replay were all driven under the enforcing policy with no violation.
+
+---
+
+## 15. PWA-12 — the offline Task mutation slice
+
+The first deliberate offline capability beyond capture. Its objective is not "make
+DalyHub fully offline"; it is to let the owner keep doing the most important Task
+work through a temporary loss of connectivity and then reconcile it safely — and,
+in doing so, to prove the underlying contract before offline editing is extended
+anywhere else.
+
+The design principle, in four lines:
+
+| | |
+|---|---|
+| **Online** | The server is authoritative and mutation behaves exactly as it always did. |
+| **Offline** | DalyHub accepts a bounded set of safe Task intents locally and marks them pending. |
+| **Reconnect** | Those intents replay through the canonical server authority. |
+| **Conflict** | DalyHub does not guess. It says what changed and gives the owner a clear way to resolve it. |
+
+### 15.1 What may be changed offline
+
+Six operations, one entity type:
+
+| Operation | Canonical intent replay uses | Field it contends over |
+|---|---|---|
+| Complete a Task | `intent=complete` | `completedAt` |
+| Reopen a Task | `intent=reopen` | `completedAt` |
+| Rename a Task | `intent=rename` | `title` |
+| Set / clear priority | `intent=update` + `priority` | `priority` |
+| Set / clear the due date | `intent=update` + `dueDate` | `dueDate` |
+| Set / clear the planned date | `intent=plan` / `intent=clear_plan` | `scheduledDate` |
+
+The planned date carries its own two intents rather than a generic field write
+because `planTask`/`clearPlan` is its domain authority and is kept strictly
+separate from the due date (ADR-043 §3). **Replay always uses the same domain path
+the online control uses**; it never finds a shortcut.
+
+**Project / Area reassignment was assessed and deliberately deferred.** The
+architecture would permit it — `intent=set_parent` is atomic and re-validates its
+destination — but it is the one supported-looking Task field whose target can
+cease to exist while the device is offline (an archived Project, a deleted Area),
+so its conflict story is a different one from "this field moved". It is a
+candidate for the next slice, not this one.
+
+### 15.2 Storage
+
+**IndexedDB**, in the database PWA-05 already established (`dalyhub-offline`), in a
+new `mutations` store added by ladder step 2. `localStorage` was never a candidate:
+it is synchronous, string-only and hostile to a queue.
+
+Two version numbers were separated by this milestone, and the separation is
+load-bearing:
+
+- `OFFLINE_DATABASE_VERSION` (now **2**) is the IndexedDB structure. It advances
+  when a store or index is added, which is a purely local, additive event.
+- `OFFLINE_SCHEMA_VERSION` (still **1**) is part of the **namespace digest** — the
+  identity a device's data is filed under. Advancing it re-files everything: the
+  next sync derives a different namespace, the old snapshot is discarded, and any
+  work queued under the old namespace can never be replayed, because replay
+  refuses a record whose namespace does not match the signed-in session.
+
+Adding a store does not change what a namespace means, so it must not strand the
+owner's un-synced work. Two unit tests enforce the separation.
+
+### 15.3 The mutation envelope
+
+One record per intent, in `~/kernel/offline/offline-mutation.ts`:
+
+`id` (a collision-safe UUID, **also the server idempotency key**), `namespace`,
+`entityType`, `entityId`, `operation`, `value`, `baseValue`, `baseUpdatedAt`,
+`payloadVersion`, `createdAt`, `sequence`, `status`, `attempts`, `lastAttemptAt`,
+`attemptStartedAt`, `lastError`, `errorCategory`, `conflict`, `syncedAt`.
+
+What is deliberately **not** there: no session token, no CSRF token, no copy of the
+Task. A queued mutation describes what the owner intended, not an alternate truth
+model — there is no `OfflineTask`, no second Task repository and no offline
+recurrence engine anywhere in DalyHub.
+
+Statuses: `pending` → `syncing` → `synced` | `conflict` | `failed` | `blocked`.
+`conflict` and `blocked` are both separate from `failed` because neither is the
+owner's mistake, and presenting either as "this failed, try again" would send them
+to fix the wrong thing.
+
+**Dates are canonical at entry time.** A relative choice ("Tomorrow") is resolved
+against the owner's server-derived calendar day by the inline date control before
+it reaches the queue (`plan-targets.ts`), so a date chosen on the 12th still means
+the 13th when it replays on the 14th. There is no relative phrase left in the queue
+to re-interpret.
+
+### 15.4 Ordering
+
+**Per-entity serial, cross-entity parallel.**
+
+Within one Task, mutations replay strictly in queue order and the first one that is
+not ready stops that Task — which is what makes "rename → set P2 → change the date
+→ complete" arrive as the owner meant it, and what stops a retry of the rename
+racing the completion that followed it. Between Tasks nothing is shared: one Task
+waiting on a conflict must not hold up an unrelated Task's changes, and a single
+global serial queue would let one stuck record freeze the whole device.
+
+Order comes from a monotonic `sequence`, never from `createdAt`: two mutations
+inside the same millisecond are ordinary, and a device clock that steps backwards
+over an offline period would otherwise reorder the owner's intent.
+
+Records are sent **one at a time**. Two concurrent requests to the same Task would
+arrive in whatever order the network chose, which is precisely the reordering the
+rule exists to prevent.
+
+### 15.5 Coalescing
+
+Three title edits made before any of them has been sent — `Call mechanic` → `Call
+Toyota` → `Call Toyota Dubbo` — become one. Replaying the first two would describe a
+state the owner has already abandoned.
+
+The rule is conservative, and every clause of it is load-bearing:
+
+1. **Same entity, same operation.** Two different fields are two changes.
+2. **Replace-style only.** `complete` and `reopen` never coalesce with anything:
+   their order is their meaning, and a completion has a recurrence consequence.
+3. **The existing record is `pending` and has NEVER been attempted.** A record with
+   `attempts > 0` may already sit in the server's receipt table under its key;
+   rewriting its payload would make one idempotency key mean two different
+   mutations, which the receipt protocol cannot survive.
+4. **Nothing else for that Task was queued in between.** Folding a title edit into
+   one that sits before a completion would move it before the completion.
+
+The surviving record keeps the earlier record's `id`, `sequence` and `baseValue`:
+its identity, its position and its base are facts about when the owner started
+changing that field. Only the intended value moves on.
+
+### 15.6 Idempotency
+
+The **PWA-05 receipt protocol, reused rather than reinvented** — claim with an
+`INSERT`, apply, settle; a losing attempt reads the receipt back and applies
+nothing. A second table (`offline_mutation_receipts`, migration `0040`) because a
+mutation receipt answers a different question from a capture receipt and needs to
+carry the operation and the outcome rather than a created id; SQLite cannot alter
+the capture table's `record_kind` CHECK, and one table with two meanings would be
+worse than two tables with one each.
+
+One departure from the capture protocol, and it is deliberate: **a conflict
+RELEASES its claim.** A conflict is not an outcome, it is a question for the owner,
+who may answer it by choosing "keep my change" and sending the same mutation again
+under the same key. A finalised receipt would make that answer permanently
+unanswerable.
+
+**This is the second of two protections, not the only one.**
+`TaskRepository.completeTask` is already an idempotent no-op on an already-completed
+Task: no batch, no Activity, and no second recurrence successor. The receipt sits
+above that, so the exactly-one-successor invariant survives even a replay that
+somehow bypassed it — including the case a receipt alone cannot catch, where the
+client never read the first response and queued the intent under a *new* key.
+
+### 15.7 Recurrence
+
+**The client never generates a successor.** TASKS-07's engine is server-side, and it
+is the only thing that decides whether an occurrence has one at all. Offline, the
+row shows the occurrence as completed-and-pending; it does not invent the next one.
+When the completion intent replays, the canonical completion runs, the engine
+creates exactly one successor, and the surface re-reads to receive it — the client
+asks rather than guesses.
+
+Four scenarios are proven against real D1 and the real engine
+(`test/kernel/offline-task-replay.test.ts`), plus one browser journey:
+
+| Scenario | Proven |
+|---|---|
+| Fixed schedule completed offline | exactly one successor, on the fixed-schedule date |
+| After-completion schedule completed offline | exactly one successor, anchored on the canonical completion day |
+| Duplicate replay (same key, ×3) | one successor, one completion event |
+| Duplicate replay (different keys, ×3) | one successor, one completion event |
+| Interrupted replay (server applied, response lost) | one successor, one completion event |
+
+### 15.8 Conflicts
+
+Conflicts are ordinary distributed outcomes, not exceptional mysteries. The
+comparison is **field-focused**: the queued mutation carries the value of exactly
+one field as it stood when the owner acted, and the server compares exactly that
+field. Using the Task's `updatedAt` would be simpler and would be wrong — it moves
+for every field, so an offline priority change would be reported as conflicting
+with an unrelated server title change.
+
+Three outcomes:
+
+- **applied** — the field still holds the base value; write it.
+- **satisfied** — the field ALREADY holds the intended value; write nothing and
+  report success. This is what makes replay safe to repeat: a retry whose first
+  attempt succeeded but whose response was lost finds its own work done, and is a
+  truthful no-op rather than a conflict against itself.
+- **conflict** — the field holds a third value; the owner decides.
+
+The rules, by case:
+
+| Case | Behaviour |
+|---|---|
+| Same field changed on both sides | Conflict. Neither side is discarded; nothing is written. |
+| Unrelated server field changed | **Merges.** Not a conflict — the endpoints are field-focused. |
+| Same date changed on both sides | Conflict, showing both dates. |
+| Task already completed elsewhere, queued completion | Success. The intended terminal state holds. Not a second completion. |
+| Task reopened elsewhere, queued completion | Applied. The canonical completion decides the recurrence consequence. |
+| Task deleted elsewhere | Terminal `gone`. Never retried, and said in the owner's words. |
+| Recurring occurrence advanced elsewhere | The series invariant is protected by the completion rule above; the queued completion is satisfied, not re-applied. |
+
+**Wording is product language, never a status code.** "This task was renamed on
+another device while you were offline." No `409`, no "sync failed", no "record
+version mismatch". The surface shows the value here and the value in DalyHub, and
+offers exactly two choices: **Keep my change** (rebases onto the value the owner has
+now seen and sends it — without the rebase the next attempt would detect the same
+conflict and loop) and **Keep DalyHub's** (drops the queued intent; nothing is sent).
+There is no three-way merge editor: for a title, a date or a priority, a
+field-level choice IS the resolution.
+
+### 15.9 Replay ownership
+
+**`OfflineProvider` is the one replay authority.** The service worker replays
+nothing — it does not intercept non-GET requests at all — no component replays
+anything, and a re-entrant `sync()` joins the running pass rather than starting a
+second. Captures replay first, then mutations, in the same pass: a capture creates a
+record and a mutation edits one, so creations first is the only order in which a
+device holding both ends up consistent in one pass.
+
+Triggers: application start, connectivity restoration, tab visibility, and an
+explicit retry after a conflict or an error. **No polling anywhere** — a healthy
+connection is never probed on a timer, and the empty-queue case costs zero
+requests because the queue is read before anything else happens.
+
+PWA-12 found and fixed a real defect here. `probe()` set the connection state, but
+the only code that called `sync()` on regaining a connection was the unhealthy
+heartbeat's tick — which runs on a 15-second timer and stops the moment the state
+is healthy. So whenever the browser's own `online` event discovered the network
+first (the common case, and the one a phone leaving a lift always takes), the
+heartbeat was cancelled by the very transition that should have started the pass.
+Reconnection is now recognised in one place, as a transition rather than a level.
+
+**Background Sync is not used.** Safari/iOS does not support it, DalyHub must be
+excellent on iPhone, and a contract built on an API half the target platforms lack
+is not a contract. Reconnection while the application is active is sufficient to
+reconcile, and that is what is tested.
+
+### 15.10 Authentication expiry
+
+An offline period can outlive a session. Replay stops on the first `blocked`
+outcome — one redirect to the identity provider, not one per queued record — the
+connection state becomes `authRequired`, and the heartbeat does not retry it,
+because every retry there is an identity-provider redirect that cannot succeed
+until the owner acts. Queued work is **never discarded**, a blocked attempt does
+**not** consume retry budget, and the owner is told sign-in is required rather than
+told their change failed.
+
+### 15.11 Security
+
+Replay is not an exemption from anything. It posts to `/tasks/:taskId` — the same
+authenticated route the Drawer, the row and the quick-edit panel post to — with the
+same credentials, the same session, the same Cloudflare Access posture and the same
+server-side workspace resolution. There is **no unauthenticated replay endpoint and
+no offline replay endpoint at all**. CAPTURE-01's `dhcap_` credential is not used
+and must never be: it exists to bring thoughts in, not to edit Tasks.
+
+Workspace isolation is enforced twice: every queued record carries the namespace it
+was created under and replay refuses to send one that does not match the session
+signed in now, and the receipt is scoped by workspace, owner subject, entity and
+operation server-side. A queued mutation cannot leak into another workspace if the
+application later opens under one.
+
+The route also validates the replay fields against each other before a claim is
+written: the declared operation must be one the submitted intent actually performs,
+and it must carry that operation's field and no other. A hand-made `offlineKey`
+cannot be attached to an intent it was not issued for.
+
+### 15.12 Bounds and retention
+
+- **At most 200 outstanding changes** per device. Chosen against real use: far more
+  Task changes than an owner makes in a day, so the bound is reached only by a
+  pathological session. When it is reached DalyHub **refuses the next change and
+  says so** — it never silently drops the oldest, because the oldest is the one the
+  later changes were built on.
+- **At most 1,024 characters per value**, comfortably above the domain's own
+  512-character title bound.
+- **A confirmed change is pruned.** The queue holds work that is still owed or
+  still owned by the owner, never a history. The Activity stream remains the audit
+  authority; the offline queue must not become a second, permanent, unaudited log
+  of the owner's edits.
+- **Receipts are not pruned yet.** They are bounded by how many offline changes the
+  owner actually makes, and `created_at` is indexed so a later maintenance item can
+  prune them. Stated here rather than implied to be handled.
+
+### 15.13 Diagnostics
+
+`mutationDiagnostic()` reduces a record to `id`, `operation`, `status`, `attempts`,
+`errorCategory` and `queuedAt` — and carries **no owner content**: no title, no note
+text, no date value. A sync problem is debugged from what kind of change was
+attempted, how often, and with what category of failure; never from what the change
+said.
+
+### 15.14 What the interface says
+
+`local pending ≠ server confirmed`, and the interface never blurs it.
+
+- A row with an outstanding change shows the owner's change **and** a single line
+  of text beside it: "Waiting to sync", "Needs your decision", "Needs attention".
+- A Task with nothing outstanding carries **no sync chrome at all**. No cloud
+  glyphs, no green "synced" text, no permanent badge. When everything is normal the
+  interface looks normal.
+- Colour is never the carrier. Every state has words; `data-attention` shifts the
+  role as a redundant third signal.
+- The queued-changes panel renders **nothing** when the queue is empty, and appears
+  on the Tasks surface itself as well as in Settings and on `/offline`, so a
+  decision appears where the owner already is.
+- The application-level connection status counts queued changes in the same two
+  figures it counts queued captures in. The distinction the owner needs is
+  "waiting" versus "needs me", not "capture" versus "edit".
+
+### 15.15 The offline failure experience
+
+Opening a task while offline used to take the Tasks page down. A Drawer opens by
+navigating, a navigation re-runs the route's loader, and a loader that cannot reach
+the server throws into the global error boundary — so a previously loaded Tasks
+surface answered a tap on a row with "Something went wrong".
+
+The fix is **not to make the request**, not to soften the boundary: `root`, the
+app shell and `/tasks` each declare `shouldRevalidate`, and a navigation that
+changes only the `drawer` parameter re-runs none of them. All three are needed,
+because React Router batches a navigation's loaders into ONE `.data` request —
+`root` alone was enough to keep every Drawer open hitting the network after the
+other two had declined.
+
+**The skip is scoped to being offline, and that took two regressions to learn.**
+It first shipped unconditionally, on the reasoning that a Drawer parameter
+changes nothing any of the three loaders read, so the request only ever confirmed
+that. Both of the following were false:
+
+1. An explicit `useRevalidator().revalidate()` arrives with an IDENTICAL url. A
+   rule written as "same pathname → skip" silenced every deliberate re-read in
+   the product, so a task created, renamed or completed stopped appearing.
+2. A navigation SUPERSEDES an in-flight revalidation, and it was the navigation's
+   own re-read that previously replaced it. Removing that turned "mutate, then
+   navigate" — create a task in the Drawer, then close it — into a permanently
+   stale list.
+
+So the rule now requires a same-document parameter change (never a submission,
+never an identical url) **and** that the offline layer has said this device
+cannot reach DalyHub. Online, nothing is declined and behaviour is byte-for-byte
+what it was; offline, a request that cannot succeed is not made. The connection
+state comes from `OfflineProvider`, which owns it, published to the route modules
+through `~/shared/router/revalidation` — the same module-level shape the mutation
+queue's active namespace uses, and for the same reason: a route module export has
+no React context. The global error boundary is untouched.
+
+### 15.16 Browser assumptions
+
+| API | Role |
+|---|---|
+| IndexedDB | **Required** for the queue. Absent (private mode, blocked storage) → offline editing reports itself unavailable rather than failing silently. |
+| Service worker | Enhancement. It caches the shell; it replays nothing. |
+| `navigator.onLine` | **Hint only.** The answer always comes from a real request outcome (`classifyProbe`). |
+| Background Sync | **Not used.** Unsupported on Safari/iOS. |
+| Web Locks, BroadcastChannel, WebSockets | Not used. |
+
+Targets: Safari/iOS (installed and in-browser), Chrome, Edge, Firefox. Everything
+the contract depends on is available in all of them.
+
+### 15.17 Explicit non-goals, held
+
+No offline editing of Projects, Goals, Areas, Notes, Diary, Meetings, Assets or
+Reviews. No full database replication, no CRDTs, no collaborative editing, no
+general multi-device live sync, no WebSockets, no native application, no push
+notifications, no background polling, no AI reconciliation, no service-worker
+rewrite, no duplicate Task repository, no client-side recurrence generation, and no
+mutation of a record this device never had.

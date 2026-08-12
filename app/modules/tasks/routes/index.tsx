@@ -15,7 +15,7 @@
  */
 
 import { env } from "cloudflare:workers";
-import { redirect } from "react-router";
+import { redirect, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
@@ -27,6 +27,10 @@ import {
   type TaskDefaultView,
 } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
+import {
+  isSameDocumentParameterChange,
+  parametersUnchanged,
+} from "~/shared/router/revalidation";
 import { serializeTaskListItem } from "~/shared/task-record/task-view";
 import {
   DEFAULT_TASK_VIEW_CONFIG,
@@ -45,6 +49,7 @@ import {
   configFromParams,
   groupDimensionFor,
   paramsFromConfig,
+  TASKS_FILTER_PARAMS,
   TASKS_PARAMS,
   toWorkspaceFilters,
 } from "../tasks-url-state";
@@ -53,6 +58,46 @@ import { TasksWorkspace } from "../TasksWorkspace";
 
 export function meta() {
   return [{ title: "Tasks · DalyHub" }];
+}
+
+/**
+ * Every URL parameter this loader actually reads.
+ *
+ * Derived from the two authoritative maps rather than restated, so a filter or a
+ * view dimension added later cannot be forgotten here and quietly stop
+ * revalidating the list it changes.
+ */
+const LOADER_PARAMS: readonly string[] = [
+  ...Object.values(TASKS_PARAMS),
+  ...Object.values(TASKS_FILTER_PARAMS),
+];
+
+/**
+ * Opening or closing a Drawer only toggles the `drawer` parameter — which this
+ * loader does not read — yet React Router would still re-run the whole task
+ * query, its grouping and its four bounded option reads to produce byte-for-byte
+ * the same answer. Skipping that is worth doing on its own merits; the same
+ * precedent already exists in the Notes collection, for the same reason.
+ *
+ * PWA-12 — it is also what stops opening a task while OFFLINE taking the page
+ * down. A drawer opens by navigating, a navigation re-runs the loader, and a
+ * loader that cannot reach the server throws into the global error boundary —
+ * so a previously loaded Tasks surface, which is meant to stay usable through a
+ * short outage, answered a tap on a row with "Something went wrong". The fix is
+ * to not make the request, not to soften the boundary: a request that is never
+ * needed cannot fail (§38). Every change this loader DOES depend on still
+ * revalidates through the default.
+ */
+export function shouldRevalidate(args: ShouldRevalidateFunctionArgs): boolean {
+  // The shared clause first: a submission and an explicit `revalidate()` are not
+  // navigations, and must never be skipped — which is how every mutation on this
+  // surface asks the list to re-read itself.
+  if (!isSameDocumentParameterChange(args)) {
+    return args.defaultShouldRevalidate;
+  }
+  return parametersUnchanged(args, LOADER_PARAMS)
+    ? false
+    : args.defaultShouldRevalidate;
 }
 
 /** How many delegatees / parents the filter option sets offer. Bounded, not "all". */

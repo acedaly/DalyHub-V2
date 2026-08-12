@@ -2046,3 +2046,26 @@
     flex: none;
   }
 }
+
+/*
+ * PWA-12 — the row's synchronisation state.
+ *
+ * Drawn only when a change is outstanding, so an ordinary row is completely
+ * unchanged: there is no permanent badge, no cloud glyph and no green "synced"
+ * text anywhere in the list (§29). The element carries WORDS ("Waiting to sync",
+ * "Needs your decision"), so colour is a redundant third signal rather than the
+ * carrier — `data-attention` shifts the role, and the text says the same thing
+ * without it (`AGENTS.md §15`).
+ *
+ * It reads at metadata weight on purpose. A pending change is a fact about the
+ * transport, not about the work, and it must not out-shout the task's title.
+ */
+.dh-task-sync {
+  white-space: nowrap;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-task-sync[data-attention] {
+  color: var(--md-sys-color-state-overdue);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+}

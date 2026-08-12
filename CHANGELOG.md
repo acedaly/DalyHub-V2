@@ -17,6 +17,53 @@ no version number to group them under.
 
 ---
 
+## Your tasks keep working when your phone loses signal (PWA-12)
+
+Until now, losing your connection meant DalyHub could still _show_ you your tasks
+but not let you change them. Tick a task in a lift and nothing happened; tap one to
+open it and you got "Something went wrong". That was the honest behaviour for a
+product that had only ever promised offline _capture_ — but it is not the behaviour
+of something you run your life on.
+
+You can now keep doing the Task work that actually matters through a temporary
+outage. **Complete a task, reopen one, rename it, change its priority, or move its
+due or planned date** — using exactly the same controls you use online. There is no
+offline mode to switch on and no separate editor to learn.
+
+- **Your change shows immediately, and DalyHub tells you the truth about it.** The
+  row updates the moment you make the change, with a quiet "Waiting to sync" beside
+  it. That line is the point: DalyHub will never tell you something is saved when
+  it is only saved on your phone.
+- **It survives.** Close the tab, reload, restart the browser, lose signal again —
+  the change is still there, still waiting.
+- **When you reconnect, it just goes.** No "Sync now" to press for ordinary
+  changes. The pending note disappears when DalyHub actually has your change.
+- **Repeating tasks stay correct.** Tick off a recurring task offline and you get
+  **exactly one** next occurrence when it syncs — not two, not none — even if the
+  connection wobbled halfway through sending it. DalyHub does not guess at the next
+  date on your phone; the real scheduling rules run on the server, once.
+- **If something changed on another device, DalyHub asks instead of guessing.** If
+  you renamed a task on your phone while it was offline and the same task changed
+  elsewhere, you will see: _"This task was renamed on another device while you were
+  offline"_, both versions side by side, and two buttons — keep yours, or keep the
+  one DalyHub has. Neither side is ever thrown away quietly.
+- **If your sign-in expired while you were away, nothing is lost.** DalyHub pauses,
+  says you need to sign in again, and picks up where it left off afterwards.
+- **When there is nothing waiting, nothing appears.** No sync icons on every row,
+  no cloud badges, no green ticks. A normal task list looks completely normal.
+
+Two other things were fixed on the way. **Opening a task while offline no longer
+breaks the page** — it used to reload data it did not need, which failed with no
+connection. And **reconnecting now actually reconnects**: DalyHub could notice the
+network had come back without acting on it, so a change could sit waiting longer
+than it should have.
+
+This is deliberately a first slice. Everything else — Projects, Goals, Notes,
+Diary, Meetings, and moving a task to a different Project — still needs a
+connection, and says so.
+
+---
+
 ## Type the routine, not the form (TASKS-11)
 
 Some jobs do not repeat on a calendar — they repeat _from the last time you did

@@ -21,6 +21,7 @@ import {
   OFFLINE_DATABASE_VERSION,
   OFFLINE_INDEXES,
   OFFLINE_SCHEMA_STEPS,
+  OFFLINE_SCHEMA_VERSION,
   OFFLINE_STORES,
   recordKey,
   stepsFor,
@@ -106,18 +107,18 @@ describe("stepsFor", () => {
 });
 
 describe("a first installation", () => {
-  it("creates the metadata, records and queue stores with their indexes", () => {
+  it("creates every store this release requires, with its indexes", () => {
     const { database, stores } = fakeDatabase();
     for (const step of stepsFor(0)) {
       step.apply(database, {} as IDBTransaction);
     }
 
+    // Compared against the STORE MAP rather than a hand-written list, so adding
+    // a store cannot leave the ladder and the adapter's required-store check
+    // disagreeing — which is the failure that makes `openOfflineDatabase` take
+    // the recovery path on a healthy device.
     expect([...stores.keys()].sort()).toEqual(
-      [
-        OFFLINE_STORES.meta,
-        OFFLINE_STORES.queue,
-        OFFLINE_STORES.records,
-      ].sort(),
+      Object.values(OFFLINE_STORES).sort(),
     );
 
     const records = stores.get(OFFLINE_STORES.records)!;
@@ -139,6 +140,47 @@ describe("a first installation", () => {
     ).toEqual(["namespace", "status"]);
 
     expect(stores.get(OFFLINE_STORES.meta)!.keyPath).toBe("namespace");
+
+    // PWA-12 — the mutation queue is keyed by the record's id, which is ALSO the
+    // server idempotency key. That is what makes it impossible for two rows to
+    // claim the same key, and it is why the key is a property of the store rather
+    // than a convention.
+    const mutations = stores.get(OFFLINE_STORES.mutations)!;
+    expect(mutations.keyPath).toBe("id");
+    expect(
+      mutations.indexes.get(OFFLINE_INDEXES.mutationsByNamespace)?.keyPath,
+    ).toBe("namespace");
+    expect(
+      mutations.indexes.get(OFFLINE_INDEXES.mutationsByNamespaceEntity)
+        ?.keyPath,
+    ).toEqual(["namespace", "entityId"]);
+  });
+
+  it("keeps the namespace schema version out of the database version", () => {
+    // PWA-12 — they answer different questions, and this release is the first
+    // where they diverge. Advancing the NAMESPACE version re-files every byte a
+    // device holds and strands any queued work under the old namespace, so
+    // adding a store must not do it.
+    expect(OFFLINE_DATABASE_VERSION).toBe(2);
+    expect(OFFLINE_SCHEMA_VERSION).toBe(1);
+  });
+
+  it("adds the mutation queue to a device that already has the first schema", () => {
+    // The upgrade path a real device takes: version 1 already installed, with a
+    // capture queue that must survive.
+    const { database, stores } = fakeDatabase();
+    for (const step of stepsFor(0, 1)) {
+      step.apply(database, {} as IDBTransaction);
+    }
+    const queueBefore = stores.get(OFFLINE_STORES.queue);
+
+    for (const step of stepsFor(1)) {
+      step.apply(database, {} as IDBTransaction);
+    }
+
+    expect(stores.get(OFFLINE_STORES.mutations)).toBeDefined();
+    // Additive: the capture queue is the SAME store object, never re-created.
+    expect(stores.get(OFFLINE_STORES.queue)).toBe(queueBefore);
   });
 
   it("is idempotent — re-applying a step over an existing store does not throw", () => {

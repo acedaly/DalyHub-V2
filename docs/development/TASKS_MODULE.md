@@ -1716,6 +1716,106 @@ because it describes the list, so it belongs against it.
 
 ---
 
+## Offline Task mutation (PWA-12, 2026-08-11)
+
+Tasks is the first — and, for now, the only — module in which a record can be
+CHANGED without a connection. The full contract, including storage, ordering,
+idempotency and conflict rules, lives in
+[`PWA_AND_OFFLINE.md` §15](PWA_AND_OFFLINE.md#15-pwa-12--the-offline-task-mutation-slice);
+what follows is what a Tasks implementer needs to know.
+
+### What is offline-capable, and how a control becomes so
+
+Six operations: complete, reopen, rename, priority, due date, planned date. They
+are reached through the **ordinary inline controls** — `InlineTaskPriority`,
+`InlineTaskDate`, the row's completion checkbox, the row's Rename — because there
+is no separate offline editor and no mode to enter.
+
+A control becomes offline-capable by passing an `offline` descriptor to
+`saveTaskRecordField` / `saveTaskBulkField`, or by calling
+`postTaskRecordActionOffline`:
+
+```ts
+await saveTaskBulkField(
+  taskId,
+  { intent: "set_priority", priority: next },
+  { offline: { operation: "set_priority", value: next, baseValue: priority } },
+);
+```
+
+**Absence is meaningful.** A Task mutation with no `offline` descriptor is not in
+the slice: a transport failure on it is reported as an ordinary refusal, exactly as
+it was before PWA-12. That is how the slice stays bounded — a Task operation
+becomes offline-capable by being described, never by sitting next to one that is.
+
+`baseValue` is the value the surface was showing when the owner acted. It is the
+whole of the conflict contract, so a control that omits it makes its own edit
+un-arbitrable; the row fields pass their current value.
+
+### Attempt-then-queue, not check-then-decide
+
+`task-inline-edit.ts` always sends the request first and queues only when the
+transport fails. Two reasons: the request outcome is the only trustworthy evidence
+of reachability (`navigator.onLine` is a hint, never an answer — see
+`offline-connection.ts`), and it keeps the ONLINE path exactly the request it always
+was, with no probe, no storage read and no queue bookkeeping before the fetch.
+
+An `AbortError` is deliberately not treated as a transport failure: an aborted
+request was cancelled by DalyHub itself, and queueing a change the owner may not
+have finished making would be inventing intent.
+
+### The online endpoints are unchanged; only replay is redirected
+
+A row's priority still posts to `/tasks/bulk` online — the same atomic authority
+the bulk bar uses. Only the OFFLINE REPLAY of that same edit travels through
+`/tasks/:taskId`, because a queued intent addresses exactly one Task and the record
+route is where one Task's conflict can be arbitrated field by field. Both endpoints
+reach the same Task domain; neither is a second authority.
+
+The planned date is the one operation whose replay carries two intents (`plan` and
+`clear_plan`) rather than a field write, because `planTask`/`clearPlan` is its
+domain authority and is kept strictly separate from the due date (ADR-043 §3).
+
+### Presentation
+
+`pendingTaskStates()` (in `~/shared/task-record/task-pending.ts`) turns the queue
+into a `TaskListItemPatch` per Task plus one line of text. The patch is merged into
+the SAME map an in-flight online change uses and applied UNDER it — an edit made
+since the queue was read is newer than anything in it — so a pending offline row and
+a pending online row are painted by the same `applyTaskPatch`, and there is no
+display state that only an offline row can have (ADR-086 is unchanged).
+
+The row shows a `task-row-sync` metadata item **only** when something is
+outstanding. A Task with nothing queued carries no sync chrome at all.
+
+### Recurrence
+
+The row never computes a successor. Completing a repeating Task offline queues the
+completion intent and paints the occurrence as completed-and-pending; the
+authoritative TASKS-07 engine runs when the intent replays, and
+`useReplayRevalidation()` re-reads the list so the one successor the server created
+appears. The client asks; it does not guess.
+
+### What is NOT offline-capable, and why
+
+`set_parent` (Project / Area reassignment) was assessed and deferred: it is the one
+supported-looking Task field whose TARGET can cease to exist while the device is
+offline — an archived Project, a deleted Area — so its conflict story is different
+from "this field moved". Description, delegation, waiting, the recurrence RULE, the
+series operations (skip, stop repeating), bulk actions and delete/restore are all
+online-only, and each of them says so by simply refusing when the request fails.
+
+Opening a Task's Drawer needs a connection: it reads the full record and its links.
+It no longer takes the page down when it cannot — `/tasks`, the app shell and the
+root each decline to revalidate for a navigation that only moves the `drawer`
+parameter **while the device is offline**, so offline a Drawer open makes no
+request at all and the Drawer's own load failure is handled where it happens.
+Online the skip does not apply and every navigation revalidates exactly as it did
+before; see [`PWA_AND_OFFLINE.md` §15.15](PWA_AND_OFFLINE.md#1515-the-offline-failure-experience)
+for the two regressions that scoped it.
+
+---
+
 ## Deterministic capture v2 (TASKS-11, 2026-08-11)
 
 TASKS-11 taught the existing parser one new idea — an explicit **after-completion**

@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-126** (DEBT-125 was raised by the CI reliability pass; DEBT-123…DEBT-124 were raised by UIX-04; DEBT-120…DEBT-122 were raised by UIX-03; DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-127** (DEBT-126 was raised by PWA-12; DEBT-125 was raised by the CI reliability pass; DEBT-123…DEBT-124 were raised by UIX-04; DEBT-120…DEBT-122 were raised by UIX-03; DEBT-116…DEBT-119 were raised by the [August 2026 UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md); DEBT-115 was raised by TASKS-09; DEBT-114 was raised by GOAL-02; DEBT-111, DEBT-112 and DEBT-113 were raised by the 9 August 2026 E2E regression audit; DEBT-109 and DEBT-110 were raised by the V2.2 Tasks daily-driver programme, renumbered from 107/108 on merge; DEBT-107 was raised by the August 2026 UI quality audit — it had been issued as a SECOND `DEBT-101`, which this rule forbids, and was renumbered when the first DEBT-101 was resolved; DEBT-106 was raised by PEOPLE-04/DIARY-02; DEBT-105 is the AUDIT-11 half of DEBT-85, split out on resolution; DEBT-102…DEBT-104 were raised by the Today screen redesign; DEBT-101 was raised by EDIT-02; DEBT-99 and DEBT-100 were raised by M3-INT; DEBT-97 and DEBT-98 were raised by EDIT-01/DS-16; DEBT-95 and DEBT-96 were raised by the shell-polish change; DEBT-90 is now ☑; DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. Both are now ☑ (the pagination one on 2026-08-01, the capture-context one on 2026-08-08). Do not issue DEBT-45 again.
   - **A near-miss, resolved the other way (2026-08-08).** PEOPLE-04/DIARY-02 and AUDIT-11 both issued **DEBT-105** in parallel. AUDIT-11 landed on `main` first, so it keeps the number and the PEOPLE-04/DIARY-02 entry was renumbered to **DEBT-106** on merge. That is the opposite of the DEBT-45 decision above, and deliberately so: DEBT-45 was renumbered-averse because it already had cross-references to break, whereas this entry was one commit old with a single self-reference. Renumber while it is cheap; record the collision when it is not.
   - **Twice more, resolved the same way (2026-08-08).** The V2.2 Tasks daily-driver programme and the August 2026 UI quality audit both issued **DEBT-107** in parallel, and the same programme's second entry collided with the audit's **DEBT-108**. The audit landed on `main` first, so it keeps both numbers and the V2.2 entries became **DEBT-109** and **DEBT-110** on merge. Two ADRs collided in the same merge for the same reason — `main` landed ADR-083 and ADR-084, so V2.2's became **ADR-085**. All four were a few commits old with cross-references only inside their own programme's documents, so renumbering stayed cheap. The pattern is now frequent enough to be worth naming: **two branches open at once will both reach for the next free number, and the file cannot stop them — only the merge can.** Take the next free ID as late as you can, and re-check it when you rebase.
@@ -1535,14 +1535,58 @@ undiagnosed, and the next occurrence owes evidence.
   recurrence representation.
 - **Related roadmap item.** [TASKS-11](../roadmap/ROADMAP_V2_2.md#-tasks-11---deterministic-natural-language-capture-v2--delivered-2026-08-11).
 
-### ☐ DEBT-119 — Offline Tasks is capture-idempotent but not mutation-complete — P2
+### ☑ DEBT-119 — Offline Tasks is capture-idempotent but not mutation-complete — P2 — **RESOLVED 2026-08-11 by PWA-12**
 
+- **Resolved.** The offline Task mutation slice ships completion, reopen, rename,
+  priority, due date and planned date, with a durable queue, per-entity causal
+  ordering, database-level idempotency reusing the PWA-05 receipt protocol, and a
+  field-focused conflict contract with plain-language wording and a two-choice
+  resolution. The closing condition below is met and exceeded: ten browser
+  journeys cover the offline completion, the offline edits, the recurrence
+  successor, both conflict resolutions and the recovery path, and the recurrence
+  invariant is additionally proven against real D1 for a fixed schedule, an
+  after-completion schedule, duplicate replay under the same and different keys,
+  and an interrupted response. Parent reassignment stays online-only, by decision
+  rather than omission — see
+  [ADR-090](../decisions/ARCHITECTURE_DECISIONS.md#adr-090-offline-mutation-as-a-transport-concern--a-queue-of-intents-replayed-through-the-canonical-route-with-field-focused-conflict-arbitration)
+  and [`PWA_AND_OFFLINE.md` §15](../development/PWA_AND_OFFLINE.md#15-pwa-12--the-offline-task-mutation-slice).
 - **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
 - **Current issue.** DalyHub's offline architecture supports an append-only capture queue and database-level idempotency, but the high-frequency Task actions that make Tasks a daily driver - complete/reopen, reschedule, change priority, move parent and recurrence advancement - are still online-first. The current optimistic list contract improves perceived latency, but it is not an offline conflict/replay contract.
 - **Impact.** Medium, mostly on iPhone. A personal task manager becomes less trustworthy when capture works offline but the next most common action, completing or rescheduling a Task, cannot be queued with clear conflict semantics.
 - **Desired future state.** A deliberately small offline Task mutation slice defines queued completion/reopen and basic row edits, including recurrence replay rules and conflict wording, before broader offline editing is attempted.
 - **Closing condition.** PWA/offline tests prove at least one offline completion/reopen journey and one offline date/priority edit replay correctly, including the visible recovery path for a conflict.
 - **Related roadmap item.** [PWA-12](../roadmap/ROADMAP_V2_2.md#-pwa-12---offline-task-mutation-slice).
+
+### ☐ DEBT-126 — The Settings preferences journey hangs on `networkidle` after the Diary default-mode step — P2
+
+- **Status: raised 2026-08-11 by PWA-12,** which found it while verifying that a
+  change to route revalidation had not broken anything, and **confirmed it is not
+  PWA-12's**: `e2e/settings.spec.ts:68` fails identically with PWA-12's entire
+  `app/` tree replaced by the parent commit's (`git checkout 9d422b5^ -- app/`),
+  reproducibly, at `workers: 1` and `retries: 0`. It is a `main` failure that
+  PWA-12 happened to run into, not a regression it caused. CI says the same
+  without needing the local reproduction: `E2E 8/8` is RED on `main` itself at
+  [`2bb4b81`](https://github.com/acedaly/DalyHub-V2/actions/runs/31531917741),
+  on this journey, with every other shard in that run green.
+- **Current issue.** "opens from navigation and persists owner/workspace
+  preferences" times out at 30s. The trace's last completed step is the Diary
+  default-mode assertion (`link "Timeline"` carries `aria-current`); the next
+  `gotoFixture` never resolves its `waitForLoadState("networkidle")`. Every other
+  test in the file passes, including the two-device merge journey immediately
+  after it.
+- **Impact.** Medium. It is one journey, but it is the one that proves the owner's
+  stored preferences survive a reload — and while it is red, `settings.spec.ts` is
+  a file whose result nobody can read at a glance, which is the exact condition
+  [DEBT-125](#-debt-125--mains-e2e-suite-is-red-for-reasons-unrelated-to-the-change-that-finds-it--p1--every-deterministic-failure-repaired-2026-08-11-the-browser-crash-fix-now-reaches-the-browser-and-needs-runs)
+  exists to stop recurring.
+- **Desired future state.** Either the journey stops waiting on `networkidle`
+  after a navigation that legitimately keeps a request open, or the request that
+  keeps it open is identified and fixed. `networkidle` is a poor gate on a page
+  the offline provider syncs from, and several specs have already moved off it.
+- **Closing condition.** `e2e/settings.spec.ts` passes in full, deterministically,
+  with the cause named rather than the wait lengthened.
+- **Do NOT close by raising a timeout or adding a retry.** The step that hangs
+  never completes; a longer budget would only take longer to fail.
 
 ## Entry template
 

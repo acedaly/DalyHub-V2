@@ -39,6 +39,37 @@ export {
 } from "./OfflineSyncPanel";
 
 export {
+  OfflineChangesPanel,
+  conflictFieldLabel,
+  describeConflictValue,
+  type OfflineChangesPanelProps,
+} from "./OfflineChangesPanel";
+
+export {
+  OFFLINE_REPLAY_APPLIED_EVENT,
+  announceReplayApplied,
+  enqueueTaskMutation,
+  getActiveOfflineNamespace,
+  hasOutstandingMutations,
+  notifyMutationQueueChanged,
+  readActiveMutations,
+  setActiveOfflineNamespace,
+  subscribeMutationQueue,
+  type EnqueueResult,
+  type TaskMutationIntent,
+} from "./mutation-queue";
+
+export {
+  MUTATION_REPLAY_BATCH_SIZE,
+  classifyMutationResponse,
+  mutationFormData,
+  reclaimStalledMutations,
+  replayMutation,
+  replayMutations,
+  type MutationPassResult,
+} from "./mutation-sync";
+
+export {
   OFFLINE_DIAGNOSTIC_LIMIT,
   classifyOfflineFailure,
   installOfflineDiagnostics,
@@ -94,14 +125,19 @@ export {
   clearAllOfflineData,
   clearOtherNamespaces,
   clearSnapshot,
+  deleteMutationRecord,
   deleteQueueRecord,
   estimateOfflineStorage,
   pruneRetention,
+  pruneSyncedMutations,
   pruneSyncedQueue,
+  putMutationRecord,
   putQueueRecord,
+  readAllMutations,
   readAllQueued,
   readDataset,
   readLatestMeta,
+  readMutations,
   readQueue,
   saveSnapshot,
   summariseNamespaceQueue,

@@ -520,6 +520,61 @@ HARDEN-01. No feature, no redesign. Full record:
 - **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no selector widened,
   no test deleted, no new feature, no new CI job, no production contact.
 
+### ☑ PWA-12 - Offline Task mutation slice - **DELIVERED 2026-08-11**
+
+The first deliberate offline capability beyond capture. Not "offline mode": a
+bounded slice whose job is to prove that DalyHub's queue, replay, idempotency,
+recurrence handling and conflict model are trustworthy before offline editing is
+offered anywhere else. Full record:
+[`PWA_AND_OFFLINE.md` §15](../development/PWA_AND_OFFLINE.md#15-pwa-12--the-offline-task-mutation-slice).
+
+- **Six operations, one entity type.** Complete, reopen, rename, priority, due date,
+  planned date - all through the SAME inline controls the owner already uses. There
+  is no "offline editor" and no mode. A Task operation becomes offline-capable by
+  being described at its call site, never by being adjacent to one that is.
+- **The queue stores INTENT, never a second truth.** No `OfflineTask`, no second
+  Task repository, no offline recurrence engine, no offline business rule. Replay
+  posts the canonical intent to `/tasks/:taskId` - the same authenticated route the
+  row and the Drawer post to - so validation, Activity, workspace scoping and the
+  Task domain are exactly what they were.
+- **The client never generates a recurring successor.** TASKS-07's engine stays
+  server-side and decides when the completion replays. Exactly-one-successor is
+  protected twice: by the receipt, and by `completeTask` being an idempotent no-op
+  on an already-completed Task. Both are proven against real D1 for a fixed
+  schedule, an after-completion schedule, duplicate replay under the same key,
+  duplicate replay under DIFFERENT keys, and an interrupted response.
+- **Conflicts are field-focused and explicit.** The server compares the one field
+  the intent writes, so an offline priority change MERGES with an unrelated server
+  title change instead of manufacturing a conflict. When the same field did move,
+  DalyHub says so in plain language - "This task was renamed on another device
+  while you were offline" - shows both values, and offers exactly two choices.
+  Nothing is silently overwritten and nothing is silently discarded.
+- **Idempotency reuses PWA-05's receipt protocol**, against a second table
+  (migration `0040`) because a mutation receipt answers a different question from a
+  capture receipt. One departure, deliberate: a conflict RELEASES its claim, so
+  "keep my change" is answerable.
+- **Ordering is per-entity serial, cross-entity parallel**, from a monotonic
+  sequence rather than a device clock. One Task waiting on a decision never freezes
+  the device. Replace-style edits coalesce; completion and reopen never do.
+- **Two real defects found and fixed on the way.** Regaining a connection did not
+  reconcile - `probe()` set the state and the only code calling `sync()` was a
+  heartbeat that the healthy state cancelled - so reconnection is now recognised in
+  one place, as a transition. And opening a task while offline took the page down,
+  because a Drawer opens by navigating and two loaders re-ran for a parameter
+  neither reads; both now decline. The global error boundary is untouched.
+- **Bounded and quiet.** 200 outstanding changes per device, refused truthfully
+  rather than silently dropping the oldest; confirmed changes are pruned, because
+  the Activity stream is the audit authority and the queue is not a second history.
+  A Task with nothing outstanding carries no sync chrome at all.
+- **Not built, deliberately:** offline editing of any other module, Project
+  reassignment (assessed, deferred - it is the one field whose TARGET can vanish
+  while offline), full replication, CRDTs, collaborative editing, live multi-device
+  sync, WebSockets, Background Sync as a foundation (Safari/iOS lacks it), push
+  notifications, background polling, AI reconciliation, or any service-worker
+  rewrite.
+- Accepted via
+  [ADR-090](../decisions/ARCHITECTURE_DECISIONS.md#adr-090-offline-mutation-as-a-transport-concern--a-queue-of-intents-replayed-through-the-canonical-route-with-field-focused-conflict-arbitration).
+
 ### ☑ TASKS-11 - Deterministic natural-language capture v2 — **DELIVERED 2026-08-11**
 
 Extend the existing parser only where it is reliable and testable. **One** parser,
@@ -601,14 +656,9 @@ surfaces. Two further defects were found in the same pass and fixed with it.
 
 ### NEXT
 
-### ☐ PWA-12 - Offline Task mutation slice
-
-Define and implement the first offline Task capability beyond capture.
-
-- Cover completion/reopen, date/priority/title edits, recurrence replay and conflict
-  wording.
-- Keep the slice small enough to validate the queue contract before broader offline
-  editing.
+Empty. Both entries that stood here are delivered above — TASKS-11 and
+PWA-12 — and the next thing to pick up is in LATER, or is whatever the
+next audit finds.
 
 ### LATER
 

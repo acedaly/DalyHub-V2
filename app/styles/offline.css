@@ -654,3 +654,40 @@
     visibility: visible;
   }
 }
+
+/*
+ * PWA-12 — the conflict decision, inside a queued-change row.
+ *
+ * Two values side by side and nothing else: for a title, a date or a priority, a
+ * field-level choice IS the resolution, so this is a comparison rather than an
+ * editor. It reuses the sync panel's own item styles for everything else, so a
+ * queued change and a queued capture read as the same kind of thing.
+ *
+ * `auto-fit` with a floor rather than two fixed columns: at 320px, and at 200%
+ * zoom, the pair stacks instead of squeezing two truncated values together —
+ * which is the one presentation that would make the choice unsafe to make.
+ */
+.dh-offline-sync__conflict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-offline-sync__values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--app-space-2) var(--app-space-4);
+  margin: 0;
+}
+
+.dh-offline-sync__values dt {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-offline-sync__values dd {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}

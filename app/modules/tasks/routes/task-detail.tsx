@@ -45,12 +45,24 @@ import {
   type TimeSector,
 } from "~/kernel/tasks";
 import {
+  OFFLINE_TARGET_GONE,
+  type OfflineMutationOperation,
+  type OfflineMutationValue,
+  type OfflineReplayEnvelope,
+} from "~/kernel/offline";
+import {
   createLinkWithPolicy,
   listActiveLinks,
   unlinkWithPolicy,
   type EntityLinkPickerDeps,
   type EntityLinkPickerPolicy,
 } from "~/platform/entity-links";
+import {
+  OFFLINE_REPLAY_FIELDS,
+  readTaskReplayRequest,
+  withTaskMutationReplay,
+  type TaskReplayRequest,
+} from "~/platform/offline";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   resolveAuthenticatedWorkspaceScope,
@@ -148,57 +160,296 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   // a `task.relates_to` picker anchor. Non-tasks get the same calm not-found, and
   // nothing is mutated. (`update` is also self-guarded by `updateTask`.)
   const task = await scope.tasks.getTask(taskId);
+
+  // PWA-12 — a REPLAYED offline mutation carries the key it was queued with and
+  // the value the device believed the field held. It is arbitrated and applied
+  // through this same authenticated route, with this same workspace scope and the
+  // same domain handlers below; the only thing replay adds is the receipt and the
+  // conflict decision. An ONLINE submission carries no key, takes the unchanged
+  // path, and its response shape is untouched.
+  const replay = readTaskReplay(form, intent);
+  if (replay !== null) {
+    if (replay === "malformed") {
+      return json(malformedReplay(), 400);
+    }
+    if (!task) {
+      // A queued change whose Task was deleted elsewhere. Terminal, and said in
+      // the owner's words rather than as a bare 404 — the replay engine reads
+      // the envelope, the sync surface reads the message.
+      return json(
+        {
+          kind: "update",
+          status: "error",
+          formError: OFFLINE_TARGET_GONE,
+          offline: { kind: "gone", message: OFFLINE_TARGET_GONE },
+        } satisfies TaskActionData & OfflineReplayEnvelope,
+        404,
+      );
+    }
+    const outcome = await withTaskMutationReplay(
+      {
+        db: env.DB,
+        workspaceId: scope.context.workspaceId,
+        ownerSubject: session.user.subject,
+        entityId: taskId,
+        operation: replay.operation,
+        now: new Date(),
+      },
+      replay,
+      currentFieldValue(task, replay.operation),
+      () => dispatchTaskIntent(scope, taskId, task, intent, form),
+      taskResultApplied,
+      taskResultRefusal,
+    );
+    return json({
+      ...(outcome.applied
+        ? outcome.result
+        : replayedTaskResult(intent, await scope.tasks.getTask(taskId), task)),
+      offline: outcome.report,
+    });
+  }
+
   if (!task) {
     return json({ error: "not_found" }, 404);
   }
+  return json(await dispatchTaskIntent(scope, taskId, task, intent, form));
+}
 
+/**
+ * The intent dispatch, shared by the online path and offline replay.
+ *
+ * Extracted so there is literally one switch: a replayed mutation runs the SAME
+ * handler, with the same validation, the same Activity and the same workspace
+ * scoping as the control the owner used online (`AGENTS.md §9.8`). There is no
+ * second Task authority anywhere in PWA-12.
+ */
+async function dispatchTaskIntent(
+  scope: WorkspaceScope,
+  taskId: string,
+  task: TaskView,
+  intent: string,
+  form: FormData,
+): Promise<TaskActionData> {
   switch (intent) {
     case "update":
-      return json(await handleUpdate(scope, taskId, form));
+      return handleUpdate(scope, taskId, form);
     case "rename":
-      return json(await handleRename(scope, taskId, form));
+      return handleRename(scope, taskId, form);
     case "complete":
     case "reopen":
-      return json(
-        await handleCompletion(
-          scope,
-          taskId,
-          intent,
-          await ownerTodayIsoFor(scope),
-        ),
+      return handleCompletion(
+        scope,
+        taskId,
+        intent,
+        await ownerTodayIsoFor(scope),
       );
     case "link":
-      return json(await handleLink(scope, task, form));
+      return handleLink(scope, task, form);
     case "unlink":
-      return json(await handleUnlink(scope, task, form));
+      return handleUnlink(scope, task, form);
     case "set_waiting":
-      return json(await handleSetWaiting(scope, taskId, form));
+      return handleSetWaiting(scope, taskId, form);
     case "clear_waiting":
-      return json(await handleClearWaiting(scope, taskId));
+      return handleClearWaiting(scope, taskId);
     case "plan":
-      return json(await handlePlan(scope, taskId, form));
+      return handlePlan(scope, taskId, form);
     case "clear_plan":
-      return json(await handleClearPlan(scope, taskId));
+      return handleClearPlan(scope, taskId);
     case "set_parent":
-      return json(await handleSetParent(scope, taskId, form));
+      return handleSetParent(scope, taskId, form);
     case "set_recurrence":
-      return json(await handleSetRecurrence(scope, taskId, form));
+      return handleSetRecurrence(scope, taskId, form);
     case "move_occurrence":
-      return json(await handleMoveOccurrence(scope, taskId, form));
+      return handleMoveOccurrence(scope, taskId, form);
     case "skip_occurrence":
-      return json(
-        await handleSkipOccurrence(
-          scope,
-          taskId,
-          await ownerTodayIsoFor(scope),
-        ),
-      );
+      return handleSkipOccurrence(scope, taskId, await ownerTodayIsoFor(scope));
     default:
-      return json(
-        { kind: "update", status: "error", formError: "Unknown action." },
-        400,
-      );
+      return { kind: "update", status: "error", formError: "Unknown action." };
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* PWA-12 — the offline replay seam                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The canonical `intent` each offline operation is carried by.
+ *
+ * Replay does not get its own verbs. A queued completion arrives as
+ * `intent=complete`, a queued rename as `intent=rename`, and the three field
+ * edits as `intent=update` with exactly the one PATCH key they change — which is
+ * what makes an unrelated server edit to a DIFFERENT field merge rather than
+ * conflict (§18). This table is also the GUARD: a submission whose declared
+ * operation does not match its intent is refused, so a stolen or hand-made
+ * `offlineKey` cannot be attached to an intent it was not issued for.
+ */
+const REPLAY_INTENTS = {
+  complete: ["complete"],
+  reopen: ["reopen"],
+  set_title: ["rename"],
+  set_priority: ["update"],
+  set_due: ["update"],
+  // The PLANNED date has its own domain authority (`planTask`/`clearPlan`, kept
+  // strictly separate from the due date by ADR-043 §3), so its replay carries
+  // that authority's two intents rather than a generic field write. Replay uses
+  // the SAME domain path the online control uses; it never finds a shortcut.
+  set_planned: ["plan", "clear_plan"],
+} as const satisfies Record<OfflineMutationOperation, readonly string[]>;
+
+/** The form key each replace-style operation writes, per intent. */
+const REPLAY_FORM_KEYS: Readonly<Record<string, string>> = {
+  rename: "title",
+  update: "",
+  plan: "scheduledDate",
+  clear_plan: "",
+};
+
+/** The `update` PATCH key each field operation is allowed to carry. */
+const REPLAY_UPDATE_KEYS = {
+  set_priority: "priority",
+  set_due: "dueDate",
+} as const;
+
+/**
+ * Read and VALIDATE the replay fields on a Task submission.
+ *
+ * Returns null for every online submission (the overwhelmingly common case, and
+ * the one that must cost nothing), `"malformed"` when the fields are present but
+ * inconsistent, and the request otherwise.
+ */
+function readTaskReplay(
+  form: FormData,
+  intent: string,
+): TaskReplayRequest | null | "malformed" {
+  // The value this submission actually carries, read from the key the INTENT
+  // owns. Reading it from the declared operation instead would let a request
+  // name one operation and carry another's field.
+  const valueKey =
+    intent === "update"
+      ? (REPLAY_UPDATE_KEYS[
+          form.get(
+            OFFLINE_REPLAY_FIELDS.operation,
+          ) as keyof typeof REPLAY_UPDATE_KEYS
+        ] ?? "")
+      : (REPLAY_FORM_KEYS[intent] ?? "");
+  const intended = valueKey === "" ? null : nullable(form.get(valueKey));
+
+  const replay = readTaskReplayRequest(form, intended);
+  if (replay === null || replay === "malformed") return replay;
+
+  // The declared operation must be one this intent actually performs, and it must
+  // carry ITS field and no other. Both are checked here, before a claim is
+  // written, so a hand-made `offlineKey` cannot be attached to an intent it was
+  // never issued for.
+  const allowed: readonly string[] = REPLAY_INTENTS[replay.operation];
+  if (!allowed.includes(intent)) return "malformed";
+  if (valueKey !== "" && !form.has(valueKey)) return "malformed";
+  if (intent === "plan" && intended === null) return "malformed";
+  return replay;
+}
+
+/**
+ * Did the Task domain actually apply this intent?
+ *
+ * The handlers above report an EXPECTED refusal — a title the domain will not
+ * accept, an archived parent Project, a date it rejects — by returning an error
+ * result rather than by throwing. Replay must not record one of those as applied
+ * and let the client drop the owner's queued change: nothing was written, and
+ * the owner's intent is still the only copy.
+ */
+function taskResultApplied(result: TaskActionData): boolean {
+  switch (result.kind) {
+    case "completion":
+    case "link":
+    case "unlink":
+      return result.ok;
+    case "update":
+    case "planning":
+    case "waiting":
+      return result.status === "success";
+  }
+}
+
+/** The domain's own wording for a refusal, for the replay report. */
+function taskResultRefusal(result: TaskActionData): string {
+  const fallback = "DalyHub could not accept this change.";
+  if (result.kind === "completion") {
+    return result.ok ? fallback : result.message;
+  }
+  if (
+    result.kind === "update" ||
+    result.kind === "planning" ||
+    result.kind === "waiting"
+  ) {
+    if (result.status === "error") {
+      return (
+        result.formError ??
+        Object.values(result.fieldErrors ?? {})[0] ??
+        fallback
+      );
+    }
+  }
+  return fallback;
+}
+
+/** The refusal for a replay whose own fields do not agree with each other. */
+function malformedReplay(): TaskActionData & OfflineReplayEnvelope {
+  const message = "That change could not be read, so nothing was applied.";
+  return {
+    kind: "update",
+    status: "error",
+    formError: message,
+    offline: { kind: "invalid", message },
+  };
+}
+
+/** The CURRENT server value of the field an operation contends over. */
+function currentFieldValue(
+  task: TaskView,
+  operation: OfflineMutationOperation,
+): OfflineMutationValue {
+  switch (operation) {
+    case "complete":
+    case "reopen":
+      return task.completedAt ? task.completedAt.toISOString() : null;
+    case "set_title":
+      return task.title;
+    case "set_priority":
+      return task.priority;
+    case "set_due":
+      return task.dueDate;
+    case "set_planned":
+      return task.scheduledDate;
+  }
+}
+
+/**
+ * The result reported for a replay that applied NOTHING — because an earlier
+ * attempt already did, or because the record already held the intended state.
+ *
+ * It reports the task as it stands NOW, re-read after the decision, so the client
+ * reconciles against the truth rather than against a guess about what an earlier
+ * attempt did. The pre-read record is the fallback for the one case a re-read can
+ * fail: the Task being deleted between the decision and this line.
+ */
+function replayedTaskResult(
+  intent: string,
+  fresh: TaskView | null,
+  fallback: TaskView,
+): TaskActionData {
+  const task = serializeTaskView(fresh ?? fallback);
+  // The recurrence consequence is deliberately NOT restated here. Only the
+  // completion that actually ran knows whether it created a successor, and a
+  // replay that applied nothing must not claim one — the client reconciles the
+  // series by re-reading, which is the only honest source.
+  if (intent === "complete" || intent === "reopen") {
+    return { kind: "completion", ok: true, task };
+  }
+  // The result KIND matches the intent's own online answer, so a replay is
+  // indistinguishable from the mutation it stands in for.
+  return intent === "plan" || intent === "clear_plan"
+    ? { kind: "planning", status: "success", task }
+    : { kind: "update", status: "success", task };
 }
 
 async function handleRename(
@@ -292,11 +543,19 @@ async function handleUpdate(
         ? (String(form.get("commitmentState")) as CommitmentState)
         : undefined,
       delegation,
-      // `description` is Markdown source; an empty field clears it.
-      description:
-        form.get("description") === null
-          ? null
-          : String(form.get("description")),
+      // `description` is Markdown source, and — like every other key above — an
+      // ABSENT field means unchanged while a present empty one clears it.
+      //
+      // It was the one field that read absence as `null`, which was harmless for
+      // as long as the only submission reaching here was the Details form (which
+      // always carries it). PWA-12 introduced a second: a replayed offline
+      // priority or due-date change carries ONLY the field it changed, and would
+      // otherwise have silently erased the Task's description alongside applying
+      // it. Making it a PATCH key like its neighbours fixes that at the cause,
+      // and leaves the Details form byte-for-byte unchanged.
+      description: form.has("description")
+        ? String(form.get("description"))
+        : undefined,
     });
     return {
       kind: "update",

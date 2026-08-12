@@ -33,20 +33,29 @@ import {
 } from "react";
 
 import {
+  applyMutationOutcome,
   applyReplayOutcome,
+  canReachBackend,
+  beginMutationAttempt,
   beginReplayAttempt,
   createQueueRecord,
   deriveSyncState,
   isSnapshotStale,
   offlineWindow,
+  overrideMutation,
+  requeueMutation,
   shouldPauseSync,
+  summariseMutations,
   summariseQueue,
   type OfflineCapturePayload,
   type OfflineConnectionState,
+  type OfflineMutationRecord,
+  type OfflineMutationSummary,
   type OfflineQueueRecord,
   type OfflineStatus,
 } from "~/kernel/offline";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { setRevalidationOffline } from "~/shared/router/revalidation";
 
 import {
   installOfflineDiagnostics,
@@ -68,6 +77,12 @@ import {
   type OfflineCaptureAvailability,
   type OfflineLocalState,
 } from "./local-state";
+import {
+  announceReplayApplied,
+  setActiveOfflineNamespace,
+  subscribeMutationQueue,
+} from "./mutation-queue";
+import { replayMutation, replayMutations } from "./mutation-sync";
 import type { OfflineDatabaseFailure } from "./offline-database";
 import { afterPageIdle } from "./page-idle";
 import {
@@ -75,13 +90,17 @@ import {
   clearAllOfflineData,
   clearOtherNamespaces,
   clearSnapshot,
+  deleteMutationRecord,
   deleteQueueRecord,
   estimateOfflineStorage,
   pruneRetention,
+  pruneSyncedMutations,
   pruneSyncedQueue,
+  putMutationRecord,
   putQueueRecord,
   readDataset,
   readLatestMeta,
+  readMutations,
   readQueue,
   type OfflineDataset,
   type OfflineMetaRecord,
@@ -124,6 +143,13 @@ export interface OfflineContextValue {
   readonly meta: OfflineMetaRecord | null;
   readonly dataset: OfflineDataset;
   readonly queue: readonly OfflineQueueRecord[];
+  /**
+   * PWA-12 — the Task changes this device is holding: queued, in flight, waiting
+   * on a decision or permanently refused. Synced records are pruned, so an empty
+   * array is the steady state and the interface shows nothing.
+   */
+  readonly mutations: readonly OfflineMutationRecord[];
+  readonly mutationSummary: OfflineMutationSummary;
   /** True when the stored snapshot is old enough to warrant a warning. */
   readonly stale: boolean;
   /** Non-null when offline storage is unusable on this device. */
@@ -158,6 +184,19 @@ export interface OfflineContextValue {
   enqueue(payload: OfflineCapturePayload): Promise<OfflineQueueRecord | null>;
   retry(id: string): Promise<void>;
   discard(id: string): Promise<void>;
+  /** Send one queued Task change again, resetting its automatic attempt budget. */
+  retryMutation(id: string): Promise<void>;
+  /**
+   * Resolve a conflicted Task change.
+   *
+   * `"mine"` rebases the queued intent onto the server's current value and sends
+   * it again — the owner has SEEN the other device's value and chosen to replace
+   * it. `"server"` discards the queued intent and keeps what the server holds.
+   * There is no third option and no automatic default: DalyHub does not guess.
+   */
+  resolveConflict(id: string, keep: "mine" | "server"): Promise<void>;
+  /** Discard one queued Task change. Destructive; callers must confirm first. */
+  discardMutation(id: string): Promise<void>;
   /** Remove the cached read-only snapshot. Keeps queued captures. */
   clearCachedData(): Promise<void>;
   /** Remove queued captures. Destructive; callers must confirm first. */
@@ -224,6 +263,9 @@ export function OfflineProvider({
   const [meta, setMeta] = useState<OfflineMetaRecord | null>(null);
   const [dataset, setDataset] = useState<OfflineDataset>(EMPTY_OFFLINE_DATASET);
   const [queue, setQueue] = useState<readonly OfflineQueueRecord[]>([]);
+  const [mutations, setMutations] = useState<readonly OfflineMutationRecord[]>(
+    [],
+  );
   const [storageFailure, setStorageFailure] =
     useState<OfflineDatabaseFailure | null>(null);
   const [storage, setStorage] = useState<OfflineStorageEstimate>({
@@ -272,10 +314,12 @@ export function OfflineProvider({
   /** Re-read everything the device holds for the active namespace. */
   const reload = useCallback(async (targetNamespace: string | null) => {
     if (!targetNamespace) return;
-    const [data, queued] = await Promise.all([
+    const [data, queued, changes] = await Promise.all([
       readDataset(targetNamespace),
       readQueue(targetNamespace),
+      readMutations(targetNamespace),
     ]);
+    if (changes.ok) setMutations(changes.value);
     if (data.ok) {
       setDataset(data.value);
       setMeta(data.value.meta);
@@ -296,18 +340,57 @@ export function OfflineProvider({
     setStorage(await estimateOfflineStorage());
   }, []);
 
+  /**
+   * The one place a RECONNECTION is recognised.
+   *
+   * PWA-12 — this used to be nowhere. `probe` set the connection state and the
+   * only code that called `sync()` on regaining a connection was the unhealthy
+   * HEARTBEAT's tick. But the heartbeat runs on a 15-second timer and stops the
+   * moment the state is healthy, so whenever the browser's own `online` event
+   * (or a visibility change) discovered the network first — which is the common
+   * case, and the case a phone leaving a lift always takes — the heartbeat was
+   * cancelled by the very transition that should have triggered the pass, and
+   * nothing replayed until something else happened to sync.
+   *
+   * With queued CAPTURES that was a delay. With queued Task CHANGES it would be
+   * a broken promise: §23 requires that reconnection while the application is
+   * active is sufficient to reconcile, without the owner pressing anything.
+   *
+   * The ref, rather than the state value, is what makes this a transition rather
+   * than a level: it must fire on unhealthy → online, and not on every probe of
+   * an already-healthy connection (which is what a visible tab produces on every
+   * tab switch, and would turn into a snapshot request each time).
+   */
+  const onReconnected = useCallback(
+    (state: OfflineConnectionState) => {
+      const recovered =
+        state === "online" && connectionRef.current !== "online";
+      if (!recovered) return;
+      // PWA-11 — reconnecting NEVER reloads and never navigates. Inside the
+      // running application it synchronises, which is invisible and wanted. On
+      // the offline shell it does neither: it offers.
+      if (autoSyncOnReconnect) void sync();
+      else setReconnectAvailable(true);
+    },
+    // `sync` is stable for the provider's lifetime; naming it here would
+    // re-create this callback on every render of the effects that depend on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [autoSyncOnReconnect],
+  );
+
   const probe = useCallback(async () => {
     const state = await probeConnection(
       fetch,
       undefined,
       abortRef.current?.signal,
     );
+    onReconnected(state);
     setConnection(state);
     // A surface that does not sync on its own says so instead, so "the network
     // came back" is visible without anything having happened behind the owner.
     if (!autoSyncOnReconnect) setReconnectAvailable(state === "online");
     return state;
-  }, [autoSyncOnReconnect]);
+  }, [autoSyncOnReconnect, onReconnected]);
 
   // PWA-11 — the in-flight pass, so a second "Sync now" JOINS the running one
   // instead of starting a second. The button's `disabled` state is a courtesy;
@@ -353,13 +436,27 @@ export function OfflineProvider({
       const active = namespaceRef.current;
       if (active) {
         // The snapshot request has already established the connection state, so
-        // the replay pass never spends a second round trip re-establishing it.
+        // the replay passes never spend a second round trip re-establishing it.
         const pass = await replayQueue({
           namespace: active,
           signal: abortRef.current?.signal,
           ...(syncedConnection ? { connection: syncedConnection } : {}),
         });
-        if (pass.blocked > 0) {
+        // PWA-12 — Task mutations replay in the SAME pass, after captures. The
+        // order is deliberate: a capture creates a record, and a mutation edits
+        // one, so sending creations first is the only order in which a device
+        // holding both can end up consistent in one pass. This provider is the
+        // ONE replay authority (§22): the service worker replays nothing, no
+        // component replays anything, and re-entrant calls join the running pass
+        // rather than starting a second.
+        const changes = await replayMutations({
+          namespace: active,
+          signal: abortRef.current?.signal,
+          ...(pass.connection === "online"
+            ? { connection: pass.connection }
+            : {}),
+        });
+        if (changes.blocked > 0 || pass.blocked > 0) {
           setConnection("authRequired");
           // An expired sign-in is REPORTED, never navigated to. The queued
           // captures stay exactly where they are; the owner signs in again from
@@ -367,10 +464,19 @@ export function OfflineProvider({
           // page ends up bouncing between DalyHub and an identity provider.
           recordOfflineDiagnostic(
             "authRedirect",
-            "Sync paused: the DalyHub sign-in has expired. Queued captures are untouched.",
+            "Sync paused: the DalyHub sign-in has expired. Queued work is untouched.",
           );
         }
         await pruneSyncedQueue(active);
+        // PWA-12 retention (§42): a confirmed change has served its purpose and
+        // the Activity stream is the audit authority. The queue keeps only what
+        // is still owed or still owned by the owner.
+        await pruneSyncedMutations(active);
+        // A replayed change may have moved server state this page is rendering —
+        // most visibly a recurring completion, whose SUCCESSOR only the server
+        // knows about. Re-reading is how the authoritative result reaches the
+        // surface; the client never invents one (§10).
+        if (changes.synced > 0) announceReplayApplied();
         await reload(active);
       }
     } finally {
@@ -510,13 +616,9 @@ export function OfflineProvider({
       const state = await probe();
       if (cancelled) return;
       if (state === "online") {
-        // PWA-11 — reconnecting NEVER reloads and never navigates. Inside the
-        // running application it synchronises, which is invisible and wanted.
-        // On the offline shell it does neither: it offers. The heartbeat stops
-        // either way, so this transition happens once per disconnection rather
-        // than on a timer.
-        if (autoSyncOnReconnect) void sync();
-        else setReconnectAvailable(true);
+        // `probe` has already recognised the transition and started the pass
+        // (or made the offer). All the heartbeat has to do now is stop, so this
+        // happens once per disconnection rather than on a timer.
         return;
       }
       delay = Math.min(MAX_HEARTBEAT_MS, delay * 2);
@@ -527,7 +629,40 @@ export function OfflineProvider({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [autoSyncOnReconnect, connection, probe, sync]);
+  }, [connection, probe]);
+
+  /* ---- PWA-12: publish the connection state for the router ------------- */
+  // `shouldRevalidate` is a route module export with no access to React
+  // context, and it needs ONE fact from here: can this device reach DalyHub? A
+  // navigation that only moves a Drawer parameter re-reads loaders whose answer
+  // cannot have changed, and offline that re-read fails into the global error
+  // boundary — so the routes decline it, but ONLY when declining is safe.
+  useEffect(() => {
+    setRevalidationOffline(!canReachBackend(connection));
+    return () => setRevalidationOffline(false);
+  }, [connection]);
+
+  /* ---- PWA-12: publish the namespace, and follow the queue ------------- */
+  // The gateway (`mutation-queue.ts`) is a plain module, because the seam every
+  // Task edit already passes through is a plain module. It cannot read React
+  // state, so the provider PUSHES the active namespace to it — and nothing can
+  // be queued until a server-produced snapshot has established one, which is the
+  // "no offline editing before a successful authenticated session" rule enforced
+  // by the data model rather than by a flag.
+  useEffect(() => {
+    setActiveOfflineNamespace(namespace);
+    return () => setActiveOfflineNamespace(null);
+  }, [namespace]);
+
+  useEffect(() => {
+    return subscribeMutationQueue(() => {
+      const active = namespaceRef.current;
+      if (!active) return;
+      void readMutations(active).then((result) => {
+        if (result.ok) setMutations(result.value);
+      });
+    });
+  }, []);
 
   /* ---- retention on open ---------------------------------------------- */
   useEffect(() => {
@@ -594,6 +729,77 @@ export function OfflineProvider({
     [reload],
   );
 
+  /* ---- PWA-12: the queued Task changes -------------------------------- */
+
+  /**
+   * Send one queued Task change again.
+   *
+   * The record's `id` is unchanged, so this is still the SAME mutation to the
+   * server's receipt table: a manual retry of a change that in fact already
+   * applied is answered from the receipt and applies nothing a second time. Only
+   * the attempt budget resets, because the owner has looked at the failure and
+   * decided — a different fact from the machine having tried five times.
+   */
+  const sendMutation = useCallback(
+    async (record: OfflineMutationRecord) => {
+      const active = namespaceRef.current;
+      if (!active) return;
+      const attempt = beginMutationAttempt(record, new Date());
+      await putMutationRecord(attempt);
+      const outcome = await replayMutation(
+        attempt,
+        fetch,
+        abortRef.current?.signal,
+      );
+      const settled = applyMutationOutcome(attempt, outcome, new Date());
+      await putMutationRecord(settled);
+      if (settled.status === "synced") {
+        await pruneSyncedMutations(active);
+        announceReplayApplied();
+      }
+      await reload(active);
+    },
+    [reload],
+  );
+
+  const retryMutation = useCallback(
+    async (id: string) => {
+      const current = mutations.find((record) => record.id === id);
+      if (!current) return;
+      await sendMutation(requeueMutation(current));
+    },
+    [mutations, sendMutation],
+  );
+
+  const resolveConflict = useCallback(
+    async (id: string, keep: "mine" | "server") => {
+      const active = namespaceRef.current;
+      const current = mutations.find((record) => record.id === id);
+      if (!current) return;
+      if (keep === "server") {
+        // The owner chose the other device's value. The queued intent is dropped
+        // — nothing is sent, and nothing on the server is touched.
+        await deleteMutationRecord(id);
+        if (active) await reload(active);
+        return;
+      }
+      // "Keep mine" REBASES onto the value the owner has now seen and accepted
+      // overwriting. Without the rebase the next attempt would detect the same
+      // conflict against the same base and the change could never be sent.
+      await sendMutation(overrideMutation(current));
+    },
+    [mutations, reload, sendMutation],
+  );
+
+  const discardMutation = useCallback(
+    async (id: string) => {
+      const active = namespaceRef.current;
+      await deleteMutationRecord(id);
+      if (active) await reload(active);
+    },
+    [reload],
+  );
+
   const clearCachedData = useCallback(async () => {
     const active = namespaceRef.current;
     if (!active) return;
@@ -622,6 +828,7 @@ export function OfflineProvider({
     setDataset(EMPTY_OFFLINE_DATASET);
     setMeta(null);
     setQueue([]);
+    setMutations([]);
     setLocal({ kind: "empty" });
     setStorage(await estimateOfflineStorage());
   }, []);
@@ -636,19 +843,36 @@ export function OfflineProvider({
 
   const value = useMemo<OfflineContextValue>(() => {
     const summary = summariseQueue(queue);
+    const mutationSummary = summariseMutations(mutations);
+    // PWA-12 — queued CHANGES count towards the same two figures queued captures
+    // do, so the status surfaces keep one vocabulary. The distinction the owner
+    // needs is "waiting" versus "needs me", not "capture" versus "edit", and
+    // splitting the counters would have produced a second status system for the
+    // same two facts.
+    const pending =
+      summary.pending +
+      summary.syncing +
+      summary.blocked +
+      mutationSummary.outstanding;
+    const attention = summary.failed + mutationSummary.needsAttention;
     const status: OfflineStatus = {
       connection,
       sync: deriveSyncState({
         busy,
         hasSnapshot: meta !== null,
-        pendingCaptures: summary.pending + summary.syncing + summary.blocked,
-        failedCaptures: summary.failed,
+        pendingCaptures: pending,
+        failedCaptures: attention,
       }),
       lastSyncedAt: meta?.lastSyncedAt ?? null,
-      pendingCaptures: summary.pending + summary.syncing + summary.blocked,
-      failedCaptures: summary.failed,
+      pendingCaptures: pending,
+      failedCaptures: attention,
     };
     return {
+      mutations,
+      mutationSummary,
+      retryMutation,
+      resolveConflict,
+      discardMutation,
       status,
       serviceWorker,
       install: installCapability({
@@ -687,17 +911,21 @@ export function OfflineProvider({
     dataset,
     deferredPrompt,
     discard,
+    discardMutation,
     discardQueued,
     enqueue,
     local,
     meta,
+    mutations,
     namespace,
     probe,
     promptInstall,
     queue,
     reconnectAvailable,
     resetDevice,
+    resolveConflict,
     retry,
+    retryMutation,
     serviceWorker,
     standalone,
     storage,

@@ -75,14 +75,17 @@ import {
 } from "~/shared/task-record/TaskRowFields";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
-import type {
-  TaskActionData,
-  TaskRecurrenceOutcome,
-} from "~/shared/task-record/contract";
+import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
 import {
   postTaskBulkAction,
   postTaskRecordAction,
+  postTaskRecordActionOffline,
 } from "~/shared/task-record/task-inline-edit";
+import { OfflineChangesPanel } from "~/shared/offline";
+import {
+  usePendingTasks,
+  useReplayRevalidation,
+} from "~/shared/task-record/usePendingTasks";
 import {
   formatCalendarDate,
   taskPriorityLabel,
@@ -652,8 +655,40 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
           completedAt: completed ? new Date().toISOString() : null,
         }),
       );
-      void postTaskRecordAction(taskId, { intent })
-        .then((result) => {
+      void postTaskRecordActionOffline(
+        taskId,
+        { intent },
+        // PWA-12 — ticking a Task offline queues the canonical COMPLETION intent
+        // and nothing else. The client never computes a recurrence successor:
+        // the authoritative engine is server-side, it runs when this intent
+        // replays, and it is what decides whether a successor exists at all
+        // (§10). The row shows the occurrence as completed-and-pending; it does
+        // not invent the next one.
+        //
+        // No `baseValue`: a completion is not reconciled like a text field. The
+        // only question that matters is whether the Task is ALREADY in the
+        // terminal state the owner asked for, which is a fact about the server's
+        // current record and needs no base to compare against (§20).
+        { operation: completed ? "complete" : "reopen" },
+      )
+        .then((outcome) => {
+          if (outcome.kind === "refused") {
+            refuse(taskId, outcome.message, ["completedAt"]);
+            return;
+          }
+          if (outcome.kind === "queued") {
+            // Queued, NOT confirmed. The patch stays (the row shows the owner's
+            // change), the announcement says what actually happened, and no
+            // recurrence note is offered — only the server knows that, and
+            // claiming one here is exactly the lie PWA-12 exists to prevent.
+            setAnnouncement(
+              completed
+                ? `Completed ${title}. Waiting to sync.`
+                : `Reopened ${title}. Waiting to sync.`,
+            );
+            return;
+          }
+          const result = outcome.data;
           if (result.kind !== "completion") {
             refuse(taskId, GENERIC_ROW_REFUSAL, ["completedAt"]);
             return;
@@ -804,12 +839,27 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
     [revalidator],
   );
 
+  /**
+   * PWA-12 — report a rename that was accepted LOCALLY because DalyHub could not
+   * be reached.
+   *
+   * It paints the new title (the owner's change is real and the row must show it)
+   * and announces it as waiting to sync. It does NOT revalidate: there is nothing
+   * new on the server to read, and asking would be a request this device has just
+   * proven it cannot make.
+   */
+  const reportQueuedTitle = useCallback((taskId: string, title: string) => {
+    setPatches((previous) => withTaskPatch(previous, taskId, { title }));
+    setAnnouncement(`Renamed to ${title}. Waiting to sync.`);
+  }, []);
+
   return {
     patches,
     setCompleted,
     setField,
     setRecord,
     reportInlineSave,
+    reportQueuedTitle,
     announce,
     announcement,
   };
@@ -828,49 +878,32 @@ function InlineTaskTitleEditor({
   taskId,
   title,
   onDone,
+  onQueued,
 }: {
   readonly taskId: string;
   readonly title: string;
   readonly onDone: () => void;
+  /** PWA-12 — called when the rename was accepted LOCALLY rather than by DalyHub. */
+  readonly onQueued: (taskId: string, title: string) => void;
 }) {
-  const fetcher = useFetcher<TaskActionData>();
   const revalidator = useRevalidator();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useState(title);
   const [error, setError] = useState<string | null>(null);
-  const processed = useRef<TaskActionData | null>(null);
-  const saving = fetcher.state !== "idle";
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
 
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) return;
-    if (processed.current === fetcher.data) return;
-    processed.current = fetcher.data;
-    const result = fetcher.data;
-    if (result.kind !== "update") return;
-    if (result.status === "success") {
-      setError(null);
-      revalidator.revalidate();
-      onDone();
-      return;
-    }
-    // The user's text is never discarded on a recoverable failure.
-    setError(
-      result.fieldErrors?.title ??
-        result.formError ??
-        "That title couldn’t be saved. Your text is safe — try again.",
-    );
-    window.requestAnimationFrame(() => inputRef.current?.focus());
-  }, [fetcher.state, fetcher.data, revalidator, onDone]);
-
   const save = useCallback(() => {
     const trimmed = draft.trim();
     if (saving) return;
     if (trimmed.length === 0) {
+      // Local validation catches a structurally invalid value EARLY, online or
+      // off, so nothing pointless is queued. The domain remains authoritative:
+      // this is a courtesy, never the decision (§13).
       setError("A title is required.");
       window.requestAnimationFrame(() => inputRef.current?.focus());
       return;
@@ -880,11 +913,46 @@ function InlineTaskTitleEditor({
       return;
     }
     setError(null);
-    const body = new FormData();
-    body.set("intent", "rename");
-    body.set("title", trimmed);
-    fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
-  }, [draft, fetcher, onDone, saving, taskId, title]);
+    setSaving(true);
+    const fail = (message: string) => {
+      setSaving(false);
+      // The user's text is never discarded on a recoverable failure.
+      setError(message);
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    };
+    void postTaskRecordActionOffline(
+      taskId,
+      { intent: "rename", title: trimmed },
+      { operation: "set_title", value: trimmed, baseValue: title },
+    )
+      .then((outcome) => {
+        if (outcome.kind === "refused") {
+          fail(outcome.message);
+          return;
+        }
+        if (outcome.kind === "queued") {
+          setSaving(false);
+          onQueued(taskId, trimmed);
+          onDone();
+          return;
+        }
+        const result = outcome.data;
+        if (result.kind === "update" && result.status === "success") {
+          setSaving(false);
+          revalidator.revalidate();
+          onDone();
+          return;
+        }
+        fail(
+          (result.kind === "update" ? result.fieldErrors?.title : undefined) ??
+            (result.kind === "update" ? result.formError : undefined) ??
+            "That title couldn’t be saved. Your text is safe — try again.",
+        );
+      })
+      .catch(() =>
+        fail("That title couldn’t be saved. Your text is safe — try again."),
+      );
+  }, [draft, onDone, onQueued, revalidator, saving, taskId, title]);
 
   return (
     <span className="dh-tasks-inline-title-editor">
@@ -984,6 +1052,29 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   );
 
   /*
+   * PWA-12 — the changes this device is holding, as row presentation.
+   *
+   * They are merged into the SAME patch map an in-flight online change uses, and
+   * they are applied UNDER it: an edit made since the queue was read is newer
+   * than anything in it. That is what makes a queued change survive a reload —
+   * `quick.patches` is memory, the queue is durable storage, and a page that has
+   * just booted has the second and not the first.
+   */
+  const pending = usePendingTasks();
+  // When replay applies something, the truth has moved — most consequentially a
+  // recurring completion's successor, which only the server can produce. Re-read
+  // rather than guess (§10).
+  useReplayRevalidation();
+  const patches = useMemo(() => {
+    if (pending.size === 0) return quick.patches;
+    const merged = new Map(quick.patches);
+    for (const [taskId, state] of pending) {
+      merged.set(taskId, { ...state.patch, ...merged.get(taskId) });
+    }
+    return merged;
+  }, [pending, quick.patches]);
+
+  /*
    * The rows, with any in-flight change already applied (ADR-086).
    *
    * The patch is applied to the SERIALISED record, before `toTaskCardData`, so the
@@ -992,8 +1083,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
    * value an optimistic row can have and a reconciled one cannot.
    */
   const patchedItems = useMemo(
-    () => applyTaskPatches(items, quick.patches),
-    [items, quick.patches],
+    () => applyTaskPatches(items, patches),
+    [items, patches],
   );
   const cards = useMemo(
     () => patchedItems.map((item) => toTaskCardData(item)),
@@ -1006,8 +1097,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   // in-flight patches reach its RECORDS and never its counts — a count is the
   // server's claim, and an optimistic presentation does not get to restate it.
   const grouping = useMemo(
-    () => applyTaskPatchesToGrouping(data.grouping, quick.patches),
-    [data.grouping, quick.patches],
+    () => applyTaskPatchesToGrouping(data.grouping, patches),
+    [data.grouping, patches],
   );
   const isGrouped = grouping !== null;
   const groupedSections = useMemo<GroupedSection[]>(
@@ -1140,6 +1231,33 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // the target. So "set P1, move it to a Project, give it tomorrow" happens on the
       // row, and the Drawer keeps the long tail.
       const metadata: CardMetaItem[] = [];
+      /*
+       * PWA-12 — the ONE thing a row says about synchronisation, and only when
+       * there is something to say.
+       *
+       * No cloud icons, no green "synced" text, no permanent badge: a Task with
+       * nothing outstanding carries no sync chrome at all, which is the steady
+       * state and must look completely ordinary (§29). When a change IS waiting,
+       * the row says so in words at the top of its metadata run — because the
+       * distinction between "I changed this" and "DalyHub has this" is the one
+       * fact the interface must never blur.
+       */
+      const pendingState = pending.get(card.id);
+      if (pendingState) {
+        metadata.push({
+          id: "sync",
+          value: (
+            <span
+              className="dh-task-sync"
+              data-attention={pendingState.needsAttention ? "" : undefined}
+              data-testid="task-row-sync"
+            >
+              {pendingState.label}
+            </span>
+          ),
+          priority: "high",
+        });
+      }
       const urgency = taskUrgency(
         {
           completedAt: card.completed ? "done" : null,
@@ -1512,6 +1630,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
               taskId={card.id}
               title={card.title}
               onDone={() => setEditingTitleId(null)}
+              onQueued={quick.reportQueuedTitle}
             />
           ) : undefined,
         typeLabel: "Task",
@@ -1612,6 +1731,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       quick,
       density,
       editingTitleId,
+      pending,
       viewingDeleted,
     ],
   );
@@ -1857,6 +1977,13 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         todayIso={data.todayIso}
         onOpenFullForm={() => openDrawer(NEW_TASK_KEY)}
       />
+
+      {/* PWA-12 — the queued Task changes, and any decision waiting on the owner.
+          It renders NOTHING when the queue is empty, which is the steady state,
+          so an ordinary online Tasks page is byte-for-byte what it was. When a
+          conflict does arise it appears where the owner already is, rather than
+          in a settings screen they would have to be told to visit. */}
+      <OfflineChangesPanel headingLevel={2} />
 
       {isGrouped ? (
         <GroupedView

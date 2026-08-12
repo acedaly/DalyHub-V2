@@ -23,3 +23,17 @@ export {
   type CaptureClaim,
   type CaptureReceiptContext,
 } from "./capture-receipts.server";
+
+export {
+  OFFLINE_REPLAY_FIELDS,
+  claimMutation,
+  isMutationKey,
+  readTaskReplayRequest,
+  releaseMutation,
+  settleMutation,
+  withTaskMutationReplay,
+  type MutationClaim,
+  type MutationReceiptContext,
+  type TaskReplayOutcome,
+  type TaskReplayRequest,
+} from "./mutation-receipts.server";

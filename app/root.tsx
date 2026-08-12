@@ -27,7 +27,7 @@ import {
   ScrollRestoration,
   useRouteLoaderData,
 } from "react-router";
-import type { Location } from "react-router";
+import type { Location, ShouldRevalidateFunctionArgs } from "react-router";
 
 import type { Route } from "./+types/root";
 import {
@@ -40,6 +40,7 @@ import {
   readColorSchemePreference,
   type ColorScheme,
 } from "./kernel/preferences/color-scheme";
+import { isSameDocumentParameterChange } from "./shared/router/revalidation";
 import { COLOR_SCHEME_PALETTES } from "./shared/tokens";
 import "./app.css";
 
@@ -58,6 +59,34 @@ export function loader({ request }: Route.LoaderArgs) {
     appearance: readAppearancePreference(cookie),
     colorScheme: readColorSchemePreference(cookie),
   };
+}
+
+/**
+ * This loader reads two cookies, and a search parameter cannot change a cookie.
+ *
+ * So a navigation that only moves within the same page — opening or closing a
+ * Drawer, applying a filter — must not re-read it. Until PWA-12 it did, and
+ * because React Router batches a navigation's loaders into ONE `.data` request,
+ * `root` alone was enough to make every such navigation hit the network even
+ * after `/tasks` and the app shell had both declined.
+ *
+ * Two consequences, and the second is the reason this exists. Every Drawer open
+ * spent a round trip to be told the appearance had not changed; and OFFLINE, that
+ * round trip failed, and a failed navigation loader throws into the error boundary
+ * below — so a previously loaded page answered a tap on a row with "Something went
+ * wrong". The fix is to not make the request, not to soften the boundary: a
+ * request that is never needed cannot fail.
+ *
+ * A SUBMISSION still revalidates, so the appearance and colour-scheme actions —
+ * which write exactly these cookies — are unaffected. So does an EXPLICIT
+ * revalidation: `useRevalidator().revalidate()` reaches here with an unchanged
+ * url, and treating that as "nothing moved" would silence every deliberate
+ * re-read in the product.
+ */
+export function shouldRevalidate(args: ShouldRevalidateFunctionArgs): boolean {
+  return isSameDocumentParameterChange(args)
+    ? false
+    : args.defaultShouldRevalidate;
 }
 
 /**
