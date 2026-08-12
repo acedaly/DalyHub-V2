@@ -27,9 +27,25 @@
  * Matching the system view matters because the timeline's "+n more overdue" row
  * links to it: a cap that sends the owner to a list of a different size would be
  * worse than no cap at all.
+ *
+ * ── TODAY-10: the union is still ONE set, drawn as THREE BANDS ────────────────
+ * TODAY-09 made that union truthful and TODAY-10 made it legible. The set is
+ * unchanged — Focus still holds exactly the canonical `today` work plus what has
+ * slipped — but a row no longer has to be opened to learn WHY it is there:
+ *
+ *   Overdue        slipped — `dueDate < today` OR `scheduledDate < today`
+ *   Due today      a deadline that lands today — `dueDate = today`
+ *   Planned today  an intention the owner set — `scheduledDate = today`, not due today
+ *
+ * A deadline outranks an intention, so a task that is BOTH due and planned today
+ * is a "Due today" task and appears exactly once — the same precedence
+ * {@link overdueReference} already applies when both dates have passed. The
+ * bands are computed by ONE classifier ({@link focusBand}) for open and
+ * completed work alike, which is what stops a row moving between bands when it
+ * is ticked.
  */
 
-import type { TaskRelation } from "~/kernel/tasks";
+import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                      */
@@ -45,20 +61,39 @@ export interface DayTask {
   readonly dueDate: string | null;
   /** The scheduled (planned) date `YYYY-MM-DD`, or null. Also date-only. */
   readonly scheduledDate: string | null;
+  /**
+   * TODAY-10 — the canonical P1–P4 priority, or null for untriaged work.
+   *
+   * Carried because Focus ORDERS by it (see {@link byExecution}): a list whose
+   * order cannot be explained by anything on the row is a list the owner has to
+   * take on trust. The row draws the shared `PriorityIndicator`, which renders
+   * nothing at all when this is null, so the ordinary untriaged row is unchanged.
+   */
+  readonly priority: TaskPriority | null;
   readonly completed: boolean;
   /** The OWNER-calendar date of completion, or null. */
   readonly completedDate: string | null;
 }
 
-/** The day's tasks, split into the three sections the timeline renders. */
+/**
+ * The day's work, split into the bands the Focus panel renders.
+ *
+ * Each band is ordered open-first, with anything already finished today dimmed
+ * at ITS end — see `DAY_COMPLETED_PLACEMENT`.
+ */
 export interface DayBuckets {
-  /** Open work whose date has passed. Rendered on the error-tinted surface. */
+  /** Work whose date has passed. Rendered with the coral leading rule. */
   readonly overdue: readonly DayTask[];
+  /** Work whose DEADLINE is today (`dueDate = today`). */
+  readonly dueToday: readonly DayTask[];
+  /** Work the owner PLANNED for today and that is not also due today. */
+  readonly plannedToday: readonly DayTask[];
   /**
-   * Open work on today's list, plus the tasks already finished today.
+   * The day's own work — `dueToday` followed by `plannedToday`.
    *
-   * Completed tasks stay IN this bucket (dimmed, at the end) rather than being
-   * omitted — see `DAY_COMPLETED_PLACEMENT`.
+   * The two bands as one list, because that is what the progress figure measures
+   * and what the display bound is applied to. Overdue work is deliberately NOT
+   * in it (see {@link dayProgress}).
    */
   readonly today: readonly DayTask[];
   /** The subset of `today` that is already complete, for the progress figure. */
@@ -74,8 +109,16 @@ export interface DayBuckets {
  * the parts of is a number the owner has to take on trust. Dimming also makes
  * ticking a task a continuous motion — the row stays where it is and changes
  * state — rather than a disappearance.
+ *
+ * **TODAY-10 made that claim true.** It was not: a completed task was appended to
+ * the day's ONE list wherever it came from, so ticking an overdue row made it
+ * vanish from the overdue band and reappear fifteen rows further down, under a
+ * heading ("For today") that was not true of it — and the overdue cap pulled a
+ * previously-hidden row up into the gap. Completion now changes only how a row is
+ * DRAWN; {@link focusBand} decides where it sits from its dates alone, so the row
+ * stays in the band it was already in.
  */
-export const DAY_COMPLETED_PLACEMENT = "dimmed-at-end-of-today" as const;
+export const DAY_COMPLETED_PLACEMENT = "dimmed-at-end-of-its-band" as const;
 
 /* -------------------------------------------------------------------------- */
 /* Date helpers (date-only strings; lexicographic == chronological)            */
@@ -157,64 +200,179 @@ function byString(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** True when an OPEN task's date has passed (either date — see the header). */
-export function isOverdue(task: DayTask, todayIso: string): boolean {
-  return !task.completed && overdueReference(task, todayIso) !== null;
+/*
+ * `isOverdue` and `isOnToday` used to live here, one calling the other, and both
+ * are gone: TODAY-10's `focusBand` answers the same two questions and every
+ * caller now asks it instead. Keeping them beside it would have left a SECOND
+ * definition of "overdue" in the module that owns the first — the drift this
+ * codebase has fixed twice already — and a helper only its own unit test still
+ * calls is not coverage, it is a second answer waiting to disagree.
+ */
+
+/** Which band of the Focus panel a task belongs to. */
+export type FocusBand = "overdue" | "due" | "planned";
+
+/**
+ * TODAY-10 — the ONE classifier behind the Focus panel.
+ *
+ * It answers "where does this task belong, and does it belong at all?" from the
+ * task's DATES, for open and completed work alike. Everything the panel draws
+ * flows from it, which is what makes the three properties below true by
+ * construction rather than by careful rendering:
+ *
+ *   - **A task appears exactly once.** The bands are the branches of one `if`,
+ *     so "due today AND planned today", "overdue AND high priority" and "today
+ *     AND an attention signal" cannot put a row on the screen twice.
+ *   - **A deadline outranks an intention.** Both when both dates have slipped
+ *     (`overdueReference`) and when both land today, the DUE date decides.
+ *   - **Completing a task does not move it.** Completion is not consulted here,
+ *     only `completedDate` — and only to drop work finished on an earlier day.
+ *
+ * `null` means the task is not the day's work: it has no date on today, nothing
+ * has slipped, or it was completed before today.
+ */
+export function focusBand(task: DayTask, todayIso: string): FocusBand | null {
+  // Work finished on an earlier day is history, not today — whatever its dates.
+  if (task.completed && task.completedDate !== todayIso) {
+    return null;
+  }
+  if (overdueReference(task, todayIso) !== null) {
+    return "overdue";
+  }
+  if (task.dueDate === todayIso) {
+    return "due";
+  }
+  if (task.scheduledDate === todayIso) {
+    return "planned";
+  }
+  return null;
 }
 
-/** True when an OPEN task is on today's list but has not slipped. */
-export function isOnToday(task: DayTask, todayIso: string): boolean {
-  if (task.completed || isOverdue(task, todayIso)) {
-    return false;
-  }
-  return task.dueDate === todayIso || task.scheduledDate === todayIso;
+/** P1 first, P4 last, untriaged after all of them. Never a computed score. */
+const PRIORITY_RANK: Readonly<Record<TaskPriority, number>> = {
+  p1: 0,
+  p2: 1,
+  p3: 2,
+  p4: 3,
+};
+
+function priorityRank(priority: TaskPriority | null): number {
+  return priority === null ? 4 : PRIORITY_RANK[priority];
 }
 
 /**
- * Split the day's tasks into the timeline's sections.
+ * TODAY-10 — the order the day is worked in, stated in one sentence:
+ * **priority, then the nearest deadline, then the title.**
  *
- * Order is deterministic and stable under completion, so ticking a row never
- * reshuffles the list under the owner's cursor: overdue by how long it has
- * slipped (oldest first), today's work by title, with everything already done
- * pushed to the end.
+ * It replaces a plain alphabetical sort, which was deterministic and useless:
+ * on the heavy fixture the day's only P1 sat third and a P2 sat ninth, because
+ * "Book the dentist" starts with a B. Both signals are stored fields the row
+ * itself shows (the `PriorityIndicator`, and the band the row is in), so the
+ * order can be read off the screen — there is no hidden importance metric here,
+ * and deliberately no composite score.
+ *
+ * `id` is the final tie-break so the sort is TOTAL: two identical tasks always
+ * come out in the same order, on the server and in the browser.
+ */
+function byExecution(a: DayTask, b: DayTask): number {
+  const priority = priorityRank(a.priority) - priorityRank(b.priority);
+  if (priority !== 0) {
+    return priority;
+  }
+  // A missing deadline sorts last, exactly as the canonical `smart` sort's
+  // `COALESCE(td.due_date, '9999-99-99')` does.
+  const aDue = a.dueDate ?? "9999-99-99";
+  const bDue = b.dueDate ?? "9999-99-99";
+  if (aDue !== bDue) {
+    return byString(aDue, bDue);
+  }
+  return a.title.localeCompare(b.title) || byString(a.id, b.id);
+}
+
+/** Open work first, in execution order; today's completions dimmed at the end. */
+function orderBand(
+  band: readonly DayTask[],
+  within: (a: DayTask, b: DayTask) => number,
+): DayTask[] {
+  const open = band.filter((task) => !task.completed).sort(within);
+  const done = band.filter((task) => task.completed).sort(within);
+  return [...open, ...done];
+}
+
+/**
+ * Split the day's tasks into the Focus panel's bands.
+ *
+ * Deterministic and stable under completion: ticking a row changes its state and
+ * its place WITHIN its band, never which band it is in and never which rows the
+ * display bound draws.
  */
 export function bucketDay(
   tasks: readonly DayTask[],
   todayIso: string,
 ): DayBuckets {
   const overdue: DayTask[] = [];
-  const open: DayTask[] = [];
-  const completedToday: DayTask[] = [];
+  const dueToday: DayTask[] = [];
+  const plannedToday: DayTask[] = [];
 
   for (const task of tasks) {
-    if (task.completed) {
-      if (task.completedDate === todayIso) {
-        completedToday.push(task);
-      }
-      continue;
-    }
-    if (isOverdue(task, todayIso)) {
-      overdue.push(task);
-    } else if (isOnToday(task, todayIso)) {
-      open.push(task);
+    switch (focusBand(task, todayIso)) {
+      case "overdue":
+        overdue.push(task);
+        break;
+      case "due":
+        dueToday.push(task);
+        break;
+      case "planned":
+        plannedToday.push(task);
+        break;
+      default:
+        break;
     }
   }
 
-  overdue.sort((a, b) => {
+  // Overdue keeps its own order — the oldest slip first, because how long
+  // something has been owed is the fact that decides what to do about it.
+  const bySlip = (a: DayTask, b: DayTask) => {
     const aRef = overdueReference(a, todayIso)?.date ?? "";
     const bRef = overdueReference(b, todayIso)?.date ?? "";
     return aRef !== bRef ? byString(aRef, bRef) : byString(a.id, b.id);
-  });
-  const byTitle = (a: DayTask, b: DayTask) =>
-    a.title.localeCompare(b.title) || byString(a.id, b.id);
-  open.sort(byTitle);
-  completedToday.sort(byTitle);
+  };
+
+  const orderedDue = orderBand(dueToday, byExecution);
+  const orderedPlanned = orderBand(plannedToday, byExecution);
+  const today = [...orderedDue, ...orderedPlanned];
 
   return {
-    overdue,
-    today: [...open, ...completedToday],
-    completedToday,
+    overdue: orderBand(overdue, bySlip),
+    dueToday: orderedDue,
+    plannedToday: orderedPlanned,
+    today,
+    completedToday: today.filter((task) => task.completed),
   };
+}
+
+/**
+ * TODAY-10 — how many Tasks the canonical `/tasks?system=today` view holds.
+ *
+ * Focus files a task that is due today but has ALSO slipped its plan under
+ * Overdue, which is where the owner needs it — but that task is still one of
+ * today's Tasks, and the figure above the panel links straight to the view that
+ * counts it. So the count is derived from the canonical membership rule (open,
+ * `dueDate = today` OR `scheduledDate = today`) over the bands the screen already
+ * holds, rather than from how many rows happen to be in the "for today" run.
+ * Today and `/tasks?system=today` therefore cannot disagree about the number.
+ */
+export function tasksForTodayCount(
+  buckets: DayBuckets,
+  todayIso: string,
+): number {
+  const qualifies = (task: DayTask) =>
+    !task.completed &&
+    (task.dueDate === todayIso || task.scheduledDate === todayIso);
+  return (
+    buckets.today.filter(qualifies).length +
+    buckets.overdue.filter(qualifies).length
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -271,6 +429,12 @@ export interface DayProgress {
  * (PRODUCT_PRINCIPLES) rules it out. Overdue work is excluded from the
  * denominator for the same reason it always has been — a bar that cannot reach
  * the end is not progress.
+ *
+ * TODAY-10 made that exclusion hold in both directions. It did not before:
+ * completing an overdue task moved it into the day's list, so finishing slipped
+ * work grew the denominator it was supposed to be outside of ("3 of 8" became
+ * "4 of 9"). A completed overdue task now stays in the overdue band, so this
+ * measures exactly what it says — today's own work, and what of it is done.
  */
 export function dayProgress(buckets: DayBuckets): DayProgress | null {
   const done = buckets.completedToday.length;
@@ -389,14 +553,107 @@ export function dayChips(input: {
  */
 export const OVERDUE_SHOWN = 3;
 
-/** The overdue rows to draw, and how many are left behind them. */
+/**
+ * TODAY-10 — a bound counts OPEN rows; a completion is never bounded away.
+ *
+ * The two rules a display bound on this panel has to satisfy pull in opposite
+ * directions, and applying the bound to the whole band satisfies neither:
+ *
+ *   - **"+n more" has to be true of the view it links to.** That view holds only
+ *     OPEN work, so counting today's completions towards `n` makes the panel
+ *     promise a list of a size the destination does not have.
+ *   - **A row the owner just ticked must not vanish.** Completing a row moves it
+ *     to the end of its band ({@link DAY_COMPLETED_PLACEMENT}); if the bound
+ *     covers completions too, that move can carry it straight past the slice —
+ *     the row disappears, the canonical view excludes it as completed, and there
+ *     is nowhere left to see it. Ticking a task must never lose it.
+ *
+ * So the bound is applied to the open rows alone, and every task completed today
+ * is drawn after them. Completions are self-limiting — they only appear as the
+ * owner works — so this cannot become the unbounded list the bound exists to
+ * prevent.
+ */
+function boundBand(
+  band: readonly DayTask[],
+  limit: number,
+): { readonly shown: readonly DayTask[]; readonly hidden: number } {
+  const open = band.filter((task) => !task.completed);
+  const shownOpen = open.slice(0, Math.max(0, limit));
+  return {
+    shown: [...shownOpen, ...band.filter((task) => task.completed)],
+    hidden: open.length - shownOpen.length,
+  };
+}
+
+/**
+ * The overdue rows to draw, and how many OPEN ones are left behind them.
+ *
+ * `hidden` is the remainder the "+n more overdue" row states, so it counts what
+ * `/tasks?system=overdue` counts: open work. A slipped task finished this
+ * morning is still drawn — dimmed, at the end of the band it was already in —
+ * and is deliberately not part of that figure.
+ */
 export function overdueSlice(overdue: readonly DayTask[]): {
   readonly shown: readonly DayTask[];
   readonly hidden: number;
 } {
+  return boundBand(overdue, OVERDUE_SHOWN);
+}
+
+/**
+ * TODAY-10 — how many of the day's OWN rows the Focus panel draws.
+ *
+ * The "for today" run was the one unbounded list on the screen. On the heavy
+ * fixture it drew fourteen rows, which turned a daily orientation surface into a
+ * second `/tasks` page and pushed Goal progress a full phone-screen below the
+ * fold — the exact failure the Today redesign existed to undo.
+ *
+ * Eight, because the typical day (five open plus three completed) must never be
+ * truncated: a bound that fires on an ordinary Wednesday is a bound the owner
+ * learns to distrust. Past it the panel says how many it is not showing and
+ * links to the canonical view that holds all of them — never a silent slice, and
+ * never pagination inside a dashboard.
+ */
+export const FOCUS_TODAY_SHOWN = 8;
+
+/**
+ * How many of those rows the "Planned today" band is guaranteed when it has
+ * work and "Due today" would otherwise take the whole bound.
+ *
+ * Without it the bound could delete a whole BAND rather than some rows: nine
+ * deadlines and one planned task would draw eight deadlines and no "Planned
+ * today" heading at all, and the owner would read a day with nothing planned in
+ * it. Losing rows inside a band is a bound; losing the band is a lie. Three,
+ * because it is the smallest number that still reads as a list.
+ */
+export const FOCUS_BAND_MIN = 3;
+
+/**
+ * The day's own rows to draw, still split by band, and the true remainder.
+ *
+ * Deadlines take the larger share — a deadline outranks an intention here as it
+ * does everywhere else on this surface — but never the whole of it while there
+ * is planned work to show. Like the overdue bound, this counts OPEN rows and
+ * always draws today's completions (see {@link boundBand}): the eight is eight
+ * things left to do, and ticking the third of them can never make it vanish.
+ */
+export function focusTodaySlice(buckets: DayBuckets): {
+  readonly dueToday: readonly DayTask[];
+  readonly plannedToday: readonly DayTask[];
+  readonly hidden: number;
+} {
+  const openIn = (band: readonly DayTask[]) =>
+    band.filter((task) => !task.completed).length;
+  const reserved = Math.min(openIn(buckets.plannedToday), FOCUS_BAND_MIN);
+  const due = boundBand(buckets.dueToday, FOCUS_TODAY_SHOWN - reserved);
+  const planned = boundBand(
+    buckets.plannedToday,
+    FOCUS_TODAY_SHOWN - openIn(buckets.dueToday) + due.hidden,
+  );
   return {
-    shown: overdue.slice(0, OVERDUE_SHOWN),
-    hidden: Math.max(0, overdue.length - OVERDUE_SHOWN),
+    dueToday: due.shown,
+    plannedToday: planned.shown,
+    hidden: due.hidden + planned.hidden,
   };
 }
 

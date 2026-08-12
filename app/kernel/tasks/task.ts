@@ -596,6 +596,11 @@ export type WaitingTaskPage = {
  * are their own views and are EXCLUDED from the active execution views (`inbox`,
  * `today`, `this_week`…`routines`, `overdue`); `all` is the complete bounded
  * collection (open + every terminal/parked state).
+ *
+ * TODAY-10 added one rule to the three DATE views (`today`, `upcoming`,
+ * `overdue`): a PARKED Task is not dated work, so they exclude `on_hold`
+ * alongside `waiting`. `inbox` is deliberately untouched — it is about filing,
+ * not dating, and has never excluded waiting either.
  */
 export const TASK_SYSTEM_VIEWS = [
   "inbox",
