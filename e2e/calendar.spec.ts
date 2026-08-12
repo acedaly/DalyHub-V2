@@ -498,6 +498,103 @@ test.describe("the event detail, and creating meeting notes", () => {
   });
 });
 
+/*
+ * The two defects a real Work calendar produced, driven the way the owner hit
+ * them.
+ *
+ * Seeded in their OWN block rather than added to `seedTheDay`, so the ordering
+ * assertions above keep asserting the day they were written for.
+ */
+const OVERNIGHT_TITLE = `${CALENDAR_FIXTURE_PREFIX}Field Officer Training/Assessment`;
+const TOMORROW_LONG = new Intl.DateTimeFormat("en-AU", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "Australia/Sydney",
+}).formatToParts(new Date(`${shiftDays(TODAY, 1)}T03:00:00Z`));
+const TOMORROW_SPOKEN = `${TOMORROW_LONG.find((p) => p.type === "weekday")?.value} ${TOMORROW_LONG.find((p) => p.type === "day")?.value} ${TOMORROW_LONG.find((p) => p.type === "month")?.value}`;
+
+/** One overnight event whose stored zone is a publisher id `Intl` rejects. */
+async function seedTheOvernightEvent(): Promise<void> {
+  await seedCalendarSources([
+    {
+      id: "cal-e2e-work",
+      name: "Work",
+      feedUrl: "https://calendar.example.com/feeds/e2e-work.ics",
+      events: [
+        {
+          id: "cal-e2e-ev-overnight",
+          uid: "e2e-overnight",
+          title: OVERNIGHT_TITLE,
+          startsAt: atOwnerTime(TODAY, 14),
+          endsAt: atOwnerTime(shiftDays(TODAY, 1), 12),
+          location: "North Region",
+          // The legacy row: what the parser used to persist from a Microsoft
+          // feed's `TZID`. `Intl.DateTimeFormat` rejects it outright.
+          timezone: "AUS Eastern Standard Time",
+        },
+      ],
+    },
+  ]);
+}
+
+test.describe("an overnight event from a feed with an unusable timezone", () => {
+  test.beforeEach(async () => {
+    cleanupCalendarFixtures();
+    await seedTheOvernightEvent();
+  });
+
+  test("says WHICH day it ends on, rather than 2 pm to 12 pm", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    const row = schedulePanel(page)
+      .getByTestId("schedule-row")
+      .filter({ hasText: OVERNIGHT_TITLE });
+    // It stays a TIMED row — both clock faces are there, and it did not migrate
+    // into the all-day region.
+    await expect(row.locator(".dh-schedule__time-start")).toHaveText("14:00");
+    await expect(row.locator(".dh-schedule__time-end")).toHaveText("12:00");
+    await expect(
+      schedulePanel(page)
+        .locator(".dh-schedule__allday")
+        .getByText(OVERNIGHT_TITLE),
+    ).toHaveCount(0);
+    // And the row states the transition in words, beside its source.
+    await expect(row.locator(".dh-day-row__meta")).toContainText("Until ");
+
+    await scheduleTitleLink(page, OVERNIGHT_TITLE).click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer).toBeVisible();
+    // The detail's Time fact names the day the event finishes on, so "2:00 pm to
+    // 12:00 pm" can no longer read as an end before its own start.
+    await expect(
+      drawer.getByText(`2:00 pm to 12:00 pm on ${TOMORROW_SPOKEN}`),
+    ).toBeVisible();
+  });
+
+  test("creates meeting notes instead of refusing the timezone", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await scheduleTitleLink(page, OVERNIGHT_TITLE).click();
+    const drawer = page.getByRole("dialog");
+    await drawer.getByTestId("event-create-meeting").click();
+
+    // The regression: this used to fail with "Choose a valid timezone." because
+    // the feed's own `TZID` was handed to the Meeting model. Meeting validation
+    // is unchanged — the route now supplies a zone that is genuinely valid.
+    await expect(drawer.getByTestId("event-open-meeting")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(drawer.getByRole("alert")).toHaveCount(0);
+
+    await drawer.getByTestId("event-open-meeting").click();
+    await page.waitForURL(/\/meeting\/[^/?]+/, { timeout: 15_000 });
+    await expect(page.getByText(OVERNIGHT_TITLE).first()).toBeVisible();
+  });
+});
+
 test.describe("Tomorrow and Next 7 days", () => {
   test.beforeEach(async () => {
     cleanupCalendarFixtures();

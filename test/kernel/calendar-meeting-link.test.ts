@@ -27,6 +27,7 @@ import {
   createMeetingRepository,
 } from "~/platform/storage/d1";
 import { createSystemActorContext } from "~/kernel/activity";
+import { isSupportedTimezone } from "~/kernel/preferences";
 import { workspaceContextFromId } from "~/kernel/workspaces";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
@@ -39,6 +40,8 @@ import {
   SYDNEY_VTIMEZONE,
   TEST_FEED_URL,
   TIMED_EVENT,
+  WINDOWS_TZ_OVERNIGHT_EVENT,
+  WINDOWS_VTIMEZONE,
   icsCalendar,
   stubFetcher,
 } from "../support/ics-fixtures";
@@ -113,6 +116,9 @@ async function createMeetingFromEvent(eventId: string) {
       )
     : row.event.endsAt;
 
+  // The route's defensive timezone choice, mirrored: the occurrence's own zone
+  // only when DalyHub can actually use it, else the owner's.
+  const eventTimezone = allDay ? null : row.event.timezone;
   const meeting = await meetings().create({
     title: row.event.title,
     startsAt: startsAt.toISOString(),
@@ -120,7 +126,10 @@ async function createMeetingFromEvent(eventId: string) {
       endsAt !== null && endsAt.getTime() > startsAt.getTime()
         ? endsAt.toISOString()
         : null,
-    timezone: (allDay ? null : row.event.timezone) ?? ICS_TIMEZONE,
+    timezone:
+      eventTimezone !== null && isSupportedTimezone(eventTimezone)
+        ? eventTimezone
+        : ICS_TIMEZONE,
     location: row.event.location,
     meetingUrl: row.event.meetingUrl,
   });
@@ -230,6 +239,97 @@ describe("creating a DalyHub Meeting from an imported event", () => {
     // An all-day item states no zone, so the Meeting takes the owner's — the
     // zone its bounds were just derived in.
     expect(meeting!.timezone).toBe(ICS_TIMEZONE);
+  });
+
+  /*
+   * The "Choose a valid timezone." production defect, end to end.
+   *
+   * A real Work calendar published a `TZID` of "AUS Eastern Standard Time". The
+   * feed imported perfectly — the instants were right — and "Create meeting
+   * notes" then failed, because that identifier was stored as though it were an
+   * IANA zone and handed to the Meeting model, which correctly refused it.
+   */
+  describe("an occurrence whose feed named a zone DalyHub cannot use", () => {
+    async function theWindowsEvent() {
+      await refresh(
+        icsCalendar(WINDOWS_VTIMEZONE, WINDOWS_TZ_OVERNIGHT_EVENT),
+        new Date(NOW.getTime() + 60_000),
+      );
+      const rows = await events().listWindow(WINDOW);
+      return rows.find(
+        (row) => row.event.externalUid === "synthetic-windows-overnight",
+      )!;
+    }
+
+    it("imports, and keeps the occurrence usable", async () => {
+      const row = await theWindowsEvent();
+      expect(row.event.title).toBe("Field Officer Training/Assessment");
+      expect(row.event.location).toBe("North Region");
+      // 14:00 AEST on the 12th to 12:00 on the 13th, resolved from the feed's
+      // own VTIMEZONE definition.
+      expect(row.event.startsAt.toISOString()).toBe("2026-08-12T04:00:00.000Z");
+      expect(row.event.endsAt.toISOString()).toBe("2026-08-13T02:00:00.000Z");
+      // The unusable identifier is NOT persisted as though it were IANA.
+      expect(row.event.timezone).toBeNull();
+      expect(row.event.allDay).toBe(false);
+    });
+
+    it("creates meeting notes, on the OWNER's timezone", async () => {
+      const row = await theWindowsEvent();
+      const { meetingId, created } = await createMeetingFromEvent(row.event.id);
+      expect(created).toBe(true);
+
+      const meeting = await meetings().get(meetingId);
+      expect(meeting).not.toBeNull();
+      // Meeting validation was never weakened: the value it received is a real
+      // application timezone, and it is the owner's.
+      expect(meeting!.timezone).toBe(ICS_TIMEZONE);
+      // And the instants are IDENTICAL to the imported occurrence's. The
+      // fallback changes the zone the Meeting is written in, never when it is.
+      expect(meeting!.startsAt.toISOString()).toBe(
+        row.event.startsAt.toISOString(),
+      );
+      expect(meeting!.endsAt?.toISOString()).toBe(
+        row.event.endsAt.toISOString(),
+      );
+      expect(meeting!.title).toBe("Field Officer Training/Assessment");
+      expect(meeting!.location).toBe("North Region");
+    });
+
+    it("falls back for a row imported BEFORE the parser was fixed", async () => {
+      /*
+       * The defensive half of the fix, and the reason it is not redundant.
+       *
+       * Production already holds projections written with an unusable zone, and
+       * a projection is only rewritten when its source next refreshes. This
+       * writes that legacy state directly and proves the route still works.
+       */
+      const row = await theWindowsEvent();
+      await env.DB.prepare(
+        "UPDATE external_calendar_events SET timezone = ?2 WHERE id = ?1",
+      )
+        .bind(row.event.id, "AUS Eastern Standard Time")
+        .run();
+      const legacy = (await events().getScheduleRow(row.event.id))!;
+      expect(legacy.event.timezone).toBe("AUS Eastern Standard Time");
+
+      const { meetingId, created } = await createMeetingFromEvent(row.event.id);
+      expect(created).toBe(true);
+      const meeting = await meetings().get(meetingId);
+      expect(meeting!.timezone).toBe(ICS_TIMEZONE);
+      expect(meeting!.startsAt.toISOString()).toBe("2026-08-12T04:00:00.000Z");
+      expect(meeting!.endsAt?.toISOString()).toBe("2026-08-13T02:00:00.000Z");
+    });
+
+    it("still keeps a real IANA zone when the feed states one", async () => {
+      // The control: the ordinary path must not have been flattened onto the
+      // owner's timezone for everybody.
+      const event = await theEvent();
+      const { meetingId } = await createMeetingFromEvent(event.event.id);
+      expect((await meetings().get(meetingId))!.timezone).toBe(
+        "Australia/Sydney",
+      );
+    });
   });
 
   it("cannot create two Meetings for the same occurrence", async () => {

@@ -86,6 +86,16 @@ export function EventDetail({
     <div className="dh-event-detail">
       <dl className="dh-event-detail__facts">
         <Fact label="Date" value={dateLong} />
+        {/*
+         * The Time fact is the ACCESSIBLE label, not the compact range.
+         *
+         * A timed event that ends on another owner-calendar date used to render
+         * here as "2:00 pm to 12:00 pm" under a single Date, which reads as an
+         * end before its own start. The accessible label states the day the
+         * other end falls on — "2:00 pm to 12:00 pm on Thursday 13 August" —
+         * so the sighted reading and the screen-reader reading are the same
+         * sentence, and neither is ambiguous.
+         */}
         <Fact
           label="Time"
           value={entry.allDay ? "All day" : entry.timeAccessibleLabel}

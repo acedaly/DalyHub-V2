@@ -48,6 +48,55 @@ TZNAME:AEDT
 END:DAYLIGHT
 END:VTIMEZONE`;
 
+/**
+ * A `VTIMEZONE` whose `TZID` is a WINDOWS zone name, not an IANA one.
+ *
+ * This is what an Outlook / Microsoft 365 published feed actually emits, and it
+ * is the shape behind the "Choose a valid timezone." production defect:
+ *
+ *   - `ical.js` resolves events against the definition BELOW, so the instants it
+ *     produces are exactly right — the offsets and the DST rules are stated here
+ *     and no IANA lookup happens;
+ *   - `new Intl.DateTimeFormat("en", { timeZone: "AUS Eastern Standard Time" })`
+ *     throws `RangeError`, so the identifier is NOT something DalyHub can store
+ *     as a Meeting timezone.
+ *
+ * The offsets are Sydney's, so an event written against this zone must land on
+ * the same instant as the identical event written against `Australia/Sydney` —
+ * which is the assertion that proves the parser fix did not disturb resolution.
+ */
+export const WINDOWS_TZID = "AUS Eastern Standard Time";
+export const WINDOWS_VTIMEZONE = `BEGIN:VTIMEZONE
+TZID:AUS Eastern Standard Time
+BEGIN:STANDARD
+DTSTART:19700405T030000
+TZOFFSETFROM:+1100
+TZOFFSETTO:+1000
+RRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=1SU
+TZNAME:AUS Eastern Standard Time
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19701004T020000
+TZOFFSETFROM:+1000
+TZOFFSETTO:+1100
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=1SU
+TZNAME:AUS Eastern Daylight Time
+END:DAYLIGHT
+END:VTIMEZONE`;
+
+/**
+ * A `VTIMEZONE` with a wholly CUSTOM `TZID`, of the kind smaller publishers emit.
+ *
+ * Same point as the Windows fixture, from the other direction: the identifier is
+ * not a Windows name either, so nothing can be special-cased. The offsets are
+ * again Sydney's.
+ */
+export const CUSTOM_TZID = "Customized Time Zone 42";
+export const CUSTOM_VTIMEZONE = WINDOWS_VTIMEZONE.replace(
+  /AUS Eastern Standard Time/g,
+  CUSTOM_TZID,
+);
+
 /** Wrap `VEVENT`s (and any `VTIMEZONE`) in a well-formed `VCALENDAR`. */
 export function icsCalendar(...body: string[]): string {
   return [
@@ -182,6 +231,81 @@ DTSTART;TZID=Australia/Sydney:20260929T090000
 DTEND;TZID=Australia/Sydney:20260929T100000
 RRULE:FREQ=WEEKLY;COUNT=3
 SUMMARY:Spring series
+END:VEVENT`;
+
+/**
+ * The production shape, synthesised: a Windows-TZID event that RUNS OVERNIGHT.
+ *
+ * 14:00 on Wednesday 12 August to 12:00 on Thursday the 13th, in the Windows
+ * zone above. It reproduces both reported defects at once — the unusable TZID
+ * that stopped "Create meeting notes", and the "2:00 pm to 12:00 pm" range that
+ * read as an end before its own start.
+ *
+ * Written against the Windows zone, 14:00 AEST is 04:00Z and 12:00 the next day
+ * is 02:00Z on the 13th.
+ */
+export const WINDOWS_TZ_OVERNIGHT_EVENT = `BEGIN:VEVENT
+UID:synthetic-windows-overnight
+DTSTAMP:20260801T000000Z
+DTSTART;TZID=AUS Eastern Standard Time:20260812T140000
+DTEND;TZID=AUS Eastern Standard Time:20260813T120000
+SUMMARY:Field Officer Training/Assessment
+LOCATION:North Region
+END:VEVENT`;
+
+/**
+ * The SAME publisher, the same zone, but genuinely finishing on the start day.
+ *
+ * The control for the overnight fixture. If anything in the parse ever pushed an
+ * end into the following day — a mis-registered zone, an off-by-one on the DTEND
+ * date, a floating fallback — this event's end would move too, and the assertion
+ * on its instant would catch it. Without it, "ends the next day" would look
+ * correct whether or not the feed said so.
+ */
+export const WINDOWS_TZ_SAME_DAY_EVENT = `BEGIN:VEVENT
+UID:synthetic-windows-same-day
+DTSTAMP:20260801T000000Z
+DTSTART;TZID=AUS Eastern Standard Time:20260812T140000
+DTEND;TZID=AUS Eastern Standard Time:20260812T163000
+SUMMARY:Field Officer Briefing
+LOCATION:North Region
+END:VEVENT`;
+
+/** The same event against a wholly custom TZID, so nothing can be special-cased. */
+export const CUSTOM_TZ_EVENT = `BEGIN:VEVENT
+UID:synthetic-custom-tz
+DTSTAMP:20260801T000000Z
+DTSTART;TZID=Customized Time Zone 42:20260812T140000
+DTEND;TZID=Customized Time Zone 42:20260812T150000
+SUMMARY:Custom zone session
+END:VEVENT`;
+
+/** The same wall-clock, against a REAL IANA zone — the "nothing else changed" control. */
+export const IANA_TZ_OVERNIGHT_EVENT = `BEGIN:VEVENT
+UID:synthetic-iana-overnight
+DTSTAMP:20260801T000000Z
+DTSTART;TZID=Australia/Sydney:20260812T140000
+DTEND;TZID=Australia/Sydney:20260813T120000
+SUMMARY:Overnight IANA session
+END:VEVENT`;
+
+/**
+ * `DTEND` BEFORE `DTSTART` — a real publisher error, and the other reading of
+ * "2:00 pm to 12:00 pm".
+ *
+ * The reported production event could have meant either "finishes at noon
+ * TOMORROW" or "this feed states an impossible end". The parser must never
+ * resolve the second into the first: rolling an inverted end forward by a day to
+ * make it look sensible would invent a twenty-two hour commitment the calendar
+ * never claimed. It is normalised to the start instead, and the schedule shows a
+ * single instant.
+ */
+export const INVERTED_END_EVENT = `BEGIN:VEVENT
+UID:synthetic-inverted-end
+DTSTAMP:20260801T000000Z
+DTSTART;TZID=AUS Eastern Standard Time:20260812T140000
+DTEND;TZID=AUS Eastern Standard Time:20260812T120000
+SUMMARY:Impossible end
 END:VEVENT`;
 
 /** An event straddling midnight in the owner's zone. */

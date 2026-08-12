@@ -126,6 +126,8 @@ function ScheduleRow({
    */
   const accessibleName = [
     entry.title,
+    // Already carries the date transition for a cross-day row, so
+    // `dayTransitionLabel` is deliberately NOT repeated here.
     entry.timeAccessibleLabel,
     entry.spanLabel,
     supporting,
@@ -186,12 +188,12 @@ function ScheduleRow({
       {entry.allDay ? null : (
         <span className="dh-schedule__time" aria-hidden="true">
           <span className="dh-schedule__time-start">{entry.timeLabel}</span>
-          {entry.timeRangeLabel !== null &&
-          entry.timeRangeLabel !== entry.timeLabel ? (
-            <span className="dh-schedule__time-end">
-              {entry.timeRangeLabel.split("–")[1]}
-            </span>
-          ) : null}
+          {/* The end comes from its OWN field rather than from splitting the
+              range label: the range label is prose, and for a cross-day row it
+              is no longer an en-dashed pair to split. */}
+          {entry.endTimeLabel === null ? null : (
+            <span className="dh-schedule__time-end">{entry.endTimeLabel}</span>
+          )}
         </span>
       )}
       <SourceMark entry={entry} />
@@ -209,9 +211,21 @@ function ScheduleRow({
             </span>
           ) : null}
         </span>
-        {supporting === null && entry.spanLabel === null ? null : (
+        {/*
+          The supporting line, and where a cross-day row says so.
+
+          The two-line time block is a fixed, tabular slot — "14:00" over
+          "12:00" — and it has no room for a date without breaking the left edge
+          every other row is aligned on. So the transition is stated in words
+          here ("Until Thu 13 Aug"), beside the source and the location, which is
+          also where the eye goes after the title. The full sentence is in the
+          row's accessible name and in the event's detail sheet.
+        */}
+        {supporting === null &&
+        entry.spanLabel === null &&
+        entry.dayTransitionLabel === null ? null : (
           <span className="dh-day-row__meta">
-            {[entry.spanLabel, supporting]
+            {[entry.spanLabel, entry.dayTransitionLabel, supporting]
               .filter((part): part is string => part !== null)
               .join(" · ")}
           </span>

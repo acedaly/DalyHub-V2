@@ -90,14 +90,46 @@ export interface ScheduleEntry {
   readonly allDay: boolean;
   /** "09:30", or null for an all-day item. In the OWNER's timezone. */
   readonly timeLabel: string | null;
-  /** "09:30 – 10:30", or null for an all-day item. */
+  /**
+   * "10:30" — the end, in the OWNER's timezone. Null for an all-day item and for
+   * a zero-length one, which has no distinct end to state.
+   *
+   * Given as its own field rather than left to be split back out of
+   * `timeRangeLabel`: the range label is prose and now varies with whether the
+   * row crosses a day, so a surface that needs the two clock faces separately
+   * must be handed them separately.
+   */
+  readonly endTimeLabel: string | null;
+  /** "09:30–10:30", or null for an all-day item. */
   readonly timeRangeLabel: string | null;
   /**
    * The accessible statement of when this is — "9:30 am to 10:30 am" or "All
    * day". A screen reader must not be handed "09:30 – 10:30" as an en-dashed
    * fragment and left to guess.
+   *
+   * When the row's start or end falls on an owner-calendar date OTHER than the
+   * day being shown, the date is stated here too: "2:00 pm to 12:00 pm on
+   * Thursday 13 August" rather than "2:00 pm to 12:00 pm", which reads as an end
+   * before its own start.
    */
   readonly timeAccessibleLabel: string;
+  /**
+   * True when a TIMED row begins and ends on different owner-calendar dates.
+   *
+   * The boundary is the OWNER's midnight, not UTC's, and an end falling exactly
+   * on midnight is not a crossing — ICS ends are exclusive, so it belongs to the
+   * day it started, which is also the rule `scheduleFactDates` files it under.
+   *
+   * A cross-day timed row is NOT an all-day row: it keeps its times, its
+   * ordering and its place in the timed column (CAL-01 §27).
+   */
+  readonly crossesDay: boolean;
+  /**
+   * "Until Thu 13 Aug" / "From Wed 12 Aug" — the compact statement of the date
+   * transition, for the row's supporting line. Null unless this row's start or
+   * end sits on a date other than the day being shown.
+   */
+  readonly dayTransitionLabel: string | null;
   /** For a multi-day all-day item: "Day 2 of 3", else null. */
   readonly spanLabel: string | null;
   readonly location: string | null;
@@ -148,6 +180,56 @@ function spokenLabel(instant: Date, timeZone: string): string {
     hour12: true,
     timeZone,
   }).format(instant);
+}
+
+/**
+ * The OWNER's calendar date for an instant, `YYYY-MM-DD`.
+ *
+ * The day boundary a cross-day event is measured against has to be the owner's
+ * midnight: an event running 14:00 Wednesday to 12:00 Thursday in Sydney is
+ * 04:00Z Wednesday to 02:00Z Thursday, and one that runs 09:00 to 10:00 Sydney
+ * is 23:00Z the PREVIOUS day to 00:00Z — which a UTC reading would call a
+ * crossing when it is not.
+ */
+function ownerDateIso(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone,
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/**
+ * "Thu 13 Aug" — the compact date, assembled from parts.
+ *
+ * From parts rather than from the formatted string because `en-AU` renders this
+ * combination as "Thu, 13 Aug", and the comma reads badly inside a supporting
+ * line whose own separator is a middle dot.
+ */
+function shortDayLabel(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone,
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("weekday")} ${get("day")} ${get("month")}`;
+}
+
+/** "Thursday 13 August" — the spoken date, for the accessible statement. */
+function longDayLabel(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone,
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("weekday")} ${get("day")} ${get("month")}`;
 }
 
 /** Whole days from `fromIso` to `toIso`, over date-only strings. */
@@ -273,8 +355,11 @@ export function buildDaySchedule(input: {
         endsAtIso: facts.endsAt.toISOString(),
         allDay: true,
         timeLabel: null,
+        endTimeLabel: null,
         timeRangeLabel: null,
         timeAccessibleLabel: "All day",
+        crossesDay: false,
+        dayTransitionLabel: null,
         spanLabel:
           span > 1 ? `Day ${dayOffset(from, dateIso) + 1} of ${span}` : null,
         location: boundedExternalText(facts.location, 120),
@@ -293,6 +378,56 @@ export function buildDaySchedule(input: {
     const start = clockLabel(facts.startsAt, timeZone);
     const end = clockLabel(facts.endsAt, timeZone);
     const sameInstant = facts.endsAt.getTime() <= facts.startsAt.getTime();
+
+    /*
+     * WHICH owner-calendar day each end of the row lands on.
+     *
+     * The end is measured one millisecond BEFORE `endsAt`, exactly as
+     * `scheduleFactDates` does, so an event finishing at midnight belongs to the
+     * day it started rather than announcing a transition it did not make. Get
+     * this wrong and a 23:00–00:00 call claims to end "Thu 13 Aug" while sitting
+     * only on Wednesday's page.
+     */
+    const startDay = ownerDateIso(facts.startsAt, timeZone);
+    const endInstant = new Date(
+      Math.max(facts.startsAt.getTime(), facts.endsAt.getTime() - 1),
+    );
+    const endDay = ownerDateIso(endInstant, timeZone);
+    const crossesDay = !sameInstant && endDay !== startDay;
+    // Stated against the day BEING SHOWN, not against the start: a cross-day
+    // event appears on both of its days, and on the second one the fact the
+    // owner needs is where it began.
+    const startElsewhere = startDay !== dateIso;
+    const endElsewhere = crossesDay && endDay !== dateIso;
+
+    const spokenStart = spokenLabel(facts.startsAt, timeZone);
+    const spokenEnd = spokenLabel(facts.endsAt, timeZone);
+    const startOn = startElsewhere
+      ? ` on ${longDayLabel(facts.startsAt, timeZone)}`
+      : "";
+    const endOn = endElsewhere
+      ? ` on ${longDayLabel(endInstant, timeZone)}`
+      : "";
+
+    let timeRangeLabel: string;
+    if (sameInstant) {
+      timeRangeLabel = startElsewhere
+        ? `${shortDayLabel(facts.startsAt, timeZone)} ${start}`
+        : start;
+    } else if (startElsewhere || endElsewhere) {
+      // The arrow, and a date on whichever end is not today's, is the shortest
+      // form that cannot be read as "ends before it starts".
+      const from = startElsewhere
+        ? `${shortDayLabel(facts.startsAt, timeZone)} ${start}`
+        : start;
+      const to = endElsewhere
+        ? `${shortDayLabel(endInstant, timeZone)} ${end}`
+        : end;
+      timeRangeLabel = `${from} → ${to}`;
+    } else {
+      timeRangeLabel = `${start}–${end}`;
+    }
+
     return {
       id: facts.id,
       kind: facts.kind,
@@ -301,10 +436,17 @@ export function buildDaySchedule(input: {
       endsAtIso: facts.endsAt.toISOString(),
       allDay: false,
       timeLabel: start,
-      timeRangeLabel: sameInstant ? start : `${start}–${end}`,
+      endTimeLabel: sameInstant ? null : end,
+      timeRangeLabel,
       timeAccessibleLabel: sameInstant
-        ? spokenLabel(facts.startsAt, timeZone)
-        : `${spokenLabel(facts.startsAt, timeZone)} to ${spokenLabel(facts.endsAt, timeZone)}`,
+        ? `${spokenStart}${startOn}`
+        : `${spokenStart}${startOn} to ${spokenEnd}${endOn}`,
+      crossesDay,
+      dayTransitionLabel: endElsewhere
+        ? `Until ${shortDayLabel(endInstant, timeZone)}`
+        : startElsewhere
+          ? `From ${shortDayLabel(facts.startsAt, timeZone)}`
+          : null,
       spanLabel: null,
       location: boundedExternalText(facts.location, 120),
       meetingUrl: facts.meetingUrl,

@@ -264,6 +264,33 @@ in it.
 duration of one parse and unregistered afterwards, so one publisher's idea of
 `Australia/Sydney` can never leak into another feed's parse.
 
+### Resolving an instant and storing a timezone are two different concerns
+
+A feed's `VTIMEZONE` **may** be used to resolve an event's UTC instants, and is.
+It states the offsets and the DST rules, so `ical.js` produces a correct
+`startsAt`/`endsAt` from it with no IANA lookup involved. That behaviour is
+required and unchanged.
+
+The `TZID` **string** is a different thing: it is chosen by the publisher and is
+not required to be an IANA zone. Outlook and Microsoft 365 publish Windows zone
+names (`AUS Eastern Standard Time`), and smaller publishers emit wholly custom
+labels. `new Intl.DateTimeFormat("en", { timeZone: value })` — the check every
+DalyHub timezone authority performs, including Meeting validation — throws for
+all of them.
+
+So the occurrence's `timezone` column means **"a timezone DalyHub can
+legitimately use"**, and the parser records the feed's `TZID` there only when
+`isSupportedTimezone` (`~/kernel/preferences`, the same authority SET-01 validates
+the owner's timezone with) accepts it. Anything else is stored as **NULL** rather
+than persisted as though it were an IANA zone. Null is honest: the instants are
+exact either way, and every surface that needs a zone falls back to the owner's —
+which is what it already did for a floating time.
+
+There is deliberately **no Windows→IANA mapping table and no provider-specific
+translation layer** (§44). The instants are already resolved, so a mapping would
+buy only a display label, and a wrong guess would silently mislabel a record the
+owner owns.
+
 ---
 
 ## 8. Recurrence identity
@@ -486,6 +513,40 @@ are **words**, not colours. There is no countdown, nothing that re-renders on an
 interval, no notification, and no claim about lateness or attendance. `Next`
 skips a cancelled event.
 
+### A timed event that ends on another day
+
+An event running 14:00 Wednesday to 12:00 Thursday used to render under a single
+**Date** as "2:00 pm to 12:00 pm" — which reads as an end before its own start.
+
+A timed row whose start and end fall on **different owner-calendar dates** now
+states the transition explicitly, and states it against the day being shown, so
+the same occurrence reads correctly on each of the days it appears on:
+
+| Viewing | Time block | Supporting line | Detail sheet / accessible name |
+|---|---|---|---|
+| Wednesday | `14:00` / `12:00` | `Until Thu 13 Aug · Work` | `2:00 pm to 12:00 pm on Thursday 13 August` |
+| Thursday | `14:00` / `12:00` | `From Wed 12 Aug · Work` | `2:00 pm on Wednesday 12 August to 12:00 pm` |
+
+Same-day events keep the concise `08:30–09:00` range and the plain `8:30 am to
+9:00 am` sentence — nothing changed for them.
+
+Held with it:
+
+- **the boundary is the OWNER's midnight, never UTC's.** A UTC reading calls a
+  23:30–00:30 Los Angeles event same-day (both instants land on one UTC date) and
+  calls a 09:00–10:00 Sydney event a crossing (its start is 23:00Z the day
+  before). Both are wrong on the surface the owner is looking at;
+- **an end falling exactly on midnight is not a crossing.** ICS ends are
+  exclusive, so 23:00–00:00 belongs to the day it started — the same rule
+  `scheduleFactDates` files it under, so the row's words and the row's placement
+  cannot disagree;
+- **a cross-day timed event is not an all-day event.** It keeps both clock faces,
+  stays in the timed column and sorts by its start instant. Ordering is unchanged;
+- **one string serves both readings.** The detail sheet renders the accessible
+  label, so a screen reader and a sighted reader are given the same sentence;
+- **it is a projection, still read-only.** No instant is altered and nothing is
+  written back.
+
 ### Mobile (320–430px)
 
 The row is a leading two-line time block (start over end, tabular, fixed 3.25rem
@@ -562,6 +623,10 @@ the calendar's owner-given name, location, cancellation. No provider HTML, no
 iframe, no feed URL. **Join meeting** appears when a reliable https join link was
 imported, opened with `noopener noreferrer`.
 
+The **Time** fact is the accessible label rather than the compact range, so a
+timed event ending on another owner-calendar date names that date here too (§14,
+"A timed event that ends on another day").
+
 ### Why "Create meeting notes" is not on every row
 
 Most rows are not meetings. Putting a "make this a Meeting" control on Lunch,
@@ -584,9 +649,23 @@ There is no Calendar-specific Meeting repository, no second Meeting type and no
 something the Meeting model refuses, the refusal is reported.
 
 Prefilled: title, `startsAt`, `endsAt` (only when genuinely after the start),
-timezone (the occurrence's own when the feed stated one, else the owner's),
-location, `meetingUrl`. **Not** prefilled: `mode` (an event can carry a Teams link
-and still be held in a room), agenda, attendees.
+timezone (the occurrence's own when it is a timezone DalyHub can use, else the
+owner's), location, `meetingUrl`. **Not** prefilled: `mode` (an event can carry a
+Teams link and still be held in a room), agenda, attendees.
+
+**A Meeting's timezone is always a valid application timezone.** The route checks
+the projected row's `timezone` with `isSupportedTimezone` before passing it on and
+falls back to the owner's configured timezone when it fails. This is deliberately
+defensive on top of the parser rule above, for two reasons: a projected row is
+external data the route must not assume is well-formed, and production already
+holds rows imported before that rule existed — a projection is only rewritten when
+its source next refreshes.
+
+The fallback changes **only** which zone the Meeting is written in. `startsAt` and
+`endsAt` were resolved from the feed's own zone definition and are passed through
+untouched, so the Meeting's instants are identical to the imported occurrence's.
+Meeting validation stays authoritative and is not weakened to accept external
+identifiers: the route supplies a value that is genuinely valid instead.
 
 **An all-day occurrence gets owner-local bounds, derived from its DATES.** An
 all-day item is a floating calendar date; the parser stores a placeholder instant
@@ -701,18 +780,19 @@ accessible name.
 
 | Suite | Coverage |
 |---|---|
-| `test/kernel/calendar-ics-parser.test.ts` (18) | **In the real Workers runtime** — timed/UTC/all-day/multi-day events, folded lines, escaped TEXT, daily/weekly/monthly recurrence, `EXDATE`, moved instance, cancelled instance, occurrence identity, **DST across the Sydney spring-forward**, midnight straddling, join-URL extraction and refusal, malformed event skipped, recurrence bomb bounded, window filtering, HTML refused, truncated feed refused, zone isolation between parses |
+| `test/kernel/calendar-ics-parser.test.ts` (27) | **In the real Workers runtime** — timed/UTC/all-day/multi-day events, folded lines, escaped TEXT, daily/weekly/monthly recurrence, `EXDATE`, moved instance, cancelled instance, occurrence identity, **DST across the Sydney spring-forward**, midnight straddling, join-URL extraction and refusal, malformed event skipped, recurrence bomb bounded, window filtering, HTML refused, truncated feed refused, zone isolation between parses; **a Windows `TZID` resolved from the feed's own `VTIMEZONE` to the same instants as the identical IANA event and stored as NULL**, the same for a custom `TZID`, an IANA event keeping its zone, all-day unchanged, **a same-day end staying on the start day** and an inverted end normalised rather than rolled forward |
 | `test/kernel/calendar-sync.test.ts` (17) | Real D1 — import, **idempotent re-refresh**, title change in place, time change keeping identity, vanished event removed, cancelled kept, multi-source merge, **source isolation**, previous projection kept on failure, `not_calendar`, disable/enable, **claim/release concurrency + the regression**, window enforcement, **no plaintext URL in the row**, no URL in the read, duplicate refused, source limit |
-| `test/kernel/calendar-meeting-link.test.ts` (9) | Real D1 — ordinary Meeting created with mapped fields, **no second Meeting**, link joined into the schedule read, link survives rename / move / cancellation / disappearance / **source removal** / prune-and-reimport |
+| `test/kernel/calendar-meeting-link.test.ts` (14) | Real D1 — ordinary Meeting created with mapped fields, **no second Meeting**, link joined into the schedule read, link survives rename / move / cancellation / disappearance / **source removal** / prune-and-reimport; **an occurrence whose feed named an unusable zone imports, stays usable and creates meeting notes on the owner's timezone with the imported instants intact**, including from a legacy row written before the parser fix, with an IANA-zoned event still keeping its own zone |
 | `test/kernel/calendar-security.test.ts` (19) | Sealed-secret round trip, versioned envelope, random IV, wrong key refused, **wrong workspace refused**, **tampering refused**, weak key refused, keyed fingerprint; redirect followed, **redirect revalidated**, loopback redirect refused, redirect bound, oversized by header, **oversized while streaming**, status mapping, **no body/URL in errors**, blocked target refused before any request; scheduled handler inert and non-throwing |
 | `test/unit/calendar/feed-url.test.ts` (17) | The URL policy as a security control — every scheme, credentials, port, ~25 blocked hosts/addresses, malformed input, fragment, **no URL in the refusal message**, provider hint suffix matching |
-| `test/unit/calendar/schedule.test.ts` (21) | Ordering, all-day separation, span labels, **owner-timezone formatting**, Now/Next (and only on today, and never cancelled), control-character stripping, day membership incl. midnight straddle and exclusive ends, **the window in AEST and AEDT and across the transition**, reconciliation |
-| `e2e/calendar.spec.ts` (20) | The browser journey — Settings list/truthful state/**link never redisplayed**/blocked-URL refusal/http refusal/pause-resume/failed refresh/remove; Today merged chronology, all-day region, source labels, **Focus unchanged**, 320–430 no overflow, **axe clean**; event detail, Join link, **create ONE Meeting**, "Open notes" on the row, **no duplicate**; Tomorrow's date boundary, Next 7 days grouping, `aria-current`, phone widths |
+| `test/unit/calendar/schedule.test.ts` (32) | Ordering, all-day separation, span labels, **owner-timezone formatting**, Now/Next (and only on today, and never cancelled), control-character stripping, day membership incl. midnight straddle and exclusive ends, **the window in AEST and AEDT and across the transition**, reconciliation; **cross-day timed rows** — same-day unchanged, 2 pm Wednesday to noon Thursday from both of its days, a crossing of a few minutes, midnight-exact NOT a crossing, **an owner zone whose UTC date differs**, the Sydney spring-forward, a multi-day timed row keeping its ordering and its timed placement, zero-length and all-day rows |
+| `e2e/calendar.spec.ts` (22) | The browser journey — Settings list/truthful state/**link never redisplayed**/blocked-URL refusal/http refusal/pause-resume/failed refresh/remove; Today merged chronology, all-day region, source labels, **Focus unchanged**, 320–430 no overflow, **axe clean**; event detail, Join link, **create ONE Meeting**, "Open notes" on the row, **no duplicate**; Tomorrow's date boundary, Next 7 days grouping, `aria-current`, phone widths; **an overnight event from a feed with an unusable timezone — it names the day it ends on and creates meeting notes instead of refusing** |
 
-Totals: **101 new tests**. Full suites green — `test:unit` 5,256 · `test:kernel`
-2,442 · the calendar and Today e2e specs.
+Totals: **101 new tests**, plus **26 regression tests** for the two production
+defects below. Full suites green — `test:unit` 5,268 · `test:kernel` 2,457 · the
+calendar and Today e2e specs.
 
-### Two real defects the tests found
+### Four real defects the tests found
 
 1. **A completed refresh blocked the next one.** The claim shared a column with
    "last attempt", so "Refresh now" silently did nothing for two minutes after
@@ -723,6 +803,18 @@ Totals: **101 new tests**. Full suites green — `test:unit` 5,256 · `test:kern
    `/meetings/:id`; the record route is `/meeting/:id` (singular), so it 404ed.
    Pre-existing on `main`, inherited when the row moved into `ScheduleList`, and
    fixed there — so both the calendar rows and Today's meeting rows now work.
+3. **A valid ICS timezone could not create a Meeting.** A real Work calendar
+   published `TZID:AUS Eastern Standard Time`. `ical.js` resolved it from the
+   feed's own `VTIMEZONE` and the event imported perfectly — and "Create meeting
+   notes" then answered *"Choose a valid timezone."*, because that identifier was
+   stored as though it were IANA and handed to the Meeting model. Fixed on both
+   sides: the parser stores NULL for a zone DalyHub cannot use, and the route
+   falls back to the owner's timezone for rows already written. Meeting validation
+   is unchanged. §7 and §16.
+4. **A cross-day timed event read as ending before it started.** The same event
+   ran 14:00 Wednesday to 12:00 Thursday and rendered under one **Date** as
+   "2:00 pm to 12:00 pm". Timed rows now state the date transition, measured
+   against the owner's midnight. §14.
 
 ### Retained evidence
 
