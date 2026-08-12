@@ -58,6 +58,8 @@
 
 .dh-card {
   position: relative;
+  /* MOBILE-01 — the surface a sticky child inside this card paints over. */
+  --app-surface-current: var(--md-app-color-surface-card);
   display: flex;
   align-items: flex-start;
   gap: var(--app-space-3);

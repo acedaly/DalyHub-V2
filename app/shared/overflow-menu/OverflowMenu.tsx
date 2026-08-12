@@ -25,6 +25,38 @@
  * the trigger explained itself to a mouse and to nothing else; the shared
  * tooltip shows the same words on `:focus-visible` too. The trigger keeps its
  * own `aria-label`, so the tooltip supplements the name rather than being it.
+ *
+ * ── MOBILE-01 (iPhone daily driver) — the phone presentation is a SHEET ──────
+ * The anchored panel is the right object on a pointer device and the wrong one
+ * on a phone. Measured on this pass at 390px, on the surface that opens it most
+ * (a Tasks row): a 208px-wide box floating in the middle of the list, holding
+ * six actions of which three wrapped onto two and three lines each — "Move to
+ * Project or Area… / Search the whole workspace." rendered 75px tall — with the
+ * page still scrolling behind it and each item's tappable width barely half the
+ * screen. That is precisely the "tiny popover floating inside a 320–430px
+ * layout" the design system rules out, and DalyHub already owns the answer: the
+ * shared {@link Sheet}.
+ *
+ * Below `md` the SAME items, in the same order, with the same ids, roles and
+ * keyboard behaviour, are rendered inside that sheet instead. Deliberately the
+ * same DOM contract, not a second one:
+ *
+ *   - the panel keeps `role="menu"` and its children keep `role="menuitem"`, so
+ *     the WAI-ARIA menu-button pattern, the roving tabindex and every consumer's
+ *     accessible name are unchanged — a menu inside a dialog is valid, and it is
+ *     what lets one implementation serve both presentations;
+ *   - the sheet contributes what a phone overlay needs and a non-modal popover
+ *     cannot have: a scrim, a body that scrolls independently, an obvious
+ *     44px Close, safe-area and keyboard insets, and focus restored to the ⋯
+ *     trigger on dismissal — all from the DS-03 hooks the sheet already uses, so
+ *     there is still exactly one focus trap in DalyHub.
+ *
+ * The two behaviours that belong to the ANCHORED presentation — the measured
+ * flip/clamp placement and outside-pointer dismissal — are switched off in sheet
+ * mode. Leaving the second one on would have been a real defect rather than dead
+ * code: the sheet is portalled to `<body>`, so every tap inside it registers as
+ * "outside the trigger's container" and would close the sheet before the item
+ * could run.
  */
 
 import {
@@ -37,7 +69,9 @@ import {
 } from "react";
 
 import { MoreIcon } from "~/shared/icons";
+import { Sheet } from "~/shared/sheet";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
+import { useCompactViewport } from "~/shared/viewport";
 
 import {
   clampMenuInline,
@@ -67,6 +101,12 @@ export function OverflowMenu({
   ...rest
 }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
+  /**
+   * MOBILE-01 — which presentation this menu takes. `false` on the server and in
+   * the first client frame, which costs nothing here: the panel exists only
+   * after a user gesture, by which time the media query has resolved.
+   */
+  const compact = useCompactViewport();
   // The focused item index while the menu is open. `-1` means "not yet placed".
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -131,7 +171,9 @@ export function OverflowMenu({
    * so the page behind it still scrolls).
    */
   useLayoutEffect(() => {
-    if (!open || !panel) {
+    // In sheet mode the surface is full-width and bottom-anchored, so there is
+    // nothing to place: it is not anchored to the trigger at all.
+    if (!open || !panel || compact) {
       return;
     }
     const trigger = triggerRef.current;
@@ -179,12 +221,17 @@ export function OverflowMenu({
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
     };
-  }, [open, panel, items]);
+  }, [open, panel, items, compact]);
 
   // Dismiss on an outside pointer press. Escape and Tab are handled on the panel
   // itself (focus is inside it whenever the menu is open).
+  //
+  // NEVER in sheet mode: the sheet is portalled to `<body>`, so a tap on one of
+  // its own items is "outside" this container and would dismiss the surface
+  // before the action ran. The sheet brings its own scrim, Escape handler and
+  // Close control, which is the whole dismissal contract a modal needs.
   useEffect(() => {
-    if (!open) {
+    if (!open || compact) {
       return;
     }
     const onPointerDown = (event: PointerEvent) => {
@@ -199,7 +246,7 @@ export function OverflowMenu({
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
     };
-  }, [open, close]);
+  }, [open, close, compact]);
 
   if (items.length === 0) {
     return null;
@@ -286,6 +333,129 @@ export function OverflowMenu({
     item.onSelect?.();
   };
 
+  /*
+   * The menu surface itself, built ONCE and then either anchored to the trigger
+   * or placed inside the phone sheet. One definition, because two would be two
+   * item lists to keep in step — and the keyboard contract, the roving tabindex
+   * and every `data-action-id` a consumer or a test depends on live in it.
+   */
+  const menuPanel = (
+    <div
+      className="dh-overflow-menu__panel"
+      data-presentation={compact ? "sheet" : "anchored"}
+      id={menuId}
+      ref={setPanel}
+      role="menu"
+      aria-labelledby={triggerId}
+      data-align={align}
+      // UIQ-021 — which side the panel took, and (when clamped) how tall it
+      // may be. Both are presentation only: flipping or clamping changes no
+      // keyboard semantics, no item order and no focus behaviour, so a menu
+      // that opens upward is navigated exactly like one that opens down.
+      data-side={compact ? "sheet" : (placement?.side ?? "below")}
+      style={
+        compact
+          ? undefined
+          : {
+              ...(placement?.maxHeight !== null &&
+              placement?.maxHeight !== undefined
+                ? { maxHeight: `${placement.maxHeight}px` }
+                : {}),
+              ...(inlineShift !== 0 ? { translate: `${inlineShift}px` } : {}),
+            }
+      }
+      // The WAI-ARIA menu-button pattern keeps focus on the `menuitem`
+      // children (roving tabindex) and delegates their key events up here.
+      // `-1` makes the container programmatically focusable without adding a
+      // tab stop, which is both correct for the pattern and what
+      // `jsx-a11y/interactive-supports-focus` asks of a `menu` role.
+      tabIndex={-1}
+      onKeyDown={onMenuKeyDown}
+    >
+      {items.map((item, index) => {
+        const accessibleName = item.ariaLabel ?? item.label;
+        const tone = item.tone ?? "default";
+        const inactive = !isActionable(item);
+        const descriptionId = item.description
+          ? `${generatedId}-desc-${item.id}`
+          : undefined;
+        const content = (
+          <>
+            {item.icon ? (
+              <span className="dh-overflow-menu__icon" aria-hidden="true">
+                {item.icon}
+              </span>
+            ) : null}
+            <span className="dh-overflow-menu__labels">
+              <span className="dh-overflow-menu__label">{item.label}</span>
+              {item.description ? (
+                <span
+                  className="dh-overflow-menu__description"
+                  id={descriptionId}
+                >
+                  {item.description}
+                </span>
+              ) : null}
+            </span>
+          </>
+        );
+        const shared = {
+          role: "menuitem" as const,
+          className: "dh-overflow-menu__item",
+          "data-tone": tone,
+          "data-separator": item.separatorBefore ? "true" : undefined,
+          "data-action-id": item.id,
+          tabIndex: activeIndex === index ? 0 : -1,
+          // A supporting description lives INSIDE the item (so it is visible
+          // and read in context) but must not become part of the accessible
+          // NAME — the label alone names the action, and the description is
+          // referenced separately.
+          "aria-label":
+            item.ariaLabel ??
+            (item.description !== undefined ? item.label : undefined),
+          "aria-describedby": descriptionId,
+          ref: (node: HTMLElement | null) => {
+            itemRefs.current[index] = node;
+          },
+          onMouseEnter: () => setActiveIndex(index),
+        };
+
+        if (item.href !== undefined && isActionable(item)) {
+          return (
+            <a
+              {...shared}
+              key={item.id}
+              href={item.href}
+              onClick={(event) => {
+                event.stopPropagation();
+                activate(item, true);
+              }}
+            >
+              {content}
+            </a>
+          );
+        }
+
+        return (
+          <button
+            {...shared}
+            key={item.id}
+            type="button"
+            aria-disabled={inactive ? true : undefined}
+            aria-busy={item.pending ? true : undefined}
+            title={accessibleName}
+            onClick={(event) => {
+              event.stopPropagation();
+              activate(item, false);
+            }}
+          >
+            {content}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div
       className="dh-overflow-menu"
@@ -305,7 +475,15 @@ export function OverflowMenu({
             className={["dh-overflow-menu__trigger", triggerClassName]
               .filter(Boolean)
               .join(" ")}
-            aria-haspopup="menu"
+            /*
+             * MOBILE-01 — the popup TYPE follows the presentation.
+             *
+             * On a phone the surface really is a modal dialog, and a trigger
+             * that promises a menu while opening a dialog is describing
+             * something the user is not getting. The `role="menu"` inside it is
+             * unchanged either way; only the outer promise moves.
+             */
+            aria-haspopup={compact ? "dialog" : "menu"}
             aria-expanded={open}
             aria-controls={open ? menuId : undefined}
             aria-label={label}
@@ -328,117 +506,21 @@ export function OverflowMenu({
         )}
       </Tooltip>
 
-      {open ? (
-        <div
-          className="dh-overflow-menu__panel"
-          id={menuId}
-          ref={setPanel}
-          role="menu"
-          aria-labelledby={triggerId}
-          data-align={align}
-          // UIQ-021 — which side the panel took, and (when clamped) how tall it
-          // may be. Both are presentation only: flipping or clamping changes no
-          // keyboard semantics, no item order and no focus behaviour, so a menu
-          // that opens upward is navigated exactly like one that opens down.
-          data-side={placement?.side ?? "below"}
-          style={{
-            ...(placement?.maxHeight !== null &&
-            placement?.maxHeight !== undefined
-              ? { maxHeight: `${placement.maxHeight}px` }
-              : {}),
-            ...(inlineShift !== 0 ? { translate: `${inlineShift}px` } : {}),
-          }}
-          // The WAI-ARIA menu-button pattern keeps focus on the `menuitem`
-          // children (roving tabindex) and delegates their key events up here.
-          // `-1` makes the container programmatically focusable without adding a
-          // tab stop, which is both correct for the pattern and what
-          // `jsx-a11y/interactive-supports-focus` asks of a `menu` role.
-          tabIndex={-1}
-          onKeyDown={onMenuKeyDown}
+      {open && compact ? (
+        <Sheet
+          title={label}
+          opener={triggerRef.current}
+          onClose={() => close(true)}
+          className="dh-overflow-menu-sheet"
+          data-testid={
+            rest["data-testid"] ? `${rest["data-testid"]}-sheet` : undefined
+          }
         >
-          {items.map((item, index) => {
-            const accessibleName = item.ariaLabel ?? item.label;
-            const tone = item.tone ?? "default";
-            const inactive = !isActionable(item);
-            const descriptionId = item.description
-              ? `${generatedId}-desc-${item.id}`
-              : undefined;
-            const content = (
-              <>
-                {item.icon ? (
-                  <span className="dh-overflow-menu__icon" aria-hidden="true">
-                    {item.icon}
-                  </span>
-                ) : null}
-                <span className="dh-overflow-menu__labels">
-                  <span className="dh-overflow-menu__label">{item.label}</span>
-                  {item.description ? (
-                    <span
-                      className="dh-overflow-menu__description"
-                      id={descriptionId}
-                    >
-                      {item.description}
-                    </span>
-                  ) : null}
-                </span>
-              </>
-            );
-            const shared = {
-              role: "menuitem" as const,
-              className: "dh-overflow-menu__item",
-              "data-tone": tone,
-              "data-separator": item.separatorBefore ? "true" : undefined,
-              "data-action-id": item.id,
-              tabIndex: activeIndex === index ? 0 : -1,
-              // A supporting description lives INSIDE the item (so it is visible
-              // and read in context) but must not become part of the accessible
-              // NAME — the label alone names the action, and the description is
-              // referenced separately.
-              "aria-label":
-                item.ariaLabel ??
-                (item.description !== undefined ? item.label : undefined),
-              "aria-describedby": descriptionId,
-              ref: (node: HTMLElement | null) => {
-                itemRefs.current[index] = node;
-              },
-              onMouseEnter: () => setActiveIndex(index),
-            };
-
-            if (item.href !== undefined && isActionable(item)) {
-              return (
-                <a
-                  {...shared}
-                  key={item.id}
-                  href={item.href}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    activate(item, true);
-                  }}
-                >
-                  {content}
-                </a>
-              );
-            }
-
-            return (
-              <button
-                {...shared}
-                key={item.id}
-                type="button"
-                aria-disabled={inactive ? true : undefined}
-                aria-busy={item.pending ? true : undefined}
-                title={accessibleName}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  activate(item, false);
-                }}
-              >
-                {content}
-              </button>
-            );
-          })}
-        </div>
+          {menuPanel}
+        </Sheet>
       ) : null}
+
+      {open && !compact ? menuPanel : null}
     </div>
   );
 }

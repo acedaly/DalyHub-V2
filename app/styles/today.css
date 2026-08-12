@@ -674,6 +674,26 @@
   }
 }
 
+/*
+ * MOBILE-01 (iPhone daily driver) — and PROSE stops being a flex line at all.
+ *
+ * The zoom rule above treats the symptom at 240px; the cause is that a sentence
+ * with an inline link inside a flex container is not a sentence, it is three
+ * flex items. MEASURED at 390px on Today: "No measurable Goals yet. Add a
+ * target to a / Goal / and your progress shows up here." rendered as three
+ * side-by-side columns, each wrapping internally, so the visible reading order
+ * was "No measurable Goals yet. Add a target to a" · "Goal" · "and your
+ * progress" / "shows up here." — a broken sentence on the phone home screen.
+ *
+ * The two GLYPH uses of this class ("All clear" beside a tick) genuinely are a
+ * flex line and keep it. The two PROSE uses say so, and get normal inline
+ * layout: the link flows in the sentence, the sentence wraps where the words
+ * run out, and `min-block-size` still holds the touch floor for the link.
+ */
+.dh-today__quiet--prose {
+  display: block;
+}
+
 .dh-today__quiet-glyph {
   display: inline-flex;
   flex: none;

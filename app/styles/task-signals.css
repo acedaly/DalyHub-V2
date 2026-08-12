@@ -265,3 +265,49 @@
   margin-inline: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
   cursor: pointer;
 }
+
+/* ========================================================================== */
+/* MOBILE-01 (iPhone daily driver) — the row's OPEN target                    */
+/* ========================================================================== */
+
+/*
+ * A task row has two targets: complete it, and open it. The circle got its 44px
+ * hit area in the first MOBILE-01 pass (above); the title link never did.
+ *
+ * Measured at 320/375/390/430 before this rule, on `/tasks`, `/` and a Project
+ * record: the "Open <title>" link is 20–22px tall inside a 45px row, so the
+ * comfortable strip a thumb actually aims at is under half the row it visually
+ * occupies — and a miss lands on the row's padding and does nothing at all,
+ * which reads as an unresponsive list rather than as a missed target.
+ *
+ * The fix is PADDING, not height. The link keeps its type, its one line and its
+ * ellipsis; it takes symmetric block padding up to the target floor and gives
+ * the same amount back as negative margin, so every row is laid out exactly as
+ * it was and no list grew by a pixel. Padding rather than an absolutely
+ * positioned overlay because both of these links sit inside an ancestor with
+ * `overflow: hidden` (that is what draws the ellipsis), and an overlay would be
+ * clipped to the very box it is trying to escape — hit testing respects the
+ * clip, so the overlay would have looked right and done nothing.
+ *
+ * Touch only: on a pointer device a 22px link is already an easy target and the
+ * rows are denser for it.
+ */
+@media (hover: none) {
+  /*
+   * The Tasks / Project-tasks row. The clip is on the `h3` as well as on the
+   * link inside it, so BOTH grow — a 44px link inside a 22px clipped heading is
+   * still a 22px target.
+   */
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    :is(.dh-card__title, .dh-card__title .dh-card__open) {
+    padding-block: calc(0.5 * (var(--app-touch-target-min) - 1.375rem));
+    margin-block: calc(-0.5 * (var(--app-touch-target-min) - 1.375rem));
+  }
+
+  /* Today's Focus / Attention row. One box, so one rule. */
+  .dh-day-row__title {
+    padding-block: calc(0.5 * (var(--app-touch-target-min) - 1.25rem));
+    margin-block: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
+  }
+}

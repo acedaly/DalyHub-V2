@@ -654,11 +654,82 @@ surfaces. Two further defects were found in the same pass and fixed with it.
 - Contract, ordering, bounds, the Needs-attention boundary and the phone
   composition: [`TODAY_DASHBOARD.md → The Focus contract`](../development/TODAY_DASHBOARD.md#the-focus-contract-today-10-2026-08-12).
 
+### ☑ MOBILE-01 - iPhone daily-driver polish - **DELIVERED 2026-08-12**
+
+The V2.2 half of the LATER line "broader mobile polish after Tasks/Today acceptance
+is stable". It reuses the MOBILE-01 identifier deliberately: the
+[V2 item of the same name](ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience)
+built the phone PLATFORM (bottom navigation, the shared `Sheet`, the keyboard
+inset, the full-screen Drawer, the 44px floor) and this is the polish pass ON that
+platform. Not a redesign: the visual language, the M3 direction, the information
+architecture, every domain behaviour and every shared component are unchanged.
+
+Evidence, measurements, deliberate non-changes and the residual debt:
+[`MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md`](../design/MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md).
+
+The audit drove 29 routes at 320 / 375 / 390 / 430 in iPhone emulation and measured
+overflow, effective hit areas (probed with `elementFromPoint`, so a 20px glyph in a
+44px label passes and a bare 20px glyph fails), text-entry font sizes and chrome
+offsets. **The defects clustered, and the cluster is the finding**: almost every one
+was a shared rule written as an enumerated list of consumers rather than as a value
+or a default — and a list is not missed on purpose, it is missed by everything
+written after it. So the fixes move rules into tokens and defaults, and pull the
+drifted module code back in.
+
+- **Three P1s, each a shared rule in the wrong shape.** The anti-zoom floor was
+  three class names in `forms.css`, so eight module filter controls computed at
+  14px and focusing any of them left iOS Safari zoomed and scrolled sideways — it
+  is now `--app-field-font-size(-compact)`, consumed by the native-control baseline
+  every `input`/`select`/`textarea` already inherits. `FormActions sticky` was an
+  opt-in three of twenty-nine forms had taken, so "Create person" sat at y≈1,160 in
+  an 844px viewport — it now defaults to sticky below `md`. And the shared ⋯ menu
+  was an anchored 208px popover on a phone with actions wrapping onto three lines —
+  it now renders the same items, ids, roles and keyboard contract inside the shared
+  `Sheet`, with the placement and outside-pointer behaviours that belong to the
+  anchored presentation switched off.
+- **One real horizontal overflow, fixed at the cause and at the shape.** A Task
+  with a long *Waiting for* subject took the Project record 79px wider than a 320px
+  viewport, because the phone row pins its metadata run with `flex: none` and the
+  `high` tier survived the narrow drop list. The fact joins priority and repeat in
+  that list, and the run takes a ceiling so no future field can do it again.
+- **Targets fixed intelligently, never by growing rows.** Today's completion circle
+  had a 20×20 hit area — the most-used control in the product, on the surface a
+  phone opens first — and now wraps the same shared label the Tasks list uses. A
+  row's "open" link went from a 20–22px strip inside a 45px row to the full row
+  height, via padding rather than an overlay, because both links sit inside the
+  `overflow: hidden` that draws their ellipsis and hit testing respects that clip.
+  A two-character record tab clears the floor on the inline axis.
+- **The Diary week stopped hiding two of its seven days** (five of seven visible at
+  390, six at 320, cells 26–36px wide). The arrows move onto the control line that
+  already existed and the days take a full line at equal width: 7/7 visible, 51px
+  at 390 and 41 at 320 — the residual is stated rather than papered over, because
+  seven equal targets in a 288px content box cannot each be 45px.
+- **Hygiene that is not cosmetic.** `env(safe-area-inset-*)` was twenty-three
+  literals across fifteen stylesheets, some with the `0px` fallback and some
+  without — and the bare form resolves to nothing rather than zero inside `calc()`.
+  Four `--app-safe-area-*` tokens state it once; every consumer migrated.
+- **Deliberate non-changes, recorded with their measurements:** Today's composition
+  (Focus reaches y=248 of 844 — left alone), the central bottom-bar Capture action
+  (no FAB reintroduced), the one-line Tasks row (not made into cards), swipe and
+  long press (accelerators, never requirements), the Notes toolbar (no second
+  editor), native `<select>` on a phone, and every domain rule — Goal progress
+  arithmetic, Task recurrence, Area semantics.
+- **Non-goals held:** no new design system, no CSS framework, no revived `--dh-*`
+  token, no device-model breakpoint, no module-specific sheet, no second client
+  data model, no state-management framework, no background sync, no new feature
+  found in an empty space. Remaining debt (the duplicated record title on a phone,
+  the Goals double filter row, 41px Diary cells at 320, the Diary's duplicated
+  empty-state CTA) is recorded in the evidence document and NOT converted into
+  work items here.
+- Covered by `e2e/iphone-daily-driver.spec.ts` (23 tests across the four widths,
+  including the desktop-unchanged assertions) on top of the existing
+  `mobile-shell` / `mobile-modules` phone suites.
+
 ### NEXT
 
-Empty. Both entries that stood here are delivered above — TASKS-11 and
-PWA-12 — and the next thing to pick up is in LATER, or is whatever the
-next audit finds.
+Empty. The three entries that stood here are delivered above — TASKS-11,
+PWA-12 and MOBILE-01 — and the next thing to pick up is in LATER, or is
+whatever the next audit finds.
 
 ### LATER
 
@@ -674,7 +745,9 @@ next audit finds.
   collected. Explicitly separate from capture, which must never depend on a provider.
 - **Attachment capture, inbound calendar sync and a broader external CRUD API** -
   each a real capability, none of them input, and none of them a CAPTURE-01 defect.
-- Broader mobile polish after Tasks/Today acceptance is stable.
+- ~~Broader mobile polish after Tasks/Today acceptance is stable.~~ Delivered as
+  **MOBILE-01 - iPhone daily-driver polish** above. What it deliberately left is
+  recorded as debt in that item's evidence document, not re-listed here.
 - Richer review surfaces after daily capture and attention are trusted. (The
   **Analytics** half of this line shipped in UIX-05, and shipped early precisely
   because it turned out to need nothing new: every figure it shows comes from a

@@ -17,6 +17,44 @@ no version number to group them under.
 
 ---
 
+## DalyHub on an iPhone, sanded down (MOBILE-01)
+
+DalyHub already worked on a phone. This is the pass that makes it feel like it was
+_meant_ for one. Nothing moved, nothing was redesigned, and no feature was added —
+a phone audit at the four iPhone widths (320, 375, 390 and 430 points) turned up a
+short list of things that were genuinely annoying, and they are fixed.
+
+- **Tapping "more" on a task now opens a proper sheet.** The ⋯ menu used to open a
+  narrow box floating in the middle of the list, with actions wrapped onto three
+  cramped lines. It now slides up from the bottom of the screen, full width, one
+  comfortable row per action — the same sheet the rest of the phone product
+  already uses. On a computer it is unchanged.
+- **Save is where your thumb is.** On a new Person, a new Project, a new Note, a
+  Diary entry, an Asset renewal and twenty-one other forms, the Save button used
+  to sit at the very bottom of a long scrolling page — under the keyboard, past
+  every field. It now stays pinned above the keyboard and above the bottom bar, so
+  you can commit the moment you are ready.
+- **Tapping a field no longer zooms the page.** Searching Notes or People, or
+  changing a Reviews filter, used to make Safari zoom in and leave the page
+  scrolled sideways with the header off screen. Every text field in DalyHub is now
+  large enough that it never happens.
+- **Ticking a task off Today is much easier to hit.** The circle looks the same;
+  the area your thumb actually has to land on is now more than four times bigger.
+  Opening a task by its title got the same treatment on every list.
+- **The Diary shows the whole week again.** Saturday and Sunday used to be
+  scrolled off the end of the day strip with nothing to say so. All seven days are
+  now on screen, the same size, and considerably easier to tap.
+- **A Project page stops sliding sideways.** A task with a long "Waiting for" note
+  could push the entire page wider than the screen, dragging the bottom navigation
+  bar with it. It cannot any more.
+- **Small things that were quietly wrong.** A record's tab strip no longer shows a
+  tab cut down to a single letter, and now shows a soft edge when there is more to
+  scroll to. Today's "No measurable Goals yet…" line reads as a sentence instead of
+  three columns. The Tasks quick-add no longer cuts its own prompt off mid-word.
+  Goal cards are tighter, so two fit on a phone screen instead of one and a half.
+
+---
+
 ## Your tasks keep working when your phone loses signal (PWA-12)
 
 Until now, losing your connection meant DalyHub could still _show_ you your tasks

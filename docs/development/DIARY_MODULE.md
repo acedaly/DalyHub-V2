@@ -685,6 +685,30 @@ See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#sha
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
 
+## The phone week strip (MOBILE-01, iPhone daily driver)
+
+The day navigator's phone arrangement put the week arrows, the seven days, the
+date picker and **Today** on one row and let the day track scroll when they did
+not fit. Measured at the four iPhone widths, they never fit: **five of seven days
+were on screen at 390 and six of seven at 320**, with the rest scrolled out of an
+inner track with nothing to say so, and the visible cells measured **26–36px wide**
+against a 45px floor — the smallest targets in the product, on the control the
+Diary is navigated by. The arithmetic is simply not available: seven 45px days plus
+those controls need 372px of a 358px content box at 390.
+
+So below `md` the row splits, using `display: contents` on the existing bar so its
+children join the week's own flex line. The arrows move onto the **control line
+that already existed** beside the picker and Today, and the seven days take a full
+line of their own at equal width. Result: 7/7 days visible at every width, all the
+same size, 48px tall — 51px wide at 390, 57 at 430, 41 at 320 — and the first
+content offset is unchanged, so the split cost no vertical space.
+
+41px at 320 is short of the floor and is recorded as such rather than papered over:
+seven equal targets in a 288px content box cannot each be 45px, which is the same
+arithmetic the phone navigation bar already records for itself at deep zoom. It is
+58% larger than the strip drew before, and the same day is reachable from the
+full-size date picker beside it.
+
 ## Phone capture (MOBILE-01)
 
 ### Repeated capture

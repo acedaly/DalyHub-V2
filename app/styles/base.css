@@ -350,7 +350,20 @@ body {
   min-block-size: var(--app-control-height-lg);
   padding: var(--app-space-2) var(--app-space-3);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-medium-size);
+  /*
+   * MOBILE-01 (iPhone daily driver) — the token, not the raw typescale rung.
+   *
+   * `--app-field-font-size-compact` IS `body-medium` on a pointer device and is
+   * floored at 16px on a touch one (tokens.css). Stating it here — on the
+   * baseline every native control already inherits — is what makes the
+   * anti-zoom floor universal instead of a list of three shared classes that
+   * every module control written since has quietly fallen outside of. Measured
+   * before this change at 390px: the Notes search and its five filter selects,
+   * the People search and sort, and both Reviews selects all computed to 14px,
+   * so focusing any of them zoomed iOS Safari and left the page horizontally
+   * scrolled with the collection header off-screen.
+   */
+  font-size: var(--app-field-font-size-compact);
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline);

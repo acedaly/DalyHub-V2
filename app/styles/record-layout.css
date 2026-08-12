@@ -850,12 +850,64 @@
   /* M3-INT — the strip and its panel stay joined on a phone too; the gap here
    * would put the seam back. Only the tab metrics tighten. */
 
+  /*
+   * MOBILE-01 (iPhone daily driver) — the scroll is SAID, not implied.
+   *
+   * The strip scrolling is deliberate, but at 390px the Meeting record rendered
+   * "Notebook Details Follow-up AI Activity S ⋯" — a tab cut to one letter,
+   * which reads as a broken label rather than as "there is more this way", and
+   * is the "unreadable truncation" the mobile audit rules out. Nothing was
+   * unreachable (every surplus tab is in the More menu beside it); it just did
+   * not look scrollable.
+   *
+   * The classic pure-CSS scroll shadow answers it with no script and no state:
+   * two COVER layers painted in the page surface travel with the content
+   * (`local`), and two SHADOW layers stay pinned to the box (`scroll`). At
+   * either end the cover sits over the shadow and hides it, so the cue appears
+   * only on the side that actually has more to show, and disappears when the
+   * strip fits.
+   */
+  .record-tabs__list {
+    background-image:
+      linear-gradient(to right, var(--md-app-color-surface-page), transparent),
+      linear-gradient(to left, var(--md-app-color-surface-page), transparent),
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--md-sys-color-shadow) 22%, transparent),
+        transparent
+      ),
+      linear-gradient(
+        to left,
+        color-mix(in srgb, var(--md-sys-color-shadow) 22%, transparent),
+        transparent
+      );
+    background-position:
+      left center,
+      right center,
+      left center,
+      right center;
+    background-size: var(--app-space-5) 100%;
+    background-repeat: no-repeat;
+    background-attachment: local, local, scroll, scroll;
+  }
+
   /* Tabs stay ONE row: the strip scrolls (an intentional, contained overflow) and
    * the surplus lives in the More menu — a wrapped multi-row tab bar would eat
    * the record. */
   .record-tab {
     padding: 0 var(--app-space-2);
     font-size: var(--md-sys-typescale-body-small-size);
+    /*
+     * MOBILE-01 (iPhone daily driver) — a short label still gets a target.
+     *
+     * The phone padding above is 8px a side, so a two-character tab measured
+     * 27×45 on the Note and Meeting records ("AI"): full height, and barely
+     * half the floor across. The floor is stated on the INLINE axis only, so a
+     * long tab is unchanged and the strip's own scrolling still absorbs the
+     * difference.
+     */
+    min-inline-size: var(--app-touch-target-min);
+    justify-content: center;
   }
 }
 
