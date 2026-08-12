@@ -683,11 +683,24 @@ the kind of work moves a capture from one to the other. The only thing that sele
 `after_completion` is one of the six suffixes above, in so many words.
 
 Because an after-completion interval measures from the day the work is finished, its
-FIRST occurrence needs a start: a capture that names no date is anchored to the
-**owner's today**, exactly as `every Monday` with no date is already anchored to the
-next Monday. A FIXED repeat is deliberately not treated this way — `Pay rent every
-month` with no date carries `needsDate` and the rule is dropped rather than pinned to
-an arbitrary day of the month.
+FIRST occurrence needs a start. That anchor is resolved at **submission**, not while
+parsing, by the shared `resolveCapturedRecurrenceAnchor`, which sees the parser's
+reading *and* whatever dates the surface supplies through its own controls. The order
+is fixed and every real date beats the implied one:
+
+1. an explicit `due …` in the text — the date the phrase attached to;
+2. a scheduled date, from the text or from the surface;
+3. a due date from the surface;
+4. **only** for an `after_completion` rule with no date anywhere, the owner's today.
+
+So typing `Service Hilux every 6 months after completion` into `/tasks/new` *and*
+picking a due date gives a rule that advances that due date, with no scheduled date
+invented on top of it. A FIXED repeat never reaches step 4 — `Pay rent every month`
+with no date carries `needsDate` and the rule is dropped rather than pinned to an
+arbitrary day of the month.
+
+Parsing itself invents nothing: `parseQuickCapture` reports what the SENTENCE said, so
+the same function is still the whole answer to "what does this text mean?".
 
 **The parser's vocabulary is wider than the quick-edit panel's option list, and
 that is deliberate (V2.0.1).** The recurrence MODEL accepts any interval 1–99
@@ -1773,6 +1786,12 @@ later — successor dates come from `nextTaskOccurrenceDate` exactly as they do 
 rule built in the editor. `test/kernel/task-capture-language.test.ts` proves this
 literally: a captured rule and an editor-authored rule are read back from
 `task_recurrence_rules` and compared column for column.
+
+There is likewise ONE anchor decision. `resolveCapturedRecurrenceAnchor` decides which
+date a recognised rule advances, `applyRecurrenceFields` is a thin FormData writer over
+it, and the CAPTURE-01 service calls the same function rather than keeping the copy of
+that logic it used to have. A surface therefore cannot disagree with another about what
+a captured rule repeats from.
 
 ### Evidence
 

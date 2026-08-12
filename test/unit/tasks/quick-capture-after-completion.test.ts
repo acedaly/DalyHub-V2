@@ -12,7 +12,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { parseQuickCapture } from "~/shared/task-record/quick-capture";
+import {
+  applyRecurrenceFields,
+  parseQuickCapture,
+  resolveCapturedRecurrenceAnchor,
+} from "~/shared/task-record/quick-capture";
 
 /** The owner's calendar day every case in this file is read against. A Thursday. */
 const TODAY = "2026-08-13";
@@ -30,12 +34,13 @@ describe("TASKS-11 — after-completion recurrence", () => {
       interval: 6,
       mode: "after_completion",
       weekdays: [],
-      dateKind: "scheduled",
-      needsDate: false,
+      // The sentence named no date, and PARSING invents none. The anchor such a rule
+      // needs is resolved at submission, once the surface's own date controls have
+      // been merged in — see the anchor-resolution block below.
+      dateKind: null,
+      needsDate: true,
     });
-    // The first occurrence starts on the owner's day — the only non-arbitrary anchor
-    // for an interval measured from completion, and never a guessed future date.
-    expect(r.scheduledDate).toBe(TODAY);
+    expect(r.scheduledDate).toBeNull();
     expect(r.dueDate).toBeNull();
   });
 
@@ -226,9 +231,12 @@ describe("TASKS-11 — the fixed schedule is never crossed by accident", () => {
       frequency: "month",
       interval: 3,
       mode: "after_completion",
-      dateKind: "scheduled",
-      needsDate: false,
+      dateKind: null,
+      needsDate: true,
     });
+    // The two phrases parse to the same SHAPE. They differ in the mode and in what
+    // that mode entitles the anchor resolver to do — never in what was read.
+    expect(afterCompletion.scheduledDate).toBeNull();
   });
 
   it("refuses an after-completion suffix on the shapes the kernel refuses", () => {
@@ -308,6 +316,116 @@ describe("TASKS-11 — composition with the other signals", () => {
     expect(r.priority).toBe("p1");
     expect(r.scheduledDate).toBe("2026-08-14");
     expect(r.recurrence).toBeNull();
+  });
+});
+
+describe("TASKS-11 — resolving the anchor at submission", () => {
+  /** The submission a surface builds: the parser's reading + its own date controls. */
+  function anchorFor(
+    text: string,
+    surfaceDates: {
+      readonly scheduledDate?: string | null;
+      readonly dueDate?: string | null;
+    } = {},
+    todayIso: string | null = TODAY,
+  ) {
+    const interpretation = parse(text);
+    return resolveCapturedRecurrenceAnchor(
+      interpretation.recurrence,
+      {
+        scheduledDate:
+          surfaceDates.scheduledDate ?? interpretation.scheduledDate,
+        dueDate: surfaceDates.dueDate ?? interpretation.dueDate,
+      },
+      todayIso,
+    );
+  }
+
+  it("implies the owner's today ONLY when the capture carries no date at all", () => {
+    expect(anchorFor("Service Hilux every 6 months after completion")).toEqual({
+      dateKind: "scheduled",
+      impliedScheduledDate: TODAY,
+    });
+  });
+
+  it("lets a due date entered on the FORM outrank the implied anchor", () => {
+    // The reported case: the owner types the phrase in the title field and picks a
+    // due date with the form's own control. The date they entered is the one the rule
+    // advances, and no scheduled date is invented on top of it.
+    const anchor = anchorFor("Service Hilux every 6 months after completion", {
+      dueDate: "2026-11-15",
+    });
+    expect(anchor).toEqual({ dateKind: "due", impliedScheduledDate: null });
+  });
+
+  it("lets a scheduled date entered on the FORM outrank the implied anchor", () => {
+    const anchor = anchorFor("Service Hilux every 6 months after completion", {
+      scheduledDate: "2026-09-01",
+    });
+    expect(anchor).toEqual({
+      dateKind: "scheduled",
+      impliedScheduledDate: null,
+    });
+  });
+
+  it("keeps a `due …` phrase in the TEXT as the date the rule advances", () => {
+    expect(
+      anchorFor(
+        "Renew the certificate due 15/11 every 12 months after completion",
+      ),
+    ).toEqual({ dateKind: "due", impliedScheduledDate: null });
+  });
+
+  it("never implies an anchor for a FIXED schedule", () => {
+    expect(anchorFor("Pay rent every month")).toBeNull();
+    // With a date from anywhere it resolves normally, exactly as it always has.
+    expect(
+      anchorFor("Pay rent every month", { dueDate: "2026-09-01" }),
+    ).toEqual({ dateKind: "due", impliedScheduledDate: null });
+  });
+
+  it("implies nothing without the owner's calendar day", () => {
+    expect(
+      anchorFor("Service Hilux every 6 months after completion", {}, null),
+    ).toBeNull();
+  });
+
+  it("writes the resolved anchor onto the submission, mode included", () => {
+    const withoutDates = new FormData();
+    const bare = parse("Service Hilux every 6 months after completion");
+    applyRecurrenceFields(
+      withoutDates,
+      bare.recurrence,
+      { scheduledDate: null, dueDate: null },
+      TODAY,
+    );
+    expect(withoutDates.get("scheduledDate")).toBe(TODAY);
+    expect(withoutDates.get("recurrenceDateKind")).toBe("scheduled");
+    expect(withoutDates.get("recurrenceMode")).toBe("after_completion");
+    expect(withoutDates.get("recurrenceInterval")).toBe("6");
+
+    // With the owner's own due date there is nothing to imply, and nothing invented.
+    const withDue = new FormData();
+    applyRecurrenceFields(
+      withDue,
+      bare.recurrence,
+      { scheduledDate: null, dueDate: "2026-11-15" },
+      TODAY,
+    );
+    expect(withDue.get("scheduledDate")).toBeNull();
+    expect(withDue.get("recurrenceDateKind")).toBe("due");
+    expect(withDue.get("recurrenceMode")).toBe("after_completion");
+  });
+
+  it("still drops an anchorless FIXED rule rather than submitting it", () => {
+    const body = new FormData();
+    applyRecurrenceFields(
+      body,
+      parse("Pay rent every month").recurrence,
+      { scheduledDate: null, dueDate: null },
+      TODAY,
+    );
+    expect([...body.keys()]).toHaveLength(0);
   });
 });
 

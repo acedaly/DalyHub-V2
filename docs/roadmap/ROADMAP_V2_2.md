@@ -547,6 +547,12 @@ Extend the existing parser only where it is reliable and testable. **One** parse
   same sentence through `POST /api/capture` produces the same Task — the endpoint
   gained no recurrence field, because natural-language capture through the shared
   parser is what it is for.
+- **One anchor decision, made at submission.** An after-completion rule with no date
+  anywhere starts on the owner's today, but that is resolved by the shared
+  `resolveCapturedRecurrenceAnchor` *after* the surface's own date controls are merged
+  in — so a due date the owner picked on the form always wins, and no scheduled date
+  is invented alongside it. The CAPTURE-01 service now calls that same function
+  instead of its own copy of the date-kind logic.
 - **Non-goals held:** no AI, no fuzzy inference, no Project/Area/Goal guessing, no
   new UI surface, and no ordinal monthly patterns (that remains TASKS-12).
 - Closes [DEBT-118](../product/PRODUCT_DEBT.md).

@@ -95,8 +95,13 @@ function authedContext(): RouterContextProvider {
  */
 async function captureThroughUi(
   text: string,
-  todayIso = TODAY,
+  options: {
+    readonly todayIso?: string;
+    /** A date the owner picked with the surface's OWN control, as the form does. */
+    readonly formDueDate?: string;
+  } = {},
 ): Promise<TasksCreateResult> {
+  const todayIso = options.todayIso ?? TODAY;
   const interpretation = parseQuickCapture(text, { todayIso });
   const body = new FormData();
   body.set("intent", "create");
@@ -108,11 +113,14 @@ async function captureThroughUi(
   if (interpretation.scheduledDate) {
     body.set("scheduledDate", interpretation.scheduledDate);
   }
-  if (interpretation.dueDate) body.set("dueDate", interpretation.dueDate);
-  applyRecurrenceFields(body, interpretation.recurrence, {
-    scheduledDate: interpretation.scheduledDate,
-    dueDate: interpretation.dueDate,
-  });
+  const dueDate = options.formDueDate ?? interpretation.dueDate;
+  if (dueDate) body.set("dueDate", dueDate);
+  applyRecurrenceFields(
+    body,
+    interpretation.recurrence,
+    { scheduledDate: interpretation.scheduledDate, dueDate },
+    todayIso,
+  );
 
   const response = (await taskCreateAction({
     request: new Request("https://app.test/tasks/new", {
@@ -290,6 +298,37 @@ describe("TASKS-11 — a captured sentence becomes a TASKS-07 rule", () => {
     // Every column that DESCRIBES the rule, compared directly. `series_id` and the
     // timestamps are per-record identity, not rule shape, so they are not in the SELECT.
     expect(fromCapture).toEqual(fromEditor);
+  });
+
+  it("advances the DUE date the owner picked on the form, inventing no scheduled date", async () => {
+    // The composition the review flagged: the phrase in the title field, the date in
+    // the form's own control. The date the owner entered is the anchor the rule
+    // advances — the implied "starts today" is reached only with no date at all.
+    const result = await captureThroughUi(
+      "Service Hilux every 6 months after completion",
+      { formDueDate: "2026-11-15" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const task = await taskRepo().getTask(result.taskId);
+    expect(task?.title).toBe("Service Hilux");
+    expect(task?.dueDate).toBe("2026-11-15");
+    expect(task?.scheduledDate).toBeNull();
+    expect(task?.recurrence).toMatchObject({
+      frequency: "month",
+      interval: 6,
+      mode: "after_completion",
+      dateKind: "due",
+    });
+
+    // …and the successor advances that same due date, six months from completion.
+    const completion = await taskRepo("2026-11-20T09:00:00.000Z").completeTask(
+      result.taskId,
+      { ownerTodayIso: "2026-11-20" },
+    );
+    expect(completion.successor?.dueDate).toBe("2027-05-20");
+    expect(completion.successor?.scheduledDate).toBeNull();
   });
 
   it("completes into the successor the TASKS-07 engine computes, from the completion day", async () => {

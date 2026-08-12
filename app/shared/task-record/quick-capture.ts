@@ -649,18 +649,12 @@ export function parseQuickCapture(
         );
         dateKind = "scheduled";
       }
-      // TASKS-11 — an after-completion interval with no date in the capture starts
-      // TODAY. This is the same restraint the weekday rule above already applies, not
-      // a new liberty: an `after_completion` rule measures from the day the work is
-      // finished, so its FIRST occurrence has to be the day the owner asked for it —
-      // there is no other non-arbitrary reading, and the kernel refuses an anchorless
-      // rule outright. A FIXED schedule is deliberately NOT treated this way: "Pay
-      // rent every month" with no date still carries `needsDate`, and the rule is
-      // dropped rather than pinned to an arbitrary day of the month.
-      if (dateKind === null && recurrence.mode === "after_completion") {
-        scheduledDate = options.todayIso;
-        dateKind = "scheduled";
-      }
+      // TASKS-11 — an after-completion interval with no date in the TEXT is left
+      // anchorless HERE, reporting `needsDate`. The anchor it needs is supplied by
+      // `resolveCapturedRecurrenceAnchor` at submission, once the surface's own date
+      // controls have been merged in — because a Due date typed into a form field is
+      // a date this function never sees, and an anchor the parser merely IMPLIED must
+      // never outrank one the owner actually entered.
       recurrence = { ...recurrence, dateKind, needsDate: dateKind === null };
     }
   }
@@ -713,18 +707,78 @@ export function interpretationIsMeaningful(
   );
 }
 
+/** Which of a Task's dates a recognised rule will advance, and the anchor it needs. */
+export type CapturedRecurrenceAnchor = {
+  readonly dateKind: "scheduled" | "due";
+  /**
+   * A scheduled date the RULE requires and the capture did not carry, or null when
+   * the anchor is a date the owner genuinely supplied. Non-null ONLY for an
+   * after-completion rule with no date anywhere — see below.
+   */
+  readonly impliedScheduledDate: string | null;
+};
+
+/**
+ * TASKS-04 / TASKS-11 — decide WHICH date a recognised rule advances, from the
+ * parser's reading MERGED with whatever dates the surface supplies through its own
+ * controls. Returns null when the rule has no anchor and must be dropped.
+ *
+ * This is the one place the decision is made, and it is deliberately made HERE rather
+ * than during parsing. A Due date typed into a form field is a date `parseQuickCapture`
+ * never sees, so resolving the anchor while parsing would let a value the parser
+ * invented outrank one the owner actually entered. The order is therefore:
+ *
+ *   1. an explicit `due …` in the TEXT — that is the date the phrase attached to;
+ *   2. a scheduled date, from the text or from the surface;
+ *   3. a due date from the surface;
+ *   4. for an `after_completion` rule ONLY, and only when there is no date at all,
+ *      the owner's today.
+ *
+ * Step 4 is the one implication, and it is the narrowest one available: an interval
+ * measured from the completion day still has to have a first occurrence, and "the day
+ * the owner asked for it" is the only non-arbitrary choice. It is reached only after
+ * every real date has been considered, so an explicit due date always wins. A FIXED
+ * schedule never reaches it: "Pay rent every month" with no date stays anchorless and
+ * the rule is dropped rather than pinned to an arbitrary day of the month.
+ */
+export function resolveCapturedRecurrenceAnchor(
+  recurrence: QuickCaptureRecurrence | null,
+  dates: {
+    readonly scheduledDate?: string | null;
+    readonly dueDate?: string | null;
+  },
+  todayIso: string | null = null,
+): CapturedRecurrenceAnchor | null {
+  if (recurrence === null) return null;
+  const scheduled = dates.scheduledDate ?? null;
+  const due = dates.dueDate ?? null;
+  if (recurrence.dateKind === "due" && due !== null) {
+    return { dateKind: "due", impliedScheduledDate: null };
+  }
+  if (scheduled !== null) {
+    return { dateKind: "scheduled", impliedScheduledDate: null };
+  }
+  if (due !== null) return { dateKind: "due", impliedScheduledDate: null };
+  if (recurrence.mode === "after_completion" && todayIso !== null) {
+    return { dateKind: "scheduled", impliedScheduledDate: todayIso };
+  }
+  return null;
+}
+
 /**
  * TASKS-04 — write a recognised recurrence phrase onto a `/tasks/new` submission.
  *
  * The parser can recognise "every Monday" before the user has given the task a date,
  * so this is where recognition becomes PERSISTENCE: the rule is submitted only when
- * the capture genuinely carries the date it would repeat from, preferring an explicit
- * `due …` when that is the date the phrase attached to. Without an anchor the rule is
+ * the capture genuinely carries the date it would repeat from (or, for TASKS-11's
+ * after-completion mode, the day it was captured). Without an anchor the rule is
  * dropped rather than invented — the preview still showed the phrase, and the server
  * would refuse an anchorless rule anyway.
  *
  * Shared by every capture surface (the `/tasks` form, the in-list quick add and the
  * phone capture sheet) so there is ONE mapping from parsed phrase to submitted fields.
+ * `todayIso` is the OWNER's calendar day (ADR-022); omitting it simply means no
+ * anchor can be implied, never that a browser-local date is used.
  */
 export function applyRecurrenceFields(
   body: FormData,
@@ -733,21 +787,17 @@ export function applyRecurrenceFields(
     readonly scheduledDate?: string | null;
     readonly dueDate?: string | null;
   },
+  todayIso: string | null = null,
 ): void {
-  if (recurrence === null) return;
-  const scheduled = dates.scheduledDate ?? null;
-  const due = dates.dueDate ?? null;
-  const dateKind =
-    recurrence.dateKind === "due" && due !== null
-      ? "due"
-      : scheduled !== null
-        ? "scheduled"
-        : due !== null
-          ? "due"
-          : null;
-  if (dateKind === null) return;
+  const anchor = resolveCapturedRecurrenceAnchor(recurrence, dates, todayIso);
+  if (recurrence === null || anchor === null) return;
+  // The implied anchor is written HERE, beside the rule that needs it, so a surface
+  // can never submit an after-completion rule with nothing to measure from.
+  if (anchor.impliedScheduledDate !== null) {
+    body.set("scheduledDate", anchor.impliedScheduledDate);
+  }
   body.set("recurrenceFrequency", recurrence.frequency);
-  body.set("recurrenceDateKind", dateKind);
+  body.set("recurrenceDateKind", anchor.dateKind);
   body.set("recurrenceInterval", String(recurrence.interval));
   // TASKS-11 — the scheduling MODE travels with the rule. Omitting it would let a
   // recognised "after completion" arrive at the create route as a fixed schedule,

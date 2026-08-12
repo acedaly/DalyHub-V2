@@ -50,6 +50,7 @@ import type { WorkspaceScope } from "~/platform/workspaces";
 import {
   interpretationIsMeaningful,
   parseQuickCapture,
+  resolveCapturedRecurrenceAnchor,
 } from "~/shared/task-record/quick-capture";
 
 /**
@@ -283,17 +284,20 @@ async function createCapturedTask(
     todayIso: execution.todayIso,
   });
 
+  // The SAME anchor resolution the in-app surfaces use, rather than a second copy of
+  // it here. This transport carries no date controls of its own, so the dates it
+  // merges are exactly the ones the sentence named.
   const recurrence = interpretation.recurrence;
-  const dateKind =
-    recurrence === null
-      ? null
-      : recurrence.dateKind === "due" && interpretation.dueDate !== null
-        ? "due"
-        : interpretation.scheduledDate !== null
-          ? "scheduled"
-          : interpretation.dueDate !== null
-            ? "due"
-            : null;
+  const anchor = resolveCapturedRecurrenceAnchor(
+    recurrence,
+    {
+      scheduledDate: interpretation.scheduledDate,
+      dueDate: interpretation.dueDate,
+    },
+    execution.todayIso,
+  );
+  const scheduledDate =
+    interpretation.scheduledDate ?? anchor?.impliedScheduledDate ?? null;
 
   const description = composeCaptureTaskDescription(request, source);
 
@@ -308,14 +312,12 @@ async function createCapturedTask(
       ? { commitmentState: interpretation.commitmentState }
       : {}),
     ...(interpretation.dueDate ? { dueDate: interpretation.dueDate } : {}),
-    ...(interpretation.scheduledDate
-      ? { scheduledDate: interpretation.scheduledDate }
-      : {}),
-    ...(recurrence !== null && dateKind !== null
+    ...(scheduledDate ? { scheduledDate } : {}),
+    ...(recurrence !== null && anchor !== null
       ? {
           recurrence: {
             frequency: recurrence.frequency,
-            dateKind,
+            dateKind: anchor.dateKind,
             interval: recurrence.interval,
             // TASKS-11 — the scheduling mode the phrase selected, carried through the
             // transport unchanged. `POST /api/capture` gains no recurrence FIELD for
