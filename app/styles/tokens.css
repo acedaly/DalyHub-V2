@@ -4278,11 +4278,11 @@
   /*
    * MOBILE-01 (iPhone daily driver) — the display cutout insets, as tokens.
    *
-   * `env(safe-area-inset-*)` was already respected, but it was respected by
-   * twenty-three separate literals across fifteen stylesheets. That is the one
-   * shape AGENTS.md §9.8 rules out for a design VALUE: a number agreed in
-   * fifteen files is a number that drifts in one of them, and the audit found
-   * exactly that drift — some surfaces wrote the four-argument `env(…, 0px)`
+   * `env(safe-area-inset-*)` was already respected, but it was respected by 53
+   * separate declarations across 11 stylesheets. That is the one shape
+   * AGENTS.md §9.8 rules out for a design VALUE: a value agreed in eleven files
+   * is a value that drifts in one of them, and the audit found exactly that
+   * drift — some surfaces wrote the four-argument `env(…, 0px)`
    * fallback and some wrote the bare form, which resolves to nothing rather
    * than to zero in a `calc()` and silently voids the whole expression.
    *

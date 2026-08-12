@@ -704,10 +704,14 @@ drifted module code back in.
   already existed and the days take a full line at equal width: 7/7 visible, 51px
   at 390 and 41 at 320 — the residual is stated rather than papered over, because
   seven equal targets in a 288px content box cannot each be 45px.
-- **Hygiene that is not cosmetic.** `env(safe-area-inset-*)` was twenty-three
-  literals across fifteen stylesheets, some with the `0px` fallback and some
+- **Hygiene that is not cosmetic.** `env(safe-area-inset-*)` was 53 declarations
+  across 11 stylesheets, some with the `0px` fallback and some
   without — and the bare form resolves to nothing rather than zero inside `calc()`.
-  Four `--app-safe-area-*` tokens state it once; every consumer migrated.
+  Four `--app-safe-area-*` tokens state it once; every consumer migrated. A fifth
+  token, `--app-surface-current`, answers "what am I painted over?" for a sticky
+  child by having the SURFACE declare itself, rather than by enumerating ancestors
+  in the sticky rule — the same shape as the two defects above, caught before it
+  became one.
 - **Deliberate non-changes, recorded with their measurements:** Today's composition
   (Focus reaches y=248 of 844 — left alone), the central bottom-bar Capture action
   (no FAB reintroduced), the one-line Tasks row (not made into cards), swipe and
@@ -721,6 +725,16 @@ drifted module code back in.
   the Goals double filter row, 41px Diary cells at 320, the Diary's duplicated
   empty-state CTA) is recorded in the evidence document and NOT converted into
   work items here.
+- **Perceived performance was MEASURED, on the built application rather than the
+  dev server, and nothing was optimised that the numbers did not ask for.** The
+  one interaction this pass changed — the overflow surface — opens in 56.5ms p50
+  against a <100ms budget, ~27ms more than the anchored menu it replaces on a
+  phone, which buys the portal, focus trap, inerting and scroll lock that make it
+  a modal. The same interaction measures 181ms under `react-router dev`, which is
+  why every figure was taken twice. Two PRE-EXISTING figures are over budget
+  (client navigation 389ms, Drawer open 372ms, both server round-trip bound); they
+  are recorded with their measurements rather than half-addressed, because the
+  answer is prefetching or caching and this pass does not add either speculatively.
 - Covered by `e2e/iphone-daily-driver.spec.ts` (23 tests across the four widths,
   including the desktop-unchanged assertions) on top of the existing
   `mobile-shell` / `mobile-modules` phone suites.

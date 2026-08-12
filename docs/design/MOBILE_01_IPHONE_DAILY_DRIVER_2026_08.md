@@ -162,9 +162,10 @@ behaviour, and the intended fix. Measurements are from the harness above.
 | **Observed** | 188px for an unmeasured Goal and 272px for a measured one at 390px, of which ~80px was gap and padding; the identity mark was a 64px tile, the largest object on the screen. Fewer than two Goals visible under 297px of collection chrome. |
 | **Fix** | At phone widths the card takes the design system's own compact rungs (`--app-card-padding-compact`, `space-3` gaps) and the mark steps down to the same rung the Project card already takes at that width — because "Projects and Areas are distinct" is a rule about what a card *says*, never about how large its glyph is. Nothing is removed: mark, title, context, reading, bar and state line all remain. |
 
-### 2.12 Safe areas were correct but written twenty-three times — **fixed (hygiene)**
+### 2.12 Safe areas were correct but written fifty-three times — **fixed (hygiene)**
 
-`env(safe-area-inset-*)` was respected, but by 23 literals across 15 stylesheets,
+`env(safe-area-inset-*)` was respected, but by **53 declarations across 11
+stylesheets** (14 of them in `drawer.css`, 10 in `shell.css`, 8 in `sheet.css`),
 some with the `0px` fallback and some without — and the bare form resolves to
 *nothing* rather than to zero inside `calc()`, which voids the whole expression on
 a browser without the variable. Four tokens (`--app-safe-area-{top,right,bottom,left}`)
@@ -231,8 +232,9 @@ rule, which is the point:
 
 | Primitive | Change | Consumers migrated |
 |---|---|---|
-| `tokens.css` | **New**: `--app-safe-area-{top,right,bottom,left}` | 23 declarations across 15 stylesheets |
+| `tokens.css` | **New**: `--app-safe-area-{top,right,bottom,left}` | 53 declarations across 11 stylesheets |
 | `tokens.css` | **New**: `--app-field-font-size`, `--app-field-font-size-compact`, with a `1rem` touch floor | `base.css` native-control baseline, `.dh-input`, `.dh-tags__input`; the three-class list in `forms.css` deleted |
+| `tokens.css` | **New**: `--app-surface-current` — what a sticky child paints over, declared by the container rather than guessed from an ancestor list | `:root` (page), `.dh-card`, `.drawer__body`, `.dh-inspector__body`; consumed by the phone commitment row and the tab strip's scroll covers |
 | `OverflowMenu` | Phone presentation is the shared `Sheet` | Every ⋯ in the product |
 | `FormActions` | `sticky` defaults to `"phone"` | 26 forms gained a reachable commitment row |
 | `.dh-check-circle-target` | — (existing) | Today's Focus rows now use it |
@@ -260,6 +262,47 @@ contrast in both appearances over all five generated schemes) pass unchanged.
 
 ---
 
+## 5b. Perceived performance — what was measured
+
+The brief's rule is "do not optimise by intuition", so nothing here was optimised
+on a hunch and nothing was optimised that the numbers did not ask for. Measured on
+the **production build** (`pnpm run build` + `vite preview`, not the dev server —
+see the note below), iPhone emulation at 390×844, warm-up discarded:
+
+| Interaction | p50 | p95 | Budget ([AGENTS.md §16](../../AGENTS.md#16-performance-expectations)) |
+|---|---|---|---|
+| Overflow **sheet** open → painted (the interaction this pass changed) | 56.5ms | 59.4ms | <100ms ✅ |
+| Overflow **anchored menu** open → painted (desktop, for comparison) | 29.1ms | 29.8ms | <100ms ✅ |
+| Complete a Task from Today → repaint | 18.0ms | 26.0ms | <100ms ✅ |
+| Today → Tasks, client navigation | 389ms | 435ms | <200ms ❌ |
+| Task Drawer open → surface present | 372ms | 658ms | <200ms ❌ |
+
+Three things follow, and only one of them is this pass's business.
+
+**The sheet costs ~27ms more than the anchored menu, and that is the real number.**
+It buys the portal, the focus trap, the background inerting and the scroll lock —
+the machinery that makes it a modal rather than a floating box — and it lands
+comfortably inside the interaction budget. It is also not a *new* cost to the
+product: Quick Capture, the collection sheet and the navigation sheet have all been
+paying it since the first MOBILE-01 pass. One more surface now shares one
+implementation, which is the point.
+
+**Measure the built application, not the dev server.** The same sheet measures
+**181ms p50** under `react-router dev` — three times the production figure, and
+over the budget. Every number in this table was taken twice for that reason. A
+performance claim made against an unminified, HMR-instrumented bundle is not a
+claim about the product.
+
+**The two figures over budget are pre-existing and were not touched.** Both are
+dominated by a server round-trip for the route's data, not by rendering, and
+nothing in this pass changed routing, loading or any query. Making them faster
+means caching or prefetching, which is exactly what
+[§22 of the brief](../roadmap/ROADMAP_V2_2.md) rules out adding speculatively
+inside a polish pass. They are recorded as debt below with their measurements
+rather than half-addressed here.
+
+---
+
 ## 6. Remaining mobile debt
 
 Recorded, not fixed, and deliberately **not** turned into features:
@@ -278,6 +321,11 @@ Recorded, not fixed, and deliberately **not** turned into features:
 4. **The Diary offers "New Diary entry" twice on an empty day** — once in the
    toolbar and once inside the empty state. Harmless, but it is the duplicated
    primary action the density rules discourage.
+5. **Route transition and Drawer-open latency exceed the 200ms navigation
+   budget** on a phone — 389ms and 372ms at p50 on the production build (§5b).
+   Both are server round-trip bound rather than render bound, so the answer is a
+   loading/prefetch change, which is a deliberate piece of work with its own
+   risk profile and not something to slip into a polish pass.
 
 ---
 

@@ -338,8 +338,13 @@ export function OverflowMenu({
    * or placed inside the phone sheet. One definition, because two would be two
    * item lists to keep in step — and the keyboard contract, the roving tabindex
    * and every `data-action-id` a consumer or a test depends on live in it.
+   *
+   * `null` while closed rather than built-and-discarded: a Tasks list renders
+   * eighty of these, and constructing eighty item trees on every list render to
+   * throw them all away is exactly the kind of work the interaction budget is
+   * spent on.
    */
-  const menuPanel = (
+  const menuPanel = !open ? null : (
     <div
       className="dh-overflow-menu__panel"
       data-presentation={compact ? "sheet" : "anchored"}

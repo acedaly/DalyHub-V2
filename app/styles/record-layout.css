@@ -861,16 +861,20 @@
    * not look scrollable.
    *
    * The classic pure-CSS scroll shadow answers it with no script and no state:
-   * two COVER layers painted in the page surface travel with the content
-   * (`local`), and two SHADOW layers stay pinned to the box (`scroll`). At
-   * either end the cover sits over the shadow and hides it, so the cue appears
-   * only on the side that actually has more to show, and disappears when the
-   * strip fits.
+   * two COVER layers travel with the content (`local`) and two SHADOW layers
+   * stay pinned to the box (`scroll`). At either end the cover sits over the
+   * shadow and hides it, so the cue appears only on the side that actually has
+   * more to show, and disappears when the strip fits.
+   *
+   * The covers paint `--app-surface-current` rather than the page surface,
+   * because the same strip renders inside the phone Drawer, where the surface
+   * behind it is the raised one — a cover in the wrong colour is a visible band
+   * at the edge of the tabs, not a cover.
    */
   .record-tabs__list {
     background-image:
-      linear-gradient(to right, var(--md-app-color-surface-page), transparent),
-      linear-gradient(to left, var(--md-app-color-surface-page), transparent),
+      linear-gradient(to right, var(--app-surface-current), transparent),
+      linear-gradient(to left, var(--app-surface-current), transparent),
       linear-gradient(
         to right,
         color-mix(in srgb, var(--md-sys-color-shadow) 22%, transparent),

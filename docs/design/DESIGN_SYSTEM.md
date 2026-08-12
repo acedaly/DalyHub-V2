@@ -310,12 +310,33 @@ device-model breakpoints.**
 ```
 
 A rule consumes those and never writes `env(safe-area-inset-*)` itself. They were
-twenty-three literals across fifteen stylesheets before this rule existed, and the
-drift that mattered was not stylistic: some wrote `env(safe-area-inset-bottom, 0px)`
+53 declarations across 11 stylesheets before this rule existed, and the drift that
+mattered was not stylistic: some wrote `env(safe-area-inset-bottom, 0px)`
 and some the bare form, which resolves to *nothing* rather than to zero inside
 `calc()` on a browser without the variable — voiding the whole expression. The
 tokens state the `0px` fallback once, so they are always a length and always safe
 to compose.
+
+### The current surface
+
+```css
+--app-surface-current   /* what a sticky child paints over */
+```
+
+Anything sticky has to **occlude** the content scrolling under it, so it needs an
+opaque background — and which one is correct depends on where it was mounted,
+which a shared rule cannot ask. Enumerating ancestors in the sticky rule is the
+shape [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)
+rules out: the list is right until the next surface is written, and then it is
+silently wrong.
+
+So the **surface declares itself**. `:root` is the page; a container that paints a
+different one re-declares this token beside its own `background` (the Card, the
+Drawer body and the Inspector body do), and anything sticky inside it consumes the
+token. A surface that forgets falls back to the page colour — a wrong colour rather
+than a transparent bar with text scrolling through it. Current consumers: the
+phone commitment row (`FormActions`) and the record tab strip's scroll-shadow
+covers.
 
 ### The global create control, and bottom navigation
 

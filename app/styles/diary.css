@@ -1068,12 +1068,22 @@
     padding-inline: var(--app-space-1);
   }
 
-  /* The arrows bracket the control line. */
-  .dh-diary-week__step:first-child {
+  /*
+   * The arrows bracket the control line.
+   *
+   * Ordered by their POSITION RELATIVE TO THE DAY LIST rather than by
+   * `:first-child` / `:last-of-type`, because either arrow can be absent (the
+   * navigator omits one at the ends of the available range) and a positional
+   * pseudo-class then matches the surviving arrow as BOTH — putting "previous
+   * week" on the right. `display: contents` on the bar does not change DOM
+   * sibling relationships, so the general sibling combinator still reads the
+   * markup correctly.
+   */
+  .dh-diary-week__step {
     order: 1;
   }
 
-  .dh-diary-week__step:last-of-type {
+  .dh-diary-week__days ~ .dh-diary-week__step {
     order: 3;
   }
 
