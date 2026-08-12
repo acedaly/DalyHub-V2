@@ -16,10 +16,14 @@ import { describe, expect, it } from "vitest";
 import { parseIcsOccurrences, IcsParseError } from "~/platform/calendar";
 import {
   ALL_DAY_EVENT,
+  CUSTOM_TZ_EVENT,
+  CUSTOM_VTIMEZONE,
   DAILY_SERIES,
   DST_WEEKLY_SERIES,
   FOLDED_AND_ESCAPED_EVENT,
   HTML_NOT_CALENDAR,
+  IANA_TZ_OVERNIGHT_EVENT,
+  INVERTED_END_EVENT,
   LONG_RUNNING_DAILY_SERIES,
   MALFORMED_EVENT_NO_UID,
   MEETING_URL_EVENT,
@@ -32,6 +36,9 @@ import {
   UNSAFE_URL_EVENT,
   UTC_EVENT,
   WEEKLY_SERIES_WITH_EXCEPTIONS,
+  WINDOWS_TZ_OVERNIGHT_EVENT,
+  WINDOWS_TZ_SAME_DAY_EVENT,
+  WINDOWS_VTIMEZONE,
   icsCalendar,
 } from "../support/ics-fixtures";
 
@@ -305,6 +312,123 @@ describe("ICS parsing (Workers runtime)", () => {
       expect(cause).toBeInstanceOf(IcsParseError);
       expect((cause as IcsParseError).failure).toBe("unparseable");
     }
+  });
+
+  /*
+   * The "Choose a valid timezone." production defect.
+   *
+   * A real Work calendar imported correctly and then refused to become a
+   * DalyHub Meeting, because its `TZID` was a Windows zone name: `ical.js` could
+   * resolve it from the feed's own `VTIMEZONE`, and `Intl.DateTimeFormat` could
+   * not. The two concerns are now separated — resolution uses the definition,
+   * the stored `timezone` must be a zone DalyHub can legitimately use.
+   */
+  describe("an external TZID DalyHub cannot use", () => {
+    it("is still RESOLVED to the right instants from the feed's VTIMEZONE", () => {
+      const { occurrences } = parse(
+        WINDOWS_VTIMEZONE,
+        WINDOWS_TZ_OVERNIGHT_EVENT,
+      );
+      expect(occurrences).toHaveLength(1);
+      const event = occurrences[0]!;
+      // 14:00 AEST is 04:00Z; noon the next day is 02:00Z on the 13th. The
+      // embedded definition did all of this — no IANA lookup was involved.
+      expect(event.startsAt.toISOString()).toBe("2026-08-12T04:00:00.000Z");
+      expect(event.endsAt.toISOString()).toBe("2026-08-13T02:00:00.000Z");
+      expect(inSydney(event.startsAt)).toBe("2026-08-12 14:00");
+      expect(inSydney(event.endsAt)).toBe("2026-08-13 12:00");
+      expect(event.allDay).toBe(false);
+      expect(event.title).toBe("Field Officer Training/Assessment");
+      expect(event.location).toBe("North Region");
+    });
+
+    it("resolves to the SAME instants as the identical IANA-zoned event", () => {
+      const windows = parse(WINDOWS_VTIMEZONE, WINDOWS_TZ_OVERNIGHT_EVENT)
+        .occurrences[0]!;
+      const iana = parse(SYDNEY_VTIMEZONE, IANA_TZ_OVERNIGHT_EVENT)
+        .occurrences[0]!;
+      // Same wall-clock, same offsets, so the resolution must agree exactly.
+      // Only the LABEL the two events may carry differs.
+      expect(windows.startsAt.toISOString()).toBe(iana.startsAt.toISOString());
+      expect(windows.endsAt.toISOString()).toBe(iana.endsAt.toISOString());
+      expect(iana.timezone).toBe("Australia/Sydney");
+    });
+
+    it("records NULL rather than persisting the identifier as an IANA zone", () => {
+      const { occurrences } = parse(
+        WINDOWS_VTIMEZONE,
+        WINDOWS_TZ_OVERNIGHT_EVENT,
+      );
+      // The regression. Storing "AUS Eastern Standard Time" here made every
+      // downstream reader treat it as an IANA zone, and CAL-03 then handed it to
+      // the Meeting model — which refused it, correctly, with "Choose a valid
+      // timezone." Null says "the feed named a zone DalyHub cannot use", and the
+      // instants above are unaffected.
+      expect(occurrences[0]!.timezone).toBeNull();
+      expect(() =>
+        new Intl.DateTimeFormat("en", {
+          timeZone: "AUS Eastern Standard Time",
+        }).format(),
+      ).toThrowError();
+    });
+
+    it("does the same for a wholly CUSTOM TZID, with nothing special-cased", () => {
+      const { occurrences } = parse(CUSTOM_VTIMEZONE, CUSTOM_TZ_EVENT);
+      expect(occurrences).toHaveLength(1);
+      // Resolved from the definition...
+      expect(occurrences[0]!.startsAt.toISOString()).toBe(
+        "2026-08-12T04:00:00.000Z",
+      );
+      // ...and not stored as a zone. There is no Windows table to fall through
+      // to, and there is deliberately no provider mapping layer.
+      expect(occurrences[0]!.timezone).toBeNull();
+    });
+
+    it("leaves an ordinary IANA-zoned event with its own valid zone", () => {
+      const { occurrences } = parse(SYDNEY_VTIMEZONE, TIMED_EVENT);
+      expect(occurrences[0]!.timezone).toBe("Australia/Sydney");
+    });
+
+    it("leaves ALL-DAY handling unchanged", () => {
+      const { occurrences } = parse(WINDOWS_VTIMEZONE, ALL_DAY_EVENT);
+      const event = occurrences[0]!;
+      expect(event.allDay).toBe(true);
+      expect(event.allDayStartDate).toBe("2026-08-12");
+      expect(event.allDayEndDate).toBe("2026-08-12");
+      // An all-day item never carried a zone, and still does not.
+      expect(event.timezone).toBeNull();
+    });
+  });
+
+  /*
+   * The diagnostics for "does this event REALLY finish tomorrow?".
+   *
+   * The reported production row read "2:00 pm to 12:00 pm", which has two
+   * possible causes. These cases pin both, so a parse that invented a next-day
+   * end — or lost a real one — fails here rather than in production.
+   */
+  describe("where a timed event actually ends", () => {
+    it("keeps a same-day end on the START day", () => {
+      const { occurrences } = parse(
+        WINDOWS_VTIMEZONE,
+        WINDOWS_TZ_SAME_DAY_EVENT,
+      );
+      expect(inSydney(occurrences[0]!.startsAt)).toBe("2026-08-12 14:00");
+      expect(inSydney(occurrences[0]!.endsAt)).toBe("2026-08-12 16:30");
+      expect(occurrences[0]!.endsAt.toISOString()).toBe(
+        "2026-08-12T06:30:00.000Z",
+      );
+    });
+
+    it("normalises an INVERTED end to the start instead of rolling it forward", () => {
+      const { occurrences } = parse(WINDOWS_VTIMEZONE, INVERTED_END_EVENT);
+      const event = occurrences[0]!;
+      // The feed says it finishes two hours before it begins. That is a
+      // publisher error, and the honest reading is "no usable end" — NOT "it
+      // must have meant noon tomorrow", which would invent a 22-hour booking.
+      expect(event.startsAt.toISOString()).toBe("2026-08-12T04:00:00.000Z");
+      expect(event.endsAt.toISOString()).toBe(event.startsAt.toISOString());
+    });
   });
 
   it("does not leak one feed's VTIMEZONE into the next parse", () => {

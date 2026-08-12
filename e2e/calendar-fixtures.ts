@@ -121,6 +121,17 @@ export interface SeededEvent {
   readonly location?: string;
   readonly meetingUrl?: string;
   readonly status?: "confirmed" | "tentative" | "cancelled";
+  /**
+   * The occurrence's stored zone. Defaults to `Australia/Sydney` for a timed
+   * event and is always NULL for an all-day one.
+   *
+   * Settable so a journey can seed the LEGACY production state: a row imported
+   * before the parser fix, carrying a publisher's `TZID` that `Intl` rejects.
+   * That is the row that made "Create meeting notes" answer "Choose a valid
+   * timezone.", and it cannot be reproduced any other way now the parser refuses
+   * to write it.
+   */
+  readonly timezone?: string | null;
 }
 
 export interface SeededSource {
@@ -181,7 +192,13 @@ export async function seedCalendarSources(
                  ${allDay ? 1 : 0},
                  ${allDay ? sqlLiteral(event.allDayStartDate!) : "NULL"},
                  ${allDay ? sqlLiteral(event.allDayEndDate!) : "NULL"},
-                 ${allDay ? "NULL" : "'Australia/Sydney'"},
+                 ${
+                   allDay
+                     ? "NULL"
+                     : event.timezone === null
+                       ? "NULL"
+                       : sqlLiteral(event.timezone ?? "Australia/Sydney")
+                 },
                  ${event.location === undefined ? "NULL" : sqlLiteral(event.location)},
                  ${event.meetingUrl === undefined ? "NULL" : sqlLiteral(event.meetingUrl)},
                  ${sqlLiteral(event.status ?? "confirmed")}, NULL,

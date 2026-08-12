@@ -37,7 +37,10 @@
 import { env } from "cloudflare:workers";
 
 import { MeetingValidationError } from "~/kernel/meetings";
-import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
+import {
+  DEFAULT_OWNER_TIME_ZONE,
+  isSupportedTimezone,
+} from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerLocalToUtc } from "~/shared/datetime";
@@ -134,6 +137,37 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const startsAt = allDayStart ?? row.event.startsAt;
   const endsAt = allDay ? allDayEnd : row.event.endsAt;
 
+  /*
+   * The Meeting's timezone: the occurrence's own zone ONLY when DalyHub can
+   * actually use it, else the owner's.
+   *
+   * A projected row is external data. Its `timezone` column holds whatever the
+   * feed's `TZID` said, and a Microsoft feed says "AUS Eastern Standard Time" —
+   * resolvable by `ical.js` from the feed's embedded `VTIMEZONE`, and rejected
+   * outright by `new Intl.DateTimeFormat`. Passing it through made this endpoint
+   * report "Choose a valid timezone." for an event that had imported perfectly.
+   *
+   * The parser no longer stores such a value, but this check is NOT redundant:
+   * production already holds rows imported before that fix, and a projection is
+   * only rewritten when its source next refreshes. The route must not assume the
+   * row it just read is well-formed.
+   *
+   * Meeting validation is not weakened anywhere — this picks a value that is
+   * genuinely valid and lets the validator stay authoritative. The INSTANTS are
+   * untouched: `startsAt`/`endsAt` were resolved from the feed's own zone
+   * definition and are exact whatever label is displayed beside them. The
+   * fallback changes which zone the owner sees the Meeting written in, not when
+   * it happens.
+   *
+   * An all-day item states no zone at all, so it takes the owner's — the zone
+   * its bounds were just derived in.
+   */
+  const eventTimezone = allDay ? null : row.event.timezone;
+  const meetingTimezone =
+    eventTimezone !== null && isSupportedTimezone(eventTimezone)
+      ? eventTimezone
+      : timezone;
+
   try {
     const meeting = await scope.meetings.create({
       title: row.event.title,
@@ -147,13 +181,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         endsAt !== null && endsAt.getTime() > startsAt.getTime()
           ? endsAt.toISOString()
           : null,
-      /*
-       * The occurrence's own zone when the feed stated one, else the owner's.
-       * An all-day item never states one — it has no time to state a zone for —
-       * so it takes the owner's, which is the zone its bounds were just derived
-       * in.
-       */
-      timezone: (allDay ? null : row.event.timezone) ?? timezone,
+      timezone: meetingTimezone,
       location: row.event.location,
       // `mode` is deliberately NOT inferred from the presence of a join URL: an
       // event can carry a Teams link and still be held in a room, and the owner

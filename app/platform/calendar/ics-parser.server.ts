@@ -62,6 +62,7 @@ import {
   type ExternalEventStatus,
   type ParsedOccurrence,
 } from "~/kernel/calendar";
+import { isSupportedTimezone } from "~/kernel/preferences";
 
 /** Why a whole feed could not be read. Mapped to a sync error code by the caller. */
 export type IcsParseFailure =
@@ -234,12 +235,50 @@ function toOccurrence(input: {
     allDayEndDate = inclusive.toISOString().slice(0, 10);
   }
 
-  // A zone is recorded only when the feed genuinely stated one. `Z` (UTC) and a
-  // floating time both leave it null rather than inventing a zone the source
-  // did not claim.
+  /*
+   * The event's zone — recorded ONLY when it is a zone DalyHub can legitimately
+   * use, which is not the same question as "could `ical.js` resolve it?".
+   *
+   * These are two different concerns and conflating them was a production
+   * defect. `ical.js` resolves `DTSTART` against the feed's own `VTIMEZONE`
+   * component, so a Microsoft feed carrying
+   * `DTSTART;TZID=AUS Eastern Standard Time:20260812T140000` produces a
+   * perfectly correct UTC instant — the embedded definition says what the offset
+   * and the DST rules are, and no IANA lookup is involved. That behaviour is
+   * right and is untouched: `startsAt`/`endsAt` above are the resolved instants
+   * either way.
+   *
+   * But the TZID itself is a string chosen by the publisher. Windows zone names
+   * ("AUS Eastern Standard Time", "Cen. Australia Standard Time"), Lotus Notes
+   * ids and bare custom labels are all legal, and none of them is an IANA zone:
+   * `new Intl.DateTimeFormat("en", { timeZone: value })` throws for every one.
+   * Storing such a value in the occurrence's `timezone` column made it look like
+   * an IANA zone to everything downstream, and CAL-03's "Create meeting notes"
+   * then handed it to the Meeting model — which correctly refused it with
+   * "Choose a valid timezone." and left the owner unable to take notes against a
+   * real, correctly-imported event.
+   *
+   * So the column means "a zone DalyHub can format and validate with", and an
+   * identifier that is not one is recorded as NULL rather than persisted as
+   * though it were. Null is honest: the instants are still exact, and the
+   * surfaces that need a zone (the schedule read model, Meeting creation) use
+   * the OWNER's — which is what they would do for a floating time anyway.
+   *
+   * Deliberately NOT a Windows→IANA mapping table. The instants are already
+   * resolved, so a mapping would buy only a display label, at the cost of a
+   * provider-specific translation layer CAL-01 §44 rules out — and a wrong guess
+   * there would silently mislabel a Meeting the owner owns.
+   *
+   * `Z` (UTC) and a floating time behave as before: UTC is a real zone and is
+   * recorded; floating names no zone and stays null.
+   */
   const zone = start.zone;
+  const claimed =
+    !allDay && zone && zone.tzid && zone.tzid !== "floating"
+      ? boundedExternalText(zone.tzid, 64)
+      : null;
   const timezone =
-    !allDay && zone && zone.tzid && zone.tzid !== "floating" ? zone.tzid : null;
+    claimed !== null && isSupportedTimezone(claimed) ? claimed : null;
 
   return {
     externalUid: input.uid,
@@ -252,7 +291,7 @@ function toOccurrence(input: {
     allDay,
     allDayStartDate,
     allDayEndDate,
-    timezone: timezone === null ? null : boundedExternalText(timezone, 64),
+    timezone,
     location: textProperty(
       input.component,
       "location",
