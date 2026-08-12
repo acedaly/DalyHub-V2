@@ -165,6 +165,20 @@ order can be read off the screen; below the 48rem breakpoint it is not drawn (se
 following the link lands on a list of exactly the size it promised. It is the
 same figure the "Tasks for today" card above the panel shows.
 
+**Both bounds count OPEN rows, and neither ever hides a completion.** That is
+one rule serving two requirements that pull against each other:
+
+- the remainder has to be true of the view it links to, and that view holds only
+  open work — counting today's completions towards "+n more overdue" would
+  promise a list of a size `/tasks?system=overdue` does not have;
+- and a row the owner has just ticked must not vanish. Completing a row moves it
+  to the end of its band, so a bound covering completions could carry it past
+  the slice — gone from the panel, and excluded from the canonical view as
+  completed, with nowhere left to see it.
+
+Completions are self-limiting — they appear only as the owner works — so drawing
+all of them cannot recreate the unbounded list the bound exists to prevent.
+
 Deadlines take the larger share of the eight, but never all of it: when both
 bands have work, "Planned today" keeps up to `FOCUS_BAND_MIN` (3) rows. Losing
 rows inside a band is a bound; losing a whole band would tell the owner they had

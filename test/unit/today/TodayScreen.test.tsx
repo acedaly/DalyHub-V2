@@ -520,6 +520,29 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     ).toHaveAttribute("href", "/tasks?system=today");
   });
 
+  it("keeps a ticked row on screen even when the band is at its bound", () => {
+    const onCompleteTask = vi.fn();
+    renderScreen(
+      day({
+        today: Array.from({ length: 9 }, (_, index) =>
+          task(`t${index}`, `Task ${String(index).padStart(2, "0")}`),
+        ),
+      }),
+      onCompleteTask,
+    );
+    expect(screen.getByText(/View all 9 tasks for today/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Complete Task 02" }));
+
+    // It moved to the end of its band, dimmed — but it is still on the screen.
+    // The bound counts what is left to do, so the ninth task takes its slot and
+    // the remainder honestly falls to nothing.
+    expect(
+      screen.getByRole("checkbox", { name: "Reopen Task 02" }),
+    ).toBeChecked();
+    expect(screen.queryByText(/View all/)).not.toBeInTheDocument();
+  });
+
   it("says nothing about a remainder when the whole day fits", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(screen.queryByText(/View all/)).not.toBeInTheDocument();

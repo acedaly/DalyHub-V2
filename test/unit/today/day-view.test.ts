@@ -402,6 +402,73 @@ describe("TODAY-10: the canonical count and the display bound", () => {
     expect(slice.hidden).toBe(16 - FOCUS_TODAY_SHOWN);
   });
 
+  it("never bounds away a row the owner just ticked", () => {
+    // Nine deadlines, one of them finished this morning. The bound counts what
+    // is LEFT TO DO, so the completion is drawn after the eight open rows
+    // rather than pushed past the slice — ticking a task must never lose it,
+    // and the canonical view it would otherwise be recoverable from excludes
+    // completed work by definition.
+    const buckets = bucketDay(
+      [
+        ...Array.from({ length: 8 }, (_, index) =>
+          task({ id: `due${index}`, title: `Due ${index}`, dueDate: TODAY }),
+        ),
+        task({
+          id: "just-ticked",
+          title: "Just ticked",
+          dueDate: TODAY,
+          completed: true,
+          completedDate: TODAY,
+        }),
+      ],
+      TODAY,
+    );
+    const slice = focusTodaySlice(buckets);
+    expect(slice.dueToday).toHaveLength(9);
+    expect(slice.dueToday.at(-1)?.id).toBe("just-ticked");
+    expect(slice.hidden).toBe(0);
+  });
+
+  it("counts only OPEN work in the remainder, on both bounds", () => {
+    const buckets = bucketDay(
+      [
+        // Four open overdue and one finished this morning: the canonical
+        // overdue view holds the four, so "+n more" must be 1, not 2.
+        ...Array.from({ length: 4 }, (_, index) =>
+          task({ id: `late${index}`, dueDate: `2026-08-0${index + 1}` }),
+        ),
+        task({
+          id: "late-done",
+          dueDate: "2026-08-01",
+          completed: true,
+          completedDate: TODAY,
+        }),
+        // Ten open due-today and one finished: nine drawn is wrong, eight is
+        // right, and the remainder is two rather than three.
+        ...Array.from({ length: 10 }, (_, index) =>
+          task({ id: `due${index}`, title: `Due ${index}`, dueDate: TODAY }),
+        ),
+        task({
+          id: "due-done",
+          title: "Done",
+          dueDate: TODAY,
+          completed: true,
+          completedDate: TODAY,
+        }),
+      ],
+      TODAY,
+    );
+    const overdue = overdueSlice(buckets.overdue);
+    expect(overdue.shown.filter((item) => !item.completed)).toHaveLength(3);
+    expect(overdue.shown.map((item) => item.id)).toContain("late-done");
+    expect(overdue.hidden).toBe(1);
+
+    const slice = focusTodaySlice(buckets);
+    expect(slice.dueToday.filter((item) => !item.completed)).toHaveLength(8);
+    expect(slice.dueToday.map((item) => item.id)).toContain("due-done");
+    expect(slice.hidden).toBe(2);
+  });
+
   it("lets planned work take the whole bound when nothing is due", () => {
     const buckets = bucketDay(
       Array.from({ length: 10 }, (_, index) =>

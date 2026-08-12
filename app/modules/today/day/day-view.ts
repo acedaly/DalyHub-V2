@@ -553,15 +553,51 @@ export function dayChips(input: {
  */
 export const OVERDUE_SHOWN = 3;
 
-/** The overdue rows to draw, and how many are left behind them. */
+/**
+ * TODAY-10 — a bound counts OPEN rows; a completion is never bounded away.
+ *
+ * The two rules a display bound on this panel has to satisfy pull in opposite
+ * directions, and applying the bound to the whole band satisfies neither:
+ *
+ *   - **"+n more" has to be true of the view it links to.** That view holds only
+ *     OPEN work, so counting today's completions towards `n` makes the panel
+ *     promise a list of a size the destination does not have.
+ *   - **A row the owner just ticked must not vanish.** Completing a row moves it
+ *     to the end of its band ({@link DAY_COMPLETED_PLACEMENT}); if the bound
+ *     covers completions too, that move can carry it straight past the slice —
+ *     the row disappears, the canonical view excludes it as completed, and there
+ *     is nowhere left to see it. Ticking a task must never lose it.
+ *
+ * So the bound is applied to the open rows alone, and every task completed today
+ * is drawn after them. Completions are self-limiting — they only appear as the
+ * owner works — so this cannot become the unbounded list the bound exists to
+ * prevent.
+ */
+function boundBand(
+  band: readonly DayTask[],
+  limit: number,
+): { readonly shown: readonly DayTask[]; readonly hidden: number } {
+  const open = band.filter((task) => !task.completed);
+  const shownOpen = open.slice(0, Math.max(0, limit));
+  return {
+    shown: [...shownOpen, ...band.filter((task) => task.completed)],
+    hidden: open.length - shownOpen.length,
+  };
+}
+
+/**
+ * The overdue rows to draw, and how many OPEN ones are left behind them.
+ *
+ * `hidden` is the remainder the "+n more overdue" row states, so it counts what
+ * `/tasks?system=overdue` counts: open work. A slipped task finished this
+ * morning is still drawn — dimmed, at the end of the band it was already in —
+ * and is deliberately not part of that figure.
+ */
 export function overdueSlice(overdue: readonly DayTask[]): {
   readonly shown: readonly DayTask[];
   readonly hidden: number;
 } {
-  return {
-    shown: overdue.slice(0, OVERDUE_SHOWN),
-    hidden: Math.max(0, overdue.length - OVERDUE_SHOWN),
-  };
+  return boundBand(overdue, OVERDUE_SHOWN);
 }
 
 /**
@@ -597,26 +633,27 @@ export const FOCUS_BAND_MIN = 3;
  *
  * Deadlines take the larger share — a deadline outranks an intention here as it
  * does everywhere else on this surface — but never the whole of it while there
- * is planned work to show.
+ * is planned work to show. Like the overdue bound, this counts OPEN rows and
+ * always draws today's completions (see {@link boundBand}): the eight is eight
+ * things left to do, and ticking the third of them can never make it vanish.
  */
 export function focusTodaySlice(buckets: DayBuckets): {
   readonly dueToday: readonly DayTask[];
   readonly plannedToday: readonly DayTask[];
   readonly hidden: number;
 } {
-  const reserved = Math.min(buckets.plannedToday.length, FOCUS_BAND_MIN);
-  const dueToday = buckets.dueToday.slice(0, FOCUS_TODAY_SHOWN - reserved);
-  const plannedToday = buckets.plannedToday.slice(
-    0,
-    Math.max(0, FOCUS_TODAY_SHOWN - dueToday.length),
+  const openIn = (band: readonly DayTask[]) =>
+    band.filter((task) => !task.completed).length;
+  const reserved = Math.min(openIn(buckets.plannedToday), FOCUS_BAND_MIN);
+  const due = boundBand(buckets.dueToday, FOCUS_TODAY_SHOWN - reserved);
+  const planned = boundBand(
+    buckets.plannedToday,
+    FOCUS_TODAY_SHOWN - openIn(buckets.dueToday) + due.hidden,
   );
   return {
-    dueToday,
-    plannedToday,
-    hidden: Math.max(
-      0,
-      buckets.today.length - dueToday.length - plannedToday.length,
-    ),
+    dueToday: due.shown,
+    plannedToday: planned.shown,
+    hidden: due.hidden + planned.hidden,
   };
 }
 
