@@ -20,6 +20,7 @@ import {
   DST_WEEKLY_SERIES,
   FOLDED_AND_ESCAPED_EVENT,
   HTML_NOT_CALENDAR,
+  LONG_RUNNING_DAILY_SERIES,
   MALFORMED_EVENT_NO_UID,
   MEETING_URL_EVENT,
   MIDNIGHT_STRADDLING_EVENT,
@@ -230,6 +231,30 @@ describe("ICS parsing (Workers runtime)", () => {
     expect(result.skipped).toBe(1);
     expect(result.occurrences).toHaveLength(1);
     expect(result.occurrences[0]!.title).toBe("Operational Officer Program");
+  });
+
+  it("expands a series that started long BEFORE the window", () => {
+    // The regression. The per-series bound used to count every step from
+    // `DTSTART`, so this series exhausted its allowance ~13 months before the
+    // window opened and contributed nothing at all — a stand-up that had run
+    // daily for two years simply disappeared from the schedule.
+    const narrow = parseIcsOccurrences({
+      body: icsCalendar(SYDNEY_VTIMEZONE, LONG_RUNNING_DAILY_SERIES),
+      from: new Date("2026-08-12T00:00:00.000Z"),
+      to: new Date("2026-08-19T00:00:00.000Z"),
+    });
+    expect(narrow.truncated).toBe(false);
+    // 07:00 Sydney is 21:00Z the previous day, so the 12th falls just before
+    // this instant window opens and the seven days from the 13th are inside it.
+    expect(narrow.occurrences.map((o) => inSydney(o.startsAt))).toEqual([
+      "2026-08-13 07:00",
+      "2026-08-14 07:00",
+      "2026-08-15 07:00",
+      "2026-08-16 07:00",
+      "2026-08-17 07:00",
+      "2026-08-18 07:00",
+      "2026-08-19 07:00",
+    ]);
   });
 
   it("bounds a recurrence bomb instead of expanding it", () => {

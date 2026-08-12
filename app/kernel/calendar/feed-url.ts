@@ -103,23 +103,109 @@ function isBlockedIpv4(host: string): boolean {
 }
 
 /**
+ * Expand an IPv6 literal into its eight 16-bit groups, or null if it is not one.
+ *
+ * Handles the `::` compression and the dotted-quad tail. Written out rather than
+ * pattern-matched because the checks below need the NUMBERS: matching on the
+ * text is exactly how the mapped-address bypass below got in.
+ */
+function ipv6Groups(inner: string): number[] | null {
+  let text = inner;
+  // A trailing dotted quad (`::ffff:127.0.0.1`) becomes two hex groups, so the
+  // rest of this function has one shape to reason about.
+  const tail = IPV4.exec(text.slice(text.lastIndexOf(":") + 1));
+  if (tail) {
+    const octets = tail.slice(1).map(Number);
+    if (octets.some((value) => Number.isNaN(value) || value > 255)) return null;
+    const [a, b, c, d] = octets as [number, number, number, number];
+    text = `${text.slice(0, text.lastIndexOf(":") + 1)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const parse = (part: string) =>
+    part === ""
+      ? []
+      : part.split(":").map((group) => Number.parseInt(group, 16));
+  const head = parse(halves[0] ?? "");
+  const back = halves.length === 2 ? parse(halves[1] ?? "") : [];
+  if (
+    [...head, ...back].some((group) => Number.isNaN(group) || group > 0xffff)
+  ) {
+    return null;
+  }
+  if (halves.length === 1) return head.length === 8 ? head : null;
+  const fill = 8 - head.length - back.length;
+  if (fill < 0) return null;
+  return [...head, ...Array<number>(fill).fill(0), ...back];
+}
+
+/**
  * Is this literal IPv6 address one DalyHub refuses to fetch?
  *
  * `::`, `::1`, unique-local (`fc00::/7`), link-local (`fe80::/10`), multicast
- * (`ff00::/8`) and any IPv4-mapped form, which is re-checked as IPv4 so
- * `::ffff:127.0.0.1` cannot walk past the v4 rules.
+ * (`ff00::/8`), and — the case that needs saying — every **IPv4-mapped** and
+ * IPv4-compatible form, re-checked against the IPv4 denylist.
+ *
+ * That last one is not theoretical. The WHATWG URL parser CANONICALISES
+ * `https://[::ffff:127.0.0.1]/` to `[::ffff:7f00:1]`, so a check that looked for
+ * a dotted quad in the text never fired: the address arrives as hex. The groups
+ * are therefore expanded to NUMBERS and the embedded IPv4 is reconstructed from
+ * the last two, which is the only form of this check the parser cannot rewrite
+ * out from under.
+ *
+ * A malformed literal is refused rather than allowed: an address this function
+ * cannot understand is not one DalyHub should fetch.
  */
 function isBlockedIpv6(hostname: string): boolean {
   if (!hostname.startsWith("[") || !hostname.endsWith("]")) return false;
-  const inner = hostname.slice(1, -1).toLowerCase();
-  if (inner === "::" || inner === "::1") return true;
-  const mapped = inner.lastIndexOf(":");
-  const tail = inner.slice(mapped + 1);
-  if (IPV4.test(tail) && isBlockedIpv4(tail)) return true;
-  const head = inner.split(":")[0] ?? "";
-  if (head.startsWith("ff")) return true; // multicast
-  if (/^f[cd]/.test(head)) return true; // unique-local fc00::/7
-  if (/^fe[89ab]/.test(head)) return true; // link-local fe80::/10
+  const groups = ipv6Groups(hostname.slice(1, -1).toLowerCase());
+  if (groups === null) return true;
+
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = groups as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+
+  // `::` (unspecified) and `::1` (loopback).
+  if (groups.every((group) => group === 0)) return true;
+  if (
+    g0 === 0 &&
+    g1 === 0 &&
+    g2 === 0 &&
+    g3 === 0 &&
+    g4 === 0 &&
+    g5 === 0 &&
+    g6 === 0 &&
+    g7 === 1
+  ) {
+    return true;
+  }
+
+  // IPv4-mapped (`::ffff:a.b.c.d`) and IPv4-compatible (`::a.b.c.d`): the
+  // embedded address gets the FULL IPv4 denylist, whichever notation it arrived
+  // in. `::ffff:0:a.b.c.d` (translated, RFC 8215) has the same shape at g5.
+  const embeddedIsV4 =
+    g0 === 0 &&
+    g1 === 0 &&
+    g2 === 0 &&
+    g3 === 0 &&
+    g4 === 0 &&
+    (g5 === 0xffff || g5 === 0);
+  if (embeddedIsV4) {
+    const embedded = `${g6 >> 8}.${g6 & 0xff}.${g7 >> 8}.${g7 & 0xff}`;
+    if (isBlockedIpv4(embedded)) return true;
+  }
+
+  if (g0 >= 0xff00) return true; // multicast   ff00::/8
+  if ((g0 & 0xfe00) === 0xfc00) return true; // unique-local fc00::/7
+  if ((g0 & 0xffc0) === 0xfe80) return true; // link-local   fe80::/10
   return false;
 }
 

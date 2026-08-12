@@ -33,7 +33,6 @@
 
 import {
   CALENDAR_SYNC_ERROR_MESSAGES,
-  MAX_SOURCE_OCCURRENCES,
   calendarSyncWindow,
   planHasChanges,
   planSync,
@@ -151,7 +150,22 @@ export async function refreshCalendarSource(
       from: window.fromInstant,
       to: window.toInstant,
     });
-    if (parsed.occurrences.length > MAX_SOURCE_OCCURRENCES) {
+    /*
+     * A TRUNCATED parse is refused, and is refused BEFORE reconciliation.
+     *
+     * This used to compare `occurrences.length` against the bound, which is dead
+     * code: the parser stops AT the bound, so the length can never exceed it.
+     * The guard therefore accepted the partial result — and a partial result is
+     * the one input reconciliation must never see, because every occurrence
+     * missing only because of truncation looks exactly like an occurrence the
+     * feed has removed, and would be DELETED. An oversized or pathological feed
+     * could quietly replace a complete projection with a fragment of one.
+     *
+     * Refusing keeps the last complete projection in place and reports
+     * `too_many_events`, which is the same non-destructive failure shape every
+     * other error here has.
+     */
+    if (parsed.truncated) {
       throw new IcsParseError("too_many_events");
     }
 

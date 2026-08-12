@@ -233,6 +233,38 @@ export const MAX_FEED_COMPONENTS = 5_000;
 export const MAX_SERIES_OCCURRENCES = 400;
 
 /**
+ * How many occurrences one recurring series may be STEPPED through, in total,
+ * while its window is being filled.
+ *
+ * A second, larger budget than {@link MAX_SERIES_OCCURRENCES}, and it bounds a
+ * different thing: that one bounds what a series may CONTRIBUTE, this one bounds
+ * the WORK done to find it. The two are not the same, because an expansion can
+ * legitimately emit occurrences the window rejects — a series whose seek lands
+ * just before the window, or one with a long run of `EXDATE`s.
+ *
+ * Without it, a rule that emits nothing acceptable would loop until the rule
+ * itself ended, which for an unbounded `RRULE` is never. With only it, a
+ * pathological rule could still fill the window with tens of thousands of rows.
+ *
+ * 5,000 steps is chosen against the frequencies CAL-01 must support, measured
+ * from how far before the window a series may have started:
+ *
+ *   | Frequency | 5,000 steps reaches back |
+ *   |---|---|
+ *   | monthly | 416 years |
+ *   | weekly | 95 years |
+ *   | daily | 13.7 years |
+ *   | hourly | 208 days |
+ *   | minutely | 3.5 days |
+ *
+ * So every realistic long-running meeting is covered with room to spare, and a
+ * series finer than hourly that began long ago is TRUNCATED — which the caller
+ * then refuses to reconcile, so the owner is told the feed is too large rather
+ * than silently given a partial day.
+ */
+export const MAX_SERIES_STEPS = 5_000;
+
+/**
  * How many occurrences one SOURCE may contribute to the window.
  *
  * The overall ceiling on a single refresh's write volume. A feed past it is

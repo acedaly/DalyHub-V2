@@ -56,6 +56,7 @@ import {
   EXTERNAL_URL_MAX_LENGTH,
   MAX_FEED_COMPONENTS,
   MAX_SERIES_OCCURRENCES,
+  MAX_SERIES_STEPS,
   MAX_SOURCE_OCCURRENCES,
   boundedExternalText,
   type ExternalEventStatus,
@@ -442,10 +443,42 @@ export function parseIcsOccurrences(input: {
       }
 
       try {
+        /*
+         * The expansion starts at `DTSTART`, and the BUDGETS are what changed.
+         *
+         * Seeding the iterator at the window (`event.iterator(time)`) looks like
+         * the obvious fix and is wrong: `RecurExpansion` takes that value as the
+         * series' `dtstart`, so it re-anchors the rule and emits a different
+         * schedule entirely — measured, it produced occurrences on the window's
+         * own start date rather than on the series' days.
+         *
+         * So the iteration is unchanged and the ACCOUNTING is fixed. See the two
+         * budgets below.
+         */
         const iterator = event.iterator();
         let produced = 0;
+        /*
+         * Two separate budgets, because they bound two different things — and
+         * conflating them was a real defect.
+         *
+         * `produced` bounds what this series may CONTRIBUTE, and counts only
+         * occurrences inside the window. It used to count every STEP from
+         * `DTSTART`, so a series that began long before the window spent its
+         * whole allowance walking towards it: a daily meeting started more than
+         * ~13 months ago contributed ZERO rows and vanished from every schedule
+         * while it was still recurring.
+         *
+         * `steps` bounds the WORK — the walk itself — because a rule that emits
+         * nothing acceptable would otherwise loop until the rule ended, which
+         * for an unbounded `RRULE` is never.
+         */
+        let steps = 0;
         for (;;) {
           if (produced >= MAX_SERIES_OCCURRENCES) {
+            truncated = true;
+            break;
+          }
+          if (steps >= MAX_SERIES_STEPS) {
             truncated = true;
             break;
           }
@@ -455,11 +488,13 @@ export function parseIcsOccurrences(input: {
           }
           const next = iterator.next();
           if (!next) break;
-          produced += 1;
-          // The rule may start years before the window. Stepping past those is
-          // cheap; stepping past the END of the window is not, so the loop
-          // stops the moment the iterator passes it.
-          if (next.toJSDate().getTime() >= toMs) break;
+          steps += 1;
+          const nextMs = next.toJSDate().getTime();
+          // Past the end of the window there is nothing further to find: the
+          // expansion is ordered, so the loop stops rather than running the rule
+          // to its own end.
+          if (nextMs >= toMs) break;
+          if (nextMs >= fromMs) produced += 1;
 
           const details = event.getOccurrenceDetails(next);
           // `getOccurrenceDetails` returns the EXCEPTION's component for a

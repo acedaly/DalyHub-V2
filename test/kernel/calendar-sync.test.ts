@@ -40,6 +40,7 @@ import type { WorkspaceContext } from "~/kernel/workspaces";
 import {
   ICS_TODAY,
   ICS_TIMEZONE,
+  RECURRENCE_BOMB,
   SYDNEY_VTIMEZONE,
   TEST_FEED_URL,
   TEST_FEED_URL_SECOND,
@@ -309,6 +310,37 @@ describe("calendar synchronisation", () => {
     // The most common owner mistake gets its own code, so the message can say
     // "you copied the page, not the link".
     expect(stored?.lastSyncErrorCode).toBe("not_calendar");
+  });
+
+  it("refuses a TRUNCATED feed rather than storing a fragment of it", async () => {
+    const source = await addSource("Work", TEST_FEED_URL);
+    await refresh({ [TEST_FEED_URL]: { body: workCalendarFeed() } });
+    const complete = await storedTitles();
+    expect(complete.length).toBeGreaterThan(1);
+
+    /*
+     * The feed comes back with a recurrence bomb in it, so the parser truncates.
+     * A truncated result is the one input reconciliation must never see: every
+     * occurrence missing only because of truncation looks exactly like one the
+     * feed has removed, and would be deleted. The refresh must therefore FAIL
+     * and leave the last complete projection alone.
+     */
+    const results = await refresh(
+      {
+        [TEST_FEED_URL]: {
+          body: icsCalendar(SYDNEY_VTIMEZONE, RECURRENCE_BOMB),
+        },
+      },
+      { now: new Date(NOW.getTime() + 5 * 60_000) },
+    );
+
+    expect(results[0]?.ok).toBe(false);
+    expect(results[0]?.errorCode).toBe("too_many_events");
+    // Not one row was replaced by the fragment.
+    expect(await storedTitles()).toEqual(complete);
+    const stored = await sources().get(source.id);
+    expect(stored?.lastSyncStatus).toBe("failed");
+    expect(stored?.lastSyncSuccessAt).not.toBeNull();
   });
 
   it("does not refresh a disabled source, and hides its events", async () => {

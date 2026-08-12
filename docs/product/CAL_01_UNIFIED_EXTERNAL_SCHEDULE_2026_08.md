@@ -194,10 +194,17 @@ The policy, applied at **three** moments — add, edit, and *every redirect hop*
    because silently changing what the owner pasted produces a source that works
    in validation and fails forever after.
 3. **No loopback, private, CGNAT, link-local, unique-local, multicast or reserved
-   target**, as a literal IPv4 or IPv6 address (including IPv4-mapped forms, so
-   `::ffff:127.0.0.1` cannot walk past the v4 rules) or as a name that can only be
+   target**, as a literal IPv4 or IPv6 address or as a name that can only be
    local (`localhost`, `*.local`, `*.internal`, `*.home.arpa`, `*.lan`, and any
    bare dot-less hostname). `169.254.169.254` is covered by the link-local rule.
+
+   **IPv6 literals are expanded to numbers, not matched as text.** The WHATWG URL
+   parser canonicalises `https://[::ffff:127.0.0.1]/` to `[::ffff:7f00:1]`, so a
+   check looking for a dotted quad never fires — the address arrives as hex. Every
+   IPv4-mapped and IPv4-compatible form therefore has its embedded address
+   reconstructed from the last two groups and run through the full IPv4 denylist,
+   which is the only form of this check the parser cannot rewrite out from under.
+   An IPv6 literal the policy cannot parse is refused rather than allowed.
 4. **Port 443 only** — which removes port scanning from the surface entirely.
 5. **Redirects followed manually** (`redirect: "manual"`), bounded at 3 hops,
    with every `Location` revalidated through the same function. An automatic
@@ -289,7 +296,8 @@ Handled, each with a test:
 | retitled / relocated occurrence | the change lands on that occurrence alone |
 | cancelled occurrence | **kept**, marked cancelled — the owner needs to know on the day |
 | series removed | its occurrences vanish from the projection; linked Meetings remain |
-| recurrence explosion | truncated at the per-series bound, and the result *says* it was truncated |
+| a series that started years BEFORE the window | expanded correctly — the per-series bound counts occurrences **in the window**, not steps from `DTSTART` |
+| recurrence explosion | truncated at the per-series bound, and the refresh then **refuses to reconcile** (see §9) |
 
 ---
 
@@ -318,6 +326,13 @@ to 11am is the *same* event; two unrelated events called "Standup" are two event
 completely or leaves the previous projection exactly as it was. A half-applied
 refresh would show the owner a day that never existed, and every row on screen
 would look plausible.
+
+**A truncated parse is refused before reconciliation.** A partial result is the
+one input reconciliation must never see: every occurrence missing only because a
+bound fired looks exactly like an occurrence the feed has removed, and would be
+**deleted**. So a truncated parse fails the refresh with `too_many_events`, the
+last complete projection stays in place, and the owner is told the feed is larger
+than DalyHub imports — rather than being silently handed a fragment of their day.
 
 **Concurrency.** A refresh is claimed with a conditional `UPDATE` on
 `refresh_claimed_at`, so the *database* picks the winner — a double-tap on
@@ -572,6 +587,22 @@ Prefilled: title, `startsAt`, `endsAt` (only when genuinely after the start),
 timezone (the occurrence's own when the feed stated one, else the owner's),
 location, `meetingUrl`. **Not** prefilled: `mode` (an event can carry a Teams link
 and still be held in a room), agenda, attendees.
+
+**An all-day occurrence gets owner-local bounds, derived from its DATES.** An
+all-day item is a floating calendar date; the parser stores a placeholder instant
+beside it so one column can order the whole schedule, and that placeholder is
+midnight UTC. Passing it into the timed Meeting model made "Training Academy, 12
+August" a Meeting at 10:00 on the 12th in Sydney — and at 17:00 on the *eleventh*
+in Los Angeles. The bounds are therefore the owner's midnight on the first date to
+the owner's midnight after the last, and the Meeting takes the owner's timezone
+because an all-day item states none. No time is invented and the date is right
+wherever the owner is.
+
+**A failed link compensates the Meeting it just created.** If `linkMeeting`
+errors after `create` succeeded, the Meeting is archived before the failure is
+reported — otherwise it would be left unlinked, and the retry, finding no link,
+would create a second one: the silent duplicate this endpoint exists to prevent,
+arriving by the back door.
 
 ### The durable link
 

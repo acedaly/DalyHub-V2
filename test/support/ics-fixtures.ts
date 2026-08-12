@@ -220,6 +220,24 @@ DTEND;TZID=Australia/Sydney:20260812T123000
 SUMMARY:Anonymous event
 END:VEVENT`;
 
+/**
+ * A daily series that started two years BEFORE the reference window.
+ *
+ * The regression fixture for the bound that counted steps from `DTSTART` rather
+ * than in-window occurrences: a series older than about thirteen months spent
+ * its whole per-series allowance walking towards the window and contributed
+ * nothing, so a long-running stand-up silently vanished from every schedule
+ * while it was still recurring.
+ */
+export const LONG_RUNNING_DAILY_SERIES = `BEGIN:VEVENT
+UID:synthetic-long-daily
+DTSTAMP:20240801T000000Z
+DTSTART;TZID=Australia/Sydney:20240812T070000
+DTEND;TZID=Australia/Sydney:20240812T073000
+RRULE:FREQ=DAILY
+SUMMARY:Long-running stand-up
+END:VEVENT`;
+
 /** A recurrence rule that would expand without bound if nothing stopped it. */
 export const RECURRENCE_BOMB = `BEGIN:VEVENT
 UID:synthetic-bomb-1

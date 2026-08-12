@@ -30,7 +30,10 @@ import { createSystemActorContext } from "~/kernel/activity";
 import { workspaceContextFromId } from "~/kernel/workspaces";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
+import { ownerLocalToUtc } from "~/shared/datetime";
+
 import {
+  ALL_DAY_EVENT,
   ICS_TODAY,
   ICS_TIMEZONE,
   SYDNEY_VTIMEZONE,
@@ -79,6 +82,12 @@ async function refresh(body: string, now = NOW) {
  * Deliberately the same order — find, create, claim — so the duplicate-guard
  * assertions below exercise the real protocol rather than a simplification.
  */
+function nextDate(dateIso: string): string {
+  return new Date(Date.parse(`${dateIso}T00:00:00Z`) + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
 async function createMeetingFromEvent(eventId: string) {
   const row = await events().getScheduleRow(eventId);
   if (row === null) throw new Error("event not found");
@@ -91,14 +100,27 @@ async function createMeetingFromEvent(eventId: string) {
   if (existing !== null) {
     return { meetingId: existing.meetingId, created: false };
   }
+  // The route's all-day derivation, mirrored so this harness exercises it.
+  const allDay = row.event.allDay && row.event.allDayStartDate !== null;
+  const startsAt = allDay
+    ? (ownerLocalToUtc(`${row.event.allDayStartDate}T00:00`, ICS_TIMEZONE) ??
+      row.event.startsAt)
+    : row.event.startsAt;
+  const endsAt = allDay
+    ? ownerLocalToUtc(
+        `${nextDate(row.event.allDayEndDate ?? row.event.allDayStartDate!)}T00:00`,
+        ICS_TIMEZONE,
+      )
+    : row.event.endsAt;
+
   const meeting = await meetings().create({
     title: row.event.title,
-    startsAt: row.event.startsAt.toISOString(),
+    startsAt: startsAt.toISOString(),
     endsAt:
-      row.event.endsAt.getTime() > row.event.startsAt.getTime()
-        ? row.event.endsAt.toISOString()
+      endsAt !== null && endsAt.getTime() > startsAt.getTime()
+        ? endsAt.toISOString()
         : null,
-    timezone: row.event.timezone ?? ICS_TIMEZONE,
+    timezone: (allDay ? null : row.event.timezone) ?? ICS_TIMEZONE,
     location: row.event.location,
     meetingUrl: row.event.meetingUrl,
   });
@@ -169,6 +191,45 @@ describe("creating a DalyHub Meeting from an imported event", () => {
     // lifecycle. There is no "imported" flag and no second Meeting type.
     expect(meeting!.type).toBe("meeting");
     expect(meeting!.status).toBe("planned");
+  });
+
+  it("gives an ALL-DAY occurrence owner-local bounds, not a UTC midnight", async () => {
+    await refresh(
+      icsCalendar(SYDNEY_VTIMEZONE, ALL_DAY_EVENT),
+      new Date(NOW.getTime() + 60_000),
+    );
+    const rows = await events().listWindow(WINDOW);
+    const allDay = rows.find((row) => row.event.allDay)!;
+    expect(allDay.event.allDayStartDate).toBe("2026-08-12");
+
+    const { meetingId } = await createMeetingFromEvent(allDay.event.id);
+    const meeting = await meetings().get(meetingId);
+
+    /*
+     * The regression. The parser stores a placeholder UTC instant beside an
+     * all-day item's dates so one column can order the schedule; passing it
+     * straight into the timed Meeting model made "Training Academy, 12 August"
+     * a Meeting at 10:00 on the 12th in Sydney — and at 17:00 on the ELEVENTH
+     * in Los Angeles. The bounds now come from the DATES, in the owner's zone.
+     */
+    const inSydney = (instant: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: ICS_TIMEZONE,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+        .format(instant)
+        .replace(", ", " ");
+
+    expect(inSydney(meeting!.startsAt)).toBe("2026-08-12 00:00");
+    expect(inSydney(meeting!.endsAt!)).toBe("2026-08-13 00:00");
+    // An all-day item states no zone, so the Meeting takes the owner's — the
+    // zone its bounds were just derived in.
+    expect(meeting!.timezone).toBe(ICS_TIMEZONE);
   });
 
   it("cannot create two Meetings for the same occurrence", async () => {

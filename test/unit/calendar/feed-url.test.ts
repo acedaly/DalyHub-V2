@@ -115,12 +115,43 @@ describe("feed URL policy", () => {
       "[::1]",
       "[::]",
       "[fd00::1]", // unique-local
+      "[fc00::1]", // unique-local, the other half of fc00::/7
       "[fe80::1]", // link-local
+      "[febf::1]", // link-local, the top of fe80::/10
       "[ff02::1]", // multicast
-      "[::ffff:127.0.0.1]", // IPv4-mapped loopback
-      "[::ffff:169.254.169.254]", // IPv4-mapped metadata
     ]) {
       expect(rejection(`https://${host}/x.ics`)).toBe("blocked_host");
+    }
+  });
+
+  it("refuses IPv4-mapped IPv6 targets, including the HEX form", () => {
+    /*
+     * The regression. The WHATWG URL parser canonicalises
+     * `https://[::ffff:127.0.0.1]/` to `[::ffff:7f00:1]`, so a check that looked
+     * for a dotted quad in the text never fired — the address arrives as hex.
+     * Both notations are asserted, and the hex ones are what the parser actually
+     * hands the policy.
+     */
+    for (const host of [
+      "[::ffff:127.0.0.1]",
+      "[::ffff:7f00:1]", // the same address, as the parser writes it
+      "[::ffff:10.0.0.1]",
+      "[::ffff:a00:1]",
+      "[::ffff:192.168.1.1]",
+      "[::ffff:c0a8:101]",
+      "[::ffff:169.254.169.254]",
+      "[::ffff:a9fe:a9fe]", // the cloud metadata endpoint, mapped and hexed
+      "[::ffff:172.16.0.1]",
+      "[::127.0.0.1]", // IPv4-compatible, the deprecated form
+    ]) {
+      expect(rejection(`https://${host}/x.ics`)).toBe("blocked_host");
+    }
+  });
+
+  it("refuses an IPv6 literal it cannot parse, rather than allowing it", () => {
+    // An address the policy cannot understand is not one DalyHub should fetch.
+    for (const host of ["[::ffff:1:2:3:4:5:6:7:8]", "[1::2::3]", "[zz::1]"]) {
+      expect(rejection(`https://${host}/x.ics`)).not.toBe("accepted");
     }
   });
 

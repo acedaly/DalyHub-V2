@@ -21,6 +21,12 @@
  * made, and the owner is sent to the one Meeting that exists. A double-tap
  * cannot produce two records.
  *
+ * The same compensation covers the other way the claim can fail: if the link
+ * write ERRORS after the Meeting was created, the Meeting is archived before the
+ * failure is reported. Without it a transient storage failure would leave an
+ * unlinked Meeting behind, and the retry — finding no link — would create a
+ * second one.
+ *
  * ── What is prefilled, and what is not ──────────────────────────────────────
  * Only reliably-mapped facts: title, start, end, timezone, location and the
  * online meeting URL. No description (never imported), no attendees (never
@@ -34,12 +40,20 @@ import { MeetingValidationError } from "~/kernel/meetings";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { ownerLocalToUtc } from "~/shared/datetime";
 
 import type { Route } from "./+types/schedule";
 
 export type ScheduleActionResult =
   | { readonly ok: true; readonly meetingId: string; readonly created: boolean }
   | { readonly ok: false; readonly message: string };
+
+/** The calendar date after `dateIso`. Date-only arithmetic, never an instant. */
+function nextDate(dateIso: string): string {
+  return new Date(Date.parse(`${dateIso}T00:00:00Z`) + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
 
 function json(data: ScheduleActionResult, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -91,24 +105,55 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     .ownerTimeZone()
     .catch(() => DEFAULT_OWNER_TIME_ZONE);
 
+  /*
+   * An ALL-DAY occurrence has no instant, and must not be given one by accident.
+   *
+   * An all-day item is a floating calendar DATE. The parser stores a placeholder
+   * instant alongside the dates so one column can order the whole schedule, and
+   * that placeholder is midnight UTC — which is 10:00 in Sydney and 17:00 the
+   * PREVIOUS DAY in Los Angeles. Passing it into the timed Meeting model made
+   * "Training Academy, 12 August" become a Meeting at 10:00 on the 12th, or on
+   * the 11th, depending on where the owner lives.
+   *
+   * So the bounds are derived from the stored DATES, in the owner's timezone:
+   * their midnight to the following midnight after the last day it covers. That
+   * is the honest reading of "all day, on these dates" for a model that requires
+   * instants — no time is invented, and the date is right wherever the owner is.
+   */
+  const allDay = row.event.allDay && row.event.allDayStartDate !== null;
+  const allDayStart = allDay
+    ? ownerLocalToUtc(`${row.event.allDayStartDate}T00:00`, timezone)
+    : null;
+  const allDayEnd = allDay
+    ? ownerLocalToUtc(
+        `${nextDate(row.event.allDayEndDate ?? row.event.allDayStartDate!)}T00:00`,
+        timezone,
+      )
+    : null;
+
+  const startsAt = allDayStart ?? row.event.startsAt;
+  const endsAt = allDay ? allDayEnd : row.event.endsAt;
+
   try {
     const meeting = await scope.meetings.create({
       title: row.event.title,
-      startsAt: row.event.startsAt.toISOString(),
+      startsAt: startsAt.toISOString(),
       /*
        * An end is passed only when the occurrence genuinely has one AFTER the
-       * start. An all-day item's end is the exclusive next midnight, which is a
-       * true end; a zero-length reminder has none, and Meeting validation
-       * refuses `endsAt <= startsAt` — correctly, so nothing is invented to get
-       * past it.
+       * start. A zero-length reminder has none, and Meeting validation refuses
+       * `endsAt <= startsAt` — correctly, so nothing is invented to get past it.
        */
       endsAt:
-        row.event.endsAt.getTime() > row.event.startsAt.getTime()
-          ? row.event.endsAt.toISOString()
+        endsAt !== null && endsAt.getTime() > startsAt.getTime()
+          ? endsAt.toISOString()
           : null,
-      // The occurrence's own zone when the feed stated one, else the owner's.
-      // Never a guess: both are real answers to "in which zone was this set?".
-      timezone: row.event.timezone ?? timezone,
+      /*
+       * The occurrence's own zone when the feed stated one, else the owner's.
+       * An all-day item never states one — it has no time to state a zone for —
+       * so it takes the owner's, which is the zone its bounds were just derived
+       * in.
+       */
+      timezone: (allDay ? null : row.event.timezone) ?? timezone,
       location: row.event.location,
       // `mode` is deliberately NOT inferred from the presence of a join URL: an
       // event can carry a Teams link and still be held in a room, and the owner
@@ -116,21 +161,33 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       meetingUrl: row.event.meetingUrl,
     });
 
-    const { link, created } = await scope.calendarEvents.linkMeeting(
-      identity,
-      meeting.id,
-      now,
-    );
+    /*
+     * From here the Meeting EXISTS, so every path below has to account for it.
+     *
+     * A failure to claim the link would otherwise leave a Meeting with no
+     * occurrence pointing at it — and the next attempt, finding no link, would
+     * create a second one. That is precisely the silent duplicate this endpoint
+     * exists to prevent, arriving by the back door.
+     */
+    let link: Awaited<ReturnType<typeof scope.calendarEvents.linkMeeting>>;
+    try {
+      link = await scope.calendarEvents.linkMeeting(identity, meeting.id, now);
+    } catch (cause) {
+      // Compensate: the Meeting is archived — the reversible collection state,
+      // never a hard delete, because the owner may already have opened it — so
+      // a retry starts from a clean slate rather than accumulating orphans.
+      await scope.meetings.archive(meeting.id).catch(() => undefined);
+      throw cause;
+    }
 
-    if (!created && link.meetingId !== meeting.id) {
+    if (!link.created && link.link.meetingId !== meeting.id) {
       /*
-       * A concurrent request won the link. The Meeting this request created is
-       * a real record and must not be left behind as a silent duplicate, so it
-       * is archived — the reversible collection state, never a hard delete,
-       * because the owner may already have opened it.
+       * A concurrent request won the link. Same compensation, same reason: the
+       * Meeting this request created is real and must not be left behind as a
+       * silent duplicate.
        */
       await scope.meetings.archive(meeting.id).catch(() => undefined);
-      return json({ ok: true, meetingId: link.meetingId, created: false });
+      return json({ ok: true, meetingId: link.link.meetingId, created: false });
     }
 
     return json({ ok: true, meetingId: meeting.id, created: true });
