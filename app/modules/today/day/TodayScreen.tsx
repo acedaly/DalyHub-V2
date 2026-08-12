@@ -249,13 +249,26 @@ function TaskRow({
 }) {
   return (
     <li className="dh-day-row" data-done={done ? "true" : undefined}>
-      <input
-        type="checkbox"
-        className="dh-check-circle dh-day-row__check"
-        checked={done}
-        aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
-        onChange={(event) => onToggle(event.currentTarget.checked)}
-      />
+      {/*
+       * MOBILE-01 (iPhone daily driver) — the shared 44px hit area.
+       *
+       * The circle itself is 20px and stays 20px; what it lacked was the
+       * `.dh-check-circle-target` label the Tasks collection and the Project
+       * tasks tab both wrap it in. Measured before this change at 320/375/390/430:
+       * the effective target on Today's Focus rows was 20×20, on the single most
+       * used control in the product, on the surface a phone opens first. The
+       * label pulls its own padding back out of the row's rhythm, so the row is
+       * still laid out against the circle and no row grew.
+       */}
+      <label className="dh-check-circle-target">
+        <input
+          type="checkbox"
+          className="dh-check-circle dh-day-row__check"
+          checked={done}
+          aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
+          onChange={(event) => onToggle(event.currentTarget.checked)}
+        />
+      </label>
       <a
         className="dh-day-row__title"
         href={openHref}
@@ -775,7 +788,7 @@ export function TodayScreen({
               /* A compact line, not a hero: an empty day is a good day, and it
                does not need an illustration, a headline and a button to say so.
                Capture stays where it always is — the global +. */
-              <p className="dh-today__quiet">
+              <p className="dh-today__quiet dh-today__quiet--prose">
                 Nothing planned today. Capture anything new with the{" "}
                 <span className="dh-today__plus" aria-hidden="true">
                   +
@@ -1016,7 +1029,7 @@ function GoalProgressSection({
         </h2>
       </div>
       {goals.length === 0 ? (
-        <p className="dh-today__quiet">
+        <p className="dh-today__quiet dh-today__quiet--prose">
           No measurable Goals yet. Add a target to a{" "}
           <Link to="/goals">Goal</Link> and your progress shows up here.
         </p>

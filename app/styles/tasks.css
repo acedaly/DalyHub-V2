@@ -1853,10 +1853,52 @@
     gap: var(--app-space-3);
   }
 
+  /*
+   * MOBILE-01 (iPhone daily driver) — `waiting-for` goes with them.
+   *
+   * The row's own contract two rules above is "CIRCLE · TITLE · DATE, and
+   * nothing else", and priority and repeat were dropped to honour it. The
+   * waiting subject was not, because it is authored as the HIGH tier (it is the
+   * reason an owner opens a waiting Task) and the narrow tiers only drop `low`
+   * and `quiet`. Two consequences, both measured on `/projects/pr-rc-kitchen`:
+   *
+   *   - the run is `flex: none` here — deliberately, so the title absorbs the
+   *     shrink rather than the date spilling over the overflow button — so a
+   *     fact it was not sized for cannot compress. A Task reading "Waiting for:
+   *     Lodged 15 July; 20 business days quoted." forced the run to 287px on a
+   *     320px viewport and took the whole DOCUMENT 79px wide with it. That is
+   *     horizontal overflow on a record page, not a crowded row: the page
+   *     scrolled sideways and the fixed bottom navigation stretched with it.
+   *   - even where it fitted, it fitted by eating the title, which is the one
+   *     thing a phone list is scanned by.
+   *
+   * The fact is not lost: the row's status pill said "Waiting" until the 46rem
+   * tier dropped it, the subject is on the Task record one tap away, and the
+   * row's own overflow sheet reaches it. This is the same trade the Project
+   * mark and the priority already take at this width.
+   */
   :is(.dh-collection--tasks, .dh-tasklist)
     .dh-card__meta[data-field="priority"],
-  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="repeat"] {
+  :is(.dh-collection--tasks, .dh-tasklist) .dh-card__meta[data-field="repeat"],
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card__meta[data-field="waiting-for"] {
     display: none;
+  }
+
+  /*
+   * …and the run can never exceed the row again, whatever is put in it next.
+   *
+   * The rule above fixes the fact that overflowed; this fixes the SHAPE that
+   * let it. `flex: none` on a run whose items are `nowrap` means any future
+   * high-tier field is one long value away from taking the page wide, and the
+   * failure is silent until someone types a long enough note. A ceiling makes
+   * the row's own ellipsis the failure mode instead — the title still gives way
+   * first, because the run only reaches the cap when it is genuinely crowded.
+   */
+  :is(.dh-collection--tasks, .dh-tasklist)
+    .dh-card-collection--list
+    .dh-card__metadata {
+    max-inline-size: 60%;
   }
 
   /* The chevron each inline editor draws says "this opens a menu"; on a phone

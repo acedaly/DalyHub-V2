@@ -917,10 +917,10 @@
   /* With `viewport-fit=cover` the document runs under the status-bar / notch, so
    * the top bar pads by the top inset (and the leading inset for a landscape
    * cutout) to keep the controls out from under the cutout (DS-11). */
-  padding: max(var(--app-space-1), env(safe-area-inset-top)) var(--app-space-2)
+  padding: max(var(--app-space-1), var(--app-safe-area-top)) var(--app-space-2)
     var(--app-space-1);
-  padding-inline-start: max(var(--app-space-2), env(safe-area-inset-left));
-  padding-inline-end: max(var(--app-space-2), env(safe-area-inset-right));
+  padding-inline-start: max(var(--app-space-2), var(--app-safe-area-left));
+  padding-inline-end: max(var(--app-space-2), var(--app-safe-area-right));
   background: var(--md-app-color-surface-app-bar);
   color: var(--md-sys-color-on-surface);
   position: sticky;
@@ -1324,8 +1324,8 @@
   border-end-end-radius: var(--md-sys-shape-corner-extra-large);
   box-shadow: var(--md-sys-elevation-1);
   overflow-y: auto;
-  padding-block-end: env(safe-area-inset-bottom);
-  padding-inline-start: env(safe-area-inset-left);
+  padding-block-end: var(--app-safe-area-bottom);
+  padding-inline-start: var(--app-safe-area-left);
   animation: dh-mobilenav-slide var(--md-sys-motion-duration-medium2)
     var(--md-sys-motion-easing-emphasized-decelerate);
 }
@@ -1387,7 +1387,7 @@
  * `md` up, so the desktop rail experience is unchanged.
  *
  * Two insets keep it out of the way of everything else:
- *   - `env(safe-area-inset-bottom)` clears the home indicator;
+ *   - `var(--app-safe-area-bottom)` clears the home indicator;
  *   - `--app-keyboard-inset` (published by the ONE shared Visual Viewport
  *     observer) hides the bar entirely while the on-screen keyboard is up, so it
  *     can never cover a focused field, a validation message or a sticky Save.
@@ -1405,9 +1405,9 @@
   background: var(--md-app-color-surface-navigation);
   border-block-start: var(--app-border-width-thin) solid
     var(--md-app-color-outline-hairline);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-inline-start: env(safe-area-inset-left);
-  padding-inline-end: env(safe-area-inset-right);
+  padding-bottom: var(--app-safe-area-bottom);
+  padding-inline-start: var(--app-safe-area-left);
+  padding-inline-end: var(--app-safe-area-right);
 }
 
 .dh-bottomnav__list {
@@ -1684,7 +1684,7 @@
    * nothing left to override. */
   :root {
     --app-bottomnav-height: calc(
-      var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)
+      var(--app-bottomnav-bar-height) + var(--app-safe-area-bottom)
     );
   }
 

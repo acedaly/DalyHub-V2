@@ -4275,6 +4275,67 @@
    */
   --app-fab-band: var(--app-bottomnav-height, 0px);
 
+  /*
+   * MOBILE-01 (iPhone daily driver) — the display cutout insets, as tokens.
+   *
+   * `env(safe-area-inset-*)` was already respected, but it was respected by 53
+   * separate declarations across 11 stylesheets. That is the one shape
+   * AGENTS.md §9.8 rules out for a design VALUE: a value agreed in eleven files
+   * is a value that drifts in one of them, and the audit found exactly that
+   * drift — some surfaces wrote the four-argument `env(…, 0px)`
+   * fallback and some wrote the bare form, which resolves to nothing rather
+   * than to zero in a `calc()` and silently voids the whole expression.
+   *
+   * These are the ONE definition. They are always a length (the `0px` fallback
+   * is stated once, here), so they compose inside `calc()` and `max()` on every
+   * browser, including the desktop ones where the environment variable does not
+   * exist at all. No rule anywhere else may write a raw `env(safe-area-inset-*)`
+   * again, and none may write a device pixel value for a notch or a home
+   * indicator — see DESIGN_SYSTEM.md → Safe areas.
+   */
+  /*
+   * MOBILE-01 (iPhone daily driver) — "what surface am I painted on?"
+   *
+   * A sticky element has to occlude the content scrolling under it, so it needs
+   * an opaque background — and the correct one depends on where it was mounted,
+   * which CSS cannot ask. Enumerating ancestors in the sticky rule is the shape
+   * AGENTS.md §9.8 rules out: the list is right until the next surface is
+   * written, and then it is silently wrong.
+   *
+   * So the SURFACE declares itself. `:root` is the page; a container that paints
+   * a different one re-declares this alongside its own `background`, and
+   * anything sticky inside it simply consumes the variable. A surface that
+   * forgets falls back to the page colour, which is a wrong colour rather than a
+   * transparent bar with text scrolling through it.
+   */
+  --app-surface-current: var(--md-app-color-surface-page);
+
+  --app-safe-area-top: env(safe-area-inset-top, 0px);
+  --app-safe-area-right: env(safe-area-inset-right, 0px);
+  --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-area-left: env(safe-area-inset-left, 0px);
+
+  /*
+   * MOBILE-01 (iPhone daily driver) — the text-entry size, with its touch floor.
+   *
+   * iOS Safari zooms the whole page whenever a focused field's computed
+   * font-size is below 16px, and it does not zoom back out: the page is left
+   * horizontally scrolled with its Save button off-screen. `forms.css` has
+   * carried a floor for the three SHARED field classes since the first MOBILE-01
+   * pass, but the floor was an enumerated class list, so every module control
+   * written afterwards missed it — measured on this pass at 14px on the Notes
+   * search and its five filter selects, the People search and filter, and the
+   * Reviews period/type selects.
+   *
+   * A token cannot be missed the same way. The floor lives in the VALUE rather
+   * than in a list of selectors, so a control opts into correct behaviour by
+   * consuming the token, which is what a control should be doing anyway.
+   * `-compact` is the dense variant (a filter bar, a chip row); both resolve to
+   * their design size on a pointer device and to at least 16px on a touch one.
+   */
+  --app-field-font-size: var(--md-sys-typescale-body-large-size);
+  --app-field-font-size-compact: var(--md-sys-typescale-body-medium-size);
+
   --app-border-width-thin: 1px;
   --app-border-width-thick: 2px;
 
@@ -4684,6 +4745,31 @@
    */
   --app-elevation-resting: none;
   --app-elevation-raised: var(--md-sys-elevation-1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 (iPhone daily driver) — the touch floor on text entry             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The ONE place the 16px anti-zoom floor is applied.
+ *
+ * `(hover: none)` rather than a width query on purpose: the behaviour being
+ * guarded against belongs to the INPUT MECHANISM, not to the viewport. A narrow
+ * desktop window has no software keyboard and must keep the design type scale;
+ * a large phone in landscape is 844px wide and still zooms.
+ *
+ * It is a FLOOR (`max`), never a shrink: a control whose design size is already
+ * ≥16px is untouched, so this can only ever make text larger.
+ */
+@media (hover: none) {
+  :root {
+    --app-field-font-size: max(var(--md-sys-typescale-body-large-size), 1rem);
+    --app-field-font-size-compact: max(
+      var(--md-sys-typescale-body-medium-size),
+      1rem
+    );
+  }
 }
 
 /* -------------------------------------------------------------------------- */

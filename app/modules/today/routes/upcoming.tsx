@@ -221,7 +221,7 @@ function UpcomingScreen({
       <DayNav active="upcoming" />
 
       {data.stale ? (
-        <p className="dh-today__quiet">
+        <p className="dh-today__quiet dh-today__quiet--prose">
           A calendar did not refresh — showing the last schedule DalyHub loaded.
         </p>
       ) : null}
@@ -278,7 +278,7 @@ function UpcomingScreen({
       </div>
 
       {!anything ? (
-        <p className="dh-today__quiet">
+        <p className="dh-today__quiet dh-today__quiet--prose">
           {data.hasSources
             ? "Nothing scheduled in the next seven days."
             : "No calendars connected yet. Add one in Settings to see what is coming up."}

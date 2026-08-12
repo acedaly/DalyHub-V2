@@ -183,3 +183,63 @@
     align-items: center;
   }
 }
+
+/* ========================================================================== */
+/* MOBILE-01 (iPhone daily driver) — the PHONE presentation                   */
+/* ========================================================================== */
+
+/*
+ * Below `md` the same `role="menu"` panel is rendered inside the shared
+ * `Sheet` (see `OverflowMenu.tsx` for why). It therefore stops being a
+ * floating, measured, elevated box and becomes plain content: the sheet already
+ * owns the surface, the elevation, the corner, the scrim and the scrolling.
+ *
+ * Everything below is subtraction. The panel keeps only what it needs to be a
+ * list of full-width rows, so an action's target is the width of the phone
+ * rather than the 208px the anchored panel measured at 390px.
+ */
+.dh-overflow-menu__panel[data-presentation="sheet"] {
+  position: static;
+  z-index: auto;
+  min-inline-size: 0;
+  max-inline-size: none;
+  inline-size: 100%;
+  padding-block: 0;
+  /* The SHEET BODY is the scroll container — a second one nested inside it is
+   * the "double-scroll containers fighting each other" defect. */
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/*
+ * A phone row is 56px, not the pointer menu's 48, and its label is allowed two
+ * lines rather than being squeezed into a narrow column. The description sits
+ * under the label as it does everywhere else in a sheet.
+ */
+.dh-overflow-menu__panel[data-presentation="sheet"] .dh-overflow-menu__item {
+  min-block-size: 3.5rem;
+  padding-inline: var(--app-space-2);
+  border-radius: var(--app-shape-control);
+}
+
+/*
+ * The group break stays a plain rule.
+ *
+ * Its top corners are square deliberately: the border and the corner belong to
+ * the same box, so rounding all four turned a hairline into a rounded tab
+ * bracketing the row beneath it — two shapes claiming the same edge.
+ */
+.dh-overflow-menu__panel[data-presentation="sheet"]
+  .dh-overflow-menu__item[data-separator="true"] {
+  margin-block-start: var(--app-space-2);
+  padding-block-start: var(--app-space-3);
+  border-radius: 0 0 var(--app-shape-control) var(--app-shape-control);
+}
+
+/* The sheet's own body padding already inset the list; the panel must not
+ * add a second one. */
+.dh-overflow-menu-sheet .dh-sheet__body {
+  padding-block-start: var(--app-space-1);
+}

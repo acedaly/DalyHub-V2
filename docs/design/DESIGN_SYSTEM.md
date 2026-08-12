@@ -279,12 +279,64 @@ down when it is nested, and Today's panels forbid it outright.
   clears WCAG 2.2 §2.5.8's 24px with the run's spacing on top. A hybrid, a
   stylus, a touch laptop and any browser that cannot answer all keep the floor.
 
+**A small control keeps its size and grows its TARGET.** The floor is a property
+of the hit area, never of the paint, and a row never grows to satisfy it. Two
+shapes do all of the work in the product, and a third one is a trap:
+
+- a wrapping `label` sized to the floor around a small input, pulling its own
+  padding back out with a negative margin (`.dh-check-circle-target` — the 20px
+  completion circle in every task list, and on Today's Focus rows since
+  MOBILE-01's iPhone pass);
+- symmetric block **padding** up to the floor, given back as negative margin, for
+  a one-line text control inside a taller row (a row's "open" link);
+- **not** an absolutely positioned `::after` overlay, whenever the control sits
+  inside an ancestor with `overflow: hidden` — which is usually the very thing
+  drawing its ellipsis. Hit testing respects that clip, so the overlay looks
+  right and does nothing.
+
 ### Safe areas
 
-Unchanged and still load-bearing: `env(safe-area-inset-*)` on every fixed
-control, `--app-keyboard-inset` from the one Visual Viewport observer,
-`--app-bottomnav-height` reserved by every scrolling surface, `dvh` where the
-visible viewport matters. **No compensating pixel offsets, anywhere.**
+Load-bearing on every fixed or bottom-anchored control, alongside
+`--app-keyboard-inset` from the one Visual Viewport observer,
+`--app-bottomnav-height` reserved by every scrolling surface, and `dvh` where the
+visible viewport matters. **No compensating pixel offsets, anywhere, and no
+device-model breakpoints.**
+
+**The insets are TOKENS, not `env()` calls** (MOBILE-01, iPhone daily driver):
+
+```css
+--app-safe-area-top     --app-safe-area-right
+--app-safe-area-bottom  --app-safe-area-left
+```
+
+A rule consumes those and never writes `env(safe-area-inset-*)` itself. They were
+53 declarations across 11 stylesheets before this rule existed, and the drift that
+mattered was not stylistic: some wrote `env(safe-area-inset-bottom, 0px)`
+and some the bare form, which resolves to *nothing* rather than to zero inside
+`calc()` on a browser without the variable — voiding the whole expression. The
+tokens state the `0px` fallback once, so they are always a length and always safe
+to compose.
+
+### The current surface
+
+```css
+--app-surface-current   /* what a sticky child paints over */
+```
+
+Anything sticky has to **occlude** the content scrolling under it, so it needs an
+opaque background — and which one is correct depends on where it was mounted,
+which a shared rule cannot ask. Enumerating ancestors in the sticky rule is the
+shape [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)
+rules out: the list is right until the next surface is written, and then it is
+silently wrong.
+
+So the **surface declares itself**. `:root` is the page; a container that paints a
+different one re-declares this token beside its own `background` (the Card, the
+Drawer body and the Inspector body do), and anything sticky inside it consumes the
+token. A surface that forgets falls back to the page colour — a wrong colour rather
+than a transparent bar with text scrolling through it. Current consumers: the
+phone commitment row (`FormActions`) and the record tab strip's scroll-shadow
+covers.
 
 ### The global create control, and bottom navigation
 
@@ -1543,6 +1595,10 @@ The [Overflow menu](#overflow-menu) pattern is realised by ONE reusable, entity-
 
 **Behaviour.** A WAI-ARIA **menu button**, deliberately **non-modal**: it adds no second focus-trap, makes nothing inert and locks no scroll (so it composes inside a Drawer, an Inspector or a Card without fighting them). Click/Enter/Space/ArrowDown open with the first item focused; ArrowUp opens with the last. Arrow keys wrap; Home/End jump. **Escape closes only this menu** (the event is stopped, so an enclosing Drawer never also closes) and restores focus to the trigger; Tab leaves naturally; an outside pointer press dismisses. A disabled or `pending` item cannot fire.
 
+**Two presentations, one implementation (MOBILE-01, iPhone daily driver).** Above `md` the panel is the anchored, measured surface described above. Below `md` the SAME items — same order, same ids, same `role="menu"` / `role="menuitem"` semantics, same roving tabindex, same keyboard contract — render inside the [shared Sheet](#the-shared-sheet), and the panel carries `data-presentation="sheet"`. The trigger's `aria-haspopup` follows the presentation (`dialog` on a phone, `menu` otherwise); a `menu` inside a `dialog` is valid ARIA, and keeping it is what lets one component serve both surfaces rather than forking into two item lists. Only the two behaviours that belong to the anchored presentation are switched off in sheet mode: the measured flip/clamp placement, and outside-pointer dismissal — the latter *must* be, because the sheet is portalled to `<body>`, so a tap on one of its own items is "outside the trigger's container".
+
+Why: the anchored panel measured **208px wide at a 390px viewport**, with three of six actions wrapping onto two and three lines, which is the "tiny popover inside a 320–430px layout" the [shared Sheet](#the-shared-sheet) rules forbid. Do **not** answer a narrow-viewport menu with a module-specific overlay; this is where the phone answer lives.
+
 **Activation order is load-bearing.** Choosing a button item **closes the menu and focuses the persistent ⋯ trigger FIRST, then runs the handler** — so a handler that opens a dialog (every lifecycle action does) sees a live `document.activeElement` to return focus to when that dialog closes. Running the handler first would hand the dialog the menu item that is about to unmount, and cancelling would drop the keyboard user at the top of the page. A link item is exempt: it is about to navigate, so pulling focus back would fight the navigation.
 
 **Accessibility.** The trigger always names the record it acts on (`More actions for <title>`) so several card menus on one page stay distinguishable. An item's `description` is rendered inside the item but referenced via `aria-describedby` and kept out of the accessible *name*. Destructive items carry `tone="danger"` **and** the word "Delete" — never colour alone. Touch targets meet the 44px token.
@@ -2275,6 +2331,8 @@ The [Drawer](#drawer) becomes the record's whole screen below `md` — the same 
 
 Above `md` every tab renders inline, exactly as before. Below it, a record with more than `MAX_INLINE_TABS` (4) shows its most important tabs inline and moves the rest into a labelled **More sections** menu (the shared DS-12 menu, outside the `tablist`). The ACTIVE tab always swaps into the inline strip; nothing is hidden permanently; every deep link and selected-tab URL state is preserved; selecting from the menu moves focus onto the now-visible tab. The gate is the shared `useCompactViewport`, which is desktop-first on the server, so a JavaScript-free render gets the complete strip.
 
+MOBILE-01 (iPhone daily driver) added two things to the phone strip. A tab takes the target floor on the **inline** axis (`min-inline-size: var(--app-touch-target-min)`), so a two-character label such as "AI" is a target rather than a 27px sliver, while a long label is untouched. And the strip's scroll is *said*: the classic pure-CSS scroll shadow — two cover layers travelling with the content (`background-attachment: local`), two shadow layers pinned to the box (`scroll`) — shows a soft edge only on the side that has more to show, and none when the strip fits. Before it, the Meeting record read `Notebook Details Follow-up AI Activity S ⋯`, which looks like a broken label rather than an invitation to scroll.
+
 ### Mobile collection controls
 
 A phone collection shows ONE row of chrome: a **Filter** button carrying its active count, plus a visible summary of what is applied. Filters, sort, grouping, display density and saved views move into one shared `CollectionControls` sheet consumed by every collection module.
@@ -2301,8 +2359,8 @@ The phone Card preset prioritises the leading state/completion control, the titl
 
 - **`--app-keyboard-inset`** is published by the ONE Visual Viewport observer in the product (`app/shared/viewport`, mounted once by the AppShell). Surfaces consume it in **CSS**; no form ever adds its own resize listener. A noise threshold ignores a collapsing URL bar, so sticky controls never jitter while scrolling.
 - **`--app-bottomnav-height`** is the space the phone bar occupies (`0px` elsewhere), reserved by scrolling surfaces and bottom-anchored controls.
-- Touch text inputs are raised to **16px**, because a smaller focused field makes a mobile browser zoom the page and leave it zoomed. The desktop type scale is unchanged.
-- `FormActions sticky` pins a long form's commitment above the keyboard, the safe area and the bottom bar — using tokens, never measurement. Do not use it on a short form.
+- Touch text inputs are raised to **16px**, because a smaller focused field makes a mobile browser zoom the page and leave it zoomed. The desktop type scale is unchanged. The floor lives in the **value**, not in a selector list: `--app-field-font-size` (the standard rung) and `--app-field-font-size-compact` (the dense rung, e.g. a filter bar) resolve to their design size on a pointer device and to at least `1rem` under `@media (hover: none)`. The shared native-control baseline in `base.css` consumes the compact token, so every `input`, `select` and `textarea` in the product inherits the floor — **a module control cannot be written that misses it**. It was an enumerated list of three shared classes until MOBILE-01, and every module control written after that list fell outside it (measured at 14px on the Notes, People and Reviews filter bars).
+- **`FormActions` is keyboard-safe on a phone by default.** `sticky` is `boolean | "phone"` and defaults to `"phone"`: sticky below `md`, static above it, pinned above the keyboard, the safe area and the bottom bar using tokens rather than measurement. `sticky` (true) is the always-on opt-in; `sticky={false}` opts out, and is correct for a row already inside something bottom-anchored (a `Sheet` footer). The default moved in MOBILE-01 because three of twenty-nine call sites had opted in and the other twenty-six put Save past the end of a scrolling column on a phone — "Save remains reachable" is a baseline, not something a form opts into.
 
 ### Meeting capture bar
 

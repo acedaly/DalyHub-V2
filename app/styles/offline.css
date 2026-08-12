@@ -122,10 +122,10 @@
   /* The offline shell renders OUTSIDE the app shell, so it owns its own safe
    * areas: an installed iPhone launch lands here with a notch and a home
    * indicator and no shell chrome to absorb them. */
-  padding-top: max(var(--app-space-6), env(safe-area-inset-top));
-  padding-bottom: max(var(--app-space-8), env(safe-area-inset-bottom));
-  padding-left: max(var(--app-space-4), env(safe-area-inset-left));
-  padding-right: max(var(--app-space-4), env(safe-area-inset-right));
+  padding-top: max(var(--app-space-6), var(--app-safe-area-top));
+  padding-bottom: max(var(--app-space-8), var(--app-safe-area-bottom));
+  padding-left: max(var(--app-space-4), var(--app-safe-area-left));
+  padding-right: max(var(--app-space-4), var(--app-safe-area-right));
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);

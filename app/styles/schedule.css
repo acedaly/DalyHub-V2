@@ -194,15 +194,31 @@
   line-height: var(--md-sys-typescale-label-medium-line-height);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   text-decoration: none;
-  /* WCAG 2.2 target size: the link's own box is short, so the row's padding is
-     borrowed to reach the minimum without making the row taller. */
-  min-block-size: var(--app-space-6);
   display: inline-flex;
   align-items: center;
+  align-self: start;
 }
 
 .dh-schedule__action:hover {
   text-decoration: underline;
+}
+
+/*
+ * MOBILE-01 — the action's TOUCH target, paid for in padding rather than height.
+ *
+ * "Open notes" is a ~20px line inside a row that is already the right height, so
+ * it takes symmetric block padding up to the target floor and gives the same
+ * amount back as negative margin — the same technique MOBILE-01 applied to
+ * `.dh-day-row__title`, for the same reason: the row is laid out exactly as it
+ * was and no list grows by a pixel.
+ *
+ * Touch only. On a pointer device a 20px link is already an easy target.
+ */
+@media (hover: none) {
+  .dh-schedule__action {
+    padding-block: calc(0.5 * (var(--app-touch-target-min) - 1.25rem));
+    margin-block: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
+  }
 }
 
 /*

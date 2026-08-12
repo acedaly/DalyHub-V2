@@ -392,10 +392,10 @@
   place-items: center;
   padding: var(--app-space-4);
   /* Respect the mobile safe area so the dialog is never under a system bar. */
-  padding: max(var(--app-space-4), env(safe-area-inset-top))
-    max(var(--app-space-4), env(safe-area-inset-right))
-    max(var(--app-space-4), env(safe-area-inset-bottom))
-    max(var(--app-space-4), env(safe-area-inset-left));
+  padding: max(var(--app-space-4), var(--app-safe-area-top))
+    max(var(--app-space-4), var(--app-safe-area-right))
+    max(var(--app-space-4), var(--app-safe-area-bottom))
+    max(var(--app-space-4), var(--app-safe-area-left));
 }
 
 .dh-confirm-scrim {

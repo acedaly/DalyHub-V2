@@ -150,7 +150,11 @@ export function GoalCheckInSheet({
       initialFocusRef={valueRef}
       data-testid="goal-check-in-sheet"
       footer={
-        <FormActions>
+        /* Already inside the sheet's own sticky, keyboard-safe footer, so the
+           row opts OUT of the phone commitment treatment (MOBILE-01): a second
+           hairline and a second safe-area inset inside one footer is chrome
+           twice over. */
+        <FormActions sticky={false}>
           <FormButton
             type="button"
             variant="secondary"

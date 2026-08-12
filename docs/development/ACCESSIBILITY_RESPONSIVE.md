@@ -239,6 +239,31 @@ MOBILE-01 makes the daily workflows *quick*. The accessibility rules below are
 additions to the contract above, not replacements — everything in this document
 still holds.
 
+The **2026-08 iPhone daily-driver pass** added three rules to that contract and
+changed no existing one. All three are in
+[`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md); they are restated here because
+each is an accessibility property first and a layout one second:
+
+- **A small control keeps its size and grows its TARGET, and a row never grows to
+  satisfy it.** Two shapes carry it — a wrapping `label` sized to the floor with a
+  negative margin (the 20px completion circle, now on Today's Focus rows as well as
+  in every task list), and symmetric block padding given back as negative margin
+  (a row's one-line "open" link). An absolutely positioned `::after` overlay is
+  **not** a third shape: whenever the control sits inside the `overflow: hidden`
+  that draws its ellipsis, hit testing respects that clip, so the overlay looks
+  right and does nothing.
+- **The 16px touch floor on text entry lives in a TOKEN, not in a selector list.**
+  `--app-field-font-size(-compact)` is consumed by the shared native-control
+  baseline every `input`/`select`/`textarea` inherits, so a module control cannot
+  be written that misses it. It was three class names until this pass, and eight
+  module filter controls written after that list had fallen outside it — a page
+  that zooms on focus and stays zoomed is a WCAG 1.4.10 reflow failure, not a
+  cosmetic one.
+- **A phone overflow menu is a modal sheet, and keeps its `menu` semantics.** The
+  shared ⋯ menu renders the same `role="menu"` panel with the same roving tabindex
+  inside the shared `Sheet` below `md`. There is still exactly ONE focus trap in
+  DalyHub: the sheet composes the same DS-03 hooks everything else does.
+
 ### Keyboard-aware layout: one listener, one token
 
 The on-screen keyboard does not resize the layout viewport in most mobile

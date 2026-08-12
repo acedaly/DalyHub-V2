@@ -4229,3 +4229,56 @@
     padding: var(--app-card-padding-compact);
   }
 }
+
+/* ========================================================================== */
+/* MOBILE-01 (iPhone daily driver) — the gallery card at phone widths         */
+/* ========================================================================== */
+
+/*
+ * A Goal card is a GALLERY tile, and a gallery on a phone is one column.
+ *
+ * The desktop tile's air is doing a job there — several cards side by side land
+ * their bars and state lines on one baseline, and that comparison is the point
+ * of a gallery. In a single column there is nothing to compare across, so the
+ * same 16px gaps and 20px padding are just distance between four short lines:
+ * MEASURED at 390px, an unmeasured Goal's card was 188px tall and a measured
+ * one 272px, of which 80px was gap and padding, so a 844px viewport showed
+ * fewer than two Goals under 297px of collection chrome.
+ *
+ * The rungs below are the design system's own compact rungs, not new numbers,
+ * and nothing is removed: every card keeps its mark, title, context, reading,
+ * bar and state line. Only the distance between them changes.
+ */
+@media (max-width: 48rem) {
+  .dh-gcard {
+    gap: var(--app-space-3);
+    padding: var(--app-card-padding-compact);
+  }
+
+  .dh-gcard__head {
+    gap: var(--app-space-2);
+  }
+
+  /*
+   * The identity mark steps down with the card — the SAME rungs the Project
+   * card already takes at this width (see `.dh-pcard__mark` above), because
+   * "Projects and Areas are distinct" is a rule about what a card SAYS, never
+   * about how large its glyph is. At 64px it was the largest object on a phone
+   * Goals screen.
+   */
+  /* `[data-size="lg"]` is stated, not implied: the mark IS the large rung, and
+   * a selector without it merely ties with `icons.css` on specificity and then
+   * loses or wins on load order — which is how the first attempt at this rule
+   * changed nothing at all. */
+  .dh-gcard__mark > .dh-accent-icon[data-size="lg"] {
+    inline-size: var(--app-entity-icon-container-size);
+    block-size: var(--app-entity-icon-container-size);
+    border-radius: var(--md-sys-shape-corner-medium);
+    font-size: var(--app-entity-icon-size);
+  }
+
+  .dh-gcard__mark > .dh-accent-icon[data-size="lg"] .dh-icon {
+    inline-size: var(--app-entity-icon-size);
+    block-size: var(--app-entity-icon-size);
+  }
+}

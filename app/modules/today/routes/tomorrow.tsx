@@ -261,14 +261,14 @@ function TomorrowScreen({ day }: { readonly day: TomorrowData }) {
             ) : (
               /* Two different empty states, because they are two different
                  facts: a clear day, and no calendar connected at all. */
-              <p className="dh-today__quiet">
+              <p className="dh-today__quiet dh-today__quiet--prose">
                 {day.hasSources
                   ? "Nothing in your calendars tomorrow."
                   : "No calendars connected yet. Add one in Settings to see your schedule here."}
               </p>
             )}
             {day.stale ? (
-              <p className="dh-today__panel-foot">
+              <p className="dh-today__quiet dh-today__quiet--prose">
                 A calendar did not refresh — showing the last schedule DalyHub
                 loaded.
               </p>

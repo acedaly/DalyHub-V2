@@ -481,6 +481,23 @@ the detail sheet. All-day items have no time slot at all. Verified at
 320/375/390/430 with no horizontal overflow (`e2e/calendar.spec.ts`), and captured
 in [`docs/design/assets/cal-01-2026-08/`](../design/assets/cal-01-2026-08).
 
+**Built to MOBILE-01's conventions**, which landed on `main` while this was in
+progress:
+
+- the schedule row's title IS `.dh-day-row__title`, so it inherits MOBILE-01's
+  `(hover: none)` touch-target padding for free — the whole row height is a
+  target, and no list grew by a pixel;
+- the row's "Open notes" link takes the SAME padding-and-negative-margin
+  technique against `--app-touch-target-min`, rather than inventing a floor;
+- every prose empty state on the three surfaces uses `.dh-today__quiet--prose`,
+  the variant MOBILE-01 added so a sentence is a sentence rather than a row of
+  flex items;
+- every text field is the shared DS-06 control, so it is above the 16px floor
+  that stops iOS Safari zooming and leaving the page scrolled sideways;
+- no rule in `schedule.css` writes a raw `env(safe-area-inset-*)` or a device
+  pixel value — MOBILE-01 made those one token each, and nothing here needs them
+  because the Schedule owns no sticky or edge-anchored chrome.
+
 ### Desktop
 
 The existing three-region body, unchanged: Focus · Schedule · Needs attention,
