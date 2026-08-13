@@ -66,11 +66,86 @@ than assumed** (`pnpm run backup:verify`). If the bucket's trust boundary ever
 changes — a public dev URL, a custom domain, a shared R2 token — this reasoning
 no longer holds and the objects must be encrypted.
 
+## The status service (BACKUP-02)
+
+DalyHub shows backup health at `Settings → This app → Backups`. It gets it from
+this Worker over a **Worker service binding**, never by reading the bucket:
+
+```
+ DalyHub browser
+       │  authenticated, behind Cloudflare Access
+       ▼
+ dalyhub-v2-production          ← NO R2 binding, NO D1-export token
+       │  BACKUP_SERVICE (service binding, entrypoint "BackupService")
+       ▼
+ dalyhub-v2-backup
+       ├─ status()   health, last success, last attempt, sizes, retention
+       ├─ history()  the last 30 runs
+       └─ trigger()  starts the ONE Workflow; refuses if one is running
+```
+
+`BackupService` is a **named `WorkerEntrypoint`**, deliberately not routes on the
+`fetch` handler. There is no URL that reaches these methods, so no route, custom
+domain, `workers.dev` origin or Access misconfiguration can expose them — a
+structural guarantee rather than a policy, which is the right shape for the one
+Worker that can read the owner's entire database.
+
+What crosses the binding is sanitised operational metadata only: health,
+timestamps, sizes, retention, a trigger label, and a canned failure sentence.
+Never a dump, a signed URL, a token or an object body. The application validates
+it again at its own boundary (`app/kernel/backup`), so a mid-deploy or malformed
+response shows as "status unavailable" rather than a confident "Healthy".
+
+### Run state in R2
+
+```
+status/
+  latest.json                       a rolling log of the last 30 runs
+  runs/2026-08-13T160000Z-f9412c3c.json   one durable file per run
+```
+
+The rolling log exists so a status read costs **one** R2 GET instead of a list
+plus thirty. The per-run files are the audit trail, kept beyond what the screen
+shows. Neither is derived from the other, so a corrupt log cannot destroy the
+history.
+
+Records are written best-effort: a run whose dump is verified and present is not
+failed because a small JSON status file could not be written. A persistent
+inability to write status is surfaced by absence instead — the `running` record
+stops being replaced, and the health calculation reports it as stalled after
+thirty minutes.
+
+The failure record's `message` is **looked up from the stage that failed**, from a
+fixed set of sentences in `src/run-records.ts`. There is no code path from an
+error object to displayed text, so a stack trace or a signed URL cannot reach the
+UI even if one appeared in an error.
+
+### Health
+
+`src/backup-health.ts` is the single place health is decided, and its rule is that
+it never claims health it cannot prove:
+
+| State | When |
+| --- | --- |
+| `running` | a run started less than 30 minutes ago and has not reported an outcome |
+| `attention` | the latest attempt failed, nothing has ever succeeded, the last success is older than 30 hours, or a run has claimed to be running for over 30 minutes |
+| `healthy` | the latest attempt succeeded within 30 hours |
+| `unknown` | state could not be read, or nothing has ever run |
+
+**30 hours** is the nightly interval plus a **6-hour grace**. The grace is a
+judgement, not a guess: a backup that retried through transient Cloudflare trouble
+can land a few hours late, and an indicator that cries wolf is one the owner
+learns to ignore. Six hours still reports a genuinely missed night by mid-morning.
+
 ## Layout
 
 | File | What it holds |
 | --- | --- |
-| `src/index.ts` | Entrypoint. Exports the Workflow; `scheduled()` creates the nightly instance; `fetch` returns 404 and is unreachable by design. |
+| `src/index.ts` | Entrypoint. Exports the Workflow and `BackupService`; `scheduled()` creates the nightly instance; `fetch` returns 404 and is unreachable by design. |
+| `src/backup-service.ts` | The service-binding entrypoint: `status()`, `history()`, `trigger()`. |
+| `src/backup-health.ts` | The one health calculation, and its named thresholds. Pure. |
+| `src/run-records.ts` | The run record, its key, and the stage→sentence failure map. Pure. |
+| `src/status-store.ts` | Reading and writing run state in R2. Never reads a dump. |
 | `src/backup-workflow.ts` | The four steps, and why they are cut where they are. |
 | `src/d1-export.ts` | A strict client for the D1 export REST API. Refuses every malformed response. |
 | `src/dump-validation.ts` | Structural validation of the SQL dump. Kept in parity with `scripts/production-backup.mjs`. |
@@ -255,6 +330,8 @@ timestamps.
 
 | Layer | Coverage |
 | --- | --- |
+| Unit (BACKUP-02) | `test/unit/backup/backup-health.test.ts` — every health branch, the tolerance and stalled thresholds, and that an unreadable state is never reported as healthy or failed. `test/unit/backup/run-records.test.ts` — key naming, validation, and that a failure message can only ever be one of the sentences we wrote. `test/unit/backup/backup-status-view.test.ts` — the application's boundary validator, the wording, decimal sizes, and owner-timezone formatting across both AEST and AEDT. `test/unit/settings/BackupsSection.test.tsx` — every state the surface can be in, the manual trigger, and that no restore/delete/import control exists. |
+| Workers runtime (BACKUP-02) | `test/kernel/backup-service.test.ts` — status/history/trigger against a real R2 bucket: bounded history, refusal of a concurrent trigger, a stalled run NOT locking the owner out, and that no SQL or token can be returned. `test/kernel/settings-backups-route.test.ts` — the route fails closed without a session, forwards through the binding, degrades safely when the binding is missing or throwing, and strips anything the service should never have sent. |
 | Unit | `test/unit/backup/object-key.test.ts` — UTC, sortability, determinism, tier prefixes, unsafe names. `test/unit/backup/d1-export.test.ts` — every malformed response shape, and permanent-vs-transient classification. `test/unit/backup/dump-validation.test.ts` — the structural rules, and **parity with `scripts/production-backup.mjs`**. `test/unit/backup/backup-configuration.test.ts` — placeholder refusal, and assertions over the real committed `wrangler.jsonc` (no route, no public origin, correct cron, no committed identifiers). |
 | Workers runtime | `test/kernel/backup-workflow.test.ts` — the whole Workflow against a **real local R2 bucket**: the happy path, metadata, byte fidelity, tier selection, every failure mode storing nothing, retry idempotency, refusal to overwrite another instance's object, and that no token, signed URL or dump content reaches a log line or an error. |
 

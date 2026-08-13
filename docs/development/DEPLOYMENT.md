@@ -261,6 +261,16 @@ Full architecture, configuration and retention:
   whose only permission is **Account → D1 → Edit** (`D1 Read` is insufficient;
   the export endpoint is a POST). Never committed, never logged, never reused
   from another token.
+- **Seeing that it worked (BACKUP-02).** `Settings → This app → Backups` shows
+  backup health in the app and offers a manual backup. It reaches the backup
+  Worker through the `BACKUP_SERVICE` **service binding** declared in
+  `env.production` — the application Worker has no R2 binding and no export
+  token, and the backup Worker's status API is a named `WorkerEntrypoint` with no
+  URL. The binding is production-only: local development has no such Worker, and
+  its absence renders as "status unavailable", so `wrangler dev` and the
+  credential-free dry-run are unaffected. **Deploy `dalyhub-v2-backup` before
+  `dalyhub-v2-production`** the first time, so the entrypoint exists when the
+  binding is created.
 - **Setup and everyday commands:**
 
   ```sh

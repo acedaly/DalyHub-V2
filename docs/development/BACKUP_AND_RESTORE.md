@@ -36,6 +36,7 @@ the differences are not cosmetic.
 | Restored by | DalyHub itself: Settings → Privacy & data → Restore | `wrangler d1 execute` against the database | `wrangler d1 execute`, after decrypting |
 | Recovers | A workspace's records | The database, when the database is gone | The database, when Cloudflare itself is the problem |
 | **Use it when** | **Almost always.** Records deleted, a bad import, going back to a known-good day | D1 loss or an unrecoverable schema state — the **first** dump to reach for | The Cloudflare account is lost, compromised, or unreachable |
+| Check it is working | — | `Settings → This app → Backups` | GitHub → Actions → *Production D1 backup* |
 
 **The normal recovery path is the DalyHub backup.** The D1 dumps exist for the
 case where there is no working database to restore *into*. If you use one, the
@@ -571,6 +572,29 @@ scheduled and the manually triggered run. Full detail:
 Logs carry stage names, the database name, the trigger, the bookmark, the object
 key and byte counts. They never carry the API token, the signed URL, or any dump
 content — asserted by `test/kernel/backup-workflow.test.ts`.
+
+### 8a-ii. Seeing that it worked (BACKUP-02)
+
+`Settings → This app → Backups` answers *are my backups working?* — health, the
+last successful backup, the latest attempt, size, retention, how many backups are
+kept, the next automatic run, and the recent history. It also has a **Back up
+now** button, which triggers the same Workflow and files the result under
+`production/manual/` with the 365-day retention.
+
+Three properties are worth knowing:
+
+- **The application Worker cannot read the backups.** It has no R2 binding and no
+  D1-export token. It calls a Worker service binding (`BACKUP_SERVICE`) into
+  `dalyhub-v2-backup`, which returns sanitised metadata only. The backup Worker's
+  status API is a named `WorkerEntrypoint`, so there is no URL that reaches it.
+- **The screen never claims health it cannot prove.** "Backup status unavailable"
+  is a real state with its own words, distinct from both "working" and "broken",
+  and it never implies a backup has failed. A failed attempt shows both the
+  failure and the last good backup.
+- **There is no restore control, deliberately.** The page says so. Production
+  recovery stays the manual, operator-controlled process in §5.
+
+Full detail: [`infra/backup/README.md`](../../infra/backup/README.md#the-status-service-backup-02).
 
 ### 8b. The GitHub backup (AUDIT-11)
 
