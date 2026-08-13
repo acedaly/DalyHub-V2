@@ -1504,6 +1504,7 @@ that required CI is a readable signal, because the suite has not finished.
   - **Exactly what is still missing, as at 2026-08-12:** one run in which every
     shard FINISHES. Until DEBT-128 is answered, no run can satisfy this clause,
     whatever the tests do. The deterministic half of this entry is now met: every failure it raised has been diagnosed to a class and either fixed or converted into a test of what the product does, with the product decision recorded. What remains is the crash clause, which closes with runs — or is reopened by the restated falsifier above.
+- **Related roadmap item.** [HARDEN-04](../roadmap/ROADMAP_V2_2.md#-harden-04---a-finishing-readable-e2e-run) — the run that would let this be evaluated. Worked so far by [HARDEN-01](../roadmap/ROADMAP_V2_2.md#-harden-01---ci-reliability-accessibility-cleanup-and-production-truth---delivered-2026-08-11), HARDEN-02 and [HARDEN-03](../roadmap/ROADMAP_V2_2.md#-harden-03---close-the-reliability-loop---delivered-2026-08-12).
 - **Related.** [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat) · [DEBT-106](#-debt-106--mains-e2e-suite-is-broadly-red-36-journeys-across-19-spec-files-fail-for-reasons-unrelated-to-the-change-that-found-them--p1--resolved-2026-08-09) · [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md) · [HARDEN-02](HARDEN_02_RELEASE_TRUST_2026_08.md).
 
 ### ☑ DEBT-112 — Every select's clear control said "Clear selection", so a form with two of them had one name between them — P3 — RESOLVED 2026-08-11
@@ -1708,6 +1709,10 @@ that required CI is a readable signal, because the suite has not finished.
   with the cause named rather than the wait lengthened.
 - **Do NOT close by raising a timeout or adding a retry.** The step that hangs
   never completes; a longer budget would only take longer to fail.
+  - *Held, and vindicated by the resolution above:* neither was used. The premise
+    was wrong — the step DOES complete — but the instruction was right, because a
+    longer budget would have hidden a journey that had outgrown its own test.
+- **Related roadmap item.** [HARDEN-03](../roadmap/ROADMAP_V2_2.md#-harden-03---close-the-reliability-loop---delivered-2026-08-12).
 
 ### ☑ DEBT-127 — A TASKS-11 timezone test fails for one hour of every UTC day — P3 — **RESOLVED 2026-08-12 by [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md)**
 
@@ -1778,6 +1783,10 @@ that required CI is a readable signal, because the suite has not finished.
 - **Do NOT close by loosening it to `not.toBe`.** The 25-hour spread is the point
   of the fixture; the assertion should state the owner-calendar date it expects
   for each zone.
+  - *Held:* the resolution above does exactly what this asked — each row states the
+    owner-calendar date it expects for each zone, and `not.toBe` is kept only as a
+    corollary of those two assertions rather than in place of them.
+- **Related roadmap item.** [HARDEN-03](../roadmap/ROADMAP_V2_2.md#-harden-03---close-the-reliability-loop---delivered-2026-08-12) (raised by [TASKS-11](../roadmap/ROADMAP_V2_2.md#-tasks-11---deterministic-natural-language-capture-v2--delivered-2026-08-11)).
 
 ### ☐ DEBT-128 — Playwright's count-based shard slicer concentrates the heaviest specs, so two shards never finish — P1
 
@@ -1818,6 +1827,7 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** Three consecutive `main` runs in which **no shard reaches
   `globalTimeout` and no test is reported as "did not run"** — with the split
   justified from measured per-shard times rather than from a count.
+- **Related roadmap item.** [HARDEN-04](../roadmap/ROADMAP_V2_2.md#-harden-04---a-finishing-readable-e2e-run) — its first half is exactly this entry.
 - **Related.** [`playwright.config.ts`](../../playwright.config.ts) · [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md) (the 18 → 8 re-split) · [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md).
 
 ### ☐ DEBT-129 — Four named deterministic E2E failures on `main`, each owned by the feature that shipped it — P1
@@ -1859,6 +1869,7 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** Every row above is diagnosed to a class and resolved, with
   the reasoning recorded against its own roadmap item; this entry then closes and
   is not reused.
+- **Related roadmap item.** [HARDEN-04](../roadmap/ROADMAP_V2_2.md#-harden-04---a-finishing-readable-e2e-run) — its second half. The four rows are then owned by TASKS-05, TODAY-10 and PWA-12 respectively.
 - **Related.** [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md) · [E2E regression audit, 9 Aug 2026](E2E_REGRESSION_AUDIT_2026_08_09.md) (the method to repeat).
 
 ## Entry template
