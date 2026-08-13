@@ -33,6 +33,13 @@ export default defineConfig({
           // `MIGRATION_TEST_DB` is left EMPTY so the FND-03 migration test can
           // apply migrations 0001 → 0002 sequentially over seeded data.
           d1Databases: ["DB", "MIGRATION_TEST_DB"],
+          // BACKUP-01: a local, isolated R2 bucket so the production backup
+          // Workflow can be driven against a REAL R2 implementation rather than
+          // a hand-written stub. That matters — the Workflow relies on R2
+          // verifying the SHA-256 it is given and on `head()` returning the
+          // custom metadata that was written, and a stub would happily agree
+          // with whatever the code did. Never a remote bucket.
+          r2Buckets: ["BACKUPS"],
           bindings: {
             // The parsed migrations, injected so the setup file can apply them.
             TEST_MIGRATIONS: migrations,

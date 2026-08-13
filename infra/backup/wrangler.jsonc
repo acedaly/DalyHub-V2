@@ -1,0 +1,93 @@
+/**
+ * Wrangler configuration for `dalyhub-v2-backup` (BACKUP-01).
+ *
+ * This is a SEPARATE Worker from `dalyhub-v2-production`. It has no route, no
+ * custom domain, no `workers.dev` origin, no D1 binding and no Access policy: it
+ * exists solely to host the `dalyhub-production-backup` Workflow, which exports
+ * the production D1 database to a private R2 bucket once a night.
+ *
+ * Keeping it separate is deliberate. Adding a Workflow to the application Worker
+ * would couple the backup's reliability to every application deploy, put a
+ * D1-export API token inside the Worker that serves the owner's requests, and
+ * mix a piece of infrastructure into the thing it is supposed to protect. A
+ * backup that fails because an unrelated UI change was deployed is not a backup.
+ *
+ * ── This file contains NO real identifiers, deliberately ──────────────────────
+ * `CLOUDFLARE_ACCOUNT_ID` and `D1_DATABASE_ID` below are explicit placeholders,
+ * following the same convention as the root `wrangler.jsonc`: no real production
+ * identifier is committed. `scripts/backup-worker.mjs` writes a config carrying
+ * the real values OUTSIDE the repository at deploy time and deletes it
+ * afterwards, exactly as `scripts/production-d1.mjs` does for D1 commands. The
+ * Worker itself refuses to run against a placeholder (see src/config.ts), so a
+ * bypassed deploy fails loudly instead of backing up nothing every night.
+ *
+ * ── Secrets are NOT here ──────────────────────────────────────────────────────
+ * `D1_REST_API_TOKEN` is a Worker secret set with `wrangler secret put`. It is
+ * deliberately absent from `vars`: a committed var of the same name would
+ * override the deploy-time secret and clobber it — the same trap the root
+ * config documents for the Cloudflare Access values.
+ *
+ * Deploy with:  pnpm run backup:deploy
+ */
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "dalyhub-v2-backup",
+  "main": "./src/index.ts",
+  "compatibility_date": "2026-07-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+  },
+  "upload_source_maps": true,
+
+  // No public origin. This Worker must never be reachable: `workers_dev` and
+  // Cloudflare Preview URLs would both be unauthenticated origins in front of a
+  // Worker that holds a D1 export token. `scripts/backup-worker.mjs` refuses to
+  // deploy if either is not `false`.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // Non-secret configuration. Real values are injected at deploy time; see the
+  // header. The database NAME is a real value because it is not private — it is
+  // already in the root config, in package.json scripts and in the docs.
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "PLACEHOLDER_SET_REAL_CLOUDFLARE_ACCOUNT_ID",
+    "D1_DATABASE_ID": "PLACEHOLDER_SET_REAL_PRODUCTION_D1_DATABASE_ID",
+    "D1_DATABASE_NAME": "dalyhub-v2",
+    "BACKUP_ENVIRONMENT": "production",
+  },
+
+  // The private backup bucket. It has no public development URL and no custom
+  // domain, and `scripts/backup-worker.mjs provision` asserts that after
+  // creating it. Retention is enforced by R2 lifecycle rules on the
+  // `production/daily/` (90 days) and `production/manual/` (365 days) prefixes,
+  // NOT by deletion code in the Worker — a backup system whose delete path is
+  // its own is one bug away from removing the thing it exists to keep.
+  "r2_buckets": [
+    {
+      "binding": "BACKUPS",
+      "bucket_name": "dalyhub-v2-backups",
+    },
+  ],
+
+  // The Workflow, and its OWN cron schedule.
+  //
+  // `schedules` on the Workflow binding creates an instance per firing directly,
+  // so this needs no top-level `triggers.crons` and no `scheduled()` handler.
+  // That matters here: DalyHub's application Worker already owns a Cron Trigger
+  // for the CAL-01 calendar refresh, and routing backups through a shared
+  // scheduled handler would entangle two unrelated jobs.
+  //
+  // **Cron schedules are UTC.** `0 16 * * *` is 16:00 UTC, which is 02:00 AEST
+  // and 03:00 AEDT. The one-hour drift across daylight saving is accepted: the
+  // requirement is one consistent nightly backup at an hour the single owner is
+  // reliably not writing, and both 02:00 and 03:00 satisfy it.
+  "workflows": [
+    {
+      "name": "dalyhub-production-backup",
+      "binding": "BACKUP_WORKFLOW",
+      "class_name": "ProductionBackupWorkflow",
+      "schedules": ["0 16 * * *"],
+    },
+  ],
+}

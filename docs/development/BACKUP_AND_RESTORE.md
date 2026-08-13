@@ -23,24 +23,50 @@ restore the archive, re-export, and assert the two snapshots are equal.
 
 ---
 
-## 1. The two backups, and which one to use
+## 1. The three backups, and which one to use
 
-DalyHub keeps two, for two different disasters. They are not interchangeable and
-the difference is not cosmetic.
+DalyHub keeps three, for different disasters. They are not interchangeable and
+the differences are not cosmetic.
 
-| | **DalyHub backup** | **D1 disaster-recovery dump** |
-| --- | --- | --- |
-| What it is | The canonical versioned workspace archive (`dalyhub-snapshot.json` + manifest + checksums) — the X-04 format | A raw Cloudflare D1 SQL export of the whole database |
-| Who makes it | The **owner**, from Settings → Privacy & data | The **scheduled workflow**, nightly |
-| Where it lives | Wherever the owner saves it | A GitHub Actions artifact, **encrypted**, 30 days |
-| Restored by | DalyHub itself: Settings → Privacy & data → Restore | `wrangler d1 execute` against the database |
-| Recovers | A workspace's records | The database, when the database is gone |
-| **Use it when** | **Almost always.** Records deleted, a bad import, going back to a known-good day | Cloudflare/D1 loss, an unrecoverable schema state, or standing up a new database |
+| | **DalyHub backup** | **D1 dump in R2** | **D1 dump on GitHub** |
+| --- | --- | --- | --- |
+| What it is | The canonical versioned workspace archive (`dalyhub-snapshot.json` + manifest + checksums) — the X-04 format | A raw Cloudflare D1 SQL export | A raw Cloudflare D1 SQL export |
+| Who makes it | The **owner**, from Settings → Privacy & data | The `dalyhub-production-backup` **Cloudflare Workflow**, nightly (BACKUP-01) | The **GitHub Actions workflow**, nightly (AUDIT-11) |
+| Where it lives | Wherever the owner saves it | Private R2 bucket `dalyhub-v2-backups`, **plain SQL**, 90 days (365 for manual) | A GitHub Actions artifact, **GPG-encrypted**, 30 days |
+| Restored by | DalyHub itself: Settings → Privacy & data → Restore | `wrangler d1 execute` against the database | `wrangler d1 execute`, after decrypting |
+| Recovers | A workspace's records | The database, when the database is gone | The database, when Cloudflare itself is the problem |
+| **Use it when** | **Almost always.** Records deleted, a bad import, going back to a known-good day | D1 loss or an unrecoverable schema state — the **first** dump to reach for | The Cloudflare account is lost, compromised, or unreachable |
 
-**The normal recovery path is the DalyHub backup.** The D1 dump exists for the
-case where there is no working database to restore *into*. If you use it, the
+**The normal recovery path is the DalyHub backup.** The D1 dumps exist for the
+case where there is no working database to restore *into*. If you use one, the
 sequence is: restore the dump into D1 → bring the application back → take a
 DalyHub backup from Settings so you have a canonical one again.
+
+### Why there are two D1 dumps, and why that is deliberate
+
+They live in **different trust boundaries**, which is the entire point. The R2
+copy is nearer, larger, longer-lived and trivially restorable — but it is inside
+the same Cloudflare account as the database it protects, so it does not survive
+losing that account. The GitHub copy is smaller and shorter-lived, but it is the
+one that survives a Cloudflare-side disaster, and it is encrypted precisely
+because a GitHub artifact is readable by a wider audience than the data is.
+
+Keeping both is cheap. Removing either would create a single point of failure
+shared by the database and its own backups.
+
+### Why the R2 copy is not encrypted
+
+The `dalyhub-v2-backups` bucket sits in the same Cloudflare account as the D1
+database. Anyone who can read that bucket can already run `wrangler d1 export`
+against the live database, so encrypting the object would add a key to lose
+without removing a reader — and would cost the structural validation that stops a
+truncated export being filed as a backup. The GitHub artifact is encrypted
+because its trust boundary genuinely is wider. Full reasoning:
+[`infra/backup/README.md`](../../infra/backup/README.md#why-the-dump-is-stored-as-plain-sql).
+
+This holds only while the bucket stays private. `pnpm run backup:verify` asserts
+that it has no public development URL; if that ever changes, the objects must be
+encrypted.
 
 ### Why the scheduled job does not produce a canonical DalyHub backup
 
@@ -256,7 +282,131 @@ restore is itself an ordinary DalyHub backup and restores the same way.
 
 ## 5. Catastrophic D1 recovery
 
-Use this only when there is no working database.
+Use this only when there is no working database, or the database is in a state
+the application cannot be brought back on top of.
+
+**Production restore is always a manual, operator-controlled action.** There is
+no one-click restore command and BACKUP-01 deliberately did not add one: an
+automated production restore is a loaded weapon pointed at the only copy of the
+owner's life.
+
+### 5.0 Choose the mechanism
+
+| Situation | Reach for |
+| --- | --- |
+| The damage happened **within the last 30 days** and the database itself is healthy — a bad migration, a destructive bulk operation, a mistaken restore | **D1 Time Travel** (§5.1). Fastest, no file handling, no import step. |
+| You need a **specific known-good day**, the damage is older than Time Travel's window, or the database is gone entirely | **An R2 SQL dump** (§5.2). |
+| **Cloudflare itself** is the problem — the account is lost, compromised or unreachable | **The GitHub artifact** (§5.3). |
+
+### 5.1 Recent incident — D1 Time Travel
+
+D1 keeps a restorable history of the database for 30 days, with no backup file
+involved. This is the right tool for "something went wrong today".
+
+```sh
+source .production.env
+
+# What restore points exist, and what bookmark corresponds to a moment?
+node scripts/production-d1.mjs d1 time-travel info dalyhub-v2
+node scripts/production-d1.mjs d1 time-travel info dalyhub-v2 \
+  --timestamp=2026-08-13T09:00:00Z
+```
+
+**Before restoring, take a backup of the current state** — Time Travel moves the
+database, and the state you are leaving is the only record of what happened:
+
+```sh
+pnpm run db:production:backup        # → production/manual/, kept 365 days
+pnpm run backup:status               # wait for it to report complete
+pnpm run db:production:backup:list   # confirm the object exists and is non-zero
+```
+
+Then restore:
+
+```sh
+node scripts/production-d1.mjs d1 time-travel restore dalyhub-v2 \
+  --timestamp=2026-08-13T09:00:00Z
+```
+
+Verify with §5.4.
+
+### 5.2 Older or explicit recovery — an R2 SQL dump
+
+**1. List what is available.**
+
+```sh
+source .production.env
+pnpm run db:production:backup:list
+```
+
+Keys are sortable UTC instants, so the last line is the most recent backup:
+
+```
+production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql
+    1417216 bytes (1384.0 KiB)   uploaded 2026-08-13T16:00:31Z
+```
+
+**2. Inspect its timestamp and provenance before trusting it.** Every object
+carries metadata — `backupTimestamp`, `bookmark` (the D1 export bookmark it was
+taken at), `trigger`, `sha256`, `workerCommit`. The key itself already tells you
+the instant in UTC; the metadata tells you which export produced it.
+
+```sh
+npx wrangler r2 object get \
+  dalyhub-v2-backups/production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql \
+  --remote --file /dev/null    # prints the object's metadata
+```
+
+**3. Download it.**
+
+```sh
+node scripts/backup-worker.mjs download \
+  production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql \
+  --output dalyhub-production.sql
+
+shasum -a 256 dalyhub-production.sql   # compare with the object's sha256 metadata
+```
+
+The downloaded file is the owner's entire production database in plain SQL. Keep
+it somewhere you control and delete it when you are done.
+
+**4. Back up the current state first — this is not optional.**
+
+```sh
+pnpm run db:production:backup
+pnpm run backup:status
+pnpm run db:production:backup:list     # confirm it exists and is non-zero
+```
+
+If the database is too broken to export, say so explicitly in your own notes and
+proceed — but never skip this step silently. Restoring over a live database
+without a copy of what you are replacing turns a recoverable incident into an
+unrecoverable one.
+
+**5. Destructive from here.** Prefer a **new** database, verify it, then repoint
+the binding. Restoring over the live database is irreversible and a new D1
+database costs nothing:
+
+```sh
+npx wrangler d1 create dalyhub-v2-recovered
+npx wrangler d1 execute dalyhub-v2-recovered --remote --file=dalyhub-production.sql
+```
+
+**6. Point the Worker at the recovered database** by supplying its id as
+`CLOUDFLARE_D1_DATABASE_ID`, deploy, and check `/health`.
+
+**7. Repoint the backup Worker too**, or it will keep backing up the old
+database:
+
+```sh
+pnpm run backup:deploy
+pnpm run backup:verify
+```
+
+**8. Immediately take a DalyHub backup** from Settings, so you are back to having
+a canonical, in-app-restorable copy.
+
+### 5.3 Cloudflare-side disaster — the GitHub artifact
 
 1. Download the artifact: GitHub → Actions → *Production D1 backup* → the run →
    Artifacts. It contains `dalyhub-v2-production-<stamp>.sql.gpg` and
@@ -275,24 +425,40 @@ Use this only when there is no working database.
    sha256sum dalyhub-production.sql
    ```
 
-4. **Destructive from here.** Load it into a database. Prefer a **new** D1
-   database, verify, then repoint the binding — restoring over a live database is
-   irreversible and there is no reason to take that risk while a new one costs
-   nothing:
+4. Continue from §5.2 step 4.
 
-   ```sh
-   wrangler d1 create dalyhub-v2-recovered
-   wrangler d1 execute dalyhub-v2-recovered --remote --file=dalyhub-production.sql
-   ```
+### 5.4 Verify the result
 
-5. Point the Worker at the recovered database (`wrangler.jsonc` production
-   binding), deploy, and check `/health`.
-6. **Immediately take a DalyHub backup** from Settings, so you are back to having
-   a canonical, in-app-restorable copy.
+A restore is not finished until it has been checked. Compare against what you
+expected, not merely against "no errors":
 
-No SQL from this path is ever executed through the application. DalyHub's own
-restore reads the canonical snapshot format only; there is no interface anywhere
-that runs owner-supplied SQL.
+```sh
+# Schema: every table is present.
+node scripts/production-d1.mjs d1 execute dalyhub-v2 \
+  --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+
+# Row counts for the kernel tables.
+node scripts/production-d1.mjs d1 execute dalyhub-v2 --command \
+  "SELECT 'entities', COUNT(*) FROM entities
+   UNION ALL SELECT 'entity_links', COUNT(*) FROM entity_links
+   UNION ALL SELECT 'activities', COUNT(*) FROM activities
+   UNION ALL SELECT 'spine_records', COUNT(*) FROM spine_records
+   UNION ALL SELECT 'workspaces', COUNT(*) FROM workspaces;"
+
+# Referential integrity.
+node scripts/production-d1.mjs d1 execute dalyhub-v2 \
+  --command "PRAGMA foreign_key_check;"
+
+# Migrations: nothing pending against the restored schema.
+pnpm run db:production:list
+```
+
+Then open the application and confirm `/health`, the Today dashboard, and a
+record you know should exist.
+
+No SQL from any of these paths is ever executed through the application.
+DalyHub's own restore reads the canonical snapshot format only; there is no
+interface anywhere that runs owner-supplied SQL.
 
 ---
 
@@ -339,17 +505,73 @@ silently destroys every backup taken before it.
 
 ## 7. Retention
 
+### The R2 copy (BACKUP-01)
+
 | | |
 | --- | --- |
-| **Frequency** | Daily, 16:30 UTC (02:30 Australia/Sydney — a quiet hour, so the export is coherent). Manual runs any time via *Run workflow*, through the identical pipeline. |
+| **Frequency** | Daily, **16:00 UTC** — 02:00 AEST / 03:00 AEDT. Cloudflare cron schedules are UTC and have no timezone setting, so the local hour shifts by one across daylight saving. Accepted: both are quiet hours for the single owner. |
+| **Retention** | **90 days** for `production/daily/`, **365 days** for `production/manual/`. |
+| **Enforced by** | R2 **lifecycle rules** keyed on those prefixes — not by deletion code in the Worker. A backup system that deletes its own backups is one bug away from removing the thing it exists to keep. |
+| **Why 90** | The database is ~1.4 MB, so a quarter of daily history costs almost nothing and is long enough to notice damage that was not obvious at the time. BACKUP-01 adds no weekly or monthly archival tiers on purpose: a backup system that is easy to reason about is worth more than one with more boxes on the diagram. |
+| **Why manual is 365** | A hand-run backup is usually taken immediately before something risky. It should still be there long after the nightly series around it has rolled off. |
+| **Storage class** | Standard only. No Infrequent Access transition — IA adds a retrieval cost and a minimum-duration charge to exactly the objects an emergency needs fastest. |
+| **On expiry** | R2 deletes the object. Nothing is archived automatically. |
+
+### The GitHub copy (AUDIT-11)
+
+| | |
+| --- | --- |
+| **Frequency** | Daily, 16:30 UTC (02:30 Australia/Sydney). Manual runs any time via *Run workflow*, through the identical pipeline. |
 | **Retention** | **30 days**, on the GitHub artifact. |
 | **Why 30** | It was neither reduced nor extended when encryption was added. Reducing it would weaken recovery for no security gain now that the artifact is unreadable without the key; extending it would keep more of the owner's data on GitHub for longer, which encryption is not a reason to do. Thirty dailies is a month of recoverable history — long enough to notice damage, short enough to be proportionate for a single-owner system. |
 | **On expiry** | The artifact is deleted by GitHub. Nothing is archived automatically. |
-| **Longer-term copies** | The owner's responsibility, and deliberately so: a DalyHub backup downloaded from Settings, kept somewhere they control. Those have no expiry and no GitHub dependency. |
+
+### Beyond both
+
+**Longer-term copies are the owner's responsibility, and deliberately so:** a
+DalyHub backup downloaded from Settings, kept somewhere they control. Those have
+no expiry, no GitHub dependency and no Cloudflare dependency.
 
 ---
 
-## 8. What the automated backup actually does
+## 8. What the automated backups actually do
+
+### 8a. The R2 backup (BACKUP-01)
+
+One Cloudflare Workflow, `dalyhub-production-backup`, used identically by the
+scheduled and the manually triggered run. Full detail:
+[`infra/backup/README.md`](../../infra/backup/README.md).
+
+1. **Plan.** Decide the retention tier and the object key **once**, and memoise
+   it. A retry therefore re-uses the same key instead of scattering partial
+   objects under fresh timestamps.
+2. **Initiate the export** through the supported D1 export REST API, keeping the
+   export bookmark. No table-walking, no reconstruction from application models —
+   those drift silently the first time a migration adds something they do not
+   know about.
+3. **Poll, download and store in one step.** The signed URL is a bearer
+   credential for the whole database, so it never crosses a step boundary into
+   durable Workflow state and is never logged.
+4. **Validate before storing.** Non-empty, plausibly SQL, every kernel and
+   sensitive module table present, ending with a complete statement. A dump that
+   fails is never written, so the bucket cannot hold a file that looks like a
+   backup and is not one. The rules are kept in parity with the GitHub pipeline's
+   by a test.
+5. **Checksum.** A SHA-256 is computed and handed to R2, which verifies it
+   server-side and rejects a write whose bytes do not match.
+6. **Verify the stored object** in a separate step: it exists, its key is what
+   was intended, it is non-zero, its size matches what was written, and its
+   metadata is present. "`put()` returned" is not the same claim as "there is a
+   backup", so a verification failure is reported as a **failed** backup.
+7. **Fail closed.** A bad token, a placeholder identifier, a malformed response,
+   a missing bookmark, a truncated dump or a key another instance already wrote
+   all fail permanently rather than retrying for hours.
+
+Logs carry stage names, the database name, the trigger, the bookmark, the object
+key and byte counts. They never carry the API token, the signed URL, or any dump
+content — asserted by `test/kernel/backup-workflow.test.ts`.
+
+### 8b. The GitHub backup (AUDIT-11)
 
 One pipeline, `scripts/production-backup.mjs`, used identically by the scheduled
 and the manually dispatched run — there is no "secure scheduled backup, insecure
@@ -447,7 +669,11 @@ does not expose.
 | Unit | `test/unit/restore/*` — the version gate (future, older, malformed, missing, another application's JSON, and totality); the safety validator (duplicate ids, wrong-type detail rows, spine disagreement, completed Area, self-link, duplicate relationship, blank title, self-declared truncation, and that messages never carry record content); the untrusted ZIP reader (round trip, not-a-ZIP, truncation, tampering, over-size, declared bomb, unsafe path, entry-count, encrypted entry, unsupported method); the flow model; and the Settings controls (inspect-without-writing, the consequence sentence, the safety-backup gate including a generated-but-unconfirmed backup keeping the restore locked, the acknowledgement digest, the typed confirmation, each distinct refusal, failure, success). |
 | Unit (ops) | `test/unit/deploy/production-backup-encryption.test.ts` — a real dump, a real key, real `gpg`: encrypt → prove the plaintext is absent → decrypt → byte-identical → still validates; wrong key fails; a tampered ciphertext fails; metadata refuses a credential field. `test/unit/deploy/production-backup-workflow.test.ts` — the workflow contract. |
 | Kernel / D1 | `test/kernel/workspace-restore.test.ts` — the round trip and semantic equivalence, no manufactured Activity, actor attribution, replace-not-merge, isolation against a crafted archive, every refusal, a failed cutover leaving the workspace untouched, a failed safety backup aborting the restore, a safety backup that is generated but never acknowledged (and one acknowledged with the wrong digest) leaving the restore refused, two concurrent applies where exactly one wins and the other is a clean no-op, a failed verification reported as failure, and staged rows staying inert. `test/kernel/workspace-restore-route.test.ts` — fail closed, no GET, no client-supplied workspace, the safety-backup gate, no internals in a failure. |
+| Unit (R2 backup) | `test/unit/backup/*` — object-key naming (UTC, sortability, determinism, tier prefixes, refusal of unsafe database names); the D1 export client (every malformed response shape, and permanent-vs-transient classification); dump validation **and its parity with `scripts/production-backup.mjs`**; configuration refusal (placeholders, missing secret) and assertions over the real committed `infra/backup/wrangler.jsonc` — no route, no public origin, the correct cron, and no committed identifiers. |
+| Workers runtime (R2 backup) | `test/kernel/backup-workflow.test.ts` — the whole Workflow against a **real local R2 bucket**: the happy path and stage order, provenance metadata, byte fidelity, daily-vs-manual tier selection (including that a parameter cannot relabel a scheduled run), every failure mode storing nothing, retry idempotency, refusal to overwrite another instance's object, a verification failure reported as failure, and that no token, signed URL or dump content reaches a log line or an error message. |
 | End-to-end | `e2e/restore.spec.ts` — the Settings surface: choosing a backup, the preview, a corrupt backup, the destructive confirmation, and the restore result. |
+
+No test performs a production export, and none needs Cloudflare credentials.
 
 ---
 
@@ -455,6 +681,8 @@ does not expose.
 
 - [`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md) — the canonical format
   this restores.
+- [`infra/backup/README.md`](../../infra/backup/README.md) — the BACKUP-01 R2
+  backup Worker: architecture, configuration, retention and commands.
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — deploys, migrations and the release order.
 - [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it),
   [ADR-081](../decisions/ARCHITECTURE_DECISIONS.md#adr-081-restore--one-canonical-format-a-staged-atomic-cutover-and-a-verified-way-back).
