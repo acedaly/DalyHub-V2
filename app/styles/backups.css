@@ -1,0 +1,160 @@
+/*
+ * BACKUP-02 — the Backups surface, in design tokens only.
+ *
+ * There is deliberately very little here. The screen is built from the shared
+ * Settings layout, the shared status pill and the shared button, so what this file
+ * adds is only the one thing none of those own: how a backup run's facts lay out.
+ *
+ * ── The history is a list that becomes columns, not a table that shrinks ─────
+ * A desktop table forced onto a phone is either horizontally scrolling or
+ * illegibly narrow, and BACKUP-02 §15 makes the iPhone first-class. So each run is
+ * a LIST ITEM whose facts stack by default and flow into a row once there is room.
+ * The breakpoint is a CONTAINER query, not a viewport one: this section renders
+ * inside the Settings content column, whose width is not the window's, and a
+ * viewport query would guess wrong on a narrow desktop pane.
+ *
+ * ── Sizes and labels never truncate ─────────────────────────────────────────
+ * No `text-overflow: ellipsis` on any fact. A backup's size or date half-shown is
+ * worse than one wrapped onto two lines, and these values are short. The only
+ * element allowed to break mid-token is the storage path inside the details
+ * disclosure, which is long, technical and hidden by default.
+ */
+
+/* The health pill wrapper — a live region, so it needs a stable box. */
+.dh-backup-health {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-space-6);
+}
+
+/* One right-hand-side fact in the health group. */
+.dh-backup-fact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-1);
+  align-items: baseline;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  /* Never truncated: a half-shown timestamp is worse than a wrapped one. */
+  overflow-wrap: anywhere;
+}
+
+.dh-backup-fact__note {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Recent backups                                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-backup-history {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-backup-history__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+}
+
+/* The two things a person scans for: when, and whether it worked. */
+.dh-backup-history__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dh-backup-history__when {
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  font-weight: 500;
+}
+
+/* Stacked by default — the phone layout is the base, not an override. */
+.dh-backup-history__facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  margin: 0;
+}
+
+.dh-backup-history__fact {
+  display: flex;
+  gap: var(--app-space-2);
+  align-items: baseline;
+}
+
+.dh-backup-history__fact dt {
+  min-inline-size: 4.5rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+}
+
+.dh-backup-history__fact dd {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+/* The canned failure sentence. Tone is carried by the pill above; this is text. */
+.dh-backup-history__message {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-backup-history__details {
+  font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.dh-backup-history__details summary {
+  min-block-size: var(--app-touch-target-min);
+  display: flex;
+  align-items: center;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+}
+
+/* The same two-ring focus treatment the Settings controls use, so focus looks
+ * identical across this section and the rest of Settings. */
+.dh-backup-history__details summary:focus-visible {
+  outline: none;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
+}
+
+/* The one value allowed to break mid-token: a long storage path, hidden by
+ * default, where wrapping anywhere beats overflowing. */
+.dh-backup-history__key {
+  font-family: var(--md-ref-typeface-mono);
+  overflow-wrap: anywhere;
+}
+
+/* Once the CONTENT COLUMN (not the window) is wide enough, the facts become a
+ * row. Container query, because this section can render in a narrow pane. */
+@container (min-width: 30rem) {
+  .dh-backup-history__facts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--app-space-4);
+  }
+
+  .dh-backup-history__fact dt {
+    min-inline-size: 0;
+  }
+}

@@ -43,6 +43,15 @@ import { logError, logInfo } from "./logging";
 
 export { ProductionBackupWorkflow } from "./backup-workflow";
 
+/**
+ * BACKUP-02 — the internal status/history/trigger API, reachable ONLY through the
+ * `BACKUP_SERVICE` Worker service binding from `dalyhub-v2-production`.
+ *
+ * A named entrypoint rather than routes on the `fetch` handler below, so there is
+ * no URL that reaches these methods at all. See src/backup-service.ts.
+ */
+export { BackupService } from "./backup-service";
+
 export default {
   fetch(): Response {
     return new Response("Not found.\n", {

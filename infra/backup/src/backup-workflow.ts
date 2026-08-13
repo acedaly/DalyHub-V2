@@ -63,6 +63,12 @@ import {
   backupObjectKey,
   type BackupTrigger,
 } from "./object-key";
+import {
+  failedRun,
+  type BackupFailureStage,
+  type BackupRunRecord,
+} from "./run-records";
+import { recordRun } from "./status-store";
 
 /**
  * How the export is polled INSIDE the `export-and-store` step.
@@ -126,6 +132,82 @@ function requireConfig(env: BackupEnv): BackupConfig {
  * a real R2 bucket in the Workers pool (`test/kernel/backup-workflow.test.ts`).
  * The class keeps no logic of its own, so nothing goes untested by living there.
  */
+/**
+ * Which retention tier this instance belongs to. PURE.
+ *
+ * `event.schedule` is set only when the PLATFORM created the instance from a
+ * `schedules` entry on the Workflow binding (paid Workers plans). It is
+ * authoritative and cannot be overridden by a parameter: a nightly backup must
+ * never be relabelled onto the manual tier's 365-day retention, or the daily
+ * series would silently stop expiring.
+ *
+ * On the free plan the instance is created by this Worker's own `scheduled()`
+ * handler, which passes `trigger: "daily"` explicitly. Only a caller holding
+ * Cloudflare credentials can pass parameters at all, and such a caller could
+ * already trigger backups, so honouring the parameter grants nothing new.
+ * Anything with neither signal is a hand-run backup: `manual`.
+ */
+export function resolveTrigger(
+  event: Readonly<WorkflowEvent<BackupParams>>,
+): BackupTrigger {
+  return event.schedule !== undefined
+    ? "daily"
+    : (event.payload?.trigger ?? "manual");
+}
+
+/**
+ * The instant the backup is NAMED for — the cron SLOT, not "now", so a firing
+ * that starts late or an instance that retries still files under the night it
+ * belongs to and the daily series keeps exactly one object per day. PURE.
+ */
+export function resolveNamedInstant(
+  event: Readonly<WorkflowEvent<BackupParams>>,
+): Date {
+  return new Date(
+    event.schedule?.scheduledTime ??
+      event.payload?.scheduledTime ??
+      event.timestamp.getTime(),
+  );
+}
+
+/**
+ * Carries the stage the run is currently in, so the failure record can name it.
+ *
+ * A mutable holder rather than a return value because the stage advances INSIDE
+ * step callbacks, and the `catch` that needs it sits outside them.
+ */
+interface StageTracker {
+  stage: BackupFailureStage;
+}
+
+/**
+ * Write a run record, best-effort.
+ *
+ * Deliberately swallows its own failure, for one reason: the record is how the
+ * owner SEES the backup, not the backup itself. BACKUP-01's contract is that a
+ * verified dump exists in R2, and failing a run whose dump is verified and
+ * present because a small JSON status file could not be written would report a
+ * successful backup as a failure — the exact dishonesty the whole design avoids.
+ *
+ * A persistent inability to write status does not go unnoticed: the `running`
+ * record stops being replaced, and after thirty minutes the health calculation
+ * reports it as stalled. The failure is surfaced by absence rather than by
+ * corrupting the meaning of "failed".
+ */
+async function recordRunSafely(
+  env: BackupEnv,
+  record: BackupRunRecord,
+): Promise<void> {
+  try {
+    await recordRun(env.BACKUPS, record);
+  } catch (error) {
+    logError("run-record-write-failed", {
+      instanceId: record.id,
+      reason: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+}
+
 export async function runProductionBackup(
   env: BackupEnv,
   event: Readonly<WorkflowEvent<BackupParams>>,
@@ -137,37 +219,68 @@ export async function runProductionBackup(
    */
   options: { pollIntervalMs?: number } = {},
 ): Promise<{ key: string; bytes: number; bookmark: string }> {
+  const trigger = resolveTrigger(event);
+  // Stable across retries: the instance's own timestamp, never "now". A run
+  // record whose key moved on retry would appear as several runs.
+  const startedAt = event.timestamp.toISOString();
+  const base = {
+    id: event.instanceId,
+    trigger,
+    startedAt,
+    objectKey: null,
+    sizeBytes: null,
+    retentionDays: BACKUP_RETENTION_DAYS[trigger],
+  };
+  const tracker: StageTracker = { stage: "configuration" };
+
+  await recordRunSafely(env, {
+    ...base,
+    status: "running",
+    completedAt: null,
+    stage: null,
+    message: null,
+  });
+
+  try {
+    const result = await executeBackup(env, event, step, options, tracker);
+    await recordRunSafely(env, {
+      ...base,
+      status: "success",
+      completedAt: new Date().toISOString(),
+      objectKey: result.key,
+      sizeBytes: result.bytes,
+      stage: null,
+      message: null,
+    });
+    return result;
+  } catch (error) {
+    // Reached only after `step.do` has exhausted its retries (or hit a
+    // NonRetryableError), so a recorded failure means the run genuinely failed
+    // rather than that one attempt did. Retry behaviour is untouched: the record
+    // is written, then the original error is rethrown unchanged.
+    await recordRunSafely(
+      env,
+      failedRun(base, tracker.stage, new Date().toISOString()),
+    );
+    throw error;
+  }
+}
+
+async function executeBackup(
+  env: BackupEnv,
+  event: Readonly<WorkflowEvent<BackupParams>>,
+  step: WorkflowStep,
+  options: { pollIntervalMs?: number },
+  tracker: StageTracker,
+): Promise<{ key: string; bytes: number; bookmark: string }> {
   const pollIntervalMs = options.pollIntervalMs ?? POLL_INTERVAL_MS;
   const config = requireConfig(env);
   const instanceId = event.instanceId;
+  tracker.stage = "export-start";
   /* ── 1. Plan ──────────────────────────────────────────────────────────── */
   const plan = await step.do("plan", async () => {
-    // Which tier this run belongs to.
-    //
-    // `event.schedule` is set only when the PLATFORM created the instance from
-    // a `schedules` entry on the Workflow binding (paid Workers plans). It is
-    // authoritative and cannot be overridden by a parameter: a nightly backup
-    // must never be relabelled onto the manual tier's 365-day retention, or the
-    // daily series would silently stop expiring.
-    //
-    // On the free plan the instance is created by this Worker's own
-    // `scheduled()` handler, which passes `trigger: "daily"` explicitly. Only a
-    // caller holding Cloudflare credentials can pass parameters at all, and such
-    // a caller could already trigger backups, so honouring the parameter grants
-    // nothing new. Anything with neither signal is a hand-run backup: `manual`.
-    const trigger: BackupTrigger =
-      event.schedule !== undefined
-        ? "daily"
-        : (event.payload?.trigger ?? "manual");
-
-    // The instant the backup is NAMED for — the cron SLOT, not "now", so a
-    // firing that starts late or an instance that retries still files under the
-    // night it belongs to and the daily series keeps exactly one object per day.
-    const at = new Date(
-      event.schedule?.scheduledTime ??
-        event.payload?.scheduledTime ??
-        event.timestamp.getTime(),
-    );
+    const trigger = resolveTrigger(event);
+    const at = resolveNamedInstant(event);
 
     const key = backupObjectKey({
       trigger,
@@ -235,6 +348,7 @@ export async function runProductionBackup(
         apiToken: config.apiToken,
       };
 
+      tracker.stage = "export-wait";
       // -- poll until the dump is ready ---------------------------------
       let ready: Awaited<ReturnType<typeof pollD1Export>> | undefined;
       let polls = 0;
@@ -277,6 +391,7 @@ export async function runProductionBackup(
         instanceId,
       });
 
+      tracker.stage = "export-download";
       // -- download ------------------------------------------------------
       let text: string;
       try {
@@ -291,6 +406,7 @@ export async function runProductionBackup(
         return rethrowClassified(error);
       }
 
+      tracker.stage = "dump-validation";
       // -- validate ------------------------------------------------------
       // Before storing, not after. An object that fails validation is never
       // written, so the bucket cannot contain a file that looks like a backup
@@ -320,6 +436,7 @@ export async function runProductionBackup(
 
       const sha256 = toHex(await crypto.subtle.digest("SHA-256", bytes));
 
+      tracker.stage = "r2-write";
       // -- refuse to clobber another instance's backup -------------------
       // Different runs get different timestamps, so a collision means either
       // this instance's own retry (fine — the same bytes go to the same key)
@@ -388,6 +505,7 @@ export async function runProductionBackup(
   });
 
   /* ── 4. Verify the object that is actually in the bucket ──────────────── */
+  tracker.stage = "verification";
   await step.do("verify-stored-object", async () => {
     const head = await env.BACKUPS.head(stored.key);
 

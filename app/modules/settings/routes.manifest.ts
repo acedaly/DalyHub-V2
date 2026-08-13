@@ -55,6 +55,16 @@ const routes: readonly RouteContribution[] = [
     file: "routes/calendars.tsx",
   },
   {
+    // BACKUP-02 — the backup endpoints. `GET status` (sanitised health and recent
+    // history, polled while a backup runs) and `POST run` (start a manual
+    // backup). Unlike its POST-only siblings this one has a GET on purpose: it
+    // returns operational metadata rather than a credential, and the surface
+    // polls it. There is deliberately no restore, delete or import action.
+    id: "settings.backups",
+    path: "settings/backups/:action",
+    file: "routes/backups.tsx",
+  },
+  {
     // SET-03 — the two Account & security history endpoints. A POST-only
     // resource route with no navigation entry, driven from the Account &
     // security section and from the sign-out control in the account menu. It

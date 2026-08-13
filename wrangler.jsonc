@@ -140,6 +140,31 @@
           "migrations_dir": "migrations",
         },
       ],
+      // BACKUP-02: the Worker service binding that lets Settings → Backups show
+      // backup health WITHOUT this Worker gaining access to the backups.
+      //
+      // The application Worker deliberately has NO R2 binding and NO D1-export
+      // token. It calls the `BackupService` entrypoint on `dalyhub-v2-backup`,
+      // which returns sanitised metadata — health, timestamps, sizes, retention —
+      // and nothing else. `BackupService` is a NAMED entrypoint rather than a
+      // fetch handler, so there is no URL that reaches it: the backup Worker keeps
+      // `workers_dev: false`, no route and no custom domain, and remains
+      // unreachable from the internet. See infra/backup/src/backup-service.ts.
+      //
+      // PRODUCTION ONLY, on purpose. A service binding names a deployed Worker,
+      // and local development has none — so the binding is absent from the
+      // top-level (local) config, `wrangler dev` and the credential-free dry-run
+      // work unchanged, and the application reads it through an OPTIONAL config
+      // shape whose absence renders as "backup status unavailable". Service
+      // bindings are not inherited by named environments, which is why this is
+      // declared here rather than above.
+      "services": [
+        {
+          "binding": "BACKUP_SERVICE",
+          "service": "dalyhub-v2-backup",
+          "entrypoint": "BackupService",
+        },
+      ],
     },
   },
 }
