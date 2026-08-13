@@ -40,8 +40,10 @@
 
 import type { BackupEnv } from "./config";
 import { logError, logInfo } from "./logging";
+import { startBackupWorkflow } from "./backup-start";
 
 export { ProductionBackupWorkflow } from "./backup-workflow";
+export { BackupAdmissionGate } from "./backup-admission";
 
 /**
  * BACKUP-02 — the internal status/history/trigger API, reachable ONLY through the
@@ -83,12 +85,20 @@ export default {
   ): Promise<void> {
     const create = async (): Promise<void> => {
       try {
-        const instance = await env.BACKUP_WORKFLOW.create({
-          params: { trigger: "daily", scheduledTime: event.scheduledTime },
+        const result = await startBackupWorkflow(env, {
+          trigger: "daily",
+          scheduledTime: event.scheduledTime,
         });
+        if (!result.accepted) {
+          logInfo("scheduled-instance-refused", {
+            trigger: "daily",
+            reason: "backup already running",
+          });
+          return;
+        }
         logInfo("scheduled-instance-created", {
           trigger: "daily",
-          instanceId: instance.id,
+          instanceId: result.instanceId,
         });
       } catch (error) {
         logError("scheduled-instance-failed", {

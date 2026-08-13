@@ -27,8 +27,8 @@
  * rather than a missing feature.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { useFetcher, useRevalidator } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useFetcher } from "react-router";
 
 import {
   BACKUP_HEALTH_LABELS,
@@ -74,7 +74,12 @@ export function BackupsSection({
 }: {
   readonly data: BackupSettingsData;
 }) {
-  const { status, history, timeZone } = data;
+  const statusFetcher = useFetcher<BackupSettingsData>();
+  const loadBackupStatus = useCallback(() => {
+    statusFetcher.load("/settings/backups/status");
+  }, [statusFetcher]);
+  const liveData = statusFetcher.data ?? data;
+  const { status, history, timeZone } = liveData;
   // One instant for the whole render, so "Today" in the header and "Today" in the
   // history cannot disagree because the clock ticked between two calls.
   const now = new Date();
@@ -84,7 +89,13 @@ export function BackupsSection({
       title="Backups"
       description="DalyHub backs up your production data automatically every night, to private storage in your own Cloudflare account."
     >
-      <BackupHealthGroup status={status} timeZone={timeZone} now={now} />
+      <BackupHealthGroup
+        status={status}
+        history={history}
+        timeZone={timeZone}
+        now={now}
+        loadBackupStatus={loadBackupStatus}
+      />
       <BackupHistoryGroup history={history} timeZone={timeZone} now={now} />
       <BackupRestoreNote />
     </SettingsLayout>
@@ -97,12 +108,16 @@ export function BackupsSection({
 
 function BackupHealthGroup({
   status,
+  history,
   timeZone,
   now,
+  loadBackupStatus,
 }: {
   readonly status: BackupStatusView;
+  readonly history: readonly BackupRunView[];
   readonly timeZone: string;
   readonly now: Date;
+  readonly loadBackupStatus: () => void;
 }) {
   const success = status.lastSuccessfulBackup;
   const attempt = status.latestAttempt;
@@ -215,7 +230,12 @@ function BackupHealthGroup({
         }
       />
 
-      <BackUpNowRow running={running} />
+      <BackUpNowRow
+        running={running}
+        status={status}
+        history={history}
+        loadBackupStatus={loadBackupStatus}
+      />
     </SettingsGroup>
   );
 }
@@ -228,71 +248,131 @@ function BackupHealthGroup({
  * was already running when the page loaded. All three disable it, and the label
  * says which — a disabled control with no explanation is a dead end.
  */
-function BackUpNowRow({ running }: { readonly running: boolean }) {
+function runById(
+  id: string | null,
+  status: BackupStatusView,
+  history: readonly BackupRunView[],
+): BackupRunView | null {
+  if (id === null) return null;
+  if (status.latestAttempt?.id === id) return status.latestAttempt;
+  return history.find((run) => run.id === id) ?? null;
+}
+
+function runStillInFlight(run: BackupRunView | null): boolean {
+  return run === null || run.status === "queued" || run.status === "running";
+}
+
+function BackUpNowRow({
+  running,
+  status,
+  history,
+  loadBackupStatus,
+}: {
+  readonly running: boolean;
+  readonly status: BackupStatusView;
+  readonly history: readonly BackupRunView[];
+  readonly loadBackupStatus: () => void;
+}) {
   const fetcher = useFetcher<BackupActionResult>();
-  const revalidator = useRevalidator();
-  const [polling, setPolling] = useState(false);
+  const [acceptedInstanceId, setAcceptedInstanceId] = useState<string | null>(
+    null,
+  );
+  const [localStatus, setLocalStatus] = useState<{
+    readonly message: string;
+    readonly tone: "neutral" | "danger";
+  } | null>(null);
   const startedAt = useRef<number | null>(null);
+  const observedActionId = useRef<string | null>(null);
 
   const submitting = fetcher.state !== "idle";
   const result = fetcher.data;
+  const acceptedRun = runById(acceptedInstanceId, status, history);
+  const acceptedRunInFlight =
+    acceptedInstanceId !== null && runStillInFlight(acceptedRun);
 
   // Begin polling once a trigger has been accepted.
   useEffect(() => {
-    if (result !== undefined && result.ok) {
-      startedAt.current = Date.now();
-      setPolling(true);
+    if (result !== undefined && !result.ok) {
+      setAcceptedInstanceId(null);
+      setLocalStatus(null);
+      return;
     }
-  }, [result]);
+    if (
+      result !== undefined &&
+      result.ok &&
+      observedActionId.current !== result.instanceId
+    ) {
+      observedActionId.current = result.instanceId;
+      setAcceptedInstanceId(result.instanceId);
+      startedAt.current = Date.now();
+      setLocalStatus({ message: result.message, tone: "neutral" });
+      loadBackupStatus();
+    }
+  }, [loadBackupStatus, result]);
 
-  // Poll while a backup is running — and stop the moment it is not, or when the
-  // bounded window expires. No timer runs when the page is simply open.
+  // Poll the dedicated backup status resource only for the run this session
+  // started. No timer runs when the page is simply open.
   useEffect(() => {
-    if (!polling) return;
+    if (acceptedInstanceId === null) return;
     const timer = setInterval(() => {
       const since = startedAt.current;
       if (since !== null && Date.now() - since > POLL_TIMEOUT_MS) {
-        setPolling(false);
+        setAcceptedInstanceId(null);
+        setLocalStatus({
+          message:
+            "Backup status is taking longer than expected. You can check again in a few minutes.",
+          tone: "neutral",
+        });
         return;
       }
-      void revalidator.revalidate();
+      loadBackupStatus();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [polling]);
+  }, [acceptedInstanceId, loadBackupStatus]);
 
-  // The server is the authority on whether a backup is running, so polling stops
-  // when the loader says it has finished rather than after a fixed number of ticks.
+  // Stop as soon as the exact accepted run reaches a terminal state. It does not
+  // matter whether the browser ever observed the intermediate `running` state.
   useEffect(() => {
-    if (polling && !running && startedAt.current !== null) {
-      // Only after at least one poll has had a chance to observe the run, so a
-      // status that has not yet flipped to `running` does not end the poll early.
-      if (Date.now() - startedAt.current > POLL_INTERVAL_MS) setPolling(false);
+    if (acceptedInstanceId === null || acceptedRun === null) return;
+    if (acceptedRun.status === "success") {
+      setAcceptedInstanceId(null);
+      setLocalStatus({ message: "Backup completed.", tone: "neutral" });
     }
-  }, [running, polling]);
+    if (acceptedRun.status === "failed") {
+      setAcceptedInstanceId(null);
+      setLocalStatus({
+        message: acceptedRun.message ?? "The backup did not complete.",
+        tone: "danger",
+      });
+    }
+  }, [acceptedInstanceId, acceptedRun]);
 
-  const disabled = submitting || running || polling;
+  const disabled = submitting || running || acceptedRunInFlight;
 
   const label = submitting
     ? "Starting…"
-    : running || polling
+    : running || acceptedRunInFlight
       ? "Backup in progress…"
       : "Back up now";
 
-  const status =
-    result === undefined
+  const actionStatus =
+    localStatus?.message ??
+    (result === undefined
       ? running
         ? "A backup is already running."
         : null
-      : result.message;
+      : result.message);
 
   return (
     <SettingsRow
       align="start"
       label="Back up now"
       description="Takes an immediate backup, kept for a year rather than 90 days. Useful before a big change."
-      status={status}
-      statusTone={result !== undefined && !result.ok ? "danger" : "neutral"}
+      status={actionStatus}
+      statusTone={
+        localStatus?.tone ??
+        (result !== undefined && !result.ok ? "danger" : "neutral")
+      }
       statusLive
       control={
         <fetcher.Form method="post" action="/settings/backups/run">

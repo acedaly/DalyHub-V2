@@ -27,6 +27,7 @@
  */
 
 import type { BackupTrigger } from "./object-key";
+import type { BackupAdmissionNamespace } from "./backup-admission";
 
 /** The backup Worker's bindings and configuration. */
 export interface BackupEnv {
@@ -34,6 +35,8 @@ export interface BackupEnv {
   BACKUPS: R2Bucket;
   /** The Workflow binding, used only to trigger instances. */
   BACKUP_WORKFLOW: Workflow<BackupParams>;
+  /** The single serialised gate for backup Workflow admission. */
+  BACKUP_ADMISSION: BackupAdmissionNamespace;
 
   /** Non-secret configuration. */
   CLOUDFLARE_ACCOUNT_ID: string;
@@ -71,6 +74,15 @@ export interface BackupParams {
    * directly (paid-plan `schedules`), which is authoritative.
    */
   scheduledTime?: number;
+
+  /**
+   * The admission held while this Workflow is in flight.
+   *
+   * Present for application/manual and cron-created runs that pass through the
+   * backup Worker's admission gate. It is not a credential and grants no access;
+   * it exists so normal Workflow completion can release the gate promptly.
+   */
+  admissionId?: string;
 }
 
 /** The committed placeholders that must never reach a real backup run. */

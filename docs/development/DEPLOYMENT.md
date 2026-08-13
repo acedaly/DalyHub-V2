@@ -270,7 +270,9 @@ Full architecture, configuration and retention:
   its absence renders as "status unavailable", so `wrangler dev` and the
   credential-free dry-run are unaffected. **Deploy `dalyhub-v2-backup` before
   `dalyhub-v2-production`** the first time, so the entrypoint exists when the
-  binding is created.
+  binding is created. As of BACKUP-02's admission-race fix, `backup:deploy` also
+  applies the backup Worker's `BackupAdmissionGate` Durable Object migration; run
+  it before relying on manual/scheduled backup admission in production.
 - **Setup and everyday commands:**
 
   ```sh

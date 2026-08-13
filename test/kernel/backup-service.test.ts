@@ -14,10 +14,13 @@
  *     even when the bucket contains a real dump right next to the status files.
  */
 
-import { env } from "cloudflare:test";
+import { env, runInDurableObject } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { backupAdmissionGate } from "../../infra/backup/src/backup-admission";
+import type { BackupAdmissionNamespace } from "../../infra/backup/src/backup-admission";
 import { BackupService } from "../../infra/backup/src/backup-service";
+import { startBackupWorkflow } from "../../infra/backup/src/backup-start";
 import { BACKUP_STALLED_MINUTES } from "../../infra/backup/src/backup-health";
 import type { BackupEnv } from "../../infra/backup/src/config";
 import {
@@ -28,6 +31,9 @@ import {
 import { recordRun } from "../../infra/backup/src/status-store";
 
 const bucket = (env as unknown as { BACKUPS: R2Bucket }).BACKUPS;
+const admissionNamespace = (
+  env as unknown as { BACKUP_ADMISSION: BackupAdmissionNamespace }
+).BACKUP_ADMISSION;
 
 const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
 const DATABASE_ID = "00000000-0000-4000-8000-000000000000";
@@ -57,6 +63,7 @@ function serviceEnv(overrides: Partial<BackupEnv> = {}): BackupEnv {
   return {
     BACKUPS: bucket,
     BACKUP_WORKFLOW: workflowStub().binding,
+    BACKUP_ADMISSION: admissionNamespace,
     CLOUDFLARE_ACCOUNT_ID: ACCOUNT_ID,
     D1_DATABASE_ID: DATABASE_ID,
     D1_DATABASE_NAME: "dalyhub-v2",
@@ -90,6 +97,10 @@ function run(overrides: Partial<BackupRunRecord> = {}): BackupRunRecord {
 beforeEach(async () => {
   const listed = await bucket.list({ prefix: "" });
   await Promise.all(listed.objects.map((object) => bucket.delete(object.key)));
+  await runInDurableObject(
+    backupAdmissionGate({ BACKUP_ADMISSION: admissionNamespace }),
+    (_instance, state) => state.storage.deleteAll(),
+  );
 });
 
 afterEach(() => {
@@ -273,7 +284,57 @@ describe("trigger()", () => {
     // The manual tier, so the object lands under production/manual/ and is kept
     // for a year. And it creates a Workflow instance rather than backing up
     // anything itself — there is exactly one backup engine.
-    expect(workflow.created).toEqual([{ params: { trigger: "manual" } }]);
+    expect(workflow.created).toHaveLength(1);
+    expect(workflow.created[0]).toMatchObject({
+      params: { trigger: "manual" },
+    });
+    expect(
+      (workflow.created[0] as { params?: { admissionId?: unknown } }).params
+        ?.admissionId,
+    ).toEqual(expect.any(String));
+  });
+
+  it("admits only one of two simultaneous manual triggers", async () => {
+    const workflow = workflowStub();
+    const service = makeService(
+      serviceEnv({ BACKUP_WORKFLOW: workflow.binding }),
+    );
+
+    const [a, b] = await Promise.all([service.trigger(), service.trigger()]);
+    const results = [a, b];
+
+    expect(results.filter((result) => result.accepted)).toHaveLength(1);
+    expect(
+      results.filter(
+        (result) => !result.accepted && result.status === "running",
+      ),
+    ).toHaveLength(1);
+    expect(workflow.binding.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the same gate for simultaneous manual and scheduled triggers", async () => {
+    const workflow = workflowStub();
+    const environment = serviceEnv({ BACKUP_WORKFLOW: workflow.binding });
+    const service = makeService(environment);
+
+    const [manual, scheduled] = await Promise.all([
+      service.trigger(),
+      startBackupWorkflow(environment, {
+        trigger: "daily",
+        scheduledTime: Date.parse("2026-08-13T16:00:00.000Z"),
+      }),
+    ]);
+    const results = [manual, scheduled];
+
+    expect(results.filter((result) => result.accepted)).toHaveLength(1);
+    expect(
+      results.filter(
+        (result) => !result.accepted && result.status === "running",
+      ),
+    ).toHaveLength(1);
+    expect(workflow.binding.create).toHaveBeenCalledTimes(1);
+    const created = workflow.created[0] as { params?: { trigger?: string } };
+    expect(["manual", "daily"]).toContain(created.params?.trigger);
   });
 
   it("refuses a second backup while one is genuinely running", async () => {
@@ -357,5 +418,42 @@ describe("trigger()", () => {
     expect(result.message).toBe(
       "The backup could not be started. Please try again.",
     );
+  });
+
+  it("cancels admission when Workflow creation fails, so a retry can start", async () => {
+    const failing = serviceEnv({
+      BACKUP_WORKFLOW: {
+        create: vi.fn(async () => {
+          throw new Error("workflow subsystem unavailable");
+        }),
+      } as unknown as BackupEnv["BACKUP_WORKFLOW"],
+    });
+    const failed = await makeService(failing).trigger();
+    expect(failed.accepted).toBe(false);
+
+    const workflow = workflowStub();
+    const retried = await makeService(
+      serviceEnv({ BACKUP_WORKFLOW: workflow.binding }),
+    ).trigger();
+
+    expect(retried.accepted).toBe(true);
+    expect(workflow.binding.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers a stale admission instead of wedging backups permanently", async () => {
+    const gate = backupAdmissionGate({ BACKUP_ADMISSION: admissionNamespace });
+    const old = new Date(
+      Date.now() - (BACKUP_STALLED_MINUTES + 5) * 60_000,
+    ).toISOString();
+    const admitted = await gate.admit({ trigger: "manual", now: old });
+    expect(admitted.accepted).toBe(true);
+
+    const workflow = workflowStub();
+    const result = await makeService(
+      serviceEnv({ BACKUP_WORKFLOW: workflow.binding }),
+    ).trigger();
+
+    expect(result.accepted).toBe(true);
+    expect(workflow.binding.create).toHaveBeenCalledTimes(1);
   });
 });

@@ -35,10 +35,10 @@ import {
   BACKUP_SCHEDULE_CRON,
   BACKUP_STALE_AFTER_HOURS,
   calculateBackupHealth,
-  runBlocksNewBackup,
   type BackupHealth,
   type BackupHealthReason,
 } from "./backup-health";
+import { startBackupWorkflow } from "./backup-start";
 import { checkBackupConfig, type BackupEnv } from "./config";
 import { logError, logInfo } from "./logging";
 import { BACKUP_RETENTION_DAYS } from "./object-key";
@@ -188,30 +188,14 @@ export class BackupService extends WorkerEntrypoint<BackupEnv> {
       };
     }
 
-    const now = new Date();
-    const log = await readRunLog(this.env.BACKUPS);
-    if (log !== null) {
-      const inFlight = log.find((run) => runBlocksNewBackup(run, now));
-      if (inFlight !== undefined) {
-        return {
-          accepted: false,
-          status: "running",
-          message: "A backup is already running.",
-        };
-      }
-    }
-    // A `null` log does not block the trigger. Being unable to read the history is
-    // not a reason to refuse to take a backup — it is a reason to take one.
-
     try {
-      const instance = await this.env.BACKUP_WORKFLOW.create({
-        params: { trigger: "manual" },
-      });
+      const result = await startBackupWorkflow(this.env, { trigger: "manual" });
+      if (!result.accepted) return result;
       logInfo("manual-trigger-accepted", {
         trigger: "manual",
-        instanceId: instance.id,
+        instanceId: result.instanceId,
       });
-      return { accepted: true, instanceId: instance.id, status: "queued" };
+      return result;
     } catch (error) {
       logError("manual-trigger-failed", {
         trigger: "manual",

@@ -1,9 +1,9 @@
 /**
  * BACKUP-02 — the Backups surface.
  *
- * Driven through `createRoutesStub` so `useFetcher` and `useRevalidator` are the
- * real ones and the "Back up now" button genuinely posts to a route, rather than
- * being tested against a hand-mocked hook that cannot disagree with the component.
+ * Driven through `createRoutesStub` so `useFetcher` submissions and dedicated
+ * status loads are real route interactions rather than hand-mocked hooks that
+ * cannot disagree with the component.
  *
  * The assertions are deliberately about what the OWNER can see and do:
  *   - every health state states itself in words, never by colour alone;
@@ -15,7 +15,13 @@
  *   - and there is no restore, delete or import control on the page at all.
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -97,6 +103,7 @@ function status(overrides: Partial<BackupStatusView> = {}): BackupStatusView {
 function renderSection(
   data: Partial<BackupSettingsData> = {},
   action?: () => unknown,
+  statusResponses: BackupSettingsData[] = [],
 ) {
   const settings: BackupSettingsData = {
     status: data.status ?? status(),
@@ -104,16 +111,24 @@ function renderSection(
     timeZone: data.timeZone ?? SYDNEY,
   };
   const runAction =
-    action ?? vi.fn(() => ({ ok: true, message: "Backup started." }));
+    action ??
+    vi.fn(() => ({
+      ok: true,
+      instanceId: "accepted-run",
+      message: "Backup started.",
+    }));
+  const queuedStatusResponses = [...statusResponses];
+  const statusLoader = vi.fn(() => queuedStatusResponses.shift() ?? settings);
   const Stub = createRoutesStub([
     {
       path: "/settings",
       Component: () => <BackupsSection data={settings} />,
     },
     { path: "/settings/backups/run", action: runAction },
+    { path: "/settings/backups/status", loader: statusLoader },
   ]);
   render(<Stub initialEntries={["/settings"]} />);
-  return { runAction };
+  return { runAction, statusLoader };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -369,6 +384,183 @@ describe("Back up now", () => {
     expect(
       await screen.findByText("A backup is already running."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Back up now polling", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ["Date", "setInterval", "clearInterval"],
+    });
+    vi.setSystemTime(NOW);
+  });
+
+  function dataWith(
+    acceptedRun: BackupRunView | null,
+    overrides: Partial<BackupSettingsData> = {},
+  ): BackupSettingsData {
+    const lastSuccess = run({ id: "previous-success" });
+    const statusOverride =
+      acceptedRun === null
+        ? status()
+        : acceptedRun.status === "failed"
+          ? status({
+              health: "attention",
+              reason: "latest_failed",
+              latestAttempt: acceptedRun,
+              lastSuccessfulBackup: lastSuccess,
+            })
+          : acceptedRun.status === "success"
+            ? status({
+                health: "healthy",
+                reason: "recent_success",
+                latestAttempt: acceptedRun,
+                lastSuccessfulBackup: acceptedRun,
+              })
+            : status({
+                health: "running",
+                reason: "running",
+                latestAttempt: acceptedRun,
+                lastSuccessfulBackup: lastSuccess,
+              });
+
+    return {
+      status: statusOverride,
+      history:
+        acceptedRun === null ? [lastSuccess] : [acceptedRun, lastSuccess],
+      timeZone: SYDNEY,
+      ...overrides,
+    };
+  }
+
+  function acceptedRun(
+    statusOverride: BackupRunView["status"],
+    overrides: Partial<BackupRunView> = {},
+  ): BackupRunView {
+    return run({
+      id: "accepted-run",
+      trigger: "manual",
+      status: statusOverride,
+      startedAt: "2026-08-14T03:00:00.000Z",
+      completedAt:
+        statusOverride === "success" || statusOverride === "failed"
+          ? "2026-08-14T03:00:09.000Z"
+          : null,
+      objectKey:
+        statusOverride === "success"
+          ? "production/manual/2026/08/dalyhub-v2-2026-08-14T030000Z.sql"
+          : null,
+      sizeBytes: statusOverride === "success" ? 1_420_000 : null,
+      retentionDays: 365,
+      stage: statusOverride === "failed" ? "r2-write" : null,
+      message:
+        statusOverride === "failed"
+          ? "The backup could not be saved to storage."
+          : null,
+      ...overrides,
+    });
+  }
+
+  async function advance(ms: number): Promise<void> {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+  }
+
+  it("starts no polling timer on an idle page", async () => {
+    const { statusLoader } = renderSection();
+
+    await advance(20_000);
+
+    expect(statusLoader).not.toHaveBeenCalled();
+  });
+
+  it("stops when the first status observation is terminal success", async () => {
+    const { statusLoader } = renderSection({}, undefined, [
+      dataWith(acceptedRun("success")),
+    ]);
+    fireEvent.click(screen.getByTestId("backup-run"));
+
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Backup completed.")).toBeInTheDocument();
+    expect(screen.getByTestId("backup-run")).toBeEnabled();
+
+    await advance(15_000);
+
+    expect(statusLoader).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues through queued and running, then stops on success", async () => {
+    const { statusLoader } = renderSection({}, undefined, [
+      dataWith(null),
+      dataWith(acceptedRun("queued")),
+      dataWith(acceptedRun("running")),
+      dataWith(acceptedRun("success")),
+    ]);
+    fireEvent.click(screen.getByTestId("backup-run"));
+
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId("backup-run")).toBeDisabled();
+
+    await advance(5_000);
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId("backup-run")).toBeDisabled();
+
+    await advance(5_000);
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(3));
+    expect(screen.getByTestId("backup-run")).toBeDisabled();
+
+    await advance(5_000);
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(4));
+    expect(await screen.findByText("Backup completed.")).toBeInTheDocument();
+    expect(screen.getByTestId("backup-run")).toBeEnabled();
+
+    await advance(10_000);
+    expect(statusLoader).toHaveBeenCalledTimes(4);
+  });
+
+  it("stops on failure and reports the failed run", async () => {
+    const { statusLoader } = renderSection({}, undefined, [
+      dataWith(acceptedRun("running")),
+      dataWith(acceptedRun("failed")),
+    ]);
+    fireEvent.click(screen.getByTestId("backup-run"));
+
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId("backup-run")).toBeDisabled();
+
+    await advance(5_000);
+
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("The backup could not be saved to storage.").length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByTestId("backup-run")).toBeEnabled();
+  });
+
+  it("stops at the bounded timeout if the accepted run never appears", async () => {
+    const { statusLoader } = renderSection({}, undefined, [
+      dataWith(null),
+      dataWith(null),
+      dataWith(null),
+    ]);
+    fireEvent.click(screen.getByTestId("backup-run"));
+
+    await waitFor(() => expect(statusLoader).toHaveBeenCalledTimes(1));
+
+    await advance(305_000);
+
+    expect(
+      await screen.findByText(/taking longer than expected/i),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("backup-run")).toBeEnabled();
+    const callsAfterTimeout = statusLoader.mock.calls.length;
+
+    await advance(20_000);
+
+    expect(statusLoader).toHaveBeenCalledTimes(callsAfterTimeout);
   });
 });
 

@@ -184,6 +184,23 @@ export function checkCommittedBackupConfig(text) {
       `infra/backup/wrangler.jsonc must bind the "${BUCKET_NAME}" bucket.`,
     );
   }
+  if (!/"name"\s*:\s*"BACKUP_ADMISSION"/.test(text)) {
+    problems.push(
+      'infra/backup/wrangler.jsonc must bind the "BACKUP_ADMISSION" Durable Object gate.',
+    );
+  }
+  if (!/"class_name"\s*:\s*"BackupAdmissionGate"/.test(text)) {
+    problems.push(
+      'infra/backup/wrangler.jsonc must bind the "BackupAdmissionGate" Durable Object class.',
+    );
+  }
+  if (
+    !/"new_sqlite_classes"\s*:\s*\[\s*"BackupAdmissionGate"\s*\]/.test(text)
+  ) {
+    problems.push(
+      'infra/backup/wrangler.jsonc must include a Durable Object migration for "BackupAdmissionGate".',
+    );
+  }
   return problems;
 }
 

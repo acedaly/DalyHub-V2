@@ -210,6 +210,7 @@ describe("the manual trigger", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ok: true,
+      instanceId: "instance-9",
       message: "Backup started.",
     });
     expect(service.trigger).toHaveBeenCalledTimes(1);
