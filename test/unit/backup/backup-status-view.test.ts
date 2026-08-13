@@ -27,12 +27,19 @@ import {
   formatBackupDuration,
   formatBackupInstant,
   formatBackupSize,
+  isCoherentBackupStatus,
   nextDailyCronRun,
   parseBackupHistory,
   parseBackupRun,
   parseBackupStatus,
   type BackupRunView,
 } from "~/kernel/backup";
+
+// The PRODUCER, imported so the contract below is checked against what the backup
+// Worker really emits rather than against what this file assumes. Its sibling
+// `backup-health.test.ts` imports from `infra/` the same way.
+import { calculateBackupHealth } from "../../../infra/backup/src/backup-health";
+import type { BackupRunRecord as HealthRun } from "../../../infra/backup/src/run-records";
 
 const SYDNEY = "Australia/Sydney";
 
@@ -105,14 +112,22 @@ describe("parseBackupStatus", () => {
     }
   });
 
-  it("keeps the rest of the status when one run is unreadable", () => {
-    // A malformed run should cost that run, not the whole verdict.
+  it("costs only the run itself when the verdict does not depend on it", () => {
+    // A malformed run should cost that run and no more — but only where the
+    // verdict does not rest on it. "Last attempt failed" is true whether or not
+    // an earlier success can be read, so the failure verdict survives.
     const status = parseBackupStatus(
-      statusPayload({ latestAttempt: { id: "" } }),
+      statusPayload({
+        health: "attention",
+        reason: "latest_failed",
+        latestAttempt: runPayload({ status: "failed", stage: "r2-write" }),
+        lastSuccessfulBackup: { id: "" },
+      }),
     );
     expect(status.available).toBe(true);
-    expect(status.latestAttempt).toBeNull();
-    expect(status.lastSuccessfulBackup).not.toBeNull();
+    expect(status.health).toBe("attention");
+    expect(status.latestAttempt).not.toBeNull();
+    expect(status.lastSuccessfulBackup).toBeNull();
   });
 
   it("substitutes safe defaults for missing numbers", () => {
@@ -136,6 +151,261 @@ describe("parseBackupStatus", () => {
       runPayload({ status: "failed", stage: "r2-write", message: long }),
     );
     expect(parsed?.message?.length).toBeLessThanOrEqual(200);
+  });
+
+  /*
+   * Field-by-field validation is not enough: every field can be individually
+   * valid while the payload as a whole is a lie. These are the combinations that
+   * would otherwise render a confident verdict with no evidence behind it.
+   */
+  describe("coherence between the verdict and its evidence", () => {
+    it("refuses 'healthy' with no successful backup to point at", () => {
+      // The finding this suite exists for: enum-valid, run-invalid, and the
+      // surface would have said "Healthy" beside "Last successful backup: None".
+      for (const broken of [undefined, null, {}, { id: "" }, "nonsense"]) {
+        const status = parseBackupStatus(
+          statusPayload({ lastSuccessfulBackup: broken }),
+        );
+        expect(status.available).toBe(false);
+        expect(status.health).toBe("unknown");
+        expect(status.reason).toBe("unavailable");
+      }
+    });
+
+    it("refuses 'healthy' paired with any other reason", () => {
+      for (const reason of ["running", "stale", "no_runs", "latest_failed"]) {
+        expect(parseBackupStatus(statusPayload({ reason })).available).toBe(
+          false,
+        );
+      }
+    });
+
+    it("refuses a verdict about a run that is not there", () => {
+      for (const [health, reason] of [
+        ["running", "running"],
+        ["attention", "latest_failed"],
+        ["attention", "stalled"],
+        ["attention", "stale"],
+      ] as const) {
+        const status = parseBackupStatus(
+          statusPayload({
+            health,
+            reason,
+            latestAttempt: null,
+            lastSuccessfulBackup: runPayload(),
+          }),
+        );
+        expect(status.available, `${health}/${reason}`).toBe(false);
+      }
+    });
+
+    it("refuses 'stale' without the successful backup it is measuring", () => {
+      expect(
+        parseBackupStatus(
+          statusPayload({
+            health: "attention",
+            reason: "stale",
+            lastSuccessfulBackup: null,
+          }),
+        ).available,
+      ).toBe(false);
+    });
+
+    it("refuses 'no runs' while carrying a run", () => {
+      expect(
+        parseBackupStatus(
+          statusPayload({
+            health: "unknown",
+            reason: "no_runs",
+            latestAttempt: runPayload(),
+            lastSuccessfulBackup: null,
+          }),
+        ).available,
+      ).toBe(false);
+    });
+
+    it("still accepts the coherent shapes the producer really emits", () => {
+      // The check must not be so strict that honest states get reported as
+      // unavailable — over-rejecting is safe but it is not free.
+      const coherent = [
+        statusPayload(),
+        statusPayload({
+          health: "running",
+          reason: "running",
+          latestAttempt: runPayload({ status: "running", completedAt: null }),
+          lastSuccessfulBackup: null,
+        }),
+        statusPayload({
+          health: "attention",
+          reason: "latest_failed",
+          latestAttempt: runPayload({ status: "failed", stage: "r2-write" }),
+          lastSuccessfulBackup: null,
+        }),
+        statusPayload({
+          health: "attention",
+          reason: "stalled",
+          latestAttempt: runPayload({ status: "running", completedAt: null }),
+          lastSuccessfulBackup: null,
+        }),
+        statusPayload({ health: "attention", reason: "stale" }),
+        statusPayload({
+          health: "unknown",
+          reason: "no_runs",
+          latestAttempt: null,
+          lastSuccessfulBackup: null,
+        }),
+        statusPayload({
+          health: "unknown",
+          reason: "never_succeeded",
+          latestAttempt: runPayload({ status: "failed" }),
+          lastSuccessfulBackup: null,
+        }),
+        // `unavailable` reached WITH runs — the producer's un-computable-age
+        // branch. It must not be required to be empty.
+        statusPayload({ health: "unknown", reason: "unavailable" }),
+      ];
+      for (const payload of coherent) {
+        const status = parseBackupStatus(payload);
+        expect(status.available, `${payload.health}/${payload.reason}`).toBe(
+          true,
+        );
+      }
+    });
+  });
+});
+
+/**
+ * The drift guard.
+ *
+ * The coherence rules now live on both sides of the service binding: the producer
+ * (`calculateBackupHealth`, in the backup Worker) and the contract
+ * (`isCoherentBackupStatus`, here). If someone adds a branch to the health
+ * calculation that the validator would reject, the UI would silently go
+ * "unavailable" in production and nothing would fail. So the producer is driven
+ * over every branch it has and each verdict is checked against the contract.
+ *
+ * This mirrors the parity guard between `scripts/production-backup.mjs` and the
+ * Worker's own dump validation in `dump-validation.test.ts`.
+ */
+describe("the producer can only emit combinations the validator accepts", () => {
+  const NOW = new Date("2026-08-14T10:00:00.000Z");
+
+  function record(overrides: Partial<HealthRun> = {}): HealthRun {
+    return {
+      id: "instance-1",
+      trigger: "daily",
+      status: "success",
+      startedAt: "2026-08-13T16:00:00.000Z",
+      completedAt: "2026-08-13T16:00:09.000Z",
+      objectKey: "production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql",
+      sizeBytes: 424523,
+      retentionDays: 90,
+      stage: null,
+      message: null,
+      ...overrides,
+    };
+  }
+
+  function ago(hours: number): string {
+    return new Date(NOW.getTime() - hours * 3600_000).toISOString();
+  }
+
+  /** One case per branch `calculateBackupHealth` can return from. */
+  const CASES: readonly {
+    name: string;
+    runs: HealthRun[];
+    available: boolean;
+  }[] = [
+    { name: "unreadable state", runs: [record()], available: false },
+    { name: "no runs at all", runs: [], available: true },
+    {
+      name: "a run in progress",
+      runs: [
+        record({ status: "running", startedAt: ago(0.01), completedAt: null }),
+      ],
+      available: true,
+    },
+    {
+      name: "a stalled run",
+      runs: [
+        record({ status: "running", startedAt: ago(2), completedAt: null }),
+      ],
+      available: true,
+    },
+    {
+      name: "a failure with no earlier success",
+      runs: [
+        record({ status: "failed", startedAt: ago(2), completedAt: ago(2) }),
+      ],
+      available: true,
+    },
+    {
+      name: "a failure over an earlier success",
+      runs: [
+        record({ id: "ok", startedAt: ago(26), completedAt: ago(26) }),
+        record({
+          id: "bad",
+          status: "failed",
+          startedAt: ago(2),
+          completedAt: ago(2),
+        }),
+      ],
+      available: true,
+    },
+    {
+      name: "a stale success",
+      runs: [record({ startedAt: ago(40), completedAt: ago(40) })],
+      available: true,
+    },
+    {
+      name: "a recent success",
+      runs: [record({ startedAt: ago(8), completedAt: ago(8) })],
+      available: true,
+    },
+  ];
+
+  for (const testCase of CASES) {
+    it(`accepts the verdict for ${testCase.name}`, () => {
+      const verdict = calculateBackupHealth({
+        runs: testCase.runs,
+        available: testCase.available,
+        now: NOW,
+      });
+      expect(
+        isCoherentBackupStatus(
+          verdict.health,
+          verdict.reason,
+          verdict.latestAttempt,
+          verdict.lastSuccess,
+        ),
+        `${verdict.health}/${verdict.reason}`,
+      ).toBe(true);
+    });
+  }
+
+  it("covers every reason the validator knows about", () => {
+    // If a reason exists that no case above produces, the guard has a hole.
+    const produced = new Set(
+      CASES.map(
+        (testCase) =>
+          calculateBackupHealth({
+            runs: testCase.runs,
+            available: testCase.available,
+            now: NOW,
+          }).reason,
+      ),
+    );
+    // `never_succeeded` is unreachable in practice (the producer says so), so it
+    // is the one reason no case can exercise.
+    expect([...produced].sort()).toEqual([
+      "latest_failed",
+      "no_runs",
+      "recent_success",
+      "running",
+      "stale",
+      "stalled",
+      "unavailable",
+    ]);
   });
 });
 

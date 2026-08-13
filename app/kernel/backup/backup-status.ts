@@ -196,6 +196,73 @@ export function parseBackupRun(value: unknown): BackupRunView | null {
 }
 
 /**
+ * Whether a verdict and the runs supporting it are a COHERENT whole.
+ *
+ * ── Why field-by-field validation is not enough ──────────────────────────────
+ * Every field below can be individually valid while the payload as a whole is
+ * nonsense: `health: "healthy"` beside a missing `lastSuccessfulBackup` passes an
+ * enum check and a run check separately, and renders as
+ *
+ *     Status                  Healthy
+ *     Last successful backup  None
+ *
+ * — a confident claim with no evidence, which is the single worst thing this
+ * feature can say. The verdict and its evidence therefore have to be checked
+ * together, not one at a time.
+ *
+ * ── The rules are the producer's, not invented here ──────────────────────────
+ * These are exactly the combinations `calculateBackupHealth` can emit. They are
+ * restated on this side of the service binding because the backup Worker deploys
+ * independently, so "the other end wrote it" is not a validation strategy
+ * (AGENTS.md §17). Two details are easy to get wrong and are deliberate:
+ *
+ *   - `unknown`/`unavailable` MAY carry runs — the producer reaches it holding a
+ *     latest attempt whose age it could not compute — so it must not demand null;
+ *   - `attention`/`never_succeeded` is never emitted: a failure with no earlier
+ *     success is `attention`/`latest_failed` with a null `lastSuccessfulBackup`.
+ *
+ * Drift between the two sides is caught by a test that drives the real
+ * `calculateBackupHealth` over every branch and asserts each verdict satisfies
+ * this predicate (`test/unit/backup/backup-status-view.test.ts`).
+ *
+ * ── Strict where a false "Healthy" is possible, permissive elsewhere ─────────
+ * Over-rejecting only produces "status unavailable", which is honest and safe.
+ * Under-rejecting produces a lie. The asymmetry is intentional.
+ */
+export function isCoherentBackupStatus(
+  health: BackupHealth,
+  reason: BackupHealthReason,
+  latestAttempt: BackupRunView | null,
+  lastSuccessfulBackup: BackupRunView | null,
+): boolean {
+  switch (health) {
+    case "healthy":
+      // A claim of health requires the evidence for it: the run that succeeded.
+      return (
+        reason === "recent_success" &&
+        latestAttempt !== null &&
+        lastSuccessfulBackup !== null
+      );
+
+    case "running":
+      return reason === "running" && latestAttempt !== null;
+
+    case "attention":
+      if (latestAttempt === null) return false;
+      if (reason === "stale") return lastSuccessfulBackup !== null;
+      return reason === "stalled" || reason === "latest_failed";
+
+    case "unknown":
+      // The "we do not know" bucket. `no_runs` is the one shape with a hard
+      // requirement, because it literally asserts there are no runs.
+      if (reason === "no_runs") {
+        return latestAttempt === null && lastSuccessfulBackup === null;
+      }
+      return reason === "unavailable" || reason === "never_succeeded";
+  }
+}
+
+/**
  * Validate a status payload from the backup service.
  *
  * Returns {@link UNAVAILABLE_BACKUP_STATUS} rather than throwing, because there
@@ -217,6 +284,21 @@ export function parseBackupStatus(value: unknown): BackupStatusView {
     return UNAVAILABLE_BACKUP_STATUS;
   }
 
+  // Parsed BEFORE the verdict is accepted, because whether the verdict is
+  // believable depends on whether its supporting runs survived validation.
+  const latestAttempt = parseBackupRun(value.latestAttempt);
+  const lastSuccessfulBackup = parseBackupRun(value.lastSuccessfulBackup);
+  if (
+    !isCoherentBackupStatus(
+      health as BackupHealth,
+      reason as BackupHealthReason,
+      latestAttempt,
+      lastSuccessfulBackup,
+    )
+  ) {
+    return UNAVAILABLE_BACKUP_STATUS;
+  }
+
   const retention = isRecord(value.retentionDays) ? value.retentionDays : {};
   const daily = nonNegativeIntOrNull(retention.daily);
   const manual = nonNegativeIntOrNull(retention.manual);
@@ -225,8 +307,8 @@ export function parseBackupStatus(value: unknown): BackupStatusView {
     available: true,
     health: health as BackupHealth,
     reason: reason as BackupHealthReason,
-    latestAttempt: parseBackupRun(value.latestAttempt),
-    lastSuccessfulBackup: parseBackupRun(value.lastSuccessfulBackup),
+    latestAttempt,
+    lastSuccessfulBackup,
     retainedBackupCount: nonNegativeIntOrNull(value.retainedBackupCount) ?? 0,
     retainedBackupCountExact: value.retainedBackupCountExact === true,
     retentionDays: {

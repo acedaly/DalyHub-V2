@@ -47,25 +47,35 @@ function authedContext(subject = OWNER): RouterContextProvider {
   return context;
 }
 
-/** A healthy status payload, in the shape the real service returns. */
+const SUCCESSFUL_RUN = {
+  id: "instance-1",
+  trigger: "daily",
+  status: "success",
+  startedAt: "2026-08-13T16:00:00.000Z",
+  completedAt: "2026-08-13T16:00:09.000Z",
+  objectKey: "production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql",
+  sizeBytes: 424523,
+  retentionDays: 90,
+  stage: null,
+  message: null,
+};
+
+/**
+ * A healthy status payload, in the shape the real service returns.
+ *
+ * `latestAttempt` and `lastSuccessfulBackup` are the SAME run, which is what a
+ * healthy verdict actually looks like — the latest attempt is the success. An
+ * earlier draft of this fixture left `latestAttempt` null, and the boundary
+ * validator's coherence check rightly refused it: a claim of health with no
+ * attempt behind it is exactly the payload it exists to reject.
+ */
 function statusPayload(overrides: Record<string, unknown> = {}) {
   return {
     available: true,
     health: "healthy",
     reason: "recent_success",
-    latestAttempt: null,
-    lastSuccessfulBackup: {
-      id: "instance-1",
-      trigger: "daily",
-      status: "success",
-      startedAt: "2026-08-13T16:00:00.000Z",
-      completedAt: "2026-08-13T16:00:09.000Z",
-      objectKey: "production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql",
-      sizeBytes: 424523,
-      retentionDays: 90,
-      stage: null,
-      message: null,
-    },
+    latestAttempt: SUCCESSFUL_RUN,
+    lastSuccessfulBackup: SUCCESSFUL_RUN,
     retainedBackupCount: 3,
     retainedBackupCountExact: true,
     retentionDays: { daily: 90, manual: 365 },
@@ -89,7 +99,7 @@ function workingService(overrides: Record<string, unknown> = {}) {
     status: vi.fn(async () => statusPayload()),
     history: vi.fn(async () => ({
       available: true,
-      runs: [statusPayload().lastSuccessfulBackup],
+      runs: [SUCCESSFUL_RUN],
     })),
     trigger: vi.fn(async () => ({
       accepted: true,

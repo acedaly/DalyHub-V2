@@ -290,6 +290,41 @@ describe("the unavailable state", () => {
     renderSection({ status: parseBackupStatus(null), history: [] });
     expect(screen.getByTestId("backup-run")).toBeEnabled();
   });
+
+  it("never says Healthy for a payload with no successful backup behind it", () => {
+    // The end of the chain the boundary validator exists to break: a backup
+    // Worker deployed independently sends an enum-valid "healthy" whose
+    // supporting run is missing. Before the coherence check this rendered
+    // "Healthy" beside "Last successful backup: None" — a confident claim with
+    // no evidence, and the worst thing this screen could say.
+    const incoherent = parseBackupStatus({
+      available: true,
+      health: "healthy",
+      reason: "recent_success",
+      latestAttempt: run(),
+      lastSuccessfulBackup: null,
+      retainedBackupCount: 31,
+      retainedBackupCountExact: true,
+      retentionDays: { daily: 90, manual: 365 },
+      schedule: "0 16 * * *",
+      scheduleTimeZone: "UTC",
+      intervalHours: 24,
+      graceHours: 6,
+      staleAfterHours: 30,
+      databaseName: "dalyhub-v2",
+    });
+    renderSection({ status: incoherent, history: [] });
+
+    expect(screen.getByTestId("backup-health")).toHaveTextContent(
+      "Backup status unavailable",
+    );
+    expect(screen.getByTestId("backup-health")).not.toHaveTextContent(
+      "Healthy",
+    );
+    expect(
+      screen.getByText(/does not mean a backup has failed/i),
+    ).toBeInTheDocument();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
