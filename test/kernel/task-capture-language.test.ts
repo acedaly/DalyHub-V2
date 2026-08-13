@@ -21,7 +21,7 @@
  */
 
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RouterContextProvider } from "react-router";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
@@ -225,18 +225,31 @@ async function captureThroughApi(
   return body.capture;
 }
 
-/** The owner's calendar day for a timezone, computed the way the platform does. */
-function ownerDay(timeZone: string, at: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(at);
+/**
+ * Pin the instant `/api/capture` reads, so a calendar assertion has exactly one
+ * correct answer (DEBT-127).
+ *
+ * The route resolves the owner's day from `new Date()` at request time
+ * (`app/routes/api-capture.ts` → `captureOwnerDay`). A test that then derives its
+ * expectation from `new Date()` a few milliseconds later is not asserting the
+ * contract, it is racing it — and the race is against the SPREAD BETWEEN THE TWO
+ * ZONES, not against a millisecond. That is how DEBT-127 shipped: an assertion
+ * that two owners 25 hours apart are always exactly one calendar day apart, which
+ * is false for the hour of every UTC day in which they are two.
+ *
+ * Only `Date` is faked. Timers stay real, so nothing here can deadlock waiting
+ * for a clock the test owns.
+ */
+function pinClock(instantIso: string): void {
+  vi.useFakeTimers({ now: Date.parse(instantIso), toFake: ["Date"] });
 }
 
 beforeEach(async () => {
   await resetTables([WS]);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("TASKS-11 — a captured sentence becomes a TASKS-07 rule", () => {
@@ -426,6 +439,9 @@ describe("TASKS-11 — a fixed schedule stays a fixed schedule", () => {
 
 describe("TASKS-11 — the same sentence through CAPTURE-01", () => {
   it("produces the same Task and the same rule as the in-app surfaces", async () => {
+    // 00:30 Sydney on 14 August — a UTC instant on the PREVIOUS UTC day, so a
+    // machine-clock anchor would write 2026-08-13 and be caught here.
+    pinClock("2026-08-13T14:30:00.000Z");
     const token = await seedToken();
     await makeAppPreferencesRepository(makeContext(WS)).update(OWNER_SUBJECT, {
       timezone: "Australia/Sydney",
@@ -445,45 +461,107 @@ describe("TASKS-11 — the same sentence through CAPTURE-01", () => {
       dateKind: "scheduled",
     });
     // The transport carried NO recurrence field — the sentence was the whole input.
-    expect(task?.scheduledDate).toBe(ownerDay("Australia/Sydney", new Date()));
+    expect(task?.scheduledDate).toBe("2026-08-14");
   });
 
-  it("anchors the first occurrence in the OWNER's timezone, never the machine's", async () => {
-    // Two owners, 25 hours apart: their calendar days ALWAYS differ by exactly one,
-    // whatever instant the suite runs at. If the parser used the runtime's own date,
-    // the two captures would land on the same day.
-    const forward = await seedToken({ ownerSubject: "owner-forward" });
-    const back = await seedToken({ ownerSubject: "owner-back" });
-    const preferences = makeAppPreferencesRepository(makeContext(WS));
-    await preferences.update("owner-forward", {
-      timezone: "Pacific/Kiritimati",
+  /**
+   * DEBT-127 — the anchor is the OWNER's calendar day, at boundaries.
+   *
+   * `Pacific/Kiritimati` (UTC+14) and `Pacific/Midway` (UTC-11) are 25 hours
+   * apart, which is the whole point of the fixture: no machine clock can produce
+   * two different days for one instant, so any pair that differs proves the
+   * anchor was resolved per owner.
+   *
+   * What it must NOT assert is a fixed GAP between the two. A 25-hour spread puts
+   * their calendar dates one day apart for 23 hours of every UTC day and TWO days
+   * apart for the other one (10:00–11:00 UTC), so `gap === 1 day` was false for
+   * about 4% of the day — the defect this table replaces. Each row states the one
+   * calendar date each zone is in at a PINNED instant instead, which has exactly
+   * one correct answer and no dependence on when CI happens to run.
+   */
+  const ANCHOR_BOUNDARIES = [
+    {
+      at: "2026-08-13T09:59:59.999Z",
+      why: "the last instant before the two-day window opens",
+      kiritimati: "2026-08-13",
+      midway: "2026-08-12",
+    },
+    {
+      at: "2026-08-13T10:00:00.000Z",
+      why: "the window opens: Kiritimati rolls over, Midway has not",
+      kiritimati: "2026-08-14",
+      midway: "2026-08-12",
+    },
+    {
+      at: "2026-08-13T10:30:00.000Z",
+      why: "inside DEBT-127's window — the instant the old assertion failed at",
+      kiritimati: "2026-08-14",
+      midway: "2026-08-12",
+    },
+    {
+      at: "2026-08-13T11:00:00.000Z",
+      why: "the window closes: Midway rolls over too",
+      kiritimati: "2026-08-14",
+      midway: "2026-08-13",
+    },
+    {
+      at: "2026-08-12T23:59:59.999Z",
+      why: "the last instant of a UTC day — neither zone shares it",
+      kiritimati: "2026-08-13",
+      midway: "2026-08-12",
+    },
+    {
+      at: "2026-08-13T00:00:00.000Z",
+      why: "UTC midnight — the machine's day changes and neither owner's does",
+      kiritimati: "2026-08-13",
+      midway: "2026-08-12",
+    },
+    {
+      at: "2026-08-13T14:00:00.000Z",
+      why: "Kiritimati's own midnight, well away from UTC's",
+      kiritimati: "2026-08-14",
+      midway: "2026-08-13",
+    },
+  ] as const;
+
+  for (const boundary of ANCHOR_BOUNDARIES) {
+    it(`anchors the first occurrence in the OWNER's timezone, never the machine's — ${boundary.at} (${boundary.why})`, async () => {
+      pinClock(boundary.at);
+      const forward = await seedToken({ ownerSubject: "owner-forward" });
+      const back = await seedToken({ ownerSubject: "owner-back" });
+      const preferences = makeAppPreferencesRepository(makeContext(WS));
+      await preferences.update("owner-forward", {
+        timezone: "Pacific/Kiritimati",
+      });
+      await preferences.update("owner-back", { timezone: "Pacific/Midway" });
+
+      const forwardTask = await taskRepo().getTask(
+        (
+          await captureThroughApi(
+            forward,
+            "Service Hilux every 6 months after completion",
+          )
+        ).id,
+      );
+      const backTask = await taskRepo().getTask(
+        (
+          await captureThroughApi(
+            back,
+            "Service Hilux every 6 months after completion",
+          )
+        ).id,
+      );
+
+      // The claim, per owner: one instant, two owners, two calendar days — each
+      // the one its OWN zone is in.
+      expect(forwardTask?.scheduledDate).toBe(boundary.kiritimati);
+      expect(backTask?.scheduledDate).toBe(boundary.midway);
+      // ...and therefore not the same day, which is what a machine clock would
+      // have produced.
+      expect(forwardTask?.scheduledDate).not.toBe(backTask?.scheduledDate);
+      // Both still carry the same RULE — only the anchor differs.
+      expect(forwardTask?.recurrence?.mode).toBe("after_completion");
+      expect(backTask?.recurrence?.mode).toBe("after_completion");
     });
-    await preferences.update("owner-back", { timezone: "Pacific/Midway" });
-
-    const forwardTask = await taskRepo().getTask(
-      (
-        await captureThroughApi(
-          forward,
-          "Service Hilux every 6 months after completion",
-        )
-      ).id,
-    );
-    const backTask = await taskRepo().getTask(
-      (
-        await captureThroughApi(
-          back,
-          "Service Hilux every 6 months after completion",
-        )
-      ).id,
-    );
-
-    expect(forwardTask?.scheduledDate).not.toBe(backTask?.scheduledDate);
-    const gap =
-      Date.parse(`${forwardTask!.scheduledDate}T00:00:00Z`) -
-      Date.parse(`${backTask!.scheduledDate}T00:00:00Z`);
-    expect(gap).toBe(86_400_000);
-    // Both still carry the same RULE — only the anchor differs.
-    expect(forwardTask?.recurrence?.mode).toBe("after_completion");
-    expect(backTask?.recurrence?.mode).toBe("after_completion");
-  });
+  }
 });

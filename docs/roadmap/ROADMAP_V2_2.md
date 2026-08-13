@@ -793,11 +793,71 @@ drifted module code back in.
   including the desktop-unchanged assertions) on top of the existing
   `mobile-shell` / `mobile-modules` phone suites.
 
+### ☑ HARDEN-03 - Close the reliability loop - **DELIVERED 2026-08-12**
+
+The third and final hardening pass, taken so reliability can stop being a standing
+programme. No feature, no redesign, no CI workflow change. Full record:
+[`HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md`](../product/HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md).
+
+- **DEBT-126 was not a hang, and the recorded cause was wrong.** The Settings
+  preferences journey exceeded its own 30-second budget, and the failure landed on
+  whichever wait was HOLDING THE CLOCK when it expired — which is why the reported
+  step moved between CI (the Diary navigation) and a local run (the Settings one),
+  and why it read as `waitForLoadState("networkidle")` never arriving. MEASURED
+  with `--timeout=180000` so nothing can expire: the journey PASSES on the
+  unmodified gate in 35.3s, 36.0s, 36.4s and 42.5s. Split into four journeys, one
+  per preference contract, every assertion kept — 30 passed over three
+  `--repeat-each` runs, each journey 11.6-18.2s against its 30s budget.
+- **DEBT-127 was the arithmetic, not the product.** Two owners 25 hours apart
+  cannot be a fixed number of calendar days apart. Reproduced deterministically by
+  PINNING the clock rather than waiting for 10:00 UTC, then replaced with a table
+  of seven pinned instants each asserting the one calendar date each zone is in.
+  Strictly stronger than the gap it replaced; the file now reads no wall clock.
+- **DEBT-125 is deliberately left OPEN, which is the pass's main finding.** In the
+  seven `main` runs since HARDEN-02, not one produced a completed E2E result: six
+  had shards 4 and/or 8 reach `globalTimeout` with 27-118 tests never executed, and
+  one was red with no failing test at all. The browser fix IS holding — no SIGSEGV
+  and no `browser.newContext` cluster across 56 shard jobs — and `main` is no
+  longer broadly red, but a suite that cannot finish is not a signal.
+- **Two entries split out rather than left inside DEBT-125 as unexplained**:
+  DEBT-128 (count-based shard slicing) and DEBT-129 (four named, feature-owned
+  failures). Both are answered by HARDEN-04 below.
+- **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no timeout increased,
+  no selector widened, no test deleted, no CI workflow change, no production
+  contact. The shared `networkidle` gate in `e2e/helpers.ts` was suspected,
+  measured, found NOT to be the cause, and left alone rather than changed on a
+  hunch across ~1,000 tests.
+
 ### NEXT
 
-Empty. Every entry that stood here is delivered above — TASKS-11, PWA-12,
-MOBILE-01 and CAL-01 — and the next thing to pick up is in LATER, or is whatever
-the next audit finds.
+### ☐ HARDEN-04 - A finishing, readable E2E run
+
+The one bounded piece of work between DalyHub and "ordinary feature work can
+resume". It is a single decision with the measurements already in hand, not
+another hardening programme — which is the distinction
+[HARDEN-03](#-harden-03---close-the-reliability-loop---delivered-2026-08-12) was
+run to establish.
+
+- **Re-derive the shard split from measured per-shard TIME** (DEBT-128).
+  `--shard=n/N` slices by test COUNT, so shards 4 and 8 draw the heaviest spec
+  files and never finish. A larger `globalTimeout` cannot answer it: shard 8 needs
+  31-46 minutes at its observed rate, past the job's own 40-minute backstop.
+  `playwright-report/results.json` already carries the per-test durations, and
+  `playwright.config.ts` carries the constraints any answer must respect — the
+  runner pool saturates past roughly twelve concurrent jobs, and per-shard BROWSER
+  LIFETIME matters as well as per-shard minutes.
+- **Diagnose the four residual failures, each by the module that owns it**
+  (DEBT-129): `tasks-v22-daily-driver.spec.ts:158` (TASKS-05),
+  `today-focus.spec.ts:290` and `:331` (TODAY-10),
+  `pwa-offline-tasks.spec.ts:386` (PWA-12). Classify before repairing — HARDEN-02
+  found two of its four residuals were PRODUCT defects that had been read as test
+  drift.
+- **Then DEBT-125 can be evaluated at last**, and DEBT-76's "ten consecutive green
+  `main` runs" becomes answerable for the first time since it was written.
+
+Everything else that stood in NEXT is delivered above — TASKS-11, PWA-12,
+MOBILE-01 and CAL-01 — so after this the next thing to pick up is in LATER, or is
+whatever the next audit finds.
 
 ### LATER
 
