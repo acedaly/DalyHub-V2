@@ -89,6 +89,7 @@
 @import "./styles/feedback.css";
 @import "./styles/inspector.css";
 @import "./styles/settings.css";
+@import "./styles/backups.css";
 @import "./styles/help.css";
 @import "./styles/markdown-editor.css";
 /* UIX-04 — the shared writing-surface composition (the document column, its

@@ -39,6 +39,7 @@ import {
 } from "~/kernel/account-security";
 import { buildInfo } from "~/lib/version";
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
+import { readBackupSettings, type BackupServiceEnv } from "~/platform/backup";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { OfflineChangesPanel, OfflineSettingsPanel } from "~/shared/offline";
@@ -97,6 +98,7 @@ import {
   calendarEncryptionConfigured,
   type CalendarSecretsEnv,
 } from "~/platform/calendar";
+import { BackupsSection } from "../BackupsSection";
 import { RestoreFromBackup } from "../RestoreFromBackup";
 
 import type { Route } from "./+types/index";
@@ -107,6 +109,7 @@ type SectionId =
   | "capture"
   | "calendars"
   | "account-security"
+  | "backups"
   | "date-time"
   | "navigation"
   | "privacy-data"
@@ -207,6 +210,17 @@ const SECTIONS: readonly {
     label: "Offline & app",
     group: "system",
     summary: "Installing DalyHub, and what works without a connection.",
+  },
+  {
+    // BACKUP-02 — Backups sits in "This app" rather than in "Your data". What it
+    // shows is the health of the INFRASTRUCTURE underneath the workspace, not a
+    // choice about the owner's data: there is nothing to configure here and
+    // nothing to consent to. "Your data" answers "what may DalyHub do with my
+    // information?"; this answers "is the thing I am trusting actually working?"
+    id: "backups",
+    label: "Backups",
+    group: "system",
+    summary: "Whether your data is being backed up, and a backup on demand.",
   },
   {
     id: "about",
@@ -389,6 +403,18 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // fingerprint crosses this boundary: `CalendarSourceView` cannot hold one.
     calendars:
       section === "calendars" ? await readCalendarSettings(scope) : null,
+    // BACKUP-02 — read ONLY for the section that renders it, like the blocks
+    // above. It costs one service-binding round trip to the private backup
+    // Worker, and every other Settings section would pay for it while showing
+    // nothing. No SQL, no signed URL and no credential can cross this boundary:
+    // `BackupStatusView`/`BackupRunView` cannot express one.
+    backups:
+      section === "backups"
+        ? await readBackupSettings(
+            env as unknown as BackupServiceEnv,
+            await scope.ownerTimeZone().catch(() => preferences.timezone),
+          )
+        : null,
     preferences: {
       timezone: preferences.timezone,
       dateFormat: preferences.dateFormat,
@@ -1055,6 +1081,9 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
         ) : null}
         {active === "privacy-data" ? <PrivacyDataSection /> : null}
         {active === "offline" ? <OfflineSection /> : null}
+        {active === "backups" && loaderData.backups ? (
+          <BackupsSection data={loaderData.backups} />
+        ) : null}
         {active === "about" ? <AboutSection data={loaderData} /> : null}
       </div>
     </div>

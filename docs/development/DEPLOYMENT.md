@@ -232,7 +232,86 @@ sweep with `pnpm run verify:production`. Covered by
 request injected — no real git remote, GitHub API, database or Worker is
 touched by tests.
 
-### Automated production backups (V2.0.1, encrypted in V2.1 — AUDIT-11)
+### Automated production backups to R2 (BACKUP-01)
+
+A separate Cloudflare Worker, **`dalyhub-v2-backup`**, hosts the
+**`dalyhub-production-backup`** Workflow, which exports the production D1
+database to the private R2 bucket **`dalyhub-v2-backups`** nightly at
+**16:00 UTC** (02:00 AEST / 03:00 AEDT — Cloudflare cron schedules are UTC).
+
+It is deliberately NOT part of `dalyhub-v2-production`: it has no route, no
+custom domain, no `workers.dev` origin and no D1 binding, and it shares nothing
+with the application Worker but the database it reads. A backup that stops
+working because a UI change was deployed is not a backup.
+
+The schedule is the backup Worker's **own Cron Trigger**, whose `scheduled()`
+handler creates one Workflow instance per firing. Native `schedules` on the
+Workflow binding was the intended form but requires a **paid Workers plan**;
+Cron Triggers are free-tier and the backup logic is identical either way. The
+CAL-01 calendar cron on `dalyhub-v2-production` is untouched — two Workers, two
+triggers, no shared handler.
+
+Full architecture, configuration and retention:
+[`infra/backup/README.md`](../../infra/backup/README.md). Recovery procedures:
+[`BACKUP_AND_RESTORE.md` §5](BACKUP_AND_RESTORE.md#5-catastrophic-d1-recovery).
+
+- **Retention** is enforced by R2 lifecycle rules, not by code: 90 days for
+  `production/daily/`, 365 days for `production/manual/`.
+- **The secret** is `D1_REST_API_TOKEN` on the backup Worker — a dedicated token
+  whose only permission is **Account → D1 → Edit** (`D1 Read` is insufficient;
+  the export endpoint is a POST). Never committed, never logged, never reused
+  from another token.
+- **Seeing that it worked (BACKUP-02).** `Settings → This app → Backups` shows
+  backup health in the app and offers a manual backup. It reaches the backup
+  Worker through the `BACKUP_SERVICE` **service binding** declared in
+  `env.production` — the application Worker has no R2 binding and no export
+  token, and the backup Worker's status API is a named `WorkerEntrypoint` with no
+  URL. The binding is production-only: local development has no such Worker, and
+  its absence renders as "status unavailable", so `wrangler dev` and the
+  credential-free dry-run are unaffected. **Deploy `dalyhub-v2-backup` before
+  `dalyhub-v2-production`** the first time, so the entrypoint exists when the
+  binding is created.
+- **Setup and everyday commands:**
+
+  ```sh
+  pnpm run backup:provision   # private bucket + lifecycle rules (needs R2 enabled)
+  pnpm run backup:secret      # set D1_REST_API_TOKEN interactively
+  pnpm run backup:deploy      # deploy the Worker + scheduled Workflow
+  pnpm run backup:verify      # assert the live schedule, bindings and privacy
+  pnpm run backup:status      # inspect the latest Workflow run
+  ```
+
+#### Optional pre-deployment backup
+
+**Ordinary deploys are deliberately NOT coupled to this.** `deploy:production`
+does not wait on a Workflow, and making every application deploy block on a
+nightly backup job would trade a reliable deploy for an unreliable one.
+
+But before a release that **applies a migration** — anything in the "production
+migrations" sequence below — take one by hand. The whole point of the 365-day
+manual tier is that this backup is still there long after the incident:
+
+```sh
+source .production.env
+
+pnpm run db:production:backup          # → production/manual/, kept 365 days
+pnpm run backup:status                 # wait for "complete"
+pnpm run db:production:backup:list     # confirm the object exists, non-zero
+
+pnpm run db:production:apply           # migrations
+pnpm run deploy:production             # application
+pnpm run verify:production             # verification
+```
+
+Do not run the deploy until the backup has reported complete and the object has
+been listed. "The command returned" is not the same claim as "there is a backup".
+
+### Automated production backups to GitHub (V2.0.1, encrypted in V2.1 — AUDIT-11)
+
+This runs **in addition to** the R2 backup above, and that is deliberate: the two
+live in different trust boundaries, so a Cloudflare-side disaster does not take
+the GitHub copy with it, and vice versa. See
+[`BACKUP_AND_RESTORE.md` §1](BACKUP_AND_RESTORE.md#1-the-three-backups-and-which-one-to-use).
 
 `.github/workflows/production-backup.yml` exports the production D1 database on
 a schedule, through the SAME audited wrapper the manual release steps use

@@ -585,6 +585,15 @@ describe("module discovery", () => {
           moduleId: "settings",
           file: "routes/calendars.tsx",
         },
+        // BACKUP-02 — the backup endpoints. `GET status` (sanitised health and
+        // recent history, polled while a backup runs) and `POST run`. Unlike its
+        // siblings it has a GET, because it returns operational metadata rather
+        // than a credential. No nav entry: it is driven from the Backups section.
+        {
+          id: "settings.backups",
+          moduleId: "settings",
+          file: "routes/backups.tsx",
+        },
         // SET-03 — the two Account & security history endpoints (POST-only).
         {
           id: "settings.account.security",
