@@ -70,6 +70,25 @@
     },
   ],
 
+  // The single serialised admission point for manual and scheduled backups.
+  // It stores only operational metadata: admission id, trigger, timestamps and
+  // Workflow instance id. It does not have a D1 or R2 data role.
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BACKUP_ADMISSION",
+        "class_name": "BackupAdmissionGate",
+      },
+    ],
+  },
+
+  "migrations": [
+    {
+      "tag": "backup_admission_gate_v1",
+      "new_sqlite_classes": ["BackupAdmissionGate"],
+    },
+  ],
+
   // The nightly schedule.
   //
   // **Cron schedules are UTC.** `0 16 * * *` is 16:00 UTC, which is 02:00 AEST

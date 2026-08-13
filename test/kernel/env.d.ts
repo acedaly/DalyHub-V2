@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/vitest-pool-workers/types" />
 
 import type { D1Migration } from "cloudflare:test";
+import type { BackupAdmissionGate } from "../../infra/backup/src/backup-admission";
 
 // The Workers Vitest pool (vitest.workers.config.ts) injects the parsed,
 // committed migrations as a `TEST_MIGRATIONS` binding so the migration setup
@@ -11,6 +12,7 @@ declare global {
   namespace Cloudflare {
     interface Env {
       TEST_MIGRATIONS: D1Migration[];
+      BACKUP_ADMISSION: DurableObjectNamespace<BackupAdmissionGate>;
       // A second, deliberately UN-migrated local D1 (see
       // vitest.workers.config.ts) used only by the FND-03 migration test to
       // apply migrations 0001 → 0002 sequentially over seeded data. Not a real

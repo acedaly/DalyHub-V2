@@ -27,6 +27,7 @@ import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runProductionBackup } from "../../infra/backup/src/backup-workflow";
+import type { BackupAdmissionNamespace } from "../../infra/backup/src/backup-admission";
 import type { BackupEnv, BackupParams } from "../../infra/backup/src/config";
 import { REQUIRED_DUMP_TABLES } from "../../infra/backup/src/dump-validation";
 
@@ -52,11 +53,15 @@ function validDump(): string {
 }
 
 const bucket = (env as unknown as { BACKUPS: R2Bucket }).BACKUPS;
+const admissionNamespace = (
+  env as unknown as { BACKUP_ADMISSION: BackupAdmissionNamespace }
+).BACKUP_ADMISSION;
 
 function backupEnv(overrides: Partial<BackupEnv> = {}): BackupEnv {
   return {
     BACKUPS: bucket,
     BACKUP_WORKFLOW: undefined as unknown as BackupEnv["BACKUP_WORKFLOW"],
+    BACKUP_ADMISSION: admissionNamespace,
     CLOUDFLARE_ACCOUNT_ID: ACCOUNT_ID,
     D1_DATABASE_ID: DATABASE_ID,
     D1_DATABASE_NAME: "dalyhub-v2",

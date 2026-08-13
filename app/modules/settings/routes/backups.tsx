@@ -49,7 +49,7 @@ import type { Route } from "./+types/backups";
 const backupEnv = env as unknown as BackupServiceEnv;
 
 export type BackupActionResult =
-  | { readonly ok: true; readonly message: string }
+  | { readonly ok: true; readonly instanceId: string; readonly message: string }
   | { readonly ok: false; readonly message: string };
 
 function json(data: unknown, status = 200): Response {
@@ -94,6 +94,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   if (outcome.ok) {
     return json({
       ok: true,
+      instanceId: outcome.instanceId,
       message: "Backup started.",
     } satisfies BackupActionResult);
   }

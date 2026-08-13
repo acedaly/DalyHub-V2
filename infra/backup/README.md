@@ -78,10 +78,10 @@ this Worker over a **Worker service binding**, never by reading the bucket:
  dalyhub-v2-production          ← NO R2 binding, NO D1-export token
        │  BACKUP_SERVICE (service binding, entrypoint "BackupService")
        ▼
- dalyhub-v2-backup
+dalyhub-v2-backup
        ├─ status()   health, last success, last attempt, sizes, retention
        ├─ history()  the last 30 runs
-       └─ trigger()  starts the ONE Workflow; refuses if one is running
+       └─ trigger()  admits through BACKUP_ADMISSION, then starts the Workflow
 ```
 
 `BackupService` is a **named `WorkerEntrypoint`**, deliberately not routes on the
@@ -95,6 +95,28 @@ timestamps, sizes, retention, a trigger label, and a canned failure sentence.
 Never a dump, a signed URL, a token or an object body. The application validates
 it again at its own boundary (`app/kernel/backup`), so a mid-deploy or malformed
 response shows as "status unavailable" rather than a confident "Healthy".
+
+### Atomic admission
+
+Manual and scheduled backups share one admission gate:
+
+```
+manual trigger
+      \
+       → BACKUP_ADMISSION Durable Object → BACKUP_WORKFLOW.create()
+      /
+scheduled trigger
+```
+
+The gate is a single named Durable Object (`BackupAdmissionGate`) bound only to
+`dalyhub-v2-backup`. It stores only operational metadata — admission id, trigger,
+timestamps and Workflow instance id — and gives a real serialised decision across
+Worker requests and isolates. It is not a second backup engine and it has no route.
+
+The stale policy deliberately matches the health model: an admission older than
+the existing 30-minute stalled-run threshold no longer blocks a new backup. A
+failed `BACKUP_WORKFLOW.create()` cancels admission immediately, and normal
+Workflow success/failure releases it after the terminal run record is written.
 
 ### Run state in R2
 
@@ -142,6 +164,8 @@ learns to ignore. Six hours still reports a genuinely missed night by mid-mornin
 | File | What it holds |
 | --- | --- |
 | `src/index.ts` | Entrypoint. Exports the Workflow and `BackupService`; `scheduled()` creates the nightly instance; `fetch` returns 404 and is unreachable by design. |
+| `src/backup-admission.ts` | The Durable Object admission gate shared by manual and scheduled triggers. |
+| `src/backup-start.ts` | The one server-side path that admits and creates backup Workflow instances. |
 | `src/backup-service.ts` | The service-binding entrypoint: `status()`, `history()`, `trigger()`. |
 | `src/backup-health.ts` | The one health calculation, and its named thresholds. Pure. |
 | `src/run-records.ts` | The run record, its key, and the stage→sentence failure map. Pure. |

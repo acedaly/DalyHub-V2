@@ -53,6 +53,7 @@ import { WorkflowEntrypoint } from "cloudflare:workers";
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
 
+import { backupAdmissionGate } from "./backup-admission";
 import { checkBackupConfig } from "./config";
 import type { BackupConfig, BackupEnv, BackupParams } from "./config";
 import { D1ExportError, downloadExport, pollD1Export } from "./d1-export";
@@ -208,6 +209,26 @@ async function recordRunSafely(
   }
 }
 
+async function releaseAdmissionSafely(
+  env: BackupEnv,
+  event: Readonly<WorkflowEvent<BackupParams>>,
+): Promise<void> {
+  const admissionId = event.payload?.admissionId;
+  if (typeof admissionId !== "string" || admissionId === "") return;
+
+  try {
+    await backupAdmissionGate(env).release({
+      admissionId,
+      instanceId: event.instanceId,
+    });
+  } catch (error) {
+    logError("admission-release-failed", {
+      instanceId: event.instanceId,
+      reason: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+}
+
 export async function runProductionBackup(
   env: BackupEnv,
   event: Readonly<WorkflowEvent<BackupParams>>,
@@ -252,6 +273,7 @@ export async function runProductionBackup(
       stage: null,
       message: null,
     });
+    await releaseAdmissionSafely(env, event);
     return result;
   } catch (error) {
     // Reached only after `step.do` has exhausted its retries (or hit a
@@ -262,6 +284,7 @@ export async function runProductionBackup(
       env,
       failedRun(base, tracker.stage, new Date().toISOString()),
     );
+    await releaseAdmissionSafely(env, event);
     throw error;
   }
 }

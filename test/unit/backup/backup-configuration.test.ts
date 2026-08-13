@@ -160,6 +160,14 @@ describe("the committed backup Wrangler config", () => {
     expect(CONFIG_TEXT).toContain(`"bucket_name": "${BUCKET_NAME}"`);
   });
 
+  it("binds and migrates the atomic backup admission gate", () => {
+    expect(CONFIG_TEXT).toContain('"name": "BACKUP_ADMISSION"');
+    expect(CONFIG_TEXT).toContain('"class_name": "BackupAdmissionGate"');
+    expect(CONFIG_TEXT).toContain(
+      '"new_sqlite_classes": ["BackupAdmissionGate"]',
+    );
+  });
+
   it("schedules the backup nightly at 16:00 UTC", () => {
     expect(BACKUP_CRON).toBe("0 16 * * *");
     // Either expression of the schedule is acceptable — a `schedules` entry on

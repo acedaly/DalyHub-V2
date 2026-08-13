@@ -24,6 +24,7 @@ export default defineConfig({
       );
 
       return {
+        main: "./infra/backup/src/index.ts",
         miniflare: {
           // Kept in step with wrangler.jsonc so tests match production runtime.
           compatibilityDate: "2026-07-17",
@@ -40,6 +41,9 @@ export default defineConfig({
           // custom metadata that was written, and a stub would happily agree
           // with whatever the code did. Never a remote bucket.
           r2Buckets: ["BACKUPS"],
+          durableObjects: {
+            BACKUP_ADMISSION: "BackupAdmissionGate",
+          },
           bindings: {
             // The parsed migrations, injected so the setup file can apply them.
             TEST_MIGRATIONS: migrations,
