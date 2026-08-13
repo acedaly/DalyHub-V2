@@ -338,6 +338,30 @@ sweeping four feature defects into a reliability-closure PR is the thing this pa
 was told not to do. They are raised as **DEBT-129**, individually named so the
 entry cannot become the bucket DEBT-125 was warned against becoming.
 
+### This branch's own run finished every shard — and that is NOT evidence DEBT-128 is fixed
+
+Run [`31675715619`](https://github.com/acedaly/DalyHub-V2/actions/runs/31675715619)
+(this branch @ `acbad51`) had **all eight E2E shards complete**, with **no shard
+reaching `globalTimeout` and no test reported "did not run"** — the first such run
+anywhere in this investigation. Only one E2E test failed
+(`pwa-offline-tasks.spec.ts:386`, DEBT-129 row 4), and shards 1, 2, 3, 4, 6, 7 and
+8 were green.
+
+It is recorded because it is a real measurement, and hedged because it proves less
+than it looks like it proves. `playwright.config.ts` already names the trap:
+`--shard` slices by test COUNT, so **adding a spec anywhere re-slices every
+shard**, and "a green run says only that THIS draw fits". This branch adds three
+tests (one Settings journey became four) and removes a journey that was consuming
+30–42 s on shard 8 and failing there on two of the seven `main` runs — a failing
+test burns its whole timeout. The boundaries moved and the draw happened to fit.
+
+So: the split is still count-based and still unguarded, DEBT-128 stands unchanged,
+and this run is **one favourable draw on a branch**, not the sustained evidence on
+`main` that DEBT-125 asks for. What it does add is support for the DEBT-128
+diagnosis itself — the suite CAN finish in 25 minutes when the heavy files are not
+concentrated, which is consistent with a distribution problem and inconsistent
+with the suite having simply outgrown its budget.
+
 ### One more, found by this PR's own CI, and fixed here
 
 `test/unit/tasks/TasksQuickAdd.test.tsx:190` — *"NEVER discards entered text after

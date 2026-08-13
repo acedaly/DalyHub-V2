@@ -1824,9 +1824,22 @@ that required CI is a readable signal, because the suite has not finished.
   shards buy no wall-clock, only setup), and per-shard BROWSER LIFETIME matters as
   well as per-shard minutes. Note the trap that comment records: adding a spec file
   anywhere re-slices every shard, so a green run says only that THIS draw fits.
+- **One favourable draw, recorded so it is not mistaken for a fix.** HARDEN-03's own
+  branch run
+  ([`31675715619`](https://github.com/acedaly/DalyHub-V2/actions/runs/31675715619))
+  completed **all eight shards**, with nothing unrun — the first such run in this
+  investigation. It adds three tests (one Settings journey became four) and removes
+  a journey that was consuming 30–42 s on shard 8 and FAILING there on two `main`
+  runs, so the boundaries moved and the draw fit. That is the trap
+  `playwright.config.ts` already names, not evidence against this entry: the slicer
+  is unchanged, the next spec file added anywhere re-slices every shard, and a
+  green run says only that THIS draw fits. It does support the diagnosis — the
+  suite CAN finish in 25 minutes when the heavy files are not concentrated, which
+  is a distribution problem rather than a suite that outgrew its budget.
 - **Closing condition.** Three consecutive `main` runs in which **no shard reaches
   `globalTimeout` and no test is reported as "did not run"** — with the split
-  justified from measured per-shard times rather than from a count.
+  justified from measured per-shard times rather than from a count. A run that
+  merely happens to fit does not count; the justification is the condition.
 - **Related roadmap item.** [HARDEN-04](../roadmap/ROADMAP_V2_2.md#-harden-04---a-finishing-readable-e2e-run) — its first half is exactly this entry.
 - **Related.** [`playwright.config.ts`](../../playwright.config.ts) · [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) · [HARDEN-01](HARDEN_01_RELEASE_RELIABILITY_2026_08.md) (the 18 → 8 re-split) · [HARDEN-03](HARDEN_03_CLOSE_RELIABILITY_LOOP_2026_08.md).
 
