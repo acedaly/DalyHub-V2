@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   ownerToday,
+  postSameOrigin,
   waitForInteractive,
 } from "./helpers";
 
@@ -328,16 +329,50 @@ test.describe("GOAL-02 — Today", () => {
 
   test("shows the workload trend once the week has something in it", async ({
     page,
+    request,
   }) => {
-    await gotoFixture(page, "/today");
+    /*
+     * Complete one task from the day. That is a real completion on the owner's
+     * calendar today, which is what gives the week something to compare.
+     *
+     * It completes a task THIS TEST CREATED, and that is the whole of the
+     * change HARDEN-04 made here. It used to tick `.dh-day-row__check` FIRST —
+     * whatever happened to be at the top of the Focus panel, which is the
+     * oldest row of the OVERDUE band, which in the shared development workspace
+     * is the seeded "Submit the abstract". Completing it takes the "Conference
+     * talk" Project off at-risk permanently, and `project-health.spec.ts:31`
+     * exists to assert that Project IS at risk. The two specs never shared a
+     * runner under the old count-based shard split, so the leak was invisible;
+     * they do now, and it failed on the first run of the new partition
+     * (31748745557, `E2E p08`) with "On track — All tasks complete".
+     *
+     * Owning the record also removes the `if (count)` guard, which could make
+     * this journey assert nothing at all on a day the fixture happened to be
+     * empty, and the 500 ms sleep that stood in for a signal.
+     */
+    const title = `GOAL02 trend ${Date.now()}`;
+    const created = await postSameOrigin(request, "/tasks/new", {
+      form: { title, dueDate: ownerToday() },
+    });
+    const body = (await created.json()) as {
+      ok: boolean;
+      taskId?: string;
+      formError?: string;
+    };
+    expect(body.ok, `creating "${title}": ${body.formError ?? ""}`).toBe(true);
 
-    // Complete one task from the day. That is a real completion on the owner's
-    // calendar today, which is what gives the week something to compare.
-    const firstTask = page.locator(".dh-day-row__check").first();
-    if (await firstTask.count()) {
-      await firstTask.check();
-      await page.waitForTimeout(500);
-    }
+    await gotoFixture(page, "/today");
+    const own = page
+      .locator(".dh-day-row", { hasText: title })
+      .getByRole("checkbox", { name: `Complete ${title}` });
+    await own.check();
+    // The row's own state is the signal that the completion landed — no sleep.
+    await expect(
+      page
+        .locator(".dh-day-row", { hasText: title })
+        .getByRole("checkbox", { name: `Reopen ${title}` }),
+    ).toBeChecked();
+
     await gotoFixture(page, "/today");
 
     // The trend is a comparison with a sentence beneath it, never a score.

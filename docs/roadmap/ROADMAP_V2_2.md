@@ -871,10 +871,18 @@ resume", and the last planned hardening pass. Full record:
     through its own replay pass, stranding the record under the documented
     two-minute `syncing` lease, then waited 45 seconds for it. It now waits for
     the queue to be at rest before reloading. The product is untouched.
+- **The finishing suite immediately earned its keep**, which is the argument for
+  it in one line. Its first complete run surfaced two failures nothing to do with
+  this change: `goal-measurement.spec.ts` was completing a task it did not own
+  (the seeded overdue task that `project-health.spec.ts` asserts keeps a Project
+  at risk), and `project-activity.spec.ts:252` was passing in **29.0 s of a
+  30-second budget** on `main` — ten viewports in one test. Both repaired at
+  their real cause: the first owns its record now, the second is one test per
+  width with every assertion kept.
 - **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no timeout increased
   (`globalTimeout` is unchanged at 25 minutes), no `workers` increase, no
-  selector widened, no sleep, no test deleted, no coverage removed, no production
-  contact.
+  selector widened, no sleep added (one was REMOVED), no test deleted, no
+  coverage removed, no production contact.
 
 ### NEXT
 

@@ -29,13 +29,22 @@ const manifest = JSON.parse(
 );
 
 const wanted = process.argv.slice(2);
+// EVERY name has to exist, not just one of them. `e2e-gate.mjs p03 p99` running
+// p03 and exiting green would report success for a partition it never ran, which
+// is the same class of lie this whole mechanism was built to end.
+const unknown = wanted.filter(
+  (name) => !manifest.partitions.some((partition) => partition.name === name),
+);
+if (unknown.length > 0) {
+  console.error(
+    `Unknown partition${unknown.length === 1 ? "" : "s"}: ${unknown.join(", ")}. ` +
+      `Known: ${manifest.partitions.map((partition) => partition.name).join(", ")}`,
+  );
+  process.exit(2);
+}
 const partitions = manifest.partitions.filter(
   (partition) => wanted.length === 0 || wanted.includes(partition.name),
 );
-if (partitions.length === 0) {
-  console.error(`No matching partitions in ${wanted.join(", ")}`);
-  process.exit(2);
-}
 
 const outDir = join(ROOT, "playwright-report", "gate");
 mkdirSync(outDir, { recursive: true });

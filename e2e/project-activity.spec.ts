@@ -249,10 +249,27 @@ test.describe("PROJ-04 accessibility (dark)", () => {
 });
 
 test.describe("PROJ-04 responsive", () => {
-  test("no horizontal overflow on the Activity tab across the width matrix", async ({
-    page,
-  }) => {
-    for (const viewport of RESPONSIVE_VIEWPORTS) {
+  /*
+   * ONE TEST PER WIDTH, not one test over ten widths.
+   *
+   * The matrix is unchanged — all ten viewports, the same navigation, the same
+   * assertion — but each width now has its own 30-second budget instead of a
+   * tenth of one. MEASURED: on `main` @ `20410c5` (run 31690164253) the combined
+   * version passed in **29.0 s of its 30**, and on the first run of the HARDEN-04
+   * partition (31748745557, `E2E p04`) the same test took 31.0 s and failed —
+   * inside `expectNoHorizontalOverflow`, which is simply the wait that was
+   * holding the clock when the budget expired. Nothing about the product or the
+   * page had changed.
+   *
+   * That is DEBT-126's shape exactly, and this is the repair HARDEN-03 used for
+   * it: split the journey, keep every assertion. Raising the timeout would have
+   * been the other option and it is the wrong one — the budget is not the
+   * problem, ten full page loads in one test is.
+   */
+  for (const viewport of RESPONSIVE_VIEWPORTS) {
+    test(`no horizontal overflow on the Activity tab at ${viewport.label}`, async ({
+      page,
+    }) => {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
@@ -263,8 +280,8 @@ test.describe("PROJ-04 responsive", () => {
         page.getByRole("feed", { name: "Project activity" }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
-    }
-  });
+    });
+  }
 
   test("the Activity tab meets the 44px touch target on a narrow layout", async ({
     page,

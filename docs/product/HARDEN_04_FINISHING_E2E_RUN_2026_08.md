@@ -284,15 +284,98 @@ the condition DEBT-128 describes.
 10 partitions · 145.1 min of measured test time · mean 14.5 min · worst/mean 1.09
 ```
 
-<!-- PARTITION_TABLE -->
+| Partition | Spec files | Slice | Budget (min) | Tests collected | Executed | Never run | Job (min) | Test span (min) |
+|---|---|---|---|---|---|---|---|---|
+| `p01` | 12 | — | 15.6 | 245 | 245 | **0** | 17.5 | 15.3 |
+| `p02` | 13 | — | 15.5 | 161 | 161 | **0** | 17.7 | 15.4 |
+| `p03` | 13 | — | 15.5 | 90 | 90 | **0** | 16.5 | 14.3 |
+| `p04` | 12 | — | 15.5 | 114 | 114 | **0** | 18.7 | 16.4 |
+| `p05` | 12 | — | 15.5 | 150 | 150 | **0** | 16.0 | 13.9 |
+| `p06` | 12 | — | 15.5 | 114 | 114 | **0** | 17.4 | 15.0 |
+| `p07` | 12 | — | 15.5 | 100 | 100 | **0** | 17.7 | 14.9 |
+| `p08` | 12 | — | 15.5 | 144 | 144 | **0** | 18.4 | 15.8 |
+| `p09` | 1 | 1/2 | 9.5 | 233 | 233 | **0** | 12.1 | 9.8 |
+| `p10` | 1 | 2/2 | 9.5 | 232 | 232 | **0** | 11.8 | 9.4 |
+| | **99** | | **145.1** | **1583** | **1583** | **0** | worst **18.7** | worst **16.4** |
+
+MEASURED on CI run
+[`31748745557`](https://github.com/acedaly/DalyHub-V2/actions/runs/31748745557) —
+the first run of this mechanism, and the first run in this whole investigation in
+which **every partition completed and not one test was left unexecuted**. 1,583
+collected, 1,583 executed: the complete intended suite.
+
+- **Worst test span 16.4 min against the unchanged 25-minute `globalTimeout`** —
+  66% of it, with 8.6 minutes of headroom. Worst JOB 18.7 min against the
+  40-minute backstop.
+- **The estimates held.** Predicted worst 15.6 min, actual test span 16.4 —
+  ~5–10% above, uniformly, because the estimate counts test time and the span
+  also carries Playwright's own per-file and per-test overhead. Worst/mean on
+  actual spans is **1.18** (against 1.45–1.47 before).
+- **Setup measured again, and unchanged: 2.1–2.7 min per partition** — the cost
+  that bounds the partition count from below.
+- **All ten started within 3 seconds of each other.** Ten concurrent jobs is not
+  contended, which is what the ≤12 bound predicted.
+- Locally, `pnpm run e2e:gate p10` ran the same slice in **9.4 min against its
+  9.5-minute budget** — the mechanism is identical in both places.
+
 
 ### 5.2 Verification
 
-<!-- VERIFICATION -->
+**Repository gates**, all green locally on this branch:
+
+```
+pnpm run format:check   pass
+pnpm run lint           pass
+pnpm run typecheck      pass
+pnpm run test:unit      394 files, 5,459 tests, 0 failed
+pnpm run test:kernel    162 files, 2,531 tests, 0 failed
+pnpm run build          pass
+```
+
+New unit coverage: `test/unit/ci/e2e-partitions.test.ts` — every spec file on
+disk belongs to exactly one partition, the manifest is what the committed
+durations derive, the derivation is deterministic under input reordering, a
+brand-new spec file cannot be lost, and the runner-pool/budget bounds hold.
+
+**The four DEBT-129 specs**, locally at `--workers=1`, `retries: 0`:
+`today-focus.spec.ts` + `tasks-v22-daily-driver.spec.ts` +
+`pwa-offline-tasks.spec.ts` — **30 passed**.
+
+### What the finishing suite immediately caught
+
+Two failures that had nothing to do with this change, and both are the point of
+it — a suite that finishes reports things a suite that stops cannot.
+
+- **`goal-measurement.spec.ts` completed a task it did not own.** It ticked
+  `.dh-day-row__check` **first** on Today — the top of the OVERDUE band, which in
+  the shared development workspace is the seeded "Submit the abstract". That
+  takes the "Conference talk" Project off at-risk permanently, and
+  `project-health.spec.ts:31` exists to assert that Project IS at risk. The two
+  never shared a runner under the count-based split; under a partition of whole
+  spec files they do. **Class: fixture/isolation defect.** It now creates and
+  completes its own task, which also removes an `if (count)` guard that could
+  have made the journey assert nothing and a 500 ms sleep that stood in for a
+  signal.
+- **`project-activity.spec.ts:252` was one second from failing on `main`.** Ten
+  viewports — each a navigation, a tab click and an overflow poll — in one
+  30-second budget: **29.0 s** on run `31690164253`, 31.0 s here. **Class: the
+  test exceeds its own budget**, which is DEBT-126's shape exactly, and the
+  repair is the one HARDEN-03 established for it — split the journey, keep every
+  assertion. All ten widths are still asserted, each with its own budget. No
+  timeout was raised.
 
 ### 5.3 Debt
 
-<!-- DEBT_STATUS -->
+| Entry | Verdict |
+|---|---|
+| **DEBT-128** | **RESOLVED.** The split is derived from measured per-spec-file time, the manifest is generated and `Static`-checked, and the first run of it left **0 tests unexecuted** across all ten partitions. Its closing condition also asks for three consecutive clean `main` runs; that half is now *countable* — every partition states whether it completed — and accrues after merge. |
+| **DEBT-129** | **RESOLVED.** All four diagnosed to a class from CI traces, repaired at the real cause, and each verified. None was a product defect; three of the four repairs assert more than they did before. |
+| **DEBT-125** | **STILL OPEN, deliberately.** Its closing condition is a full green run on `main` with no shard reaching `globalTimeout`, *sustained across enough runs that a green one is not a lucky sample*. This branch is not `main`, and one run is not "sustained". What has changed is that the condition is now **evaluable**: the suite finishes, every partition says whether it completed, and an unexecuted test cannot pass as a skip. The crash clause also remains satisfied — no `SIGSEGV`, no `SEGV_MAPERR`, no `browser.newContext: … has been closed` cluster in any of the runs read for this pass, now including a complete 1,583-test run. Narrowed to exactly one missing thing: **runs on `main`**. |
+| **DEBT-76** | **UNCHANGED, and now answerable.** Its criterion — ten consecutive green `main` runs — is preserved exactly. HARDEN-04 did not manufacture, simulate or reinterpret a single one of them; it repaired the instrument that makes them countable. Before this, a "green" `main` run could contain 118 tests that never ran, so counting them would have been counting nothing. |
+
+**The distinction this pass is careful about:** HARDEN-04 repairs the measuring
+instrument. It does not invent measurements. DEBT-125 and DEBT-76 both close on
+evidence from `main`, and that evidence starts accruing when this merges.
 
 ## 6. Scope discipline
 
