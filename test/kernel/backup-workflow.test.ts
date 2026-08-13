@@ -346,6 +346,90 @@ describe("trigger tiers", () => {
     );
     expect(result.key).toContain("2026-08-13T160000Z");
   });
+
+  /*
+   * The FREE-TIER schedule path. Scheduled Workflows (`schedules` on the binding)
+   * need a paid Workers plan, so on the free plan the backup Worker's own Cron
+   * Trigger fires `scheduled()`, which creates the instance with
+   * `{ trigger: "daily", scheduledTime }`. There is no `event.schedule` in that
+   * case, so these two properties are what make the nightly series correct.
+   */
+  describe("the free-tier Cron Trigger path", () => {
+    it("files a run created by the scheduled() handler under production/daily/", async () => {
+      stubNetwork({ pollResponses: [complete] });
+      const result = await run(
+        backupEnv(),
+        makeEvent({
+          payload: {
+            trigger: "daily",
+            scheduledTime: Date.parse("2026-08-13T16:00:00.000Z"),
+          },
+        }),
+        makeStep(),
+      );
+      expect(result.key).toBe(
+        "production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql",
+      );
+    });
+
+    it("names it for the cron slot the handler passed, not for when it ran", async () => {
+      // Without this, a firing that starts at 16:04 and a retry at 16:31 would
+      // produce two objects for one night.
+      stubNetwork({ pollResponses: [complete] });
+      const result = await run(
+        backupEnv(),
+        makeEvent({
+          timestamp: new Date("2026-08-13T16:31:07.000Z"),
+          payload: {
+            trigger: "daily",
+            scheduledTime: Date.parse("2026-08-13T16:00:00.000Z"),
+          },
+        }),
+        makeStep(),
+      );
+      expect(result.key).toContain("2026-08-13T160000Z");
+    });
+
+    it("records the daily retention in metadata", async () => {
+      stubNetwork({ pollResponses: [complete] });
+      const result = await run(
+        backupEnv(),
+        makeEvent({
+          payload: {
+            trigger: "daily",
+            scheduledTime: Date.parse("2026-08-13T16:00:00.000Z"),
+          },
+        }),
+        makeStep(),
+      );
+      const stored = await bucket.head(result.key);
+      expect(stored?.customMetadata?.trigger).toBe("daily");
+      expect(stored?.customMetadata?.retentionDays).toBe("90");
+    });
+
+    it("still lets the platform schedule win when both are present", async () => {
+      // If the account moves to Workers Paid and `schedules` is restored, the
+      // platform's own signal must remain authoritative.
+      stubNetwork({ pollResponses: [complete] });
+      const result = await run(
+        backupEnv(),
+        makeEvent({
+          payload: {
+            trigger: "manual",
+            scheduledTime: Date.parse("2026-01-01T00:00:00.000Z"),
+          },
+          schedule: {
+            cron: "0 16 * * *",
+            scheduledTime: Date.parse("2026-08-13T16:00:00.000Z"),
+          },
+        }),
+        makeStep(),
+      );
+      expect(result.key).toBe(
+        "production/daily/2026/08/dalyhub-v2-2026-08-13T160000Z.sql",
+      );
+    });
+  });
 });
 
 /* -------------------------------------------------------------------------- */

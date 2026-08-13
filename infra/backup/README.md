@@ -70,7 +70,7 @@ no longer holds and the objects must be encrypted.
 
 | File | What it holds |
 | --- | --- |
-| `src/index.ts` | Entrypoint. Exports the Workflow; its `fetch` returns 404 and is unreachable by design. |
+| `src/index.ts` | Entrypoint. Exports the Workflow; `scheduled()` creates the nightly instance; `fetch` returns 404 and is unreachable by design. |
 | `src/backup-workflow.ts` | The four steps, and why they are cut where they are. |
 | `src/d1-export.ts` | A strict client for the D1 export REST API. Refuses every malformed response. |
 | `src/dump-validation.ts` | Structural validation of the SQL dump. Kept in parity with `scripts/production-backup.mjs`. |
@@ -173,8 +173,8 @@ boxes on the diagram.
 
 ## The schedule
 
-`"0 16 * * *"` on the Workflow binding. **Cloudflare cron schedules are UTC**,
-always — there is no timezone setting. 16:00 UTC is:
+`"0 16 * * *"`. **Cloudflare cron schedules are UTC**, always — there is no
+timezone setting. 16:00 UTC is:
 
 - **02:00 AEST** (Apr–Oct, UTC+10)
 - **03:00 AEDT** (Oct–Apr, UTC+11)
@@ -183,11 +183,39 @@ The one-hour drift across daylight saving is accepted. The requirement is one
 consistent nightly backup at an hour the single owner is reliably not writing,
 and both times satisfy it.
 
-The schedule lives on the **Workflow binding** (`schedules`), not on
-`triggers.crons` with a `scheduled()` handler. Each firing creates a Workflow
-instance directly, so the backup gets durable multi-step execution and retries
-without a second entrypoint — and DalyHub's application Worker keeps sole
-ownership of its own CAL-01 Cron Trigger.
+### Why it is a Cron Trigger and not `schedules`
+
+The intended design put the cron on the **Workflow binding** (`schedules`), which
+creates an instance per firing with no handler at all. Cloudflare refuses that on
+the free Workers plan:
+
+```
+Workflow "dalyhub-production-backup" has "schedules" configured,
+but scheduled Workflows require a paid Workers plan.
+```
+
+Plain **Cron Triggers are free-tier**, so the schedule lives on this Worker's own
+`triggers.crons` and `scheduled()` in `src/index.ts` creates the instance. The
+backup itself is identical — the same Workflow, the same four durable steps, the
+same retry policy, the same memoised object key. The only difference is who asks
+for the instance.
+
+Two properties make the nightly series correct on this path, and both are tested:
+
+- the handler passes `trigger: "daily"`, so the object lands under
+  `production/daily/` with 90-day retention;
+- the handler passes `scheduledTime` from `ScheduledController`, so the object is
+  named for its **cron slot** rather than for the moment it started — a late
+  firing or a retry still produces exactly one object per night.
+
+This is **not** the application Worker's scheduled handler. That one belongs to
+the CAL-01 calendar refresh in `dalyhub-v2-production` and is untouched: two
+Workers, two triggers, no shared handler.
+
+**On Workers Paid**, delete `triggers.crons` and the `scheduled()` handler and add
+`"schedules": ["0 16 * * *"]` to the Workflow binding. Nothing about the backup
+logic changes, and `checkCommittedBackupConfig` accepts either form (asserted by
+`test/unit/backup/backup-configuration.test.ts`).
 
 ## Object naming and metadata
 

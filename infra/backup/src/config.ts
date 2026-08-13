@@ -47,15 +47,30 @@ export interface BackupEnv {
   D1_REST_API_TOKEN: string;
 }
 
-/** Parameters a caller may pass when triggering an instance by hand. */
+/** Parameters passed when an instance is created. */
 export interface BackupParams {
   /**
-   * Force a tier. Normally unnecessary: an instance created by the Workflow's
-   * own cron schedule is `daily` and anything else is `manual`, which is the
-   * correct answer without a parameter. This exists so a scripted manual run can
-   * be explicit, and so the intent is visible in the instance's own parameters.
+   * Which retention tier this run belongs to.
+   *
+   * Defaults to `manual`, which is the honest answer for an instance somebody
+   * asked for by hand. The Worker's own `scheduled()` handler passes `daily`,
+   * because that IS the nightly series. Only a caller holding Cloudflare
+   * credentials can set this, and such a caller could already trigger backups,
+   * so it grants nothing new — it just makes the intent explicit in the
+   * instance's own recorded parameters.
    */
   trigger?: BackupTrigger;
+
+  /**
+   * The cron slot this run belongs to, in epoch milliseconds.
+   *
+   * Supplied by the `scheduled()` handler from `ScheduledController.scheduledTime`
+   * so the backup is NAMED for its slot rather than for the moment it happened to
+   * start. That is what keeps exactly one object per night when a firing is late
+   * or the instance retries. Ignored when the platform supplies `event.schedule`
+   * directly (paid-plan `schedules`), which is authoritative.
+   */
+  scheduledTime?: number;
 }
 
 /** The committed placeholders that must never reach a real backup run. */

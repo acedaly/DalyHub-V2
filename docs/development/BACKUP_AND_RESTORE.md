@@ -510,6 +510,7 @@ silently destroys every backup taken before it.
 | | |
 | --- | --- |
 | **Frequency** | Daily, **16:00 UTC** — 02:00 AEST / 03:00 AEDT. Cloudflare cron schedules are UTC and have no timezone setting, so the local hour shifts by one across daylight saving. Accepted: both are quiet hours for the single owner. |
+| **How it fires** | The backup Worker's **own Cron Trigger** → its `scheduled()` handler → one Workflow instance. Native `schedules` on the Workflow binding requires a paid Workers plan; Cron Triggers are free-tier. The backup logic is identical either way — see [`infra/backup/README.md`](../../infra/backup/README.md#why-it-is-a-cron-trigger-and-not-schedules). This is **not** the application Worker's calendar cron, which is untouched. |
 | **Retention** | **90 days** for `production/daily/`, **365 days** for `production/manual/`. |
 | **Enforced by** | R2 **lifecycle rules** keyed on those prefixes — not by deletion code in the Worker. A backup system that deletes its own backups is one bug away from removing the thing it exists to keep. |
 | **Why 90** | The database is ~1.4 MB, so a quarter of daily history costs almost nothing and is long enough to notice damage that was not obvious at the time. BACKUP-01 adds no weekly or monthly archival tiers on purpose: a backup system that is easy to reason about is worth more than one with more boxes on the diagram. |

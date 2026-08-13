@@ -163,13 +163,20 @@ export function checkCommittedBackupConfig(text) {
       "infra/backup/wrangler.jsonc declares a route. The backup Worker must not be reachable.",
     );
   }
-  if (
-    !new RegExp(
-      `"schedules"\\s*:\\s*\\["${escapeRegExp(BACKUP_CRON)}"\\]`,
-    ).test(text)
-  ) {
+  // The nightly schedule, however it is expressed. `schedules` on the Workflow
+  // binding is the intended form and needs a paid Workers plan; `triggers.crons`
+  // plus the `scheduled()` handler is the free-tier equivalent. Either is
+  // acceptable — what must never drift is the CRON ITSELF.
+  const cron = escapeRegExp(BACKUP_CRON);
+  const hasWorkflowSchedule = new RegExp(
+    `"schedules"\\s*:\\s*\\[\\s*"${cron}"\\s*\\]`,
+  ).test(text);
+  const hasCronTrigger = new RegExp(
+    `"crons"\\s*:\\s*\\[\\s*"${cron}"\\s*,?\\s*\\]`,
+  ).test(text);
+  if (!hasWorkflowSchedule && !hasCronTrigger) {
     problems.push(
-      `infra/backup/wrangler.jsonc must schedule the Workflow with "${BACKUP_CRON}" (UTC).`,
+      `infra/backup/wrangler.jsonc must run the backup on "${BACKUP_CRON}" (UTC), as either a Workflow "schedules" entry or a "triggers.crons" entry.`,
     );
   }
   if (!new RegExp(`"bucket_name"\\s*:\\s*"${BUCKET_NAME}"`).test(text)) {

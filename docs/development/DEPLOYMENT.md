@@ -244,6 +244,13 @@ custom domain, no `workers.dev` origin and no D1 binding, and it shares nothing
 with the application Worker but the database it reads. A backup that stops
 working because a UI change was deployed is not a backup.
 
+The schedule is the backup Worker's **own Cron Trigger**, whose `scheduled()`
+handler creates one Workflow instance per firing. Native `schedules` on the
+Workflow binding was the intended form but requires a **paid Workers plan**;
+Cron Triggers are free-tier and the backup logic is identical either way. The
+CAL-01 calendar cron on `dalyhub-v2-production` is untouched — two Workers, two
+triggers, no shared handler.
+
 Full architecture, configuration and retention:
 [`infra/backup/README.md`](../../infra/backup/README.md). Recovery procedures:
 [`BACKUP_AND_RESTORE.md` §5](BACKUP_AND_RESTORE.md#5-catastrophic-d1-recovery).

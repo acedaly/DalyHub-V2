@@ -162,7 +162,28 @@ describe("the committed backup Wrangler config", () => {
 
   it("schedules the backup nightly at 16:00 UTC", () => {
     expect(BACKUP_CRON).toBe("0 16 * * *");
-    expect(CONFIG_TEXT).toContain(`"schedules": ["${BACKUP_CRON}"]`);
+    // Either expression of the schedule is acceptable — a `schedules` entry on
+    // the Workflow binding (needs Workers Paid) or this Worker's own Cron
+    // Trigger (free tier). The cron itself must not drift.
+    expect(CONFIG_TEXT).toMatch(
+      new RegExp(
+        `"(schedules|crons)":\\s*\\[\\s*"0 16 \\* \\* \\*"\\s*,?\\s*\\]`,
+      ),
+    );
+  });
+
+  it("accepts the paid-plan form of the schedule too", () => {
+    // If the account moves to Workers Paid, `triggers.crons` plus the
+    // `scheduled()` handler can be replaced by `schedules` on the binding. The
+    // safety check must not reject that migration.
+    const paidForm = CONFIG_TEXT.replace(
+      /"triggers":\s*\{\s*"crons":\s*\[\s*"0 16 \* \* \*"\s*,?\s*\],?\s*\},?/,
+      "",
+    ).replace(
+      '"class_name": "ProductionBackupWorkflow",',
+      '"class_name": "ProductionBackupWorkflow",\n      "schedules": ["0 16 * * *"],',
+    );
+    expect(checkCommittedBackupConfig(paidForm)).toEqual([]);
   });
 
   it("commits no real account id or database id", () => {
@@ -207,9 +228,17 @@ describe("the committed backup Wrangler config", () => {
   it("rejects a config whose schedule has drifted", () => {
     expect(
       checkCommittedBackupConfig(
-        CONFIG_TEXT.replace('"0 16 * * *"', '"0 4 * * *"'),
+        CONFIG_TEXT.replaceAll('"0 16 * * *"', '"0 4 * * *"'),
       ).join(" "),
     ).toContain("0 16 * * *");
+  });
+
+  it("rejects a config with no schedule at all", () => {
+    expect(
+      checkCommittedBackupConfig(
+        CONFIG_TEXT.replaceAll('"0 16 * * *"', ""),
+      ).join(" "),
+    ).toMatch(/must run the backup on "0 16 \* \* \*"/);
   });
 });
 

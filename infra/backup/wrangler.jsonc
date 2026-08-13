@@ -70,24 +70,34 @@
     },
   ],
 
-  // The Workflow, and its OWN cron schedule.
-  //
-  // `schedules` on the Workflow binding creates an instance per firing directly,
-  // so this needs no top-level `triggers.crons` and no `scheduled()` handler.
-  // That matters here: DalyHub's application Worker already owns a Cron Trigger
-  // for the CAL-01 calendar refresh, and routing backups through a shared
-  // scheduled handler would entangle two unrelated jobs.
+  // The nightly schedule.
   //
   // **Cron schedules are UTC.** `0 16 * * *` is 16:00 UTC, which is 02:00 AEST
   // and 03:00 AEDT. The one-hour drift across daylight saving is accepted: the
   // requirement is one consistent nightly backup at an hour the single owner is
   // reliably not writing, and both 02:00 and 03:00 satisfy it.
+  //
+  // This is THIS Worker's own Cron Trigger, and it is entirely separate from the
+  // CAL-01 calendar cron on `dalyhub-v2-production`. Two Workers, two triggers,
+  // no shared handler — a backup and a calendar refresh cannot interfere.
+  //
+  // The intended design put this on the Workflow binding as `schedules`, which
+  // creates an instance per firing with no handler at all. Cloudflare rejects
+  // that on the free Workers plan ("scheduled Workflows require a paid Workers
+  // plan"), while plain Cron Triggers are free-tier — so the trigger lives here
+  // and `scheduled()` in src/index.ts creates the instance. The backup itself is
+  // unchanged: same Workflow, same durable steps, same retries. On Workers Paid
+  // this block and the handler can be replaced by `schedules` on the binding
+  // below, with no change to the backup logic.
+  "triggers": {
+    "crons": ["0 16 * * *"],
+  },
+
   "workflows": [
     {
       "name": "dalyhub-production-backup",
       "binding": "BACKUP_WORKFLOW",
       "class_name": "ProductionBackupWorkflow",
-      "schedules": ["0 16 * * *"],
     },
   ],
 }

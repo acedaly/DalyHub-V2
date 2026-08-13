@@ -142,21 +142,31 @@ export async function runProductionBackup(
   const instanceId = event.instanceId;
   /* ── 1. Plan ──────────────────────────────────────────────────────────── */
   const plan = await step.do("plan", async () => {
-    // An instance created by the Workflow's own cron schedule carries
-    // `event.schedule`; anything else was triggered by a person or a script.
-    // That is the honest signal, so it decides the tier — an explicit
-    // parameter can only make a manual run's intent more visible, never
-    // relabel a scheduled run as manual.
-    const scheduled = event.schedule !== undefined;
-    const trigger: BackupTrigger = scheduled
-      ? "daily"
-      : (event.payload?.trigger ?? "manual");
+    // Which tier this run belongs to.
+    //
+    // `event.schedule` is set only when the PLATFORM created the instance from
+    // a `schedules` entry on the Workflow binding (paid Workers plans). It is
+    // authoritative and cannot be overridden by a parameter: a nightly backup
+    // must never be relabelled onto the manual tier's 365-day retention, or the
+    // daily series would silently stop expiring.
+    //
+    // On the free plan the instance is created by this Worker's own
+    // `scheduled()` handler, which passes `trigger: "daily"` explicitly. Only a
+    // caller holding Cloudflare credentials can pass parameters at all, and such
+    // a caller could already trigger backups, so honouring the parameter grants
+    // nothing new. Anything with neither signal is a hand-run backup: `manual`.
+    const trigger: BackupTrigger =
+      event.schedule !== undefined
+        ? "daily"
+        : (event.payload?.trigger ?? "manual");
 
-    // The instant the backup is NAMED for. For a scheduled run this is the
-    // cron's own scheduled time rather than "now", so a run that starts late
-    // or retries still files under the slot it belongs to.
+    // The instant the backup is NAMED for — the cron SLOT, not "now", so a
+    // firing that starts late or an instance that retries still files under the
+    // night it belongs to and the daily series keeps exactly one object per day.
     const at = new Date(
-      event.schedule?.scheduledTime ?? event.timestamp.getTime(),
+      event.schedule?.scheduledTime ??
+        event.payload?.scheduledTime ??
+        event.timestamp.getTime(),
     );
 
     const key = backupObjectKey({
