@@ -186,8 +186,24 @@ describe("quick add", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     expect(input().value).toBe("Precious text");
     expect(screen.getByRole("alert").textContent).toContain("safe");
-    // Focus stays put so a retry needs no hunting.
-    expect(document.activeElement).toBe(input());
+    /*
+     * Focus stays put so a retry needs no hunting — awaited, for the same reason
+     * the save-and-refocus test above already awaits it, and this is the second
+     * half of that same defect.
+     *
+     * The component returns focus from an EFFECT gated on the error state
+     * (`TasksQuickAdd.tsx` — `useEffect(() => { if (error) inputRef.current?.focus(); }, [error])`),
+     * and the `waitFor` above resolves as soon as the alert EXISTS, which is the
+     * render that sets `error` — one commit before that effect flushes. Asserting
+     * focus synchronously there is a race the component always eventually wins,
+     * so it passes locally and fails on a slower machine.
+     *
+     * It duly did: `main` @ `acbad51` (run 31675715619), 1 failed / 5267 passed,
+     * `expected <body> to be <input>` — on a documentation-only diff whose
+     * previous commit had passed this very step. Identical code, opposite result,
+     * which is what identifies it as a test defect rather than a product one.
+     */
+    await waitFor(() => expect(document.activeElement).toBe(input()));
   });
 
   it("NEVER discards entered text after a server-side rejection, and says why", async () => {

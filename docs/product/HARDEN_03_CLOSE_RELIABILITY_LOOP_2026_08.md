@@ -338,6 +338,33 @@ sweeping four feature defects into a reliability-closure PR is the thing this pa
 was told not to do. They are raised as **DEBT-129**, individually named so the
 entry cannot become the bucket DEBT-125 was warned against becoming.
 
+### One more, found by this PR's own CI, and fixed here
+
+`test/unit/tasks/TasksQuickAdd.test.tsx:190` — *"NEVER discards entered text after
+a network failure"* — failed on run
+[`31675715619`](https://github.com/acedaly/DalyHub-V2/actions/runs/31675715619)
+with `expected <body> to be <input>`: **1 failed, 5,267 passed**. It is the first
+flake this programme has caught in the UNIT suite rather than the E2E one, and the
+evidence identifying it is unusually clean — the immediately preceding commit
+passed the very same step, and the diff between the two is **documentation only**.
+Identical code, opposite result.
+
+**Class: test defect, and the repository had already diagnosed it once.** The
+component returns focus from an effect gated on the error state
+(`TasksQuickAdd.tsx` — `useEffect(() => { if (error) inputRef.current?.focus(); }, [error])`),
+while the test's `waitFor` resolves as soon as the alert EXISTS — the render that
+sets `error`, one commit before that effect flushes. Asserting focus synchronously
+there is a race the component always eventually wins. The sibling test forty lines
+above (*"clears and REFOCUSES after a save"*) hit exactly this, was fixed by
+awaiting the focus assertion, and carries a comment saying so; this was the same
+defect's other half, left un-fixed. Both focus assertions in the file are now
+awaited, and there are only two.
+
+Fixed here rather than deferred because it is one line, it is test reliability
+(this pass's remit rather than a feature's), the product behaviour is untouched
+and provably correct, and the repository's own precedent already prescribed the
+fix. Verified 3/3 locally on the file and against the full unit suite.
+
 ## 8. Remaining P1/P2 reliability debt
 
 Open or in-progress entries that are P1, or P2 and materially about CI trust, test
