@@ -41,7 +41,72 @@ describe("exportEndpoint", () => {
 });
 
 describe("parseExportResponse", () => {
-  it("reads the initial in-progress response and keeps the bookmark", () => {
+  /*
+   * The two fixtures below are the REAL response bodies from the live D1 export
+   * API, captured against the production database on 2026-08-13 (identifiers
+   * replaced with fakes, signed URL replaced).
+   *
+   * They exist because the first live backup FAILED on the documented shape: the
+   * REST API reference describes the running state as `"in-progress"`, and the
+   * deployed API returns `"active"`. The strict parser refused it, which is what
+   * it is for — but the lesson is that the documentation is not the contract, so
+   * the contract is pinned here from observation.
+   */
+  const LIVE_ACTIVE = {
+    result: {
+      success: true,
+      type: "export",
+      at_bookmark:
+        "0000020e-0000000c-000050c6-471c485345f9b637a0062f78cbe60934",
+      status: "active",
+      messages: [
+        "Generating 00000000-0000-4000-8000-000000000000-0000020e.sql",
+      ],
+    },
+    success: true,
+    messages: [],
+    errors: [],
+  };
+
+  const LIVE_COMPLETE = {
+    result: {
+      success: true,
+      type: "export",
+      at_bookmark:
+        "0000020e-0000000c-000050c6-471c485345f9b637a0062f78cbe60934",
+      status: "complete",
+      result: {
+        filename: "00000000-0000-4000-8000-000000000000-0000020e.sql",
+        signed_url: "https://example.invalid/r2-presigned",
+      },
+      messages: ["Uploaded part 1", "Finished uploading … in 1 parts."],
+    },
+    success: true,
+    messages: [],
+    errors: [],
+  };
+
+  it('reads the live API\'s "active" running state', () => {
+    const parsed = parseExportResponse(LIVE_ACTIVE);
+    expect(parsed.status).toBe("in-progress");
+    expect(parsed.bookmark).toBe(
+      "0000020e-0000000c-000050c6-471c485345f9b637a0062f78cbe60934",
+    );
+  });
+
+  it("reads the live API's completed response", () => {
+    const parsed = parseExportResponse(LIVE_COMPLETE);
+    expect(parsed.status).toBe("complete");
+    if (parsed.status !== "complete") throw new Error("unreachable");
+    expect(parsed.signedUrl).toBe("https://example.invalid/r2-presigned");
+    expect(parsed.filename).toBe(
+      "00000000-0000-4000-8000-000000000000-0000020e.sql",
+    );
+  });
+
+  it('also reads the documented "in-progress" state', () => {
+    // The reference documents this spelling. Accepting both means neither the
+    // docs changing nor the API changing breaks the nightly backup.
     const parsed = parseExportResponse({
       success: true,
       result: {
@@ -133,12 +198,16 @@ describe("parseExportResponse", () => {
   });
 
   it("refuses a status nobody has seen before", () => {
-    expect(() =>
-      parseExportResponse({
-        success: true,
-        result: { at_bookmark: "abc", status: "mostly-done" },
-      }),
-    ).toThrow(/unrecognised status/i);
+    // Deliberately NOT treated as "keep waiting". A future server-side failure
+    // status must fail the run rather than poll until the step times out.
+    for (const status of ["mostly-done", "error", "failed", "", null, 7]) {
+      expect(() =>
+        parseExportResponse({
+          success: true,
+          result: { at_bookmark: "abc", status },
+        }),
+      ).toThrow(/unrecognised status/i);
+    }
   });
 });
 

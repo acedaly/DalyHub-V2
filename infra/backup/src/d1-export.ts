@@ -59,6 +59,27 @@ export class D1ExportError extends Error {
   }
 }
 
+/**
+ * The `result.status` values that mean "the export is still running".
+ *
+ * **`"active"` is what the live API actually returns**, verified against the
+ * production database on 2026-08-13:
+ *
+ *     { "result": { "success": true, "type": "export",
+ *                   "at_bookmark": "0000020e-…",
+ *                   "status": "active",
+ *                   "messages": ["Generating …-….sql"] },
+ *       "success": true, "messages": [], "errors": [] }
+ *
+ * The REST API reference documents this state as `"in-progress"`. Both are
+ * accepted because the documentation and the deployed API disagree and either
+ * could change; nothing else is, so a genuinely unknown status still fails the
+ * run rather than being optimistically treated as "keep waiting". That
+ * distinction matters — a server-side export failure reported as some future
+ * `"error"` status must not poll forever.
+ */
+const IN_PROGRESS_STATUSES = new Set(["active", "in-progress"]);
+
 /** The parsed result of one poll of the export endpoint. */
 export type D1ExportPoll =
   | { status: "in-progress"; bookmark: string; messages: string[] }
@@ -139,7 +160,7 @@ export function parseExportResponse(body: unknown): D1ExportPoll {
   const messages = readStringArray(result.messages);
   const status = result.status;
 
-  if (status === "in-progress") {
+  if (typeof status === "string" && IN_PROGRESS_STATUSES.has(status)) {
     return { status: "in-progress", bookmark, messages };
   }
 
