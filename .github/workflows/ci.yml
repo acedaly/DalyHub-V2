@@ -37,12 +37,29 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.scope.outputs.code }}
+      e2e-partitions: ${{ steps.partitions.outputs.names }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           # Need the merge base to diff a PR against its target.
           fetch-depth: 0
+
+      - name: Read the E2E partition manifest
+        id: partitions
+        # The E2E matrix below is BUILT FROM `e2e/partitions.json`, so the split
+        # has exactly one source of truth — the same file that says which spec
+        # files each partition runs and what each is measured to cost. Adding or
+        # removing a partition is a regeneration of that manifest and needs no
+        # workflow edit, and a matrix that disagrees with the manifest is not
+        # expressible. `Static` fails the build if the manifest is not what the
+        # committed durations derive (`pnpm run e2e:partitions:check`).
+        run: |
+          set -euo pipefail
+          names="$(node scripts/e2e-partitions.mjs matrix)"
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+          echo "E2E partitions: $names"
+          node scripts/e2e-partitions.mjs plan
 
       - name: Does this change touch anything executable?
         id: scope
@@ -127,6 +144,13 @@ jobs:
         # regenerating, could reach `main` with the gate green. Same shape as
         # the icon check below, same reason.
         run: pnpm run scheme:check
+
+      - name: E2E partitions match their measured durations
+        # HARDEN-04/DEBT-128. Same shape and same reason as the two checks
+        # around it: the manifest is GENERATED, so a hand-edit or a new spec
+        # file committed without regenerating fails here rather than reaching
+        # `main` as a spec nothing runs or a partition nobody sized.
+        run: pnpm run e2e:partitions:check
 
       - name: Icon assets match the canonical geometry
         # The rasteriser and encoders are deterministic, so this regenerates in
@@ -220,11 +244,10 @@ jobs:
           if-no-files-found: error
 
   e2e:
-    # `strategy.job-total` is the size of the matrix below, so the shard COUNT
-    # has exactly one source of truth — the `shard:` list. Adding or removing an
-    # entry rebalances the suite with no other edit and no chance of a
-    # `--shard=n/N` that disagrees with the matrix.
-    name: E2E ${{ matrix.shard }}/${{ strategy.job-total }}
+    # One job per PARTITION of `e2e/partitions.json`, named by it. The matrix is
+    # read from that manifest by the `Scope` job above, so the split, its sizing
+    # evidence and the jobs that run it can never disagree.
+    name: E2E ${{ matrix.partition }}
     needs: [changes, build]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
@@ -237,30 +260,29 @@ jobs:
     # mirror), so 40 = 25 + ~10 + margin.
     timeout-minutes: 40
     strategy:
-      # Never cancel sibling shards on a failure: every shard's result is
-      # reported, so one red shard does not hide the state of the others.
+      # Never cancel sibling partitions on a failure: every partition's result is
+      # reported, so one red partition does not hide the state of the others.
       fail-fast: false
       matrix:
-        # EIGHT shards, down from eighteen. The four previous re-splits (3 → 5 →
-        # 7 → 10 → 14 → 18) each responded to a shard hitting the ceiling by
-        # slicing finer, and each was locally correct. What none of them checked
-        # was whether the extra slices were still buying parallelism.
+        # TEN partitions, balanced by MEASURED TIME rather than by test count —
+        # HARDEN-04, closing DEBT-128.
         #
-        # They were not. MEASURED on run 31445526789 (`main` @ e1e8bab): shards
-        # 5, 9, 10, 12, 16 and 17 sat QUEUED for 5.5–7.0 minutes waiting for a
-        # runner, and shard 17 began 5m30s after shard 1. Past roughly twelve
-        # concurrent jobs the pool is saturated, so shards 13–18 contributed
-        # nothing to wall-clock and cost a full setup each (~1.5–2 min of
-        # checkout, install, artifact download and browser install). That is
-        # ~30 minutes of the ~150-minute compute bill spent on overhead.
+        # `--shard=n/N` divides the suite by test COUNT, and DalyHub's tests are
+        # not equal: MEASURED on runs 31690164253 and 31697528360, shard 6 spent
+        # 7.9 minutes on its 198 tests while shard 8 spent 22.7 on 109 and left
+        # 87 NEVER RUN. Same count, three times the work. Six of the seven `main`
+        # runs after HARDEN-02 lost 27–118 tests that way, and a suite that
+        # cannot finish stops reporting.
         #
-        # The same run measured the suite itself: the twelve shards that
-        # completed spent 73.4 minutes of test time, mean 6.1, worst 9.5 — so the
-        # whole suite is close to 110 minutes single-worker. Over eight slices
-        # that is a 13.8-minute mean against Playwright's re-derived 25-minute
-        # ceiling (see playwright.config.ts), which is the same ~55–70% of the
-        # ceiling this split has always been tuned to, and eight shards all start
-        # in one wave.
+        # The split now comes from `e2e/partitions.json`, whose per-spec-file
+        # seconds are the ones those runs measured. Every constraint the previous
+        # eight-way split was reasoned against still holds and is re-checked in
+        # `scripts/e2e-partitions.mjs`: the runner pool saturates past roughly
+        # twelve concurrent jobs (ten start in one wave — measured, all eight of
+        # the old split started within 0.1 min of each other), each partition
+        # costs ~2.3 min of setup that buys no coverage, and a partition's
+        # BROWSER LIFETIME is now ~14 minutes rather than the ~24 that made
+        # HARDEN-01 wary of fewer, fatter shards.
         #
         # `workers` stays 1, and this is NOT the knob to turn. It was checked
         # rather than assumed: `e2e/owner-timezone.spec.ts` sets the OWNER's
@@ -270,7 +292,9 @@ jobs:
         # date-sensitive or themed test would corrupt it. Raising `workers` would
         # trade a budget problem for a correctness one until those two specs stop
         # mutating owner-level state, which is a test-design change, not a CI one.
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        # Partitioning by whole SPEC FILE strengthens that isolation rather than
+        # weakening it: a file's tests, and its fixtures, now always run together.
+        partition: ${{ fromJSON(needs.changes.outputs.e2e-partitions) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -315,43 +339,67 @@ jobs:
         # change should be reverted with that recorded — see DEBT-125.
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run E2E suite (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+      - name: What this partition is
+        # Printed BEFORE the run, so the log says which partition is executing,
+        # which spec files belong to it and what each was measured to cost —
+        # before any of it can go wrong.
+        run: node scripts/e2e-partitions.mjs describe "${{ matrix.partition }}"
+
+      - name: Run E2E partition ${{ matrix.partition }}
         id: e2e
-        # This shard's slice of the functional journeys, auth fail-closed
+        # This partition's spec files: functional journeys, auth fail-closed
         # checks, axe WCAG 2.2 AA scans, dark mode, mobile/touch-target and
         # responsive-overflow coverage, keyboard/Drawer/history behaviour and
-        # real local D1 journeys. The union of all shards runs the whole suite
-        # exactly once. Safe to split at test granularity because every test
-        # creates and tears down its own fixtures rather than depending on a
-        # predecessor's state.
+        # real local D1 journeys. The union of all partitions runs the whole
+        # suite exactly once — asserted by `pnpm run e2e:partitions:check`, which
+        # fails if any spec file on disk belongs to no partition.
         #
         # PLAYWRIGHT_SKIP_BUILD reuses the build/ artifact downloaded above
-        # instead of letting the production-mode webServer rebuild it per shard.
+        # instead of letting the production-mode webServer rebuild it per job.
         env:
           PLAYWRIGHT_SKIP_BUILD: "1"
-        run: pnpm exec playwright test --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+        run: |
+          set -euo pipefail
+          pnpm exec playwright test $(node scripts/e2e-partitions.mjs specs "${{ matrix.partition }}")
+
+      - name: Partition result
+        # ALWAYS, including after a failed or timed-out run — this step is what
+        # makes the job's result readable, and the case it exists for is the one
+        # where the run did not finish.
+        #
+        # It states what ran, what passed, what failed and — the load-bearing
+        # part — how many assigned tests NEVER EXECUTED, failing the job with a
+        # distinct message when any did. Playwright counts an unexecuted test
+        # under "skipped", where it is indistinguishable from a deliberate
+        # `test.skip`; conflating those is how six of seven `main` runs could
+        # lose 27–118 tests without the gate ever saying so (DEBT-128).
+        #
+        # It is NOT `continue-on-error`, and it cannot turn a red run green: the
+        # run step above has already failed the job in that case.
+        if: always()
+        run: node scripts/e2e-partition-summary.mjs "${{ matrix.partition }}"
 
       # Both uploads are conditioned on the RUN STEP's own outcome, not on
       # `failure()`. `failure()` is false when a job is cancelled — which is what
       # a `timeout-minutes` overrun produces — so a `failure()` condition skips
       # the uploads in the one case where the evidence is most needed.
       # `always()` plus an explicit `outcome != 'success'` uploads on a failed,
-      # timed-out or cancelled shard and stays skipped on a green one, so a
+      # timed-out or cancelled partition and stays skipped on a green one, so a
       # successful run produces no artifacts at all.
-      - name: Upload Playwright report (shard ${{ matrix.shard }})
+      - name: Upload Playwright report (${{ matrix.partition }})
         if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-report-shard-${{ matrix.shard }}
+          name: e2e-report-${{ matrix.partition }}
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Upload Playwright traces & failure screenshots (shard ${{ matrix.shard }})
+      - name: Upload Playwright traces & failure screenshots (${{ matrix.partition }})
         if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-traces-shard-${{ matrix.shard }}
+          name: e2e-traces-${{ matrix.partition }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore

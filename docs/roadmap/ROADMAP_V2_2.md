@@ -828,35 +828,58 @@ programme. No feature, no redesign, no CI workflow change. Full record:
   measured, found NOT to be the cause, and left alone rather than changed on a
   hunch across ~1,000 tests.
 
-### NEXT
-
-### ☐ HARDEN-04 - A finishing, readable E2E run
+### ☑ HARDEN-04 - A finishing, readable E2E run - **DELIVERED 2026-08-13**
 
 The one bounded piece of work between DalyHub and "ordinary feature work can
-resume". It is a single decision with the measurements already in hand, not
-another hardening programme — which is the distinction
-[HARDEN-03](#-harden-03---close-the-reliability-loop---delivered-2026-08-12) was
-run to establish.
+resume", and the last planned hardening pass. Full record:
+[`HARDEN_04_FINISHING_E2E_RUN_2026_08.md`](../product/HARDEN_04_FINISHING_E2E_RUN_2026_08.md).
 
-- **Re-derive the shard split from measured per-shard TIME** (DEBT-128).
-  `--shard=n/N` slices by test COUNT, so shards 4 and 8 draw the heaviest spec
-  files and never finish. A larger `globalTimeout` cannot answer it: shard 8 needs
-  31-46 minutes at its observed rate, past the job's own 40-minute backstop.
-  `playwright-report/results.json` already carries the per-test durations, and
-  `playwright.config.ts` carries the constraints any answer must respect — the
-  runner pool saturates past roughly twelve concurrent jobs, and per-shard BROWSER
-  LIFETIME matters as well as per-shard minutes.
-- **Diagnose the four residual failures, each by the module that owns it**
-  (DEBT-129): `tasks-v22-daily-driver.spec.ts:158` (TASKS-05),
-  `today-focus.spec.ts:290` and `:331` (TODAY-10),
-  `pwa-offline-tasks.spec.ts:386` (PWA-12). Classify before repairing — HARDEN-02
-  found two of its four residuals were PRODUCT defects that had been read as test
-  drift.
-- **Then DEBT-125 can be evaluated at last**, and DEBT-76's "ten consecutive green
-  `main` runs" becomes answerable for the first time since it was written.
+- **The split is derived from measured TIME, not test count** (DEBT-128).
+  `--shard=n/8` divided a suite whose spec files cost between 0.8s and 53s a
+  test: MEASURED on runs 31690164253 and 31697528360, shard 6 ran 198 tests in
+  7.9 minutes while shard 8 spent 22.7 on 109 and left 87 NEVER RUN. The gate now
+  runs the ten partitions of a generated, committed, `Static`-checked
+  `e2e/partitions.json` — whole spec files, packed longest-first by their
+  measured seconds, with one 465-test generated matrix file sliced by `--shard`
+  inside itself. Worst partition 15.6 min of a 25-minute ceiling that was NOT
+  raised; worst/mean 1.09 against 1.47.
+- **A partition that does not finish can no longer look green.** Each job prints
+  what it is before it runs and what happened after — collected, executed,
+  passed, failed, deliberately skipped, NEVER EXECUTED, elapsed against budget —
+  and fails with a distinct message when any assigned test did not execute.
+  Playwright counts an unexecuted test as "skipped"; telling those apart is the
+  whole difference between a result and the absence of one.
+- **The four DEBT-129 failures are diagnosed individually, from the CI traces of
+  the runs that failed** — not from the error messages, and none of them by
+  retry, timeout, skip or a widened selector.
+  - `tasks-v22-daily-driver.spec.ts:158` (TASKS-05) — **timing**: the row is
+    painted "Today" optimistically but REGROUPED by the revalidation
+    (`task-optimistic.ts`, ADR-086), which re-creates it and takes the open menu
+    with it. The test now waits for the row to be where the server put it, which
+    also asserts the regroup for the first time.
+  - `today-focus.spec.ts:290` (TODAY-10) — **stale assertion**: the eight-row
+    bound counts OPEN rows; a completion is drawn beyond it on purpose
+    (`day-view.ts` → `boundBand`). It read 9 the moment another journey left a
+    completed task on the day. Now counts open rows, and asserts the placement
+    rule the failure exposed.
+  - `today-focus.spec.ts:331` (TODAY-10) — **stale assertion**: rows differ by
+    exactly the 1px hairline `.dh-day-row + .dh-day-row` draws between siblings
+    (MEASURED 61px vs 62px at 320px), so "every row is the same height" could
+    only hold when every band had one row. Now asserts the actual rule — one line
+    box per title, identical row boxes.
+  - `pwa-offline-tasks.spec.ts:386` (PWA-12) — **timing**: the test reloaded
+    through its own replay pass, stranding the record under the documented
+    two-minute `syncing` lease, then waited 45 seconds for it. It now waits for
+    the queue to be at rest before reloading. The product is untouched.
+- **Non-goals held:** no `.skip`/`.fixme`, no retry raised, no timeout increased
+  (`globalTimeout` is unchanged at 25 minutes), no `workers` increase, no
+  selector widened, no sleep, no test deleted, no coverage removed, no production
+  contact.
 
-Everything else that stood in NEXT is delivered above — TASKS-11, PWA-12,
-MOBILE-01 and CAL-01 — so after this the next thing to pick up is in LATER, or is
+### NEXT
+
+Nothing. HARDEN-04 was the last planned hardening item, and the E2E gate is now a
+signal rather than a coin toss — so the next thing to pick up is in LATER, or is
 whatever the next audit finds.
 
 ### LATER

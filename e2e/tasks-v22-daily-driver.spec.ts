@@ -190,6 +190,34 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
      * words, scoped to the row.
      */
     await expect(cardFor(page, title)).toContainText("Today");
+    /*
+     * …and the row has MOVED to the day it now belongs to.
+     *
+     * The word above is painted optimistically, off the client's own patch map;
+     * the BUCKET is the server's, and `applyTaskPatchesToGrouping` deliberately
+     * leaves it alone until the revalidation the change asked for comes back
+     * ("An optimistic presentation may re-render a row; it may not restate an
+     * authoritative figure" — `task-optimistic.ts`, ADR-086). So between the
+     * paint and the answer this row says "Today" while still sitting under
+     * "No date", and when the answer lands it is REMOVED from that group and
+     * re-created under this one.
+     *
+     * HARDEN-04 added this wait, and the reason is worth keeping: the next step
+     * opens a menu on this row, and on `main` @ `0b586eb` (run 31697528360,
+     * shard 8) the revalidation landed 0.5 s after that menu opened. The trace
+     * shows the row's React ids changing across the move (`_r_2_` → `_r_l_`) —
+     * the row was re-created, taking the open menu with it, and the click that
+     * followed spent the whole 30-second budget retrying against a detached
+     * option. It failed on four of seven `main` runs and never locally, because
+     * the size of the shared workspace decides how long that window is. Waiting
+     * for the row to be where the server put it closes the window and proves the
+     * documented regroup, which nothing asserted before.
+     */
+    await expect(
+      page
+        .locator('.dh-tasks-grouped__section[aria-label="Today"]')
+        .getByRole("article", { name: `Open ${title}` }),
+    ).toBeVisible();
 
     // PROJECT, in place. ONE selection replaces the previous value — there is no
     // clear-then-save-then-reopen-then-choose sequence.

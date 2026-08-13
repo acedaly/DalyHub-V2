@@ -81,6 +81,33 @@ async function waitForQueued(page: Page, count: number): Promise<void> {
 }
 
 /**
+ * Wait until no queued change has a replay attempt IN FLIGHT.
+ *
+ * A replay marks its record `syncing` BEFORE it sends, and that claim is LEASED
+ * for two minutes: a page destroyed mid-attempt leaves the record claiming an
+ * attempt nothing is running, and neither an automatic pass nor Retry touches a
+ * `syncing` record until the lease expires (`PWA_AND_OFFLINE.md` §6.2,
+ * `OFFLINE_MUTATION_LEASE_MS`). That is the product working as designed — the
+ * lease is what makes an interrupted attempt recoverable rather than lost.
+ *
+ * It does mean a test that RELOADS while a pass is in flight has manufactured
+ * exactly that interruption, and must then wait out a two-minute lease it never
+ * meant to take. Waiting for the queue to be at rest first removes the race
+ * instead of waiting for it: it is a deterministic state of the application,
+ * read from the same store the product reads.
+ */
+async function waitForQueueAtRest(page: Page): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await readMutations(page)).filter((row) => row.status === "syncing")
+          .length,
+      { timeout: 20_000 },
+    )
+    .toBe(0);
+}
+
+/**
  * Wait until nothing is left waiting to sync.
  *
  * A confirmed change is PRUNED from the queue — the surface shows work that
@@ -408,6 +435,10 @@ test.describe("PWA-12 — offline Task mutation", () => {
       await context.route("**/tasks/pwa12-durable", (route) =>
         route.abort("internetdisconnected"),
       );
+      // Coming back online is itself a replay trigger, so a pass may already be
+      // in flight; reloading through it would strand the record under its lease
+      // (see `waitForQueueAtRest`).
+      await waitForQueueAtRest(page);
       await page.reload();
       await expect(
         page.getByRole("heading", { level: 1, name: "Tasks" }),
@@ -434,6 +465,17 @@ test.describe("PWA-12 — offline Task mutation", () => {
       // the honest way to reach it, and it also re-proves durability: the change
       // has now survived two page lifetimes.
       await context.unroute("**/tasks/pwa12-durable");
+      /*
+       * MEASURED on `main` @ `40038de` (run 31641975444, shard 5), which is what
+       * this wait is here for. This page's own offline priming had just finished
+       * (`GET /offline/snapshot` at t+103.8) and started a replay pass; the
+       * reload landed 0.1 s later (t+103.9) and killed the POST in flight
+       * (t+104.0, no response). The record was left `syncing`, the fresh page
+       * could not touch it under its two-minute lease, and the 45-second drain
+       * below expired with one change still queued. Nothing about the product
+       * was wrong: the test had reloaded through its own replay.
+       */
+      await waitForQueueAtRest(page);
       await page.reload();
       await expect(
         page.getByRole("heading", { level: 1, name: "Tasks" }),
