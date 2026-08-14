@@ -25,7 +25,7 @@ Read off the concept's Tasks panel rather than inferred:
 | Separation | A hairline between rows, nothing else |
 | Row | drag handle · circle checkbox · title · project (dot + name) · due (plain text) · priority · status · `⋯` |
 | Project | A ~6px coloured **dot** and the name. No tile, no border, no chevron |
-| Due | `Today`, `21 May` — plain, absolute past the near days |
+| Due | `Today`, `21 May` — plain text, never a chip |
 | Header band | Two bands only: title + controls, then quiet text tabs with a purple underline |
 | Purple | The one primary button, the current tab's underline, selected state. Nothing else |
 | Phone | Two-line row — title on line 1; `● Project` and priority on line 2 |
@@ -39,7 +39,7 @@ Each was read off `assets/ds-04/baseline/`, not asserted.
 | 1 | Rows sit in a white 16px-radius bordered panel on a grey page | Rows on a white page, hairlines only |
 | 2 | No column structure — a ragged right-aligned metadata run, no header | A labelled column grid |
 | 3 | Project drawn as a 24px bordered rounded tile + name + chevron | A coloured dot and the name |
-| 4 | Dates relative and unbounded, in crimson — "20 days ago", "9722 days ago" | `Today` / `Sat, 25 Jul`; relative only inside a week |
+| 4 | Dates relative and UNBOUNDED, in bold crimson — "20 days ago", "9722 days ago" | Bounded at every distance, and the colour without the weight bump |
 | 5 | Quick capture a 60px filled card with two permanent buttons | The next row: same inset, same height, a hairline |
 | 6 | 600-weight titles competing with equally saturated pills | Title at row weight; hierarchy from quieter metadata |
 | 7 | Group headings uppercase crimson (`OVERDUE 15`) above every band | Muted small-caps heading, a figure, a rule |
@@ -59,7 +59,7 @@ hovered one.
 | 1 | Cardified list → rows on the page | `TaskRow`/`TaskList`; `.dh-collection--tasks` takes `--dh-color-surface` | `final/tasks-1440-light.png` | ✅ |
 | 2 | No columns → a shared column grid | `--taskrow-columns` declared once on `.dh-tasklist`, inherited by header + rows | `final/tasks-1440-light.png` | ✅ |
 | 3 | Project tile → identity dot | `.dh-task-parent__mark` becomes an 8px dot on `currentColor`; glyph dropped | `final/task-row-normal.png` | ✅ |
-| 4 | "20 days ago" → `Sat, 25 Jul` | `relativeCalendarDate` bounds the past at a week | `final/tasks-1440-light.png` | ✅ |
+| 4 | "9722 days ago" → "Over a year ago" | `relativeCalendarDate` adopts Today's bounded ladder; overdue keeps the colour, loses the weight | `final/tasks-1440-light.png` | ✅ |
 | 5 | Capture card → capture row | quickadd takes the row inset, height and hairline; buttons on hover/focus | `final/quick-capture-desktop.png` | ✅ |
 | 6 | Heavy titles → row weight, quiet metadata | `--dh-text-row-*` on the title, `--dh-text-meta-*` muted on cells | `final/task-row-normal.png` | ✅ |
 | 7 | Crimson group heading → calm | `TaskGroup`: muted small caps, tabular count, hairline | `final/tasks-1440-light.png` | ✅ |

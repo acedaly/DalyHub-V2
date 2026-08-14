@@ -29,8 +29,10 @@ the real dev server and the real seeded workspace.
   replaced a right-aligned metadata run. Dates and project names now start on the
   same x down the whole list.
 - **Project** is an identity dot and a name, not a 24px bordered tile with a
-  chevron. **Due** is `Sat, 25 Jul` in ordinary text, not `20 days ago` in
-  crimson. **Priority** is the priority's own dot and its tag, with no container.
+  chevron. **Date** is ordinary text in a bounded vocabulary —
+  `20 days ago`, `3 months ago`, `Over a year ago` — rather than an unbounded
+  `9722 days ago`, and overdue takes the colour without also taking a weight
+  step. **Priority** is the priority's own dot and its tag, with no container.
 - The **status pill is the only bounded coloured container left on a row.**
 - The header band lost a line: the count sits beside the title instead of under
   it, which is ~30px of the calmest band on the page returned to the list.

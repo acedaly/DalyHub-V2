@@ -28,9 +28,10 @@ Priority · Status**, with the column names above them. Dates line up, projects
 line up, and about a third more of your list fits on a laptop screen.
 
 **Rows say less, and mean more.** A project is a small coloured dot and its
-name instead of a bordered tile. A due date reads `Today`, `Yesterday` or
-`Sat, 25 Jul` in ordinary text instead of `20 days ago` in red — the count-up
-went on forever and got harder to read the further back it went. Priority is a
+name instead of a bordered tile. A date that has passed still says so in
+words — `Yesterday`, `20 days ago`, `3 months ago` — but it no longer counts
+up forever: anything older than a year now reads `Over a year ago` instead of
+`9722 days ago`, and it is coloured without also being bold. Priority is a
 coloured dot and `P1`. The only coloured pill left on a row is the status, and
 only when the status says something the rest of the row does not.
 

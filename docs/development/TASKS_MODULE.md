@@ -1975,8 +1975,11 @@ The order is the concept's, and the priority order is deliberate:
 2. **title** — the only flexible column (`minmax(0, 1fr)`), so a long title
    truncates inside its track rather than pushing the date column off the edge;
 3. **project** — an identity DOT and the name. Never a bordered tile;
-4. **due date** — ordinary text (`Today`, `Yesterday`, `Sat, 25 Jul`), taking the
-   overdue colour only when it has actually slipped;
+4. **date** — ordinary text, in the bounded vocabulary Today already uses
+   (`Today`, `Yesterday`, `20 days ago`, `3 months ago`, `Over a year ago`,
+   `Thu, 12 Jun`), taking the overdue colour — and no weight step — when it has
+   actually slipped. The cell shows the DUE date, or the planned date in italic
+   when there is no due date;
 5. **priority** — the priority's own coloured dot plus `P1`…`P4`. No container;
 6. **status** — the ONE surviving pill, drawn only for the six display states
    nothing else on the row expresses (Completed, Cancelled, Waiting, On hold,

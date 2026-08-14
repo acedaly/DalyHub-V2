@@ -618,7 +618,17 @@
   background: transparent;
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
+  /*
+   * INHERIT the colour, never set it.
+   *
+   * The urgency class (`dh-task-date--overdue`) lands on the field's WRAPPER,
+   * and the trigger is inside it — so a trigger that sets its own colour wins
+   * over the ancestor and a slipped date renders in ordinary text. It did:
+   * every overdue date in the list lost its colour, which is the one place on
+   * the row where colour is doing real work. The muted tone comes from the CELL
+   * instead, so both the default and the exception cascade from one place.
+   */
+  color: inherit;
   justify-content: flex-start;
   text-align: start;
 }
@@ -635,7 +645,6 @@
   .dh-tasklist .dh-inline-edit__trigger:hover,
   .dh-tasklist .dh-inline-select__trigger:hover {
     background: var(--dh-color-surface-quiet);
-    color: var(--dh-color-text);
   }
 }
 
@@ -737,9 +746,17 @@
   white-space: nowrap;
 }
 
+/*
+ * Overdue takes the colour and NOT a weight step.
+ *
+ * Inside a bucket called Overdue every date in the column carries it, and
+ * colour plus a weight bump on every row of a band is the shout §4 exists to
+ * prevent. The words already say it — "Yesterday", "20 days ago", "Over a year
+ * ago" — so the colour is reinforcement, which is the only thing it is allowed
+ * to be (AGENTS.md §15).
+ */
 .dh-tasklist .dh-task-date--overdue {
   color: var(--dh-color-overdue);
-  font-weight: var(--dh-text-label-weight);
 }
 
 .dh-tasklist .dh-task-date--today {

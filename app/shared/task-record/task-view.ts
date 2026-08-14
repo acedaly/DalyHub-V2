@@ -461,20 +461,27 @@ export type RelativeDateUrgency = "overdue" | "today" | "soon" | "future";
  * UIX-01 design: the near days get their names, and only the far ones get a
  * date.
  *
- *     -7 …      Thu, 12 Jun       (further back than a week — an absolute date)
- *     -6 … -2   3 days ago        (this past week — the elapsed count)
+ *     beyond    Over a year ago
+ *     -365…-31  3 months ago
+ *     -30 … -2  20 days ago
  *     -1        Yesterday
  *      0        Today
- *     +1        Tomorrow
+ *      +1       Tomorrow
  *     +2 … +6   Thu               (this coming week — the weekday alone)
  *     beyond    Thu, 12 Jun       (and "Thu, 12 Jun 2027" across a year)
  *
- * DS-04 bounded the PAST at a week, because the unbounded form was the single
- * worst-reading thing on the Tasks screen: a column of "20 days ago", "35 days
- * ago", "9722 days ago" is arithmetic the reader has to undo to learn anything,
- * it is longer than the date it replaces, and it grows without limit. Inside a
- * week "3 days ago" is genuinely faster than a date; past that a date is the
- * shorter and more useful string, and it is what the concept draws.
+ * DS-04 BOUNDED the past, and deliberately did not make it absolute.
+ *
+ * The unbounded form was the worst-reading thing on the Tasks screen — a column
+ * ending in "9722 days ago" is arithmetic the reader has to undo, and it grows
+ * without limit. The first fix was to print a date past a week, and that was
+ * wrong for a reason a screenshot does not show: an absolute date says nothing
+ * about having PASSED, so in an ungrouped list the only thing left saying a task
+ * had slipped was the colour — which §15 forbids as the sole carrier.
+ *
+ * The ladder above is the one `relativePastLabel` already uses on Today, so the
+ * product has ONE vocabulary for how long ago something was rather than two. It
+ * is bounded at every distance, and it keeps the state in words.
  *
  * The `urgency` alongside is what a surface tints with. It is never the only
  * signal: the label itself SAYS the state ("Yesterday", "Today"), which is why
@@ -499,21 +506,12 @@ export function relativeCalendarDate(
   if (days === 0) return { label: "Today", urgency: "today" };
   if (days === 1) return { label: "Tomorrow", urgency: "soon" };
   if (days === -1) return { label: "Yesterday", urgency: "overdue" };
-  if (days < -1 && days >= -6) {
-    return { label: `${-days} days ago`, urgency: "overdue" };
+  if (days < -1) {
+    return { label: elapsedPhrase(-days), urgency: "overdue" };
   }
   const weekday = calendarWeekday(value);
   if (weekday === null) {
-    return { label: absolute, urgency: days < 0 ? "overdue" : "future" };
-  }
-  // Further back than a week: the same absolute form the far FUTURE takes, so
-  // one column reads one way. The urgency is still `overdue` — the colour and
-  // the group heading carry the state that the words no longer restate.
-  if (days < -6) {
-    return {
-      label: absoluteWithWeekday(absolute, weekday, value, todayIso),
-      urgency: "overdue",
-    };
+    return { label: absolute, urgency: "future" };
   }
   // Inside the coming week the weekday alone is unambiguous and shortest.
   if (days <= 6) return { label: weekday, urgency: "soon" };
@@ -522,6 +520,23 @@ export function relativeCalendarDate(
     label: absoluteWithWeekday(absolute, weekday, value, todayIso),
     urgency: "future",
   };
+}
+
+/**
+ * "20 days ago" / "3 months ago" / "Over a year ago" — the elapsed phrase.
+ *
+ * The SAME ladder `relativePastLabel` uses on Today (`app/modules/today/day/
+ * day-view.ts`), so the product has one answer to "how long ago was that?".
+ * Bounded at every distance: a task whose due date is a seeded 1 Jan 2000 reads
+ * "Over a year ago" rather than counting nine thousand days.
+ */
+function elapsedPhrase(days: number): string {
+  if (days <= 30) return `${days} days ago`;
+  if (days <= 365) {
+    const months = Math.round(days / 30);
+    return months === 1 ? "1 month ago" : `${months} months ago`;
+  }
+  return "Over a year ago";
 }
 
 /**
