@@ -262,7 +262,36 @@ export function AppShell({
                 reserved={reservedShortcuts}
                 fallback={fallbackShortcuts}
               />
-              <div className="dh-app">
+              {/*
+               * DS-02 — the application declares COMPACT density.
+               *
+               * DS-01 built the density model and left it with no consumer but
+               * the control baseline, noting that DS-02 is "the point at which
+               * DS-02 can give a dense toolbar its 36px controls by declaring
+               * `data-dh-density` on the region rather than by writing a height
+               * somewhere". This is that declaration, and it is one attribute
+               * rather than a shell redesign — the drawer's 216px, the app
+               * bar's anatomy and the phone bar's 60px (D12/D15) are untouched,
+               * and DS-03 owns the shell's own restyle.
+               *
+               * DalyHub is a dense desktop productivity application and the
+               * concept direction is explicit about it. Declaring it here, on
+               * the frame, is what makes that a SYSTEM decision instead of 76
+               * call sites each choosing a size — which is the shape AGENTS.md
+               * §9.8 rules out for a design value.
+               *
+               * It costs no touch target. `tokens.css` floors every compact hit
+               * area back to `--app-touch-target-min` under `(pointer: coarse)`
+               * unconditionally, last in the file so it beats the preset
+               * whatever the source order — asserted by `dalyhub-tokens.test`.
+               * A phone therefore keeps its 45px controls and gains the tighter
+               * padding, glyph and type; only a fine pointer gets 36px.
+               *
+               * It is an ATTRIBUTE, not a media query, so the Settings density
+               * preference DS-07 may add has something to override rather than
+               * a width rule to fight.
+               */}
+              <div className="dh-app" data-dh-density="compact">
                 <a className="skip-link" href="#main-content">
                   Skip to main content
                 </a>

@@ -10,35 +10,20 @@
  * exist in a state where its own label is unreadable on it.
  */
 
-.dh-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  min-block-size: 2rem;
-  border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-small);
-  padding-inline: var(--app-space-2);
-  font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  white-space: nowrap;
-  /* A chip that is also a link is still a CHIP: its container is the affordance,
-   * so the browser's link underline would be a second one saying the same thing
-   * — and an underline through a 32px tint reads as a defect rather than as an
-   * emphasis. Stated here because `base.css` gives every bare `<a>` an underline
-   * by default, which is right everywhere except inside a container like this. */
-  text-decoration: none;
-}
-
-/* The leading glyph is M3's 18px chip icon — the one place in the system where
- * an icon is smaller than 20px, because a chip is only 32px tall. */
-.dh-pill__icon {
-  display: inline-flex;
-  inline-size: 1.125rem;
-  block-size: 1.125rem;
-}
+/*
+ * DS-02 — the chip's own rules moved to `ui.css`.
+ *
+ * `StatusPill` now renders `Badge` (`~/shared/ui`), and `.dh-pill` is named
+ * beside `.dh-badge` on every rule there, so the two class names are one object
+ * with one source of truth. What changed in the move: 32px at `label-large` on
+ * `corner-small` became the `meta` rung on `--dh-radius-sm` at roughly
+ * two-thirds the height — a status annotating a row should not be as tall as
+ * the row it annotates.
+ *
+ * `.dh-pill__icon` is likewise `ui.css`'s. Only the two things below are still
+ * this file's: the ABSENCE treatment, which is not a chip at all, and the Area
+ * identity mark, which is a different object that merely shares a shape.
+ */
 
 /*
  * M3-INT — ABSENCE is no longer a chip (`~/shared/pill/Absence`).
@@ -46,44 +31,13 @@
  * The same truthful phrase, at `body-small` on the variant content colour, with
  * no container of its own. It reads as the supporting text it always was, and a
  * record with nothing in it stops looking busier than a record with everything
- * in it. The neutral chip tone below survives for the genuine neutral STATUS
- * (an archived record, a cancelled meeting) that legitimately needs one.
+ * in it. The neutral badge tone survives for the genuine neutral STATUS (an
+ * archived record, a cancelled meeting) that legitimately needs one.
  */
 .dh-absence {
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-}
-
-.dh-pill[data-tone="neutral"] {
-  background: var(--md-sys-color-surface-container-high);
-  border-color: var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.dh-pill[data-tone="accent"] {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
-}
-
-.dh-pill[data-tone="success"] {
-  background: var(--md-sys-color-success-container);
-  color: var(--md-sys-color-on-success-container);
-}
-
-.dh-pill[data-tone="warning"] {
-  background: var(--md-sys-color-warning-container);
-  color: var(--md-sys-color-on-warning-container);
-}
-
-.dh-pill[data-tone="danger"] {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
-}
-
-.dh-pill[data-tone="info"] {
-  background: var(--md-sys-color-info-container);
-  color: var(--md-sys-color-on-info-container);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -168,6 +122,7 @@
  * pill tint and the Area dot. Both fall back to a bordered shape so the pill
  * still reads as a pill and the dot still exists. */
 @media (forced-colors: active) {
+  .dh-badge,
   .dh-pill,
   .dh-area-pill {
     border-color: CanvasText;

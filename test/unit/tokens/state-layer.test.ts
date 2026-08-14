@@ -74,7 +74,9 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   "meetings.css: .dh-meeting-capturebar__type:hover",
   "search.css: .dh-search__clear:hover",
   "search.css: .dh-search__close:hover",
-  "settings.css: .dh-confirm__button--cancel:hover:not(:disabled)",
+  // DS-02 retired `.dh-confirm__button` entirely — the confirmation dialog's
+  // actions are the shared `Button`, which is a host of the one implementation.
+  // One entry off the ratchet.
   "settings.css: .dh-settings-page__nav-link:hover",
   "sheet.css: .dh-sheet-option:hover",
   "sheet.css: .dh-sheet__close:hover",

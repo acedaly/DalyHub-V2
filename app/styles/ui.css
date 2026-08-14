@@ -1,0 +1,763 @@
+/*
+ * DS-02 — the DalyHub generic UI primitives.
+ *
+ * The stylesheet for `app/shared/ui/`. Every value in this file is a
+ * `--dh-*` token: this is the first file in the product written entirely in
+ * DalyHub's own vocabulary, and it is the approved consumption path DS-02 was
+ * asked to establish. No `--md-sys-*`, no `--app-*`, no raw pixel, no hex.
+ *
+ * ── What DS-02 changed about how these look, and why ─────────────────────────
+ *
+ * The concept direction is a dense desktop productivity application: compact
+ * controls, restrained radii, low visual noise, subtle borders, minimal
+ * elevation, and purple spent as an accent rather than as a surface. The
+ * product it replaces drew a 45px stadium for every primary action, a 56px
+ * outlined container for every text field and a 32px fully-rounded chip for
+ * every status — three separate Material components at Material's own sizes,
+ * which is why a DalyHub screen read as a mobile design system on a desktop.
+ *
+ * Three changes carry almost all of the difference:
+ *
+ *   1. HEIGHT IS DENSITY'S, not the component's. Every control here is
+ *      `--dh-control-height`. In a `data-dh-density="compact"` region that is
+ *      36px; on a coarse pointer the DS-01 floor gives it 45px back,
+ *      unconditionally. No control in this file states a height of its own, so
+ *      no control can be compact where a finger has to reach it.
+ *
+ *   2. THE STADIUM IS GONE from ordinary controls (D33). `--dh-radius-control`
+ *      — 8px — on buttons, fields, selects and icon buttons alike.
+ *
+ *   3. A BADGE IS SMALL. `meta` type on `--dh-radius-sm`, at roughly two-thirds
+ *      of the chip it replaces, so annotating a row no longer costs the height
+ *      of the row.
+ *
+ * ── The state layer is NOT re-implemented here ───────────────────────────────
+ *
+ * `.dh-button` and `.dh-icon-button` are hosts of the ONE state-layer
+ * implementation in `base.css` (M3-INT): they appear in its host list and get
+ * their hover, focus, pressed and disabled opacities from there. What they
+ * declare for themselves is `position: relative`'s companion — `overflow:
+ * hidden`, so the layer stays inside the corner radius — and nothing else.
+ * Adding a hand-rolled `color-mix()` hover fill here is what
+ * `test/unit/tokens/state-layer.test.ts` refuses.
+ */
+
+/* ========================================================================== */
+/* Button                                                                      */
+/* ========================================================================== */
+
+/*
+ * `.dh-btn` is named beside `.dh-button` on every rule in this section.
+ *
+ * That is the DS-02 migration bridge and it is deliberate rather than lazy.
+ * `.dh-btn` is a class string at 220 call sites across 76 files; converting all
+ * of them in the same change that introduces the component would make the
+ * change unreviewable, and converting none of the STYLING would leave the
+ * application looking exactly as it did — which is the outcome the brief
+ * explicitly calls a failure. Bridging the class means every unmigrated call
+ * site moves to the new visual language for free, and a call site's conversion
+ * to `<Button>` is then a pure structural change with no visual diff to review.
+ *
+ * The bridge is temporary. It comes out when the last `.dh-btn` literal does.
+ */
+
+:is(.dh-button, .dh-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-2);
+  /* Density's, never the button's. See the file header. */
+  min-block-size: var(--dh-control-height);
+  padding-inline: var(--dh-space-4);
+  /*
+   * D33 — a rounded rectangle, including for the primary action.
+   *
+   * D13 restricted the stadium to primary and destructive actions, which was
+   * the right correction to `corner-full` on all five variants. DS-02 goes one
+   * further and retires it from the button family altogether: at the concept's
+   * control height a stadium is a lozenge, and a row of them reads as a mobile
+   * toolbar. Emphasis is carried by fill, border and content colour — three
+   * axes, all of which survive being the same shape — and the shape rung is
+   * then shared with the field beside it, which is what makes a filter row look
+   * like one control set instead of two.
+   */
+  border-radius: var(--dh-radius-control);
+  border: var(--dh-border-width) solid transparent;
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  /* Keeps the shared state layer inside the corner. */
+  overflow: hidden;
+  transition:
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard),
+    color var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+/* A leading or trailing glyph takes the tighter inline inset on its own side, so
+ * the glyph and the label read as one object rather than as an icon floating in
+ * a container. */
+:is(.dh-button, .dh-btn):has(> .dh-button__icon:first-child),
+:is(.dh-button, .dh-btn):has(> .dh-button__spinner:first-child),
+:is(.dh-button, .dh-btn):has(> .dh-icon:first-child),
+:is(.dh-button, .dh-btn):has(> svg:first-child) {
+  padding-inline-start: var(--dh-space-3);
+}
+
+:is(.dh-button, .dh-btn):has(> .dh-button__icon:last-child) {
+  padding-inline-end: var(--dh-space-3);
+}
+
+.dh-button__icon {
+  display: inline-flex;
+  flex: none;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+}
+
+/* The label is its own element so it can truncate without the glyph shrinking. */
+.dh-button__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-button--block {
+  display: flex;
+  inline-size: 100%;
+}
+
+/*
+ * SMALL — inline proportion only.
+ *
+ * It reduces the inline padding and the type rung and NEVER the height, which
+ * stays `--dh-control-height`. A "small" button is small in the direction the
+ * layout is short of, and is still a full target in the direction a finger
+ * needs. This is the same rule the old `.dh-btn--sm` followed and the reason it
+ * was safe; DS-02 keeps it and now gets it from the density model rather than
+ * from a comment.
+ */
+:is(.dh-button--sm, .dh-btn--sm) {
+  padding-inline: var(--dh-space-3);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* PRIMARY — the one action a surface exists for. The only place in the
+ * primitive layer that spends a full-strength accent fill. */
+:is(.dh-button--primary, .dh-btn--primary) {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
+}
+
+/*
+ * SECONDARY — a bordered neutral control, not a tonal slab.
+ *
+ * This is the single largest visual change in DS-02 and the one most worth
+ * stating. `.dh-btn--secondary` was M3's TONAL button: a filled
+ * `secondary-container` in the scheme's own violet family. On a surface that
+ * also has a primary action, two violet containers of different saturations sit
+ * beside each other and the hierarchy has to be read rather than seen — and on
+ * a surface with no primary action at all, an ordinary "Cancel" was painted
+ * more loudly than most of the page.
+ *
+ * The concept direction draws this control as a white box with a hairline and
+ * the ordinary text colour, and that is what it is now. Purple is left to mean
+ * one thing.
+ */
+:is(.dh-button--secondary, .dh-btn--secondary, .dh-btn--outlined) {
+  background: var(--dh-color-surface);
+  /* `-strong`, not the hairline: this border is what IDENTIFIES the control, so
+   * it carries WCAG 1.4.11's 3:1 requirement (DS-01 §8). A card's edge, which
+   * only separates, takes `--dh-color-border`. */
+  border-color: var(--dh-color-border-strong);
+  color: var(--dh-color-text);
+}
+
+/* SUBTLE — the lowest-emphasis action. No container until it is interacted
+ * with, which the shared state layer supplies. */
+:is(.dh-button--subtle, .dh-btn--ghost) {
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  padding-inline: var(--dh-space-3);
+}
+
+:is(.dh-button--subtle, .dh-btn--ghost):hover:not(:disabled) {
+  color: var(--dh-color-text);
+}
+
+/* DANGER — destructive, and always carrying the word as well as the colour. */
+:is(.dh-button--danger, .dh-btn--danger) {
+  background: var(--dh-color-danger);
+  color: var(--dh-color-text-on-danger);
+}
+
+/*
+ * DISABLED — one treatment across all four families, so a disabled primary and
+ * a disabled subtle button read as the same STATE rather than as faded versions
+ * of two different things.
+ */
+:is(.dh-button, .dh-btn):disabled,
+:is(.dh-button, .dh-btn)[aria-disabled="true"] {
+  background: var(--dh-color-surface-quiet);
+  border-color: transparent;
+  color: var(--dh-color-text-muted);
+  cursor: not-allowed;
+  /* Opacity rather than a second set of colour tokens: it is one declaration,
+   * it is correct in both appearances and in all five schemes by construction,
+   * and it cannot drift from the palette. */
+  opacity: 0.55;
+}
+
+:is(.dh-button--subtle, .dh-btn--ghost):disabled {
+  background: transparent;
+}
+
+/* The in-flight spinner. `--dh-motion-slow` is the longest duration the system
+ * publishes; a spinner is the one thing allowed to repeat it. */
+:is(.dh-button__spinner, .dh-btn__spinner) {
+  flex: none;
+  inline-size: var(--dh-space-4);
+  block-size: var(--dh-space-4);
+  border: var(--dh-border-width-strong) solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: var(--dh-radius-pill);
+  animation: dh-button-spin var(--dh-motion-slow) linear infinite;
+}
+
+@keyframes dh-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================================================== */
+/* IconButton                                                                  */
+/* ========================================================================== */
+
+/*
+ * A rounded SQUARE, not a circle.
+ *
+ * M3's icon button is a 40px circle, and a toolbar of five of them beside a
+ * rectangular field reads as a row of floating dots. The square shares the
+ * control rung with everything else on the row, and packs into a dense action
+ * rail without the breathing space a circle needs in order not to look crowded.
+ */
+.dh-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  /* Square by construction: both axes are the density rung, so the hit area is
+   * the control height in both directions and cannot be narrower than it is
+   * tall. */
+  min-inline-size: var(--dh-control-height);
+  min-block-size: var(--dh-control-height);
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width) solid transparent;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
+    color var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-icon-button__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+}
+
+.dh-icon-button--sm {
+  min-inline-size: var(--dh-control-height);
+  min-block-size: var(--dh-control-height);
+  padding: var(--dh-space-0);
+}
+
+.dh-icon-button:hover:not(:disabled) {
+  color: var(--dh-color-text);
+}
+
+.dh-icon-button--outlined {
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+}
+
+.dh-icon-button--danger {
+  color: var(--dh-color-danger);
+}
+
+/* A toggle's ON state is a real container change, never a colour alone — it
+ * survives forced colours and is visible without a pointer. */
+.dh-icon-button[aria-pressed="true"] {
+  background: var(--dh-color-surface-selected);
+  color: var(--dh-color-accent);
+}
+
+.dh-icon-button:disabled {
+  color: var(--dh-color-text-muted);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ========================================================================== */
+/* Input · Textarea · Select — the one control shape                           */
+/* ========================================================================== */
+
+/*
+ * `.dh-control` is the DS-02 text-entry surface, and `.dh-input` is named beside
+ * it for the same bridging reason `.dh-btn` is above: `.dh-input` is the class
+ * ~100 shared-form field instances already carry, and the two must not be two
+ * different-looking controls while the migration runs.
+ *
+ * The change from what `.dh-input` was: 56px becomes `--dh-control-height`,
+ * `body-large` becomes the compact field rung, and 16px of inline padding
+ * becomes `--dh-inset-inline`. A DalyHub text field stops being an M3 outlined
+ * container and becomes the productivity field the concept draws.
+ */
+:is(.dh-control, .dh-input) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  min-block-size: var(--dh-control-height);
+  padding-block: var(--dh-space-1);
+  padding-inline: var(--dh-inset-inline);
+  font-family: var(--dh-font-family);
+  /*
+   * The anti-zoom floor, by token (MOBILE-01).
+   *
+   * `--app-field-font-size-compact` is `body-medium` on a pointer device and is
+   * floored at 16px on a touch one. This is the one `--app-*` reference in this
+   * file and it is deliberate: the floor is a platform behaviour rather than a
+   * design value, it is published in exactly one place, and duplicating it as a
+   * `--dh-*` name would create a second thing to keep in step with iOS.
+   * DS-08 decides where it finally lives.
+   */
+  font-size: var(--app-field-font-size-compact);
+  line-height: var(--dh-text-row-line-height);
+  color: var(--dh-color-text);
+  /* `background-color`, not the `background` SHORTHAND: the shorthand resets
+   * `background-image`, and a `<select>` draws its chevron with one (UIX-06). */
+  background-color: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-control);
+  transition:
+    border-color var(--dh-motion-fast) var(--dh-ease-standard),
+    box-shadow var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+:is(.dh-control, .dh-input)::placeholder {
+  color: var(--dh-color-text-muted);
+  /* The placeholder is not a label and must not be mistaken for a value. */
+  opacity: 1;
+}
+
+:is(.dh-control, .dh-input):hover:not(:disabled):not([readonly]) {
+  border-color: var(--dh-color-text-muted);
+}
+
+/*
+ * FOCUS — an accent border plus a soft ring, and no layout shift.
+ *
+ * The previous rule thickened the border to 2px and subtracted a pixel from the
+ * padding to compensate, which is correct and is also the reason focusing a
+ * field nudged its text. A `box-shadow` ring costs no layout at all, so the
+ * caret does not move under the user's eye when they tab into a field.
+ *
+ * The shared `:focus-visible` outline is suppressed here and ONLY here: for a
+ * text field the border IS the focus indicator, and a second ring outside it
+ * says the same thing twice.
+ */
+:is(.dh-control, .dh-input):focus-visible,
+:is(.dh-control, .dh-input):focus {
+  border-color: var(--dh-color-focus);
+  box-shadow: 0 0 0 var(--dh-focus-width) var(--dh-color-accent-subtle);
+  outline: none;
+}
+
+:is(.dh-control--multiline, .dh-input--multiline) {
+  /* Three rows of the control rung — a multi-line field should look like one
+   * before it is typed in. */
+  min-block-size: calc(var(--dh-control-height) * 3);
+  padding-block: var(--dh-space-2);
+  /* Vertical only: a textarea dragged wider than its column breaks the form
+   * grid and nothing is gained. */
+  resize: vertical;
+}
+
+/* INVALID. `aria-invalid` is what actually carries the state; the border is
+ * reinforcement, and the field's error message is what says what is wrong. */
+:is(.dh-control, .dh-input)[aria-invalid="true"] {
+  border-color: var(--dh-color-danger);
+}
+
+:is(.dh-control, .dh-input)[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 var(--dh-focus-width) var(--dh-color-danger);
+  /* The danger ring is the accent ring's twin and must not also be tinted with
+   * the accent, or an invalid field focuses to a violet halo. */
+  border-color: var(--dh-color-danger);
+}
+
+:is(.dh-control, .dh-input):disabled {
+  background-color: var(--dh-color-surface-quiet);
+  color: var(--dh-color-text-muted);
+  cursor: not-allowed;
+}
+
+:is(.dh-control, .dh-input)[readonly] {
+  background-color: var(--dh-color-surface-quiet);
+}
+
+/* SELECT — repainted, never replaced (D31). Only the closed control's padding
+ * differs: it reserves the inline-end room its chevron is drawn into by the
+ * control baseline in `base.css`. */
+.dh-control--select {
+  padding-inline-end: var(--dh-space-8);
+  cursor: pointer;
+}
+
+/* A control with a leading glyph inside it — a toolbar search box. */
+.dh-control-affix {
+  position: relative;
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+}
+
+.dh-control-affix__leading {
+  position: absolute;
+  inset-inline-start: var(--dh-inset-inline);
+  display: inline-flex;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+  color: var(--dh-color-text-muted);
+  pointer-events: none;
+}
+
+.dh-control-affix > .dh-control {
+  padding-inline-start: calc(
+    var(--dh-inset-inline) + var(--dh-icon-size) + var(--dh-space-2)
+  );
+}
+
+/* ========================================================================== */
+/* Checkbox                                                                    */
+/* ========================================================================== */
+
+.dh-checkbox {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dh-checkbox--labelled {
+  gap: var(--dh-space-2);
+  align-items: flex-start;
+  /* The whole run is the target, so a label with a description is one large hit
+   * area rather than an 18px box beside some text. */
+  cursor: pointer;
+  min-block-size: var(--dh-control-height);
+}
+
+/*
+ * The box.
+ *
+ * D7: this is the SQUARE — selection. Completion is a circle and belongs to the
+ * task row. 18px rather than the density icon rung, because a checkbox is a
+ * MARK rather than a glyph: it is read as present-or-absent at a glance and
+ * growing it with density would make a compact list's checkboxes the loudest
+ * thing in it.
+ */
+.dh-checkbox__control {
+  appearance: none;
+  flex: none;
+  inline-size: var(--dh-space-4);
+  block-size: var(--dh-space-4);
+  /* Optically centres the box on the first line of a multi-line label. */
+  margin-block-start: var(--dh-space-px);
+  border: var(--dh-border-width-strong) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition:
+    background-color var(--dh-motion-instant) var(--dh-ease-standard),
+    border-color var(--dh-motion-instant) var(--dh-ease-standard);
+}
+
+.dh-checkbox__control:hover:not(:disabled) {
+  border-color: var(--dh-color-accent);
+}
+
+/*
+ * The tick, drawn with a rotated pseudo-element rather than an SVG asset.
+ *
+ * It takes `currentColor`, so it is correct in both appearances, in all five
+ * schemes and in forced colours with nothing to keep in step — the same
+ * reasoning D31 applies to the select's chevron.
+ *
+ * It APPEARS. There is no stroke-draw animation: completing and selecting are
+ * high-frequency repeated acts, and an animation on one is a tax paid once per
+ * item forever.
+ */
+.dh-checkbox__control::after {
+  content: "";
+  inline-size: var(--dh-space-1);
+  block-size: var(--dh-space-2);
+  border: solid var(--dh-color-text-on-accent);
+  border-width: 0 var(--dh-border-width-strong) var(--dh-border-width-strong) 0;
+  transform: translateY(-1px) rotate(45deg);
+  opacity: 0;
+}
+
+.dh-checkbox__control:checked {
+  background: var(--dh-color-accent);
+  border-color: var(--dh-color-accent);
+}
+
+.dh-checkbox__control:checked::after {
+  opacity: 1;
+}
+
+/* MIXED — a bar, not a tick, because "some of these" is not "all of these" and
+ * the two must not be told apart by shade alone. */
+.dh-checkbox__control:indeterminate {
+  background: var(--dh-color-accent);
+  border-color: var(--dh-color-accent);
+}
+
+.dh-checkbox__control:indeterminate::after {
+  inline-size: var(--dh-space-2);
+  block-size: var(--dh-space-0);
+  border-width: 0 0 var(--dh-border-width-strong) 0;
+  transform: none;
+  opacity: 1;
+}
+
+.dh-checkbox__control:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dh-checkbox__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-0);
+  min-inline-size: 0;
+}
+
+.dh-checkbox__label {
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  color: var(--dh-color-text);
+}
+
+.dh-checkbox__description {
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+/* ========================================================================== */
+/* Badge                                                                       */
+/* ========================================================================== */
+
+/*
+ * `.dh-pill` is named beside `.dh-badge` — the third and last of DS-02's
+ * bridges. `StatusPill` renders `Badge`, so the two class names are one object;
+ * the pill's own tone rules were deleted from `pill.css` in the same change, and
+ * this is where they live now.
+ *
+ * The chip was 32px tall at `label-large` on `corner-small`. The badge is a
+ * `meta` rung on `--dh-radius-sm` at roughly two-thirds the height, because a
+ * status annotating a 36px row must not be as tall as the row.
+ */
+:is(.dh-badge, .dh-pill) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-block-size: var(--dh-space-5);
+  padding-inline: var(--dh-space-2);
+  border: var(--dh-border-width) solid transparent;
+  border-radius: var(--dh-radius-sm);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  white-space: nowrap;
+  /* A badge that is also a link is still a badge: its container is the
+   * affordance, so the browser's underline would be a second one. */
+  text-decoration: none;
+}
+
+.dh-badge__dot {
+  inline-size: var(--dh-space-1);
+  block-size: var(--dh-space-1);
+  border-radius: var(--dh-radius-pill);
+  background: currentColor;
+  flex: none;
+}
+
+:is(.dh-badge__icon, .dh-pill__icon) {
+  display: inline-flex;
+  flex: none;
+  inline-size: var(--dh-space-3);
+  block-size: var(--dh-space-3);
+}
+
+/* Every tone is a generated container / on-container pair, which the contrast
+ * suite holds at 4.5:1 in BOTH appearances — so a badge cannot exist in a state
+ * where its own label is unreadable on it. */
+:is(.dh-badge, .dh-pill)[data-tone="neutral"] {
+  background: var(--dh-color-surface-quiet);
+  border-color: var(--dh-color-border);
+  color: var(--dh-color-text-muted);
+}
+
+:is(.dh-badge, .dh-pill)[data-tone="accent"] {
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
+}
+
+:is(.dh-badge, .dh-pill)[data-tone="success"] {
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+}
+
+:is(.dh-badge, .dh-pill)[data-tone="warning"] {
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+}
+
+:is(.dh-badge, .dh-pill)[data-tone="danger"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+:is(.dh-badge, .dh-pill)[data-tone="info"] {
+  background: var(--md-sys-color-info-container);
+  color: var(--md-sys-color-on-info-container);
+}
+
+/*
+ * The four status tones above reach the generated CONTAINER pairs directly.
+ *
+ * That is a deliberate, narrow exception to this file's "`--dh-*` only" rule
+ * and it is recorded rather than hidden: the DalyHub layer publishes
+ * `--dh-color-success` / `-warning` / `-danger` as the ROLE colours, and a
+ * container pair is a second value each — eight more names, whose only consumer
+ * would be this block. DS-01 §2.3 declined to flatten data vocabularies into the
+ * layer for the same reason. DS-08 decides whether the badge's pairs earn names
+ * of their own; until then the badge is the one primitive that reads two
+ * vocabularies, and it is stated here rather than left to be discovered.
+ */
+
+/* OUTLINE — a hairline with no fill, for a run of several badges where the
+ * tints would read as a stripe. */
+.dh-badge--outline {
+  background: transparent;
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-badge--outline[data-tone="accent"] {
+  color: var(--dh-color-accent);
+}
+
+.dh-badge--outline[data-tone="danger"] {
+  color: var(--dh-color-danger);
+}
+
+.dh-badge--outline[data-tone="success"] {
+  color: var(--dh-color-success);
+}
+
+.dh-badge--outline[data-tone="warning"] {
+  color: var(--dh-color-warning);
+}
+
+/* ========================================================================== */
+/* Card — the generic bounded surface                                          */
+/* ========================================================================== */
+
+.dh-surface {
+  display: block;
+  padding: var(--dh-surface-padding);
+  border: var(--dh-border-width) solid transparent;
+  /*
+   * 12px, not 16px.
+   *
+   * `--dh-radius-lg` (16) is the product card rung and stays where it is until
+   * DS-05. A generic box on a dense canvas takes the rung below it: at the sizes
+   * a productivity surface actually uses — a 200px panel, a 320px column — a
+   * 16px corner is visibly a Material card and a 12px one is a boundary.
+   */
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+}
+
+/* FLAT — D1's contract, and the default. Separation is the surface step alone:
+ * no border, no resting shadow. */
+.dh-surface--flat {
+  box-shadow: var(--dh-elevation-flat);
+}
+
+/* OUTLINED — the DS-02 addition. A hairline is the cheapest boundary there is,
+ * and on a canvas holding many small boxes it is the one that works. It
+ * separates; it does not identify a control, so it takes `--dh-color-border`
+ * rather than `-strong`. */
+.dh-surface--outlined {
+  border-color: var(--dh-color-border);
+  box-shadow: var(--dh-elevation-flat);
+}
+
+/* RAISED — for a surface that has genuinely left the canvas. Not for emphasis. */
+.dh-surface--raised {
+  border-color: var(--dh-color-border);
+  box-shadow: var(--dh-elevation-raised);
+}
+
+.dh-surface--pad-compact {
+  padding: var(--dh-space-3);
+}
+
+.dh-surface--pad-none {
+  padding: var(--dh-space-0);
+}
+
+/* ========================================================================== */
+/* Reduced motion                                                              */
+/* ========================================================================== */
+
+/*
+ * Motion in this file is decorative in every case — a colour crossfade and one
+ * spinner. `prefers-reduced-motion` removes all of it, and nothing is lost:
+ * every state the transitions animate is also a colour change that is fully
+ * present at both ends.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .dh-button,
+    .dh-btn,
+    .dh-icon-button,
+    .dh-control,
+    .dh-input,
+    .dh-checkbox__control
+  ) {
+    transition: none;
+  }
+
+  :is(.dh-button__spinner, .dh-btn__spinner) {
+    animation: none;
+  }
+}

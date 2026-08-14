@@ -28,19 +28,21 @@
    * scrollbar and the JS clamp measures `clientWidth`, which does not, so the
    * slack is what keeps the two from disagreeing and giving the document a
    * sideways scroll. */
-  max-inline-size: min(20rem, calc(100vw - 2 * var(--app-space-6)));
-  padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  max-inline-size: min(20rem, calc(100vw - 2 * var(--dh-space-6)));
+  padding: var(--dh-space-1) var(--dh-space-2);
+  /* DS-02 — the small rung and the DalyHub `meta` type. The inverse pair stays:
+   * it is the one container in the product that must read as an overlay in BOTH
+   * appearances without either needing a rule of its own, and no `--dh-*` name
+   * publishes it. DS-08 decides whether it earns one. */
+  border-radius: var(--dh-radius-sm);
   background: var(--md-sys-color-inverse-surface);
   color: var(--md-sys-color-inverse-on-surface);
-  box-shadow: var(--md-sys-elevation-2);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  box-shadow: var(--dh-elevation-overlay);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   /* One line where it fits; wrapping only for genuinely long supporting text. */
   text-wrap: pretty;
-  animation: dh-tooltip-in var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  animation: dh-tooltip-in var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 /* Measured but not yet placed (the first layout pass). Hidden rather than moved

@@ -40,18 +40,39 @@
  * padding that made Today's hero 250px for six numbers is exactly what this
  * family exists to stop.
  */
+/*
+ * DS-02 — the titled panel takes the generic surface's boundary.
+ *
+ * `.dh-dcard` is the generic CONTAINER of the card family — a titled panel
+ * holding arbitrary content — so it is the one member of the family that should
+ * look like `~/shared/ui`'s `Card`, and it now does: `--dh-radius-md` and a
+ * hairline instead of `--app-shape-card` and nothing.
+ *
+ * D1 said a card draws no border, and this is the amendment §20 of the DS-02
+ * brief asked for rather than a reversal of it: at the count a dashboard
+ * actually renders — Today draws seven of these — a tonal step alone stops
+ * being a boundary, and the eye reads a field of slightly-different-white
+ * rectangles. It still spends only ONE device: a hairline and no shadow, on a
+ * corner one rung smaller than before.
+ *
+ * The SIX RECORD FAMILIES below (`.dh-pcard`, `.dh-gcard`, `.dh-acard`,
+ * `.dh-rcard`, the person row, the entity row) are deliberately untouched.
+ * §5b's shape distinctions are the product's strongest recognition device and
+ * flattening them into one generic surface is DS-05's decision to make with the
+ * screens in front of it, not a side effect of a primitives PR.
+ */
 .dh-dcard {
   display: flex;
   flex-direction: column;
   min-inline-size: 0;
-  background: var(--md-app-color-surface-card);
-  border: none;
-  border-radius: var(--app-shape-card);
-  box-shadow: var(--app-elevation-resting);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-elevation-flat);
 }
 
 .dh-dcard--subtle {
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
   box-shadow: none;
 }
 
@@ -109,22 +130,24 @@
 
 /* `title-medium` — a card title, per the typography usage map. Not a page
  * heading: a dashboard of eight `headline` titles has no hierarchy at all. */
+/* The `section-title` role — a card or widget title, per the DS-01 typography
+ * map. Not a page heading: a dashboard of eight `page-title`s has no hierarchy
+ * at all. */
 .dh-dcard__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
-  line-height: var(--md-sys-typescale-title-medium-line-height);
-  font-weight: var(--md-sys-typescale-title-medium-weight);
-  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
 .dh-dcard__supporting {
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
-  font-variant-numeric: tabular-nums;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  /* The numeric-readability request, by name (DS-01 §4). */
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
 .dh-dcard__header-action {

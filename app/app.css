@@ -28,6 +28,17 @@
 /* DS-14 — the two self-hosted variable families, before anything consumes them. */
 @import "./styles/fonts.css";
 @import "./styles/base.css";
+/*
+ * DS-02 — the generic UI primitive layer.
+ *
+ * Early, and directly after `base.css`, for two reasons. It is the FLOOR every
+ * other stylesheet builds on — a module that needs a button to be something
+ * else on one surface must be able to say so without `!important` — and it
+ * bridges three class names (`.dh-btn`, `.dh-input`, `.dh-pill`) whose own
+ * declarations used to live in `forms.css` and `pill.css`, both of which are
+ * imported after this point and would otherwise win on source order alone.
+ */
+@import "./styles/ui.css";
 @import "./styles/pill.css";
 @import "./styles/icons.css";
 /* BRAND-01 — the product-identity surfaces (sidebar brand, full lockup). Before

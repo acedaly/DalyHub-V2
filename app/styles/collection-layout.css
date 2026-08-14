@@ -344,20 +344,34 @@
   min-width: 0;
 }
 
+/*
+ * DS-02 — the filter trigger joins the control rung.
+ *
+ * It is a `secondary` button in everything but name: a bordered neutral control
+ * that opens a panel. It was drawn as a 45px stadium, which made it the widest,
+ * tallest and roundest object in every collection header — beside a title, a
+ * tab rail and a "New …" action that are all now on the control rung. D33
+ * retires the stadium from the button family and this is the same decision
+ * applied to the same shape.
+ *
+ * Structure — where it sits, what it opens, how the panel is laid out — is
+ * DS-03's. Only the control's own height, radius and vocabulary change here.
+ */
 .dh-collection-controls__trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--app-space-2);
+  gap: var(--dh-space-2);
   flex: none;
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
-  font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
+  min-block-size: var(--dh-control-height);
+  padding-inline: var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-control);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
   cursor: pointer;
 }
 

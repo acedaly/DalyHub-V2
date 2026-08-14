@@ -11,5 +11,8 @@
  */
 
 export * from "./types";
-export * from "./confirmation";
+/* DS-02 — the confirmation state machine moved to `~/shared/ui` with the dialog
+ * it drives. It is still pure and still framework-free, so it is still reachable
+ * from here; only its home changed. */
+export * from "~/shared/ui/confirmation";
 export * from "./immediate";

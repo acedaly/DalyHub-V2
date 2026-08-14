@@ -17,6 +17,36 @@ no version number to group them under.
 
 ---
 
+## A tighter, quieter interface (DS-02)
+
+DalyHub's buttons, fields, menus and dialogs have been rebuilt on one shared
+foundation, and the first thing you will notice is that the desktop app has
+stopped feeling like a phone app on a big screen.
+
+- **Controls are smaller, and there is more on screen.** A button, a text field
+  and a dropdown are now about a quarter shorter on a computer, which means a
+  form, a filter row and a menu all take less room and less scrolling.
+- **Buttons stopped being lozenges.** Every button now has the same softly
+  rounded corners as the field beside it, so a toolbar reads as one set of
+  controls rather than a row of unrelated shapes.
+- **Purple means one thing again.** Secondary buttons — Cancel, Reset, Filter &
+  sort — used to be filled with a second shade of purple, which made it hard to
+  see at a glance which action was the main one. They are now plain, with a fine
+  outline. The purple is saved for the action you actually came to do.
+- **Status labels are smaller.** A status like "In progress" no longer stands as
+  tall as the row it is describing.
+- **Menus feel like a desktop app.** Shorter rows, a crisper edge and a lighter
+  panel, so a long menu is a list you can scan rather than a wall you scroll.
+- **Nothing shrank on your phone.** Every button and field on a touchscreen is
+  exactly as large and as easy to hit as it was — the tighter sizing applies only
+  where there is a mouse or a trackpad. Text still stays large enough that tapping
+  a field never zooms the page.
+
+Everything works the way it did. This changes how DalyHub looks, not what it
+does, and it is the groundwork for the wider redesign that follows.
+
+---
+
 ## Your real day, on Today (CAL-01)
 
 Today has always been honest about your tasks and completely blind to everything

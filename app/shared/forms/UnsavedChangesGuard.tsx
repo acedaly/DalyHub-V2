@@ -20,6 +20,8 @@
 
 import { useEffect, useId, useRef } from "react";
 
+import { Button } from "~/shared/ui";
+
 import {
   useUnsavedChangesPrompt,
   type UnsavedChangesOptions,
@@ -181,21 +183,12 @@ export function UnsavedChangesGuard({
           {message}
         </p>
         <div className="dh-unsaved-guard__actions">
-          <button
-            type="button"
-            className="dh-btn dh-btn--secondary"
-            ref={stayRef}
-            onClick={onStay}
-          >
+          <Button variant="secondary" ref={stayRef} onClick={onStay}>
             {stayLabel}
-          </button>
-          <button
-            type="button"
-            className="dh-btn dh-btn--danger"
-            onClick={proceed}
-          >
+          </Button>
+          <Button variant="danger" onClick={proceed}>
             {leaveLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

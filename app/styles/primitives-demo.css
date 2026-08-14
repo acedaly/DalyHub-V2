@@ -1,0 +1,109 @@
+/*
+ * DS-02 — layout for the primitive gallery fixture (`/design/primitives`).
+ *
+ * Development-only, like the route it serves. It lays specimens out in labelled
+ * rows and states NOTHING about how any primitive looks — every visual value a
+ * primitive has comes from `ui.css`, and a demo stylesheet that overrode one
+ * would make the gallery evidence of itself rather than of the system.
+ */
+
+.dh-primitives {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+  max-inline-size: 64rem;
+}
+
+.dh-primitives__title {
+  margin: 0;
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
+  font-weight: var(--dh-text-page-title-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-primitives__lede {
+  margin: 0;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-primitives__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-primitives__section-title {
+  margin: 0;
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-primitives__section-note {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-primitives__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding-block-start: var(--dh-space-2);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-primitives__row-label {
+  flex: none;
+  inline-size: 8rem;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-primitives__specimens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+  flex: 1;
+}
+
+/* A field is given a column so the row does not stretch it to the page width —
+ * the point of the gallery is the control's HEIGHT beside its neighbours. */
+.dh-primitives__specimens > .dh-control,
+.dh-primitives__specimens > .dh-control-affix {
+  inline-size: 14rem;
+  flex: none;
+}
+
+.dh-primitives__card {
+  inline-size: 10rem;
+  font-size: var(--dh-text-row-size);
+  color: var(--dh-color-text-muted);
+}
+
+/* Below the tablet boundary the label stacks above its specimens rather than
+ * taking a third of a phone's width. */
+@media (max-width: 48rem) {
+  .dh-primitives__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dh-primitives__row-label {
+    inline-size: auto;
+  }
+
+  .dh-primitives__specimens > .dh-control,
+  .dh-primitives__specimens > .dh-control-affix {
+    inline-size: 100%;
+  }
+}
