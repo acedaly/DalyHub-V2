@@ -499,6 +499,17 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     // UIX-01 — the row states the due date as the word "Today". The separate
     // "Due today" urgency chip is gone: a relative date says it itself.
     await expect(card).toContainText("Today");
+    /*
+     * Wait for the SERVER's answer before opening a menu on this row.
+     *
+     * The word above is painted optimistically off the client's patch map; the
+     * BUCKET is the server's, and the revalidation the save asked for lands a
+     * moment later and RE-CREATES the row under its new due state — taking any
+     * menu open on it with it ("element was detached from the DOM"). HARDEN-04
+     * added the same wait to `tasks-journey` for the same reason, and it was
+     * missing here: the next step opens this row's overflow.
+     */
+    await page.waitForLoadState("networkidle");
 
     // Then PLAN it for today. The due date is a deadline and the planned date is
     // a commitment (ADR-043 §3): setting one must never overwrite the other, so
