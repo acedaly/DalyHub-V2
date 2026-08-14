@@ -97,11 +97,18 @@ describe("DS-02 the primitive stylesheet consumes the DalyHub layer", () => {
     // Lengths are allowed only inside `calc()` and as the `0`/`100%` structural
     // values every layout needs; a bare `12px` or `0.875rem` is a design value
     // that belongs in the token layer (AGENTS.md §9.8).
+    //
+    // The NEGATIVE case is spelled out because it is the one that got through
+    // during DS-02: a checkbox tick optically centred with
+    // `transform: translateY(-1px)`. A hard-coded length is a hard-coded length
+    // inside a transform, and a `-` before the digit must not be mistaken for a
+    // token name's hyphen — hence the `[\w]`-only lookbehind plus the explicit
+    // sign in the pattern.
     const declarations = UI_CSS.replace(/\/\*[\s\S]*?\*\//g, "")
       .split("\n")
       .filter((line) => /^\s*[a-z-]+\s*:/.test(line));
     const offenders = declarations.filter((line) =>
-      /:\s*[^;]*?(?<![\w-])\d*\.?\d+(px|rem|em)\b/.test(
+      /:\s*[^;]*?(?<![\w])-?\d*\.?\d+(px|rem|em)\b/.test(
         // `calc()` is where the layer's own tokens are composed, and the
         // affix inset and the multiline floor both genuinely need one.
         line.replace(/calc\([^)]*\)/g, ""),

@@ -277,9 +277,15 @@
   block-size: var(--dh-icon-size);
 }
 
+/*
+ * SMALL — padding only, exactly as `Button`'s `sm` is.
+ *
+ * It removes the inset around the glyph rather than shrinking the control, so a
+ * dense action rail packs tighter and the hit area is still the density rung in
+ * both axes. Restating the min-sizes here would be a no-op that reads like a
+ * size change, which is worse than saying nothing.
+ */
 .dh-icon-button--sm {
-  min-inline-size: var(--dh-control-height);
-  min-block-size: var(--dh-control-height);
   padding: var(--dh-space-0);
 }
 
@@ -516,7 +522,11 @@
   block-size: var(--dh-space-2);
   border: solid var(--dh-color-text-on-accent);
   border-width: 0 var(--dh-border-width-strong) var(--dh-border-width-strong) 0;
-  transform: translateY(-1px) rotate(45deg);
+  /* A rotated corner is optically low in its box, so it is lifted by the one
+   * hairline rung the space scale publishes rather than by a literal `-1px`.
+   * §23: a hard-coded length is a hard-coded length even inside a transform. */
+  margin-block-end: var(--dh-space-px);
+  transform: rotate(45deg);
   opacity: 0;
 }
 
