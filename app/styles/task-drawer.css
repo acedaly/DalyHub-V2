@@ -32,7 +32,7 @@
  * name. Only the genuinely task-specific description fallback stays here. */
 .dh-task-drawer__description-fallback {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -44,7 +44,7 @@
 }
 
 .dh-task-drawer__meta dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -71,7 +71,7 @@
 
 .dh-task-drawer__relationship-kind {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-task-drawer__relationship-title {
@@ -94,7 +94,7 @@
 
 .dh-task-waiting--active {
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-warning);
+  border: var(--app-border-width-thin) solid var(--dh-color-warning);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-sys-color-warning-container);
 }
@@ -124,7 +124,7 @@
 .dh-task-waiting__since {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-task-waiting__modes {
@@ -138,7 +138,7 @@
 
 .dh-task-waiting__legend {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   padding: 0;
   margin-bottom: var(--app-space-1);
 }
@@ -186,7 +186,7 @@
 
 .dh-task-planning__date dt {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-task-planning__date dd {
@@ -203,7 +203,7 @@
 .dh-task-planning__muted {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-task-planning__error {

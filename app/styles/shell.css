@@ -1567,6 +1567,52 @@
   font-variant-numeric: var(--dh-font-numeric);
 }
 
+/*
+ * DS-08 — a COLLECTION's count sits BESIDE its title, on every collection.
+ *
+ * DS-04 established this for Tasks and gave the reason: the concept spends two
+ * bands above the first row (a title row and a tab row) and nothing else, while
+ * DalyHub spent three — a title, a "96 Tasks" line beneath it, then the tabs.
+ * That third line is one fact, six characters long, given a whole row of the
+ * calmest band on the page, and it pushed the first row 154px down a 950px
+ * viewport.
+ *
+ * It was scoped to `.dh-collection--tasks` because Tasks was the module being
+ * redesigned. The whole-app baseline is what lifts it here: seven other
+ * collections still spent the extra band, so the product had one collection
+ * header and seven of another. `--compact` IS the collection band, so this is
+ * the rule finding its own component.
+ *
+ * `--identity` (the RECORD band) is deliberately untouched: a record's
+ * supporting line is a sentence about the record, not a figure, and a sentence
+ * belongs under the title rather than beside it.
+ *
+ * No `white-space: nowrap`. A count never wraps at any width the header
+ * survives, and the same slot carries the failed-read SENTENCE ("We couldn't
+ * load your Projects"), which must be allowed to wrap rather than push the
+ * action cluster off the row.
+ */
+.dh-pane-header--compact .dh-pane-header__titles {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+.dh-pane-header--compact .dh-pane-header__subtitle {
+  margin: 0;
+}
+
+/*
+ * The band itself, tightened to match. The tabs beneath already carry their own
+ * height from `--dh-control-height`; this padding was sized for a band that also
+ * had to clear a stacked line.
+ */
+.dh-pane-header--compact {
+  padding-block: var(--dh-space-4) var(--dh-space-2);
+}
+
 .dh-pane-header__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1950,7 +1996,7 @@
 }
 
 .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__indicator {
-  background: var(--md-app-color-surface-nav-selected);
+  background: var(--dh-color-surface-selected);
 }
 
 /*

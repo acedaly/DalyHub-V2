@@ -41,7 +41,7 @@
   top: 0;
   z-index: var(--app-z-raised);
   padding: var(--app-space-2) var(--app-space-1);
-  background: var(--md-app-color-surface-page);
+  background: var(--dh-color-bg);
   border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
@@ -50,7 +50,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -85,20 +85,20 @@
   width: var(--app-space-3);
   height: var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
 }
 
 .dh-activity-item__dot[data-tone="accent"] {
   background: var(--md-sys-color-primary);
 }
 .dh-activity-item__dot[data-tone="success"] {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 .dh-activity-item__dot[data-tone="warning"] {
-  background: var(--md-sys-color-warning);
+  background: var(--dh-color-warning);
 }
 .dh-activity-item__dot[data-tone="danger"] {
-  background: var(--md-sys-color-error);
+  background: var(--dh-color-danger);
 }
 .dh-activity-item__dot[data-tone="info"] {
   background: var(--md-sys-color-info);
@@ -112,13 +112,13 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-activity-item__actor {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* IDENT-01 — the one shared actor presentation: an initials chip plus the
@@ -140,7 +140,7 @@
   inline-size: 1.25rem;
   block-size: 1.25rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   color: var(--md-sys-color-primary);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
@@ -151,18 +151,18 @@
 /* An identity we could not recover is stated plainly, not dressed up. Meaning is
    never carried by colour alone — the label itself says "Unknown user". */
 .dh-activity-actor[data-actor-kind="unknown"] .dh-activity-item__actor {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-style: italic;
 }
 
 .dh-activity-item__emphasis {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-activity-item__entity {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-activity-item__entity--link {
@@ -182,7 +182,7 @@
 }
 
 .dh-activity-item__entity--unresolved {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-style: italic;
 }
 
@@ -202,19 +202,19 @@
 
 .dh-activity-item__meta-entry dt {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-activity-item__meta-entry dd {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-activity-item__time {
   font-size: var(--md-sys-typescale-label-medium-size);
   font-variant-numeric: tabular-nums;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
 
@@ -250,12 +250,12 @@
 .dh-activity__end {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-activity__loading-more {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-activity__error-text {
@@ -273,9 +273,9 @@
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
   transition: background var(--md-sys-motion-duration-short4)
@@ -283,11 +283,7 @@
 }
 
 .dh-activity__btn:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-activity__btn:focus-visible {
@@ -296,7 +292,7 @@
 }
 
 .dh-activity__btn--load-more {
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
   background: var(--md-sys-color-primary);
   border-color: var(--md-sys-color-primary);
 }

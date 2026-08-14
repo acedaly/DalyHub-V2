@@ -28,7 +28,7 @@
 .dh-sheet__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   animation: dh-sheet-scrim-in var(--md-sys-motion-duration-medium2)
     var(--md-sys-motion-easing-standard);
 }
@@ -48,8 +48,8 @@
    * product where the brand painted a whole surface. The app-neutral palette
    * exists for exactly this (see `tokens.css` → APP_SURFACE_TONES), and it is
    * what every other panel in the shell already paints with. */
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   /* The M3 bottom sheet rounds its TOP corners only. */
   border-top-left-radius: var(--md-sys-shape-corner-extra-large);
   border-top-right-radius: var(--md-sys-shape-corner-extra-large);
@@ -79,11 +79,7 @@
   block-size: 4px;
   margin-block: var(--app-space-2) var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface-variant) 40%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text-muted) 40%, transparent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -131,7 +127,7 @@
 .dh-sheet__description {
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-sheet__leading {
@@ -170,17 +166,13 @@
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-medium);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   cursor: pointer;
 }
 
 .dh-sheet__close:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-  color: var(--md-sys-color-on-surface);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+  color: var(--dh-color-text);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -209,7 +201,7 @@
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -231,8 +223,8 @@
   padding: var(--app-space-2) var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   font: inherit;
   text-align: start;
   cursor: pointer;
@@ -241,16 +233,12 @@
 }
 
 .dh-sheet-option:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-sheet-option[aria-pressed="true"] {
   border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 .dh-sheet-option[aria-pressed="true"] .dh-sheet-option__label {
@@ -278,7 +266,7 @@
 
 .dh-sheet-option__description {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Selection is a check MARK (shape) as well as the pressed state — never colour
@@ -382,7 +370,7 @@
   padding-inline: var(--app-space-2);
   font: inherit;
   font-size: var(--md-sys-typescale-label-large-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*

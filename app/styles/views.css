@@ -29,7 +29,7 @@
 
 .dh-views__scopes-legend {
   padding: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
 }
 
@@ -51,8 +51,8 @@
   padding-inline: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-large-size);
   text-decoration: none;
 }
@@ -72,7 +72,7 @@
 }
 
 .dh-views__scope-note {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
 }
 
@@ -85,7 +85,7 @@
 
 .dh-views__notice {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -104,11 +104,11 @@
   margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-title-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-views__group-count {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 400;
 }
@@ -131,7 +131,7 @@
   /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
   border: none;
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-views__row-link {
@@ -151,12 +151,12 @@
   gap: var(--app-space-1) var(--app-space-3);
   margin: 0;
   min-width: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
 
 .dh-views__row-date {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }

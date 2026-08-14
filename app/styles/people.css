@@ -25,8 +25,8 @@
   /* The neutral disc — a Person with no relationship recorded. It is a real
    * answer ("not classified"), not a fallback colour, and it is legible in both
    * appearances without any accent at all. */
-  background: var(--md-app-color-surface-card-subtle);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
   font-weight: 500;
   line-height: 1;
 }
@@ -45,7 +45,7 @@
   background: color-mix(
     in srgb,
     var(--person-avatar-container) var(--app-tint-strength-identity),
-    var(--md-app-color-surface-card)
+    var(--dh-color-surface)
   );
   color: var(--person-avatar-on-container);
 }
@@ -155,10 +155,10 @@
    * the product's touch floor. */
   min-block-size: var(--app-control-height-lg);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--app-shape-control);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font: inherit;
   font-weight: 500;
   cursor: pointer;
@@ -174,7 +174,7 @@
 
 .dh-people-filters__toggle-count {
   font-variant-numeric: tabular-nums;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-people-filters__toggle[aria-pressed="true"]
@@ -224,7 +224,7 @@
 
 .dh-person-new__lede {
   margin: var(--app-space-1) 0 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -256,7 +256,7 @@
 
 .dh-person-summary__pronouns,
 .dh-person-summary__context {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 500;
 }
 
@@ -274,7 +274,7 @@
   align-items: center;
   padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   color: var(--md-sys-color-primary);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -299,7 +299,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-person-summary__facts {
@@ -310,7 +310,7 @@
 }
 
 .dh-person-summary__fact dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -352,18 +352,18 @@
 }
 
 .dh-person-linked__icon {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: inline-flex;
 }
 
 .dh-person-linked__count {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 500;
 }
 
 .dh-person-linked__empty {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-person-linked__list {
@@ -490,7 +490,7 @@
 .dh-person-timeline__lede,
 .dh-person-timeline__note {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -504,7 +504,7 @@
   padding: var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 /* -------------------------------------------------------------------------- */

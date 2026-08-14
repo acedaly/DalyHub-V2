@@ -41,7 +41,7 @@
 .dh-review-guide__step-description,
 .dh-review-guide__queue {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-review-guide__meta,
@@ -65,9 +65,9 @@
   gap: var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
   padding: var(--app-space-1) var(--app-space-3);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -90,14 +90,14 @@
   margin: 0;
   padding: var(--app-space-4);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   min-width: 0;
 }
 
 .dh-review-guide__rail-progress {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -119,14 +119,14 @@
   border: 0;
   border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   padding: var(--app-space-2) var(--app-space-3);
   text-align: start;
   cursor: pointer;
 }
 
 .dh-review-guide__rail-step:hover {
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 .dh-review-guide__rail-step[aria-current="step"] {
@@ -144,7 +144,7 @@
   inline-size: 1.75rem;
   block-size: 1.75rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -152,7 +152,7 @@
 /* Done is carried by the border weight AND the "Done" text beside it. */
 .dh-review-guide__rail-step[data-state="complete"]
   .dh-review-guide__rail-order {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   box-shadow: inset 0 0 0 2px var(--md-sys-color-primary);
 }
 
@@ -167,7 +167,7 @@
 }
 
 .dh-review-guide__rail-state {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 400;
 }
@@ -178,7 +178,7 @@
   min-width: 0;
   padding: var(--app-space-5);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
 }
 
@@ -231,11 +231,11 @@
 
 .dh-review-guide__prompt-question {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-review-guide__save-state {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -254,9 +254,9 @@
   min-block-size: var(--app-touch-target-min);
   border: 0;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   padding: var(--app-space-2) var(--app-space-3);
   text-align: start;
   cursor: pointer;
@@ -269,7 +269,7 @@
 }
 
 .dh-review-guide__prompt-nav-state {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 400;
 }
@@ -292,14 +292,14 @@
   gap: var(--app-space-1);
   min-width: 0;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   padding: var(--app-space-3);
 }
 
 .dh-review-guide__fact dt,
 .dh-review-guide__summary dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -324,7 +324,7 @@
 /* An outstanding summary line is marked with a word in the value, not a colour
  * — this only adds a quiet emphasis on top of that. */
 .dh-review-guide__summary > div[data-outstanding="true"] {
-  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline);
+  box-shadow: inset 0 0 0 1px var(--dh-color-border-strong);
 }
 
 .dh-review-guide__projects,
@@ -345,7 +345,7 @@
   gap: var(--app-space-2) var(--app-space-3);
   min-width: 0;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   padding: var(--app-space-3);
 }
@@ -364,7 +364,7 @@
   gap: var(--app-space-2);
   min-width: 0;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
   padding: var(--app-space-3);
 }
@@ -388,7 +388,7 @@
 .dh-review-guide__project-context,
 .dh-review-guide__project-next,
 .dh-review-guide__label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-review-guide__project-next,
@@ -418,7 +418,7 @@
 }
 
 .dh-review-guide__project-counts dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -431,7 +431,7 @@
   display: grid;
   gap: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset 0 0 0 2px var(--md-sys-color-outline-variant);
   padding: var(--app-space-4);
 }
@@ -515,14 +515,14 @@
 
   .dh-review-guide__stepper-progress {
     margin: 0;
-    color: var(--md-sys-color-on-surface-variant);
+    color: var(--dh-color-text-muted);
     font-size: var(--md-sys-typescale-body-small-size);
   }
 
   .dh-review-guide__stepper-track {
     block-size: 0.375rem;
     border-radius: var(--md-sys-shape-corner-full);
-    background: var(--md-app-color-surface-raised);
+    background: var(--dh-color-surface-raised);
     box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
     overflow: hidden;
   }
@@ -547,7 +547,7 @@
       var(--app-bottomnav-height, 0px) + var(--app-keyboard-inset, 0px)
     );
     z-index: 1;
-    background: var(--md-app-color-surface-card);
+    background: var(--dh-color-surface);
     margin-inline: calc(var(--app-space-4) * -1);
     padding: var(--app-space-3) var(--app-space-4)
       calc(var(--app-space-3) + var(--app-safe-area-bottom));

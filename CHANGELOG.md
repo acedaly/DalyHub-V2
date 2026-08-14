@@ -17,6 +17,58 @@ no version number to group them under.
 
 ---
 
+## The whole app, brought onto one design (DS-05 – DS-08)
+
+DS-04 rebuilt Tasks. This finishes the job everywhere else: Projects, Areas,
+Goals, Today, Notes, Diary, Meetings, Reviews, Analytics, Settings and every
+dialog, drawer and empty state in between.
+
+**Cards look like one thing now.** Every card in DalyHub — a project, a goal, an
+area, a person, a settings group, a dashboard panel, an empty state — draws the
+same edge: a thin hairline, a small corner, and no shadow. They used to disagree,
+and a gallery of project cards read like a different application from the panel
+sitting next to it.
+
+**Projects got shorter and easier to scan.** A project card was 215 pixels tall
+for six facts and is now 117. The percentage used to be the biggest thing on the
+card, larger than the project's own name; it is now small text at the end of its
+progress bar, where you read it anyway.
+
+**Goals stopped being coloured blocks.** A goal's current reading — "8.1 km",
+"$25,600", "83 kg" — used to sit inside a large filled pastel panel, so a page of
+goals read as a page of colours. The reading is now simply the largest text on the
+card, and the goal's colour survives where it means something: the icon, and the
+progress bar.
+
+**Today uses the whole page.** There was a large empty area in the bottom-left of
+the dashboard with your goal progress stranded below it. Goal progress has moved
+up into that space, so what you are working towards is visible without scrolling.
+The heavy red bar down the side of your overdue work is gone — the "Overdue"
+heading and the dates already say it.
+
+**Areas reads as a list.** It used to be a list inside a floating panel on a grey
+page. It is now rows on a white page, like Tasks, and each row is shorter.
+
+**Every collection has the same header.** The count sits next to the page title
+rather than on a line of its own, and every "new" button looks the same: a plus,
+then the words. Six screens each did this differently.
+
+**Settings stopped looking like a different app.** Choosing an appearance, a
+colour scheme or a settings section used to fill the whole row with solid
+lavender. Selection is now a quiet tint, the same one the sidebar and every menu
+use. The tick and the radio button still show you what is chosen.
+
+**Small things that were wrong.** The weekly chart on Today printed "4 0" under
+Sunday, which reads as "forty" — the two figures are now separated. A mistyped web
+address produced a page with no title at all, which matters for screen readers and
+browser history; it has one now.
+
+**Checked, not assumed.** Every screen was checked at phone, tablet, laptop and
+wide-screen sizes in both light and dark, for sideways scrolling, small touch
+targets and accessibility problems. Nothing scrolls sideways at any width.
+
+---
+
 ## Tasks, rebuilt as a list (DS-04)
 
 Tasks is the screen you spend the most time on, and it now looks like it.

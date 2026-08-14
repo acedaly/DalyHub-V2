@@ -45,7 +45,7 @@
   min-block-size: var(--app-touch-target-min);
   min-inline-size: var(--app-touch-target-min);
   cursor: pointer;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
 }
@@ -59,7 +59,7 @@
   block-size: 2rem; /* 32px */
   padding-inline: var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thick) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thick) solid var(--dh-color-border-strong);
   background: var(--md-sys-color-surface-container-highest);
   transition:
     background-color var(--md-sys-motion-duration-short4)
@@ -80,8 +80,8 @@
   inline-size: 1rem; /* 16px unselected */
   block-size: 1rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
-  color: var(--md-sys-color-on-primary-container);
+  background: var(--dh-color-border-strong);
+  color: var(--dh-color-text-on-accent-subtle);
   transition:
     transform var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard),
@@ -114,14 +114,14 @@
 .dh-switch__input:checked + .dh-switch__label .dh-switch__thumb {
   inline-size: 1.5rem; /* 24px selected */
   block-size: 1.5rem;
-  background: var(--md-sys-color-on-primary);
+  background: var(--dh-color-text-on-accent);
   /* 52px track − 2×2px border − 2×4px padding − 24px thumb = 16px of travel. */
   transform: translateX(1rem);
 }
 
 .dh-switch__input:checked + .dh-switch__label .dh-switch__check {
   opacity: 1;
-  color: var(--md-sys-color-on-primary-container);
+  color: var(--dh-color-text-on-accent-subtle);
 }
 
 /* --- Focus --------------------------------------------------------------- */
@@ -138,7 +138,7 @@
 .dh-switch__input:disabled + .dh-switch__label {
   color: color-mix(
     in srgb,
-    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+    var(--dh-color-text) var(--md-sys-state-disabled-content-opacity),
     transparent
   );
   cursor: not-allowed;
@@ -147,13 +147,12 @@
 .dh-switch__input:disabled + .dh-switch__label .dh-switch__track {
   background: color-mix(
     in srgb,
-    var(--md-sys-color-on-surface)
-      var(--md-sys-state-disabled-container-opacity),
+    var(--dh-color-text) var(--md-sys-state-disabled-container-opacity),
     transparent
   );
   border-color: color-mix(
     in srgb,
-    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+    var(--dh-color-text) var(--md-sys-state-disabled-content-opacity),
     transparent
   );
 }
@@ -161,7 +160,7 @@
 .dh-switch__input:disabled + .dh-switch__label .dh-switch__thumb {
   background: color-mix(
     in srgb,
-    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+    var(--dh-color-text) var(--md-sys-state-disabled-content-opacity),
     transparent
   );
 }

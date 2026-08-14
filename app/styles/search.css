@@ -27,7 +27,7 @@
   border: 0;
   margin: 0;
   padding: 0;
-  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   cursor: default;
   animation: dh-search-fade var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -40,7 +40,7 @@
   width: 100%;
   max-width: 40rem;
   max-height: min(32rem, calc(100vh - var(--app-space-16)));
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: var(--md-sys-elevation-3);
@@ -61,7 +61,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   letter-spacing: 0.04em;
 }
 
@@ -76,19 +76,15 @@
   padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-app-color-surface-sunken);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-bg-sunken);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 
 .dh-search__close:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-search__inputrow {
@@ -102,7 +98,7 @@
 
 .dh-search__inputicon {
   display: inline-flex;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-search__input {
@@ -111,13 +107,13 @@
   min-height: var(--app-touch-target-min);
   border: 0;
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-family: var(--md-ref-typeface-plain);
 }
 
 .dh-search__input::placeholder {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-search__input:focus {
@@ -134,7 +130,7 @@
 .dh-search__partial {
   margin: 0;
   padding: var(--app-space-4);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -158,7 +154,7 @@
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-search__groupicon {
@@ -169,14 +165,14 @@
 .dh-search__groupcount {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-search__clear {
   margin-left: auto;
   min-height: 1.75rem;
   padding: 0 var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   background: transparent;
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
@@ -186,11 +182,7 @@
 }
 
 .dh-search__clear:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-search__option {
@@ -209,7 +201,7 @@
 }
 
 .dh-search__option[data-active="true"] {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   outline: var(--app-border-width-thin) solid var(--md-sys-color-primary);
   outline-offset: calc(-1 * var(--app-border-width-thin));
 }
@@ -227,7 +219,7 @@
 }
 
 .dh-search__optiontitle {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   white-space: nowrap;
@@ -236,7 +228,7 @@
 }
 
 .dh-search__optionsubtitle {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   white-space: nowrap;
   overflow: hidden;
@@ -260,8 +252,8 @@
   align-items: center;
   min-height: 1.375rem;
   padding: 0 var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-app-color-surface-sunken);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-bg-sunken);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   font-size: var(--md-sys-typescale-label-small-size);
@@ -278,13 +270,13 @@
   margin-left: auto;
   flex: 0 0 auto;
   padding-left: var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   letter-spacing: 0.03em;
 }
 
 .dh-search__mark {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   color: var(--md-sys-color-primary);
   font-weight: 500;
   border-radius: var(--md-sys-shape-corner-extra-small);
@@ -299,7 +291,7 @@
   padding: var(--app-space-2) var(--app-space-4);
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
 }
 
@@ -310,7 +302,7 @@
 .dh-search__retry {
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-4);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
   background: var(--md-sys-color-primary);
   border: 0;
   border-radius: var(--md-sys-shape-corner-small);

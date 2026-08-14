@@ -30,10 +30,10 @@
    * text fields above and below it rather than sitting proud of them. */
   min-block-size: 3.5rem;
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font: inherit;
   text-align: start;
   cursor: pointer;
@@ -45,7 +45,7 @@
 }
 
 .dh-icon-picker[data-invalid="true"] .dh-icon-picker__trigger {
-  border-color: var(--md-sys-color-error);
+  border-color: var(--dh-color-danger);
   /* Not colour alone: the border also thickens, so the invalid state survives a
    * forced-colours mode and a monochrome display. */
   border-width: var(--app-border-width-thick);
@@ -95,7 +95,7 @@
   gap: var(--app-space-3);
   /* OPAQUE and full-width. Sticking the preview and the search separately left
    * the gap between them transparent, and the grid scrolled through it. */
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   /* The band has to cover the panel's own top padding AND the flex gap beneath
    * it, or the grid scrolls through those transparent strips — which is exactly
    * what the first sticky attempt did. The negative top margin pulls the
@@ -112,7 +112,7 @@
   margin: 0;
   padding: var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
 }
 
 .dh-icon-picker__selected-name {
@@ -122,7 +122,7 @@
 
 .dh-icon-picker__selected-note {
   display: block;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -131,15 +131,15 @@
   align-items: center;
   gap: var(--app-space-2);
   padding-inline: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-icon-picker__search-icon {
   display: inline-flex;
   flex: none;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-icon-picker__search-input {
@@ -164,7 +164,7 @@
 
 .dh-icon-picker__category-title {
   margin: 0 0 var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-title-small-size);
   font-weight: 500;
 }
@@ -197,15 +197,15 @@
   padding: var(--app-space-2) var(--app-space-1);
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card-subtle);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text);
   font: inherit;
   cursor: pointer;
 }
 
 .dh-icon-picker__option-icon {
   display: inline-flex;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-icon-picker__option-label {
@@ -222,12 +222,12 @@
 .dh-icon-picker__option[data-selected="true"] {
   border-color: var(--md-sys-color-primary);
   border-width: var(--app-border-width-thick);
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
 }
 
 .dh-icon-picker__option[data-selected="true"] .dh-icon-picker__option-icon {
-  color: var(--md-sys-color-on-primary-container);
+  color: var(--dh-color-text-on-accent-subtle);
 }
 
 .dh-icon-picker__option-check {
@@ -241,7 +241,7 @@
 
 .dh-icon-picker__empty {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -166,11 +166,11 @@ describe("Areas collection", () => {
     expect(accents).toEqual(["1", "2"]);
   });
 
-  it("shows an empty state with a real New Area action", () => {
+  it("shows an empty state with a real New area action", () => {
     renderCollection([]);
     expect(screen.getByText("No Areas yet")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: "New Area" }).length,
+      screen.getAllByRole("link", { name: "New area" }).length,
     ).toBeGreaterThan(0);
   });
 

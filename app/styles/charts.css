@@ -76,13 +76,13 @@
 /* The most recent reading is the one the page's headline states, so it carries
  * a heavier dot — an emphasis, never the only way to find it. */
 .dh-linechart__point[data-latest="true"] {
-  stroke: var(--md-sys-color-on-surface);
+  stroke: var(--dh-color-text);
   stroke-width: 5;
 }
 
 /* The target: quiet, dashed, and always named in the caption beside it. */
 .dh-linechart__target {
-  stroke: var(--md-sys-color-outline);
+  stroke: var(--dh-color-border-strong);
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }
@@ -93,7 +93,7 @@
   gap: var(--app-space-1) var(--app-space-3);
   justify-content: space-between;
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   min-inline-size: 0;
 }
 
@@ -105,12 +105,12 @@
 .dh-linechart__summary {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-linechart__ref-note {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -143,10 +143,10 @@
   font-size: var(--md-sys-typescale-label-small-size);
   line-height: var(--md-sys-typescale-label-small-line-height);
   font-variant-numeric: tabular-nums;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   /* A sliver of the surface behind the text, so the dashed rule does not run
    * through the glyphs. */
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border-radius: var(--md-sys-shape-corner-extra-small);
   pointer-events: none;
   white-space: nowrap;
@@ -170,7 +170,7 @@
  * references must not be told apart by colour alone.
  */
 .dh-linechart__baseline {
-  stroke: var(--md-sys-color-outline);
+  stroke: var(--dh-color-border-strong);
   stroke-width: 1;
   stroke-dasharray: 1 3;
   opacity: 0.7;
@@ -178,7 +178,7 @@
 
 /* The target: quiet, dashed, and always named in the caption beside it. */
 .dh-linechart__target {
-  stroke: var(--md-sys-color-outline);
+  stroke: var(--dh-color-border-strong);
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }
@@ -205,12 +205,12 @@
   min-block-size: 1.5em;
   font-size: var(--md-sys-typescale-body-small-size);
   font-variant-numeric: tabular-nums;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
 .dh-linechart__readout[data-empty="true"] {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 @media (forced-colors: active) {
@@ -260,7 +260,7 @@
  */
 .dh-spark[data-tone="regressing"] .dh-spark__line,
 .dh-spark[data-tone="regressing"] .dh-spark__end {
-  stroke: var(--md-sys-color-on-surface-variant);
+  stroke: var(--dh-color-text-muted);
 }
 
 @media (forced-colors: active) {
@@ -287,7 +287,7 @@
   gap: var(--app-space-3);
   margin: 0;
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The legend swatch is a shape beside a WORD, never a swatch alone. */
@@ -356,24 +356,42 @@
   text-align: center;
 }
 
+/*
+ * DS-06 — the two figures need a SEPARATOR, not a gap.
+ *
+ * Four pixels between two numbers renders "4 0" under Sunday, which a reader
+ * parses as "forty" before they parse it as "four completed, none created" —
+ * and the axis is the only place the chart states a value at all, so an
+ * ambiguous one is the whole reading lost. The middot is the same separator
+ * `.dh-gcard__fact` already uses for a run of trailing facts, and it is drawn
+ * by CSS so no screen reader announces a bullet between two numbers that the
+ * chart's `summary` already states in words.
+ */
 .dh-cbars__values {
   display: inline-flex;
   justify-content: center;
-  gap: var(--app-space-1);
+  gap: var(--dh-space-1);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
 .dh-cbars__value--primary {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-cbars__value--secondary {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-cbars__value--secondary::before {
+  content: "·";
+  margin-inline-end: var(--dh-space-1);
+  color: var(--dh-color-border-strong);
 }
 
 .dh-cbars__label {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }

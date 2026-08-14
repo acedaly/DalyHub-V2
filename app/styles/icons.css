@@ -58,8 +58,8 @@
   block-size: var(--app-entity-icon-container-size);
   flex: none;
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card-subtle);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
   font-size: var(--app-entity-icon-size);
   line-height: 0;
 }
@@ -125,7 +125,7 @@
   background: color-mix(
     in srgb,
     var(--accent-icon-container) var(--app-tint-strength-identity),
-    var(--md-app-color-surface-card)
+    var(--dh-color-surface)
   );
   color: var(--accent-icon-on-container);
 }
@@ -199,7 +199,7 @@
   background: color-mix(
     in srgb,
     var(--app-tone-container) var(--app-tint-strength-identity),
-    var(--md-app-color-surface-card)
+    var(--dh-color-surface)
   );
   color: var(--app-tone);
   font-size: var(--app-entity-icon-size);

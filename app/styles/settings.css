@@ -27,14 +27,14 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
   line-height: 1.35;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-settings__description {
   margin: var(--app-space-2) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-settings__groups {
@@ -59,16 +59,21 @@
  * The rows inside keep their own hairlines, which now separate rows WITHIN a
  * card rather than doing the containing on their own.
  */
+/*
+ * A Settings group is the same card a collection and a record use — which is
+ * what UIX-06 said when it took the hairline OFF, on D1's grounds. DS-05
+ * revisited D1 for the whole product and landed the other way, so the statement
+ * is unchanged and the paint follows the new answer: one hairline, one 12px
+ * corner, no shadow, on every card in DalyHub.
+ */
 .dh-settings-group {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-3);
-  padding: var(--app-space-5);
-  background: var(--md-app-color-surface-card);
-  /* UIX-06 — D1. A Settings group is the same card a collection and a record
-   * use, and it was the last family drawing a hairline around one. */
-  border: none;
-  border-radius: var(--app-shape-card);
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
 }
 
 .dh-settings-group__header {
@@ -86,19 +91,19 @@
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
   line-height: 1.35;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-settings-group__title-icon {
   flex: none;
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
 }
 
 .dh-settings-group__description {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-settings-group__rows {
@@ -119,13 +124,13 @@
 .dh-settings-group--danger {
   gap: 0;
   padding: var(--app-space-4) var(--app-space-5) var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
+  border: var(--app-border-width-thin) solid var(--dh-color-danger);
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-sys-color-error-container);
 }
 
 .dh-settings-group--danger .dh-settings-group__header {
-  border-bottom-color: var(--md-sys-color-error);
+  border-bottom-color: var(--dh-color-danger);
   margin-bottom: var(--app-space-2);
 }
 
@@ -141,7 +146,7 @@
   .dh-settings-group__rows
   > .dh-settings-row
   + .dh-settings-row {
-  border-top-color: var(--md-sys-color-error);
+  border-top-color: var(--dh-color-danger);
 }
 
 /* ---------------------------------------------------------------- row */
@@ -172,7 +177,7 @@
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   line-height: 1.35;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   /* Long labels wrap; never clip. */
   overflow-wrap: anywhere;
 }
@@ -180,7 +185,7 @@
 .dh-settings-row__description {
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -206,7 +211,7 @@
 }
 
 .dh-settings-row__status--neutral {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 .dh-settings-row__status--success {
   color: var(--md-sys-color-on-success-container);
@@ -258,7 +263,7 @@
   transform: translateY(-50%);
   height: 1.5rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
   transition: background var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
 }
@@ -272,7 +277,7 @@
   width: 1.2rem;
   height: 1.2rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-on-primary);
+  background: var(--dh-color-text-on-accent);
   box-shadow: var(--md-sys-elevation-1);
   transition: left var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -289,7 +294,7 @@
 .dh-settings-switch:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
@@ -311,30 +316,22 @@
   max-width: 100%;
   font-size: var(--md-sys-typescale-body-medium-size);
   /* `background-color`: the shorthand would clear the baseline's chevron. */
-  background-color: var(--md-app-color-surface-card);
+  background-color: var(--dh-color-surface);
 }
 
 .dh-settings-select:focus-visible {
   outline: none;
   border-color: var(--md-sys-color-primary);
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-settings-select:disabled {
   cursor: not-allowed;
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
+  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
 }
 
 /* The destructive button on a dangerous-action row. */
@@ -346,8 +343,8 @@
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-error-container);
-  background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
+  background: var(--dh-color-surface);
+  border: var(--app-border-width-thin) solid var(--dh-color-danger);
   border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
   transition: background var(--md-sys-motion-duration-short4)
@@ -361,18 +358,14 @@
 .dh-settings-danger-button:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-settings-danger-button:disabled {
   cursor: not-allowed;
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
+  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -403,7 +396,7 @@
   inset: 0;
   border: none;
   padding: 0;
-  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   cursor: default;
   animation: dh-confirm-scrim-in var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -467,7 +460,7 @@
 
 .dh-confirm__typed-label {
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-confirm__phrase {
@@ -475,22 +468,22 @@
   font-size: var(--md-sys-typescale-label-medium-size);
   padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text);
 }
 
 /* UIX-06 — the shared control baseline supplies height, padding, border and
  * corner; a destructive confirmation is not the place to invent a control. */
 .dh-confirm__input {
   font-size: var(--md-sys-typescale-body-medium-size);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-confirm__input:focus-visible {
   outline: none;
   border-color: var(--md-sys-color-primary);
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
@@ -643,7 +636,7 @@
   font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   text-transform: uppercase;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-settings-page__nav-list {
@@ -672,7 +665,7 @@
   min-height: var(--app-control-height-md);
   padding: 0 var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-medium);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   text-decoration: none;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -710,28 +703,32 @@
 }
 
 .dh-settings-page__nav-link:hover {
-  color: var(--md-sys-color-on-surface);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  color: var(--dh-color-text);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-settings-page__nav-link:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
-/* THEME-02 — the settings section list is navigation, so it uses the shared
+/*
+ * THEME-02 — the settings section list is navigation, so it uses the shared
  * selected-navigation tokens rather than the generic accent tint. Selection is
  * still carried by more than colour: the link is a real `aria-current` target and
- * keeps its stronger weight. */
+ * keeps its stronger weight.
+ *
+ * DS-08 — and the shared selected-navigation token is `--dh-color-surface-selected`,
+ * which is what the rail and every menu already paint. `secondary-container` is
+ * the raw M3 role underneath it and is a full-strength slab; a column of these
+ * beside the appearance rows was most of why Settings read as a different
+ * product. The weight and `aria-current` are untouched.
+ */
 .dh-settings-page__nav-link--active {
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-selected);
   font-weight: 500;
 }
 
@@ -758,7 +755,7 @@
   line-height: var(--md-sys-typescale-headline-medium-line-height);
   font-weight: var(--md-sys-typescale-headline-medium-weight);
   letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* The shared subtitle rung (`body-medium`), matching `.dh-pane-header__subtitle`. */
@@ -768,7 +765,7 @@
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-settings-page__inline-form {
@@ -784,7 +781,7 @@
   min-height: var(--app-control-height-md);
   display: inline-flex;
   align-items: center;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
@@ -825,7 +822,7 @@
    * has. */
   .dh-settings-page__nav-list {
     gap: 0;
-    background: var(--md-app-color-surface-card);
+    background: var(--dh-color-surface);
     border-radius: var(--app-shape-card);
     box-shadow: var(--app-elevation-resting);
     overflow: hidden;
@@ -833,7 +830,7 @@
 
   .dh-settings-page__nav-list > li + li {
     border-block-start: var(--app-border-width-thin) solid
-      var(--md-app-color-outline-hairline);
+      var(--dh-color-border);
   }
 
   .dh-settings-page__nav-item {
@@ -846,7 +843,7 @@
     min-height: 0;
     padding: 0;
     border-radius: 0;
-    color: var(--md-sys-color-on-surface);
+    color: var(--dh-color-text);
     font-size: var(--md-sys-typescale-body-medium-size);
   }
 
@@ -865,7 +862,7 @@
    * "current" while the list itself is what is on screen. */
   .dh-settings-page__nav-link--active {
     background: transparent;
-    color: var(--md-sys-color-on-surface);
+    color: var(--dh-color-text);
   }
 
   /* The summary becomes visible — it is what makes a list of eight nouns
@@ -878,7 +875,7 @@
     overflow: visible;
     clip-path: none;
     white-space: normal;
-    color: var(--md-sys-color-on-surface-variant);
+    color: var(--dh-color-text-muted);
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: var(--md-sys-typescale-body-small-line-height);
     font-weight: 400;
@@ -989,7 +986,7 @@
 .dh-restore__control:has(.dh-restore__file-input:focus-visible) .dh-btn {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
@@ -1007,17 +1004,17 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-restore__preview-consequence {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
 .dh-restore__counts-caption {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-restore__counts-list {
@@ -1032,12 +1029,12 @@
   justify-content: space-between;
   gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-restore__counts-item dd {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1092,14 +1089,14 @@
 }
 
 .dh-account-security__event-summary {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   overflow-wrap: anywhere;
 }
 
 .dh-account-security__event-time {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-variant-numeric: tabular-nums;
 }

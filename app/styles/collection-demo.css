@@ -13,7 +13,7 @@
   padding: var(--app-space-px);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-view-switcher__option {
@@ -25,14 +25,14 @@
   border: none;
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-large-size);
   cursor: pointer;
 }
 
 .dh-view-switcher__option[aria-pressed="true"] {
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   box-shadow: var(--md-sys-elevation-1);
 }
 
@@ -52,7 +52,7 @@
 .dh-demo-primary {
   border: none;
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
 }
 
 .dh-demo-primary:hover {
@@ -60,9 +60,9 @@
 }
 
 .dh-demo-secondary {
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
 }
 
 .dh-demo-filters {
@@ -84,7 +84,7 @@
 
 .dh-demo-states legend {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-demo-states label {

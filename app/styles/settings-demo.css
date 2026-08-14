@@ -19,7 +19,7 @@
   margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-headline-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .settings-demo__header p {
@@ -27,7 +27,7 @@
   max-width: 46rem;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.65;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .settings-demo__narrow-wrap {
@@ -41,20 +41,20 @@
   margin: 0 0 var(--app-space-1);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .settings-demo__narrow-note {
   margin: 0 0 var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .settings-demo__narrow {
   width: 20rem;
   max-width: 100%;
   padding: var(--app-space-4);
-  border: var(--app-border-width-thin) dashed var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) dashed var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }

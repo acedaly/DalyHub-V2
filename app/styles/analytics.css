@@ -44,7 +44,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
   gap: var(--app-space-5);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border-radius: var(--app-shape-entity-card);
   box-shadow: var(--app-elevation-resting);
 }
@@ -60,7 +60,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -74,7 +74,7 @@
   line-height: var(--md-sys-typescale-display-small-line-height);
   font-weight: var(--md-sys-typescale-display-small-weight-emphasized);
   letter-spacing: var(--md-sys-typescale-display-small-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -103,7 +103,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-display-small-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -118,7 +118,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   text-wrap: pretty;
 }
 
@@ -149,7 +149,7 @@
 /* The sentence a panel shows instead of a chart it cannot honestly draw. */
 .dh-analytics__absent {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   text-wrap: pretty;
@@ -189,7 +189,7 @@
 .dh-analytics .dh-analytics__split-name,
 .dh-analytics .dh-analytics__split-name:visited {
   min-inline-size: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   text-decoration: none;
@@ -211,7 +211,7 @@
   inline-size: 100%;
   block-size: var(--app-progress-bar-height-entity);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   overflow: hidden;
 }
 
@@ -256,13 +256,13 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
 .dh-analytics__split-percent {
   font-weight: 400;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -284,7 +284,7 @@
 
 .dh-analytics__note {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.65;
   text-wrap: pretty;

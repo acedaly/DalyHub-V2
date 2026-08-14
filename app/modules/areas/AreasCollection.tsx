@@ -43,6 +43,7 @@ import { EntityRow, EntityRowList } from "~/shared/card";
 import {
   CollectionLayout,
   collectionCountLabel,
+  CreateActionLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -330,6 +331,11 @@ function AreasCollection({
   const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      // DS-05 — Areas is a flat LIST, so it takes the white ground DS-04
+      // established for one (`collection-layout.css` → `--flat`). It was drawn
+      // as a bordered white panel floating on the grey canvas, which is the
+      // ground a card GRID wants.
+      className="dh-collection--flat"
       isLoading={isReloading}
       title="Areas"
       subtitle={subtitle}
@@ -339,7 +345,7 @@ function AreasCollection({
           drawerKey={NEW_AREA_KEY}
           className="dh-btn dh-btn--primary"
         >
-          New Area
+          <CreateActionLabel>New area</CreateActionLabel>
         </DrawerTrigger>
       }
       error={
@@ -361,7 +367,7 @@ function AreasCollection({
               drawerKey={NEW_AREA_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New Area
+              <CreateActionLabel>New area</CreateActionLabel>
             </DrawerTrigger>
           }
         />

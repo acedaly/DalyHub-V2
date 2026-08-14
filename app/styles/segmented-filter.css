@@ -58,7 +58,7 @@
    */
   border: none;
   border-radius: var(--app-shape-control);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-segmented::-webkit-scrollbar {
@@ -79,7 +79,7 @@
   flex: none;
   padding-inline: var(--app-space-4);
   border-radius: var(--app-shape-control);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight);
@@ -140,8 +140,8 @@
  * itself with `aria-current`, a client-state one with `aria-pressed`. */
 .dh-segmented__option[aria-current="true"],
 .dh-segmented__option[aria-pressed="true"] {
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-card);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
   box-shadow: var(--app-elevation-raised);
 }
 
@@ -247,7 +247,7 @@
  * appearances, so subordinate never means illegible.
  */
 .dh-segmented--subtle {
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
 }
 
 .dh-segmented--subtle .dh-segmented__option {
@@ -255,13 +255,13 @@
   line-height: var(--md-sys-typescale-label-medium-line-height);
   font-weight: var(--md-sys-typescale-label-medium-weight);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-segmented--subtle .dh-segmented__option[aria-current="true"],
 .dh-segmented--subtle .dh-segmented__option[aria-pressed="true"] {
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-card);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
 }
 
 /* The check reserves a smaller box here, in proportion with the smaller label. */

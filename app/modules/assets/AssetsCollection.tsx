@@ -37,10 +37,11 @@ import { ASSET_STATUSES, ASSET_TYPES, type AssetView } from "~/kernel/assets";
 import { AssetCard, EntityCardGrid, type AssetCardTone } from "~/shared/card";
 import {
   CollectionControls,
-  CollectionLayout,
   collectionCountLabel,
-  useCollectionLoading,
+  CollectionLayout,
+  CreateActionLabel,
   type CollectionControlGroup,
+  useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
@@ -427,7 +428,7 @@ export function AssetsCollectionView({
       }
       primaryAction={
         <Link to="/new/asset" className="dh-btn dh-btn--primary">
-          New Asset
+          <CreateActionLabel>New asset</CreateActionLabel>
         </Link>
       }
       error={
@@ -447,7 +448,7 @@ export function AssetsCollectionView({
           description="Track the important things you own — vehicles, appliances, licences, subscriptions and more. DalyHub remembers what each one needs next."
           primaryAction={
             <Link to="/new/asset" className="dh-btn dh-btn--primary">
-              New Asset
+              <CreateActionLabel>New asset</CreateActionLabel>
             </Link>
           }
         />

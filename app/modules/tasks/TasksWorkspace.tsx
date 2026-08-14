@@ -1516,7 +1516,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // to it. A task row leads with a completion control and ends with a date;
       // applying that density to Notes, People and Assets at the same time
       // would be a redesign of eleven modules made by accident.
-      className="dh-collection--tasks"
+      className="dh-collection--tasks dh-collection--flat"
       isLoading={isReloading}
       title="Tasks"
       subtitle={subtitle}

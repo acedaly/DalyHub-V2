@@ -23,7 +23,10 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  CreateActionLabel,
+} from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
@@ -435,7 +438,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
             className="dh-btn dh-btn--primary dh-diary-header-create"
             onClick={openCapture}
           >
-            New Diary entry
+            <CreateActionLabel>New diary entry</CreateActionLabel>
           </button>
         }
         filterBar={
@@ -479,7 +482,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
                 className="dh-btn dh-btn--primary"
                 onClick={openCapture}
               >
-                New Diary entry
+                <CreateActionLabel>New diary entry</CreateActionLabel>
               </button>
             }
           />

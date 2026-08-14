@@ -47,6 +47,7 @@ import { EntityCardGrid, ProjectCard } from "~/shared/card";
 import {
   CollectionLayout,
   collectionCountLabel,
+  CreateActionLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -431,7 +432,7 @@ function ProjectsCollection({
           drawerKey={NEW_PROJECT_KEY}
           className="dh-btn dh-btn--primary"
         >
-          New Project
+          <CreateActionLabel>New project</CreateActionLabel>
         </DrawerTrigger>
       }
       /*
@@ -491,7 +492,7 @@ function ProjectsCollection({
                 drawerKey={NEW_PROJECT_KEY}
                 className="dh-btn dh-btn--primary"
               >
-                New Project
+                <CreateActionLabel>New project</CreateActionLabel>
               </DrawerTrigger>
             )
           }
@@ -508,7 +509,7 @@ function ProjectsCollection({
               drawerKey={NEW_PROJECT_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New Project
+              <CreateActionLabel>New project</CreateActionLabel>
             </DrawerTrigger>
           }
         />

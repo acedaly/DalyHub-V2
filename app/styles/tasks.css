@@ -48,18 +48,18 @@
   line-height: 1.35;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-section__count {
   font-variant-numeric: tabular-nums;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-section__empty {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* "View all N →" link shown when a grouped bucket holds more than the loaded
@@ -145,7 +145,7 @@
 .dh-tasks-controls__summary {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The in-workspace quick add row: title first, everything else optional. */
@@ -253,7 +253,7 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   min-width: 0;
 }
 
@@ -286,7 +286,7 @@
   padding: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Each mode is a full-width, 44px-tall card: the title says what it does and the
@@ -319,13 +319,13 @@
 .dh-recurrence-editor__mode-title {
   grid-area: title;
   font-size: var(--md-sys-typescale-body-medium-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-recurrence-editor__mode-help {
   grid-area: help;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The selected mode is marked by the checked radio AND a stronger outline — the
@@ -354,7 +354,7 @@
   border-radius: var(--md-sys-shape-corner-full);
   cursor: pointer;
   font-size: var(--md-sys-typescale-label-large-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /*
@@ -394,7 +394,7 @@
 .dh-recurrence-editor__hint {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The plain-language result. It is the panel's most important line, so it reads as a
@@ -403,7 +403,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
@@ -432,7 +432,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The heading receives PROGRAMMATIC focus each time the reviewed task changes, and
@@ -466,13 +466,13 @@
   padding-inline: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-tasks-views__label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__name {
@@ -480,7 +480,7 @@
 }
 
 .dh-tasks-views__modified {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__panel {
@@ -495,7 +495,7 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
 }
 
@@ -508,14 +508,14 @@
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__note,
 .dh-tasks-views__empty {
   margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__list {
@@ -532,22 +532,22 @@
   min-height: var(--app-touch-target-min);
   padding: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   text-decoration: none;
 }
 
 .dh-tasks-views__item:hover {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-tasks-views__item[aria-current="true"] {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   font-weight: 500;
 }
 
 .dh-tasks-views__item-note {
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__badge {
@@ -555,7 +555,7 @@
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__name-form {
@@ -597,20 +597,20 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-tasks-capture__title {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-tasks-capture__label {
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-capture__tokens {
@@ -625,10 +625,10 @@
 .dh-tasks-capture__token {
   padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-tasks-capture__actions {
@@ -657,15 +657,15 @@
   padding: var(--app-space-1) var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-full);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   text-decoration: none;
 }
 
 .dh-tasks-systems__link[aria-current="true"] {
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
   border-color: var(--md-sys-color-primary);
 }
 
@@ -677,14 +677,14 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 .dh-tasks-bulk__count {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-tasks-bulk__actions {
@@ -708,7 +708,7 @@
  */
 .dh-tasks-bulk__select-label {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -717,26 +717,26 @@
  * a modal over the top of it would hide the very rows the count refers to.
  */
 .dh-tasks-bulk--confirm {
-  border-color: var(--md-sys-color-error);
+  border-color: var(--dh-color-danger);
 }
 
 .dh-tasks-bulk__confirm-title {
   margin: 0;
   font-size: var(--md-sys-typescale-title-small-size);
   font-weight: 600;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-tasks-bulk__confirm-body {
   margin: 0;
   max-width: var(--app-width-prose);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Selection mode with nothing chosen yet: an instruction, not a dead toolbar. */
 .dh-tasks-bulk--empty .dh-tasks-bulk__count {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 400;
 }
 
@@ -747,7 +747,7 @@
  * confirmation step carry the consequence, never the colour alone (AGENTS.md §15).
  */
 .dh-btn--danger-quiet {
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
   border-color: var(--md-sys-color-outline-variant);
   background: transparent;
 }
@@ -755,7 +755,7 @@
 .dh-btn--danger-quiet:hover {
   background: color-mix(
     in srgb,
-    var(--md-sys-color-error) var(--md-sys-state-hover-state-layer-opacity),
+    var(--dh-color-danger) var(--md-sys-state-hover-state-layer-opacity),
     transparent
   );
 }
@@ -763,7 +763,7 @@
 .dh-tasks-bulk__status {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -775,7 +775,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
 }
 
@@ -812,7 +812,7 @@
   .dh-tasks-section__label {
     font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
-    color: var(--md-sys-color-on-surface);
+    color: var(--dh-color-text);
   }
 
   .dh-tasks-focus,
@@ -894,7 +894,7 @@
 .dh-tasks-views:has(.dh-tasks-views__rail) .dh-tasks-views__trigger {
   border-color: transparent;
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -939,7 +939,7 @@
  */
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-section__count {
   margin-inline-start: var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   opacity: 0.75;
 }
 
@@ -952,7 +952,7 @@
 :is(.dh-collection--tasks, .dh-tasklist)
   .dh-tasks-grouped__section[aria-label="Overdue"]
   .dh-tasks-section__label {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1269,12 +1269,12 @@
 }
 
 .dh-task-date--overdue {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
 }
 
 .dh-task-date--today,
 .dh-task-date--soon {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /*
@@ -1459,7 +1459,7 @@
   margin-block-end: var(--app-space-4);
   padding-inline: var(--app-space-4);
   border-radius: var(--app-shape-card);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__input {
@@ -1489,7 +1489,7 @@
 }
 
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit:disabled {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2104,10 +2104,10 @@
  */
 .dh-task-sync {
   white-space: nowrap;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-task-sync[data-attention] {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
   font-weight: var(--md-sys-typescale-label-medium-weight);
 }

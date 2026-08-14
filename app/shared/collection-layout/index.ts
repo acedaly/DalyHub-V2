@@ -20,6 +20,15 @@ export { useCollectionLoading } from "./use-collection-loading";
 export { collectionCountLabel, type CountLabelOptions } from "./count-label";
 
 /**
+ * DS-08 — the ONE create-action label, so every collection's primary action is
+ * the same control: a leading plus, and the words in sentence case.
+ */
+export {
+  CreateActionLabel,
+  type CreateActionLabelProps,
+} from "./CreateActionLabel";
+
+/**
  * MOBILE-01 — the ONE shared phone filter/sort/view sheet, and its pure model.
  * Pass a `<CollectionControls>` as the layout's `mobileControls`; never build a
  * module-specific mobile filter surface.

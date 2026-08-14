@@ -128,7 +128,7 @@ describe("Projects collection", () => {
     expect(
       screen.getByRole("navigation", { name: "Project views" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("New Project").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("New project").length).toBeGreaterThan(0);
   });
 
   it("keeps project cards as honest links with no mobile swipe accelerator", () => {
@@ -670,7 +670,7 @@ describe("Projects collection", () => {
       expect(link).toHaveAttribute("href", "/projects/archived-1");
     });
 
-    it("shows a distinct, honest empty state for the Archived filter with no 'New Project' CTA", () => {
+    it("shows a distinct, honest empty state for the Archived filter with no 'New project' CTA", () => {
       renderCollection({
         projects: [],
         nextCursor: null,
@@ -679,10 +679,10 @@ describe("Projects collection", () => {
         failed: false,
       });
       expect(screen.getByText("No archived projects")).toBeInTheDocument();
-      // Only the persistent header "New Project" trigger renders — the
+      // Only the persistent header "New project" trigger renders — the
       // Archived empty state deliberately omits a SECOND create CTA (creating
       // a project doesn't address "no archived projects").
-      expect(screen.getAllByText("New Project")).toHaveLength(1);
+      expect(screen.getAllByText("New project")).toHaveLength(1);
     });
   });
 
@@ -708,7 +708,7 @@ describe("Projects collection", () => {
       failed: false,
     });
 
-    fireEvent.click(screen.getAllByText("New Project")[0]!);
+    fireEvent.click(screen.getAllByText("New project")[0]!);
 
     // The load-failure message renders, never the false "no Areas or Goals
     // exist" domain claim a generic empty-array fallback would otherwise show.

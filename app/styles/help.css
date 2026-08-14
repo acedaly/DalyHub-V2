@@ -39,14 +39,14 @@
   line-height: var(--md-sys-typescale-headline-medium-line-height);
   font-weight: var(--md-sys-typescale-headline-medium-weight);
   letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-help__lead,
 .dh-about__lead {
   margin: 0;
   max-inline-size: var(--app-width-prose);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
 }
@@ -82,11 +82,11 @@
   gap: var(--app-space-4);
   padding: var(--app-space-4);
   min-inline-size: 0;
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-help__contents-group {
@@ -98,7 +98,7 @@
 
 .dh-help__contents-heading {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
 }
@@ -116,25 +116,21 @@
   display: block;
   padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
 
 .dh-help__contents-link:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-  color: var(--md-sys-color-on-surface);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+  color: var(--dh-color-text);
 }
 
 /* The deep-linked topic. Reinforced by the topic panel's own marker and by its
  * visually-hidden heading suffix — never signalled by colour alone. */
 .dh-help__contents-link[aria-current="true"] {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   color: var(--md-sys-color-primary);
   font-weight: 500;
 }
@@ -157,7 +153,7 @@
 
 .dh-help__section-heading {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
 }
@@ -175,7 +171,7 @@
   gap: var(--app-space-2);
   min-inline-size: 0;
   padding: var(--app-space-6) var(--app-space-6);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
@@ -196,7 +192,7 @@
 
 .dh-help__topic-heading {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
   line-height: 1.35;
@@ -207,7 +203,7 @@
 .dh-help__topic-lead {
   margin: 0;
   max-inline-size: var(--app-width-prose);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.5;
 }
@@ -215,7 +211,7 @@
 .dh-help__text {
   margin: 0;
   max-inline-size: var(--app-width-prose);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
 }
@@ -227,7 +223,7 @@
   margin: 0;
   padding-inline-start: var(--app-space-5);
   max-inline-size: var(--app-width-prose);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
 }

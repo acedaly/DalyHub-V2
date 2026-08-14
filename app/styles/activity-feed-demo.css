@@ -18,13 +18,13 @@
   margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-headline-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .af-demo__lead,
 .af-demo__note {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -39,14 +39,14 @@
   padding: var(--app-space-3) var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .af-demo__controls legend {
   padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .af-demo__controls label {
@@ -54,7 +54,7 @@
   align-items: center;
   gap: var(--app-space-1);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .af-demo__section {
@@ -65,7 +65,7 @@
   margin: 0 0 var(--app-space-1);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .af-demo__note {
@@ -76,13 +76,13 @@
   margin-top: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-page);
+  background: var(--dh-color-bg);
   padding: 0 var(--app-space-3);
 }
 
 .af-demo__drawer-prose {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.65;
 }

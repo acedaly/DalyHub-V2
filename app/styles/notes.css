@@ -42,8 +42,7 @@
  * no border of its own.
  */
 .dh-notes-list__row + .dh-notes-list__row {
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-notes-list__row {
@@ -65,7 +64,7 @@
 }
 
 .dh-notes-list__item:hover {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-notes-list__item--static:hover {
@@ -76,7 +75,7 @@
  * paragraphs, and the preview underneath already carries the sense. */
 .dh-notes-list__title {
   display: block;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 600;
   line-height: 1.35;
@@ -94,7 +93,7 @@
   gap: var(--app-space-4);
   margin-block-start: var(--app-space-px);
   min-inline-size: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
 }
@@ -121,7 +120,7 @@
 }
 
 .dh-notes-list__tags {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   max-inline-size: 14rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,7 +130,7 @@
 /* Lifecycle is state, so it is stated in WORDS — never a colour or a glyph
  * alone (AGENTS.md §15). */
 .dh-notes-list__state {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 500;
 }
 
@@ -226,8 +225,7 @@
     min-inline-size: 0;
     padding-block: var(--app-space-6);
     padding-inline: var(--app-space-3) 0;
-    border-inline-end: var(--app-border-width-thin) solid
-      var(--md-app-color-outline-hairline);
+    border-inline-end: var(--app-border-width-thin) solid var(--dh-color-border);
   }
 }
 
@@ -241,7 +239,7 @@
 }
 
 .dh-notes-rail__heading {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -276,7 +274,7 @@
 
 .dh-notes-rail__title {
   display: block;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   font-weight: 600;
   line-height: 1.35;
@@ -296,12 +294,12 @@
   min-inline-size: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-notes-rail__date {
   flex: 0 0 auto;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-notes-rail__excerpt {
@@ -318,7 +316,7 @@
 }
 
 .dh-notes-rail__item:hover {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 /*
@@ -327,29 +325,35 @@
  * A filled container plus `aria-current="page"`, never a tint alone: the row
  * that is open has to be obvious at a glance across a column of forty, and it
  * has to be obvious to a screen reader too (AGENTS.md §15).
+ *
+ * DS-08 — "a filled container" is now the PRODUCT's selected surface rather than
+ * the raw M3 role. `--dh-color-surface-selected` is what the navigation rail,
+ * every menu and the settings section list paint a chosen row with, and
+ * `secondary-container` is the full-strength slab underneath it; a lavender
+ * block down the notes rail was the same object the whole-app baseline found in
+ * Settings and on the Diary filter. The accent bar on the leading edge is added
+ * WITH it, so the row is stated by a shape as well as a tint and stays obvious
+ * across a column of forty — which is the requirement this block was written for.
+ *
+ * The text roles go back to the ordinary ones, which is also what fixes the
+ * contrast trap recorded below: over a quiet tint the standard `--dh-color-text`
+ * and `--dh-color-text-muted` pair carries the same margin they carry on every
+ * other surface, instead of being pinned to a role chosen to clear 4.5:1
+ * against one specific container and no other.
  */
 .dh-notes-rail__item[aria-current="page"] {
-  background: var(--md-sys-color-secondary-container);
+  background: var(--dh-color-surface-selected);
+  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-accent);
 }
 
 .dh-notes-rail__item[aria-current="page"] .dh-notes-rail__title {
-  color: var(--md-sys-color-on-secondary-container);
+  color: var(--dh-color-text);
 }
 
-/*
- * The selected row's SUPPORTING text takes the container's own `on-` colour at
- * full strength.
- *
- * A first draft mixed it to 78% for hierarchy and axe caught it immediately:
- * `on-secondary-container` is chosen to clear 4.5:1 against
- * `secondary-container` exactly, so ANY transparency takes it under (AGENTS.md
- * §15). The hierarchy inside the row is carried by size and weight, which cost
- * no contrast at all.
- */
 .dh-notes-rail__item[aria-current="page"] .dh-notes-rail__line,
 .dh-notes-rail__item[aria-current="page"] .dh-notes-rail__date,
 .dh-notes-rail__item[aria-current="page"] .dh-notes-rail__excerpt {
-  color: var(--md-sys-color-on-secondary-container);
+  color: var(--dh-color-text-muted);
 }
 
 @media (forced-colors: active) {
@@ -361,8 +365,7 @@
 .dh-notes-rail__all {
   flex: 0 0 auto;
   padding: var(--app-space-2) var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
   color: var(--md-sys-color-primary);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;

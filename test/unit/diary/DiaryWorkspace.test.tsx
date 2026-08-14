@@ -122,16 +122,16 @@ describe("Diary workspace", () => {
     ).toBeInTheDocument();
     // The header primary action plus the mobile floating action both offer it.
     expect(
-      screen.getAllByRole("button", { name: "New Diary entry" }).length,
+      screen.getAllByRole("button", { name: "New diary entry" }).length,
     ).toBeGreaterThanOrEqual(1);
     // The old always-open capture card is gone (capture is launched on demand).
     expect(screen.queryByRole("form", { name: "Quick capture" })).toBeNull();
   });
 
-  it("launches capture from the New Diary entry button", async () => {
+  it("launches capture from the New diary entry button", async () => {
     renderWorkspace();
     fireEvent.click(
-      screen.getAllByRole("button", { name: "New Diary entry" })[0],
+      screen.getAllByRole("button", { name: "New diary entry" })[0],
     );
     expect(
       await screen.findByRole("form", { name: "Quick capture" }),

@@ -169,32 +169,51 @@ export function ProjectCard({
        */}
       {overflow ? <div className="dh-pcard__overflow">{overflow}</div> : null}
 
+      {/*
+       * DS-05 — the foot is TWO lines, not three.
+       *
+       * The status line and the count are one statement about the work ("3
+       * overdue … 3 open"), so they share a row with the count at the trailing
+       * edge; the bar and its percentage are one statement about the proportion,
+       * so they share the row below it. The baseline gave the percentage a line
+       * of its own at 24px, which is what made the card 215px tall and put a
+       * derived number above the record's own name in the visual hierarchy.
+       */}
       <div className="dh-pcard__foot">
-        {attention ? (
+        {attention || fact ? (
           <p
             className="dh-pcard__attention"
-            data-tone={attention.tone}
+            data-tone={attention?.tone ?? "neutral"}
             // Named so a test can aim at the REGION — the one place a raised,
             // non-interactive element could swallow a click on the card's
             // stretched link — without reaching for a styling class.
             data-testid="project-card-attention"
           >
-            {/* Decorative — the text beside it is the fact, and the fuller
-             * sentence is available to assistive tech below. */}
-            <span className="dh-pcard__dot" aria-hidden="true" />
-            <span className="dh-pcard__attention-text">{attention.text}</span>
-            {attention.detail !== attention.text ? (
-              <span className="dh-visually-hidden"> — {attention.detail}</span>
+            {attention ? (
+              <>
+                {/* Decorative — the text beside it is the fact, and the fuller
+                 * sentence is available to assistive tech below. */}
+                <span className="dh-pcard__dot" aria-hidden="true" />
+                <span className="dh-pcard__attention-text">
+                  {attention.text}
+                </span>
+                {attention.detail !== attention.text ? (
+                  <span className="dh-visually-hidden">
+                    {" "}
+                    — {attention.detail}
+                  </span>
+                ) : null}
+              </>
             ) : null}
+            {fact ? <span className="dh-pcard__fact">{fact}</span> : null}
           </p>
         ) : null}
 
         {progress ? (
-          <div className="dh-pcard__progress">
-            <p className="dh-pcard__figures" data-testid="project-card-figures">
-              <span className="dh-pcard__percent">{progress.percent}%</span>
-              {fact ? <span className="dh-pcard__fact">{fact}</span> : null}
-            </p>
+          <div
+            className="dh-pcard__progress"
+            data-testid="project-card-figures"
+          >
             <span
               className="dh-pcard__track"
               role="progressbar"
@@ -209,11 +228,8 @@ export function ProjectCard({
                 style={{ inlineSize: `${progress.percent}%` }}
               />
             </span>
+            <span className="dh-pcard__percent">{progress.percent}%</span>
           </div>
-        ) : fact ? (
-          <p className="dh-pcard__figures dh-pcard__figures--factonly">
-            <span className="dh-pcard__fact">{fact}</span>
-          </p>
         ) : null}
       </div>
     </article>

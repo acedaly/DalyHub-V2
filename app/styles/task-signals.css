@@ -27,8 +27,8 @@
   min-height: var(--app-space-5);
   border-radius: var(--md-sys-shape-corner-full);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -73,7 +73,7 @@
 }
 /* Untriaged, rendered only when explicitly requested (e.g. the Drawer). */
 .dh-priority--none {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   background: transparent;
   border-style: dashed;
 }
@@ -88,8 +88,8 @@
   min-height: var(--app-space-5);
   border-radius: var(--md-sys-shape-corner-full);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   white-space: nowrap;
@@ -116,11 +116,11 @@
  * fill raises the chip's contrast rather than lowering it, in both appearances.
  */
 .dh-urgency[data-tone="danger"] {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
   background: color-mix(
     in srgb,
     var(--md-sys-color-state-overdue-container) var(--app-tint-strength-state),
-    var(--md-app-color-surface-card)
+    var(--dh-color-surface)
   );
   border-color: transparent;
   font-weight: 500;
@@ -131,7 +131,7 @@
   background: color-mix(
     in srgb,
     var(--md-sys-color-state-due-soon-container) var(--app-tint-strength-state),
-    var(--md-app-color-surface-card)
+    var(--dh-color-surface)
   );
   border-color: transparent;
   font-weight: 500;
@@ -142,8 +142,8 @@
   border-color: transparent;
 }
 .dh-urgency[data-tone="neutral"] {
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-app-color-surface-card);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface);
   border-color: var(--md-sys-color-outline-variant);
 }
 
@@ -183,8 +183,7 @@
   margin: 0;
   display: grid;
   place-content: center;
-  border: var(--app-border-width-thick) solid
-    var(--md-sys-color-on-surface-variant);
+  border: var(--app-border-width-thick) solid var(--dh-color-text-muted);
   border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
   cursor: pointer;
@@ -204,7 +203,7 @@
   transform: scale(0);
   transition: transform var(--md-sys-motion-duration-short3)
     var(--md-sys-motion-easing-emphasized-decelerate);
-  background: var(--md-sys-color-on-primary);
+  background: var(--dh-color-text-on-accent);
   clip-path: polygon(14% 44%, 0 60%, 39% 100%, 100% 16%, 85% 0, 39% 70%);
 }
 
@@ -229,7 +228,7 @@
  * says "Yesterday" beside it, and the group heading above it says "Overdue".
  */
 .dh-check-circle[data-urgency="overdue"] {
-  border-color: var(--md-sys-color-state-overdue);
+  border-color: var(--dh-color-overdue);
 }
 
 /* Forced colours strip authored fills, which would leave an empty ring in both

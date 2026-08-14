@@ -22,14 +22,14 @@
   margin-bottom: var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
 }
 
 .dh-connection-status--attention {
-  border-color: var(--md-sys-color-warning);
+  border-color: var(--dh-color-warning);
   background: var(--md-sys-color-warning-container);
 }
 
@@ -37,7 +37,7 @@
   display: inline-flex;
   flex: none;
   margin-top: 0.15em;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-connection-status__body {
@@ -52,7 +52,7 @@
 }
 
 .dh-connection-status__detail {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-connection-status__action {
@@ -80,10 +80,10 @@
   min-height: var(--app-touch-target-min);
   min-width: var(--app-touch-target-min);
   padding: 0 var(--app-space-4);
-  border: 1px solid var(--md-sys-color-outline);
+  border: 1px solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -91,13 +91,13 @@
 }
 
 .dh-offline-button:hover:not(:disabled) {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-offline-button:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
@@ -107,7 +107,7 @@
 }
 
 .dh-offline-button--danger {
-  border-color: var(--md-sys-color-error);
+  border-color: var(--dh-color-danger);
   color: var(--md-sys-color-on-error-container);
 }
 
@@ -129,7 +129,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* BRAND-01 — the mark above the offline title. Inline SVG, so a disconnected
@@ -150,12 +150,12 @@
 .dh-offline-page__lead,
 .dh-offline-page__links {
   margin: 0 0 var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-offline-page__footer {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
 }
 
@@ -177,9 +177,9 @@
 
 .dh-offline-snapshot__banner {
   padding: var(--app-space-4);
-  border: 1px solid var(--md-sys-color-outline);
+  border: 1px solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-offline-snapshot__banner-title {
@@ -191,12 +191,12 @@
 .dh-offline-snapshot__banner-warning {
   margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-offline-snapshot__banner-warning {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
@@ -209,22 +209,22 @@
 .dh-offline-snapshot__search input {
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-3);
-  border: 1px solid var(--md-sys-color-outline);
+  border: 1px solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   font: inherit;
 }
 
 .dh-offline-snapshot__search input:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-offline-snapshot__footnote {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
 }
 
@@ -235,13 +235,13 @@
 }
 
 .dh-offline-section__count {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 400;
 }
 
 .dh-offline-section__empty {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -262,7 +262,7 @@
   padding: var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 /* An owner's own words can contain an unbroken run longer than a 320px column
@@ -275,13 +275,13 @@
 
 .dh-offline-row__body {
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-offline-row__meta {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -290,7 +290,7 @@
  * signal. */
 .dh-offline-row[data-status="completed"] .dh-offline-row__title {
   text-decoration: line-through;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -305,7 +305,7 @@
   padding: var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 .dh-offline-capture__title,
@@ -332,7 +332,7 @@
 
 .dh-offline-capture__kinds legend {
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   padding: 0;
   margin-bottom: var(--app-space-2);
 }
@@ -351,14 +351,14 @@
 
 .dh-offline-capture__kind:focus-within {
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-offline-capture__kind-hint {
   grid-column: 2;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-capture__field {
@@ -370,17 +370,17 @@
 .dh-offline-capture__field input {
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-3);
-  border: 1px solid var(--md-sys-color-outline);
+  border: 1px solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font: inherit;
 }
 
 .dh-offline-capture__field input:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 
@@ -398,7 +398,7 @@
 .dh-offline-capture__unavailable {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-sync__head {
@@ -420,7 +420,7 @@
   padding: var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-offline-sync__item-main {
@@ -434,7 +434,7 @@
 .dh-offline-sync__item-kind {
   font-size: var(--md-sys-typescale-label-medium-size);
   letter-spacing: 0.04em;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-sync__item-title {
@@ -444,7 +444,7 @@
 
 .dh-offline-sync__item-meta {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-sync__item-actions {
@@ -466,7 +466,7 @@
 }
 
 .dh-offline-facts dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-facts dd {
@@ -478,7 +478,7 @@
   margin: var(--app-space-2) 0 0;
   padding-inline-start: var(--app-space-5);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-1);
@@ -504,7 +504,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-icon-review__row {
@@ -523,7 +523,7 @@
   align-items: center;
   gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-icon-review__mask {
@@ -575,13 +575,13 @@
   border-top: 1px solid var(--md-sys-color-outline-variant);
   padding-top: var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-diagnostics summary {
   cursor: pointer;
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-offline-diagnostics__lead,
@@ -598,7 +598,7 @@
 
 .dh-offline-diagnostics__list dt {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-offline-diagnostics__list dd {
@@ -622,7 +622,7 @@
 
 .dh-offline-diagnostics__code {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-offline-diagnostics__detail {
@@ -645,7 +645,7 @@
   visibility: hidden;
   margin: var(--app-space-4) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   animation: dh-offline-stalled-reveal 1ms linear 8s forwards;
 }
 
@@ -682,12 +682,12 @@
 
 .dh-offline-sync__values dt {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-offline-sync__values dd {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }

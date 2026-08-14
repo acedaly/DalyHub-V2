@@ -18,7 +18,7 @@
 }
 
 .dh-review-date-grid span {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -40,7 +40,7 @@
 .dh-review-muted,
 .dh-review-new__help,
 .dh-review-context-note {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-review-new__form,
@@ -72,15 +72,15 @@
   min-height: 3rem;
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   text-align: left;
   padding: var(--app-space-3);
 }
 
 .dh-review-type-option[data-selected="true"] {
   border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 .dh-review-period-preview {
@@ -88,7 +88,7 @@
 }
 
 .dh-review-form-error {
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
 }
 
 .dh-review-section {
@@ -104,7 +104,7 @@
 .dh-review-section-readonly {
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   padding: var(--app-space-4);
 }
 
@@ -112,7 +112,7 @@
   white-space: pre-wrap;
   margin: 0;
   font: inherit;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-review-context-list {

@@ -70,8 +70,7 @@
   min-inline-size: 0;
   padding: var(--app-space-1) var(--app-space-2);
   border: none;
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
   background: transparent;
 }
 
@@ -92,7 +91,7 @@
   position: sticky;
   inset-block-start: 0;
   z-index: var(--app-z-sticky);
-  background: var(--md-app-color-surface-page);
+  background: var(--dh-color-bg);
 }
 
 .dh-md-editor__bar-end {
@@ -104,7 +103,7 @@
 
 .dh-md-editor__reading-note {
   padding-inline: var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
 }
@@ -120,7 +119,7 @@
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -135,7 +134,7 @@
 /* The fill is the shared state layer (M3-INT, `base.css`); the colour lift is
  * the toggle's own. */
 .dh-md-editor__mode-toggle:hover {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-md-editor__mode-toggle[aria-pressed="true"] {
@@ -193,7 +192,7 @@
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font: inherit;
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 0;
@@ -217,7 +216,7 @@
  * predicted a hand-rolled layer would produce. Only the colour lift is the
  * toolbar's. */
 .dh-md-toolbar__button:hover:not(:disabled) {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* ACTIVE formatting. A filled container plus `aria-pressed` — a state layer
@@ -229,7 +228,7 @@
 }
 
 .dh-md-toolbar__button:disabled {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   opacity: 0.38;
   cursor: default;
 }
@@ -256,7 +255,7 @@
   padding: var(--app-space-4);
   border: none;
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
@@ -307,7 +306,7 @@
 
 .dh-md-editor__cm .cm-editor {
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   max-block-size: 70vh;
@@ -370,17 +369,17 @@
 
 .dh-md-editor__cm .cm-cursor,
 .dh-md-editor__cm .cm-dropCursor {
-  border-left-color: var(--md-sys-color-on-surface);
+  border-left-color: var(--dh-color-text);
 }
 
 .dh-md-editor__cm .cm-selectionBackground,
 .dh-md-editor__cm .cm-focused .cm-selectionBackground,
 .dh-md-editor__cm .cm-line ::selection {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 .dh-md-editor__cm .cm-placeholder {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* --- Live-preview construct styling (applied to source ranges) ------------ */
@@ -414,7 +413,7 @@
 .dh-md-editor__cm .cm-dh-h5,
 .dh-md-editor__cm .cm-dh-h6 {
   font-size: var(--app-writing-h4-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Bold means bold. 500 against a 400 body is a weight difference the eye reads
@@ -428,14 +427,14 @@
 }
 .dh-md-editor__cm .cm-dh-strike {
   text-decoration: line-through;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 .dh-md-editor__cm .cm-dh-inline-code {
   font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
   padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 .dh-md-editor__cm .cm-dh-link {
   color: var(--md-sys-color-primary);
@@ -445,8 +444,8 @@
 .dh-md-editor__cm .cm-dh-quote {
   padding-inline-start: var(--app-space-3);
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-outline);
-  color: var(--md-sys-color-on-surface-variant);
+    var(--dh-color-border-strong);
+  color: var(--dh-color-text-muted);
   font-style: italic;
 }
 
@@ -479,7 +478,7 @@
 .dh-md-editor__cm .cm-dh-code-block {
   font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-md-editor__cm .cm-dh-hr {
@@ -488,7 +487,7 @@
 .dh-md-editor__cm .cm-dh-hr hr {
   margin: 0;
   border: none;
-  border-top: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border-strong);
 }
 
 /* Interactive task checkbox replacing the `[ ]` marker. */
@@ -511,10 +510,10 @@
   align-items: center;
   gap: var(--app-space-1);
   padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) dashed var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) dashed var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -536,7 +535,7 @@
   text-align: start;
 }
 .dh-md-editor__cm .cm-dh-table th {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   font-weight: 500;
 }
 
@@ -571,7 +570,7 @@
 .dh-md-editor__reading-loading,
 .dh-md-editor__reading-error {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Help + validation messages. */
@@ -582,7 +581,7 @@
 }
 .dh-md-editor__help {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 .dh-md-editor__error {
@@ -645,11 +644,11 @@
   padding: var(--app-space-3);
   border-block-end: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-record-link-picker__label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
 }
@@ -657,10 +656,10 @@
 .dh-record-link-picker__input {
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font: inherit;
 }
 
@@ -691,20 +690,20 @@
 /* The active option is signalled by BOTH a surface change and a start rule —
  * never colour alone (AGENTS.md §15). */
 .dh-record-link-picker__option[data-active="true"] {
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: inset var(--app-space-1) 0 0 0 var(--md-sys-color-primary);
 }
 
 .dh-record-link-picker__icon {
   display: inline-flex;
   flex: 0 0 auto;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-record-link-picker__title {
   flex: 1 1 auto;
   min-inline-size: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   /* A long record title truncates rather than forcing the row wider than the
    * editor — the phone requirement of no horizontal overflow. */
   overflow: hidden;
@@ -714,14 +713,14 @@
 
 .dh-record-link-picker__type {
   flex: 0 0 auto;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   letter-spacing: 0.04em;
 }
 
 .dh-record-link-picker__status {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
