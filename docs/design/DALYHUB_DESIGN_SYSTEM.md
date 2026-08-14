@@ -1,16 +1,31 @@
 # The DalyHub Design System
 
-> **DalyHub is not "a Material Design 3 application."** It is a personal
-> productivity design system, grounded in Material 3 Expressive and selectively
-> informed by Apple's restraint and by the interaction quality of the best
-> task software.
+> **This document is the specification.** DalyHub has its own product design
+> system, and it is the authority for what the application looks like, how dense
+> it is, how it behaves on a desktop and how it adapts to a phone.
 >
-> **MD3 is the foundation. DalyHub is the identity.**
+> **Material Design 3 is machinery and historical inspiration — not the
+> specification.** Its algorithms and scales are still in use and still earning
+> their place: colour generated from one seed, the typescale, the shape and
+> elevation scales, the state layer, the motion tokens, the accessibility
+> contract. None of them settles a design question. Where DalyHub and the
+> specification disagree, DalyHub wins and the reason is written down as a
+> numbered departure — [§5](#5-documented-departures-from-stock-material) holds
+> thirty-two of them, which is why this document, and not that specification, is
+> the one to read.
+>
+> That authority change is DS-01 and is recorded in
+> [ADR-092](../decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery).
+> It did not invent a new visual language: everything in Part 1 below was already
+> true and already shipped. What it added is a token layer with DalyHub's name on
+> it, an explicit density model, and a sentence at the top of the right page.
 >
 > This document is the *why* and the *policy*. The mechanics — every token, every
 > component's anatomy, every pattern's accessibility contract — live in
 > [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), which this sits above and does not
-> replace.
+> replace. The DS-01 audit, the component inventory, the primitive-library
+> decision and the stage-by-stage migration map are in
+> [`DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md`](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md).
 
 ---
 
@@ -42,13 +57,31 @@ Three influences, and what each is actually for:
 
 | Source | What DalyHub takes | What it does **not** take |
 | --- | --- | --- |
-| **Material 3 Expressive** | Semantic colour roles, state layers, typography scale, shape scale, motion tokens, component states, touch-target guidance, the accessibility contract | Its *look*. A tonal surface for every container, a pill for every control, elevation as decoration, a coloured chip wherever a role exists |
+| **Material 3 Expressive** | Generated colour, state layers, typography scale, shape scale, motion tokens, component states, touch-target guidance, the accessibility contract | Its *look*, and its *authority*. A tonal surface for every container, a pill for every control, elevation as decoration, a coloured chip wherever a role exists |
 | **Apple HIG** | Restraint, whitespace, content-first layouts, progressive disclosure, quality of transitions, removal of interface chrome | Its components. DalyHub is a web application, not an iOS imitation |
 | **Things · Todoist** | Capture speed, inline editing, keyboard efficiency, information density without clutter, the separation of planning from doing | Their information architecture. DalyHub's spine is Area → Goal → Project → Task |
+| **Griply and the goal-tracking references** | That a Goal is worth *drawing* — a reading, a shape and a distance rather than a percentage on a bar | Their gamification. No streaks, no scores, no manufactured urgency ([AGENTS.md §2](../../AGENTS.md#2-product-philosophy)) |
 
-**The rule that resolves conflicts between them:** Material tells us *what a
-thing is and how it must behave*; Apple and the productivity references tell us
-*how much of it to draw*.
+**The rule that resolves conflicts between them:** Material supplies *values and
+machinery*; Apple and the productivity references inform *how much of it to
+draw*; **DalyHub decides.** Before DS-01 the first clause read "Material tells us
+what a thing is and how it must behave", and thirty-two departures had already
+stopped that from being true.
+
+The four principles that follow from it, and which every stage after DS-01 is
+measured against:
+
+1. **Productivity first.** The application optimises for finishing work, not for
+   showing components. An ordinary control disappears into the interface; the
+   content dominates.
+2. **Restraint.** No excessive cardification, no huge tonal containers, no pill
+   on every rectangle, no decorative surface, no giant button where a compact
+   one does the job. A page is not a collection of floating cards. §5's D1, D13,
+   D18 and D24 are this principle with measurements attached.
+3. **Expression is selective, and it is a budget.** A page spends it in one
+   place — see §3.
+4. **Desktop is desktop; mobile is adaptive.** Neither is the other one resized.
+   §8 and §12 are the specifics.
 
 ## 2. The decision rule
 
@@ -84,6 +117,8 @@ a coincidence, not a hierarchy.
 
 | Foundation | Where it lives | The rule |
 | --- | --- | --- |
+| **The vocabulary** | `tokens.css` → the DS-01 DalyHub layer; published in `app/shared/tokens/dalyhub.ts` | `--dh-*` is what a component reaches for. Everything below it is machinery. See [§10](#10-token-architecture-ds-01) |
+| **Density** | `tokens.css` → `[data-dh-density]` | Three presets over eight tokens, and nothing but those eight. See [§11](#11-density-ds-01) |
 | **Colour** | `scripts/generate-m3-scheme.mjs` → `tokens.css` + `scheme.ts` | Generated from one violet seed, never authored. `scheme:check` fails the build on a hand-edited hex |
 | **Decorative identity** | `tokens.css` → `.dh-tone[data-tone]` | Six named widget accents (coral · blue · violet · green · amber · teal), published as `--app-tone*`. A surface declares WHICH identity it has; it never names a colour. Never status (D21) |
 | **Typography** | `tokens.css` | One family (Roboto Flex, `wght` axis). **Emphasis is weight, not size** |
@@ -394,6 +429,172 @@ surfaces and every identity progress fill. Touch floors are unconditional except
 where a rule positively detects a genuine mouse. Colour is never the only
 signal — every accent, tint and state has a word beside it.
 
+Three things DS-01 made *enforced* rather than assumed:
+
+- **Density can never reduce a touch target.** See [§11](#11-density-ds-01).
+- **The focus indicator is three tokens, not a per-component decision** —
+  `--dh-focus-width` / `-offset` / `-color`. It still follows each component's
+  own corner radius, so there is nothing to keep in sync.
+- **Border semantics are named by the WCAG distinction.**
+  `--dh-color-border` *separates* — a divider, a card edge — and carries no
+  contrast requirement of its own. `--dh-color-border-strong` *identifies a
+  control* (1.4.11, 3:1) — an input's edge, a checkbox's box. Using the first
+  where the second belongs is now a nameable defect.
+
+## 10. Token architecture (DS-01)
+
+Four layers. **A component reaches for the top one.**
+
+```
+--dh-*        THE DALYHUB DESIGN SYSTEM
+                colour · space · radius · borders · elevation · focus ·
+                typography · motion · density
+
+--app-*       structural values M3 does not own
+                spacing scale · sizing · shell anatomy · z-index · breakpoints
+
+--md-app-*    the generated application surface ramp
+--md-sys-*    Material's machinery — generated colour, typescale, shape,
+                elevation, state layers, motion
+```
+
+Four rules, each asserted by `test/unit/tokens/dalyhub-tokens.test.ts`:
+
+1. **No authored values.** Every `--dh-*` declaration is `var()` onto an
+   existing token. A hex here would be a second source of truth beside the
+   generator, invisible to `scheme:check` and covered by no contrast test.
+2. **Published or absent.** Every `--dh-*` name defined anywhere must appear in
+   `app/shared/tokens/dalyhub.ts`, and may be defined only in `tokens.css`.
+3. **Product-owned naming.** Nothing is named after Material, Fluent, shadcn,
+   Tailwind or Cupertino.
+4. **The default is today's value.** Adopting a DalyHub token is a no-op; the
+   migration changes vocabulary, not pixels.
+
+**Deliberately not in the layer.** *Chart series, priority ramps and identity
+accents* — those are data vocabularies, and flattening `chart-3` and
+`accent-teal` into "accent" would lose the distinction D21 and D22 established.
+*Breakpoints, z-index and shell anatomy* — they already exist, are tested, and
+are measurements rather than vocabulary.
+
+**On the `--dh-` prefix.** It was the pre-M3 namespace, retired by
+[ADR-074](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)
+decision 8. This is not that layer returning. That one mapped DalyHub's *old*
+names onto M3 values, heading for M3 owning the names — deleting it was the
+migration completing. This one maps DalyHub's *own* names onto M3 values,
+heading for DalyHub owning both — deleting it would be the migration failing.
+The prefix is reused because `.dh-` is already the CSS class namespace, so a
+component's class and its tokens speak one name.
+
+**The type roles.** Seven, named for the job rather than for a rung: page-title,
+record-title, section-title, body, row, meta, label. What this adds over the
+typescale is the answer to "what size is a list row's title?" — which
+`body-medium` is not, because `body-medium` is a size and three different things
+are it for three different reasons. The scale is compact deliberately: the
+largest role on an ordinary surface is 24px and there is no display rung.
+**Emphasis is weight, not size.** `--dh-font-numeric` is the tabular-figures
+request, in one place, so a column of readings lines up without every author
+remembering the CSS.
+
+## 11. Density (DS-01)
+
+Three presets, selected by `data-dh-density` on any ancestor. The attribute is
+namespaced because plain `data-density` is already taken twice, with unrelated
+meanings — the Markdown editor's chrome level and the record summary's
+description presence.
+
+| | `compact` | `default` | `touch` |
+| --- | --- | --- | --- |
+| For | dense desktop productivity — task lists, tables, filter bars, the palette | standard desktop and tablet | comfortable, for a finger |
+| Control / menu-item height | 36 | 45 | 45 |
+| Row height | 45 | 56 | 64 |
+| Inline · block inset | 12 · 8 | 16 · 12 | 16 · 16 |
+| Surface padding | 16 | 20 | 20 |
+| Control gap | 4 | 8 | 12 |
+| Icon size | 18 | 20 | 20 |
+
+Four rules:
+
+1. **Every preset defines exactly those eight tokens.** No more — a token only
+   some presets define is a token only some components can rely on. No fewer — a
+   preset that omits one silently inherits, which is a preset that is not one.
+2. **A preset holds nothing but density.** No colour, radius, type role or
+   duration: those mean the same thing at every density, and a system where they
+   do not is a second design system wearing one word.
+3. **Density is a preference, not a viewport.** A 27-inch monitor driven by a
+   trackpad is not compact and a 1024px tablet is not default, so the selector is
+   an attribute. The responsive rule is a *default* for a document that has not
+   chosen — `:root:not([data-dh-density])` under `(pointer: coarse)` — which leaves
+   room for a Settings control that does not have to fight a media query.
+4. **Density may never cost a touch target.** On a coarse pointer, `compact`'s
+   hit areas are floored back to `--app-touch-target-min`, unconditionally.
+   Compact stays compact in padding, glyph and type. WCAG 2.2 target size is not
+   a density setting.
+
+Nothing consumes `compact` yet: the control baseline in `base.css` reads
+`--dh-control-height`, which is value-identical at the default density. DS-03 is
+the first adopter.
+
+## 12. Adaptive behaviour, as design intent
+
+[§8](#8-responsive-behaviour) lists the shipped compositions. This is the rule
+behind them, so a new surface does not have to be reverse-engineered from the
+table.
+
+**Desktop is a pointer and a keyboard, and it is allowed to say so.** Hover
+affordances, focus, right-click where it genuinely helps, inline editing,
+compact menus, dense lists, contextual actions, persistent navigation and the
+command palette. A mobile interaction convention is not adopted merely because a
+specification defines it — D8 already makes the narrow-window-with-a-mouse case
+explicitly.
+
+**Mobile is a different composition, never a narrower desktop.** The
+substitutions, as intent:
+
+```
+desktop popover      -> mobile drawer / sheet        (ADR-087)
+desktop sidebar      -> mobile bottom navigation     (D15)
+desktop dense list   -> mobile stacked row           (D18 drops its middle)
+hover action         -> explicit, swipe or long-press action
+desktop multi-column -> mobile single column         (§8)
+```
+
+Touch targets stay at the floor throughout. A hover-only affordance is a defect
+on every device, not just a touch one.
+
+## 13. Component ownership (DS-01)
+
+- A **generic** component knows interaction, layout and tokens. It knows nothing
+  about Areas, Goals, Projects, Tasks, People, priorities, overdue dates, health
+  evaluation or capture. `Button`, `Input`, `Select`, `Checkbox`, `Badge`,
+  `Menu`, `Popover`, `Dialog`, `Drawer`, `Sheet`, `Tabs`, `Tooltip`, `Card`.
+- A **product** component knows the domain and composes generic ones.
+  `TaskRow`, `ProjectCard`, `AreaRow`, `GoalCard`, `GoalProgress`,
+  `TodayWidget`, `QuickCapture`, `RecordLayout`.
+- **A product rule may not live in a generic component.** `Pill` may take a
+  tone; it may not know that overdue tasks are coral.
+- **A generic component may not import from a module.** The reverse is expected.
+- Directory placement follows the boundary rather than history. The two current
+  breaches are named in
+  [`DS_01…` §11](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#11-remaining-design-system-debt).
+
+## 14. External primitive libraries
+
+**No primitive-library dependency, and none planned for DS-02.** Radix, React
+Aria, Base UI and shadcn were each evaluated and declined; the per-candidate
+reasoning is in
+[`DS_01…` §7](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#7-the-primitive-library-decision)
+and the decision is [ADR-092 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery).
+
+The short version: the decisive argument is not that the code already exists. It
+is that DalyHub's implementations **encode product decisions a library cannot
+know** — D31's repainted native `<select>`, ADR-087's anchored-above-modal
+layer, ADR-076's server-authoritative inline editing — so adopting one would
+mean writing adapters to restore behaviour we have.
+
+**Reconsider only when a specific, named component defeats the existing
+machinery**, and name that component in the PR. Adding a dependency because an
+example used one is the failure mode this section exists to prevent.
+
 ---
 
 # Part 2 — The agreed direction, not yet implemented
@@ -432,12 +633,45 @@ and `UIX_05_REMAINING_MODULES_2026_08.md`.
 
 ---
 
+# The migration, stage by stage (DS-01)
+
+DS-01 is the foundation. Each stage after it is independently shippable, leaves
+the application working, and moves one component family onto the DalyHub layer.
+The full table — dependencies, risk, and what each stage must not break — is in
+[`DS_01…` §9](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#9-the-migration-map).
+
+```
+DS-01  design-system foundation      ← this
+DS-02  generic UI primitives          (a real Button; the boundary breaches)
+DS-03  shell and navigation           (first `compact` adopter)
+DS-04  Tasks
+DS-05  Projects · Areas · Goals
+DS-06  Today
+DS-07  adaptive / mobile audit
+DS-08  cleanup of obsolete MD3 remnants
+```
+
+Two rules hold across all of them:
+
+1. **A file speaking both vocabularies is expected, not debt.** This migration
+   is deliberately the opposite shape from ADR-074's one-commit switch, and the
+   difference is the subject: a *token layer* has no working intermediate state;
+   a *component layer* works fine at every step.
+2. **No stage is a big-bang MD3 deletion.** DS-08 removes what has no
+   consumers. A name that still has one means the stage that owns it has not
+   finished.
+
+---
+
 # The DalyHub design language, in one paragraph
 
-*Canonical as of UIX-06.*
+*Canonical as of DS-01. UIX-06 wrote this paragraph and DS-01 changed one clause
+in it — the first — because "built on Material 3 foundations" described a
+product whose specification was elsewhere, and this one's is here.*
 
-DalyHub is a bespoke personal-productivity design system built on Material 3
-foundations and edited down by Apple-like restraint. **What is bespoke** is
+DalyHub is a bespoke personal-productivity design system that **owns its own
+specification**, uses Material 3 as generated machinery beneath it, and is edited
+down by Apple-like restraint. **What is bespoke** is
 everything the owner recognises a screen by: six record surface families that are
 told apart by SHAPE before a word of them is read, a decorative identity ramp
 that is never a semantic one, a 216px permanent navigation drawer, a 60px phone
@@ -446,7 +680,10 @@ writing surfaces with no box at all, and the thirty-two documented departures
 that record each of those decisions. **What remains MD3-derived** is the
 machinery rather than the look: the colour roles — generated from one violet
 seed, never authored — the typescale, the shape and elevation scales, the state
-layer, the motion tokens and the whole accessibility contract. **Apple-like
+layer, the motion tokens and the whole accessibility contract; DS-01 put a
+product-owned vocabulary (`--dh-*`) and an explicit three-rung density model on
+top of all of it, so a component now names a DalyHub concept and the machinery
+is what that concept currently resolves to. **Apple-like
 restraint** means the specification's answer is the floor, not the target: one
 card draws no border and no resting shadow, a pill is reserved for the one
 primary or destructive action on a surface, tone is spent on a mark rather than a

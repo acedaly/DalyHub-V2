@@ -125,9 +125,15 @@ DalyHub models a life, and lives contain people. People are not a bolt-on CRM; t
 - **Never lose the user's place.** Navigation preserves context. Opening a task from Today should not throw away where you were. Back always works. State is restored.
 - **No dead ends.** Every empty state teaches the next action. Every error explains the recovery. See [Empty States](docs/design/DESIGN_SYSTEM.md#empty-states) and [Error Feedback](docs/design/DESIGN_SYSTEM.md#error-feedback).
 - **Calm defaults.** Restrained motion, no gratuitous notifications. Motion communicates causality (this became that), never decoration.
-- **MD3 is the foundation; DalyHub is the identity.** Colour roles, the typescale, the shape and elevation scales, the state layer, motion and the accessibility contract come from Material 3, hand-rolled in CSS over our own components — so "what radius does a chip take?" has a published answer rather than a DalyHub debate. Colour is *generated* from one seed and never authored; there is one light/dark pair, selected by the operating system or by the owner's three-value appearance preference, and no theme feature.
+- **DalyHub owns its design system; MD3 is machinery underneath it.** [`DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) is the **specification** — what the product looks like, how dense it is, how desktop and phone differ. Material 3 supplies values and algorithms and no longer settles a design question: colour *generated* from one seed and never authored, the typescale, the shape and elevation scales, the state layer, motion and the accessibility contract, hand-rolled in CSS over our own components. There is one light/dark pair per colour scheme, selected by the operating system or by the owner's three-value appearance preference.
 
-  DalyHub is **not** "a Material Design 3 application", and this bullet said it was until UIX-06 corrected it: the product deliberately departs from the specification wherever the specification's answer was worse *here*, and every one of those departures is numbered and justified in [`DALYHUB_DESIGN_SYSTEM.md` §5](docs/design/DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material). Read that document for the *why* and the policy, [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) for the mechanics, and [ADR-074](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) for the token architecture. A new departure is legitimate; an *undocumented* one is debt.
+  This bullet said "DalyHub is a Material Design 3 application" until UIX-06 corrected it, and said "MD3 is the foundation" until **DS-01** made the authority change explicit ([ADR-092](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery)) — thirty-two numbered departures in [`DALYHUB_DESIGN_SYSTEM.md` §5](docs/design/DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material) had already made the old framing untrue. A new departure is legitimate; an *undocumented* one is debt.
+
+  Read [`DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) for the *why* and the policy, [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) for the mechanics, [`DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md`](docs/design/DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md) for the component inventory and the migration map, and [ADR-074](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) plus [ADR-092](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery) for the token architecture.
+
+- **Density is a system, not a per-surface decision.** Three presets — `compact`, `default`, `touch` — selected by `data-dh-density` (namespaced because plain `data-density` is already taken by the Markdown editor and the record summary), controlling eight tokens and nothing else. Density never costs a touch target: on a coarse pointer, `compact`'s hit areas are floored back to the WCAG minimum, unconditionally. See [`DALYHUB_DESIGN_SYSTEM.md` §11](docs/design/DALYHUB_DESIGN_SYSTEM.md#11-density-ds-01).
+
+- **Generic components carry no product rules.** A `Button`, a `Menu`, a `Dialog` or an `Input` knows interaction, layout and tokens — never Areas, Goals, Projects, Tasks, priorities or overdue dates. A product component (`TaskRow`, `ProjectCard`, `GoalProgress`, `QuickCapture`) knows the domain and composes generic ones, never the reverse. See [`DALYHUB_DESIGN_SYSTEM.md` §13](docs/design/DALYHUB_DESIGN_SYSTEM.md#13-component-ownership-ds-01).
 
 ---
 
@@ -186,13 +192,16 @@ Before building a module-specific version of anything — a card, a form, a filt
 
 The same rule applies to design VALUES. [`app/styles/tokens.css`](app/styles/tokens.css) is the one authoritative token layer, and application code — CSS and components alike — never hard-codes a raw hex, pixel, radius, shadow or duration where a token exists. The vocabulary is:
 
-| Prefix | Owns |
-|---|---|
-| `--md-sys-*` | Colour roles, typescale, shape, elevation, state layers, motion |
-| `--md-app-*` | The four application surfaces (page, card, raised, sunken) |
-| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, shell measurements |
+| Prefix | Owns | Layer |
+|---|---|---|
+| `--dh-*` | **The DalyHub design system** — colour, space, radius, borders, elevation, focus, typography, motion, density | **Reach for this one** |
+| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, shell measurements | machinery |
+| `--md-app-*` | The generated application surfaces (page, navigation, app bar, card, card-subtle, raised, sunken, hairline) | machinery |
+| `--md-sys-*` | Colour roles, typescale, shape, elevation, state layers, motion | machinery |
 
-Colour is **generated**, not authored: `scripts/generate-m3-scheme.mjs` derives every role from one seed and writes both the stylesheet blocks and their typed mirror, and `pnpm run scheme:check` fails the build on a hand-edit. A new colour belongs in the generator; a new non-colour token belongs in `tokens.css`. Add the token first, then consume it.
+**DS-01 added the `--dh-*` layer on top, and it is the one a new component consumes.** The three below it are what a DalyHub token currently resolves to; DS-02…DS-08 migrate consumers upward, and a file speaking both vocabularies during that is expected rather than debt. Four rules hold, each asserted by `test/unit/tokens/dalyhub-tokens.test.ts`: nothing in the layer is authored (every value is a `var()` onto an existing token), every `--dh-*` name is published in `app/shared/tokens/dalyhub.ts` and defined only in `tokens.css`, nothing is named after another design language, and every default resolves to the value the application already paints.
+
+Colour is **generated**, not authored: `scripts/generate-m3-scheme.mjs` derives every role from one seed and writes both the stylesheet blocks and their typed mirror, and `pnpm run scheme:check` fails the build on a hand-edit. A new colour belongs in the generator; a new non-colour token belongs in `tokens.css`; a new *name* the product reaches for belongs in the DalyHub layer and its registry. Add the token first, then consume it.
 
 ---
 

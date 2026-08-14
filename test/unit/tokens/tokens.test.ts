@@ -399,30 +399,36 @@ describe("M3-01 required tokens", () => {
 describe("M3-01 the alias layer is gone", () => {
   const tokens = allTokens();
 
-  it("defines no `--dh-` token at all", () => {
-    // The alias layer existed so the switch to M3 could be one commit rather
-    // than sixty. Its exit criterion was always explicit: when nothing under
-    // `app/` reads a `--dh-` name, the block goes. This is that zero, guarded.
-    const survivors = [...tokens.keys()].filter((name) =>
-      name.startsWith("dh-"),
-    );
-    expect(
-      survivors,
-      `the alias layer is retired; these definitions should have gone with it: ${survivors.join(", ")}`,
-    ).toEqual([]);
-  });
-
-  it("leaves no `--dh-` reference anywhere under app/", () => {
-    const offenders: string[] = [];
-    for (const file of appSourceFiles()) {
-      const text = readAppFile(appRelative(file));
-      if (text.includes("--dh-")) offenders.push(repoRelative(file));
-    }
-    expect(
-      offenders,
-      `these files still speak the retired vocabulary: ${offenders.join(", ")}`,
-    ).toEqual([]);
-  });
+  /*
+   * ── What this suite used to assert, and why it changed (DS-01) ─────────────
+   *
+   * M3-01 built an alias layer under the `--dh-` prefix so the switch to
+   * Material could be one commit rather than sixty, and ADR-074 Decision 8 gave
+   * it an exit criterion: when nothing under `app/` read a `--dh-` name, the
+   * block went and a test guarded the zero. That zero was the migration
+   * COMPLETING, and it held until DS-01.
+   *
+   * DS-01 reintroduces the prefix for the opposite purpose. ADR-092 is the
+   * decision and `tokens.css` states the difference in full: the retired layer
+   * aliased DalyHub's OLD vocabulary onto M3 values on its way to M3 owning the
+   * names; this one aliases DalyHub's OWN vocabulary onto M3 values on its way
+   * to DalyHub owning both. Same prefix, inverted direction of ownership.
+   *
+   * So the guard could not stay as a zero — and deleting it outright would have
+   * given the old 219-name vocabulary a door back in. It is REPLACED rather
+   * than removed: `dalyhub-tokens.test.ts` requires every `--dh-` name defined
+   * anywhere to be PUBLISHED in `app/shared/tokens/dalyhub.ts` and defined only
+   * in `tokens.css`. That is a strictly stronger statement than the zero was —
+   * the zero permitted any name once the block came back, and this permits only
+   * an agreed one. What is left here is the part of the original guard that is
+   * still about M3-01: the structural survivors and their prefix.
+   *
+   * Names deliberately reused from the retired layer: `--dh-color-text`,
+   * `--dh-color-text-muted`, `--dh-color-surface-raised`. They were good
+   * semantic names for the same jobs before the overhaul and are good ones
+   * after it; reusing them is not the vocabulary coming back, because the
+   * meanings they now carry are the generated roles, not the authored palette.
+   */
 
   it("renamed every structural survivor to `--app-`", () => {
     // Spacing, z-index, breakpoints and the shell's measurements are not design
@@ -437,9 +443,13 @@ describe("M3-01 the alias layer is gone", () => {
 describe("M3-01 no consumer references an undefined token", () => {
   const defined = allDefinedTokenNames();
 
-  it("every var(--md-*) and var(--dh-*) used in app/ is defined", () => {
+  it("every var(--md-*), var(--app-*) and var(--dh-*) used in app/ is defined", () => {
     const referenced = new Map<string, string>(); // token -> first file
-    const re = /var\(\s*--((?:md|app)-[\w-]+)/g;
+    // DS-01 added `dh` to the alternation: the DalyHub layer is the one a
+    // component is now meant to reach for, so it is the one a typo is most
+    // likely to be in, and a missing custom property is a silently dropped
+    // rule rather than a compile error.
+    const re = /var\(\s*--((?:md|app|dh)-[\w-]+)/g;
     for (const file of appSourceFiles()) {
       // The token registry itself CONSTRUCTS `var(--md-sys-color-<role>)`
       // dynamically; it is the source of truth, not a consumer.

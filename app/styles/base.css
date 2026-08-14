@@ -346,8 +346,18 @@ body {
    * different design systems sharing a row — which is exactly what §15 rules
    * out ("mismatched radii on adjacent controls"). 45px is also the target
    * floor this product commits to (AGENTS.md §15), and an input is a target.
+   *
+   * ── DS-01 — this reads the DALYHUB token, and is the first thing that does ──
+   * `--dh-control-height` resolves to `--app-control-height-lg` at the default
+   * density, so this line is byte-for-byte the rule UIX-06 wrote. What it buys
+   * is that the control baseline — the one place in the product that decides
+   * how tall a native control is — now answers to the density model rather than
+   * to a fixed rung, so DS-02 can give a dense desktop toolbar its 36px
+   * controls by declaring `data-dh-density` on the region instead of by writing a
+   * height somewhere. The coarse-pointer floor in `tokens.css` is what stops
+   * that ever costing a touch target.
    */
-  min-block-size: var(--app-control-height-lg);
+  min-block-size: var(--dh-control-height);
   padding: var(--app-space-2) var(--app-space-3);
   font: inherit;
   /*

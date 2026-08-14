@@ -4747,6 +4747,474 @@
   --app-elevation-raised: var(--md-sys-elevation-1);
 }
 
+/* ========================================================================== */
+/* DS-01 — THE DALYHUB SEMANTIC LAYER                                         */
+/* ========================================================================== */
+
+/*
+ * This is the layer DalyHub OWNS, and from DS-01 onward it is the one a
+ * component is supposed to reach for. Everything above it — `--md-sys-*`,
+ * `--md-app-*`, `--app-*` — is machinery: generated colour, a published
+ * typescale, a shape ladder, structural measurements. Machinery is allowed to
+ * be Material's. The vocabulary a surface speaks is not.
+ *
+ * ── Why this exists, given ADR-074 ───────────────────────────────────────────
+ * ADR-074 Decision 8 built an alias layer under the SAME `--dh-` prefix and
+ * deleted it on schedule, and its "alternatives considered" explicitly rejected
+ * keeping `--dh-*` as the public names. Both were right about the thing being
+ * decided then, and neither is what this block is. The difference is the
+ * DIRECTION OF OWNERSHIP:
+ *
+ *   ADR-074's layer:  --dh-color-surface: <a retired DalyHub value>
+ *                     …aliasing the OLD vocabulary onto new values, on its way
+ *                     to a destination where M3 owned the names. Deleting it
+ *                     was the migration COMPLETING.
+ *
+ *   This layer:       --dh-color-surface: var(--md-app-color-surface-card)
+ *                     …aliasing DalyHub's OWN vocabulary onto values it does
+ *                     not yet own, on its way to a destination where DalyHub
+ *                     owns both. Deleting it would be the migration FAILING.
+ *
+ * So this is not the retired block returning. It points the other way, and
+ * `dalyhub-tokens.test.ts` guards the difference: every name here must be
+ * published in `app/shared/tokens/dalyhub.ts`, so the old vocabulary cannot
+ * come back through the door the new one opened. See ADR-092.
+ *
+ * ── The rules for this block ─────────────────────────────────────────────────
+ *   1. NO AUTHORED VALUES. Every declaration is `var(…)` onto an existing
+ *      token, or composed from ones. Colour especially: a hex here would be a
+ *      second source of truth beside the generator, which is exactly what
+ *      `scheme:check` exists to prevent. Asserted by test.
+ *   2. SEMANTIC, NOT DESCRIPTIVE. `--dh-color-danger`, never
+ *      `--dh-color-red`; `--dh-row-height`, never `--dh-height-45`.
+ *   3. PRODUCT-OWNED NAMING. Nothing here is named after Material, Fluent,
+ *      shadcn or any other design language. Asserted by test.
+ *   4. THE DEFAULT IS TODAY'S VALUE. DS-01 establishes the system; it does not
+ *      re-measure the product. Every default below resolves to the value the
+ *      application already paints, so adopting a `--dh-` token is provably a
+ *      no-op. Asserted by test.
+ *
+ * ── The migration path ───────────────────────────────────────────────────────
+ * DS-02 onward moves consumers onto these names, one component family per
+ * stage. When a family's last consumer has moved, its source of truth moves
+ * DOWN into this block (the `var()` is replaced by the value, or by a new
+ * generated role), and the `--md-*`/`--app-*` name it used is retired. DS-08 is
+ * the stage that removes what is left. Until then a mixed file is expected and
+ * is not debt.
+ */
+:root {
+  /* ---------------------------------------------------------------------- */
+  /* Colour                                                                 */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * Eight jobs, and a surface picks the job rather than the hue. The set is
+   * deliberately smaller than the generated role list: a role is a colour the
+   * SYSTEM can produce, and one of these is a colour the PRODUCT has a use for.
+   * Anything needing a role that is not here (a chart series, a priority ramp,
+   * an identity accent) reads the generated role directly — those are data
+   * vocabularies, not surface vocabularies, and flattening them into "accent"
+   * would lose the distinction D21 spent a milestone establishing.
+   */
+
+  /** The page itself — the canvas everything is drawn on. */
+  --dh-color-bg: var(--md-app-color-surface-page);
+  /** A well recessed BELOW the page: a filter track, a segmented control. */
+  --dh-color-bg-sunken: var(--md-app-color-surface-sunken);
+  /** The default container: a card, a panel, a popover's own body. */
+  --dh-color-surface: var(--md-app-color-surface-card);
+  /** One rung below a card, for a container inside a container. */
+  --dh-color-surface-subtle: var(--md-app-color-surface-card-subtle);
+  /** Something that genuinely floats — a menu, a dialog, a hovered card. */
+  --dh-color-surface-raised: var(--md-app-color-surface-raised);
+  /** A quiet tinted run INSIDE a surface. Neutral, never branded (M3X). */
+  --dh-color-surface-quiet: var(--md-app-color-surface-quiet);
+  /** The persistent navigation region. */
+  --dh-color-surface-nav: var(--md-app-color-surface-navigation);
+  /** The top app bar. */
+  --dh-color-surface-bar: var(--md-app-color-surface-app-bar);
+  /** A SELECTED destination or row. A tint, not a slab (see the M3X note). */
+  --dh-color-surface-selected: var(--md-app-color-surface-nav-selected);
+
+  /** Body text, titles, glyphs — anything that has to be read. */
+  --dh-color-text: var(--md-sys-color-on-surface);
+  /** Metadata, supporting lines, placeholder-adjacent text. Still AA. */
+  --dh-color-text-muted: var(--md-sys-color-on-surface-variant);
+  /** Text on a filled accent surface. */
+  --dh-color-text-on-accent: var(--md-sys-color-on-primary);
+  /** Text on the pale accent surface. */
+  --dh-color-text-on-accent-subtle: var(--md-sys-color-on-primary-container);
+  /** Text on a filled danger surface. */
+  --dh-color-text-on-danger: var(--md-sys-color-on-error);
+
+  /*
+   * TWO borders, and the split is the WCAG one rather than a visual one.
+   * `--dh-color-border` is the hairline that SEPARATES (a divider, a card edge)
+   * and carries no contrast requirement of its own; `--dh-color-border-strong`
+   * is the boundary that IDENTIFIES a control (1.4.11, 3:1) — an input's edge,
+   * a checkbox's box. Using the first where the second belongs is the defect
+   * this pair exists to make nameable.
+   */
+  --dh-color-border: var(--md-app-color-outline-hairline);
+  --dh-color-border-strong: var(--md-sys-color-outline);
+
+  /** The brand, spent on ACTION: the one primary control, a progress fill. */
+  --dh-color-accent: var(--md-sys-color-primary);
+  /** Its pale container, for a wash or a selected chip. Used sparingly. */
+  --dh-color-accent-subtle: var(--md-sys-color-primary-container);
+
+  /*
+   * Status. Four names, and `danger` is not `overdue` — D3: a slipped Task is a
+   * state of a record, not an application fault, and the two must stay
+   * separable so a red list is never mistaken for a broken one.
+   */
+  --dh-color-danger: var(--md-sys-color-error);
+  --dh-color-success: var(--md-sys-color-success);
+  --dh-color-warning: var(--md-sys-color-warning);
+  --dh-color-overdue: var(--md-sys-color-state-overdue);
+
+  /** The focus indicator. Named separately from the accent because it is an
+   * accessibility contract, not a brand decision, and must survive a rebrand. */
+  --dh-color-focus: var(--md-sys-color-primary);
+  /** The scrim behind a modal surface. */
+  --dh-color-scrim: var(--md-sys-color-scrim);
+
+  /* ---------------------------------------------------------------------- */
+  /* Space                                                                  */
+  /* ---------------------------------------------------------------------- */
+  /* The 4px scale, under DalyHub's own name. Unchanged values: the scale was
+   * never Material's — M3 does not specify one — so there is nothing here to
+   * migrate away from, only a name to own. */
+  --dh-space-0: var(--app-space-0);
+  --dh-space-px: var(--app-space-px);
+  --dh-space-1: var(--app-space-1); /* 4 */
+  --dh-space-2: var(--app-space-2); /* 8 */
+  --dh-space-3: var(--app-space-3); /* 12 */
+  --dh-space-4: var(--app-space-4); /* 16 */
+  --dh-space-5: var(--app-space-5); /* 20 */
+  --dh-space-6: var(--app-space-6); /* 24 */
+  --dh-space-8: var(--app-space-8); /* 32 */
+  --dh-space-10: var(--app-space-10); /* 40 */
+  --dh-space-12: var(--app-space-12); /* 48 */
+  --dh-space-16: var(--app-space-16); /* 64 */
+
+  /* ---------------------------------------------------------------------- */
+  /* Radius                                                                 */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * Five rungs, ordered by how much the surface is allowed to say. The
+   * direction is DELIBERATELY less rounded than stock M3 — VIS-01 already
+   * flattened the top of the M3X ladder for the "bubbly" reading a 20px corner
+   * gives twelve cards in a grid, and this names that decision rather than
+   * inheriting it.
+   *
+   * `--dh-radius-pill` is a stadium and D13 governs it: it is reserved for the
+   * ONE primary or destructive action on a surface. It is a rung here so that
+   * the reservation is a documented choice rather than a missing value.
+   */
+  --dh-radius-sm: var(--md-sys-shape-corner-extra-small); /* 4 */
+  --dh-radius-control: var(
+    --app-shape-control
+  ); /* 8 — inputs, buttons, menu items */
+  --dh-radius-md: var(--app-shape-metric); /* 12 — figure tiles, inset runs */
+  --dh-radius-lg: var(--app-shape-card); /* 16 — cards, panels */
+  --dh-radius-xl: var(--app-shape-hero); /* 20 — the one expressive surface */
+  --dh-radius-pill: var(--md-sys-shape-corner-full);
+
+  /* ---------------------------------------------------------------------- */
+  /* Borders and elevation                                                  */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * On a desktop productivity surface a BORDER is the default separator and a
+   * SHADOW is reserved for something that genuinely floats. D1 already says a
+   * card draws neither; these names are what the exceptions reach for.
+   *
+   * Dark mode never relies on shadow alone — the surface ramp does the
+   * separating there — which is why `--dh-elevation-raised` is a companion to a
+   * surface step rather than a replacement for one.
+   */
+  --dh-border-width: var(--app-border-width-thin);
+  --dh-border-width-strong: var(--app-border-width-thick);
+
+  --dh-elevation-flat: var(--app-elevation-resting);
+  --dh-elevation-raised: var(--app-elevation-raised);
+  /** A popover, a menu, an anchored editor. */
+  --dh-elevation-overlay: var(--md-sys-elevation-2);
+  /** A dialog, a sheet, a drawer — the layer above everything. */
+  --dh-elevation-modal: var(--md-sys-elevation-3);
+
+  /* ---------------------------------------------------------------------- */
+  /* Focus                                                                  */
+  /* ---------------------------------------------------------------------- */
+  /* The whole indicator as three tokens, so a component never re-decides it.
+   * It follows the component's own radius, which is why there is no shape here
+   * to keep in sync (ADR-074 Decision 10). */
+  --dh-focus-width: var(--app-border-width-thick);
+  --dh-focus-offset: var(--app-space-px);
+  --dh-focus-color: var(--dh-color-focus);
+
+  /* ---------------------------------------------------------------------- */
+  /* Typography                                                             */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * SEVEN roles, named for the job rather than for a rung of a scale. The M3
+   * typescale stays underneath as the value source; what this adds is the
+   * answer to "what size is a list row's title?", which `body-medium` is not —
+   * `body-medium` is a size, and three different things in the product are it
+   * for three different reasons.
+   *
+   * The scale is compact on purpose (§8 of the DS-01 brief): the largest role
+   * in an ordinary productivity surface is 24px, and there is no display rung
+   * at all. Emphasis is WEIGHT, not size — the M3X `-emphasized` weights are
+   * what a title spends, so a heading gets louder without getting bigger and a
+   * laptop-width collection title stops wrapping.
+   *
+   * Every size is inherited in rem from the typescale, so OS text scaling still
+   * reaches all of them (AGENTS.md §15).
+   */
+
+  --dh-font-family: var(--md-ref-typeface-plain);
+  --dh-font-family-mono: var(--md-ref-typeface-mono);
+
+  /** A page's own title. One per route. */
+  --dh-text-page-title-size: var(--md-sys-typescale-headline-small-size);
+  --dh-text-page-title-line-height: var(
+    --md-sys-typescale-headline-small-line-height
+  );
+  --dh-text-page-title-weight: var(
+    --md-sys-typescale-headline-small-weight-emphasized
+  );
+
+  /** A record's title, and a dominant surface's headline. */
+  --dh-text-record-title-size: var(--md-sys-typescale-title-large-size);
+  --dh-text-record-title-line-height: var(
+    --md-sys-typescale-title-large-line-height
+  );
+  --dh-text-record-title-weight: var(
+    --md-sys-typescale-title-large-weight-emphasized
+  );
+
+  /** A section heading, a card title, a widget title. */
+  --dh-text-section-title-size: var(--md-sys-typescale-title-medium-size);
+  --dh-text-section-title-line-height: var(
+    --md-sys-typescale-title-medium-line-height
+  );
+  --dh-text-section-title-weight: var(
+    --md-sys-typescale-title-medium-weight-emphasized
+  );
+
+  /** Prose, descriptions, anything read continuously. */
+  --dh-text-body-size: var(--md-sys-typescale-body-large-size);
+  --dh-text-body-line-height: var(--md-sys-typescale-body-large-line-height);
+  --dh-text-body-weight: var(--md-sys-typescale-body-large-weight);
+
+  /** A list row's own line — the densest text the product asks to be SCANNED. */
+  --dh-text-row-size: var(--md-sys-typescale-body-medium-size);
+  --dh-text-row-line-height: var(--md-sys-typescale-body-medium-line-height);
+  --dh-text-row-weight: var(--md-sys-typescale-body-medium-weight);
+
+  /** Metadata: a date, a count, a supporting fact beside something else. */
+  --dh-text-meta-size: var(--md-sys-typescale-body-small-size);
+  --dh-text-meta-line-height: var(--md-sys-typescale-body-small-line-height);
+  --dh-text-meta-weight: var(--md-sys-typescale-body-small-weight);
+
+  /** A control's own text: a button, a tab, a menu item, a field label. */
+  --dh-text-label-size: var(--md-sys-typescale-label-large-size);
+  --dh-text-label-line-height: var(--md-sys-typescale-label-large-line-height);
+  --dh-text-label-weight: var(--md-sys-typescale-label-large-weight);
+
+  /*
+   * NUMERIC readability, as a property rather than as a size.
+   *
+   * A column of figures — a Goal's readings, an Analytics table, a duration —
+   * only lines up if the digits are the same width, and Roboto Flex supplies
+   * tabular figures on request. This is the request, in one place, so a surface
+   * opts in by name instead of every author remembering the CSS.
+   */
+  --dh-font-numeric: tabular-nums;
+
+  /* ---------------------------------------------------------------------- */
+  /* Motion                                                                 */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * Four durations named for what they are FOR, over the M3 duration ramp.
+   * Motion in DalyHub communicates causality — opening, selecting, reordering,
+   * completing — and nothing else; there is no decorative rung here to reach
+   * for, and nothing animates on load.
+   *
+   * `--dh-motion-none` is the one duration allowed to be nothing, and
+   * `prefers-reduced-motion` in `base.css` is what resolves to it.
+   */
+  --dh-motion-none: var(--md-sys-motion-duration-none);
+  --dh-motion-instant: var(
+    --md-sys-motion-duration-short2
+  ); /* 100 — state layers */
+  --dh-motion-fast: var(
+    --md-sys-motion-duration-short3
+  ); /* 150 — hover, small moves */
+  --dh-motion-base: var(--md-sys-motion-duration-short4); /* 200 — open/close */
+  --dh-motion-slow: var(
+    --md-sys-motion-duration-medium2
+  ); /* 300 — a sheet, a drawer */
+
+  --dh-ease-standard: var(--md-sys-motion-easing-standard);
+  --dh-ease-enter: var(--md-sys-motion-easing-standard-decelerate);
+  --dh-ease-exit: var(--md-sys-motion-easing-standard-accelerate);
+  --dh-ease-emphasized: var(--md-sys-motion-easing-emphasized);
+
+  /* ---------------------------------------------------------------------- */
+  /* Density — the DEFAULT preset                                           */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * The density model DS-01 exists to add. See the three presets below for the
+   * mechanism; this block is the `default` rung, and every value in it is the
+   * value the application already paints, so nothing moves when a component
+   * adopts a name.
+   *
+   * These are the ONLY tokens in this file whose value depends on a preset.
+   * Everything above is density-invariant by design: a colour, a radius, a
+   * shadow and a type role mean the same thing at every density, and a system
+   * where they do not is a second design system wearing one name.
+   */
+
+  /** A button, an input, a select — anything with a hit area and a border. */
+  --dh-control-height: var(--app-control-height-lg); /* 45 */
+  /** A menu item, a listbox option, a command-palette result. */
+  --dh-menu-item-height: var(--app-control-height-lg); /* 45 */
+  /** A row in a list or a table. A FLOOR — a row whose content wraps grows. */
+  --dh-row-height: var(--app-list-row-height-one-line); /* 56 */
+  /** The inline padding a row, a menu item or a table cell holds its content in. */
+  --dh-inset-inline: var(--app-space-4); /* 16 */
+  /** Its block padding. */
+  --dh-inset-block: var(--app-space-3); /* 12 */
+  /** The padding a card or panel holds its content in. */
+  --dh-surface-padding: var(--app-card-padding); /* 20 */
+  /** The gap between sibling controls in a toolbar, a field row, a chip run. */
+  --dh-control-gap: var(--app-space-2); /* 8 */
+  /** A control's own glyph. */
+  --dh-icon-size: var(--app-entity-icon-size); /* 20 */
+}
+
+/* -------------------------------------------------------------------------- */
+/* DS-01 — the density presets                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * THREE densities, selected by `data-dh-density` on any ancestor — usually
+ * `<html>`, but a region may declare its own, which is the point of doing this
+ * with custom properties rather than with a media query.
+ *
+ *   compact   a desktop productivity surface: a dense task list, a table, a
+ *             filter bar, a command palette. Pointer-driven, scanned rather
+ *             than read, and the density the reference designs are drawn at.
+ *   default   standard desktop and tablet UI. The value everything has today.
+ *   touch     comfortable, for a finger.
+ *
+ * ── Why the attribute is NAMESPACED, and this is not bikeshedding ────────────
+ * `data-density` is already taken, by two components with unrelated meanings:
+ * `LiveMarkdownEditor` writes `data-density="comfortable" | "compact"` to pick
+ * how much editor chrome to draw, and `RecordSummary`/`RecordSummaryBar` write
+ * `data-density="full" | "sparse"` to say whether a description is present.
+ * A bare `[data-density="compact"]` here would therefore have applied the whole
+ * product density preset to every embedded Markdown editor in the application —
+ * silently, and only visibly in the controls inside one.
+ *
+ * Renaming those two would have been a component change in a foundation PR, for
+ * no gain: `data-dh-density` matches the `.dh-` class namespace and the `--dh-`
+ * token prefix, so the product's density attribute is spelled like everything
+ * else the product owns. `dalyhub-tokens.test.ts` asserts the namespaced form,
+ * so the collision cannot be reintroduced by a later simplification.
+ *
+ * ── Density is a PREFERENCE, not a viewport ──────────────────────────────────
+ * A 27" monitor driven by a trackpad is not automatically compact, and a 1024px
+ * tablet is not automatically default. So the selector is an attribute, and the
+ * responsive rule below is only a DEFAULT for a document that has not chosen —
+ * `:not([data-dh-density])` — which leaves the door open for the Settings
+ * control DS-07 is expected to add without it having to fight a media query.
+ *
+ * ── Density may never cost a touch target ────────────────────────────────────
+ * `compact` is the one preset that shrinks a hit area, and the coarse-pointer
+ * block at the end of this section floors every target it touches back to
+ * `--app-touch-target-min`. That is unconditional: a compact region on a touch
+ * device is compact in its PADDING and its type, and never in its targets.
+ * WCAG 2.2 target size is not a density setting (AGENTS.md §15).
+ *
+ * ── What a preset may contain ────────────────────────────────────────────────
+ * Only the eight names in the default block above. A preset that introduces a
+ * ninth token is a preset that only some components understand, which is the
+ * failure mode ADR-074 §6 retired the previous `data-density` for. Asserted by
+ * `dalyhub-tokens.test.ts`.
+ */
+
+[data-dh-density="compact"] {
+  /* 36px — the `md` control rung, which is what a dense desktop toolbar and a
+   * table's own controls already want and currently hard-code around. */
+  --dh-control-height: var(--app-control-height-md);
+  --dh-menu-item-height: var(--app-control-height-md);
+  /* 45px — the one-line task row D18 already specifies. A compact list row and
+   * the Tasks row are deliberately the same object. */
+  --dh-row-height: var(--app-touch-target-min);
+  --dh-inset-inline: var(--app-space-3); /* 12 */
+  --dh-inset-block: var(--app-space-2); /* 8 */
+  --dh-surface-padding: var(--app-card-padding-compact); /* 16 */
+  --dh-control-gap: var(--app-space-1); /* 4 */
+  --dh-icon-size: var(--app-entity-icon-size-sm); /* 18 */
+}
+
+[data-dh-density="default"] {
+  --dh-control-height: var(--app-control-height-lg);
+  --dh-menu-item-height: var(--app-control-height-lg);
+  --dh-row-height: var(--app-list-row-height-one-line);
+  --dh-inset-inline: var(--app-space-4);
+  --dh-inset-block: var(--app-space-3);
+  --dh-surface-padding: var(--app-card-padding);
+  --dh-control-gap: var(--app-space-2);
+  --dh-icon-size: var(--app-entity-icon-size);
+}
+
+[data-dh-density="touch"] {
+  --dh-control-height: var(--app-touch-target-min); /* 45 */
+  --dh-menu-item-height: var(--app-touch-target-min);
+  --dh-row-height: var(--app-list-row-height-two-line); /* 64 */
+  --dh-inset-inline: var(--app-space-4); /* 16 */
+  --dh-inset-block: var(--app-space-4); /* 16 */
+  --dh-surface-padding: var(--app-card-padding); /* 20 */
+  --dh-control-gap: var(--app-space-3); /* 12 */
+  --dh-icon-size: var(--app-entity-icon-size); /* 20 */
+}
+
+/*
+ * The responsive DEFAULT, for a document that has not chosen.
+ *
+ * `(pointer: coarse)` rather than a width query, for the same reason the
+ * anti-zoom floor above uses `(hover: none)`: what makes a comfortable target
+ * necessary is the INPUT MECHANISM, not the window. A 1024px tablet held in two
+ * hands wants touch; a 1024px browser window on a laptop does not.
+ */
+@media (pointer: coarse) {
+  :root:not([data-dh-density]) {
+    --dh-control-height: var(--app-touch-target-min);
+    --dh-menu-item-height: var(--app-touch-target-min);
+    --dh-row-height: var(--app-list-row-height-two-line);
+    --dh-inset-inline: var(--app-space-4);
+    --dh-inset-block: var(--app-space-4);
+    --dh-surface-padding: var(--app-card-padding);
+    --dh-control-gap: var(--app-space-3);
+    --dh-icon-size: var(--app-entity-icon-size);
+  }
+
+  /*
+   * The target floor, restated over `compact` so it cannot be opted out of.
+   * A compact region on a touch device keeps its tighter padding, its smaller
+   * glyph and its type, and gives back every pixel of hit area. Last in the
+   * file, so it beats the preset whatever the source order.
+   */
+  [data-dh-density="compact"] {
+    --dh-control-height: var(--app-touch-target-min);
+    --dh-menu-item-height: var(--app-touch-target-min);
+    --dh-row-height: var(--app-touch-target-min);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* MOBILE-01 (iPhone daily driver) — the touch floor on text entry             */
 /* -------------------------------------------------------------------------- */
