@@ -18,7 +18,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { COLLAPSED_RAIL_QUERY } from "~/shared/shell/PrimaryNavigation";
+import { COLLAPSED_RAIL_QUERY } from "~/shared/shell/collapsed-rail";
 
 const shellCss = readFileSync(
   join(process.cwd(), "app", "styles", "shell.css"),
@@ -72,6 +72,39 @@ describe("DS-03 the rail", () => {
       '.dh-sidebar--rail .dh-nav__link[aria-current="page"]',
     );
     expect(forced![1]).toContain("Highlight");
+  });
+
+  it("is NOT a clipping ancestor — the destination list scrolls, the rail does not", () => {
+    /*
+     * The regression this exists for, found in review on PR #176.
+     *
+     * `overflow-y: auto` makes an element a scroll container and therefore a
+     * CLIPPING ancestor for everything absolutely positioned inside it. That was
+     * harmless while the rail held only links. DS-03 moved the ACCOUNT MENU into
+     * it, and the menu's panel is 15rem wide — so the panel was clipped to the
+     * rail's own width: MEASURED at 240px cut to 216 on a desktop, and to 68 on a
+     * tablet, where Settings and Sign out were sliced to single letters.
+     *
+     * The rail was scrolling the wrong thing. The brand and the account are fixed
+     * furniture at the two ends of the column; only the destinations between them
+     * can ever be too long. Asserting BOTH halves, because either alone is a
+     * broken rail — a non-scrolling list pushes the account off a short viewport,
+     * and a scrolling rail clips the panel again.
+     */
+    const rail = /\.dh-sidebar--rail\s*\{([^}]*)\}/.exec(shellRules());
+    expect(rail, "the .dh-sidebar--rail rule").not.toBeNull();
+    expect(
+      rail![1],
+      "the rail must not clip the account panel it now contains",
+    ).toContain("overflow: visible");
+    expect(rail![1]).not.toMatch(/overflow-[xy]:\s*(auto|hidden|scroll)/);
+
+    const list = /\.dh-sidebar--rail \.dh-nav\s*\{([^}]*)\}/.exec(shellRules());
+    expect(list, "the rail's scrolling destination list").not.toBeNull();
+    expect(list![1]).toContain("overflow-y: auto");
+    // Without this a flex item refuses to shrink below its content size, so the
+    // list would push the account off the bottom instead of scrolling.
+    expect(list![1]).toContain("min-block-size: 0");
   });
 
   it("draws no stadium on any CONTROL in the frame", () => {
@@ -276,16 +309,36 @@ describe("DS-03 the shell composes DS-02 primitives", () => {
     expect(source).toContain("<Button");
     expect(source).toContain("<IconButton");
 
-    // …and the bespoke paint is gone with it. `.dh-topbar__create` survives as a
-    // layout hook only (it may not shrink), so it must carry no colour, corner
-    // or height of its own.
+    // …and the bespoke PAINT is gone with it: no colour, no corner, no type.
+    // Those are the primitive's job, and restating any of them is how the shell
+    // drifts back into drawing its own buttons.
     const create = /\.dh-topbar__create\s*\{([^}]*)\}/.exec(shellRules());
     expect(create, "the .dh-topbar__create rule").not.toBeNull();
-    for (const property of ["background", "border-radius", "min-block-size"]) {
+    for (const property of ["background", "border-radius", "font-size"]) {
       expect(
         create![1],
         `.dh-topbar__create must not restate ${property}`,
       ).not.toContain(property);
     }
+  });
+
+  it("keeps the 44px target floor on the GLOBAL capture control", () => {
+    /*
+     * The regression this exists for, found by CI on PR #176.
+     *
+     * UIX-01's hand-rolled rule stated 44px with the note "so it clears WCAG 2.2
+     * (2.5.8) without a separate hit area". Composing `Button` handed the height
+     * to the density model — correct for every ordinary button, and 36px on a
+     * fine pointer for this one. MEASURED at 36 against a required 44.
+     *
+     * It is the one control `creation-controls.spec.ts` asserts a target on at
+     * EVERY route, and rightly: it is the global capture action, reachable from
+     * every screen, and the product's most frequent creative act. The floor is
+     * `--app-touch-target-min` rather than a number, so it is the same floor the
+     * density model applies under a coarse pointer — this control just takes it
+     * unconditionally.
+     */
+    const create = /\.dh-topbar__create\s*\{([^}]*)\}/.exec(shellRules());
+    expect(create![1]).toContain("min-block-size: var(--app-touch-target-min)");
   });
 });

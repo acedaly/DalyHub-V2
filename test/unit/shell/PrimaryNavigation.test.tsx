@@ -13,10 +13,8 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
-import {
-  COLLAPSED_RAIL_QUERY,
-  PrimaryNavigation,
-} from "~/shared/shell/PrimaryNavigation";
+import { COLLAPSED_RAIL_QUERY } from "~/shared/shell/collapsed-rail";
+import { PrimaryNavigation } from "~/shared/shell/PrimaryNavigation";
 
 function item(label: string, order: number, group?: string): NavigationItem {
   return {

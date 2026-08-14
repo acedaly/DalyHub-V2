@@ -64,9 +64,25 @@ test.describe("keyboard — shell chrome is reachable, resting page has no trap"
       const info = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement | null;
         if (!el) return { key: "", name: "" };
+        /*
+         * The NAME, not the text.
+         *
+         * DS-03 rebuilt the top bar's utilities on the shared `IconButton`,
+         * whose accessible name is a required `aria-label` rather than a
+         * visually-hidden span — that is the DS-02 contract for an icon-only
+         * control, and the reason `label` is required by the type. Reading
+         * `textContent` alone therefore reported the Command Palette entry as
+         * unreachable when it was reachable and correctly named, and would have
+         * forbidden `IconButton` anywhere in the shell.
+         *
+         * `aria-label` first, falling back to text, so the check is about what a
+         * user is told the control is — which is what "reachable" has to mean
+         * for a control with no visible text.
+         */
+        const name = el.getAttribute("aria-label") ?? el.textContent ?? "";
         return {
           key: `${el.tagName}.${el.className}#${el.id}`,
-          name: (el.textContent ?? "").trim().toLowerCase(),
+          name: name.trim().toLowerCase(),
         };
       });
       seen.add(info.key);

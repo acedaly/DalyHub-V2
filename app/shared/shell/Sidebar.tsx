@@ -151,6 +151,7 @@ export function Sidebar({
           email={email}
           appearance={appearance}
           settingsHref={settingsHref}
+          collapsible={variant === "rail"}
         />
       </div>
     </nav>

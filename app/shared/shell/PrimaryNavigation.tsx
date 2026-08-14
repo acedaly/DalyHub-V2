@@ -43,25 +43,10 @@ import { Link, useLocation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { Tooltip } from "~/shared/tooltip";
-import { useCompactViewport } from "~/shared/viewport";
 
 import { NavIcon } from "./NavIcon";
+import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
-
-/**
- * DS-03 — the width band at which the rail is COLLAPSED to glyphs.
- *
- * The tablet band between DS-01's `md` (768) and `lg` (1024). Below it the rail
- * is not rendered at all (the phone bar takes over); above it the labels are
- * visible and the tooltip would only repeat them.
- *
- * It mirrors the media query in `shell.css`, which is the authority — the LAYOUT
- * is CSS, and this boolean exists solely to decide whether a row's label is
- * currently readable. Keeping presentation in the media query and the one
- * DOM-affecting consequence here is the rule `useCompactViewport` documents.
- */
-export const COLLAPSED_RAIL_QUERY =
-  "(min-width: 48rem) and (max-width: 63.9375rem)";
 
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
@@ -109,9 +94,7 @@ export function PrimaryNavigation({
    * there is no hydration shift — the width is decided by the media query in
    * `shell.css`, which the server and the browser resolve identically.
    */
-  const collapsed = useCompactViewport(
-    collapsible ? COLLAPSED_RAIL_QUERY : NEVER_QUERY,
-  );
+  const collapsed = useCollapsedRail(collapsible);
 
   return (
     <div id={id} className="dh-nav">
@@ -164,13 +147,3 @@ export function PrimaryNavigation({
     </div>
   );
 }
-
-/**
- * A query that is never true, for the sheet instance.
- *
- * `useCompactViewport` takes a query rather than a boolean, so opting out means
- * handing it something that cannot match. `not all` is the CSS idiom for exactly
- * that and is what `matchMedia` returns for an unparseable query anyway, so this
- * is the honest spelling of "this instance never collapses".
- */
-const NEVER_QUERY = "not all";

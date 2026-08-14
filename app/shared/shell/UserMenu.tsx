@@ -45,9 +45,11 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { useSignOut } from "~/shared/account-security";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
+import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import { ACCESS_LOGOUT_PATH } from "./access-logout";
 import { AppearanceSelector } from "./AppearanceSelector";
+import { useCollapsedRail } from "./collapsed-rail";
 import { displayNameFromEmail, initialsFromName } from "./identity-display";
 
 export { ACCESS_LOGOUT_PATH } from "./access-logout";
@@ -81,6 +83,14 @@ export type UserMenuProps = {
    * no dead ends). SET-01 threads a real href through here to light it up.
    */
   readonly settingsHref?: string;
+  /**
+   * Whether this instance is on the RAIL, which collapses to glyphs on a tablet.
+   * When it does, CSS hides the trigger's name and chevron and only the initials
+   * are left, so the shared tooltip has to supply the name to a pointer and a
+   * sighted keyboard user. The phone's navigation sheet passes nothing: it is
+   * full-width at every viewport it exists at.
+   */
+  readonly collapsible?: boolean;
 };
 
 export function UserMenu({
@@ -88,6 +98,7 @@ export function UserMenu({
   name,
   appearance = "system",
   settingsHref,
+  collapsible = false,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const signOut = useSignOut();
@@ -97,6 +108,8 @@ export function UserMenu({
 
   const displayName = name ?? displayNameFromEmail(email);
   const initials = initialsFromName(displayName);
+  // Whether CSS is currently hiding this trigger's name (see the tooltip note).
+  const collapsed = useCollapsedRail(collapsible);
 
   // Close on outside click and on Escape (restoring focus to the trigger).
   useEffect(() => {
@@ -209,30 +222,46 @@ export function UserMenu({
    * WCAG 2.5.3 (label in name) requires so a voice-control user can say what
    * they can see.
    *
-   * There is no tooltip: the trigger shows the name in text at the width the
-   * label is visible, and a tooltip that repeats visible text is noise. The
-   * COLLAPSED rail hides the name visually — the `aria-label` above is what
-   * carries it there, which is a name rather than a description and so does not
-   * disappear for anyone whose assistive technology skips descriptions.
+   * The TOOLTIP is the other half, and it is scoped to the case that needs it.
+   * At full width the trigger shows the name in text, and a tooltip repeating
+   * visible text is noise. On the COLLAPSED rail the same CSS that hides the
+   * fourteen destinations' labels hides this one, leaving two initials — so a
+   * sighted pointer or keyboard user gets no explanation that they open the
+   * account menu, which is the exact gap the collapsed-navigation contract in
+   * `DESIGN_SYSTEM.md` requires the shared tooltip to close. The `aria-label`
+   * above is unaffected and remains the NAME; the tooltip is the DESCRIPTION, so
+   * anyone whose assistive technology skips descriptions still hears the name.
+   *
+   * It is suppressed while the panel is OPEN: the panel says far more than the
+   * trigger could, and a tooltip over it would be noise on top of an answer.
    */
   const trigger = (
-    <button
-      type="button"
-      className="dh-user-menu__trigger"
-      ref={triggerRef}
-      aria-expanded={open}
-      aria-controls={open ? panelId : undefined}
-      aria-label={`Account — ${displayName}`}
-      onClick={() => setOpen((value) => !value)}
+    <Tooltip
+      label={`Account — ${displayName}`}
+      placement="top"
+      disabled={!collapsed || open}
     >
-      <span className="dh-user-menu__avatar" aria-hidden="true">
-        {initials}
-      </span>
-      <span className="dh-user-menu__trigger-name">{displayName}</span>
-      <span className="dh-user-menu__chevron" aria-hidden="true">
-        <ChevronDownIcon />
-      </span>
-    </button>
+      {(tip) => (
+        <button
+          type="button"
+          className="dh-user-menu__trigger"
+          ref={composeRefs(triggerRef, tip.ref)}
+          aria-expanded={open}
+          aria-controls={open ? panelId : undefined}
+          aria-describedby={tip.describedBy}
+          aria-label={`Account — ${displayName}`}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="dh-user-menu__avatar" aria-hidden="true">
+            {initials}
+          </span>
+          <span className="dh-user-menu__trigger-name">{displayName}</span>
+          <span className="dh-user-menu__chevron" aria-hidden="true">
+            <ChevronDownIcon />
+          </span>
+        </button>
+      )}
+    </Tooltip>
   );
 
   return (

@@ -156,6 +156,28 @@ that should be scanned. The account rule earns itself: the account is a differen
 *kind* of thing from the destinations above it, and the boundary is what says so
 when the rail is collapsed to glyphs and the rhythm is all that is left.
 
+### 2.5 The rail does not scroll; its destination list does
+
+Found in review on PR #176, and it is a correctness rule before it is a layout
+one. `overflow-y: auto` makes an element a scroll container and therefore a
+**clipping ancestor** for everything absolutely positioned inside it. That was
+harmless while the rail held only links. Moving the account menu in gave it a
+15rem panel to clip: **measured at 240px cut to 216 on a desktop, and to 68 on a
+tablet**, where Settings and Sign out were sliced to single letters.
+
+The fix is not a portal. It is that the rail was scrolling the wrong thing — the
+brand and the account are fixed furniture at the two ends of the column, and only
+the destinations between them can ever be too long. Scrolling the list is both
+the smaller change and the better rail: the account no longer scrolls out of view
+on a short viewport, which is the whole reason it is at the bottom.
+
+With the rail `overflow: visible` the panel escapes to the content pane as it is
+drawn to, and the rail takes `--app-z-sticky` so that is deterministic rather
+than a consequence of DOM order — above the page, still below the top bar, which
+the upward-opening panel never reaches. Both halves are asserted, because either
+alone is a broken rail: a non-scrolling list pushes the account off a short
+viewport, and a scrolling rail clips the panel again.
+
 **And two variants came off `UserMenu` with the move.** `compact` (avatar and
 chevron only) and `placement="below"` existed for the top app bar. With the
 account in the rail, both places the menu renders are the bottom of a column, so
@@ -165,6 +187,14 @@ nobody tests. The collapsed rail is the case that *looks* like it wants
 everything else in the column, so the component does not have to know how wide it
 currently is. Three CSS modifiers (`--above`, `--below`, `--compact`) went with
 them.
+
+What `compact` **did** legitimately carry was the tooltip, and removing it took
+that too — a second PR #176 finding. On the collapsed rail the trigger is two
+initials, so a sighted pointer or keyboard user got no explanation that they open
+the account menu, while all fourteen destinations beside it had one. The tooltip
+is back, gated on the same `useCollapsedRail()` the destinations use, so the two
+cannot disagree about when a label is readable. The `aria-label` is unchanged and
+remains the NAME; the tooltip is the DESCRIPTION.
 
 ---
 
@@ -291,6 +321,8 @@ What changed on the phone:
 | **Rail contrast** | `on-rail` and `on-rail-muted` both clear 4.5:1 over the rail, and the selected block clears 4.5:1 for its label — asserted per scheme, per appearance, in `contrast.test.ts` |
 | **Focus is visible on the rail** | **A real defect the tests found.** `primary` measures 2.40–2.42:1 over the rail in every scheme. `--dh-color-rail-focus` replaces it region-wide (~14:1 over the rail, ~10:1 over the selected block), asserted over both |
 | **Collapsed rows keep their names** | The label is visually hidden, never `display: none`; the tooltip is the description. Asserted through `getByRole(…, { name })`, which reads the accessibility tree |
+| **The collapsed ACCOUNT trigger too** | Same rule, same hook (`useCollapsedRail`). It was missed on the first pass and found in review — the trigger collapses to two initials with no explanation for a pointer or a sighted keyboard user |
+| **The account panel is reachable** | The rail is no longer a clipping ancestor (§2.5). It was cut to 68px on a tablet, taking Settings and Sign out with it |
 | **Selection is never colour alone** | `aria-current` + a shape + a weight step + a foreground step, and the system `Highlight` under forced colours |
 | **Forced colours** | The rail's own selectors are named in the forced-colours block, because they outrank the short forms. Asserted |
 | **Touch targets** | `--app-nav-row-height` floors to `--app-touch-target-min` under `(pointer: coarse)`, unconditionally and last in the file |
@@ -358,6 +390,38 @@ capture, the shortcuts, auth, Settings and every mobile route behaviour go
 through the same callbacks and the same components they did. The two behaviours
 that *did* move — the account menu's location and the top bar's control set — are
 covered by the new unit tests and were driven by hand in the browser.
+
+**Three regressions CI caught, and what they were.** Recorded because each was a
+real defect in a guarantee that predates DS-03, and because two of them are the
+same shape: *composing a primitive silently dropped something the hand-rolled
+version was carrying.*
+
+1. **The global create control lost its 44px target.** UIX-01's rule stated 44px
+   with the note "so it clears WCAG 2.2 (2.5.8)"; composing `Button` handed the
+   height to density, which is right for every ordinary button and gives this one
+   36px on a fine pointer. Measured at 36 against a required 44. The floor is
+   restored — as `--app-touch-target-min`, the same floor density applies under a
+   coarse pointer — and asserted, because this is the one control the suite
+   checks a target on at every route.
+2. **The command-palette utility became unreachable to one test's probe.**
+   `keyboard.spec.ts` looked for the control by `textContent`, and `IconButton`
+   carries its name as a required `aria-label` instead of a visually-hidden span.
+   The control is reachable and correctly named; the PROBE was wrong, and as
+   written it would have forbidden `IconButton` anywhere in the shell. It now
+   reads the accessible name, which is what "reachable" has to mean for a control
+   with no visible text.
+3. **`tasks-collection.spec.ts:471` failed once and does not reproduce.** Its
+   partition ran 17.3 minutes against a 15.5-minute budget, as did two others on
+   the same run; it passes locally against this build.
+
+**The base branch is red, and was before this change.** `main` CI has failed on
+every push since 2026-08-13, including commit `4ceced0` — DS-03's own parent.
+On that commit, E2E partitions p02, p03, p05, p07 and p08 already failed. DS-03
+is responsible for the delta only, which was p01, p04 and p06, all three
+addressed above. The pre-existing failures include `pwa-budget.spec.ts`, whose
+precache ceiling is exceeded on the base branch by the same measurement it
+reports on this PR: **1,241,668 bytes against a 1,200,000 ceiling**, of which
+DS-03 adds 116.
 
 **One flake observed and not reproduced.** `test/kernel/calendar-security.test.ts`
 → "does not throw when the workspace cannot be resolved" failed once in a full

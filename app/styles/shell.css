@@ -147,17 +147,63 @@
  * It draws NO edge hairline. Against a bright canvas the tonal step is ~80
  * tones; a 1px rule on top of that separates nothing and reads as a seam.
  */
+/*
+ * ── The rail does NOT scroll; its destination LIST does ──────────────────────
+ *
+ * This is a correctness rule before it is a layout one, and it was found the
+ * expensive way: the rail carried `overflow-y: auto`, which makes it a scroll
+ * container and therefore a CLIPPING ancestor for everything absolutely
+ * positioned inside it. That was harmless while the rail held only links. DS-03
+ * moved the account menu here, and its panel is 15rem wide — so it was clipped
+ * to the rail's own width. MEASURED at the review: a 240px panel cut to 216px on
+ * a desktop, and to **68px** on a tablet, where Settings and Sign out were
+ * sliced to single letters.
+ *
+ * The fix is not a portal. It is to notice that the rail was scrolling the wrong
+ * thing: the brand and the account are FIXED FURNITURE at the two ends of the
+ * column, and only the destinations between them can ever be too long. Scrolling
+ * the list is both the smaller change and the better rail — the account no
+ * longer scrolls out of view on a short viewport, which is exactly why it was
+ * put at the bottom.
+ *
+ * With the rail `overflow: visible` again, the panel escapes to the content pane
+ * as it is drawn to. `z-index` makes that deterministic rather than a
+ * consequence of DOM order: `position: sticky` already makes the rail a stacking
+ * context, and without a rung of its own the pane's own positioned content — a
+ * later sibling — would paint over the open panel. `--app-z-sticky` puts the
+ * rail above the page and still below the top bar (`--app-z-dropdown`), which
+ * the upward-opening panel never reaches anyway.
+ */
 .dh-sidebar--rail {
   position: sticky;
   top: 0;
+  z-index: var(--app-z-sticky);
   height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   background: var(--dh-color-rail);
   color: var(--dh-color-rail-text);
   /* The sticky-surface declaration MOBILE-01 introduced: anything sticky inside
    * the rail needs to know what it is painted on, and cannot ask. */
   --app-surface-current: var(--dh-color-rail);
+}
+
+/*
+ * The destinations are the one part that can overflow, so they are the one part
+ * that scrolls. `min-block-size: 0` is what lets a flex item shrink below its
+ * content size — without it the list refuses to shrink and pushes the account
+ * off the bottom of the viewport instead of scrolling.
+ *
+ * `overflow-x: visible` cannot be set on one axis alone (a non-`visible` value
+ * on either axis computes the other to `auto`), and it does not need to be: the
+ * only thing inside the list that escapes horizontally is a collapsed row's
+ * tooltip, and the shared tooltip renders in a portal on `<body>`.
+ */
+.dh-sidebar--rail .dh-nav {
+  flex: 0 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  /* A scrollbar inside a 68px rail would take a fifth of it. */
+  scrollbar-width: thin;
 }
 
 /*
@@ -1106,12 +1152,31 @@
  * the application declares, which is what takes it from 44px to 36 on a cursor
  * while a phone keeps its 45.
  *
- * Nothing is left here but the ONE thing that belongs to the bar rather than to
- * the button: it may not shrink. A create action squeezed to two wrapped words
- * beside a search field is the failure UIQ-014 named on the pane header.
+ * TWO things are left here, and both belong to the bar rather than to the
+ * button:
+ *
+ *   - it may not SHRINK. A create action squeezed to two wrapped words beside a
+ *     search field is the failure UIQ-014 named on the pane header;
+ *   - it keeps the 44px TARGET FLOOR, which is not a design height and is the
+ *     reason this rule is allowed to state a size at all.
+ *
+ * The floor was very nearly lost. UIX-01's hand-rolled rule set 44px with the
+ * note "so it clears WCAG 2.2 (2.5.8) without a separate hit area", and
+ * composing `Button` handed the height to the density model — which is correct
+ * for every ordinary button and gives this one 36px on a fine pointer. It is the
+ * ONE control the E2E suite asserts a target on at every route
+ * (`creation-controls.spec.ts`), and rightly: it is the global capture action,
+ * reachable from every screen in the product, and DalyHub's most frequent
+ * creative act.
+ *
+ * `--app-touch-target-min` rather than a number, so it is the same floor the
+ * density model applies under a coarse pointer — this control simply takes it
+ * unconditionally. Everything else the button looks like still comes from the
+ * primitive.
  */
 .dh-topbar__create {
   flex: none;
+  min-block-size: var(--app-touch-target-min);
 }
 
 /* An icon-only utility. `--dh-control-height` is 36px on a cursor and floors to
