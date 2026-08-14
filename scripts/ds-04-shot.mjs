@@ -199,6 +199,99 @@ if (SET === "all" || SET === "interactions") {
   await context.close();
 }
 
+/* -- Individual ROW states, clipped to the row -------------------------------- */
+
+/*
+ * The row is the component DS-04 is judged on, so its states are captured as the
+ * row rather than as a page containing one. Each shot is a real row in the real
+ * list, found by the fact that makes it the state under test — an overdue row is
+ * one the product itself put in the Overdue bucket, never one posed for the
+ * camera.
+ */
+if (SET === "all" || SET === "rows") {
+  const { context, page } = await openPage(1440, 950, "light");
+
+  const clip = async (locator, name) => {
+    await settle(page);
+    await locator.screenshot({ path: `${OUT}/${PREFIX}${name}.png` });
+    process.stdout.write(`${PREFIX}${name}\n`);
+  };
+
+  const rowIn = async (query, index = 0) => {
+    await goTasks(page, query);
+    return page.locator("[data-testid='task-row']").nth(index);
+  };
+
+  // Normal, and the same row hovered — the two states a pointer moves between.
+  let row = await rowIn("?view=list&system=all&group=none");
+  await clip(row, "task-row-normal");
+  await row.hover();
+  await clip(row, "task-row-hover");
+
+  // Keyboard focus, on the completion control.
+  row = await rowIn("?view=list&system=all&group=none");
+  await row.locator("[data-testid='task-complete']").focus();
+  await clip(row, "task-row-focus");
+
+  // Overdue — the product's own Overdue scope, not a posed date.
+  row = await rowIn("?view=list&system=overdue");
+  await clip(row, "task-row-overdue");
+
+  // Completed — the Completed scope, for the calm finished state.
+  row = await rowIn("?view=list&system=completed");
+  await clip(row, "task-row-completed");
+
+  // The longest title in the collection, to prove the truncation rule.
+  await goTasks(page, "?view=list&system=all&sort=title&dir=desc&group=none");
+  const longest = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll("[data-testid='task-row']")];
+    let best = 0;
+    rows.forEach((r, i) => {
+      const t = r.querySelector("[data-testid='task-row-open']");
+      if (
+        (t?.textContent?.length ?? 0) >
+        (rows[best]?.querySelector("[data-testid='task-row-open']")?.textContent
+          ?.length ?? 0)
+      )
+        best = i;
+    });
+    return best;
+  });
+  await clip(
+    page.locator("[data-testid='task-row']").nth(longest),
+    "task-row-long-title",
+  );
+
+  // Inbox — a task with no project, which must not read as incomplete.
+  row = await rowIn("?view=list&system=inbox");
+  await clip(row, "task-row-inbox");
+
+  await context.close();
+}
+
+/* -- Cross-module regression -------------------------------------------------- */
+
+/*
+ * Today and a Project's task list still render the generic Card. They are shot
+ * because DS-04 changed three things product-wide — the drawer surface, the
+ * phone tab capsule and the bounded past date — and "no regression" is a claim
+ * that needs a picture.
+ */
+if (SET === "all" || SET === "regression") {
+  for (const [route, name] of [
+    ["/today", "regression-today"],
+    ["/projects", "regression-projects"],
+  ]) {
+    const { context, page } = await openPage(1440, 950, "light");
+    await page
+      .goto(`${BASE}${route}`, { waitUntil: "networkidle", timeout: 30000 })
+      .catch(() => undefined);
+    await settle(page);
+    await shoot(page, name);
+    await context.close();
+  }
+}
+
 /* -- The Drawer ------------------------------------------------------------ */
 
 if (SET === "all" || SET === "drawer") {

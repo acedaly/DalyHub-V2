@@ -545,6 +545,15 @@
    * the few characters in it — which both satisfies the spacing half of the rule
    * and is what a person aiming at a date column expects.
    */
+  /*
+   * The shared trigger carries `margin-inline: -8px` so its text aligns
+   * optically with the static value it replaces. That is right in a wrapping
+   * metadata run, where the editors are far apart, and it is the ROOT CAUSE of
+   * every "partially obscured" target on a column grid: each trigger overhung
+   * its neighbour by 8px on each side, so the date's hit area was covered by
+   * the priority beside it. In a grid the CELL does the aligning.
+   */
+  margin-inline: 0;
   min-block-size: var(--dh-space-6);
   /*
    * And 24px WIDE. On the two-line composition the cells hug their content, so a
