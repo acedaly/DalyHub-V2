@@ -275,6 +275,32 @@ own content ("aligned to the START rather than centred: the rail is on the left,
 so a centred column would drift away from it as the viewport grows and leave the
 navigation pointing at nothing"); the header was the one piece not obeying it.
 
+### 5.1 Nothing scrolls to underneath the chrome
+
+`base.css` reserved the band the phone's navigation bar occupies, so nothing
+scrolled to the END of the viewport lands under it (MOBILE-01). Nothing reserved
+the band at the START — so `scrollIntoView`, keyboard focus scrolling, an anchor
+jump and a test framework's actionability scroll could all park a row under the
+sticky top bar, where it is neither visible nor clickable. MEASURED at 154px of
+top chrome on a collection at 1280, against `scroll-padding-block-start: auto`.
+
+DS-03 adds the counterpart, stated with the same kind of token so nothing is
+measured or guessed: `--app-shell-top-chrome` is the desktop bar's height, and
+the phone bar's (plus its safe-area inset) where that one is hidden.
+
+It reserves the APPLICATION bar and not a page's own sticky header, which is the
+distinction CAPTURE-02 drew at the other end when it kept the floating button out
+of the band: a full-width, always-present bar is exactly a band; a page-level
+header varies by route, and over-reserving is a real side effect rather than a
+safety margin — it pushes every scrolled-to element further than it needs to go,
+which is how the last attempt at this caused an axe `target-size` failure.
+
+**This was found while investigating a CI failure it does not explain.** The
+sticky band shrank under DS-03 (~160px → 154), so "content moved up under the
+chrome" is not what broke `tasks-collection.spec.ts:471`. The gap is a real
+latent defect regardless, it can only reduce this class of failure, and it is
+fixed on its own merits.
+
 The band is also tighter: `24/16` → `20/12` above and below the title, and the
 title itself now consumes `--dh-text-page-title-*` rather than naming a
 typescale rung. That is both a §25 compliance change and a real one — the value
@@ -410,9 +436,24 @@ version was carrying.*
    written it would have forbidden `IconButton` anywhere in the shell. It now
    reads the accessible name, which is what "reachable" has to mean for a control
    with no visible text.
-3. **`tasks-collection.spec.ts:471` failed once and does not reproduce.** Its
-   partition ran 17.3 minutes against a 15.5-minute budget, as did two others on
-   the same run; it passes locally against this build.
+3. **The `product-frame` account test still looked in the top bar.** It located
+   the trigger inside `.dh-topbar`, where VIS-01 put it; DS-03 moved it to the
+   rail. Re-scoped to `.dh-sidebar--rail` — and scoped to the rail rather than to
+   the page, because the phone's navigation sheet renders the same menu and both
+   are in the DOM at once. Every behaviour it asserts is unchanged.
+
+   It failed inside p05, which was **already red on the base branch for an
+   unrelated reason** — so a partition's colour is not a per-test verdict, and
+   the remaining red partitions were re-checked test by test rather than
+   dismissed.
+
+**One failure I could not reproduce, and am not claiming to have fixed.**
+`tasks-collection.spec.ts:471` (`planForToday` → a hover action on a card) failed
+on both CI runs. It passes here in isolation and in a **full local p06 partition
+run — 114 passed, same specs, same order, same build**. Both CI partitions that
+carried it ran ~2 minutes over budget. §5.1 fixes a latent scroll defect found
+while investigating it, but the measurement there argues against that being the
+cause: DS-03 made the sticky band smaller, not larger. Recorded as open.
 
 **The base branch is red, and was before this change.** `main` CI has failed on
 every push since 2026-08-13, including commit `4ceced0` — DS-03's own parent.

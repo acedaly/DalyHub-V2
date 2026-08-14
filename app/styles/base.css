@@ -47,6 +47,24 @@ html {
   scroll-padding-block-end: calc(
     var(--app-bottomnav-height, 0px) + var(--app-space-2)
   );
+  /*
+   * DS-03 — the same reservation at the LEADING edge, which was missing.
+   *
+   * The rule above reserves the band the phone's navigation bar occupies, so
+   * nothing scrolled to the END of the viewport lands underneath it. Nothing
+   * reserved the band at the START, so anything scrolled to the leading edge —
+   * by `scrollIntoView`, by keyboard focus, by an anchor jump, or by a test
+   * framework's actionability scroll — landed under the sticky top app bar,
+   * where it is neither visible nor clickable. MEASURED at 154px of top chrome
+   * on a collection at 1280.
+   *
+   * It is the exact counterpart of the `-end` rule and is stated with the same
+   * kind of token, so nothing is measured or guessed: `--app-shell-top-chrome`
+   * is the desktop bar's height, and the phone bar's where that one is hidden.
+   */
+  scroll-padding-block-start: calc(
+    var(--app-shell-top-chrome, 0px) + var(--app-space-2)
+  );
 }
 
 /*

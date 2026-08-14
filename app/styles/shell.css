@@ -2096,6 +2096,15 @@
     --app-bottomnav-height: calc(
       var(--app-bottomnav-bar-height) + var(--dh-safe-bottom)
     );
+
+    /* DS-03 — and the band at the OTHER end, for the same reason. Here the
+     * desktop bar is `display: none` and the phone bar takes over, so the
+     * reservation `base.css` makes has to follow it — including the safe-area
+     * inset, which the phone bar pads by and a notched device therefore adds to
+     * the chrome an element can be scrolled underneath. */
+    --app-shell-top-chrome: calc(
+      var(--app-shell-mobilebar-height) + var(--dh-safe-top)
+    );
   }
 
   .dh-app {

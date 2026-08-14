@@ -4482,6 +4482,30 @@
    */
   --app-shell-topbar-height: 3.5rem; /* 56 */
 
+  /*
+   * DS-03 — the STICKY BAND at the top of the viewport.
+   *
+   * The application chrome that pins at `top: 0` and therefore covers anything
+   * scrolled to the viewport's leading edge. It exists so `scroll-padding` can
+   * reserve it (`base.css`), which is the counterpart of the reservation the
+   * phone navigation bar has had at the other end since MOBILE-01 — and its
+   * absence is why `scrollIntoView`, keyboard focus scrolling and an anchor jump
+   * could all park a row UNDER the top bar, where it is neither visible nor
+   * clickable. MEASURED at 154px of top chrome on a collection at 1280.
+   *
+   * It reserves the APPLICATION bar and not a page's own sticky header. That is
+   * the same distinction CAPTURE-02 drew at the other end when it kept the
+   * floating button out of the band: a full-width, always-present bar is exactly
+   * a band; a page-level header varies by route, and over-reserving is a real
+   * side effect rather than a safety margin — it pushes every scrolled-to
+   * element further than it needs to go.
+   *
+   * The phone value is re-stated in `shell.css`'s phone media query, where the
+   * desktop bar is `display: none` and the phone bar takes over, for the same
+   * reason `--app-bottomnav-height` is re-stated there.
+   */
+  --app-shell-top-chrome: var(--app-shell-topbar-height);
+
   /* The phone's own small top app bar, which is a different component from the
    * desktop bar: it carries a route title and Back rather than search.
    *
