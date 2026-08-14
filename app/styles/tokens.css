@@ -317,6 +317,11 @@
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #eeedf1;
   --md-app-color-outline-hairline: #e9e7eb;
+  --md-app-color-surface-rail: #222427;
+  --md-app-color-on-rail: #f7f6fa;
+  --md-app-color-on-rail-muted: #b6b5b9;
+  --md-app-color-rail-hairline: #46474a;
+  --md-app-color-rail-accent: #6326ff;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
@@ -325,6 +330,7 @@
   --app-tint-strength-state: 45%;
   --app-tint-strength-identity: 100%;
   --app-tint-strength-wash: 40%;
+  --app-tint-strength-rail-selected: 62%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #6326ff;
@@ -568,6 +574,11 @@
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #ededf3;
   --md-app-color-outline-hairline: #e8e8ed;
+  --md-app-color-surface-rail: #222428;
+  --md-app-color-on-rail: #f6f6fb;
+  --md-app-color-on-rail-muted: #b5b6bb;
+  --md-app-color-rail-hairline: #45474b;
+  --md-app-color-rail-accent: #004fe4;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
@@ -576,6 +587,7 @@
   --app-tint-strength-state: 45%;
   --app-tint-strength-identity: 100%;
   --app-tint-strength-wash: 40%;
+  --app-tint-strength-rail-selected: 62%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #6326ff;
@@ -819,6 +831,11 @@
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #f0edf0;
   --md-app-color-outline-hairline: #ebe7ea;
+  --md-app-color-surface-rail: #242326;
+  --md-app-color-on-rail: #f9f5f9;
+  --md-app-color-on-rail-muted: #b8b5b8;
+  --md-app-color-rail-hairline: #474649;
+  --md-app-color-rail-accent: #ad009a;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
@@ -827,6 +844,7 @@
   --app-tint-strength-state: 45%;
   --app-tint-strength-identity: 100%;
   --app-tint-strength-wash: 40%;
+  --app-tint-strength-rail-selected: 62%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #6326ff;
@@ -1070,6 +1088,11 @@
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #edeef1;
   --md-app-color-outline-hairline: #e8e8eb;
+  --md-app-color-surface-rail: #222426;
+  --md-app-color-on-rail: #f6f6f9;
+  --md-app-color-on-rail-muted: #b5b6b9;
+  --md-app-color-rail-hairline: #45474a;
+  --md-app-color-rail-accent: #0062a1;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
@@ -1078,6 +1101,7 @@
   --app-tint-strength-state: 45%;
   --app-tint-strength-identity: 100%;
   --app-tint-strength-wash: 40%;
+  --app-tint-strength-rail-selected: 62%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #6326ff;
@@ -1321,6 +1345,11 @@
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #efedf0;
   --md-app-color-outline-hairline: #e9e7ea;
+  --md-app-color-surface-rail: #232426;
+  --md-app-color-on-rail: #f8f6f8;
+  --md-app-color-on-rail-muted: #b6b6b8;
+  --md-app-color-rail-hairline: #464749;
+  --md-app-color-rail-accent: #595f67;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 55%;
@@ -1329,6 +1358,7 @@
   --app-tint-strength-state: 45%;
   --app-tint-strength-identity: 100%;
   --app-tint-strength-wash: 40%;
+  --app-tint-strength-rail-selected: 62%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #6326ff;
@@ -1574,6 +1604,11 @@
     --md-app-color-surface-raised: #313236;
     --md-app-color-surface-sunken: #141618;
     --md-app-color-outline-hairline: #3a3b3e;
+    --md-app-color-surface-rail: #16181a;
+    --md-app-color-on-rail: #eeedf1;
+    --md-app-color-on-rail-muted: #ababae;
+    --md-app-color-rail-hairline: #343538;
+    --md-app-color-rail-accent: #4b00d4;
 
     /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 28%;
@@ -1582,6 +1617,7 @@
     --app-tint-strength-state: 30%;
     --app-tint-strength-identity: 48%;
     --app-tint-strength-wash: 8%;
+    --app-tint-strength-rail-selected: 80%;
 
     /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
     --md-app-color-preview-violet-primary: #cbbeff;
@@ -1825,6 +1861,11 @@
     --md-app-color-surface-raised: #2e353f;
     --md-app-color-surface-sunken: #0d141d;
     --md-app-color-outline-hairline: #373e48;
+    --md-app-color-surface-rail: #111821;
+    --md-app-color-on-rail: #e8eefb;
+    --md-app-color-on-rail-muted: #a5acb8;
+    --md-app-color-rail-hairline: #2e353f;
+    --md-app-color-rail-accent: #003baf;
 
     /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 28%;
@@ -1833,6 +1874,7 @@
     --app-tint-strength-state: 30%;
     --app-tint-strength-identity: 48%;
     --app-tint-strength-wash: 8%;
+    --app-tint-strength-rail-selected: 80%;
 
     /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
     --md-app-color-preview-violet-primary: #cbbeff;
@@ -2076,6 +2118,11 @@
     --md-app-color-surface-raised: #313036;
     --md-app-color-surface-sunken: #131318;
     --md-app-color-outline-hairline: #3a383e;
+    --md-app-color-surface-rail: #18171c;
+    --md-app-color-on-rail: #f1ecf4;
+    --md-app-color-on-rail-muted: #adaab1;
+    --md-app-color-rail-hairline: #35343a;
+    --md-app-color-rail-accent: #840075;
 
     /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 22%;
@@ -2084,6 +2131,7 @@
     --app-tint-strength-state: 26%;
     --app-tint-strength-identity: 44%;
     --app-tint-strength-wash: 7%;
+    --app-tint-strength-rail-selected: 80%;
 
     /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
     --md-app-color-preview-violet-primary: #cbbeff;
@@ -2327,6 +2375,11 @@
     --md-app-color-surface-raised: #2f363b;
     --md-app-color-surface-sunken: #12181d;
     --md-app-color-outline-hairline: #383e44;
+    --md-app-color-surface-rail: #12181d;
+    --md-app-color-on-rail: #e9eef5;
+    --md-app-color-on-rail-muted: #a6acb2;
+    --md-app-color-rail-hairline: #2f363b;
+    --md-app-color-rail-accent: #00497a;
 
     /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 28%;
@@ -2335,6 +2388,7 @@
     --app-tint-strength-state: 30%;
     --app-tint-strength-identity: 48%;
     --app-tint-strength-wash: 8%;
+    --app-tint-strength-rail-selected: 80%;
 
     /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
     --md-app-color-preview-violet-primary: #cbbeff;
@@ -2578,6 +2632,11 @@
     --md-app-color-surface-raised: #363739;
     --md-app-color-surface-sunken: #191a1c;
     --md-app-color-outline-hairline: #3f4042;
+    --md-app-color-surface-rail: #17181a;
+    --md-app-color-on-rail: #efedf0;
+    --md-app-color-on-rail-muted: #ababad;
+    --md-app-color-rail-hairline: #343537;
+    --md-app-color-rail-accent: #41474f;
 
     /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
     --app-tint-strength-expressive: 28%;
@@ -2586,6 +2645,7 @@
     --app-tint-strength-state: 30%;
     --app-tint-strength-identity: 48%;
     --app-tint-strength-wash: 8%;
+    --app-tint-strength-rail-selected: 80%;
 
     /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
     --md-app-color-preview-violet-primary: #cbbeff;
@@ -2838,6 +2898,11 @@
   --md-app-color-surface-raised: #313236;
   --md-app-color-surface-sunken: #141618;
   --md-app-color-outline-hairline: #3a3b3e;
+  --md-app-color-surface-rail: #16181a;
+  --md-app-color-on-rail: #eeedf1;
+  --md-app-color-on-rail-muted: #ababae;
+  --md-app-color-rail-hairline: #343538;
+  --md-app-color-rail-accent: #4b00d4;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 28%;
@@ -2846,6 +2911,7 @@
   --app-tint-strength-state: 30%;
   --app-tint-strength-identity: 48%;
   --app-tint-strength-wash: 8%;
+  --app-tint-strength-rail-selected: 80%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #cbbeff;
@@ -3091,6 +3157,11 @@
   --md-app-color-surface-raised: #2e353f;
   --md-app-color-surface-sunken: #0d141d;
   --md-app-color-outline-hairline: #373e48;
+  --md-app-color-surface-rail: #111821;
+  --md-app-color-on-rail: #e8eefb;
+  --md-app-color-on-rail-muted: #a5acb8;
+  --md-app-color-rail-hairline: #2e353f;
+  --md-app-color-rail-accent: #003baf;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 28%;
@@ -3099,6 +3170,7 @@
   --app-tint-strength-state: 30%;
   --app-tint-strength-identity: 48%;
   --app-tint-strength-wash: 8%;
+  --app-tint-strength-rail-selected: 80%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #cbbeff;
@@ -3344,6 +3416,11 @@
   --md-app-color-surface-raised: #313036;
   --md-app-color-surface-sunken: #131318;
   --md-app-color-outline-hairline: #3a383e;
+  --md-app-color-surface-rail: #18171c;
+  --md-app-color-on-rail: #f1ecf4;
+  --md-app-color-on-rail-muted: #adaab1;
+  --md-app-color-rail-hairline: #35343a;
+  --md-app-color-rail-accent: #840075;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 22%;
@@ -3352,6 +3429,7 @@
   --app-tint-strength-state: 26%;
   --app-tint-strength-identity: 44%;
   --app-tint-strength-wash: 7%;
+  --app-tint-strength-rail-selected: 80%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #cbbeff;
@@ -3597,6 +3675,11 @@
   --md-app-color-surface-raised: #2f363b;
   --md-app-color-surface-sunken: #12181d;
   --md-app-color-outline-hairline: #383e44;
+  --md-app-color-surface-rail: #12181d;
+  --md-app-color-on-rail: #e9eef5;
+  --md-app-color-on-rail-muted: #a6acb2;
+  --md-app-color-rail-hairline: #2f363b;
+  --md-app-color-rail-accent: #00497a;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 28%;
@@ -3605,6 +3688,7 @@
   --app-tint-strength-state: 30%;
   --app-tint-strength-identity: 48%;
   --app-tint-strength-wash: 8%;
+  --app-tint-strength-rail-selected: 80%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #cbbeff;
@@ -3850,6 +3934,11 @@
   --md-app-color-surface-raised: #363739;
   --md-app-color-surface-sunken: #191a1c;
   --md-app-color-outline-hairline: #3f4042;
+  --md-app-color-surface-rail: #17181a;
+  --md-app-color-on-rail: #efedf0;
+  --md-app-color-on-rail-muted: #ababad;
+  --md-app-color-rail-hairline: #343537;
+  --md-app-color-rail-accent: #41474f;
 
   /* M3X tint strengths — see DEFAULT_TINT_STRENGTHS. Numbers, not colours. */
   --app-tint-strength-expressive: 28%;
@@ -3858,6 +3947,7 @@
   --app-tint-strength-state: 30%;
   --app-tint-strength-identity: 48%;
   --app-tint-strength-wash: 8%;
+  --app-tint-strength-rail-selected: 80%;
 
   /* THEME-01 scheme previews — see PREVIEW_SLOTS. */
   --md-app-color-preview-violet-primary: #cbbeff;
@@ -4367,14 +4457,40 @@
    */
   --app-shell-navigation-width: 13.5rem; /* 216 */
 
-  /* The desktop top app bar. 68px carries the 52px search bar with 8px of air
-   * above and below it. */
-  --app-shell-topbar-height: 4.25rem; /* 68 */
+  /*
+   * DS-03 — the COLLAPSED rail, which is what a tablet gets.
+   *
+   * 68px is the row's own square: a 36px glyph box centred in the rail's inline
+   * padding, which is the width at which an icon rail is an icon rail rather
+   * than a squeezed drawer with the labels cut off. It is deliberately not a
+   * user preference — see DS-03 §"Collapse" — so nothing has to persist it and
+   * the transition between the two widths is a media query rather than state.
+   */
+  --app-shell-navigation-width-collapsed: 4.25rem; /* 68 */
+
+  /*
+   * The desktop top app bar.
+   *
+   * DS-03 took it from 68px to 56. 68 was sized around a 52px search bar, and
+   * the search control has not been 52px since VIS-01 made it a 44px capsule —
+   * so the bar was carrying 24px of air around a control that no longer needed
+   * it, on every route, at the top of every screen. At 56 it holds the same
+   * 44px controls with 6px above and below, which is what a compact
+   * productivity header is; the 12px it gives back go to the page, where the
+   * first row of actual work now starts 12px higher on every screen in the
+   * product.
+   */
+  --app-shell-topbar-height: 3.5rem; /* 56 */
 
   /* The phone's own small top app bar, which is a different component from the
-   * desktop bar: it carries a route title and Back rather than search, and M3
-   * gives it 64px. */
-  --app-shell-mobilebar-height: 4rem; /* 64 */
+   * desktop bar: it carries a route title and Back rather than search.
+   *
+   * DS-03 — 52px, down from M3's 64. The bar holds one 44px target and one line
+   * of title, so 64 was 20px of padding on the most valuable row of the
+   * display; the concepts draw the phone header as a title with its date
+   * beneath it and nothing else, and 52 is what that costs. The safe-area inset
+   * is added on top, so a notched device still clears its cutout. */
+  --app-shell-mobilebar-height: 3.25rem; /* 52 */
 
   /*
    * A navigation destination.
@@ -4385,8 +4501,28 @@
    * larger than the thing the finger has to hit. Fourteen destinations save
    * 56px, which is most of a group gap — spent on the rhythm between groups,
    * where the reference spends it.
+   *
+   * ── DS-03 — 36px on a MOUSE, and still 44 on a finger ──────────────────────
+   * VIS-01's argument was right and it was answering the wrong question. "A
+   * painted row should not be larger than the target it serves" is a rule about
+   * a TOUCH target, and the rail is the one navigation surface a finger never
+   * touches: it is hidden below `md`, and the phone bar (D15) is what a thumb
+   * gets. On a fine pointer the target is the cursor, so 44px of painted row per
+   * destination is 44px chosen for a constraint that is not present — and
+   * fourteen of them is 616px of column, which on a 900px laptop viewport is the
+   * whole rail before the account block.
+   *
+   * 36px is the compact control height DS-02 declared for the application, so
+   * the rail now measures itself with the same ruler as the toolbar beside it,
+   * and the fourteen destinations come to 504px with the group rhythm intact.
+   *
+   * The floor is unconditional and lives below, beside the density floor it
+   * belongs with: under `(pointer: coarse)` this returns to
+   * `--app-touch-target-min`, so the tablet rail and the navigation sheet keep
+   * a full target. Density may take padding, type and glyph; it may never take
+   * hit area from a finger (AGENTS.md §15).
    */
-  --app-nav-row-height: 2.75rem; /* 44 — the touch floor, exactly */
+  --app-nav-row-height: 2.25rem; /* 36 — the compact control height */
 
   /* ---------------------------------------------------------------------- */
   /* Page rhythm                                                            */
@@ -4711,6 +4847,38 @@
   );
 
   /*
+   * DS-03 — the same two states, on the RAIL.
+   *
+   * The rail is near-black in both appearances (see `surface-rail` in the
+   * generator), so neither of the drawer's two answers above transfers: a pale
+   * `secondary-container` mixed a third of the way into a near-black column is a
+   * grey smudge, and the state layer's `on-surface` wash is the wrong colour
+   * entirely once the surface it washes has inverted.
+   *
+   * SELECTED takes `primary` rather than `secondary-container` — the concepts
+   * draw the current destination as a confident violet block, and on a dark
+   * surface a container role has already given up most of the hue that makes it
+   * legible. Mixed toward the rail at the rail's own strength, so it is a block
+   * of the product's colour rather than a slab of raw accent, and so a scheme
+   * that is louder than Daly Violet does not become louder here.
+   *
+   * HOVER is not here, and deliberately so. The shared state layer (`base.css`)
+   * paints `currentColor` at M3's own opacity, and the rail's `currentColor` is
+   * already light — so the ONE implementation is correct on an inverted surface
+   * without a rail-specific fill, and adding one would have been the divergence
+   * `state-layer.test.ts` exists to refuse. The account trigger joined the host
+   * list instead.
+   *
+   * `color-mix` rather than authored, so it follows the generated scheme and the
+   * appearance without a second definition anywhere.
+   */
+  --md-app-color-surface-rail-selected: color-mix(
+    in srgb,
+    var(--md-app-color-rail-accent) var(--app-tint-strength-rail-selected),
+    var(--md-app-color-surface-rail)
+  );
+
+  /*
    * The hero's tonal geometry: a single, very quiet radial wash anchored to the
    * trailing top corner, which is what gives the surface depth without an image,
    * an illustration or a decorative SVG. It is one paint operation, no elements,
@@ -4834,6 +5002,52 @@
   --dh-color-surface-bar: var(--md-app-color-surface-app-bar);
   /** A SELECTED destination or row. A tint, not a slab (see the M3X note). */
   --dh-color-surface-selected: var(--md-app-color-surface-nav-selected);
+
+  /*
+   * DS-03 — THE RAIL, and the six names that make it self-contained.
+   *
+   * The rail is the one region of DalyHub whose value does not follow the
+   * appearance: it is near-black in light and in dark alike, because both
+   * concept references draw it that way and because a frame that stays the same
+   * object in both appearances is what stops dark mode reading as an inversion
+   * of light mode.
+   *
+   * That inversion is exactly why it needs its own foreground names rather than
+   * reaching for `--dh-color-text`. `--dh-color-text` is `on-surface`, which is
+   * NEAR-BLACK in the light appearance — correct everywhere else in the product
+   * and invisible here. A component painting on the rail must be able to ask for
+   * "the rail's text" by name and be right in both appearances without knowing
+   * which one it is in, and these are those names. There is no `--dh-color-*`
+   * fallback that is even nearly correct, which is the test for whether a
+   * semantic token has earned its place.
+   */
+  /** The permanent desktop rail's own surface. Dark in BOTH appearances. */
+  --dh-color-rail: var(--md-app-color-surface-rail);
+  /** A label, a brand wordmark, a selected destination — text ON the rail. */
+  --dh-color-rail-text: var(--md-app-color-on-rail);
+  /** An unselected destination, the account line. Still AA on the rail. */
+  --dh-color-rail-text-muted: var(--md-app-color-on-rail-muted);
+  /** The one quiet edge inside the rail (the account block's rule). */
+  --dh-color-rail-border: var(--md-app-color-rail-hairline);
+  /** The current destination's violet block. */
+  --dh-color-rail-selected: var(--md-app-color-surface-rail-selected);
+  /*
+   * The focus indicator ON the rail, and it is a real accessibility fix rather
+   * than a nicety.
+   *
+   * `--dh-color-focus` is `primary`, and `contrast.test.ts` asserts it clears
+   * 3:1 (WCAG 1.4.11) over every surface in the appearance-following ladder —
+   * all of which are pale in light and only moderately dark in dark. The rail is
+   * neither: MEASURED at 2.40–2.42:1 for the violet over the light rail, in all
+   * five schemes, which is a focus indicator that fails on the one region a
+   * keyboard user traverses first.
+   *
+   * The rail's own text colour is the standard answer for an inverted surface,
+   * and it is a large margin rather than a squeak: ~14:1 against the rail and
+   * ~10:1 against the selected block the ring is also drawn over. Both are
+   * asserted per scheme, per appearance.
+   */
+  --dh-color-rail-focus: var(--md-app-color-on-rail);
 
   /** Body text, titles, glyphs — anything that has to be read. */
   --dh-color-text: var(--md-sys-color-on-surface);
@@ -5092,6 +5306,58 @@
   --dh-control-gap: var(--app-space-2); /* 8 */
   /** A control's own glyph. */
   --dh-icon-size: var(--app-entity-icon-size); /* 20 */
+
+  /* ---------------------------------------------------------------------- */
+  /* Shell anatomy (DS-03)                                                  */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * The seven measurements the FRAME is built from, under DalyHub's own names.
+   *
+   * They are deliberately NOT density tokens. A density preset says how tightly
+   * a control holds its content, and every surface in the product answers to it;
+   * the frame is a single object of which there is exactly one, and its width is
+   * a product decision rather than a preference — which is why the density block
+   * below defines exactly eight names and none of these is among them.
+   *
+   * The rail's row height is the exception that proves it: it resolves to the
+   * compact control height, so the frame measures a destination with the same
+   * ruler as the toolbar beside it, and it is floored back to the touch minimum
+   * on a coarse pointer by the same unconditional rule the density model uses.
+   */
+
+  /** The permanent desktop rail. D12's 216px, unchanged since VIS-01. */
+  --dh-shell-rail-width: var(--app-shell-navigation-width);
+  /** The rail collapsed to glyphs — what a tablet gets (DS-03). */
+  --dh-shell-rail-width-collapsed: var(--app-shell-navigation-width-collapsed);
+  /** The desktop top bar. */
+  --dh-shell-bar-height: var(--app-shell-topbar-height);
+  /** The phone's own top bar, which is a different component. */
+  --dh-shell-mobile-bar-height: var(--app-shell-mobilebar-height);
+  /** One navigation destination's painted row. */
+  --dh-shell-nav-row-height: var(--app-nav-row-height);
+  /** The page gutter currently in force (stepped by width in `base.css`). */
+  --dh-shell-gutter: var(--app-page-padding);
+  /** The measure ordinary page content is held to. */
+  --dh-shell-content-max-width: var(--app-content-max-width);
+
+  /* ---------------------------------------------------------------------- */
+  /* Safe areas (DS-03)                                                     */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * The display cutout insets, under the product's own names.
+   *
+   * MOBILE-01 made these ONE definition (`--app-safe-area-*`) after finding the
+   * same `env()` written 53 times across 11 stylesheets, half of them without
+   * the `0px` fallback that keeps them composable inside `calc()`. This publishes
+   * that one definition in the vocabulary a DS-02-onward component actually
+   * reaches for, so a new bottom-anchored surface no longer has to drop a layer
+   * to clear a home indicator. The fallback is inherited, so these are always a
+   * length — including on the desktop browsers where the variable does not exist.
+   */
+  --dh-safe-top: var(--app-safe-area-top);
+  --dh-safe-right: var(--app-safe-area-right);
+  --dh-safe-bottom: var(--app-safe-area-bottom);
+  --dh-safe-left: var(--app-safe-area-left);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -5212,6 +5478,25 @@
     --dh-control-height: var(--app-touch-target-min);
     --dh-menu-item-height: var(--app-touch-target-min);
     --dh-row-height: var(--app-touch-target-min);
+  }
+
+  /*
+   * DS-03 — the SAME floor, over the navigation destination.
+   *
+   * The rail's 36px row is chosen for a cursor (see `--app-nav-row-height`), and
+   * the rail is hidden below `md` — but "below `md`" is a window, and this rule
+   * is about the input mechanism. A tablet at 900px gets the collapsed rail with
+   * a finger on it, and the navigation SHEET renders the same rows on every
+   * phone in the product. Both get the full target back, unconditionally,
+   * whatever the density attribute says.
+   *
+   * It is stated here rather than beside the definition so that it is last in
+   * the file, for the same reason the three above are: a media query adds no
+   * specificity, so an override that appears before the rule it overrides simply
+   * loses.
+   */
+  :root {
+    --app-nav-row-height: var(--app-touch-target-min);
   }
 }
 

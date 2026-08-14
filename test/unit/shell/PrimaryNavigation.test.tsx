@@ -8,12 +8,15 @@
  * keeps every row an accessible, labelled link regardless of grouping.
  */
 
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
-import { PrimaryNavigation } from "~/shared/shell/PrimaryNavigation";
+import {
+  COLLAPSED_RAIL_QUERY,
+  PrimaryNavigation,
+} from "~/shared/shell/PrimaryNavigation";
 
 function item(label: string, order: number, group?: string): NavigationItem {
   return {
@@ -26,13 +29,21 @@ function item(label: string, order: number, group?: string): NavigationItem {
   };
 }
 
-function renderNav(items: readonly NavigationItem[], initialPath = "/") {
+function renderNav(
+  items: readonly NavigationItem[],
+  initialPath = "/",
+  // DS-03 — `collapsible` marks the RAIL instance, which collapses to glyphs on
+  // a tablet. The phone sheet leaves it unset and never collapses.
+  collapsible = false,
+) {
   const Stub = createRoutesStub([
     {
       // A splat so any path renders the rail — the current-destination tests
       // navigate to record routes (`/projects/pr-1`) that have no stub route.
       path: "*",
-      Component: () => <PrimaryNavigation id="nav" items={items} />,
+      Component: () => (
+        <PrimaryNavigation id="nav" items={items} collapsible={collapsible} />
+      ),
     },
   ]);
   return render(<Stub initialEntries={[initialPath]} />);
@@ -120,5 +131,120 @@ describe("UX-01 PrimaryNavigation current destination", () => {
     expect(
       other.container.querySelectorAll('[aria-current="page"]'),
     ).toHaveLength(0);
+  });
+});
+
+/**
+ * DS-03 — the COLLAPSED rail.
+ *
+ * Between `md` and `lg` the rail is a 68px column of glyphs. The layout is a
+ * media query in `shell.css`; the only thing the component decides is whether a
+ * row's label is currently readable and therefore whether its tooltip is needed.
+ *
+ * The property that matters most here is the one that is easy to get wrong and
+ * invisible in a screenshot: a collapsed row must keep its ACCESSIBLE NAME. The
+ * label is hidden visually and left in the document, so a screen reader reads
+ * "Projects" at every width, and the tooltip is the DESCRIPTION on top of that —
+ * never a replacement for the name.
+ */
+describe("DS-03 PrimaryNavigation collapsed rail", () => {
+  const items = [item("Today", 5), item("Projects", 110)];
+
+  /** Drive `matchMedia` so the component believes the rail is collapsed. */
+  function withViewport(collapsed: boolean) {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: collapsed && query === COLLAPSED_RAIL_QUERY,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  }
+
+  it("keeps every destination's accessible name when collapsed", () => {
+    const restore = withViewport(true);
+    try {
+      renderNav(items, "/today", true);
+      // The NAME, not the tooltip: `getByRole(… { name })` reads the
+      // accessibility tree, so this fails if the label were `display: none`d out
+      // of it or replaced by a description.
+      for (const label of ["Today", "Projects"]) {
+        expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+      }
+    } finally {
+      restore();
+    }
+  });
+
+  /** Hover a row and let the tooltip's intent delay elapse. */
+  function hover(element: HTMLElement) {
+    fireEvent.pointerEnter(element, { pointerType: "mouse" });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+  }
+
+  it("describes a collapsed row with the shared tooltip", () => {
+    vi.useFakeTimers();
+    const restore = withViewport(true);
+    try {
+      renderNav(items, "/today", true);
+      const projects = screen.getByRole("link", { name: "Projects" });
+      hover(projects);
+      // `aria-describedby` appears only while the tooltip is shown, and it is a
+      // DESCRIPTION — the name above is unchanged either way.
+      expect(projects).toHaveAttribute("aria-describedby");
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Projects");
+    } finally {
+      restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("adds no tooltip while the labels are visible", () => {
+    // A tooltip repeating text the user can already read is noise, and the
+    // expanded rail is the common case.
+    vi.useFakeTimers();
+    const restore = withViewport(false);
+    try {
+      renderNav(items, "/today", true);
+      hover(screen.getByRole("link", { name: "Projects" }));
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    } finally {
+      restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("never collapses the phone navigation SHEET", () => {
+    // The sheet is full-width at every viewport it exists at, so it opts out and
+    // never pays for the media listener. Rendered with `collapsible` unset.
+    vi.useFakeTimers();
+    const restore = withViewport(true);
+    try {
+      renderNav(items, "/today");
+      hover(screen.getByRole("link", { name: "Projects" }));
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    } finally {
+      restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the current destination marked when collapsed", () => {
+    const restore = withViewport(true);
+    try {
+      renderNav(items, "/projects/pr-1", true);
+      expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+    } finally {
+      restore();
+    }
   });
 });

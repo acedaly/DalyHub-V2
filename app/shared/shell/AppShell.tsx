@@ -296,9 +296,15 @@ export function AppShell({
                   Skip to main content
                 </a>
 
+                {/* DS-03 — the rail now carries the frame's IDENTITY at both
+                ends: the product mark at the top and the owner's account at the
+                bottom, which is where both concept references put them. It
+                therefore needs the email and the appearance preference the top
+                bar used to be given. */}
                 <Sidebar
                   workspaceName={workspaceName}
                   email={email}
+                  appearance={appearance}
                   navigation={navigation}
                   settingsHref="/settings"
                   navId={RAIL_NAV_ID}
@@ -311,9 +317,6 @@ export function AppShell({
                 the bar below takes over. It opens the SAME Search surface and
                 the SAME palette the rail used to, through the same callbacks. */}
                   <DesktopTopBar
-                    email={email}
-                    appearance={appearance}
-                    settingsHref="/settings"
                     onOpenSearch={openSearch}
                     onOpenCommand={openCommand}
                   />

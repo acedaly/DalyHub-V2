@@ -274,6 +274,120 @@ describe.each(SCHEMES)(
       ).toBeGreaterThan(1.04);
     });
 
+    /*
+     * DS-03 — THE RAIL, which is the one region whose value does not follow the
+     * appearance.
+     *
+     * It is dark in light and dark alike, so nothing about it can be inferred
+     * from "this is the light scheme, so text is dark". Every pair it paints is
+     * therefore asserted explicitly, in both appearances, for all five schemes —
+     * this is precisely the surface where an untested assumption ships as white
+     * text on a white rail, or a violet block nobody can read a label on.
+     */
+    it("meets AA for the rail's own foregrounds", () => {
+      const rail = scheme["app-surface-rail"];
+      const text = contrastRatio(scheme["app-on-rail"], rail);
+      expect(
+        text,
+        `${label} — on-rail on the rail (${rail}) = ${text.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+
+      // The MUTED foreground is what an unselected destination is painted in —
+      // thirteen of the fourteen rows, on every screen. It is body text, so it
+      // takes the full 4.5 rather than the 3:1 a "secondary" label might be
+      // argued into.
+      const muted = contrastRatio(scheme["app-on-rail-muted"], rail);
+      expect(
+        muted,
+        `${label} — on-rail-muted on the rail (${rail}) = ${muted.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it("keeps the rail DARK in both appearances", () => {
+      // The claim the whole design rests on, stated as a number so a future
+      // re-tone cannot quietly make the light rail light again. 0.15 relative
+      // luminance is comfortably above any near-black and far below any surface
+      // that would need dark text on it.
+      const luminance = relativeLuminance(scheme["app-surface-rail"]);
+      expect(
+        luminance,
+        `${label} — the rail (${scheme["app-surface-rail"]}) must be dark in EVERY appearance`,
+      ).toBeLessThan(0.15);
+    });
+
+    it("meets AA for the rail's selected destination", () => {
+      /*
+       * The current destination is `rail-accent` mixed toward the rail — and
+       * `rail-accent` is `primary` in light and `primary-container` in dark,
+       * because M3 builds `primary` as a pale tone-80 in dark so that it works
+       * as TEXT. Mixing that into a near-black rail produced a pale lavender
+       * pill on the first build of this, which is why the role is chosen per
+       * appearance in the generator rather than here.
+       */
+      const strength = tintStrength(key, appearance, "rail-selected");
+      const selected = mixSrgb(
+        scheme["app-rail-accent"],
+        scheme["app-surface-rail"],
+        strength,
+      );
+
+      const text = contrastRatio(scheme["app-on-rail"], selected);
+      expect(
+        text,
+        `${label} — on-rail on the selected destination (${selected}) = ${text.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+
+      /*
+       * And it has to read as a BLOCK against the rail it sits in.
+       *
+       * The floor is 1.5:1 rather than WCAG 1.4.11's 3:1, for the same reason
+       * the drawer's selected pill above is floored at 1.04 rather than 3: the
+       * fill is not "required to understand the content", because selection is
+       * carried FOUR ways and this is one of them — `aria-current` states it
+       * semantically, the label steps up a weight, the foreground steps from
+       * `on-rail-muted` to `on-rail`, and forced-colours mode replaces the block
+       * with the system `Highlight` outright (asserted in `shell.css`).
+       *
+       * Demanding 3:1 of the fill would demand a selected row roughly as bright
+       * as the label on it, which is the saturated slab DH-DS spent a milestone
+       * removing from the drawer. 1.5 is well above the drawer's floor and is
+       * what the shipped values (1.56–1.71) clear with margin.
+       */
+      const block = contrastRatio(selected, scheme["app-surface-rail"]);
+      expect(
+        block,
+        `${label} — the selected block (${selected}) against the rail = ${block.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(1.5);
+    });
+
+    it("meets 3:1 for the focus ring on the rail, in the rail's own colour", () => {
+      /*
+       * The rail is NOT in `APP_SURFACES` above — that sweep is over the
+       * appearance-following ladder — and it is the reason this test exists
+       * separately rather than as one more entry in it.
+       *
+       * `primary` over the rail measures 2.40–2.42:1 in every scheme, so the
+       * product's ONE focus colour fails WCAG 1.4.11 here. `shell.css` overrides
+       * `outline-color` to `--dh-color-rail-focus` for the whole region; this
+       * asserts the replacement clears 3:1 over BOTH surfaces the ring is drawn
+       * over — the rail itself, and the selected block, since the current
+       * destination is exactly the row a keyboard user lands on first.
+       */
+      expectRatio(scheme, label, "app-on-rail", "app-surface-rail", 3);
+
+      const strength = tintStrength(key, appearance, "rail-selected");
+      const selected = mixSrgb(
+        scheme["app-rail-accent"],
+        scheme["app-surface-rail"],
+        strength,
+      );
+      const ring = contrastRatio(scheme["app-on-rail"], selected);
+      expect(
+        ring,
+        `${label} — the rail focus ring on the selected block (${selected}) = ${ring.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+
     it("meets 3:1 for progress fill against its track", () => {
       expectRatio(scheme, label, "primary", "secondary-container", 3);
       expectRatio(scheme, label, "success", "secondary-container", 3);

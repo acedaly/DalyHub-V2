@@ -351,3 +351,78 @@ describe("UX-01 AppShell — app-wide keyboard reference", () => {
     field.remove();
   });
 });
+
+/**
+ * DS-03 — the frame's identity moved into the rail.
+ *
+ * The rail now opens with the product mark and closes with the owner's account,
+ * which is where both concept references put them. These assert the parts of
+ * that move a screenshot cannot see: that the account block stays inside a
+ * landmark, that the identity did not end up in two places at once, and that
+ * every route the rail lists is still reachable from the phone.
+ */
+describe("DS-03 AppShell — the rail's identity", () => {
+  it("puts the account block inside the primary navigation landmark", () => {
+    // It was in the top app bar's `banner` before. Wherever it lives it must be
+    // contained by SOME landmark — axe's `region` rule wants all page content
+    // inside one, and an uncontained account block is exactly the gap that
+    // produced the original Help/About scan failures.
+    renderShell();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(
+      within(nav).getByRole("button", { name: /^account —/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("names the account trigger by what it is as well as by who", () => {
+    /*
+     * The trigger's visible text on the rail is the owner's display name and
+     * nothing else, so announcing it as "Owner, button" says who but not what,
+     * in a landmark otherwise full of destinations. The name still CONTAINS the
+     * visible text, which is what WCAG 2.5.3 requires so a voice-control user
+     * can say what they can see.
+     */
+    renderShell();
+    const trigger = screen.getByRole("button", { name: /^account —/i });
+    expect(trigger).toHaveAccessibleName(/owner/i);
+    expect(trigger.textContent).toContain("Owner");
+  });
+
+  it("carries the account in exactly one place", () => {
+    // Relocations that leave the original behind are how a frame ends up with
+    // two of everything.
+    renderShell();
+    expect(screen.getAllByRole("button", { name: /^account —/i })).toHaveLength(
+      1,
+    );
+  });
+
+  it("keeps every rail destination reachable from the phone bar's More sheet", () => {
+    /*
+     * The phone bar carries only the destinations that opted in
+     * (`meta.mobilePrimaryOrder`); everything else lives behind More, which
+     * renders the SAME registry model the rail does. This is the assertion that
+     * the two never diverge — a module added to the rail and missing from the
+     * sheet is a module a phone cannot reach at all.
+     */
+    renderShell();
+    const railLinks = within(
+      screen.getByRole("navigation", { name: "Primary" }),
+    )
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+
+    const sheet = screen.getByRole("dialog", { name: "Navigation" });
+    const sheetLinks = within(sheet)
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+
+    for (const href of railLinks) {
+      expect(sheetLinks, `${href} must be reachable from the phone`).toContain(
+        href,
+      );
+    }
+  });
+});

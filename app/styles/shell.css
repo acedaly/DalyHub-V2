@@ -1,36 +1,47 @@
 /*
- * M3-01 — the application frame, as Material Design 3 components.
+ * DS-03 — the application frame, in DalyHub's own language.
  *
- * The silhouette is unchanged — a persistent left rail owning identity and
- * navigation, a full-height content pane, and a phone shell that swaps the rail
- * for a bottom bar (PRODUCT_EXPERIENCE #1, #2, #11). What changed is that every
- * piece of it is now a NAMED M3 component with the specification's own metrics,
- * rather than a DalyHub invention:
+ * The silhouette is unchanged and deliberately so — a persistent left rail
+ * owning identity and navigation, a full-height content pane, and a phone shell
+ * that swaps the rail for a bottom bar (PRODUCT_EXPERIENCE #1, #2, #11). What
+ * changed is what the frame LOOKS like:
  *
- *   .dh-sidebar      navigation drawer (standard)  — `surface`, no border
- *   .dh-nav__link    navigation drawer item        — 44px, soft rounded row
- *   .dh-mobilebar    small top app bar             — 64px, `surface`
- *   .dh-topbar__search   search entry              — 44px, corner-full, bounded
- *   .dh-bottomnav    navigation bar                — 60px, compact indicator
- *   .dh-topbar__create   the one prominent action  — violet, compact (UIX-01)
+ *   .dh-sidebar      the rail            — DARK in both appearances, 216px
+ *   .dh-nav__link    a destination       — 36px on a cursor, 45 on a finger
+ *   .dh-topbar       the desktop bar     — 56px, search LEADING
+ *   .dh-topbar__search  the search field — control corner, gutter-aligned
+ *   .dh-mobilebar    the phone bar       — 52px, title + one action
+ *   .dh-bottomnav    the phone nav bar   — 66px, labelled, unchanged (D15)
  *
- * ── VIS-01 took the drawer and the bar off the specification's metrics ───────
- * Three of those five numbers are no longer M3's, and each is a deliberate
- * departure recorded with the rule it breaks:
+ * ── The one idea the rest follows from ───────────────────────────────────────
+ * The rail is DARK, in the light appearance as well as the dark one. Both
+ * concept references draw DalyHub as a near-black navigation column beside a
+ * bright working canvas, and that single inversion is what the product is
+ * recognised by before a word of it is read.
  *
- *   - the drawer is 216px, not 232–248. M3's figure is for a drawer a user
- *     OPENS; DalyHub's is permanent and on screen for the whole session;
- *   - a destination is 44px of visual row rather than 48 or 56, which is the
- *     touch floor itself — a painted row larger than the target it serves is
- *     mass without reach;
- *   - the phone navigation bar is 60px rather than 80, because the 64×32 filled
- *     active-indicator capsule that 80 makes room for is exactly the piece of
- *     chrome this pass removed.
+ * Everything else in this file is what a dark rail then requires. It cannot
+ * borrow `on-surface` for its labels (near-black on near-black), so it has its
+ * own foreground pair. It cannot use the drawer's `secondary-container` tint for
+ * the selected row (a pale container mixed into near-black is a grey smudge), so
+ * the current destination is a violet block. And once the rail carries that much
+ * weight, the bar beside it has to get quieter rather than louder — which is why
+ * the bar lost 12px, lost its account cluster to the rail, and gained the search
+ * field at its leading edge where the page's own content starts.
  *
- * Active navigation is still conveyed SEMANTICALLY (`aria-current`) and
- * reinforced by shape, by a weight step and by the glyph taking `primary`,
- * never by colour alone (AGENTS.md §15). Interactive rows grow the one shared
- * `.md-state-layer` (base.css) rather than swapping their container colour.
+ * ── The measurements, and which departures they are ─────────────────────────
+ *   - the rail is 216px, not M3's 232–248 (D12, VIS-01, unchanged);
+ *   - a destination is 36px of painted row on a fine pointer and the full 45px
+ *     target on a coarse one (D12, amended by DS-03 — the rail is the one
+ *     navigation surface a finger never touches);
+ *   - the phone navigation bar keeps its 66px and its 40×26 indicator (D15);
+ *   - the rail collapses to a 68px glyph column on a TABLET (DS-03), which is a
+ *     media query rather than a preference — nothing persists it.
+ *
+ * Active navigation is conveyed SEMANTICALLY (`aria-current`) and reinforced by
+ * shape, by a weight step and by a foreground that steps to the rail's full
+ * text colour — never by colour alone (AGENTS.md §15). Interactive rows grow the
+ * one shared `.md-state-layer` (base.css), which paints `currentColor` and is
+ * therefore already correct on an inverted surface.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -43,29 +54,56 @@
  * headers still pin to the viewport. */
 .dh-app {
   display: grid;
-  grid-template-columns: var(--app-shell-navigation-width) 1fr;
+  grid-template-columns: var(--dh-shell-rail-width) 1fr;
   min-height: 100dvh;
-  background: var(--md-app-color-surface-page);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-bg);
+  color: var(--dh-color-text);
+}
+
+/*
+ * DS-03 — the TABLET frame: the rail collapses to its glyphs.
+ *
+ * Between `md` and `lg` the shell used to hand a 216px labelled rail to a 900px
+ * window, which is 24% of the screen spent on navigation on the class of device
+ * that has the least width to spare — and it did so not as a decision but as
+ * the absence of one, because the only breakpoint the shell had was "is this a
+ * phone". §16 of the DS-03 brief asks for deliberate tablet behaviour, and this
+ * is it: 148px back to the page, and every destination still visible, still one
+ * tap away, still marked when current.
+ *
+ * It is a MEDIA QUERY rather than a preference, and that is the whole design.
+ * A user-toggleable collapse needs somewhere to persist the choice, a server
+ * read to avoid a flash of the wrong width on first paint, and an action to
+ * write it — shell customisation the DS-03 brief explicitly rules out
+ * (§9, §36) and which DS-07 owns if it is ever wanted. A width rule needs none
+ * of it: it is correct on the first byte, it costs no state, and it cannot
+ * disagree with itself between the server and the browser.
+ *
+ * `PrimaryNavigation` mirrors this ONE query to decide whether a row's tooltip
+ * is needed. Nothing else in the application branches on it.
+ */
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-app {
+    grid-template-columns: var(--dh-shell-rail-width-collapsed) 1fr;
+  }
 }
 
 /* Skip link: off-screen until focused, then visible and in normal flow. */
 .skip-link {
   position: absolute;
-  left: var(--app-space-2);
+  left: var(--dh-space-2);
   top: -3rem;
   z-index: var(--app-z-modal);
-  padding: var(--app-space-2) var(--app-space-3);
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  border-radius: var(--md-sys-shape-corner-full);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
+  border-radius: var(--dh-radius-control);
   text-decoration: none;
-  transition: top var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: top var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 .skip-link:focus {
-  top: var(--app-space-2);
+  top: var(--dh-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -73,44 +111,67 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * The M3 navigation drawer, standard variant.
+ * The navigation drawer.
  *
- * `surface` rather than a bespoke rail colour, and NO edge border: the drawer is
- * separated from the page by the tonal step between `surface` and
- * `--md-app-color-surface-page`, which is how M3 separates every adjacent
- * region. A full-height rule would put an enterprise navigation panel back
- * beside the application, which is what DS-14 spent a milestone removing.
+ * The OVERLAY (the phone's navigation sheet) keeps `surface-navigation`: it is a
+ * sheet drawn over a bright page a thumb is holding, and a black sheet sliding
+ * over a white screen is a different, louder object than the one the phone
+ * shell wants. The RAIL below repaints itself.
  *
- * 12px of inline padding is the specification's figure, and it is what lets a
- * destination's own rounded row sit inside the drawer rather than run edge to
- * edge.
+ * The inline padding is what lets a destination's own rounded row sit inside the
+ * drawer rather than run edge to edge.
  */
 .dh-sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-1);
-  padding: var(--app-space-3) var(--app-space-3) var(--app-space-4);
-  background: var(--md-app-color-surface-navigation);
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-3);
+  background: var(--dh-color-surface-nav);
   min-width: 0;
 }
 
 /*
- * The rail draws ONE hairline on its trailing edge.
+ * DS-03 — THE RAIL. The one surface in DalyHub that does not follow the
+ * appearance.
  *
- * The tonal step between navigation and page is deliberately quiet — 1.5 tones,
- * the same relationship the reference uses — so tone alone leaves the boundary
- * ambiguous at the top of the screen where the drawer meets the app bar. The
- * hairline is the app-neutral rung generated for exactly this, not
- * `outline-variant`: this edge is decoration, and `outline-variant` is reserved
- * for boundaries that are the only signal of a control.
+ * It is near-black in light and near-black in dark, because both concept
+ * references draw it that way and because a frame that is the same object in
+ * both appearances is what stops dark mode reading as an inversion of light
+ * mode. See `surface-rail` in the generator for the tones and the reasoning.
+ *
+ * `color: var(--dh-color-rail-text)` is load-bearing beyond the labels: the
+ * shared state layer paints `currentColor`, so declaring the rail's foreground
+ * once here is what makes hover, focus and press correct on every control
+ * inside it without a single rail-specific state rule.
+ *
+ * It draws NO edge hairline. Against a bright canvas the tonal step is ~80
+ * tones; a 1px rule on top of that separates nothing and reads as a seam.
  */
 .dh-sidebar--rail {
   position: sticky;
   top: 0;
   height: 100dvh;
   overflow-y: auto;
-  border-inline-end: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  overflow-x: hidden;
+  background: var(--dh-color-rail);
+  color: var(--dh-color-rail-text);
+  /* The sticky-surface declaration MOBILE-01 introduced: anything sticky inside
+   * the rail needs to know what it is painted on, and cannot ask. */
+  --app-surface-current: var(--dh-color-rail);
+}
+
+/*
+ * The collapsed rail.
+ *
+ * Every row becomes its own square: the label is hidden from SIGHT and kept in
+ * the document (see `.dh-nav__label` below), the glyph centres, and the group
+ * rhythm survives because it is spacing rather than a rule.
+ */
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-sidebar--rail {
+    padding-inline: var(--dh-space-2);
+    align-items: stretch;
+  }
 }
 
 /* The brand block is sized to the top app bar so the wordmark and the search
@@ -118,10 +179,48 @@
 .dh-sidebar__brand {
   display: flex;
   align-items: center;
-  gap: var(--app-space-2);
-  min-block-size: var(--app-shell-topbar-height);
-  padding-inline: var(--app-space-2);
-  padding-block: 0 var(--app-space-2);
+  gap: var(--dh-space-2);
+  min-block-size: var(--dh-shell-bar-height);
+  padding-inline: var(--dh-space-2);
+  padding-block: 0 var(--dh-space-2);
+}
+
+/* On the rail the wordmark takes the rail's own text colour. The MARK does not:
+ * it paints the brand gradient itself and is the one object in the frame that
+ * is identical in both appearances by construction. */
+.dh-sidebar--rail .dh-sidebar__brand-name {
+  color: var(--dh-color-rail-text);
+}
+
+.dh-sidebar--rail .dh-sidebar__brand-workspace {
+  color: var(--dh-color-rail-text-muted);
+}
+
+/*
+ * Collapsed: the MARK survives and the wordmark goes.
+ *
+ * A collapsed rail with no identity at all is a column of anonymous glyphs, and
+ * the mark is recognisable at 28px in a way the word is not at 68px of column.
+ * `dh-visually-hidden`'s treatment rather than `display: none`, so the product
+ * name is still read aloud at the top of the navigation landmark.
+ */
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-sidebar--rail .dh-sidebar__brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .dh-sidebar--rail .dh-sidebar__brand-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* BRAND-01 — the mark paints the brand gradient itself, so it takes no text
@@ -144,14 +243,14 @@
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight);
   letter-spacing: var(--md-sys-typescale-title-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* BRAND-01 — the workspace, when it has a name of its own. Secondary by every
  * available signal (smaller, quieter token, second line) so it reads as context
  * for the product rather than as the product. */
 .dh-sidebar__brand-workspace {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
@@ -160,61 +259,81 @@
   white-space: nowrap;
 }
 
-/* Search + Command entries. */
+/* Search + Command entries (the phone navigation sheet only). */
 .dh-sidebar__search {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-1);
+  gap: var(--dh-space-1);
 }
 
 /*
- * The M3 search bar: a 56px fully-rounded field on `surface-container-high`,
- * with a leading glyph and a placeholder in `on-surface-variant`. It has no
- * border — M3 separates it from the drawer by tone, not by an outline — and it
- * grows the shared state layer on hover like every other interactive surface.
+ * DS-03 — the LAST two stadiums in the shell.
+ *
+ * These were M3 search bars: 56px, `corner-full`, filled with
+ * `surface-container-high`. DS-02 §8 listed them as debt #3 and handed them
+ * here, and they were the most conspicuous piece of the old design language
+ * left in the product — two lilac lozenges above a list of ordinary rows, on the
+ * one screen a phone user opens to navigate.
+ *
+ * They are now the SAME OBJECT as the desktop bar's search field: control
+ * height, `--dh-radius-control` (D33), a sunken fill and a hairline. Which is
+ * the point rather than a coincidence — there is one search affordance in
+ * DalyHub, it opens one surface, and the phone should not be told it is a
+ * different control because it is drawn on a sheet.
+ *
+ * The height comes from `--dh-control-height`, so it is 45px on the phone this
+ * only ever renders on and 36 if a fine pointer ever sees it. That is a real
+ * change from 56 and it is the density model doing exactly its job: nothing here
+ * states a height.
  */
 .dh-sidebar__search-entry {
   display: flex;
   align-items: center;
-  gap: var(--app-space-3);
+  gap: var(--dh-space-3);
   width: 100%;
-  min-height: 3.5rem;
-  padding-inline: var(--app-space-4);
-  border: none;
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-surface-container-high);
-  color: var(--md-sys-color-on-surface-variant);
+  min-height: var(--dh-control-height);
+  padding-inline: var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
   text-align: left;
   cursor: pointer;
 }
 
 .dh-sidebar__search-icon {
   display: inline-flex;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: 1.5rem;
+  flex: none;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-icon-size);
+  line-height: 0;
 }
 
 .dh-sidebar__search-label {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The shortcut hint is a quiet trailing affordance, not a control. */
 .dh-sidebar__search-hint {
-  font-family: var(--md-ref-typeface-mono);
+  flex: none;
+  font-family: var(--dh-font-family-mono);
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-sys-color-surface-container-highest);
-  padding: 0 var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-bg);
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-sm);
 }
 
 /* Primary navigation. */
 .dh-nav {
-  margin-top: var(--app-space-2);
+  margin-top: var(--dh-space-1);
 }
 
 .dh-nav__list {
@@ -223,47 +342,75 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-px);
+  gap: var(--dh-space-px);
 }
 
 /*
- * The M3 navigation drawer ITEM: a fully-rounded pill carrying a 24px leading
- * glyph, a 12px gap and a `label-large` label. The pill shape is what makes the
- * selected row read as a selected row rather than as a highlighted strip, and it
- * is why the drawer pads 12px inline — the pill needs room to be a pill.
+ * A DESTINATION.
  *
- * 48px of VISUAL row, not M3's 56px. Eleven destinations at 56px is 616px of
- * drawer before Settings, which does not fit a 900px-tall laptop viewport
- * alongside the brand and leaves the last modules below the fold. The 44px WCAG
- * 2.2 target minimum is still cleared with 4px to spare, and the pill keeps its
- * proportions because the icon and the label did not change size.
+ * `--dh-shell-nav-row-height` is 36px on a fine pointer and the full 45px target
+ * on a coarse one, unconditionally (see the token). The rail is the one
+ * navigation surface a finger never touches — it is hidden below `md` and the
+ * phone bar is what a thumb gets — so painting 44px of row per destination on a
+ * mouse-driven screen was 44px chosen for a constraint that is not present.
+ * Fourteen destinations at 36 is 504px rather than 616, which is what lets the
+ * whole rail and its account block fit a 900px laptop viewport with the group
+ * rhythm intact.
+ *
+ * `--dh-radius-control` is the shape, not `corner-full` (D33) and no longer
+ * `--app-shape-supporting` either: the rail's rows, the search field beside them
+ * and every button in the product now share one corner rung, which is what makes
+ * the frame read as one control set rather than as three.
+ *
+ * The colour is `--dh-color-rail-text-muted`, which exists because there is no
+ * appearance-following token that is even nearly correct here: `on-surface-variant`
+ * is a mid-grey chosen against a near-WHITE surface, and on the rail it is a
+ * label the eye has to hunt for.
  */
 .dh-nav__link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--app-space-3);
-  min-height: var(--app-nav-row-height);
-  padding-inline: var(--app-space-3);
-  /*
-   * VIS-01 — a soft rounded row, not a capsule.
-   *
-   * `corner-full` on a 216px-wide, 44px-tall row is a stadium, and a stadium is
-   * a BUTTON's shape: it says "press me", fourteen times, down the side of
-   * every screen. `--app-shape-supporting` is the shape a quiet surface inside
-   * something else takes, which is what a destination in a drawer is. The
-   * selected row is still a SHAPE (so it survives forced colours), it is simply
-   * no longer a pill.
-   */
-  border-radius: var(--app-shape-supporting);
+  gap: var(--dh-space-3);
+  min-height: var(--dh-shell-nav-row-height);
+  padding-inline: var(--dh-space-3);
+  border-radius: var(--dh-radius-control);
   text-decoration: none;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  transition: color var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: var(--dh-text-row-weight);
+  transition: color var(--dh-motion-instant) var(--dh-ease-standard);
+}
+
+/* On the rail, the rail's own foregrounds. The OVERLAY sheet keeps the ordinary
+ * ones, because it is painted on the ordinary navigation surface. */
+.dh-sidebar--rail .dh-nav__link {
+  color: var(--dh-color-rail-text-muted);
+}
+
+/*
+ * DS-03 — the FOCUS ring, on the rail.
+ *
+ * `base.css` draws one focus indicator for the whole product in
+ * `--dh-focus-color`, which is `primary`. On every appearance-following surface
+ * that clears WCAG 1.4.11's 3:1, and `contrast.test.ts` asserts it. On the rail
+ * it does not: the violet over the near-black rail measures 2.40–2.42:1 in all
+ * five schemes, so the shell's most-traversed keyboard region would have shipped
+ * with a failing focus indicator — invisible to a light-only review, because
+ * every OTHER surface in the light appearance passes.
+ *
+ * The rail's own text colour is the standard answer for an inverted surface, and
+ * it is applied to the whole region rather than to the navigation rows: the
+ * account trigger takes focus here too, and a rule that named only the rows
+ * would have fixed thirteen controls out of fourteen.
+ *
+ * `outline-color` alone, so the width and the offset stay the DS-01 tokens and
+ * the ring is the same object it is everywhere else — only its colour changes,
+ * which is the only thing that was wrong.
+ */
+.dh-sidebar--rail :focus-visible {
+  outline-color: var(--dh-color-rail-focus);
 }
 
 /*
@@ -302,10 +449,11 @@
   /*
    * DH-DS — the ROLE is unchanged and the AMOUNT is not. `secondary-container`
    * mixed toward the navigation surface: a soft tint rather than a slab across
-   * a 240px row. See the token for the full argument.
+   * a 240px row. See the token for the full argument. This is what the phone's
+   * navigation SHEET still draws.
    */
-  background: var(--md-app-color-surface-nav-selected);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-selected);
+  color: var(--dh-color-text);
   font-weight: 600;
 }
 
@@ -319,7 +467,43 @@
  */
 .dh-nav__link--active .dh-nav__icon,
 .dh-nav__link[aria-current="page"] .dh-nav__icon {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
+}
+
+/*
+ * DS-03 — the RAIL's current destination is a violet BLOCK.
+ *
+ * The drawer's answer above cannot transfer, and it is worth being exact about
+ * why rather than simply overriding it. `secondary-container` is a pale lilac in
+ * light; mixed a third of the way into a near-black rail it resolves to a
+ * slightly-warm charcoal — a row that is different from its neighbours and does
+ * not read as *chosen*. The concepts draw this row as the one confident piece of
+ * colour in the frame, and on a dark surface that means the accent itself.
+ *
+ * `--dh-color-rail-selected` is `primary` mixed toward the rail at the rail's
+ * own strength, so it is the product's colour rather than raw accent, and a
+ * louder scheme than Daly Violet does not become louder here.
+ *
+ * It is still never colour alone, and the four signals are the same four:
+ *   - `aria-current="page"` carries it semantically;
+ *   - the block is a SHAPE, restored under forced colours below;
+ *   - the label steps up a weight;
+ *   - the foreground steps from `rail-text-muted` to `rail-text`.
+ *
+ * The GLYPH does not take `primary` here, and that is the one signal that had to
+ * change: a violet glyph on a violet block is the least legible thing on the
+ * rail. It takes the full text colour with the label, which is the same "step
+ * up" said in the way this surface can say it.
+ */
+.dh-sidebar--rail .dh-nav__link--active,
+.dh-sidebar--rail .dh-nav__link[aria-current="page"] {
+  background: var(--dh-color-rail-selected);
+  color: var(--dh-color-rail-text);
+}
+
+.dh-sidebar--rail .dh-nav__link--active .dh-nav__icon,
+.dh-sidebar--rail .dh-nav__link[aria-current="page"] .dh-nav__icon {
+  color: inherit;
 }
 
 /*
@@ -340,17 +524,35 @@
   color: currentColor;
 }
 
-.dh-nav__link {
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-/* Forced colours: the indicator fill is dropped by the OS palette, so the
- * selected row is restated with the system's own selection colours. */
+/*
+ * Forced colours: the indicator fill is dropped by the OS palette, so the
+ * selected row is restated with the system's own selection colours.
+ *
+ * DS-03 — the RAIL selectors are named here too, and they have to be. They are
+ * two-class selectors (`.dh-sidebar--rail .dh-nav__link--active`), so they
+ * outrank the one-class rules below; a forced-colours block that named only the
+ * short forms would have been silently overridden by the rail's violet block on
+ * exactly the surface a forced-colours user relies on most. The rail's own
+ * background is restated as `Canvas` for the same reason — a generated near-black
+ * is not a system colour and must not survive into a palette the user chose.
+ */
 @media (forced-colors: active) {
+  .dh-sidebar--rail {
+    background: Canvas;
+    color: CanvasText;
+  }
+
   .dh-nav__link--active,
-  .dh-nav__link[aria-current="page"] {
+  .dh-nav__link[aria-current="page"],
+  .dh-sidebar--rail .dh-nav__link--active,
+  .dh-sidebar--rail .dh-nav__link[aria-current="page"] {
     background: Highlight;
     color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .dh-sidebar--rail .dh-nav__link {
+    color: CanvasText;
   }
 }
 
@@ -367,7 +569,8 @@
  */
 .dh-nav__icon {
   display: inline-flex;
-  font-size: 1.25rem;
+  flex: none;
+  font-size: var(--dh-icon-size);
   line-height: 0;
 }
 
@@ -377,6 +580,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * Collapsed: the row becomes its glyph, and the label is HIDDEN rather than
+ * removed.
+ *
+ * `display: none` would take the accessible name with it and leave fourteen
+ * unnamed links — the "ambiguous unlabeled icons" failure the DS-03 brief names
+ * explicitly (§9). The visually-hidden treatment keeps every name in the
+ * accessibility tree at every width, and `PrimaryNavigation` adds the shared
+ * tooltip so a pointer and a sighted keyboard user get it back too.
+ */
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-sidebar--rail .dh-nav__link {
+    justify-content: center;
+    padding-inline: 0;
+    gap: 0;
+  }
+
+  .dh-sidebar--rail .dh-nav__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* PX-03 — a decorative divider between navGroup transitions (Today/spine ·
@@ -402,8 +635,8 @@
  * nothing.
  */
 .dh-nav__divider {
-  margin-block: var(--app-space-3);
-  padding-inline: var(--app-space-3);
+  margin-block: var(--dh-space-3);
+  padding-inline: var(--dh-space-3);
 }
 
 .dh-nav__divider hr {
@@ -413,7 +646,95 @@
 
 .dh-sidebar__spacer {
   flex: 1;
-  min-height: var(--app-space-4);
+  min-height: var(--dh-space-4);
+}
+
+/* -------------------------------------------------------------------------- */
+/* DS-03 — the rail's bottom utility region                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The account block, at the bottom of the same column the brand opens.
+ *
+ * Both concept references end the rail with the owner: an avatar, a name and
+ * the email under it. It was in the top app bar between VIS-01 and DS-03, which
+ * was the right answer while the rail also carried two 56px search pills and the
+ * wrong one afterwards — see the note in `Sidebar.tsx` for the identity-versus-
+ * action distinction that decides it.
+ *
+ * ONE hairline above it, and it is the only rule inside the rail. Everything
+ * else in the column is separated by space (the group rhythm), because a rule
+ * per group is structure the owner has to parse on a region that should be
+ * scanned. This one earns itself: the account is a different KIND of thing from
+ * the destinations above it, and the boundary is what says so when the rail is
+ * collapsed to glyphs and the rhythm is all that is left.
+ */
+.dh-sidebar__account {
+  padding-block-start: var(--dh-space-2);
+  margin-block-start: var(--dh-space-1);
+}
+
+.dh-sidebar--rail .dh-sidebar__account {
+  border-block-start: var(--dh-border-width) solid var(--dh-color-rail-border);
+}
+
+/*
+ * The account trigger, on the rail.
+ *
+ * Hover, focus and press are the SHARED state layer (`base.css`), which paints
+ * `currentColor` — and the rail declares a light `currentColor`, so the one
+ * implementation is already correct on an inverted surface. This block only
+ * repaints what the layer does not: the resting foregrounds.
+ */
+.dh-sidebar--rail .dh-user-menu__trigger {
+  color: var(--dh-color-rail-text);
+  border-radius: var(--dh-radius-control);
+}
+
+.dh-sidebar--rail .dh-user-menu__chevron {
+  color: var(--dh-color-rail-text-muted);
+}
+
+/* Open: the rail cannot use `secondary-container` for the same reason the
+ * selected destination cannot — see that rule. The rail's own selected block is
+ * the honest "this is the open one" here too. */
+.dh-sidebar--rail .dh-user-menu__trigger[aria-expanded="true"] {
+  background: var(--dh-color-rail-selected);
+  color: var(--dh-color-rail-text);
+}
+
+/*
+ * Collapsed: the avatar alone.
+ *
+ * The name and the chevron are hidden VISUALLY and kept in the document, so the
+ * trigger's accessible name is still "Account — <name>" at every width. The
+ * panel it opens is unchanged, and still carries the name and the email in text.
+ */
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-sidebar--rail .dh-user-menu__trigger {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .dh-sidebar--rail .dh-user-menu__trigger-name,
+  .dh-sidebar--rail .dh-user-menu__chevron {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* The panel is wider than the rail it opens from, so it escapes to the
+   * trailing side rather than stretching to a 68px column. */
+  .dh-sidebar--rail .dh-user-menu__panel {
+    inset-inline: 0 auto;
+    min-inline-size: 15rem;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -427,18 +748,22 @@
 .dh-user-menu__trigger {
   display: flex;
   align-items: center;
-  gap: var(--app-space-2);
+  gap: var(--dh-space-2);
   width: 100%;
-  min-height: var(--app-control-height-lg);
-  padding: var(--app-space-1) var(--app-space-2);
+  /* DS-03 — density, not a stated height. The account trigger was the last
+   * control in the frame naming its own 45px; it is now 36px beside a 36px
+   * navigation row on a cursor, and floored back to 45 on a finger like every
+   * other control in the product. */
+  min-height: var(--dh-control-height);
+  padding: var(--dh-space-1) var(--dh-space-2);
   border: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-control);
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font: inherit;
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
   letter-spacing: var(--md-sys-typescale-label-large-tracking);
   cursor: pointer;
 }
@@ -456,8 +781,8 @@
   block-size: 1.75rem;
   flex: none;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: var(--md-sys-typescale-label-small-weight);
 }
@@ -473,7 +798,7 @@
 
 .dh-user-menu__chevron {
   display: inline-flex;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: 1.25rem;
 }
 
@@ -482,41 +807,32 @@
   min-inline-size: 15rem;
   display: flex;
   flex-direction: column;
-  padding-block: var(--app-space-2);
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
-  border-radius: var(--md-sys-shape-corner-medium);
-  box-shadow: var(--md-sys-elevation-2);
+  padding-block: var(--dh-space-2);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-elevation-overlay);
   z-index: var(--app-z-dropdown);
 }
 
-/* Pinned to the bottom of the mobile sheet: the panel opens upward, and stretches
- * to the trigger's width because the trigger is full-width there. */
-.dh-user-menu--above .dh-user-menu__panel {
-  bottom: calc(100% + var(--app-space-2));
+/*
+ * The panel opens UPWARD, always, and stretches to the trigger's width.
+ *
+ * DS-03 retired the `--above` / `--below` / `--compact` modifiers with the
+ * variants that selected them: the account is now at the bottom of a column in
+ * both places it renders (the rail and the phone's navigation sheet), so there
+ * is one placement and the class that used to choose it selected nothing.
+ */
+.dh-user-menu__panel {
+  bottom: calc(100% + var(--dh-space-2));
   inset-inline: 0;
-}
-
-/* In the top app bar the trigger is a 44px avatar at the end of the row, so the
- * panel opens downward and aligns to its trailing edge rather than stretching. */
-.dh-user-menu--below .dh-user-menu__panel {
-  top: calc(100% + var(--app-space-2));
-  inset-inline-end: 0;
-}
-
-/* The compact trigger is the avatar and its chevron only. */
-.dh-user-menu--compact .dh-user-menu__trigger {
-  inline-size: auto;
-  gap: var(--app-space-1);
-  padding-inline: var(--app-space-1);
 }
 
 .dh-user-menu__identity {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-px);
-  padding: var(--app-space-2) var(--app-space-3);
+  gap: var(--dh-space-px);
+  padding: var(--dh-space-2) var(--dh-space-3);
 }
 
 .dh-user-menu__name {
@@ -530,23 +846,22 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dh-user-menu__section {
-  padding-block-start: var(--app-space-2);
-  margin-block-start: var(--app-space-2);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  padding-block-start: var(--dh-space-2);
+  margin-block-start: var(--dh-space-2);
+  border-top: var(--dh-border-width) solid var(--md-sys-color-outline-variant);
 }
 
 .dh-user-menu__links {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-px);
+  gap: var(--dh-space-px);
 }
 
 /* The M3 menu item: 48px tall, 12px inline, `body-large`, no radius of its own
@@ -555,11 +870,11 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--app-space-3);
+  gap: var(--dh-space-3);
   min-height: 3rem;
-  padding-inline: var(--app-space-3);
+  padding-inline: var(--dh-space-3);
   text-decoration: none;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
   letter-spacing: var(--md-sys-typescale-body-large-tracking);
@@ -569,7 +884,7 @@
 
 .dh-user-menu__link-icon {
   display: inline-flex;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: 1.5rem;
 }
 
@@ -610,12 +925,23 @@
   z-index: var(--app-z-dropdown);
   display: flex;
   align-items: center;
-  gap: var(--app-space-4);
-  min-block-size: var(--app-shell-topbar-height);
-  padding-inline: var(--app-page-padding);
-  background: var(--md-app-color-surface-app-bar);
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  gap: var(--dh-space-4);
+  min-block-size: var(--dh-shell-bar-height);
+  padding-inline: var(--dh-shell-gutter);
+  background: var(--dh-color-surface-bar);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+/*
+ * DS-03 — the LEADING slot: search, aligned to the page gutter.
+ *
+ * `display: contents` on the `role="search"` landmark so it introduces no flex
+ * item of its own — the landmark is a region, not a box, and the control inside
+ * it participates directly in the bar's row. (The same trick the trailing
+ * cluster used for the same reason before the control moved.)
+ */
+.dh-topbar__lead {
+  display: contents;
 }
 
 /*
@@ -635,59 +961,57 @@
 .dh-topbar__utilities {
   display: flex;
   align-items: center;
-  /* VIS-01 — 8px rather than 4px, so the search capsule reads as its own
-   * object rather than as the first of five touching controls. */
-  gap: var(--app-space-2);
+  gap: var(--dh-space-2);
   margin-inline-start: auto;
   flex: none;
   min-inline-size: 0;
 }
 
-/* The `role="search"` wrapper is a landmark, not a box: it must not introduce a
- * flex item between the cluster and its buttons. */
-.dh-topbar__utilities > [role="search"] {
-  display: contents;
-}
-
 /* -------------------------------------------------------------------------- */
-/* VIS-01 — the top bar's search capsule                                       */
+/* DS-03 — the top bar's search field                                          */
 /* -------------------------------------------------------------------------- */
 
 /*
  * A control that LOOKS like a field and behaves like a button.
  *
- * The three numbers that keep it from becoming the pill this bar spent a
- * milestone removing: it is `--app-control-height-lg` tall (44px — the target
- * floor) rather than 56; it is capped at 18rem rather than spanning the content
- * region; and it lives in the trailing utility CLUSTER, so the page's own title
- * still starts at the top-left of the pane. It is the quietest surface the
- * shell paints — `surface-card-subtle` on the app bar, no border, no shadow.
+ * VIS-01 established that shape and put it at the trailing end of the bar. DS-03
+ * moves it to the LEADING edge — where both concept references draw it, and
+ * where the page's own gutter is — and changes three things to suit the move:
  *
- * It keeps `corner-full`, and that is deliberate rather than inconsistent with
- * the pass's general retreat from pills: a search field is one of the two
- * things (with a chip) that the reference itself draws as a stadium, because
- * the shape is what identifies it as a field at a glance.
+ *   - the CORNER is `--dh-radius-control`, not `corner-full`. The stadium was
+ *     argued as "the shape that identifies a field", and D33 has since answered
+ *     that for the whole product: emphasis is fill, border and content colour,
+ *     and a search field beside a search RESULT list, a filter control and a
+ *     button should share their corner. At the leading edge, beside a page title
+ *     and above a card, a stadium was the one rounded object on the screen.
+ *   - it takes a HAIRLINE. At the trailing end, in a cluster of transparent
+ *     glyphs, the sunken fill was enough to read as a container; at the leading
+ *     edge with 700px of empty bar beside it, a fill with no edge reads as a
+ *     smudge. The border is `--dh-color-border` — this edge separates, it is not
+ *     the only signal of the control.
+ *   - it is `--dh-control-height` (36px compact, 45 on touch) rather than a
+ *     stated 44, so it is the same object as every other control in the product
+ *     and the bar can be 56px tall around it.
+ *
+ * It still collapses to a labelled glyph below `lg`, where the bar has to leave
+ * the pane its width — one button at every width, one accessible name, one
+ * `role="search"` region, one shortcut.
  */
 .dh-topbar__search {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--app-space-2);
-  min-block-size: var(--app-control-height-lg);
-  /* Below `lg` the SAME control is a 44px circle: the bar there has to hold the
-   * utilities and still leave the pane its width. One button at every width —
-   * one accessible name, one `role="search"` region, one shortcut — that draws
-   * itself as a field when there is room for one. */
-  inline-size: var(--app-touch-target-min);
+  gap: var(--dh-space-2);
+  min-block-size: var(--dh-control-height);
+  inline-size: var(--dh-control-height);
   padding-inline: 0;
   border: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-control);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
   text-align: start;
   cursor: pointer;
 }
@@ -700,30 +1024,41 @@
 @media (min-width: 64rem) {
   .dh-topbar__search {
     justify-content: flex-start;
-    inline-size: 18rem;
+    /*
+     * 20rem, and it is a fixed measure rather than a share of the bar.
+     *
+     * A search control that grows with the window is a search control that is
+     * 700px wide on a 1920 monitor, which is the 56px pill's mistake in the
+     * other axis. 320px states the placeholder in full at every width the label
+     * is shown at, and leaves the rest of the bar as the air that makes the
+     * frame read as compact.
+     */
+    inline-size: 20rem;
     max-inline-size: 100%;
-    padding-inline: var(--app-space-4) var(--app-space-3);
+    padding-inline: var(--dh-space-3);
     /*
      * UIX-06 — SUNKEN, not `card-subtle`.
      *
-     * In the dark scheme `--md-app-color-surface-card-subtle` and
-     * `--md-app-color-surface-app-bar` are generated to the SAME value
-     * (#202225), so the product's most-used control had no visible container at
-     * all in dark: a magnifier, the words "Search DalyHub" and a `/` badge
-     * floating on the bar, while in light it was a filled pill. That is the
-     * "mismatched surfaces in dark" §45 opens with, and it was invisible to
-     * light-only review precisely because the light value is fine.
+     * `--dh-color-surface-subtle` and `--dh-color-surface-bar` are generated to
+     * the SAME value in dark, so the product's most-used control had no visible
+     * container at all there: a magnifier, the words "Search DalyHub" and a `/`
+     * badge floating on the bar, while in light it was a filled pill. That was
+     * invisible to light-only review precisely because the light value is fine.
      *
-     * `sunken` is the one application surface that is a step DOWN from the bar
-     * in both appearances (#eeedf1 light, #141618 dark), which is what a field
-     * inset into a chrome bar should be. The `/` hint keeps `surface-page`, a
-     * step back up, so it still reads as a badge inside the field.
+     * `sunken` is the one surface that is a step DOWN from the bar in both
+     * appearances, which is what a field inset into a chrome bar should be.
      */
-    background: var(--md-app-color-surface-sunken);
+    background: var(--dh-color-bg-sunken);
+    border: var(--dh-border-width) solid var(--dh-color-border);
   }
 
   .dh-topbar__search-label {
     display: block;
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dh-topbar__search-hint {
@@ -738,98 +1073,68 @@
   line-height: 0;
 }
 
-@media (min-width: 64rem) {
-  .dh-topbar__search-label {
-    flex: 1;
-    min-inline-size: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 /* The shortcut, as a quiet trailing affordance rather than a control. */
 .dh-topbar__search-hint {
   flex: none;
   min-inline-size: 1.25rem;
   padding-block: 0;
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-page);
-  color: var(--md-sys-color-on-surface-variant);
-  font-family: var(--md-ref-typeface-mono);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-bg);
+  color: var(--dh-color-text-muted);
+  font-family: var(--dh-font-family-mono);
   font-size: var(--md-sys-typescale-label-small-size);
   line-height: 1.25rem;
   text-align: center;
 }
 
 /* -------------------------------------------------------------------------- */
-/* UIX-01 — the top bar's CREATE action                                        */
+/* The top bar's CREATE action                                                 */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The one loud object in the shell.
+ * The one loud object in the shell — and, since DS-03, an ordinary `Button`.
  *
- * Everything else the frame paints is deliberately quiet — a neutral drawer, a
- * neutral bar, a tinted selected row — precisely so that this control can be
- * the product's colour without competing with anything. It is `primary`
- * FILLED (not the container pair the retired floating button used): the
- * reference's Create button is solid violet, and at 44px in a cluster of
- * transparent glyphs a filled control is the difference between "an action" and
- * "the action".
+ * Everything else the frame paints is deliberately quiet, precisely so that this
+ * control can be the product's colour without competing with anything. UIX-01
+ * established that and drew it here by hand, because DS-02's primitive layer did
+ * not exist yet: a violet stadium with its own height, its own corner, its own
+ * type and its own hover.
  *
- * `corner-full` is the exception the search capsule beside it also takes: a
- * stadium is a button's shape, and this is the one place the product genuinely
- * wants to say "press me".
+ * It is now `<Button variant="primary">`, so all five of those come from the one
+ * place every other button in the product gets them — including D33's control
+ * corner, which retires the last stadium in the frame, and the compact density
+ * the application declares, which is what takes it from 44px to 36 on a cursor
+ * while a phone keeps its 45.
  *
- * 44px tall so it is the same object as the search capsule and clears WCAG 2.2
- * (2.5.8) without a separate hit area.
+ * Nothing is left here but the ONE thing that belongs to the bar rather than to
+ * the button: it may not shrink. A create action squeezed to two wrapped words
+ * beside a search field is the failure UIQ-014 named on the pane header.
  */
 .dh-topbar__create {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--app-space-2);
   flex: none;
-  min-block-size: var(--app-control-height-lg);
-  padding-inline: var(--app-space-4) var(--app-space-5);
-  border: none;
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  font: inherit;
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  cursor: pointer;
 }
 
-.dh-topbar__create-icon {
-  display: inline-flex;
-  font-size: 1.125rem;
-  line-height: 0;
-}
-
-/* An icon-only utility: 40px of visual control inside a 44px target, so the bar
- * stays 68px while every control still clears WCAG 2.2 (2.5.8). */
+/* An icon-only utility. `--dh-control-height` is 36px on a cursor and floors to
+ * the 45px target on a coarse pointer, so the bar can be 56px tall while every
+ * control still clears WCAG 2.2 (2.5.8) wherever a finger can reach it. */
 .dh-topbar__utility {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: var(--app-touch-target-min);
-  block-size: var(--app-touch-target-min);
+  inline-size: var(--dh-control-height);
+  block-size: var(--dh-control-height);
   flex: none;
   border: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-control);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   text-decoration: none;
   cursor: pointer;
 }
 
 .dh-topbar__utility-icon {
   display: inline-flex;
-  font-size: 1.25rem;
+  font-size: var(--dh-icon-size);
   line-height: 0;
 }
 
@@ -902,27 +1207,32 @@
 
 /* A padded body for document-shaped pages (home, placeholders, Settings). */
 .dh-pane-body {
-  padding: var(--app-space-6) var(--app-page-padding);
+  padding: var(--dh-space-6) var(--dh-shell-gutter);
 }
 
-/* The M3 small top app bar, on the phone shell (route title + Back + Search +
- * actions). Hidden on desktop. 64px, `surface`, and NO bottom rule: the page
- * scrolls under it and the tonal step does the separating, exactly as the
- * navigation drawer does on the desktop rail. */
+/* The phone's own top bar (route title + Back + Search + actions). Hidden on
+ * desktop. NO bottom rule: the page scrolls under it and the tonal step does the
+ * separating, exactly as the rail does on desktop.
+ *
+ * DS-03 — 52px, down from 64. It holds one line of title and one 45px target,
+ * and the concepts draw a phone header as exactly that and nothing else; 64 was
+ * 20px of padding on the most valuable row of the display. The safe-area inset
+ * is added ON TOP of the height rather than inside it, so a notched device
+ * clears its cutout and an un-notched one is genuinely 52px. */
 .dh-mobilebar {
   display: none;
   align-items: center;
-  gap: var(--app-space-2);
-  min-height: var(--app-shell-mobilebar-height);
+  gap: var(--dh-space-1);
+  min-height: var(--dh-shell-mobile-bar-height);
   /* With `viewport-fit=cover` the document runs under the status-bar / notch, so
    * the top bar pads by the top inset (and the leading inset for a landscape
    * cutout) to keep the controls out from under the cutout (DS-11). */
-  padding: max(var(--app-space-1), var(--app-safe-area-top)) var(--app-space-2)
-    var(--app-space-1);
-  padding-inline-start: max(var(--app-space-2), var(--app-safe-area-left));
-  padding-inline-end: max(var(--app-space-2), var(--app-safe-area-right));
-  background: var(--md-app-color-surface-app-bar);
-  color: var(--md-sys-color-on-surface);
+  padding: max(var(--dh-space-1), var(--dh-safe-top)) var(--dh-space-2)
+    var(--dh-space-1);
+  padding-inline-start: max(var(--dh-space-3), var(--dh-safe-left));
+  padding-inline-end: max(var(--dh-space-2), var(--dh-safe-right));
+  background: var(--dh-color-surface-bar);
+  color: var(--dh-color-text);
   position: sticky;
   top: 0;
   z-index: var(--app-z-sticky);
@@ -937,9 +1247,9 @@
   min-inline-size: var(--app-touch-target-min);
   min-block-size: var(--app-touch-target-min);
   border: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-control);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: 1.5rem;
   cursor: pointer;
 }
@@ -963,16 +1273,19 @@
 }
 
 /* The route title, not the workspace name: repeating "DalyHub" on every phone
- * screen wastes the most valuable row on the display. */
-/* `title-large` is the M3 small top app bar's headline style. */
+ * screen wastes the most valuable row on the display.
+ *
+ * DS-03 — the RECORD title role (20px semibold), not M3's 22px `title-large`.
+ * A phone bar's title and a record's own title are the same size of statement,
+ * and naming the role rather than the rung is what stops the two drifting apart
+ * the next time either is measured. */
 .dh-mobilebar__title {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: var(--md-sys-typescale-title-large-size);
-  line-height: var(--md-sys-typescale-title-large-line-height);
-  font-weight: var(--md-sys-typescale-title-large-weight);
-  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+  font-size: var(--dh-text-record-title-size);
+  line-height: var(--dh-text-record-title-line-height);
+  font-weight: var(--dh-text-record-title-weight);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -981,7 +1294,7 @@
 .dh-mobilebar__actions {
   display: flex;
   align-items: center;
-  gap: var(--app-space-1);
+  gap: var(--dh-space-px);
   flex: none;
 }
 
@@ -1020,20 +1333,49 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--app-space-3) var(--app-space-4);
+  gap: var(--dh-space-3) var(--dh-space-4);
   inline-size: 100%;
-  max-inline-size: var(--app-content-max-width);
-  margin-inline: auto;
-  padding-inline: var(--app-page-padding);
+  max-inline-size: var(--dh-shell-content-max-width);
+  /*
+   * DS-03 — the header START-aligns, like everything else in the frame.
+   *
+   * It carried `margin-inline: auto`, which is a no-op at every width below the
+   * measure and a real, visible defect above it. `collection-layout.css` caps
+   * the header and the list at the same measure but centres only the header, so
+   * from about 1400px up they came apart: MEASURED at 1920, the page title
+   * started at x=347 while the list it titles started at x=256, and the top
+   * bar's search field — which DS-03 moved to the leading edge precisely so
+   * that the three would share one vertical line — started at 256 with them.
+   *
+   * The collection's own note already gives the argument for the answer:
+   * "Aligned to the START rather than centred: the rail is on the left, so a
+   * centred column would drift away from it as the viewport grows and leave the
+   * navigation pointing at nothing." That is true of a header for exactly the
+   * same reason it is true of the list beneath it, and the header was the one
+   * piece not obeying it.
+   *
+   * So: one origin for the whole frame — rail, then gutter, then everything.
+   */
+  margin-inline: 0;
+  padding-inline: var(--dh-shell-gutter);
   background: transparent;
 }
 
+/*
+ * DS-03 — the band is tighter at the top.
+ *
+ * 24px above the title was measured against a 68px bar; with the bar at 56 the
+ * two together put the first row of a collection ~340px down a 950px viewport,
+ * which is a third of the screen spent before any work. 20/12 is what the
+ * concepts draw, and it is still a clear band rather than a title jammed under
+ * the bar — the title's own line-height carries most of the separation.
+ */
 .dh-pane-header--compact {
-  padding-block: var(--app-space-6) var(--app-space-4);
+  padding-block: var(--dh-space-5) var(--dh-space-3);
 }
 
 .dh-pane-header--identity {
-  padding-block: var(--app-space-6) var(--app-space-5);
+  padding-block: var(--dh-space-5) var(--dh-space-4);
   align-items: flex-start;
 }
 
@@ -1042,16 +1384,16 @@
  * way. */
 .dh-pane-header--identity .dh-pane-header__lead {
   align-items: flex-start;
-  gap: var(--app-space-4);
+  gap: var(--dh-space-4);
 }
 
 .dh-pane-header__eyebrow {
-  margin: 0 0 var(--app-space-1);
+  margin: 0 0 var(--dh-space-1);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
   font-weight: var(--md-sys-typescale-label-medium-weight);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   text-transform: uppercase;
 }
 
@@ -1060,7 +1402,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--app-space-2) var(--app-space-3);
+  gap: var(--dh-space-2) var(--dh-space-3);
   min-inline-size: 0;
 }
 
@@ -1076,19 +1418,19 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--app-space-2) var(--app-space-5);
-  margin-block-start: var(--app-space-3);
+  gap: var(--dh-space-2) var(--dh-space-5);
+  margin-block-start: var(--dh-space-3);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .dh-pane-header__secondary {
   display: flex;
   align-items: center;
-  gap: var(--app-space-2);
+  gap: var(--dh-space-2);
 }
 
 /*
@@ -1106,7 +1448,7 @@
 .dh-pane-header__lead {
   display: flex;
   align-items: center;
-  gap: var(--app-space-3);
+  gap: var(--dh-space-3);
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -1119,38 +1461,45 @@
  * A page title is a heading, not a banner — and not an enterprise field label
  * either.
  *
- * DS-14 set it at `headline-small` (24px) and reserved weight, on the argument
- * that hierarchy should come from size, colour and space. That argument is
- * right; 24px was simply not enough SIZE for it to work. Against the
- * `title-large` of the surfaces beneath it, a 24px page title was one step of
- * separation carrying the whole heading hierarchy, and the product read cramped
- * — the "tiny enterprise typography" the DalyHub design direction names.
+ * ── The value moved twice, and DS-03 stops moving it ────────────────────────
+ * DS-14 set it at 24px and reserved weight, on the argument that hierarchy
+ * should come from size, colour and space. UIX-06 took it to 28 on the argument
+ * that 24 was not enough SIZE for that to work against the `title-large` of the
+ * surfaces beneath it.
  *
- * `headline-medium` (28px) at `medium` weight. The weight reservation is
- * unchanged and still load-bearing: WEIGHT means "this is selected" or "this is
- * the title of that", and it is not spent here. What changed is that the size
- * now carries what the size was always supposed to carry.
+ * Both were arguing about a NUMBER, which is how a design value ends up living
+ * in a stylesheet. DS-01 published `--dh-text-page-title-*` — the product's own
+ * name for "the title of a page" — and this rule now consumes it, so the next
+ * time the question is asked it is asked once, in the token layer, for every
+ * page title in the product rather than for this one.
+ *
+ * The value that name currently resolves to is 24px, which is a real change here
+ * and is the right one: with the top bar at 56px and the band tightened above,
+ * 28px was the largest object on a screen whose subject is the list underneath
+ * it, and the concepts draw the page title at roughly the size of two rows of
+ * the content it titles. The weight reservation is unchanged and still
+ * load-bearing — WEIGHT means "this is selected" or "this is the title of that",
+ * and it is not spent here.
  *
  * It is still one line at 1280 for every collection title in the product, which
- * is the hard rule this cannot break (DESIGN_SYSTEM.md → Typography hierarchy).
+ * is the hard rule this cannot break (DESIGN_SYSTEM.md → Typography hierarchy),
+ * and one line more comfortably than before.
  */
 .dh-pane-header__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
+  font-weight: var(--dh-text-page-title-weight);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
 .dh-pane-header__subtitle {
-  margin: var(--app-space-1) 0 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
-  color: var(--md-sys-color-on-surface-variant);
-  font-variant-numeric: tabular-nums;
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
 .dh-pane-header__actions {
@@ -1159,7 +1508,7 @@
   align-items: center;
   justify-content: flex-end;
   flex: none;
-  gap: var(--app-space-2) var(--app-space-3);
+  gap: var(--dh-space-2) var(--dh-space-3);
 }
 
 /*
@@ -1264,7 +1613,7 @@
     overflow-x: auto;
     scrollbar-width: none;
     /* The focus ring on the last chip must not be clipped by the scroll port. */
-    padding-block: var(--app-space-px);
+    padding-block: var(--dh-space-px);
   }
 
   .dh-pane-header__secondary::-webkit-scrollbar {
@@ -1306,9 +1655,8 @@
 .dh-mobilenav__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
-  animation: dh-mobilenav-scrim var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-standard);
+  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+  animation: dh-mobilenav-scrim var(--dh-motion-slow) var(--dh-ease-standard);
 }
 
 .dh-mobilenav__panel {
@@ -1317,17 +1665,16 @@
   inset-inline-start: 0;
   inline-size: min(20rem, 86vw);
   max-inline-size: 100%;
-  background: var(--md-app-color-surface-navigation);
+  background: var(--dh-color-surface-nav);
   /* The M3 modal navigation drawer rounds its TRAILING edge only — the leading
    * edge is flush with the screen it slid in from. */
   border-start-end-radius: var(--md-sys-shape-corner-extra-large);
   border-end-end-radius: var(--md-sys-shape-corner-extra-large);
   box-shadow: var(--md-sys-elevation-1);
   overflow-y: auto;
-  padding-block-end: var(--app-safe-area-bottom);
-  padding-inline-start: var(--app-safe-area-left);
-  animation: dh-mobilenav-slide var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-emphasized-decelerate);
+  padding-block-end: var(--dh-safe-bottom);
+  padding-inline-start: var(--dh-safe-left);
+  animation: dh-mobilenav-slide var(--dh-motion-slow) var(--dh-ease-enter);
 }
 
 /* The overlay's sidebar fills the sheet and drops the desktop border. */
@@ -1344,9 +1691,9 @@
   min-inline-size: var(--app-touch-target-min);
   min-block-size: var(--app-touch-target-min);
   border: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-control);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: 1.5rem;
   cursor: pointer;
 }
@@ -1387,7 +1734,7 @@
  * `md` up, so the desktop rail experience is unchanged.
  *
  * Two insets keep it out of the way of everything else:
- *   - `var(--app-safe-area-bottom)` clears the home indicator;
+ *   - `--dh-safe-bottom` clears the home indicator;
  *   - `--app-keyboard-inset` (published by the ONE shared Visual Viewport
  *     observer) hides the bar entirely while the on-screen keyboard is up, so it
  *     can never cover a focused field, a validation message or a sticky Save.
@@ -1402,12 +1749,11 @@
   inset-inline: 0;
   bottom: 0;
   z-index: var(--app-z-sticky);
-  background: var(--md-app-color-surface-navigation);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
-  padding-bottom: var(--app-safe-area-bottom);
-  padding-inline-start: var(--app-safe-area-left);
-  padding-inline-end: var(--app-safe-area-right);
+  background: var(--dh-color-surface-bar);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+  padding-bottom: var(--dh-safe-bottom);
+  padding-inline-start: var(--dh-safe-left);
+  padding-inline-end: var(--dh-safe-right);
 }
 
 .dh-bottomnav__list {
@@ -1432,17 +1778,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--app-space-1);
+  gap: var(--dh-space-1);
   min-block-size: var(--app-touch-target-min);
   min-inline-size: var(--app-touch-target-min);
   /* VIS-01 — 4px rather than 12px. The control still fills the bar's full
    * height and its full share of the width, so the TARGET is unchanged; what
    * shrank is the empty band above and below the glyph. */
-  padding-block: var(--app-space-1);
-  padding-inline: var(--app-space-1);
+  padding-block: var(--dh-space-1);
+  padding-inline: var(--dh-space-1);
   border: none;
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font: inherit;
   text-decoration: none;
   cursor: pointer;
@@ -1496,8 +1842,7 @@
   block-size: 1.625rem;
   border-radius: var(--app-shape-supporting);
   background: transparent;
-  transition: background-color var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  transition: background-color var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 .dh-bottomnav__icon {
@@ -1532,7 +1877,7 @@
  * below), and the label gains weight as well as colour.
  */
 .dh-bottomnav__control[aria-current="page"] {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__label {
@@ -1562,8 +1907,8 @@
   inline-size: var(--app-bottomnav-capture-size);
   block-size: var(--app-bottomnav-capture-size);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
   box-shadow: var(--md-sys-elevation-1);
 }
 
@@ -1604,7 +1949,7 @@
 /* Forced colours: the indicator must survive when the accent is replaced. */
 @media (forced-colors: active) {
   .dh-bottomnav {
-    border-top: var(--app-border-width-thin) solid CanvasText;
+    border-top: var(--dh-border-width) solid CanvasText;
   }
   .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__indicator {
     background: Highlight;
@@ -1666,7 +2011,7 @@
 
   /* Without a visible title the band collapses to whatever the actions need. */
   .dh-pane-header--compact {
-    padding-block: var(--app-space-3) var(--app-space-3);
+    padding-block: var(--dh-space-3) var(--dh-space-3);
   }
 
   /* The height the bottom bar occupies, consumed by every scrolling surface so
@@ -1684,7 +2029,7 @@
    * nothing left to override. */
   :root {
     --app-bottomnav-height: calc(
-      var(--app-bottomnav-bar-height) + var(--app-safe-area-bottom)
+      var(--app-bottomnav-bar-height) + var(--dh-safe-bottom)
     );
   }
 
@@ -1713,7 +2058,6 @@
 @media (max-width: 48rem) {
   .dh-bottomnav {
     transform: translateY(var(--app-keyboard-inset, 0px));
-    transition: transform var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard);
+    transition: transform var(--dh-motion-base) var(--dh-ease-standard);
   }
 }

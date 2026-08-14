@@ -2031,40 +2031,71 @@ The shared patterns above are composed by ONE application frame ([PX-02](../road
 ### The frame
 
 ```
-┌──────────────┬───────────────────────────────────────────────┐
-│  ◆ Workspace │  Pane Header (sticky): H1 · count · [view] [+] │
-│              │  FilterBar (sticky, when a collection)         │
-│  ⌘K Search   ├───────────────────────────────────────────────┤
-│  ⌘ Command   │                                               │
-│              │   pane content (the document scrolls)          │
-│  ⬢ Areas     │                                               │
-│  ◎ Goals     │                                               │
-│  ▚ Projects  │                                               │
-│  ⦿ Tasks     │                                               │
-│  … (spacer)  │                                               │
-│  (A) Owner ▾ │                                               │
-└──────────────┴───────────────────────────────────────────────┘
-sidebar: --md-sys-color-surface, --app-shell-nav-width, icon+label rows,
-active = accent-surface tint + semibold + aria-current (never colour alone).
-Pane: --md-app-color-surface-page. Grid: var(--app-shell-nav-width) 1fr.
+╔══════════════╤═══════════════════════════════════════════════╗
+║ ◆ DalyHub    │ [ ⌕ Search DalyHub    / ]      ⌘  ?   [ + New ]║  56px bar
+║ ░░░░░░░░░░░░ ├───────────────────────────────────────────────┤
+║ ▪ Today      │  Page title · count            [view] [ + ]   │  ← one origin:
+║ ⬢ Areas      │  FilterBar (sticky, when a collection)        │    rail + gutter
+║ ◎ Goals      ├───────────────────────────────────────────────┤
+║ ▚ Projects   │                                               │
+║ ⦿ Tasks      │   pane content (the document scrolls)         │
+║              │                                               │
+║ ▤ Notes      │                                               │
+║ … (spacer)   │                                               │
+║ ──────────── │                                               │
+║ (A) Owner  ▾ │                                               │
+╚══════════════╧═══════════════════════════════════════════════╝
+  ↑ THE RAIL — dark in BOTH appearances (D35), 216px, 36px rows.
+    ░ = the current destination: a violet block + weight + foreground
+    step + aria-current. Never colour alone.
+  Rail: --dh-color-rail / --dh-color-rail-text.  Pane: --dh-color-bg.
+  Grid: var(--dh-shell-rail-width) 1fr.
 ```
 
-- **Layout.** `AppShell` is a grid `grid-template-columns: var(--app-shell-nav-width) 1fr`. The **document** is the scroll container and the sidebar is `position: sticky` — this preserves the [DS-03 Drawer](#shared-drawer-ds-03)'s body-scroll-lock and `ScrollRestoration` (which act on the window) while sticky Pane Headers and FilterBars still pin to the viewport (ADR-020 §20.2). There is exactly one frame; no surface builds its own.
-- **Landmarks.** The sidebar brand is the single `banner`; primary navigation is a labelled `navigation`; the pane is `main` (the skip-link target); the Pane Header is a plain container (not a second banner). Keyboard-complete, skip link preserved, focus never lost.
+- **Layout.** `AppShell` is a grid `grid-template-columns: var(--dh-shell-rail-width) 1fr`. The **document** is the scroll container and the sidebar is `position: sticky` — this preserves the [Drawer](#shared-drawer-ds-03)'s body-scroll-lock and `ScrollRestoration` (which act on the window) while sticky Pane Headers and FilterBars still pin to the viewport (ADR-020 §20.2). There is exactly one frame; no surface builds its own.
+- **Three compositions, not two (DS-03).** ≥`lg` the labelled rail; `md`–`lg` a 68px glyph rail; below `md` the phone bar. See the [page frame](#the-page-frame-ds-03) for the measurements and [D38](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material) for why the middle one is a media query rather than a preference.
+- **Landmarks.** The TOP BAR is the desktop `banner` and `MobileTopBar` is the phone's — exactly one per viewport. Primary navigation is a labelled `navigation`, and it contains the brand block and the account block, so both are inside a landmark without claiming to be one. The pane is `main` (the skip-link target); the Pane Header is a plain container (not a second banner). Keyboard-complete, skip link preserved, focus never lost.
 
 ### Sidebar
 
-**Purpose.** The one element that never changes between surfaces — product identity, global Search, the Command Palette affordance, primary navigation, and the user menu.
-**Anatomy.** Brand (mark + **DalyHub**, with a differently-named workspace beneath it as secondary context — BRAND-01) · Search entry (`/`) + Command Palette entry (`⌘K`) · primary navigation (icon + label rows, never text-only) · spacer · [User Menu](#user-menu-px-02). Built to absorb future **badge counts, favourites and workspaces** without a redesign.
+**Purpose.** The one element that never changes between surfaces — product identity, primary navigation, and the owner's account.
+
+**It is DARK, in both appearances (DS-03).** This is the frame's defining property and the one region of DalyHub whose value does not follow the appearance: near-black in light, darker still in dark. It has its own colour family (`--dh-color-rail`, `-text`, `-text-muted`, `-border`, `-selected`, `-focus`) because a surface whose value inverts cannot borrow `on-surface` for its labels — that is exactly how a dark rail ships invisible. A component painting on the rail asks for "the rail's text" by name and is correct in both appearances without knowing which it is in. See [D35–D38](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material) and [ADR-094](../decisions/ARCHITECTURE_DECISIONS.md#adr-094-the-dark-navigation-rail--a-region-that-does-not-follow-the-appearance-a-responsive-tablet-collapse-and-one-origin-for-the-frame).
+
+**Anatomy.** Brand (mark + **DalyHub**, with a differently-named workspace beneath it as secondary context — BRAND-01) · primary navigation (icon + label rows, never text-only) · spacer · one hairline · [User Menu](#user-menu-px-02). The mobile OVERLAY additionally carries the Search entry (`/`) and the Command Palette entry (`⌘K`), because a phone has no top app bar of that kind. Built to absorb future **badge counts, favourites and workspaces** without a redesign.
+
+**Anatomy, in numbers.** Rail 216px (D12) · destination 36px on a fine pointer, floored to 45 on a coarse one · `--dh-radius-control` corners · 20px glyph · groups separated by space, never a rule · exactly ONE hairline in the column, above the account block. Everything is a published token (`--dh-shell-rail-width`, `--dh-shell-nav-row-height`); nothing in `shell.css` states a measurement of its own.
+
+**Selected state.** A violet BLOCK — `--dh-color-rail-selected`, which is the appearance's saturated violet mixed toward the rail rather than raw accent, so a louder colour scheme does not become louder here. Four signals, never colour alone: `aria-current="page"`, the block's shape (restored as the system `Highlight` under forced colours), a weight step, and a foreground step from `-text-muted` to `-text`. The glyph does **not** take `primary` on the rail — a violet glyph on a violet block is the least legible thing in the column — it steps up with the label.
+
+**Account (DS-03).** The owner's avatar, name and menu sit at the bottom of the same column the brand opens, which is where both concept references put them. Search is an ACTION and lives in the top bar; the account is an IDENTITY and lives with the other identity in the frame. Its trigger is named `Account — <name>` in every variant, so it says what it is as well as who.
+
+**Tablet (DS-03).** Between `md` and `lg` the rail collapses to a **68px glyph column**: labels and the wordmark are hidden VISUALLY (never `display: none`, so every accessible name survives), the shared tooltip supplies the name to a pointer and a sighted keyboard user, and the current destination is still marked. It is a media query, not a preference — see [D38](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material).
 **Brand (BRAND-01).** The rail states the PRODUCT name, always. It used to render only the workspace name, so renaming the workspace renamed DalyHub in the frame; the workspace is now a quieter second line and is omitted entirely when it is simply called "DalyHub". The mark is `BrandMark` — the white "D" and its connected three-node network, in the fixed brand gradient, generated from the same canonical geometry as the app icon (`scripts/icons/geometry.mjs`) so the two are one drawing. It is `aria-hidden`, because the product name sits beside it as real text. The tagline *"Your life. Connected."* belongs to the full lockup (`~/shared/brand` → `BrandLockup`, used on About), never to the rail.
 **Behaviour.** Navigation is registry-driven (no central list); each row's icon is the module's [entity identity](#entity-identity-px-02) glyph, derived from the module's own `entityTypes` manifest — a module that declares no entity type (Today, AI, Settings, Help) falls back to a generic glyph rather than a hand-picked icon. Active state is `aria-current` + weight + an accent-surface tint. The Search/Command entries are real, labelled, keyboard-reachable affordances; their surfaces are wired by DS-08/DS-09.
 **Grouping (PX-03).** A route's `meta.navGroup` (declared by the owning module, e.g. `"capture"`) clusters its row with sibling rows sharing the same group; `PrimaryNavigation` renders a plain, decorative `<hr>` divider (`aria-hidden`) at each group transition — rhythm only, no group label, no redesign. A navigation model where no module declares a group renders exactly as a flat list (the original PX-02 shape), so grouping is additive. The current groups, in order: ungrouped (Today/Areas/Goals/Projects/Tasks) · `capture` (Notes/Diary/Meetings/People/Assets) · `insight` (Reviews/AI) · `system` (Settings/Help).
 **Mobile.** Below `md` the rail collapses to an **animated overlay sheet** that reuses the DS-03 Drawer's focus-trap, background-inertness and scroll-lock machinery (no second focus-trap): slide-in + scrim, Escape/outside-click close, focus restored to the toggle, safe-area aware, no content jump.
 
+### The page frame (DS-03)
+
+**One origin: rail → gutter → everything.** The top bar's search field, the page title and the first row of content start on the same vertical line at every width, from 768 to 2560. The page header **start-aligns**; it does not centre. It carried `margin-inline: auto`, which is a no-op below the content measure and a real divergence above it — measured at 1920, the title started at x=347 and the list it titles at x=256. `CollectionLayout` had already written the argument for its own content: the rail is on the left, so a centred column drifts away from it as the viewport grows and leaves the navigation pointing at nothing.
+
+**The measurements**, all published tokens, all consumed rather than restated:
+
+| | Token | Value |
+| --- | --- | --- |
+| Rail | `--dh-shell-rail-width` | 216px (68px collapsed) |
+| Top bar | `--dh-shell-bar-height` | 56px |
+| Phone top bar | `--dh-shell-mobile-bar-height` | 52px + the safe-area inset |
+| Gutter | `--dh-shell-gutter` | 40 desktop · 24 tablet · 16 phone |
+| Content measure | `--dh-shell-content-max-width` | 1320px (a collection opts into 1440 + gutters; a dashboard wider still) |
+| Safe areas | `--dh-safe-top/right/bottom/left` | the ONE definition — no rule anywhere may write a raw `env(safe-area-inset-*)` |
+
 ### Pane Header
 
 **Purpose.** The header that belongs to the current screen, not the frame.
-**Anatomy.** Page title (a real heading, configurable level) · optional subtitle/count · optional view-switcher slot · one primary-action slot. Optionally an entity-identity glyph beside the title.
+**Anatomy.** Page title (a real heading, configurable level) · optional eyebrow · optional subtitle/count · optional status · optional metadata row · optional view-switcher slot · secondary actions · one primary-action slot. Optionally an entity-identity glyph beside the title (a RECORD's; a collection passes none — D30).
+**Typography.** The title consumes `--dh-text-page-title-*` rather than naming a typescale rung, so "how big is a page title?" is asked once, in the token layer, for every page in the product. Two densities, one anatomy: `compact` is the collection band (a title, a count and its actions, tight enough that the filter row and the first record are both above the fold); `identity` is the record band, which has room for the icon, the eyebrow and a metadata line.
 **Rules.** It **never** contains an email address or logout (those live in the User Menu). Exactly one primary action per pane. It pins (sticky) when hosted by a [Collection Layout](#collection-layout-px-02). Its collection use is governed by the [collection-header anatomy](#the-collection-header-anatomy-uiq-013uiq-014) below.
 
 ### The collection-header anatomy (UIQ-013/UIQ-014)
@@ -2294,7 +2325,9 @@ Contract:
 - **Out of the way when it must be.** It clears the home indicator (`env(safe-area-inset-bottom)`) and translates off-screen while the keyboard is up (`--app-keyboard-inset`), so it can never cover a focused field or an error. Scrolling surfaces reserve `--app-bottomnav-height`.
 - **`display: none` from `md` up.** Desktop is untouched.
 
-A compact top bar keeps the **route title** (not the workspace name — content before chrome), a contextual Back, Search and the route's overflow actions. Routes publish their title through `useSetMobileTopBar`.
+A compact top bar keeps the **route title** (not the workspace name — content before chrome), a contextual Back, Search and the route's overflow actions. Routes publish their title through `useSetMobileTopBar`. **DS-03 took it to 52px** (from M3's 64) at the record-title role: it holds one line of title and one 44px target, and 64 was 20px of padding on the most valuable row of the display. The safe-area inset is added ON TOP of the height, so a notched device clears its cutout and an un-notched one is genuinely 52px.
+
+**DS-03 changed nothing structural about the bottom bar, and that is the finding.** It already met every requirement above — registry-derived, permanently labelled, `aria-current` plus shape plus weight, its own landmark, 44px targets at 320px, safe-area and keyboard-inset aware, complete via More. It took the app-bar surface so that both ends of the phone frame are one colour, and the navigation sheet's two 56px `corner-full` search entries (DS-02's debt #3 — the loudest piece of the old design language left in the product) became the same object as the desktop search field.
 
 ### Shared Quick Capture
 

@@ -35,6 +35,18 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-surface-nav",
   "dh-color-surface-bar",
   "dh-color-surface-selected",
+  /*
+   * DS-03 — the rail's own six. The rail is dark in BOTH appearances, so it is
+   * the one region whose foreground cannot be borrowed from the appearance
+   * around it: `dh-color-text` is near-black in light, which is correct
+   * everywhere else and invisible here.
+   */
+  "dh-color-rail",
+  "dh-color-rail-text",
+  "dh-color-rail-text-muted",
+  "dh-color-rail-border",
+  "dh-color-rail-selected",
+  "dh-color-rail-focus",
   "dh-color-text",
   "dh-color-text-muted",
   "dh-color-text-on-accent",
@@ -160,6 +172,42 @@ export const DALYHUB_DENSITY_TOKEN_NAMES = [
  */
 export const DALYHUB_DENSITIES = ["compact", "default", "touch"] as const;
 
+/**
+ * DS-03 — the SHELL's own measurements.
+ *
+ * Deliberately a separate list from the density tokens above, and the separation
+ * is the contract rather than filing. A density token is a preference: three
+ * presets define all eight of them and a region may declare its own. A shell
+ * measurement is a product decision about the one frame the application has, so
+ * it belongs to nobody's preset — asserted by `dalyhub-tokens.test.ts`, which
+ * requires each density block to define exactly the eight names above.
+ */
+export const DALYHUB_SHELL_TOKEN_NAMES = [
+  "dh-shell-rail-width",
+  "dh-shell-rail-width-collapsed",
+  "dh-shell-bar-height",
+  "dh-shell-mobile-bar-height",
+  "dh-shell-nav-row-height",
+  "dh-shell-gutter",
+  "dh-shell-content-max-width",
+] as const;
+
+/**
+ * DS-03 — the display cutout insets.
+ *
+ * The one definition MOBILE-01 consolidated 53 scattered `env()` calls into,
+ * published in the vocabulary a component reaches for. Each is always a length
+ * (the `0px` fallback is inherited from `--app-safe-area-*`), so they compose
+ * inside `calc()` and `max()` on every browser — including the desktop ones
+ * where the environment variable does not exist at all.
+ */
+export const DALYHUB_SAFE_AREA_TOKEN_NAMES = [
+  "dh-safe-top",
+  "dh-safe-right",
+  "dh-safe-bottom",
+  "dh-safe-left",
+] as const;
+
 /** A DalyHub density name. */
 export type DalyhubDensity = (typeof DALYHUB_DENSITIES)[number];
 
@@ -175,6 +223,8 @@ export const DALYHUB_TOKEN_NAMES: readonly string[] = [
   ...DALYHUB_TYPOGRAPHY_TOKEN_NAMES,
   ...DALYHUB_MOTION_TOKEN_NAMES,
   ...DALYHUB_DENSITY_TOKEN_NAMES,
+  ...DALYHUB_SHELL_TOKEN_NAMES,
+  ...DALYHUB_SAFE_AREA_TOKEN_NAMES,
 ];
 
 /**

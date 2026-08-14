@@ -42,9 +42,26 @@ import { Fragment } from "react";
 import { Link, useLocation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
+import { Tooltip } from "~/shared/tooltip";
+import { useCompactViewport } from "~/shared/viewport";
 
 import { NavIcon } from "./NavIcon";
 import { activeNavigationHref } from "./navigation-active";
+
+/**
+ * DS-03 — the width band at which the rail is COLLAPSED to glyphs.
+ *
+ * The tablet band between DS-01's `md` (768) and `lg` (1024). Below it the rail
+ * is not rendered at all (the phone bar takes over); above it the labels are
+ * visible and the tooltip would only repeat them.
+ *
+ * It mirrors the media query in `shell.css`, which is the authority — the LAYOUT
+ * is CSS, and this boolean exists solely to decide whether a row's label is
+ * currently readable. Keeping presentation in the media query and the one
+ * DOM-affecting consequence here is the rule `useCompactViewport` documents.
+ */
+export const COLLAPSED_RAIL_QUERY =
+  "(min-width: 48rem) and (max-width: 63.9375rem)";
 
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
@@ -53,18 +70,47 @@ export type PrimaryNavigationProps = {
   readonly items: readonly NavigationItem[];
   /** Called when a navigation target is chosen (used to close the mobile sheet). */
   readonly onNavigate?: () => void;
+  /**
+   * Whether this instance is the RAIL, which collapses to glyphs on a tablet.
+   * The mobile sheet never collapses — it is a full-width sheet at every width
+   * it exists at — so it opts out and never pays for the media listener.
+   */
+  readonly collapsible?: boolean;
 };
 
 export function PrimaryNavigation({
   id,
   items,
   onNavigate,
+  collapsible = false,
 }: PrimaryNavigationProps) {
   const { pathname } = useLocation();
   // Exactly one row is current for any route — the longest matching destination.
   const currentHref = activeNavigationHref(
     items.map((item) => item.href),
     pathname,
+  );
+
+  /*
+   * DS-03 — the collapsed rail's rows are glyph-only, so each one needs its
+   * name back.
+   *
+   * The accessible NAME never went anywhere: the label element stays in the DOM
+   * and is hidden with the visually-hidden treatment rather than `display:none`,
+   * so a screen reader reads "Projects" at every width. What a collapsed row
+   * loses is the name for a POINTER and for a sighted keyboard user, and that is
+   * exactly what the shared tooltip is for (M3-TIP finding 2). It is the
+   * description, never the name — the two are different, and a tooltip that is
+   * also the name disappears for anyone whose assistive technology does not
+   * announce descriptions.
+   *
+   * SSR renders `false`, so the first byte is the labelled rail and the tooltip
+   * is only ever added after mount. Nothing about the layout depends on it, so
+   * there is no hydration shift — the width is decided by the media query in
+   * `shell.css`, which the server and the browser resolve identically.
+   */
+  const collapsed = useCompactViewport(
+    collapsible ? COLLAPSED_RAIL_QUERY : NEVER_QUERY,
   );
 
   return (
@@ -82,24 +128,34 @@ export function PrimaryNavigation({
                 </li>
               ) : null}
               <li className="dh-nav__item">
-                <Link
-                  to={item.href}
-                  className={
-                    current
-                      ? "dh-nav__link dh-nav__link--active md-state-layer"
-                      : "dh-nav__link md-state-layer"
-                  }
-                  aria-current={current ? "page" : undefined}
-                  onClick={onNavigate}
+                <Tooltip
+                  label={item.label}
+                  placement="bottom"
+                  disabled={!collapsed}
                 >
-                  <span className="dh-nav__icon">
-                    <NavIcon
-                      entityType={item.entityType}
-                      navIcon={item.navIcon}
-                    />
-                  </span>
-                  <span className="dh-nav__label">{item.label}</span>
-                </Link>
+                  {(tip) => (
+                    <Link
+                      to={item.href}
+                      ref={tip.ref}
+                      className={
+                        current
+                          ? "dh-nav__link dh-nav__link--active md-state-layer"
+                          : "dh-nav__link md-state-layer"
+                      }
+                      aria-current={current ? "page" : undefined}
+                      aria-describedby={tip.describedBy}
+                      onClick={onNavigate}
+                    >
+                      <span className="dh-nav__icon">
+                        <NavIcon
+                          entityType={item.entityType}
+                          navIcon={item.navIcon}
+                        />
+                      </span>
+                      <span className="dh-nav__label">{item.label}</span>
+                    </Link>
+                  )}
+                </Tooltip>
               </li>
             </Fragment>
           );
@@ -108,3 +164,13 @@ export function PrimaryNavigation({
     </div>
   );
 }
+
+/**
+ * A query that is never true, for the sheet instance.
+ *
+ * `useCompactViewport` takes a query rather than a boolean, so opting out means
+ * handing it something that cannot match. `not all` is the CSS idiom for exactly
+ * that and is what `matchMedia` returns for an unparseable query anyway, so this
+ * is the honest spelling of "this instance never collapses".
+ */
+const NEVER_QUERY = "not all";

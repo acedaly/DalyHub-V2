@@ -177,6 +177,7 @@ body {
   .dh-inline-edit__edit,
   .dh-inline-select__option,
   .dh-user-menu__link,
+  .dh-user-menu__trigger,
   .dh-mobilebar__back,
   .dh-mobilebar__action,
   .dh-command__close
@@ -200,6 +201,7 @@ body {
   .dh-inline-edit__edit,
   .dh-inline-select__option,
   .dh-user-menu__link,
+  .dh-user-menu__trigger,
   .dh-mobilebar__back,
   .dh-mobilebar__action,
   .dh-command__close
@@ -231,6 +233,7 @@ body {
     .dh-inline-edit__edit,
     .dh-inline-select__option,
     .dh-user-menu__link,
+    .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
     .dh-command__close
@@ -263,6 +266,7 @@ body {
     .dh-inline-edit__edit,
     .dh-inline-select__option,
     .dh-user-menu__link,
+    .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
     .dh-command__close
@@ -289,6 +293,7 @@ body {
     .dh-inline-edit__edit,
     .dh-inline-select__option,
     .dh-user-menu__link,
+    .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
     .dh-command__close
@@ -315,6 +320,7 @@ body {
     .dh-inline-edit__edit,
     .dh-inline-select__option,
     .dh-user-menu__link,
+    .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
     .dh-command__close

@@ -492,6 +492,40 @@ const DEFAULT_SURFACE_TONES = {
     "surface-raised": 100,
     "surface-sunken": 94,
     "outline-hairline": 92,
+    /*
+     * DS-03 — THE RAIL, which is dark in BOTH appearances.
+     *
+     * This is the one place in the ladder where light does not mean light, and
+     * it is deliberate rather than an oversight. Both concept references draw
+     * the permanent navigation rail as a near-black column beside a bright
+     * working canvas, in a LIGHT application, and that single inversion is what
+     * the product is recognised by before a word of it is read — it is the
+     * difference between "a productivity app" and "DalyHub".
+     *
+     * It is a SEPARATE family from `surface-navigation` rather than a re-toning
+     * of it, and the distinction is real: `surface-navigation` is the surface a
+     * navigation object paints when it sits ON the page — the phone bar, the
+     * modal navigation sheet — and those must stay bright in the light
+     * appearance, because they are drawn over a bright page a thumb is holding.
+     * The rail is not on the page; it is the frame the page sits inside.
+     *
+     * 14 rather than a lower rung: the app-neutral palette is rotated to the
+     * cool end, so tone 17 is a deep blue-charcoal rather than a black, and the
+     * selected destination's violet has something to be violet AGAINST. Below
+     * ~12 the mix loses its hue and the rail reads as a black bar.
+     *
+     * The foregrounds travel with it, because a surface whose value inverts
+     * cannot borrow `on-surface` from the appearance around it — that is exactly
+     * how a dark rail ships with invisible labels. `on-rail` carries the label
+     * and the brand; `on-rail-muted` carries an unselected destination and the
+     * account line beneath it; `rail-hairline` is the one quiet edge inside it.
+     * Every pair is asserted in `contrast.test.ts`, for all five schemes, in
+     * both appearances.
+     */
+    "surface-rail": 14,
+    "on-rail": 97,
+    "on-rail-muted": 74,
+    "rail-hairline": 30,
   },
   /*
    * VIS-01 lifted the whole dark ladder off black.
@@ -521,6 +555,22 @@ const DEFAULT_SURFACE_TONES = {
     "surface-raised": 21,
     "surface-sunken": 7,
     "outline-hairline": 25,
+    /*
+     * DS-03 — the rail in dark, BELOW the canvas rather than above it.
+     *
+     * Electric already showed what this looks like and why it works: navigation
+     * drops under the page so the shell reads as a deep frame around a lighter
+     * working surface. In the light appearance the rail gets that effect from
+     * the inversion; in dark it gets it from depth, and 8 against the page's 10
+     * is the same two-tone step the light ladder spends between page and
+     * navigation. The rail is therefore the darkest thing on a dark screen and
+     * the darkest thing on a light one, which is what makes it the same object
+     * in both — the "designed, not auto-inverted" half of dark mode.
+     */
+    "surface-rail": 8,
+    "on-rail": 94,
+    "on-rail-muted": 70,
+    "rail-hairline": 22,
   },
 };
 
@@ -546,12 +596,23 @@ const DEFAULT_SURFACE_TONES = {
  * (docs/design/M3_EXPRESSIVE_AUDIT_2026_08 §4). Halving the strength in dark is
  * what makes ONE authored surface correct in both appearances.
  *
- *   expressive  the page's one branded surface (`surface-expressive`)
- *   supporting  a Level 2 supporting expressive surface (`surface-supporting`)
- *   selected    the navigation drawer's selected destination
- *   state       a record-state tint — overdue work, a flagged run
- *   identity    an entity's identity mark
- *   wash        a glance widget's very pale tinted panel
+ *   expressive     the page's one branded surface (`surface-expressive`)
+ *   supporting     a Level 2 supporting expressive surface (`surface-supporting`)
+ *   selected       the navigation drawer's selected destination
+ *   state          a record-state tint — overdue work, a flagged run
+ *   identity       an entity's identity mark
+ *   wash           a glance widget's very pale tinted panel
+ *   rail-selected  DS-03's selected destination ON THE DARK RAIL
+ *
+ * `rail-selected` is a second selection strength rather than a reuse of
+ * `selected`, and the reason is the surface underneath rather than the role on
+ * top. `selected` mixes a pale container into a BRIGHT navigation surface, where
+ * a third of the container is already as much colour as a quiet drawer can take.
+ * The rail is near-black in both appearances, so the same third of a violet
+ * disappears into it: the concepts draw that row as a confident violet block,
+ * and reaching it needs roughly twice the mix. Both are still mixes toward the
+ * surface they sit on, which is the property that makes one authored rule
+ * correct in every scheme.
  *
  * THEME-01 lets a scheme override any of them (Pulse does; see its definition),
  * because "how much of the container to take" is a statement about how loud that
@@ -565,6 +626,7 @@ const DEFAULT_TINT_STRENGTHS = {
     state: "45%",
     identity: "100%",
     wash: "40%",
+    "rail-selected": "62%",
   },
   dark: {
     expressive: "28%",
@@ -573,6 +635,7 @@ const DEFAULT_TINT_STRENGTHS = {
     state: "30%",
     identity: "48%",
     wash: "8%",
+    "rail-selected": "80%",
   },
 };
 
@@ -1069,6 +1132,35 @@ function buildOneScheme(scheme) {
       out[mode][`app-${name}`] = hexFromArgb(appNeutral.tone(tone));
     }
   }
+
+  /*
+   * DS-03 — the rail's ACCENT SOURCE, which is a different role per appearance.
+   *
+   * The rail is dark in both appearances, and the current destination is a block
+   * of the product's colour mixed into it. Which ROLE supplies that colour cannot
+   * be the same in both, and the reason is M3's own construction rather than a
+   * DalyHub preference: `primary` is a saturated mid-tone violet in LIGHT and a
+   * pale tone-80 violet in DARK, because in dark it has to be legible AS TEXT on
+   * a dark surface. Mixing the dark `primary` into a near-black rail therefore
+   * produces a pale lavender pill — a light object on a dark rail, which is the
+   * opposite of the confident violet block the concepts draw, and which was
+   * measured on the first build of this.
+   *
+   * `primary-container` is the mirror image: a pale lilac in light and a
+   * saturated tone-30 violet in dark, because a CONTAINER is a surface rather
+   * than a foreground. So each appearance takes the role that is the saturated
+   * violet IN that appearance, and the one `color-mix` in `tokens.css` is then
+   * correct in both without an appearance rule anywhere outside this file —
+   * which is what `appearance-cascade.test.ts` requires.
+   *
+   * It is emitted alongside the application surfaces because that is what it is:
+   * a value the APPLICATION composes a surface from. It is deliberately not a
+   * seventh entry in the surface-tone table — it does not come from the
+   * app-neutral palette at all, which is the whole point of it.
+   */
+  out.light["app-rail-accent"] = out.light.primary;
+  out.dark["app-rail-accent"] = out.dark["primary-container"];
+  appSurfaceNames.push("rail-accent");
 
   return { colors: out, systemRoleNames, customGroups, appSurfaceNames };
 }

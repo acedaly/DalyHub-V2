@@ -5,12 +5,19 @@
  * (PRODUCT_EXPERIENCE #4): the owner's name, their verified email, a Settings
  * link and Sign out.
  *
- * It renders in two places, which is why `placement` and `compact` exist rather
- * than two components: the DESKTOP top app bar (compact — avatar and chevron
- * only, opening downward) and the MOBILE navigation sheet (full — avatar, name
- * and chevron, opening upward from the bottom of the sheet). The disclosure
- * behaviour, the panel contents and the focus handling are identical in both,
- * so there is one implementation and two skins.
+ * It renders in two places and they are the same shape: the bottom of the
+ * DESKTOP RAIL and the bottom of the MOBILE navigation sheet. In both the
+ * trigger is pinned to the end of a column and the panel opens upward from it,
+ * so there is one implementation and no variant.
+ *
+ * DS-03 removed the `compact` variant and the downward `placement`. They existed
+ * for the desktop top app bar, where the account was an avatar and a chevron in a
+ * trailing cluster; DS-03 moved the account into the rail (identity belongs with
+ * the frame's other identity — see `Sidebar`), which left both options with no
+ * caller. An option nothing selects is a branch nobody tests. The COLLAPSED rail
+ * is the case that looks like it wants `compact`, and it is handled where it
+ * belongs — in CSS, by the media query that collapses everything else in the
+ * column — so the component does not have to know how wide it currently is.
  *
  * APPEARANCE-01 puts the appearance choice here — the second of its two homes,
  * alongside Settings → General. It is one shared control (`AppearanceSelector`)
@@ -38,7 +45,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { useSignOut } from "~/shared/account-security";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
-import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import { ACCESS_LOGOUT_PATH } from "./access-logout";
 import { AppearanceSelector } from "./AppearanceSelector";
@@ -75,14 +81,6 @@ export type UserMenuProps = {
    * no dead ends). SET-01 threads a real href through here to light it up.
    */
   readonly settingsHref?: string;
-  /**
-   * Which way the panel opens. `below` for the top app bar, `above` for a
-   * control pinned to the bottom of a sheet. Defaults to `above`, the original
-   * sidebar-bottom behaviour.
-   */
-  readonly placement?: "above" | "below";
-  /** Avatar and chevron only, without the name — for the top app bar. */
-  readonly compact?: boolean;
 };
 
 export function UserMenu({
@@ -90,8 +88,6 @@ export function UserMenu({
   name,
   appearance = "system",
   settingsHref,
-  placement = "above",
-  compact = false,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const signOut = useSignOut();
@@ -130,11 +126,10 @@ export function UserMenu({
   }, [open]);
 
   /*
-   * The panel is rendered BEFORE the trigger when it opens upward and AFTER it
-   * when it opens downward, so the DOM order matches the visual order in both
-   * placements and a keyboard user tabs through the panel in the direction they
-   * see it. (The panel is positioned absolutely either way; this is about
-   * reading order, not layout.)
+   * The panel is rendered BEFORE the trigger, because it opens upward: the DOM
+   * order then matches the visual order, and a keyboard user tabs through the
+   * panel in the direction they see it. (The panel is positioned absolutely;
+   * this is about reading order, not layout.)
    */
   const panel = open ? (
     <div
@@ -204,50 +199,46 @@ export function UserMenu({
    * The full trigger already shows the name in text, so it gets no tooltip —
    * a tooltip that repeats visible text is noise. No tooltip while the panel is
    * open either: the panel says far more than the trigger could.
+   *
+   * DS-03 — the NAME is stated as an `aria-label`, where it used to be a
+   * visually-hidden span in the compact variant only. It matters because the
+   * trigger now lives at the bottom of the rail, where its visible text is the
+   * owner's display name and nothing else: a control announced as "Owner,
+   * button" says who but not what, in a landmark full of destinations. "Account
+   * — Owner" says both, and it still CONTAINS the visible text, which is what
+   * WCAG 2.5.3 (label in name) requires so a voice-control user can say what
+   * they can see.
+   *
+   * There is no tooltip: the trigger shows the name in text at the width the
+   * label is visible, and a tooltip that repeats visible text is noise. The
+   * COLLAPSED rail hides the name visually — the `aria-label` above is what
+   * carries it there, which is a name rather than a description and so does not
+   * disappear for anyone whose assistive technology skips descriptions.
    */
   const trigger = (
-    <Tooltip
-      label={`Account — ${displayName}`}
-      placement="bottom"
-      disabled={!compact || open}
+    <button
+      type="button"
+      className="dh-user-menu__trigger"
+      ref={triggerRef}
+      aria-expanded={open}
+      aria-controls={open ? panelId : undefined}
+      aria-label={`Account — ${displayName}`}
+      onClick={() => setOpen((value) => !value)}
     >
-      {(tip) => (
-        <button
-          type="button"
-          className="dh-user-menu__trigger"
-          ref={composeRefs(triggerRef, tip.ref)}
-          aria-expanded={open}
-          aria-controls={open ? panelId : undefined}
-          aria-describedby={tip.describedBy}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span className="dh-user-menu__avatar" aria-hidden="true">
-            {initials}
-          </span>
-          {compact ? null : (
-            <span className="dh-user-menu__trigger-name">{displayName}</span>
-          )}
-          <span className="dh-user-menu__chevron" aria-hidden="true">
-            <ChevronDownIcon />
-          </span>
-          {compact ? (
-            <span className="dh-visually-hidden">Account — {displayName}</span>
-          ) : null}
-        </button>
-      )}
-    </Tooltip>
+      <span className="dh-user-menu__avatar" aria-hidden="true">
+        {initials}
+      </span>
+      <span className="dh-user-menu__trigger-name">{displayName}</span>
+      <span className="dh-user-menu__chevron" aria-hidden="true">
+        <ChevronDownIcon />
+      </span>
+    </button>
   );
 
   return (
-    <div
-      className={`dh-user-menu dh-user-menu--${placement}${
-        compact ? " dh-user-menu--compact" : ""
-      }`}
-      ref={containerRef}
-    >
-      {placement === "above" ? panel : null}
+    <div className="dh-user-menu" ref={containerRef}>
+      {panel}
       {trigger}
-      {placement === "below" ? panel : null}
     </div>
   );
 }
