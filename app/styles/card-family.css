@@ -3237,79 +3237,27 @@
  * a rung, and the padding comes in. Same DOM, same reading order, same
  * accessible names.
  */
-@media (max-width: 48rem) {
-  .dh-pcard {
-    gap: var(--app-space-3);
-    padding: var(--app-card-padding-compact);
-    border-radius: var(--app-shape-card);
-  }
-
-  /* The mark steps down: at row density a 56px square is the loudest thing on
-   * the screen, and identity only has to be recognisable, not dominant. */
-  .dh-pcard__mark > .dh-accent-icon {
-    inline-size: var(--app-entity-icon-container-size);
-    block-size: var(--app-entity-icon-container-size);
-    border-radius: var(--md-sys-shape-corner-medium);
-    font-size: var(--app-entity-icon-size);
-  }
-
-  .dh-pcard__mark > .dh-accent-icon .dh-icon {
-    inline-size: var(--app-entity-icon-size);
-    block-size: var(--app-entity-icon-size);
-  }
-
-  /*
-   * The figure joins the BAR's row rather than sitting on one of its own. On a
-   * phone the percentage and the bar are one statement, and giving them two
-   * lines spent ~40px per card saying it twice over.
-   */
-  .dh-pcard__progress {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--app-space-3);
-  }
-
-  .dh-pcard__figures {
-    flex: none;
-    order: 2;
-    gap: var(--app-space-2);
-  }
-
-  .dh-pcard__track {
-    /* `flex: 1` is safe here and not in the column layout: the axis is now the
-     * inline one, so a flex factor resolves against width rather than
-     * collapsing the bar's height to nothing. */
-    flex: 1;
-    order: 1;
-    min-inline-size: 0;
-  }
-
-  /* The percentage steps down with everything else — it is still the largest
-   * figure on the row, but the row is 36px rather than 60px. */
-  .dh-pcard__percent {
-    font-size: var(--md-sys-typescale-title-medium-size);
-    line-height: var(--md-sys-typescale-title-medium-line-height);
-  }
-
-  /*
-   * The trailing fact joins the ATTENTION line, opposite it — the row that
-   * already exists and has spare width, rather than a third line of its own.
-   */
-  .dh-pcard__foot {
-    gap: var(--app-space-2);
-  }
-
-  .dh-pcard__attention {
-    font-size: var(--md-sys-typescale-body-small-size);
-    line-height: var(--md-sys-typescale-body-small-line-height);
-  }
-
-  /* A card with no progress keeps no reserved height on a phone: there is no
-   * row of neighbours to share a baseline with when the grid is one column. */
-  .dh-pcard__figures--factonly {
-    min-block-size: 0;
-  }
-}
+/*
+ * DS-05 — the phone block is GONE, because the desktop card became it.
+ *
+ * Everything this block did — `--app-card-padding-compact`, the mark a rung
+ * down, the percentage on the bar's row rather than above it, the attention line
+ * at meta size — is what `.dh-pcard` now does at every width. Keeping a phone
+ * override that restates the default would be harmless; keeping THIS one was
+ * not, and it is worth recording why.
+ *
+ * The rules were written against a FLEX column. `.dh-pcard__progress` is now a
+ * two-track grid, and on a grid container `flex-direction: row` is inert, `flex:
+ * 1` on a child is inert, and `order` reorders items that are already placed. So
+ * the bar lost the only declaration that gave it width and collapsed to nothing:
+ * MEASURED on `final/projects-390-light.png` as a card with a large "38%" on a
+ * line of its own and no track at all — the exact composition this block existed
+ * to prevent, produced by the block itself.
+ *
+ * The lesson is narrow and worth keeping: a responsive override inherits the
+ * LAYOUT MODEL of the rule it overrides, and changing that model silently turns
+ * the override into dead declarations that are not inert but wrong.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* EntityRow — the phone composition                                          */
