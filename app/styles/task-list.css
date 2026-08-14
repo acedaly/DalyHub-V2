@@ -104,6 +104,54 @@
   padding-block: 0 var(--dh-space-2);
 }
 
+/*
+ * "Filter & sort" is a GHOST control, not an outlined box.
+ *
+ * The concept's control band carries two quiet text buttons at its trailing
+ * edge; DalyHub carries one, and it was a bordered, filled capsule — after the
+ * primary "New task" it was the second-loudest object on the page, sitting in
+ * the band whose whole job is to be quiet enough that the first task is what
+ * you see. The border arrives on hover and on focus, where a control's edge is
+ * what says "this is pressable"; the ACTIVE-filter count beside it is
+ * unchanged, because that is information rather than chrome.
+ */
+/*
+ * The saved-view trigger joins the trailing CLUSTER.
+ *
+ * `tasks.css` already intends this — it gives the trigger `margin-inline-start:
+ * auto` so it follows the tab rail across the free space — but the rail's own
+ * container hugs its content, so there was never any free space for the margin
+ * to consume and "View · All active · ⋯" sat immediately after the last tab, in
+ * the middle of the row. Letting the container grow is what makes the existing
+ * rule true, and it puts every control that SHAPES the list at the trailing
+ * edge, which is where the concept clusters them.
+ */
+@media (min-width: 48rem) {
+  .dh-collection--tasks .dh-tasks-views {
+    flex: 1 1 auto;
+  }
+}
+
+.dh-collection--tasks .dh-collection-controls__trigger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--dh-color-text-muted);
+}
+
+@media (hover: hover) {
+  .dh-collection--tasks .dh-collection-controls__trigger:hover {
+    border-color: var(--dh-color-border);
+    background: var(--dh-color-surface-quiet);
+    color: var(--dh-color-text);
+  }
+}
+
+.dh-collection--tasks .dh-collection-controls__trigger:focus-visible,
+.dh-collection--tasks .dh-collection-controls__trigger[aria-expanded="true"] {
+  border-color: var(--dh-color-border-strong);
+  color: var(--dh-color-text);
+}
+
 /* -------------------------------------------------------------------------- */
 /* The list                                                                    */
 /* -------------------------------------------------------------------------- */

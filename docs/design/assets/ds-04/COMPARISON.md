@@ -46,8 +46,15 @@ the real dev server and the real seeded workspace.
   the title; DalyHub's three presentations are in the header's overflow, which is
   where UIX-01 put a decision made once a week.
 - The concept draws `Filter` and `Sort` as two ghost buttons in the title row;
-  DalyHub has one "Filter & sort" control at the end of the tab row, because one
-  shared sheet carries all sixteen filter dimensions at every width (TASKS-03).
+  DalyHub has one ghost "Filter & sort" control at the end of the tab row,
+  because one shared sheet carries all sixteen filter dimensions at every width
+  (TASKS-03). Every control that SHAPES the list — the saved-view trigger, its
+  manage menu and the filter sheet — is clustered at that trailing edge, which
+  is the concept's composition.
+- The concept gives its metadata ~60% of the row and DalyHub gives it ~48%. The
+  columns were widened toward it and stopped short deliberately (§31): the title
+  is the only flexible track, so every pixel handed to metadata is one a long
+  title loses.
 - The concept has no group headings — it shows one flat scope at a time. DalyHub
   groups by due state, which is a real feature and not a difference to close.
 

@@ -70,6 +70,8 @@ hovered one.
 | 12 | Selector: bounded set with no way out | `searchAction` → the shared searchable picker | `final/project-selector.png` | ✅ |
 | 13 | Header band 154px of chrome | count inline with the title; bands tightened | `final/tasks-1440-light.png` | ✅ |
 | 14 | Overdue crimson checkbox ring | ring stays neutral; the date and the heading carry the state | `final/task-row-overdue.png` | ✅ |
+| 15 | Filter & sort an outlined capsule; view chrome mid-row | ghost control, and every list-shaping control clustered at the trailing edge | `final/tasks-1440-light.png` | ✅ |
+| 16 | Metadata block ended at ~55% of the width (concept: ~38%) | columns widened to 13/7.5/4.5/7rem; ends at ~52% | `final/tasks-1440-light.png` | ✅ |
 
 ## 4. Visual convergence decisions
 
@@ -109,6 +111,38 @@ minimum, filling its grid track so the whole column is the target.
 priority's own foreground colour, and only the two-character tag is muted — muting
 the whole indicator turned four priorities into four identical grey dots and cost
 the list the signal it is triaged by.
+
+## 4b. Three defects the CHECKS found and the eye did not
+
+Recorded because each is a class of mistake a visual pass invites, and none of
+them was visible on a screenshot.
+
+**The shared trigger's negative margin.** `.dh-inline-edit__trigger` carries
+`margin-inline: -8px` so its text aligns optically with the static value it
+replaces — right in a wrapping metadata run, and the root cause of every
+"partially obscured" `target-size` violation on a column grid, because each
+trigger overhung its neighbours by 8px on each side. Measured: a 24px date
+button at x=774 under a priority trigger starting at x=790, in a cell starting
+at 798. Two earlier fixes (a height floor, then a width floor) only moved the
+symptom; the margin was the cause. In a grid the CELL aligns.
+
+**The pinned header slid under the top bar.** `.dh-topbar` is
+`position: sticky; top: 0` at a higher z-rung, and `.dh-collection__sticky` was
+also `top: 0`, so on a scrolled page the collection's header — including the
+page's one primary action — went behind 56px of bar. axe reported it as "New
+task" reduced to 114.5×6.5px of unobscured target, which is what a control
+hidden behind another control looks like to a machine. It predates DS-04, it
+affects all twelve collections, and it is one declaration.
+
+**Opacity is not a way to say "done".** A 0.72 layer over the muted role
+composites to 4.28:1 on white and over the overdue role to 4.16:1 — both below
+1.4.3, both introduced by this pass, neither visible as a defect. The completed
+row already says it is finished twice, in the title and the status column.
+
+The generalisation, now [D43](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material):
+**an affordance may be invisible until hover; it may never be smaller than
+24×24, and it may never be dimmed below contrast.** Quiet is a property of the
+paint.
 
 ## 5. What DS-04 deliberately did NOT do
 

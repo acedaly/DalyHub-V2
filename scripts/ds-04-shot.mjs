@@ -213,6 +213,15 @@ if (SET === "all" || SET === "rows") {
 
   const clip = async (locator, name) => {
     await settle(page);
+    // A scope can legitimately be EMPTY on a given dataset (an Inbox with
+    // nothing unfiled is the goal, not a failure), and a shooter that dies on
+    // one missing state loses the states after it too.
+    if ((await locator.count()) === 0) {
+      process.stdout.write(
+        `${PREFIX}${name} — skipped (no row in this scope)\n`,
+      );
+      return;
+    }
     await locator.screenshot({ path: `${OUT}/${PREFIX}${name}.png` });
     process.stdout.write(`${PREFIX}${name}\n`);
   };
