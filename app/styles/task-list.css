@@ -392,7 +392,17 @@
 .dh-taskrow__cell {
   display: flex;
   align-items: center;
-  min-inline-size: 0;
+  /*
+   * The CELL carries the 24px floor too, not only the trigger inside it.
+   *
+   * On the two-line composition the cells hug their content, so a two-character
+   * priority gave an 18px cell holding a 24px-minimum button — which overflowed
+   * its own cell and overhung the DATE beside it by 6–8px. axe reported that
+   * correctly and unhelpfully as the date being "partially obscured": the
+   * neighbour was the thing at fault. A cell that cannot be narrower than the
+   * target it holds cannot produce the overlap.
+   */
+  min-inline-size: var(--dh-space-6);
 
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);

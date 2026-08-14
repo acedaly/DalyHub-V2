@@ -45,7 +45,6 @@ import { Menu, type MenuItem } from "~/shared/ui";
 import { RepeatIcon } from "~/shared/icons";
 import type { TaskPriority } from "~/kernel/tasks";
 
-import { PriorityIndicator } from "./PriorityIndicator";
 import {
   InlineTaskDate,
   InlineTaskParent,
@@ -226,33 +225,44 @@ export function TaskRow({
          * Completion. The SAME control the whole product uses, at the row's
          * leading edge, with a real accessible name that says which task it
          * finishes — never a bare "complete" repeated down a list.
+         *
+         * A READ-ONLY row draws none. The Deleted view is a recovery surface:
+         * a soft-deleted task is invisible to every ordinary mutation, so a
+         * completion control there is one that can only ever fail. A disabled
+         * checkbox would still be announced, and would still say the task can
+         * be finished. Restore it first.
          */}
-        <label className="dh-check-circle-target dh-taskrow__complete">
-          <input
-            type="checkbox"
-            className="dh-check-circle"
-            checked={task.completed}
-            disabled={readOnly}
-            data-testid="task-complete"
-            /*
-             * DS-04 — the ring does NOT take the overdue colour.
-             *
-             * It did, and in a bucket called Overdue that painted a column of
-             * fourteen crimson circles down the left edge of the page — the
-             * loudest object on a screen whose product principle is calm over
-             * urgent (AGENTS.md §2). The state is already said twice, in words:
-             * the due date reads "Yesterday" or a passed date in the overdue
-             * colour, and the group heading above says Overdue. A third,
-             * larger, colour-only restatement of it on the control that
-             * FINISHES the task is not a signal, it is alarm.
-             */
-            aria-label={
-              task.completed ? `Reopen ${task.title}` : `Complete ${task.title}`
-            }
-            onChange={(event) => onCompletedChange(event.currentTarget.checked)}
-            onClick={(event) => event.stopPropagation()}
-          />
-        </label>
+        {readOnly ? null : (
+          <label className="dh-check-circle-target dh-taskrow__complete">
+            <input
+              type="checkbox"
+              className="dh-check-circle"
+              checked={task.completed}
+              data-testid="task-complete"
+              /*
+               * DS-04 — the ring does NOT take the overdue colour.
+               *
+               * It did, and in a bucket called Overdue that painted a column of
+               * fourteen crimson circles down the left edge of the page — the
+               * loudest object on a screen whose product principle is calm over
+               * urgent (AGENTS.md §2). The state is already said twice, in words:
+               * the due date reads "Yesterday" or a passed date in the overdue
+               * colour, and the group heading above says Overdue. A third,
+               * larger, colour-only restatement of it on the control that
+               * FINISHES the task is not a signal, it is alarm.
+               */
+              aria-label={
+                task.completed
+                  ? `Reopen ${task.title}`
+                  : `Complete ${task.title}`
+              }
+              onChange={(event) =>
+                onCompletedChange(event.currentTarget.checked)
+              }
+              onClick={(event) => event.stopPropagation()}
+            />
+          </label>
+        )}
       </span>
 
       <Heading className="dh-taskrow__main">
@@ -405,16 +415,4 @@ export function TaskRow({
       </span>
     </li>
   );
-}
-
-/**
- * The row's priority cell, exported so a caller can render the same mark outside
- * a row (a bulk bar's summary, a Drawer field) without re-deriving it.
- */
-export function TaskRowPriority({
-  priority,
-}: {
-  readonly priority: TaskRowData["priority"];
-}) {
-  return <PriorityIndicator priority={priority} />;
 }

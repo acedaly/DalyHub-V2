@@ -158,7 +158,7 @@ test.describe("EDIT-03 — phone, 390", () => {
     // whose searchable picker is the right control for a set this large. It is
     // unchanged by EDIT-03 and captured so the trio can be compared.
     await gotoFixture(page, "/tasks");
-    const card = page.locator(".dh-card").first();
+    const card = page.locator("[data-testid='task-row']").first();
     await card.getByRole("button", { name: /^More actions for / }).click();
     await page.getByRole("menuitem", { name: /Priority, dates/ }).click();
     await expect(page.getByRole("combobox").first()).toBeVisible();

@@ -5,6 +5,8 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRows,
+  taskRow,
 } from "./helpers";
 
 /**
@@ -81,9 +83,17 @@ async function expectUnclipped(page: Page, minHeight: number) {
   expect(geometry?.height ?? 0).toBeGreaterThanOrEqual(minHeight);
 }
 
-/** The first task row — used only where the test does not MUTATE it. */
+/**
+ * The first task row — used only where the test does not MUTATE it.
+ *
+ * DS-04 — `/tasks` renders the product-level `TaskRow` rather than the generic
+ * Card, so the row is a list item and not an `<article>` in a card collection.
+ * The assertions below are unchanged: they are about the OVERLAY escaping the
+ * row that clips it, which is a property of the editor rather than of whatever
+ * the row is made of.
+ */
 function firstRow(page: Page): Locator {
-  return page.locator(".dh-card-collection--list .dh-card").first();
+  return taskRows(page).first();
 }
 
 /**
@@ -113,7 +123,7 @@ async function captureProbe(page: Page, suffix: string): Promise<string> {
   const quickAdd = page.getByRole("textbox", { name: "Task title" });
   await quickAdd.fill(title);
   await quickAdd.press("Enter");
-  const row = page.locator(".dh-card", { hasText: title }).first();
+  const row = taskRow(page, title).first();
   await expect(row).toBeVisible();
   return title;
 }
@@ -192,7 +202,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     page,
   }) => {
     const title = await captureProbe(page, "priority");
-    const row = page.locator(".dh-card", { hasText: title }).first();
+    const row = taskRow(page, title).first();
 
     // A freshly captured task has no priority, so the menu is the four REAL
     // values and nothing else: the unset state is the field's empty state, not
@@ -250,7 +260,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     page,
   }) => {
     const title = await captureProbe(page, "project");
-    const row = page.locator(".dh-card", { hasText: title }).first();
+    const row = taskRow(page, title).first();
 
     await openEditor(page, row, "task-row-parent");
     const menu = page.getByRole("menu");
@@ -310,7 +320,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     page,
   }) => {
     const title = await captureProbe(page, "due");
-    const row = page.locator(".dh-card", { hasText: title }).first();
+    const row = taskRow(page, title).first();
 
     await openEditor(page, row, "task-row-due-date");
     const popover = page.getByRole("dialog", { name: "Edit due date" });

@@ -82,7 +82,6 @@ import {
 import {
   formatCalendarDate,
   taskPriorityLabel,
-  taskUrgency,
   timeSectorLabel,
   type SerializedTaskListItem,
   type TaskListItemPatch,
@@ -1179,15 +1178,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
    */
   const toRowProps = useCallback(
     (card: TaskCardData, headingLevel: 2 | 3): TaskRowProps => {
-      const urgency = taskUrgency(
-        {
-          completedAt: card.completed ? "done" : null,
-          dueDate: card.dueDate,
-          scheduledDate: card.scheduledDate,
-        },
-        data.todayIso,
-      );
-      void urgency;
       /*
        * PWA-12 — the ONE thing a row says about synchronisation, and only when
        * there is something to say.
@@ -1778,20 +1768,19 @@ function GroupedBucket({
    * layout, and that difference is still CSS.
    */
   return (
-    <div className={className}>
-      <TaskGroup
-        title={section.title}
-        count={section.count}
-        headingLevel={2}
-        moreHref={href}
-      >
-        {section.cards.length > 0 ? (
-          renderCollection(section.cards, `${section.title} tasks`, 3)
-        ) : (
-          <p className="dh-tasks-section__empty">Nothing here.</p>
-        )}
-      </TaskGroup>
-    </div>
+    <TaskGroup
+      title={section.title}
+      count={section.count}
+      headingLevel={2}
+      moreHref={href}
+      className={className}
+    >
+      {section.cards.length > 0 ? (
+        renderCollection(section.cards, `${section.title} tasks`, 3)
+      ) : (
+        <p className="dh-tasks-section__empty">Nothing here.</p>
+      )}
+    </TaskGroup>
   );
 }
 

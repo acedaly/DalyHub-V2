@@ -115,6 +115,13 @@ export interface TaskGroupProps {
   readonly headingLevel?: 2 | 3;
   /** "View all N", when the bucket holds more than the slice. */
   readonly moreHref?: string | null;
+  /**
+   * The presentation's own container class (`dh-tasks-grouped__section`,
+   * `dh-tasks-board__column`, `dh-tasks-sectors__column`). It lands on the SAME
+   * element as the region's name rather than on a wrapper, so a bucket is one
+   * object: one landmark, one layout box, one thing to select.
+   */
+  readonly className?: string;
   readonly children: ReactNode;
 }
 
@@ -123,6 +130,7 @@ export function TaskGroup({
   count,
   headingLevel = 2,
   moreHref = null,
+  className,
   children,
 }: TaskGroupProps) {
   const Heading = `h${headingLevel}` as const;
@@ -135,7 +143,7 @@ export function TaskGroup({
      * screen reader announce the number twice.
      */
     <section
-      className="dh-taskgroup"
+      className={["dh-taskgroup", className].filter(Boolean).join(" ")}
       aria-label={title}
       data-testid="task-group"
     >
