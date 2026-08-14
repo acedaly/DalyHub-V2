@@ -94,7 +94,7 @@ CI is defined in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
 and runs on pull requests and pushes to `main`. Playwright is by far the
 slowest part of the suite, so the workflow is split into independent jobs that
 run **concurrently** instead of one long sequential job, with Playwright itself
-sharded across multiple runners.
+partitioned across multiple runners by measured execution time.
 
 **Five names, and each one answers a different question.** #158 (2026-08-11)
 collapsed a 23-status pipeline into this, on the principle that a developer
@@ -107,7 +107,7 @@ opening a job:
 | **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `icons:check` | the source does not meet the repository's own rules |
 | **Unit** | `pnpm run test:unit`, then `pnpm run test:kernel` (real Workers runtime + local D1) | application or kernel logic is wrong |
 | **Build** | `pnpm run build`, `wrangler deploy --dry-run` against the generated config, then uploads `build/` as the `production-build` artifact | it does not build, or it would not deploy |
-| **E2E _n_/8** | An **eight-way** matrix; each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner | the product misbehaves in a real browser |
+| **E2E p01…p10** | A **ten-way** matrix, one job per time-balanced partition of the suite; each downloads the `production-build` artifact and runs its own spec files on its own runner | the product misbehaves in a real browser — or a partition did not finish, which the job says in those words |
 | **CI Gate** | Depends on every job above; the one stable required check (see below) | something above is not green |
 
 `Static` and `Scope` have no `if:`, so they always run. `Unit`, `Build` and the
@@ -124,80 +124,117 @@ install exactly, and it was never on the critical path (E2E is). One fewer
 status and one fewer install, with no coverage lost — the step names still say
 which suite failed.
 
-### Playwright sharding
+### The E2E partition (HARDEN-04)
 
-The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, … 8]`), not
-eight copy-pasted jobs, so changing the shard count is a one-line change.
+The Playwright job is a GitHub Actions **matrix**, one job per partition of
+[`e2e/partitions.json`](../../e2e/partitions.json). The matrix list itself is
+read out of that manifest by the `Scope` job, so the split has exactly one
+source of truth and a job that disagrees with the manifest is not expressible.
 
-**The count used to be expected to keep rising, and that rule was retired.** It
-went 3 → 5 → 7 → 10 → 14 → 18 as the suite grew, each split locally correct and
-each responding to the worst shard approaching Playwright's `globalTimeout` by
-slicing finer. What none of them checked was whether the extra slices were still
-buying parallelism. #158 measured it and they were not: on run `31445526789` six
-of the eighteen shards sat QUEUED for 5.5–7.0 minutes waiting for a runner, so
-past roughly twelve concurrent jobs the pool was saturated and the extra shards
-bought no wall-clock at all while costing a full setup each.
+**Why it is not `--shard=n/N` any more.** Playwright's own sharding divides the
+suite by test **COUNT**, and DalyHub's tests are not equal — MEASURED across
+runs `31690164253` and `31697528360`, the cheapest spec file averaged 0.8 s a
+test and the dearest 53 s. Equal counts were therefore wildly unequal work:
+shard 6 finished its 198 tests in 7.9 minutes while shard 8 spent 22.7 minutes
+on 109 and left **87 tests never run**. Six of the seven `main` runs after
+HARDEN-02 lost between 27 and 118 tests that way
+([DEBT-128](../product/PRODUCT_DEBT.md)), and one of them was red with no failing
+test at all. Adding a spec file anywhere re-sliced every shard, so which shard
+overran moved from commit to commit.
 
-**The rule now is: size the split against the RUNNER POOL first and the ceiling
-second, and re-derive the ceiling from measurement whenever the split changes.**
-Eight shards start in a single wave — measured again on run `31473135291`, where
-all eight began within seven seconds of each other and none queued — and
-Playwright's `globalTimeout` was re-derived to 25 minutes to match. Raising the
-ceiling to hide a growing suite is still wrong; raising it as the deliberate
-other half of a measured re-split is not the same act.
+**What replaced it.** `e2e/partitions.json` records the MEASURED seconds of every
+spec file and the partition each belongs to. It is generated, committed and
+checked, exactly like the generated colour scheme and the icon assets:
+
+| Command | What it does |
+| --- | --- |
+| `pnpm run e2e:partitions` | prints the split with its estimates |
+| `pnpm run e2e:partitions:check` | fails if the manifest is not what the committed durations derive, or if any spec file on disk belongs to no partition (run by **Static**) |
+| `pnpm run e2e:partitions:generate` | re-derives it; `--from playwright-report/results.json` refreshes the durations from a finished run first |
+| `pnpm run e2e:gate` | runs every partition locally, in sequence, exactly as CI runs them |
+
+The derivation is a pure function of those two inputs — longest-processing-time
+greedy packing over whole spec files — so it is deterministic and reviewable in
+a diff. A spec file heavier than one partition's share (today only
+`responsive.spec.ts`, a 465-test generated matrix at 19 minutes) gets its own
+partitions and is divided between them with `--shard` applied to that ONE file,
+where a test's count genuinely is its cost. A brand-new spec file with no
+measurement is sized pessimistically at 120 s until a run measures it — it can
+never be silently left out, because `check` fails first.
+
+**Ten partitions, and the number is bounded from both ends.** Above, by the
+runner pool: on run `31445526789` six of eighteen shards sat QUEUED for 5.5–7.0
+minutes, so past roughly twelve concurrent jobs the pool saturates and extra
+jobs buy no wall-clock. Below, by setup cost: MEASURED at ~0.8 min of
+checkout/toolchain/artifact/browser plus ~1.5 min of server boot before the
+first test — 2.3 min per partition that buys no coverage. Ten start in one wave
+and leave the heaviest partition at ~15.6 minutes of measured test time against
+Playwright's **unchanged** 25-minute `globalTimeout`.
 
 **Browser lifetime is a sizing variable too, not just minutes.** Fewer, fatter
 shards give each shard's one long-lived Chromium more to survive, which is the
-axis [DEBT-125](../product/PRODUCT_DEBT.md) is about. See
-`scripts/measure-e2e-browser-rss.mjs` for how to measure it.
+axis [DEBT-125](../product/PRODUCT_DEBT.md) is about; ten partitions hold ~14
+minutes and ~160 tests each, against the ~24 minutes and ~190 tests of the
+eight-way split. See `scripts/measure-e2e-browser-rss.mjs` for how to measure it.
 
-The count has a **single source of truth**: both the job name and the
-`--shard=N/TOTAL` argument read `strategy.job-total`, which GitHub derives from
-the matrix list itself, so a `--shard` denominator can never drift out of step
-with the number of jobs actually running. Each shard:
+Each partition:
 
-- runs `pnpm exec playwright test --shard=N/${{ strategy.job-total }}`. With `fullyParallel: true` (and
-  no `describe.serial` anywhere in `e2e/`, verified), Playwright's sharding
-  operates on independent test **groups**, and an independent test with no
-  serial ancestor is its own group — so shards split at **individual-test**
-  granularity, not whole spec files. A single spec file's tests can and do land
-  on different shards. Regardless of that split, **the union of all shards runs
-  the entire suite exactly once**: functional E2E coverage, authentication/
-  fail-closed behaviour, the DS-11 accessibility (axe) scans, dark mode, mobile
-  and touch-target coverage, the responsive/no-overflow matrix, keyboard/
-  Drawer/browser-history behaviour, and the real local-D1 journeys. No spec is
-  skipped or excluded to hit a timing target.
+- runs `pnpm exec playwright test $(node scripts/e2e-partitions.mjs specs <name>)`
+  — its own **whole spec files**, so a file's tests, and the fixtures they share,
+  always run together. **The union of all partitions runs the entire suite
+  exactly once**: functional E2E coverage, authentication/fail-closed behaviour,
+  the DS-11 accessibility (axe) scans, dark mode, mobile and touch-target
+  coverage, the responsive/no-overflow matrix, keyboard/Drawer/browser-history
+  behaviour, and the real local-D1 journeys. No spec is skipped or excluded to
+  hit a timing target, and `e2e:partitions:check` is what makes that a checked
+  fact rather than a claim.
+- prints **what it is** before it runs (name, spec files, per-file measured
+  seconds, budget) and **what happened** after (tests collected, executed,
+  passed, failed, deliberately skipped, never executed, elapsed against budget)
+  — see "Reading an E2E result" below.
 - runs on its **own GitHub Actions runner**, so it gets its own isolated local
   Miniflare/D1 state (`.wrangler/state` lives on that runner's disk only and is
-  discarded when the job ends). Shards cannot see or interfere with each
+  discarded when the job ends). Partitions cannot see or interfere with each
   other's database state.
-- is safe to split at test granularity because every test in `e2e/` creates and
-  tears down its own fixtures — unique per-test titles/prefixes plus
-  `afterEach` cleanup (see `e2e/setup-local-db.mjs` and the mobile specs'
-  cleanup helpers) — rather than depending on state a preceding test left
-  behind. There is no hidden test-order dependency for sharding to break.
 - keeps `workers: 1` in `playwright.config.ts`, and this is **no longer merely
-  conservative**. A shard's tests share ONE dev server and ONE local D1, and some
-  of them mutate owner-level state (the stored theme preference, the Today widget
-  arrangement). Running them concurrently inside a shard would trade a budget
-  problem for a correctness one. The parallelism comes from GitHub Actions shards
-  — separate runners, separate isolated local D1 — not from the in-runner worker
+  conservative**. A partition's tests share ONE dev server and ONE local D1, and
+  some of them mutate owner-level state (the owner's timezone in
+  `owner-timezone.spec.ts`, the stored appearance in `appearance.spec.ts`).
+  Running them concurrently inside a partition would trade a budget problem for a
+  correctness one. The parallelism comes from GitHub Actions partitions —
+  separate runners, separate isolated local D1 — not from the in-runner worker
   count. Raising `workers` would need the shared-state surfaces isolated first,
   and is not a shortcut around a budget overrun.
-- installs **only the Playwright Chromium headless shell**
-  (`playwright install --with-deps --only-shell chromium`), not the full
-  Chrome/Chromium binary or ffmpeg. The suite runs headless with no video
-  recording, headed-mode or PDF generation anywhere in `e2e/`, and Playwright
-  already prefers the headless shell at runtime for a headless project when
-  both are installed — so the full browser download was previously unused
-  weight, not a fallback anything depended on.
+- installs the **full** Chromium build (`playwright install --with-deps
+  chromium`) and launches it through `channel: "chromium"` — see the browser
+  section above; the headless shell is the binary that segfaults.
+
+### Reading an E2E result
+
+A red job has to say WHICH kind of red it is, because two of them mean opposite
+things: a failed assertion is information about the product, and a partition that
+ran out of time is the absence of information about everything it never reached.
+HARDEN-02's rule — *a suite that cannot finish stops reporting, and a report that
+stops is indistinguishable from a pass* — is enforced rather than remembered:
+
+- `scripts/e2e-partition-summary.mjs` runs `if: always()` after the tests and
+  writes the partition's result to the job log and the GitHub step summary.
+- It tells an **unexecuted** test from a **deliberately skipped** one — Playwright
+  counts both as "skipped", and an unexecuted test simply has no result — and
+  **fails the job** with an explicit message when any test was left unexecuted,
+  naming the count and the spec files.
+- A missing `results.json` is also a failure: a partition that produced no report
+  produced no result, and must never read as an absence of failures.
+
+That is the property the gate exists for: **a green E2E job now means every test
+assigned to it actually ran and passed.**
 
 ### Reusing the production build
 
 The build job runs `pnpm run build` exactly once and uploads `build/` (with
 any `build/server/.dev.vars` defensively stripped first, though a clean CI
 checkout never produces one) as a short-lived (`retention-days: 1`) artifact.
-Each Playwright shard downloads that artifact and sets `PLAYWRIGHT_SKIP_BUILD=1`,
+Each Playwright partition downloads that artifact and sets `PLAYWRIGHT_SKIP_BUILD=1`,
 which `playwright.config.ts`'s production-mode `webServer` command checks: with
 the flag set it skips `pnpm run build` and goes straight to stripping
 `.dev.vars` and starting `vite preview` against the downloaded build. Without
@@ -208,7 +245,7 @@ build on the Playwright critical path. The unauthenticated production
 fail-closed test still runs against a real production build — the same one the
 build job produced — so the regression coverage is unchanged, not weakened.
 
-### Shard budget, and why a shard is never cancelled
+### Partition budget, and why a partition is never cancelled
 
 Measured, not guessed. On run `30310393566` (three shards) the slowest shard
 spent **14.0 minutes** running tests and **14m34s** in the job as a whole —
@@ -219,12 +256,15 @@ distinction mattered: the report/trace upload steps were conditioned on
 artefacts at all and were invisible unless someone read the raw log
 ([DEBT-41](../product/PRODUCT_DEBT.md)). Three changes make that impossible:
 
-1. **Enough shards, sized against the runner pool.** Three became five here;
-   five later became seven, ten, fourteen and eighteen; #158 then cut it to
-   **eight** on the queueing measurement above, and HARDEN-01 re-measured and
-   kept it there. The table below is the original three-to-five measurement,
-   kept because it is what established the ~70%-of-ceiling target every later
-   split has been tuned to.
+1. **Enough partitions, sized against the runner pool — and, since HARDEN-04,
+   against measured TIME rather than test count.** Three became five here; five
+   later became seven, ten, fourteen and eighteen; #158 cut it to **eight** on
+   the queueing measurement above; HARDEN-04 replaced count-based sharding
+   altogether with the ten-way measured partition described above, because the
+   evidence below is what a count-based split looks like when it fails. The
+   tables in this item are kept as that evidence: they are what established the
+   ~70%-of-ceiling target every later split has been tuned to, and what proved
+   the count-based one could not hold it.
 
    Measured again on run `31473135291` (eight shards, `main` @ `3579100` — the
    HARDEN-01 baseline). Test-step time per shard:
@@ -295,41 +335,48 @@ Slow tests stay visible rather than being absorbed by the larger budget:
 `reportSlowTests` prints a slow-file summary at the end of **every** run, the
 `list` reporter prints each individual test's duration, and CI adds a `json`
 reporter writing `playwright-report/results.json` so per-test durations are
-machine-readable when the shard split next needs revisiting. Revisiting it is a
-matter of editing the `shard:` list — nothing else — and re-reading that table.
+machine-readable. Revisiting the split is now that file plus one command:
+download a run's `playwright-report` artifacts and run
+`pnpm run e2e:partitions:generate --from <each results.json>`, then read the diff.
+The partition count itself lives in `scripts/e2e-partitions.mjs`
+(`PARTITION_COUNT`), and the constraints any change to it must respect are in the
+section above.
 
-`fail-fast: false` keeps every shard's result reported — one red shard never
-cancels (and so never hides) the other seven — and a re-run from the Actions UI
-re-runs only the failed shard, so successful shards are never repeated.
+`fail-fast: false` keeps every partition's result reported — one red partition
+never cancels (and so never hides) the other nine — and a re-run from the Actions
+UI re-runs only the failed job, so successful partitions are never repeated.
 
 ### Failure diagnostics, and what a GREEN run costs
 
 **A successful run uploads nothing.** Both upload steps are conditioned on that
-shard's own step outcome, so a green pipeline produces no artifacts at all —
+job's own step outcome, so a green pipeline produces no artifacts at all —
 no screenshot bundle, no video, no report. Screenshots are not regenerated by
 ordinary CI either: the `*-screenshots.spec.ts` capture passes are opt-in
 (`CAPTURE_SCREENSHOTS=1` / `CAPTURE_EVIDENCE=1`) and are ignored by the config
-entirely when nothing has opted in, so they do not even take up space in the
-shard split.
+and by the partition generator alike when nothing has opted in, so they do not
+even take up space in the split.
 
-On a shard failure, timeout or cancellation, that shard uploads its own
-uniquely-named artifacts — `e2e-report-shard-N` (the HTML report, which also
-carries `results.json`) and `e2e-traces-shard-N` (raw traces and
-failure-only screenshots) — so one shard's failure output can never overwrite
-another's. Retention is bounded at 7 days. Blob-report merging into one
-combined HTML report was evaluated and deliberately **not** added: each
-shard's standalone report is already sufficient to diagnose that shard's
-failures, and a merge step would add job/artifact complexity the current scale
-doesn't justify.
+On a partition failure, timeout or cancellation, that job uploads its own
+uniquely-named artifacts — `e2e-report-<partition>` (the HTML report, which also
+carries `results.json`) and `e2e-traces-<partition>` (raw traces and
+failure-only screenshots) — so one partition's failure output can never overwrite
+another's. Retention is bounded at 7 days. Those `results.json` files are also
+the input to `pnpm run e2e:partitions:generate --from …`, which is how a split is
+re-derived from a real run. Blob-report merging into one combined HTML report was
+evaluated and deliberately **not** added: each partition's standalone report is
+already sufficient to diagnose its own failures, and a merge step would add
+job/artifact complexity the current scale doesn't justify.
 
-To diagnose and rerun a failed shard:
+To diagnose and rerun a failed partition:
 
-1. Open the failing shard's job in the Actions run, download its
-   `e2e-report-shard-N` artifact, and open `index.html` locally for the
-   full trace/screenshot/step breakdown.
-2. Re-run just that job from the GitHub Actions UI ("Re-run failed jobs") once
-   the underlying issue is fixed — the matrix means only the failed shard(s)
-   re-run, not the whole suite.
+1. Read the job's own **Partition result** step first: it says whether the
+   partition COMPLETED, and a partition that did not finish is a budget failure
+   rather than a product one.
+2. Download its `e2e-report-<partition>` artifact and open `index.html` locally
+   for the full trace/screenshot/step breakdown.
+3. Re-run just that job from the GitHub Actions UI ("Re-run failed jobs") once
+   the underlying issue is fixed — the matrix means only the failed
+   partition(s) re-run, not the whole suite.
 
 ### The kernel test step
 
@@ -402,10 +449,11 @@ decision against the skips it caused, and `Static`'s own result is asserted
 separately rather than being allowed to pass vacuously.
 
 `needs.<job>.result` collapses the whole Playwright matrix to a single value
-that is `success` only when **every** shard succeeded; a cancelled shard
+that is `success` only when **every** partition succeeded; a cancelled job
 reports `cancelled`, a failed one `failure`, and a job that never started
-`skipped`. All three fail the gate, so a shard that runs out of time is
-represented as honestly as one that fails an assertion. The gate prints a
+`skipped`. All three fail the gate, so a partition that runs out of time is
+represented as honestly as one that fails an assertion — and since HARDEN-04 it
+also SAYS which of the two it was. The gate prints a
 `job → result` table to the run summary, so the reason a gate is red is legible
 from the gate itself rather than only from whichever job happens to be red.
 

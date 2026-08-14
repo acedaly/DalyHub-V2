@@ -81,6 +81,43 @@ async function waitForQueued(page: Page, count: number): Promise<void> {
 }
 
 /**
+ * Wait until this page has FINISHED the replay attempt it was going to make —
+ * `attempts` has reached `expected` and nothing is left in flight.
+ *
+ * A replay marks its record `syncing` BEFORE it sends, and that claim is LEASED
+ * for two minutes: a page destroyed mid-attempt leaves the record claiming an
+ * attempt nothing is running, and neither an automatic pass nor Retry touches a
+ * `syncing` record until the lease expires (`PWA_AND_OFFLINE.md` §6.2,
+ * `OFFLINE_MUTATION_LEASE_MS`). That is the product working as designed — the
+ * lease is what makes an interrupted attempt recoverable rather than lost.
+ *
+ * It does mean a test that RELOADS while a pass is in flight has manufactured
+ * exactly that interruption and must then wait out a lease it never meant to
+ * take. So this waits for the attempt to have HAPPENED, not merely for nothing
+ * to be in flight at the instant it looks: a pass that is still probing, or
+ * still waiting for the page to go idle, has not incremented `attempts` yet, and
+ * "no row is `syncing` right now" would wave the reload straight through it.
+ *
+ * Both signals are deterministic here because the caller has blocked the
+ * mutation path: the pass cannot skip (the connection probe is healthy — only
+ * that one route is blocked) and it cannot succeed, so the attempt must land,
+ * fail, and return the record to `pending`. Product state, read from the store
+ * the product reads, and no sleep anywhere.
+ */
+async function waitForAttempt(page: Page, expected: number): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const rows = await readMutations(page);
+        if (rows.some((row) => row.status === "syncing")) return -1;
+        return Math.max(0, ...rows.map((row) => row.attempts));
+      },
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(expected);
+}
+
+/**
  * Wait until nothing is left waiting to sync.
  *
  * A confirmed change is PRUNED from the queue — the surface shows work that
@@ -408,6 +445,14 @@ test.describe("PWA-12 — offline Task mutation", () => {
       await context.route("**/tasks/pwa12-durable", (route) =>
         route.abort("internetdisconnected"),
       );
+      /*
+       * Reconnection IS one of the declared replay triggers, so coming back
+       * online starts a pass on this page — against a mutation path that is now
+       * blocked, so it must fail. Wait for that attempt to have landed (the
+       * FIRST one: `attempts` 0 → 1) rather than reloading into the middle of
+       * it, which would strand the record under its lease (`waitForAttempt`).
+       */
+      await waitForAttempt(page, 1);
       await page.reload();
       await expect(
         page.getByRole("heading", { level: 1, name: "Tasks" }),
@@ -433,6 +478,22 @@ test.describe("PWA-12 — offline Task mutation", () => {
       // explicit retry (§22) — and this is the first of them. A second reload is
       // the honest way to reach it, and it also re-proves durability: the change
       // has now survived two page lifetimes.
+      /*
+       * The SECOND attempt (`attempts` 1 → 2) is this page's own application
+       * start, still against the blocked route — so waiting for it proves the
+       * one trigger this page has has already run and finished, and there is
+       * nothing left for the reload below to interrupt.
+       *
+       * MEASURED on `main` @ `40038de` (run 31641975444, shard 5), which is what
+       * this wait is here for. This page's own offline priming had just finished
+       * (`GET /offline/snapshot` at t+103.8) and started a replay pass; the
+       * reload landed 0.1 s later (t+103.9) and killed the POST in flight
+       * (t+104.0, no response). The record was left `syncing`, the fresh page
+       * could not touch it under its two-minute lease, and the 45-second drain
+       * below expired with one change still queued. Nothing about the product
+       * was wrong: the test had reloaded through its own replay.
+       */
+      await waitForAttempt(page, 2);
       await context.unroute("**/tasks/pwa12-durable");
       await page.reload();
       await expect(

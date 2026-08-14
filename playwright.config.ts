@@ -36,18 +36,13 @@ const baseURL = DEV_ORIGIN;
  * The `*-screenshots.spec.ts` passes are opt-in capture runs: each one is
  * wrapped in a `test.skip(process.env.CAPTURE_SCREENSHOTS !== "1", …)` (or the
  * `CAPTURE_EVIDENCE` equivalent), so in an ordinary run every one of their
- * ~190 tests is collected, distributed to a shard and then skipped.
+ * ~190 tests would be collected and then skipped.
  *
- * Skipping is nearly free in TIME but not in DISTRIBUTION: Playwright's
- * `--shard` splits by test COUNT, so a slice that happened to draw many capture
- * stubs did almost no work while its siblings did all of theirs. That is a
- * meaningful part of why the shard spread was ~1.9x the mean, and why the split
- * had to keep growing to keep the worst shard under the ceiling.
- *
- * Ignoring the files outright when nothing has opted in removes the no-ops from
- * the distribution entirely, so every shard's slice is real work. Setting either
- * capture variable brings them back, which is the only mode in which they do
- * anything at all.
+ * Ignoring the files outright when nothing has opted in keeps them out of the
+ * gate's partition entirely (`scripts/e2e-partitions.mjs` applies the same
+ * rule), so every partition's work is real work. Setting either capture
+ * variable brings them back, which is the only mode in which they do anything
+ * at all.
  */
 const capturing =
   process.env.CAPTURE_SCREENSHOTS === "1" ||
@@ -81,76 +76,42 @@ export default defineConfig({
   /*
    * A self-imposed ceiling in CI, deliberately set BELOW the workflow job's
    * `timeout-minutes` (see `.github/workflows/ci.yml`). It exists so a runaway
-   * shard is terminated by Playwright — which then writes its HTML report,
-   * traces and screenshots and exits non-zero — rather than by GitHub, which
-   * cancels the job and destroys that evidence.
+   * partition is terminated by Playwright — which then writes its HTML report,
+   * its `results.json`, traces and screenshots and exits non-zero — rather than
+   * by GitHub, which cancels the job and destroys that evidence.
    *
-   * 2026-08-11 — raised 15 → 25 as the deliberate other half of cutting the
-   * split from eighteen shards to eight. It is NOT a response to a suite that
-   * outgrew its budget, which is what the four previous re-splits were, and it
-   * does not pin the worst shard against a moving ceiling: the ceiling is
-   * re-derived from measurement each time the split changes.
+   * 25 minutes, UNCHANGED by HARDEN-04, and that is the point. The four
+   * re-splits before it (3 → 5 → 7 → 10 → 14 → 18 → 8) each answered a shard
+   * hitting this ceiling, and by 2026-08-12 raising it had stopped being an
+   * option at all: shard 8 was completing 102–160 of its ~190 tests in the full
+   * 25 minutes, which extrapolates to 31–46 minutes — past the job's own
+   * 40-minute backstop, so a bigger ceiling would only have moved the failure
+   * from Playwright (which reports) to GitHub (which cancels).
    *
-   * MEASURED on run 31445526789 (`main` @ e1e8bab): the twelve shards that
-   * completed spent 73.4 minutes of test time between them, a mean of 6.1 and a
-   * worst of 9.5 — so the whole suite is very close to 110 minutes of
-   * single-worker test time. Over EIGHT slices that is a 13.8-minute mean. The
-   * observed max/mean on that run was 1.56, and the capture-stub exclusion above
-   * pulls it in further by removing the no-op-heavy fast slices, so the worst
-   * shard should land near 20 minutes. 25 leaves ~25% headroom on that and still
-   * fires well before the job's 40-minute backstop, preserving the ordering the
-   * whole arrangement depends on.
+   * What changed instead is WHAT A PARTITION HOLDS. `--shard=n/N` divided the
+   * suite by test COUNT while its tests cost between 0.8 s and 53 s each, so the
+   * worst shard was "whatever the draw happened to concentrate" and adding a
+   * spec file anywhere re-sliced every shard. The gate now runs the ten
+   * time-balanced partitions of `e2e/partitions.json`
+   * (`scripts/e2e-partitions.mjs`), derived from the per-spec-file seconds
+   * MEASURED on runs 31675715619, 31690164253 and 31697528360.
    *
-   * Eight, rather than fewer, because the runner pool is the real constraint:
-   * on that same run shards 5, 9, 10, 12, 16 and 17 sat QUEUED for 5.5–7.0
-   * minutes waiting for a runner. Past roughly twelve concurrent jobs the extra
-   * shards bought no wall-clock at all — they only added a setup each. Eight
-   * starts immediately, in one wave.
+   * Against that split this ceiling is a backstop rather than a budget: the
+   * heaviest partition is ~15 minutes of measured test time, so it fires only if
+   * a partition takes about 65% longer than its own measurement — and if one
+   * ever does, `scripts/e2e-partition-summary.mjs` says so in those words
+   * instead of leaving a red job that reads like a failed assertion.
    *
-   * 2026-08-11, measured on the first run of the eight-way split
-   * (31452508395): shards 4 and 8 reached this ceiling with 27 and 60 tests
-   * NEVER RUN. That is a real coverage gap and it is recorded, not shrugged at
-   * — but it must NOT be answered by re-splitting yet. A failing test burns its
-   * whole timeout, and that run carried ~42 pre-existing failures across four
-   * shards (DEBT-125), several of which time out rather than assert. The budget
-   * it measured is therefore inflated by the breakage, not by the suite. Fix
-   * DEBT-125 first, then re-derive the split from a GREEN run's per-shard times
-   * — `playwright-report/results.json` carries them.
+   * Per-partition BROWSER LIFETIME was sized too, not just per-partition
+   * minutes. Under the old eight-way split each shard put ~190 tests through one
+   * long-lived Chromium over ~24 minutes, and HARDEN-01 recorded
+   * `browser.newContext: … has been closed` landing at a POSITION (~185 tests
+   * in) rather than on a test on three of four sampled runs. Ten partitions hold
+   * ~14 minutes and ~160 tests each, so this change shortens browser lifetime
+   * rather than trading it away.
    *
-   * When that re-derivation happens, size against per-shard BROWSER LIFETIME as
-   * well as per-shard minutes. Eight shards, with the ~190 capture stubs no
-   * longer padding the split, give each shard roughly 190 REAL tests in one
-   * long-lived browser — and shard 1 died with `browser.newContext: … has been
-   * closed` on THREE of the four runs sampled (31456794416, 31457835020 and
-   * 31460437989; 31458924652 passed clean). What repeats is the POSITION, not
-   * the test: always ~185 tests in, always inside `ai-assistance.spec.ts`'s
-   * responsive/phone-matrix block, but on three different tests. A failure that
-   * lands at a position rather than on a test is not a bug in those tests — it
-   * is the process running out of something at about that point, in the most
-   * axe-heavy stretch of the shard. Fewer, fatter shards is not a free trade
-   * against a browser that has to survive all of them.
-   *
-   * 2026-08-12, measured while landing PWA-12 — the headroom above is thinner
-   * than "~25%" reads, and the reason is worth stating before someone spends a
-   * day on it. `--shard` slices by test COUNT, not by cost, so ADDING A SPEC
-   * FILE ANYWHERE RE-SLICES EVERY SHARD. On `main` @ `2bb4b81` shard 4 drew 190
-   * tests and finished in 24.3 of its 25.0 minutes. PWA-12 added ten tests, the
-   * boundaries moved, shard 4's new draw pulled in `notes-knowledge`, `people`
-   * and `notes` together, and it hit the ceiling with 46 NEVER RUN — twice, on
-   * two commits, and again locally at `--shard=4/8` with 31 never run. Merging
-   * TODAY-10 moved the boundaries a third time and shard 4 went green at 22
-   * minutes. Nothing about the tests changed across any of that; only which
-   * slice they landed in did.
-   *
-   * So the worst shard is not 24.3 minutes of work — it is whatever the draw
-   * happens to concentrate, and a green run says only that THIS draw fits. Two
-   * consequences. A shard that overruns is not evidence of a slow new test
-   * until its draw has been compared against the previous one. And the
-   * re-derivation deferred above should size by per-shard TIME, not by leaving
-   * the count-based slicer to decide which shard gets the three heaviest files.
-   *
-   * Unset outside CI so a full local suite run (all shards in one process) is
-   * never killed mid-way.
+   * Unset outside CI so a full local gate run (`pnpm run e2e:gate`) is never
+   * killed mid-way.
    */
   globalTimeout: process.env.CI ? 25 * 60_000 : undefined,
   use: {

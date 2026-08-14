@@ -300,12 +300,42 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     }
 
     await page.goto("/today");
-    // The day's own rows are bounded — the overdue band has its own cap and is
-    // counted separately, so this reads the two today bands alone.
-    const dayRows = page.locator(
-      ".dh-day-section:not(:has(.dh-day-list--overdue)) .dh-day-row__title",
+    /*
+     * The day's own rows are bounded — the overdue band has its own cap and is
+     * counted separately, so this reads the two today bands alone.
+     *
+     * The bound counts OPEN rows. That is not a detail of this assertion, it is
+     * the rule (`day-view.ts` → `boundBand`): a task completed today is always
+     * drawn, after the bounded open rows in its own band, because ticking the
+     * third row of eight must never make it vanish — and "+n more" has to be
+     * true of the OPEN-only view it links to.
+     *
+     * HARDEN-04: this used to count every row in the two bands, which asserts a
+     * rule the panel does not have. It passed only while nothing in the shared
+     * development workspace happened to be completed today, and on `main` @
+     * `40038de` (run 31641975444) it read NINE — eight open plus one completion
+     * some other journey had left on the day. Counting open rows is what the
+     * bound means; the band-order assertion below is what makes the other half
+     * of the rule — completions after the open work, never bounded away —
+     * something this spec proves rather than something it trips over.
+     */
+    const bands = await page.evaluate(() =>
+      [
+        ...document.querySelectorAll(
+          ".dh-day-section:not(:has(.dh-day-list--overdue))",
+        ),
+      ].map((section) =>
+        [...section.querySelectorAll(".dh-day-row")]
+          .filter((row) => row.querySelector(".dh-day-row__title"))
+          .map((row) => row.getAttribute("data-done") === "true"),
+      ),
     );
-    expect(await dayRows.count()).toBeLessThanOrEqual(8);
+    const openRows = bands.flat().filter((done) => !done);
+    expect(openRows.length).toBeLessThanOrEqual(8);
+    for (const band of bands) {
+      // Open work first, completions after it — in every band, always.
+      expect(band).toEqual([...band].sort((a, b) => Number(a) - Number(b)));
+    }
 
     const viewAll = page.getByTestId("today-focus-view-all");
     await expect(viewAll).toBeVisible();
@@ -353,26 +383,57 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
       const rows = await page.evaluate(() =>
         [...document.querySelectorAll(".dh-today__timeline .dh-day-row")]
           .filter((row) => row.querySelector(".dh-day-row__title"))
-          .map((row) => ({
-            title: Math.round(
-              row.querySelector(".dh-day-row__title")!.getBoundingClientRect()
-                .width,
-            ),
-            project: Math.round(
-              row.querySelector(".dh-day-row__meta")?.getBoundingClientRect()
-                .width ?? 0,
-            ),
-            height: Math.round(row.getBoundingClientRect().height),
-          })),
+          .map((row) => {
+            const title = row.querySelector(".dh-day-row__title")!;
+            const styles = getComputedStyle(row);
+            return {
+              title: Math.round(title.getBoundingClientRect().width),
+              project: Math.round(
+                row.querySelector(".dh-day-row__meta")?.getBoundingClientRect()
+                  .width ?? 0,
+              ),
+              height: Math.round(row.getBoundingClientRect().height),
+              /*
+               * The row's own box, WITHOUT the hairline it draws between
+               * siblings (`today.css` → `.dh-day-row + .dh-day-row`). That
+               * border is on the row, so a row that follows another is exactly
+               * 1px taller than the first row of its band — by design.
+               */
+              box: Math.round(
+                row.getBoundingClientRect().height -
+                  parseFloat(styles.borderBlockStartWidth || "0"),
+              ),
+              /* How many line boxes the title actually occupies. */
+              lines: Math.round(
+                title.getBoundingClientRect().height /
+                  parseFloat(getComputedStyle(title).lineHeight || "1"),
+              ),
+            };
+          }),
       );
       expect(rows.length).toBeGreaterThan(0);
       for (const row of rows) {
         expect(row.title).toBeGreaterThan(row.project);
         // The 44px WCAG 2.2 target floor, which the row's own min-height sets.
         expect(row.height).toBeGreaterThanOrEqual(44);
+        // ONE LINE each — the rule itself (`today.css`: nowrap and an ellipsis
+        // rather than a wrap), asserted on the title rather than inferred from
+        // the row being as tall as its neighbour.
+        expect(row.lines).toBe(1);
       }
-      // One line each: every row in the panel is the same height.
-      expect(new Set(rows.map((row) => row.height)).size).toBe(1);
+      /*
+       * …and every row is the same size, measured on the row's own box.
+       *
+       * HARDEN-04: this compared `height`, which includes the 1px hairline
+       * between siblings, so it could only pass when every band held exactly
+       * ONE row — no hairline anywhere. MEASURED at 320px on the shared
+       * workspace: 61px for the first row of a band and 62px for every row
+       * after it, `border-block-start-width` 0px and 1px respectively. Two
+       * heights, one rhythm, and the assertion could not tell the difference.
+       * The ragged-list failure it exists to catch — a wrapped title, a row
+       * grown by its metadata — is caught by `lines` above and by this.
+       */
+      expect(new Set(rows.map((row) => row.box)).size).toBe(1);
     }
   });
 
