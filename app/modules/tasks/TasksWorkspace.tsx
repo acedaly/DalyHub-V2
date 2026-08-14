@@ -1450,13 +1450,17 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       headingLevel: 2 | 3,
       columnHeader = false,
     ) => (
-      <TaskList ariaLabel={ariaLabel} columnHeader={columnHeader}>
+      <TaskList
+        ariaLabel={ariaLabel}
+        columnHeader={columnHeader}
+        density={density}
+      >
         {list.map((card) => (
           <TaskRow key={card.id} {...toRowProps(card, headingLevel)} />
         ))}
       </TaskList>
     ),
-    [toRowProps],
+    [toRowProps, density],
   );
 
   const count = isGrouped ? groupedTotal : items.length;
@@ -1699,7 +1703,9 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           {/* DS-04 — the column key, ONCE, above a grouped list. A board and the
               Time Sectors are columns of narrow cards where the desktop grid
               does not apply, so they get none. */}
-          {config.presentation === "list" ? <TaskListColumns /> : null}
+          {config.presentation === "list" ? (
+            <TaskListColumns density={density} />
+          ) : null}
           <GroupedView
             presentation={config.presentation}
             sections={groupedSections}

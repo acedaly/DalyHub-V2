@@ -38,9 +38,10 @@
  * (DS-04 §61).
  */
 
-import { useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { useCardLongPress } from "~/shared/card/useCardLongPress";
 import { Menu, type MenuItem } from "~/shared/ui";
 import { RepeatIcon } from "~/shared/icons";
 import type { TaskPriority } from "~/kernel/tasks";
@@ -119,9 +120,6 @@ export interface TaskRowProps {
   readonly pendingNote?: string;
 }
 
-/** How long a touch must be held before it means "select this" (TASKS-08). */
-const LONG_PRESS_MS = 500;
-
 /**
  * The display states a row draws no pill for.
  *
@@ -160,28 +158,22 @@ export function TaskRow({
   const repeat = taskRecurrenceLabel(task.recurrence ?? null);
 
   /*
-   * The hold gesture, as a timer rather than a library.
+   * The hold gesture, through the SHARED hook.
    *
-   * It cancels on move and on release, so a scroll that starts on a row is a
-   * scroll. It is an ACCELERATOR — the header's "Select tasks" item and the
-   * checkbox it reveals are the ordinary, keyboard- and screen-reader-reachable
-   * path — which is why nothing here is the only way to reach selection.
+   * The first form of this row hand-rolled a `setTimeout` on the `<li>`'s touch
+   * events, which was a second implementation of a behaviour the product
+   * already owns — and a worse one. `useCardLongPress` is gated on a touch-first
+   * media query (so it is genuinely inert on a pointer device rather than
+   * merely unlikely to fire), excludes nested controls, cancels on drift, and
+   * SWALLOWS the compatibility click the browser emits after `touchend`.
+   *
+   * That last one is the defect the hand-rolled version shipped: holding the
+   * title, the completion checkbox or the overflow button for half a second
+   * entered selection mode AND then opened, completed or invoked the task.
    */
-  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelHold = () => {
-    if (holdRef.current !== null) {
-      clearTimeout(holdRef.current);
-      holdRef.current = null;
-    }
-  };
-  const startHold = () => {
-    if (!onLongPress) return;
-    cancelHold();
-    holdRef.current = setTimeout(() => {
-      holdRef.current = null;
-      onLongPress();
-    }, LONG_PRESS_MS);
-  };
+  const longPress = useCardLongPress({
+    ...(onLongPress ? { onLongPress } : {}),
+  });
 
   return (
     <li
@@ -191,12 +183,13 @@ export function TaskRow({
       data-overdue={overdue ? "true" : undefined}
       data-selected={selection?.selected ? "true" : undefined}
       data-pending={pending ? "true" : undefined}
-      {...(onLongPress
+      {...(longPress.enabled
         ? {
-            onTouchStart: startHold,
-            onTouchMove: cancelHold,
-            onTouchEnd: cancelHold,
-            onTouchCancel: cancelHold,
+            onPointerDown: longPress.onPointerDown,
+            onPointerMove: longPress.onPointerMove,
+            onPointerUp: longPress.onPointerUp,
+            onPointerCancel: longPress.onPointerCancel,
+            onClickCapture: longPress.onClickCapture,
           }
         : {})}
     >

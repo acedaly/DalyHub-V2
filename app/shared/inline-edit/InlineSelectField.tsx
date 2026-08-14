@@ -422,6 +422,29 @@ export function InlineSelectField({
               {clearLabel ?? `Clear ${label.toLocaleLowerCase()}`}
             </button>
           ) : null}
+          {/*
+           * The escape hatch, on a PHONE too.
+           *
+           * The sheet renders `options` rather than the augmented `items` list —
+           * deliberately, because its clear command is its own control rather
+           * than a row — so a `searchAction` added to `items` reached the
+           * desktop menu and silently never appeared here. On the device most
+           * likely to be holding a large workspace, the bounded loader page was
+           * the whole of the Project chooser with no way past it.
+           */}
+          {searchAction ? (
+            <button
+              type="button"
+              className="dh-inline-select-sheet__clear"
+              data-search="true"
+              onClick={() => {
+                close();
+                searchAction.onSelect();
+              }}
+            >
+              {searchAction.label}
+            </button>
+          ) : null}
         </Sheet>
       ) : null}
 

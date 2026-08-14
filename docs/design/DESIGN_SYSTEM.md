@@ -1590,7 +1590,7 @@ The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It
 **Anatomy.**
 
 ```
-<div class="dh-tasklist" data-dh-density="compact">     ← declares --taskrow-columns, is a query CONTAINER
+<div class="dh-tasklist" data-dh-density="compact|default">  ← the owner's density; declares --taskrow-columns; a query CONTAINER
   <div class="dh-tasklist__columns" aria-hidden>        ← Task · Project · Due · Priority · Status
   <ul class="dh-tasklist__rows" aria-label>             ← real list semantics
     <li class="dh-taskrow">                             ← no surface: a hairline, a hover wash

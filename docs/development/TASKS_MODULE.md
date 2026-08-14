@@ -2051,10 +2051,18 @@ floor.
 
 ### Density
 
-The list declares `data-dh-density="compact"` on its own region — the preset
-DS-01 defines by this exact case. The row's height is the completion control's
-44px target and nothing else; the coarse-pointer floor in `tokens.css` returns
-every touch target on a phone, unconditionally.
+The list declares its density on its own region, from the owner's `?density=`
+choice: **Compact** resolves to DS-01's `compact` preset — the rung DS-01 defines
+by this exact case — and **Comfortable** to `default`. The default is `compact`.
+
+That plumbing is not cosmetic. The list's first form declared `compact`
+unconditionally, which left the still-shipped Comfortable option changing the URL
+and the control while every row stayed exactly where it was; a preference that is
+visibly inert is worse than one that does not exist.
+
+The row's height is the completion control's 44px target and nothing else, at
+either preset; the coarse-pointer floor in `tokens.css` returns every touch
+target on a phone, unconditionally.
 
 ### What was deliberately dropped
 

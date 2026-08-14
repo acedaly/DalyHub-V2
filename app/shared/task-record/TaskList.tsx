@@ -22,12 +22,38 @@
  */
 
 import type { ReactNode } from "react";
+import { Link } from "react-router";
+
+import type { TaskDensity } from "~/kernel/task-views";
+
+/**
+ * The Tasks density preference, as a DS-01 density preset.
+ *
+ * `compact` is the preset DS-01 defines by this exact case ("a dense task
+ * list"); `comfortable` is the standard desktop rung, which is what `default`
+ * is. The mapping lives here so the ONE place that reads the owner's choice is
+ * the one place that knows how it is spelled in the token layer.
+ */
+function densityPreset(
+  density: TaskDensity | undefined,
+): "compact" | "default" {
+  return density === "comfortable" ? "default" : "compact";
+}
 
 export interface TaskListProps {
   /** The accessible name of the list ("Tasks", "Overdue tasks"). */
   readonly ariaLabel: string;
   /** Draw the column header. Off inside a group, where the list above has it. */
   readonly columnHeader?: boolean;
+  /**
+   * The owner's chosen Tasks density, from the shared control's `?density=`.
+   *
+   * The list DECLARED `compact` unconditionally in its first form, which made
+   * the still-shipped Comfortable option change the URL and the control while
+   * every row stayed exactly where it was — a preference that is visibly inert
+   * is worse than one that does not exist.
+   */
+  readonly density?: TaskDensity;
   readonly children: ReactNode;
   readonly className?: string;
 }
@@ -50,9 +76,13 @@ const COLUMNS = ["Task", "Project", "Date", "Priority", "Status"] as const;
  * same grid template as the lists beneath it, which is what keeps its labels on
  * their columns.
  */
-export function TaskListColumns() {
+export function TaskListColumns({
+  density,
+}: {
+  readonly density?: TaskDensity;
+}) {
   return (
-    <div className="dh-tasklist" data-dh-density="compact">
+    <div className="dh-tasklist" data-dh-density={densityPreset(density)}>
       <div className="dh-tasklist__columns" aria-hidden="true">
         {COLUMNS.map((column) => (
           <span
@@ -70,6 +100,7 @@ export function TaskListColumns() {
 export function TaskList({
   ariaLabel,
   columnHeader = false,
+  density,
   children,
   className,
 }: TaskListProps) {
@@ -79,13 +110,15 @@ export function TaskList({
       /*
        * DS-01's `compact` preset is DEFINED by this case — "a desktop
        * productivity surface: a dense task list … the density the reference
-       * designs are drawn at". Declaring it on the region rather than on the
-       * document is the whole point of doing density with custom properties: a
-       * dense list does not make the Settings screen dense. The coarse-pointer
-       * floor in `tokens.css` hands every touch target back on a phone,
-       * unconditionally, so this costs nothing on a finger.
+       * designs are drawn at" — and it is the DEFAULT here rather than the only
+       * option: the owner's Comfortable choice resolves to `default`.
+       *
+       * Declaring it on the region rather than on the document is the whole
+       * point of doing density with custom properties: a dense list does not
+       * make the Settings screen dense. The coarse-pointer floor in `tokens.css`
+       * hands every touch target back on a phone, unconditionally.
        */
-      data-dh-density="compact"
+      data-dh-density={densityPreset(density)}
     >
       {columnHeader ? (
         <div className="dh-tasklist__columns" aria-hidden="true">
@@ -165,9 +198,19 @@ export function TaskGroup({
           {title} <span className="dh-taskgroup__count">{count}</span>
         </Heading>
         {moreHref !== null ? (
-          <a className="dh-taskgroup__more" href={moreHref}>
+          /*
+           * A ROUTER link, and `preventScrollReset`.
+           *
+           * A bare `<a>` here is a full document navigation: it throws away the
+           * accumulated pages, the selection, any open overlay and the scroll
+           * position, to move between two configurations of the surface the
+           * owner is already on. "Never lose the user's place" (AGENTS.md §6) is
+           * the rule, and `preventScrollReset` is how the previous
+           * implementation kept it.
+           */
+          <Link className="dh-taskgroup__more" to={moreHref} preventScrollReset>
             View all {count}
-          </a>
+          </Link>
         ) : null}
       </div>
       {children}

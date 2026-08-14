@@ -627,3 +627,9 @@
   border-start-end-radius: 0;
   color: var(--dh-color-accent);
 }
+
+/* The sheet's escape hatch reads as an ACTION rather than as the "none of
+ * these" command it sits beside — same anatomy, the accent's colour. */
+.dh-inline-select-sheet__clear[data-search="true"] {
+  color: var(--dh-color-accent);
+}
