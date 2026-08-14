@@ -887,9 +887,9 @@ resume", and the last planned hardening pass. Full record:
 ### NEXT
 
 **The DS programme — the DalyHub design system replaces Material Design 3 as the
-governing design language.** DS-01 is delivered; DS-02 is the next item to pick
-up. The stages are deliberately small and independently shippable, and none of
-them is a screen redesign until DS-04.
+governing design language.** DS-01 and DS-02 are delivered; DS-03 is the next
+item to pick up. The stages are deliberately small and independently shippable,
+and none of them is a screen redesign until DS-04.
 
 > **Naming collision, stated once so nobody trips on it.** `DS-01`…`DS-17` are
 > already used as item ids in [`ROADMAP_V2.md`](ROADMAP_V2.md), which is
@@ -911,8 +911,8 @@ component inventory, primitive-library decision and full migration map are in
 | Stage | Scope | Depends on | Risk |
 |---|---|---|---|
 | ☑ **DS-01** | Design-system foundation — **DELIVERED 2026-08-14** | — | Low |
-| **DS-02** | Generic UI primitives: a real `Button` component over the 76+ `.dh-btn` call sites; move `ConfirmationDialog`/`DangerousAction` out of `shared/settings`; split generic `Pill` from product `Absence`; migrate the generic layer's CSS onto `--dh-*`; consolidate chips (A6's remaining half) | DS-01 | Medium — mechanical but wide; the `base.css` state-layer host list shrinks as it goes |
-| **DS-03** | Shell and navigation: drawer, top app bar, phone bar, command palette, and the toolbar/filter-bar consolidation. **First real `compact` density adopter** | DS-02 | Medium — the shell is on every route, and D12/D15's measurements must survive |
+| ☑ **DS-02** | Generic UI primitives — **DELIVERED 2026-08-14.** `app/shared/ui/` is the generic layer: `Button`/`ButtonLink`/`IconButton`/`Input`/`Textarea`/`Select`/`Checkbox`/`Badge`/`Card` built, `ConfirmationDialog` moved, `Menu`/`Popover`/`Sheet`/`Tabs`/`Tooltip`/`Switch` re-exported, the menu/dialog/tabs/tooltip/panel restyled onto `--dh-*`, and the application declaring `compact`. [ADR-093](../decisions/ARCHITECTURE_DECISIONS.md#adr-093-the-dalyhub-generic-primitive-layer--a-real-button-a-compact-application-and-three-migration-bridges) · [`DS_02…`](../design/DS_02_CORE_UI_PRIMITIVES_2026_08.md) | DS-01 | Medium |
+| **DS-03** | Shell and navigation: drawer, top app bar, phone bar, command palette, and the toolbar/filter-bar consolidation. Resolves the shell's three remaining stadiums — the search capsule, the create pill and the utility circles — which DS-02 left as the least converted surface in the product | DS-02 | Medium — the shell is on every route, and D12/D15's measurements must survive |
 | **DS-04** | Tasks: `TaskRow` onto `compact`, list and table density, the bulk bar, inline edit | DS-02, DS-03 | Medium–high — the most-used surface, and D18/D32 are load-bearing |
 | **DS-05** | Projects, Areas, Goals: the six record-surface families onto DalyHub tokens; A5's remaining half (one legend anatomy, one empty state, one summary contract across the five chart primitives) | DS-02 | Medium — §5b's shape distinctions must not be flattened |
 | **DS-06** | Today: the stat row, the Schedule region, the focus panel | DS-02, DS-05 | Medium — D11 (Today has no hero) stays |

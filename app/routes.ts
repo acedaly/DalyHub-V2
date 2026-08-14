@@ -43,6 +43,10 @@ const devFixtureRoutes =
   process.env.NODE_ENV === "production"
     ? []
     : [
+        // DS-02 — the generic UI primitive gallery. The surface every DS-02
+        // screenshot is taken of, and the one place the primitives can be
+        // compared side by side in both appearances.
+        route("design/primitives", "routes/design-primitives.tsx"),
         route("design/record-layout", "routes/design-record-layout.tsx"),
         route("design/drawer", "routes/design-drawer.tsx"),
         route("design/cards-filters", "routes/design-cards-filters.tsx"),

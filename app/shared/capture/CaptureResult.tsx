@@ -17,6 +17,8 @@ import { Link } from "react-router";
 
 import type { CaptureSuccess } from "./types";
 
+import { Button, buttonClassName } from "~/shared/ui";
+
 export type CaptureResultProps = {
   readonly success: CaptureSuccess;
   /** Clear the form and focus the first field again. */
@@ -36,30 +38,27 @@ export function CaptureResult({
         {success.message}
       </p>
       <div className="dh-capture-result__actions">
-        <button
-          type="button"
-          className="dh-btn dh-btn--primary"
+        <Button
+          variant="primary"
           onClick={onAddAnother}
           data-testid="capture-add-another"
         >
           Add another
-        </button>
+        </Button>
+        {/* A real navigation, drawn as a button — `buttonClassName` is the
+            supported way for a router `<Link>` to take the button's paint
+            without a raw class string (DS-02). */}
         <Link
           to={success.href}
-          className="dh-btn dh-btn--secondary"
+          className={buttonClassName({ variant: "secondary" })}
           onClick={onDone}
           data-testid="capture-open-record"
         >
           {success.openLabel}
         </Link>
-        <button
-          type="button"
-          className="dh-btn dh-btn--ghost"
-          onClick={onDone}
-          data-testid="capture-done"
-        >
+        <Button variant="subtle" onClick={onDone} data-testid="capture-done">
           Done
-        </button>
+        </Button>
       </div>
     </div>
   );

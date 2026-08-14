@@ -205,7 +205,22 @@ test.describe("UIQ-013 — the header uses the laptop's width", () => {
 });
 
 test.describe("UIQ-013 — the narrow composition is intentional", () => {
-  test.use({ viewport: PHONE_390 });
+  /*
+   * DS-02 — a phone is emulated as a phone, not merely as a narrow window.
+   *
+   * `hasTouch` is what makes the browser report `(pointer: coarse)`, and that
+   * is the condition DalyHub's touch guarantees are actually written against:
+   * the DS-01 density floor that gives `compact` its 45px hit areas back, and
+   * D8's "below `md`, a mouse gets the touch layout". Without it this block was
+   * asserting a touch floor in a context that reports a FINE pointer — so it
+   * passed for the wrong reason before DS-02 (every control was 45px at every
+   * density) and would have failed for the wrong reason after it.
+   *
+   * With touch emulated, the height assertion below is now the real contract
+   * rather than a proxy for it, which is why it moved from 40 to the product's
+   * own floor.
+   */
+  test.use({ viewport: PHONE_390, hasTouch: true, isMobile: true });
 
   test("the title keeps its row and the switcher takes its own beneath", async ({
     page,
@@ -289,7 +304,10 @@ test.describe("UIQ-013 — the narrow composition is intentional", () => {
       header!.x + header!.width + 1,
     );
     // And it is still a real, tappable target rather than a squeezed sliver.
-    expect(action!.height).toBeGreaterThanOrEqual(40);
+    // The product's own floor (AGENTS.md §15), which is stricter than WCAG
+    // 2.2's 24px: on a coarse pointer `compact` gives every hit area back,
+    // unconditionally, so a compact application is never a cramped phone.
+    expect(action!.height).toBeGreaterThanOrEqual(44);
   });
 });
 

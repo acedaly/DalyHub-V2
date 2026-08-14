@@ -151,7 +151,7 @@ specification does not, because the specification's answer was worse *here*.
 | D10 | **Five generated colour SCHEMES, and still no theme feature.** Each is a token map over the one design system — light and dark, both first-class — selected by `<html data-color-scheme>` alongside the independent appearance preference (THEME-01, [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)) | A component styled once is correct in all ten combinations, because nothing outside `tokens.css` may branch on a scheme — asserted by test. A scheme changes colour personality; typography, spacing, shape, layout and motion are identical in all five |
 | D11 | **Today has no hero.** Its figures are a row of quiet cards on the canvas | A hero spends the page's largest type on a headline and leaves the numbers at label size beside it — on the one screen whose entire question is the numbers. The row spends it on the figures, and tints nothing |
 | D12 | **The permanent navigation drawer is 216px**, outside M3's 232–248 band, and a destination is **44px of visual row** — the touch floor itself | 240 is the specification's figure for a drawer a user *opens*; DalyHub's is permanent, holds fourteen destinations and is on screen for the whole session. A painted row larger than the target it serves is mass without reach |
-| D13 | **A pill is reserved for a primary or destructive action.** Every other button takes `--app-shape-control` | `corner-full` on all five variants made shape say nothing about emphasis. A stadium means "this is the action" only when most things are not one |
+| D13 | ~~**A pill is reserved for a primary or destructive action.**~~ **Superseded by D33** (DS-02). It was the right correction to `corner-full` on all five variants — but the answer turned out to be no stadium at all, not a smaller number of them | `corner-full` on all five variants made shape say nothing about emphasis. A stadium means "this is the action" only when most things are not one |
 | D14 | **The segmented control is a sunken track with a soft raised chip**, not M3's outlined capsule with inter-segment dividers | Three pieces of chrome to say "one of these is chosen", in seven collection headers. The track and the lifted chip draw the same boundary the border and the dividers did |
 | D15 | **The phone navigation bar is 60px** with a 40×26 indicator, not M3's 80px with a 64×32 capsule | The extra 20px exists to make room for the capsule, and the capsule was the most painted chrome on the phone's most permanent surface. Every destination is still a full-height target well over 44px |
 | D16 | **The writing surfaces have no box.** No outline, no fill, no corners — one hairline under the toolbar | A note is not a form field. The page is the paper; the toolbar is the only chrome the surface keeps besides its focus ring |
@@ -171,6 +171,8 @@ specification does not, because the specification's answer was worse *here*.
 | D30 | **A COLLECTION header draws no glyph beside its title; a RECORD header does** (UIX-06) | The badge was decoration — the same glyph the sidebar is already showing, highlighted, for the same route — and it made three page origins impossible to reconcile, because Today and Analytics have no entity type to badge and so started 40px to the left of every collection. A record's mark is not decoration: it carries the Area's identity accent (D22/§6.2), which is the only thing that groups a gallery visually without a heading |
 | D31 | **A `<select>` is REPAINTED, never replaced** (UIX-06) | Four collection headers shipped the user-agent chevron beside a designed control. Replacing the element with a bespoke listbox costs the platform picker on touch, the free keyboard behaviour, the assistive-technology semantics and the no-JS form submit — for a visual problem `appearance: none` solves outright, since it changes only how the CLOSED control is painted. The chevron is a gradient pair rather than an asset, so it takes `currentColor` and is correct in both appearances and in forced colours by construction |
 | D32 | **A task row draws its LOW tier nowhere** (UIX-06) | D18 already put the sector, the delegate and the waiting note "on hover, in the overflow, or on the record"; the row drew all three permanently anyway, which is what made its two "aligned trailing columns" impossible to align — the marks spread over 200px, and `Sector: This Week` wrapped to a second line inside a 45px row. Squaring the columns up only made the cost visible: the facts compressed to "Se… De…", and a fact that ellipsises to two letters has stopped carrying information |
+| D33 | **No button is a stadium.** Every variant — primary and destructive included — takes `--dh-radius-control`, and so does every field, select and icon button beside it (DS-02) | D13 kept the pill for the one primary action and that is still a real distinction; it is just not one that shape should carry. At DS-02's control height a stadium is a lozenge, and a header holding a filled "New task" pill, an outlined "Filter & sort" pill and an 8px-cornered search field read as two design systems sharing a row. Emphasis is fill, border and content colour — three axes, all of which survive being the same shape — and the shape rung is then shared with the control beside it, which is what makes a toolbar read as one control set. The stadium survives where it is a *drawing* rather than a control's corner: a status dot, a spinner, an avatar |
+| D34 | **A generic card may draw a hairline** — amending D1's scope for the plain bounded surface only (DS-02) | D1 said separation is the surface step alone, and on a canvas holding a few large tonal cards that is right and still holds for the six record families. At the count a dense productivity surface actually renders — Today draws seven titled panels — the tonal step stops being a boundary and the eye reads a field of slightly-different-white rectangles. The card still spends only ONE device: a hairline and no shadow, on a corner one rung smaller than a record card's. `raised` exists for a surface that has genuinely left the canvas, never for emphasis |
 
 ## 5a. Projects and Areas — related, and deliberately not alike
 
@@ -573,15 +575,26 @@ on every device, not just a touch one.
 - **A product rule may not live in a generic component.** `Pill` may take a
   tone; it may not know that overdue tasks are coral.
 - **A generic component may not import from a module.** The reverse is expected.
-- Directory placement follows the boundary rather than history. The two current
-  breaches are named in
-  [`DS_01…` §11](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#11-remaining-design-system-debt).
+- Directory placement follows the boundary rather than history. **DS-02 gave the
+  boundary an address: [`app/shared/ui/`](../../app/shared/ui/index.ts).** It is
+  the one clear generic path for each common interaction, and it is what a call
+  site imports — `Button`, `IconButton`, `Input`, `Textarea`, `Select`,
+  `Checkbox`, `Badge`, `Card` are implemented there; `Menu`, `Popover`,
+  `Dialog`, `Sheet`, `Tabs`, `Tooltip` and `Switch` are re-exported from the
+  tested implementations DS-01 classified KEEP.
+- Of DS-01's two named breaches, one moved and one did not. `ConfirmationDialog`
+  is generic and now lives in `shared/ui`. `DangerousAction` renders a
+  `SettingsRow` — its whole job is "a destructive action, laid out as a settings
+  row" — so it is a composition of the settings layout primitives and it stayed.
+  A component is judged on its implementation, which is DS-01's own rule.
 
 ## 14. External primitive libraries
 
-**No primitive-library dependency, and none planned for DS-02.** Radix, React
-Aria, Base UI and shadcn were each evaluated and declined; the per-candidate
-reasoning is in
+**No primitive-library dependency. DS-02 built the layer and added none** —
+the question was re-asked component by component while implementing thirteen
+primitives, and nothing in the brief named a behaviour the existing machinery
+lacks. Radix, React Aria, Base UI and shadcn were each evaluated and declined;
+the per-candidate reasoning is in
 [`DS_01…` §7](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#7-the-primitive-library-decision)
 and the decision is [ADR-092 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery).
 

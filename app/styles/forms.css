@@ -260,109 +260,31 @@
 /* ------------------------------------------------------------------ Inputs */
 
 /*
- * The M3 OUTLINED text field: a transparent container inside a 1px `outline`
- * border at `corner-extra-small`, 56px tall on one line, 16px of inline padding
- * and `body-large` text. Focus thickens the border to 2px in `primary`; an
- * invalid field thickens it in `error`. Both are asserted at 3:1 against every
- * surface by the contrast tests.
+ * DS-02 — the field's SHAPE moved to `ui.css`.
  *
- * The border is drawn INSIDE the box (`box-sizing: border-box` above) and the
- * focused state adds a pixel to it, so the padding compensates by a pixel to
- * stop the text shifting when the field is focused.
+ * `.dh-input` is now painted by the shared `.dh-control` rules: the DalyHub
+ * control height (density's, not a hard-coded 56px), the control radius, the
+ * hairline that identifies a control, the no-layout-shift focus ring, and the
+ * disabled/read-only/invalid treatments. One shape for every text control in
+ * the product, whether it is inside a `Field` or dropped into a toolbar.
+ *
+ * What stays here is what belongs to the FIELD rather than to the control: the
+ * label relationship, the helper and error slots, and the invalid rule below,
+ * which is stated at the field because `.dh-combobox__input` and `.dh-tags` are
+ * composite controls whose own boxes must take the error border too.
  */
-.dh-input {
-  inline-size: 100%;
-  max-inline-size: 100%;
-  box-sizing: border-box;
-  min-block-size: 3.5rem;
-  padding-block: var(--app-space-2);
-  padding-inline: var(--app-space-4);
-  font: inherit;
-  /* MOBILE-01 (iPhone daily driver) — `body-large` on a pointer device, floored
-   * at 16px on a touch one. See the token, and the note the touch block below
-   * used to carry. */
-  font-size: var(--app-field-font-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
-  color: var(--md-sys-color-on-surface);
-  /*
-   * `background-color`, not the `background` SHORTHAND (UIX-06).
-   *
-   * The shorthand resets `background-image` too, and the shared control
-   * baseline draws a `<select>`'s chevron with one — so every select wearing
-   * `.dh-input` (Meetings' sort, the link picker's type select) silently lost
-   * its disclosure and read as a plain box. This rule only ever meant to state
-   * a colour.
-   */
-  background-color: transparent;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  /* UIX-06 — the CONTROL rung. M3's text field is `corner-extra-small`, but
-   * `.dh-tags` beside it in the same form was already `corner-small`, and every
-   * button, segment and filter trigger in the product is `--app-shape-control`
-   * (also `corner-small`). One form was therefore drawing two corner values on
-   * adjacent fields. The field joins the rung the rest of the product uses. */
-  border-radius: var(--app-shape-control);
-  transition: border-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
-}
 
-.dh-input::placeholder {
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.dh-input:hover:not(:disabled):not([readonly]) {
-  border-color: var(--md-sys-color-on-surface);
-}
-
-.dh-input:focus-visible,
-.dh-input:focus {
-  border-width: var(--app-border-width-thick);
-  border-color: var(--md-sys-color-primary);
-  padding-block: calc(var(--app-space-2) - 1px);
-  padding-inline: calc(var(--app-space-4) - 1px);
-  /* The border IS the focus indicator for a text field (M3), so the shared
-   * outline ring would be a second one saying the same thing. It is suppressed
-   * here and only here. */
-  outline: none;
-}
-
-/* A textarea is the same field with a taller box; it keeps the 56px minimum as
- * its floor and grows from there. */
-.dh-input--multiline {
-  min-block-size: calc(3.5rem * 1.5);
-  resize: vertical;
-}
-
-/* Invalid state: red border AND the field carries an icon+text error, so state
-   is never colour-only. */
-.dh-field[data-invalid="true"] .dh-input,
+/* Invalid state: the field marks every control it owns, and always alongside an
+   icon+text error message, so the state is never colour-only. `.dh-input` gets
+   its own `[aria-invalid]` rule from `ui.css`; these two composites do not. */
 .dh-field[data-invalid="true"] .dh-combobox__input,
 .dh-field[data-invalid="true"] .dh-tags {
-  border-width: var(--app-border-width-thick);
-  border-color: var(--md-sys-color-error);
-  padding-block: calc(var(--app-space-2) - 1px);
-  padding-inline: calc(var(--app-space-4) - 1px);
+  border-color: var(--dh-color-danger);
 }
 
-/* Disabled vs read-only are visually AND semantically distinct: disabled is
-   dimmed and inert; read-only keeps normal text on a sunken surface. */
-.dh-input:disabled {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  cursor: not-allowed;
-}
-
+/* Read-only keeps normal text on a quiet surface and says so with a dashed
+   edge — visually and semantically distinct from disabled, which is inert. */
 .dh-input[readonly] {
-  background: var(--md-app-color-surface-sunken);
   border-style: dashed;
   cursor: default;
 }
@@ -1035,166 +957,14 @@
 /* ------------------------------------------------------------------ Buttons */
 
 /*
- * The M3 button family, in the four variants the product actually needs.
+ * DS-02 — the button moved out of this file entirely.
  *
- * Common anatomy: 40px tall, `corner-full`, `label-large`, 24px of inline
- * padding (16px when a leading glyph is present), and the shared
- * `.md-state-layer` for hover and press — a button never swaps its container
- * colour, it grows a layer of its own content colour.
- *
- * Choosing between them is a hierarchy decision, not a taste one:
- *   --primary    FILLED. The one primary action on a surface. At most one.
- *   --secondary  TONAL. Secondary actions that still need weight.
- *   --danger     FILLED, on the error pair. Destructive, always with a word.
- *   --ghost      TEXT. The lowest-emphasis action, inside cards and rows.
- * An outlined variant is available as `--outlined` for the case a tonal button
- * would compete with a filled one beside it.
- *
- * `min-block-size` stays at `--app-control-height-lg` rather than M3's own 40px,
- * because 40px is below WCAG 2.2's 44px target floor and this product's floor
- * wins (AGENTS.md §15). The visual height is M3's; the touch target is ours.
+ * `.dh-btn` was declared here, in a forms stylesheet, because that is where the
+ * first one happened to be needed; it then became the product's button at 220
+ * call sites in 76 files, most of which are not forms. It now lives in
+ * `ui.css` beside the `Button` component that owns it, and this file no longer
+ * has an opinion about what a button looks like.
  */
-.dh-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--app-space-2);
-  min-block-size: var(--app-control-height-lg);
-  padding-inline: var(--app-space-5);
-  /*
-   * VIS-01 — a rounded rectangle by default; a PILL only where the action is
-   * primary or expressive.
-   *
-   * `corner-full` on every variant made the product a field of stadiums: a
-   * "Log weight" outlined button on a Goal card, a "Plan day" tonal button on
-   * Today and a "New Project" filled button in a collection header were all the
-   * same shape, so shape said nothing about emphasis and the pill stopped
-   * meaning "this is the action". Restricting the stadium to `--primary` and
-   * `--danger` gives it back its job, and the other three variants take
-   * `--app-shape-control`, which is the rung a compact control surface takes
-   * everywhere else in the product.
-   *
-   * Nothing about hierarchy rests on this alone — a filled button is filled, a
-   * tonal one is tonal, a text one has no container — so the change is
-   * additive: one more axis separating emphasis, not a replacement for one.
-   */
-  border-radius: var(--app-shape-control);
-  border: var(--app-border-width-thin) solid transparent;
-  font: inherit;
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-/* The state layer is NOT re-declared here. `.dh-btn` is a host of the ONE
- * implementation in `base.css` (M3-INT), which is where its hover, focus,
- * pressed and disabled opacities come from; `overflow: hidden` above is the
- * button's own contribution, keeping the layer inside the pill. This block used
- * to be a verbatim copy of that implementation under a comment claiming to use
- * it — audit finding 3, in one file. */
-
-/* A button with a leading glyph takes 16px of leading padding, so the glyph and
- * the label read as one object rather than as an icon floating in a pill. */
-.dh-btn:has(> .dh-icon:first-child),
-.dh-btn:has(> svg:first-child) {
-  padding-inline-start: var(--app-space-4);
-}
-
-/* FILLED — the one primary action, and one of the two that keeps the pill. */
-.dh-btn--primary {
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-}
-
-/* TONAL — secondary actions with weight. */
-.dh-btn--secondary {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
-}
-
-/* OUTLINED — for a secondary action beside a filled one, where a tonal fill
- * would compete with it. */
-.dh-btn--outlined {
-  background: transparent;
-  border-color: var(--md-sys-color-outline);
-  color: var(--md-sys-color-primary);
-}
-
-/* FILLED, on the error pair. Destructive actions always carry the word as well
- * as the colour (AGENTS.md §15). */
-.dh-btn--danger {
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-error);
-  color: var(--md-sys-color-on-error);
-}
-
-/* TEXT — the lowest-emphasis action. 12px of inline padding, per M3, so a text
- * button inside a card does not read as a wide invisible pill. */
-.dh-btn--ghost {
-  background: transparent;
-  color: var(--md-sys-color-primary);
-  padding-inline: var(--app-space-3);
-}
-
-/**
- * DS-06 — the compact button size, for dense action rows (an Asset obligation's
- * Complete / Edit / Hold / Dismiss group, a history entry's Edit / Remove).
- *
- * It reduces the horizontal padding and the type size ONLY. `min-block-size` is
- * deliberately left at `--app-control-height-lg` so a "small" button is still a
- * 44px touch target — compact must never mean unreachable on a phone
- * (AGENTS.md §15, WCAG 2.2 AA target size).
- */
-.dh-btn--sm {
-  padding-inline: var(--app-space-4);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
-}
-
-/* The M3 disabled pattern: the CONTAINER is the content colour at 12% and the
- * CONTENT is the content colour at 38%, in every variant — so a disabled filled
- * button and a disabled text button look like the same state rather than like a
- * faded version of two different things. */
-.dh-btn:disabled {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface)
-      var(--md-sys-state-disabled-container-opacity),
-    transparent
-  );
-  border-color: transparent;
-  color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
-    transparent
-  );
-  cursor: not-allowed;
-}
-
-/* A disabled TEXT button has no container at all — only its content dims. */
-.dh-btn--ghost:disabled,
-.dh-btn--outlined:disabled {
-  background: transparent;
-}
-
-.dh-btn__spinner {
-  inline-size: 0.9rem;
-  block-size: 0.9rem;
-  border: var(--app-border-width-thick) solid currentColor;
-  border-inline-end-color: transparent;
-  border-radius: var(--md-sys-shape-corner-full);
-  animation: dh-btn-spin var(--md-sys-motion-duration-long2) linear infinite;
-}
-
-@keyframes dh-btn-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* ------------------------------------------------------------------ Unsaved guard */
 
@@ -1244,15 +1014,13 @@
 
 /* ------------------------------------------------------------------ Reduced motion */
 
+/* `.dh-input` and `.dh-btn` are handled by `ui.css`'s own reduced-motion block,
+ * with the rest of the primitive layer. What remains here is the boolean
+ * control, which is still this file's. */
 @media (prefers-reduced-motion: reduce) {
-  .dh-input,
   .dh-boolean__control,
-  .dh-boolean__control::after,
-  .dh-btn {
+  .dh-boolean__control::after {
     transition: none;
-  }
-  .dh-btn__spinner {
-    animation: none;
   }
 }
 

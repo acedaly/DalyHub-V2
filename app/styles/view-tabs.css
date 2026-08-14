@@ -36,26 +36,33 @@
   display: none;
 }
 
+/*
+ * DS-02 — the tab takes the DENSITY rung rather than the touch floor.
+ *
+ * It was pinned at `--app-touch-target-min` (45px), which is the right floor
+ * for a target and the wrong HEIGHT for a text tab on a dense desktop: the rail
+ * occupied as much vertical space as the page title above it. `--dh-control-
+ * height` is 36px on a fine pointer and floors back to 45px on a coarse one
+ * (tokens.css), so the desktop rail tightens and a thumb loses nothing.
+ */
 .dh-viewtabs__tab {
   position: relative;
   display: inline-flex;
   align-items: center;
   flex: none;
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--app-space-3);
-  border-block-end: var(--app-border-width-thick) solid transparent;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  min-block-size: var(--dh-control-height);
+  padding-inline: var(--dh-space-3);
+  border-block-end: var(--dh-border-width-strong) solid transparent;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
   text-decoration: none;
   white-space: nowrap;
-  transition: color var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  transition: color var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 .dh-viewtabs__tab:hover {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /*
@@ -63,9 +70,13 @@
  * signals, plus `aria-current` — never the colour alone.
  */
 .dh-viewtabs__tab[aria-current="page"] {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-text);
   font-weight: 600;
-  border-block-end-color: var(--md-sys-color-primary);
+  /* The indicator keeps the accent; the LABEL takes the ordinary text colour.
+   * A violet label on a violet underline spends the accent twice on one object,
+   * and on a rail of five tabs the colour was doing the emphasising that the
+   * weight and the rule already do. Still three signals plus `aria-current`. */
+  border-block-end-color: var(--dh-color-accent);
 }
 
 @media (forced-colors: active) {

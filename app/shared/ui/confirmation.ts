@@ -16,7 +16,7 @@
  * isolation and safe to import from non-UI code.
  */
 
-import type { ConfirmationPhase } from "./types";
+import type { ConfirmationPhase } from "~/shared/settings/types";
 
 /** The pure state of one confirmation. `open` is intentionally NOT here — the */
 /** dialog's mounted/unmounted state is owned by React (so focus in/out fires). */

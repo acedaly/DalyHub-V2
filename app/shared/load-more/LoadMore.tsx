@@ -9,10 +9,12 @@
  * fetch; this stays a controlled, stateless button so it is trivially testable and
  * reusable across surfaces.
  *
- * It is built from the shared button styles (`dh-btn`) and announces failures
- * politely (`role="status"`), so a keyboard or screen-reader user learns a load
- * failed and can retry with the same control.
+ * It is the shared `Button` (DS-02) and announces failures politely
+ * (`role="status"`), so a keyboard or screen-reader user learns a load failed
+ * and can retry with the same control.
  */
+
+import { Button } from "~/shared/ui";
 
 export interface LoadMoreProps {
   /** True while a page fetch is in flight — disables the button and shows progress. */
@@ -38,15 +40,14 @@ export function LoadMore({
           We couldn’t load more. Please try again.
         </p>
       ) : null}
-      <button
-        type="button"
-        className="dh-btn dh-btn--secondary"
+      <Button
+        variant="secondary"
         onClick={onLoadMore}
         disabled={loading}
-        aria-busy={loading}
+        loading={loading}
       >
         {loading ? "Loading…" : loadFailed ? "Try again" : label}
-      </button>
+      </Button>
     </div>
   );
 }

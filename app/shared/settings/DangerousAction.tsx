@@ -22,10 +22,7 @@ import { useState, type ReactNode } from "react";
 
 import { useFeedback } from "~/shared/feedback";
 
-import {
-  ConfirmationDialog,
-  type TypedConfirmationConfig,
-} from "./ConfirmationDialog";
+import { ConfirmationDialog, type TypedConfirmationConfig } from "~/shared/ui";
 import { SettingsRow } from "./SettingsRow";
 
 export interface DangerousActionProps {

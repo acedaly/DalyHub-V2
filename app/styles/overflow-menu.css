@@ -1,11 +1,25 @@
 /*
- * M3-01 — the shared overflow (⋯) menu, as an M3 MENU.
+ * The shared overflow (⋯) menu — DalyHub's MENU primitive.
  *
- * `surface-container-high` at `corner-extra-small` and elevation 2, with 48px
- * items at `body-large`. One appearance for every overflow surface (Record
- * Header, Card), so the menu is correct in both appearances with no per-surface
- * override. A destructive item is distinguished by its icon and wording first —
- * the tone is reinforcement, never the only cue.
+ * Re-exported as `Menu` from `~/shared/ui`. DS-01 kept this component rather
+ * than adopting a library's because it does more than one: roving focus,
+ * typeahead, collision-aware placement, a phone sheet below `md`, Escape and
+ * outside-click. None of that changed in DS-02.
+ *
+ * ── What DS-02 changed: it stopped being a phone menu on a desktop ───────────
+ *
+ * M3's menu is a touch specification — 48px rows at `body-large` (16px), on a
+ * tonal `surface-container-high` with no border and elevation 2. A twelve-item
+ * Tasks row menu was therefore 600px of chrome, and it read as an Android
+ * context menu because that is exactly what it was.
+ *
+ * It is now the density model's menu: `--dh-menu-item-height` rows (36px on a
+ * compact desktop, 45px on a coarse pointer, unconditionally) at the `row` type
+ * rung, on a plain surface with a hairline and one rung of elevation. Crisp,
+ * dense, and the same object at every density.
+ *
+ * A destructive item is still distinguished by its icon and wording first — the
+ * tone is reinforcement, never the only cue.
  */
 
 .dh-overflow-menu {
@@ -18,13 +32,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--app-control-height-sm);
-  min-width: var(--app-control-height-sm);
-  padding: var(--app-space-1);
-  color: var(--md-sys-color-on-surface-variant);
+  min-height: var(--dh-control-height);
+  min-width: var(--dh-control-height);
+  padding: var(--dh-space-1);
+  color: var(--dh-color-text-muted);
   background: transparent;
   border: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  /* DS-02 — the control rung, like every other icon-only action. The circle was
+   * M3's icon-button shape and is what made an actions rail read as a row of
+   * floating dots beside rectangular controls. */
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
@@ -32,12 +49,12 @@
  * implementation in `base.css` (M3-INT); the only thing the trigger states for
  * itself is the CONTENT colour lift, which is not a state layer. */
 .dh-overflow-menu__trigger:hover {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-overflow-menu[data-open="true"] .dh-overflow-menu__trigger {
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
+  color: var(--dh-color-accent);
+  background: var(--dh-color-surface-selected);
 }
 
 .dh-overflow-menu__glyph {
@@ -62,16 +79,25 @@
   display: flex;
   flex-direction: column;
   min-inline-size: 13rem;
-  max-inline-size: min(20rem, calc(100vw - var(--app-space-6)));
-  padding-block: var(--app-space-2);
+  max-inline-size: min(20rem, calc(100vw - var(--dh-space-6)));
+  padding-block: var(--dh-space-1);
   /* The clamped panel scrolls its own items. `auto` rather than `scroll` so an
    * unclamped menu grows no gutter it does not need. */
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--md-sys-color-surface-container-high);
-  border: none;
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  box-shadow: var(--md-sys-elevation-2);
+  /*
+   * A plain surface with a hairline, not a tonal container.
+   *
+   * `surface-container-high` is M3's way of separating a menu from the page
+   * without a border; on DalyHub's light canvas it produced a grey panel that
+   * read as disabled. The border does the separating (which is what
+   * `--dh-color-border` is for) and the surface stays the ordinary one, so a
+   * menu looks like a piece of paper over the page rather than a slab of it.
+   */
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-elevation-overlay);
 }
 
 /* The default, and what the panel paints in the frame before it is measured. */
@@ -97,22 +123,30 @@
   inset-inline-start: 0;
 }
 
-/* The M3 menu item: 48px tall, 12px inline, `body-large`, and no radius of its
- * own — the menu's corner is the shape. */
+/*
+ * The menu ITEM — density's height, the `row` type rung, and its own radius.
+ *
+ * It takes a small corner of its own (inset from the panel by the panel's
+ * padding) rather than running edge to edge, because a full-bleed highlight in
+ * a 12px-cornered panel has to square off its own corners against the panel's
+ * and never quite does. An inset row is the shape a modern desktop menu draws.
+ */
 .dh-overflow-menu__item {
   display: flex;
   align-items: center;
-  gap: var(--app-space-3);
+  gap: var(--dh-space-2);
   width: 100%;
-  min-block-size: 3rem;
-  padding-inline: var(--app-space-3);
-  font-family: inherit;
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  min-block-size: var(--dh-menu-item-height);
+  padding-inline: var(--dh-space-2);
+  margin-inline: var(--dh-space-1);
+  inline-size: calc(100% - var(--dh-space-2));
+  border-radius: var(--dh-radius-sm);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
   text-align: start;
   text-decoration: none;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -124,29 +158,31 @@
  * is already a red tint. It used to swap its container to `error-container`,
  * which was a second, louder language for the same state. */
 .dh-overflow-menu__item[data-tone="danger"] {
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
 }
 
 .dh-overflow-menu__item[aria-disabled="true"] {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: var(--dh-color-text-muted);
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 /* A decorative group break — the label wording always carries the grouping too. */
 .dh-overflow-menu__item[data-separator="true"] {
-  margin-block-start: var(--app-space-1);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
-  border-radius: 0 0 var(--md-sys-shape-corner-small)
-    var(--md-sys-shape-corner-small);
-  padding-block-start: calc(var(--app-space-2) + var(--app-space-1));
+  margin-block-start: var(--dh-space-1);
+  border-top: var(--dh-border-width) solid var(--dh-color-border);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  padding-block-start: var(--dh-space-1);
 }
 
 .dh-overflow-menu__icon {
   display: inline-flex;
   flex: none;
-  margin-block-start: 0.1em;
-  font-size: var(--md-sys-typescale-body-large-size);
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+  align-items: center;
+  justify-content: center;
   color: currentcolor;
 }
 
@@ -162,13 +198,21 @@
 }
 
 .dh-overflow-menu__description {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   font-weight: 400;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
-/* Touch: comfortable targets for the trigger and every item. */
+/*
+ * Touch: comfortable targets for the trigger and every item.
+ *
+ * `--dh-menu-item-height` already floors to the touch minimum on a coarse
+ * pointer (tokens.css), so this block is now belt AND braces rather than the
+ * only guarantee — it covers the case of a device that reports `hover: none`
+ * without reporting `pointer: coarse`.
+ */
 @media (hover: none) {
   .dh-overflow-menu__trigger,
   .dh-overflow-menu__item {

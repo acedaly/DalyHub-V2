@@ -28,12 +28,17 @@
 
 import type { ReactNode } from "react";
 
+import { Badge, type BadgeTone } from "~/shared/ui/Badge";
+
 /**
  * The pill tones. `neutral` is the absence state and is deliberately first: it is
  * the default a field falls back to when it has no value, not an afterthought.
+ *
+ * DS-02: this is `BadgeTone`. The alias is kept so the ~40 call sites that
+ * annotate a variable with `PillTone` do not all have to change in the PR that
+ * introduces the generic name.
  */
-export type PillTone =
-  "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+export type PillTone = BadgeTone;
 
 export interface StatusPillProps {
   /** The state, in words. Required: a pill never conveys meaning by colour. */
@@ -48,7 +53,19 @@ export interface StatusPillProps {
   readonly className?: string;
 }
 
-/** A status pill. Always says its state; `neutral` states an absence. */
+/**
+ * A status pill. Always says its state; `neutral` states an absence.
+ *
+ * ── DS-02 — this IS the `Badge` ──────────────────────────────────────────────
+ *
+ * It renders `~/shared/ui`'s `Badge` and keeps `.dh-pill` in the class list, so
+ * every existing stylesheet selector, test query and e2e locator that names the
+ * pill keeps matching while the product's own surfaces migrate to `Badge`
+ * directly. There is one implementation and one set of visual rules; what is
+ * left here is a name.
+ *
+ * New code should import `Badge` from `~/shared/ui`.
+ */
 export function StatusPill({
   children,
   tone = "neutral",
@@ -56,17 +73,13 @@ export function StatusPill({
   className,
 }: StatusPillProps) {
   return (
-    <span
+    <Badge
+      tone={tone}
+      icon={icon}
       className={className ? `dh-pill ${className}` : "dh-pill"}
-      data-tone={tone}
     >
-      {icon ? (
-        <span className="dh-pill__icon" aria-hidden="true">
-          {icon}
-        </span>
-      ) : null}
       {children}
-    </span>
+    </Badge>
   );
 }
 

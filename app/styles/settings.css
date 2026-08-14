@@ -417,32 +417,46 @@
   width: min(28rem, 100%);
   max-height: 100%;
   overflow-y: auto;
-  padding: var(--app-space-5);
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-extra-large);
-  box-shadow: var(--md-sys-elevation-3);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  /*
+   * DS-02 — `--dh-radius-lg` (16px), down from `corner-extra-large` (28px).
+   *
+   * A 28px corner is M3's shape for a full-screen mobile dialog. On a 28rem
+   * desktop confirmation it curves so far that the title's first character sits
+   * visibly inboard of the body text under it, and the surface reads as a
+   * rounded phone sheet floating over a desktop application. 16px is the
+   * product's own card rung and is the largest radius DalyHub spends on
+   * anything that is not the one expressive surface.
+   */
+  border-radius: var(--dh-radius-lg);
+  box-shadow: var(--dh-elevation-modal);
   animation: dh-confirm-in var(--md-sys-motion-duration-medium2)
     var(--md-sys-motion-easing-emphasized);
 }
 
 .dh-confirm--danger {
-  border-top: var(--app-border-width-thick) solid var(--md-sys-color-error);
+  border-top: var(--dh-border-width-strong) solid var(--dh-color-danger);
 }
 
+/* The DalyHub `section-title` role: a card or dialog headline. */
 .dh-confirm__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--md-sys-color-on-surface);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+  color: var(--dh-color-text);
 }
 
+/* `row`, not `meta`: the consequence of a destructive action is the one thing
+ * on this surface that must actually be read, so it takes the rung the product
+ * uses for text it expects to be read rather than glanced at. */
 .dh-confirm__body {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: 1.65;
-  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-confirm__typed {
@@ -495,84 +509,38 @@
   margin-top: var(--app-space-2);
 }
 
-.dh-confirm__button {
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-4);
-  font-family: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
-  border-radius: var(--md-sys-shape-corner-medium);
-  border: var(--app-border-width-thin) solid transparent;
-  cursor: pointer;
-}
+/*
+ * DS-02 — the dialog's buttons are the shared `Button` component.
+ *
+ * What stood here was a complete second button family: its own height, radius,
+ * type rung, focus ring, hover fill, disabled treatment and three variants —
+ * inside the one surface where a destructive action's emphasis matters most,
+ * and drifting from the product's real buttons every time either changed. The
+ * dialog now renders `<Button variant="secondary">` and
+ * `<Button variant="primary" | "danger">`, and this file has no opinion about
+ * what a button is.
+ */
 
-.dh-confirm__button:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
-    0 0 0 4px var(--md-sys-color-primary);
-}
-
-.dh-confirm__button--cancel {
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-card);
-  border-color: var(--md-sys-color-outline-variant);
-}
-
-.dh-confirm__button--cancel:hover:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-}
-
-.dh-confirm__button--confirm {
-  color: var(--md-sys-color-on-primary);
-  background: var(--md-sys-color-primary);
-}
-
-.dh-confirm__button--danger {
-  color: var(--md-sys-color-on-primary);
-  background: var(--md-sys-color-error);
-}
-
-.dh-confirm__button:disabled {
-  cursor: not-allowed;
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-}
-
+/*
+ * On a narrow phone the two actions stack full-width, which is the one place a
+ * dialog's buttons stop being an inline pair. `.dh-button` rather than
+ * `.dh-confirm__button` now that the actions ARE the shared component; the
+ * touch height it already gets from the density floor, so only the flex basis
+ * is stated.
+ */
 @media (max-width: 30rem) {
   .dh-confirm {
     width: 100%;
-    padding: var(--app-space-4);
-    border-radius: var(--md-sys-shape-corner-large);
+    padding: var(--dh-space-4);
+    border-radius: var(--dh-radius-md);
   }
 
   .dh-confirm__actions {
     justify-content: stretch;
   }
 
-  .dh-confirm__button {
+  .dh-confirm__actions .dh-button {
     flex: 1 1 100%;
-    min-height: var(--app-touch-target-min);
-  }
-}
-
-@media (hover: none), (pointer: coarse) {
-  .dh-confirm__input,
-  .dh-confirm__button {
-    min-height: var(--app-touch-target-min);
   }
 }
 

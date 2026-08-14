@@ -25,6 +25,7 @@ import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
 
+import { Button } from "./Button";
 import {
   canConfirm,
   initConfirmation,
@@ -266,27 +267,38 @@ function ConfirmationDialogPanel({
           </p>
         ) : null}
 
+        {/*
+         * DS-02 — the dialog's actions are the shared `Button`.
+         *
+         * They used to be two bespoke controls with their own height, radius,
+         * type rung, focus ring, hover fill and disabled treatment, declared in
+         * `settings.css` — a second button family inside the one surface where
+         * getting a destructive action's emphasis right matters most. They are
+         * now `secondary` and `primary`/`danger`, which is what they always
+         * meant, and the emphasis relationship between them is the product's
+         * one button hierarchy rather than this file's opinion of it.
+         *
+         * Cancel keeps the ref: focus moves to it on open (never to the
+         * destructive button) and that behaviour is untouched.
+         */}
         <div className="dh-confirm__actions">
-          <button
+          <Button
             ref={cancelRef}
-            type="button"
-            className="dh-confirm__button dh-confirm__button--cancel"
+            variant="secondary"
             onClick={requestClose}
             disabled={pending}
           >
             {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={`dh-confirm__button dh-confirm__button--confirm${
-              tone === "danger" ? " dh-confirm__button--danger" : ""
-            }`}
+          </Button>
+          <Button
+            variant={tone === "danger" ? "danger" : "primary"}
             onClick={handleConfirm}
             disabled={!confirmEnabled}
+            loading={pending}
             aria-describedby={errorId}
           >
             {pending ? (busyLabel ?? confirmLabel) : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

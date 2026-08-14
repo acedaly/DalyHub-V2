@@ -44,6 +44,8 @@ import {
   type CollectionControlsDraft,
 } from "./collection-controls-model";
 
+import { Button } from "~/shared/ui";
+
 export type CollectionControlsProps = {
   /** The URL-backed control groups this collection exposes. */
   readonly groups: readonly CollectionControlGroup[];
@@ -164,22 +166,20 @@ export function CollectionControls({
           data-testid="collection-sheet"
           footer={
             <>
-              <button
-                type="button"
-                className="dh-btn dh-btn--ghost"
+              <Button
+                variant="subtle"
                 onClick={reset}
                 data-testid="collection-sheet-reset"
               >
                 Reset
-              </button>
-              <button
-                type="button"
-                className="dh-btn dh-btn--primary"
+              </Button>
+              <Button
+                variant="primary"
                 onClick={apply}
                 data-testid="collection-sheet-apply"
               >
                 {dirty ? "Apply" : "Done"}
-              </button>
+              </Button>
             </>
           }
         >

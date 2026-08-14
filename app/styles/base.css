@@ -98,9 +98,22 @@ body {
  * own corner radius, so a fully-rounded button gets a fully-rounded ring and a
  * text field gets a 4px one, with nothing to keep in sync.
  */
+/*
+ * DS-02 — the indicator is the three DalyHub focus tokens (DS-01 §8), not a
+ * per-component decision. It still follows each component's own radius, so
+ * there is nothing to keep in sync.
+ *
+ * The WIDTH is unchanged (`--dh-focus-width` IS `--app-border-width-thick`, the
+ * 2px this always painted, and 2px is what WCAG 2.4.13 asks of an indicator's
+ * thickness). The OFFSET moves 2px → 1px, which is the value DS-01 published
+ * and is a deliberate adoption rather than a side effect: a tighter ring reads
+ * as part of the control at the DS-02 control height, where a 2px gap around a
+ * 36px button starts to look like a second border. Thickness, contrast and the
+ * fact that every focusable thing has one are untouched.
+ */
 :focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
-  outline-offset: 2px;
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -150,6 +163,8 @@ body {
  */
 :is(
   .md-state-layer,
+  .dh-button,
+  .dh-icon-button,
   .dh-btn,
   .record-action,
   .dh-card__action,
@@ -171,6 +186,8 @@ body {
 
 :is(
   .md-state-layer,
+  .dh-button,
+  .dh-icon-button,
   .dh-btn,
   .record-action,
   .dh-card__action,
@@ -200,6 +217,8 @@ body {
 
 :is(
     .md-state-layer,
+    .dh-button,
+    .dh-icon-button,
     .dh-btn,
     .record-action,
     .dh-card__action,
@@ -230,6 +249,8 @@ body {
  */
 :is(
     .md-state-layer,
+    .dh-button,
+    .dh-icon-button,
     .dh-btn,
     .record-action,
     .dh-card__action,
@@ -254,6 +275,8 @@ body {
  * copied `:hover` rule rarely grows an `:active` sibling. */
 :is(
     .md-state-layer,
+    .dh-button,
+    .dh-icon-button,
     .dh-btn,
     .record-action,
     .dh-card__action,
@@ -278,6 +301,8 @@ body {
  * whatever the pointer does. */
 :is(
     .md-state-layer,
+    .dh-button,
+    .dh-icon-button,
     .dh-btn,
     .record-action,
     .dh-card__action,
@@ -358,7 +383,17 @@ body {
    * that ever costing a touch target.
    */
   min-block-size: var(--dh-control-height);
-  padding: var(--app-space-2) var(--app-space-3);
+  /*
+   * DS-02 — the inset is density's too.
+   *
+   * It was a fixed 8px/12px, which is `compact`'s block inset and `compact`'s
+   * inline inset by coincidence rather than by contract: a control in a touch
+   * region got the comfortable HEIGHT and the dense PADDING, so its text sat in
+   * a band of empty space. Reading both from the density model is what makes a
+   * bare `<select>` dropped into a filter row proportioned like the designed
+   * controls around it at every density.
+   */
+  padding: var(--dh-inset-block) var(--dh-inset-inline);
   font: inherit;
   /*
    * MOBILE-01 (iPhone daily driver) — the token, not the raw typescale rung.
@@ -374,10 +409,13 @@ body {
    * scrolled with the collection header off-screen.
    */
   font-size: var(--app-field-font-size-compact);
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  border-radius: var(--app-shape-control);
+  /* DS-02 — the DalyHub vocabulary. Value-identical to the UIX-06 rule this
+   * replaces; `--dh-color-surface` is the card surface the raised ramp already
+   * resolved to on a form, and the control rung and hairline are unchanged. */
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-control);
 }
 
 /*
