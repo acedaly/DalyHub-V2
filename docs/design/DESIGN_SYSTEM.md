@@ -2,31 +2,36 @@
 
 > The catalogue of shared patterns every module reuses. DalyHub's coherence comes from the fact that a task, a project, a person, and a note all *behave the same way*. This document is that contract.
 >
-> **Rule:** Before building any UI, find the pattern here. If it exists, reuse it. If it should exist but doesn't, build it *as a shared pattern* and document it here — in the same PR. A bespoke duplicate is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. (See [`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke).)
+> **Rule:** Before building any UI, find the pattern here. If it exists, reuse it. If it should exist but doesn't, build it *as a shared pattern* and document it here — in the same PR. A bespoke duplicate is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. (See [`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer).)
 >
 > Companion docs: product intent in [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md); UX/interaction philosophy in [`AGENTS.md §6–7`](../../AGENTS.md#6-ux-philosophy); build order in [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md).
 
 ---
 
-## Foundations — Material Design 3
+## Foundations — the DalyHub design system, over Material 3 machinery
 
-DalyHub's design language is **Material Design 3** ([ADR-074](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)). It is hand-rolled in plain CSS over DalyHub's own components — there is no `@material/web`, no CSS framework and **no runtime dependency**. What we adopt is M3's *vocabulary, values and anatomy*; the markup, the behaviour and the accessibility contract stay ours.
+DalyHub's design language is **DalyHub's own**, specified in [`DALYHUB_DESIGN_SYSTEM.md`](DALYHUB_DESIGN_SYSTEM.md) ([ADR-092](../decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery)). **Material Design 3 is the machinery beneath it** ([ADR-074](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)): hand-rolled in plain CSS over DalyHub's own components, with no `@material/web`, no CSS framework and **no runtime dependency**. What we take from M3 is its *values and algorithms* — a generated tonal palette, a typescale, a shape ladder, a state layer, motion curves. The markup, the behaviour, the accessibility contract and now the **vocabulary** stay ours.
 
-This matters because it changes where design questions get answered. "What radius does a chip take?" is no longer a DalyHub decision to make, defend and document — it has a published answer, and this document records how we apply it.
+The layering, top-down. A component reaches for the top layer; the rest is what that layer currently resolves to.
 
-| Token family | What it carries |
-| --- | --- |
-| `--md-sys-color-*` | Every colour role, **generated** per colour scheme |
-| `--md-app-color-*` | The application surfaces, from a near-neutral palette of their own |
-| `--md-ref-typeface-*` | The two reference typefaces |
-| `--md-sys-typescale-*` | The fifteen type styles |
-| `--md-sys-shape-*` | The corner scale |
-| `--md-sys-elevation-*` | The five shadow levels |
-| `--md-sys-state-*` | The state-layer opacities and the disabled pattern |
-| `--md-sys-motion-*` | Durations and easing curves |
-| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, the shell's own measurements |
+| Token family | What it carries | Layer |
+| --- | --- | --- |
+| `--dh-*` | **The DalyHub design system**: colour, space, radius, borders, elevation, focus, the seven type roles, motion, density | **reach for this** |
+| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, the shell's own measurements | machinery |
+| `--md-app-color-*` | The application surfaces, from a near-neutral palette of their own | machinery |
+| `--md-sys-color-*` | Every colour role, **generated** per colour scheme | machinery |
+| `--md-ref-typeface-*` | The two reference typefaces | machinery |
+| `--md-sys-typescale-*` | The fifteen type styles | machinery |
+| `--md-sys-shape-*` | The corner scale | machinery |
+| `--md-sys-elevation-*` | The five shadow levels | machinery |
+| `--md-sys-state-*` | The state-layer opacities and the disabled pattern | machinery |
+| `--md-sys-motion-*` | Durations and easing curves | machinery |
 
-**Authoritative source:** [`app/styles/tokens.css`](../../app/styles/tokens.css). A typed, greppable registry over the same names lives in [`app/shared/tokens`](../../app/shared/tokens). Application code — CSS and components — consumes tokens and never hard-codes a raw hex, pixel or duration where a token exists ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke)).
+**Density.** Three presets — `compact` · `default` · `touch` — selected by `data-dh-density` on any ancestor, controlling eight tokens and nothing else. Density is a preference rather than a viewport, and it may never cost a touch target. The rules are in [`DALYHUB_DESIGN_SYSTEM.md` §11](DALYHUB_DESIGN_SYSTEM.md#11-density-ds-01); the values are in `tokens.css`.
+
+**Authoritative source:** [`app/styles/tokens.css`](../../app/styles/tokens.css). A typed, greppable registry over the same names lives in [`app/shared/tokens`](../../app/shared/tokens), with the DalyHub layer published in [`dalyhub.ts`](../../app/shared/tokens/dalyhub.ts). Application code — CSS and components — consumes tokens and never hard-codes a raw hex, pixel or duration where a token exists ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)).
+
+**Migration status.** DS-01 established the DalyHub layer; DS-02…DS-08 move consumers onto it, one component family per stage ([map](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#9-the-migration-map)). Until then most of this document's mechanics are still written in `--md-*`/`--app-*` names, which is expected: the values are identical, and a stage rewrites the names it owns as it goes.
 
 ---
 

@@ -886,9 +886,106 @@ resume", and the last planned hardening pass. Full record:
 
 ### NEXT
 
-Nothing. HARDEN-04 was the last planned hardening item, and the E2E gate is now a
-signal rather than a coin toss — so the next thing to pick up is in LATER, or is
-whatever the next audit finds.
+**The DS programme — the DalyHub design system replaces Material Design 3 as the
+governing design language.** DS-01 is delivered; DS-02 is the next item to pick
+up. The stages are deliberately small and independently shippable, and none of
+them is a screen redesign until DS-04.
+
+> **Naming collision, stated once so nobody trips on it.** `DS-01`…`DS-17` are
+> already used as item ids in [`ROADMAP_V2.md`](ROADMAP_V2.md), which is
+> **closed**: its DS-01 was "Design tokens & theming" — the original bespoke
+> `--dh-*` token system, retired wholesale by M3-01/ADR-074. These DS items are
+> the **2026-08 design-system programme** and are the ones in force; a bare
+> "DS-01" in current documentation means this one. When citing the old series,
+> say so explicitly ("DS-01 (V2, closed)"). Renaming either series was judged
+> more churn than the ambiguity is worth, since the earlier programme is closed
+> and the system it built no longer exists.
+
+The decision is
+[ADR-092](../decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery);
+the specification is
+[`DALYHUB_DESIGN_SYSTEM.md`](../design/DALYHUB_DESIGN_SYSTEM.md); the audit,
+component inventory, primitive-library decision and full migration map are in
+[`DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md`](../design/DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md).
+
+| Stage | Scope | Depends on | Risk |
+|---|---|---|---|
+| ☑ **DS-01** | Design-system foundation — **DELIVERED 2026-08-14** | — | Low |
+| **DS-02** | Generic UI primitives: a real `Button` component over the 76+ `.dh-btn` call sites; move `ConfirmationDialog`/`DangerousAction` out of `shared/settings`; split generic `Pill` from product `Absence`; migrate the generic layer's CSS onto `--dh-*`; consolidate chips (A6's remaining half) | DS-01 | Medium — mechanical but wide; the `base.css` state-layer host list shrinks as it goes |
+| **DS-03** | Shell and navigation: drawer, top app bar, phone bar, command palette, and the toolbar/filter-bar consolidation. **First real `compact` density adopter** | DS-02 | Medium — the shell is on every route, and D12/D15's measurements must survive |
+| **DS-04** | Tasks: `TaskRow` onto `compact`, list and table density, the bulk bar, inline edit | DS-02, DS-03 | Medium–high — the most-used surface, and D18/D32 are load-bearing |
+| **DS-05** | Projects, Areas, Goals: the six record-surface families onto DalyHub tokens; A5's remaining half (one legend anatomy, one empty state, one summary contract across the five chart primitives) | DS-02 | Medium — §5b's shape distinctions must not be flattened |
+| **DS-06** | Today: the stat row, the Schedule region, the focus panel | DS-02, DS-05 | Medium — D11 (Today has no hero) stays |
+| **DS-07** | Adaptive and mobile audit across 320…2560 in both appearances; decide whether the owner gets a density preference | DS-03…DS-06 | Medium |
+| **DS-08** | Cleanup: retire `--md-*`/`--app-*` names with no consumers left, move each surviving source of truth into `--dh-*`, decide what stays generated | all | Low–medium, and only if the earlier stages actually finished |
+
+Two rules hold across the programme: **a file speaking both token vocabularies is
+expected rather than debt** (this migration is deliberately the opposite shape
+from ADR-074's one-commit switch, because a component layer works fine at every
+intermediate step and a token layer does not), and **no stage is a big-bang MD3
+deletion** — DS-08 removes what has no consumers, and a name that still has one
+means the stage owning it has not finished.
+
+Everything else that was queued is in LATER, or is whatever the next audit finds.
+HARDEN-04 was the last planned hardening item and the E2E gate is now a signal
+rather than a coin toss.
+
+### ☑ DS-01 - DalyHub design-system foundation — **DELIVERED 2026-08-14**
+
+**Material Design 3 stops being the specification and becomes the machinery.**
+
+- **The authority change, written down.** `DALYHUB_DESIGN_SYSTEM.md` is now the
+  specification for what DalyHub looks like; MD3 is cited as machinery and as
+  historical inspiration and no longer settles a design question. UIX-06 had
+  already corrected `AGENTS.md` §6 once, and thirty-two numbered departures had
+  already made "MD3 is the foundation" untrue — DS-01 moved the statement to the
+  top of the right page. ADR-092 records it, amends ADR-074's design authority,
+  and leaves every one of ADR-074's *mechanisms* intact.
+- **A product-owned token layer.** `--dh-*` sits on top of `--app-*`,
+  `--md-app-*` and `--md-sys-*` and is what a component reaches for from DS-02
+  onward: colour, space, radius, borders, elevation, focus, seven type roles,
+  motion and density. Nothing in it is authored — every value is a `var()` onto
+  an existing token, so the generator stays the single source of truth for
+  colour and `scheme:check` has nothing new to disagree with.
+- **The `--dh-` prefix returns pointing the other way.** ADR-074 built an alias
+  layer under this prefix and deleted it on schedule; this one maps DalyHub's
+  *own* names onto M3 values rather than its *old* names, so deleting it would
+  be the migration failing rather than completing. The "no `--dh-` token at all"
+  guard was replaced by a stronger one: every such name must be published in
+  `app/shared/tokens/dalyhub.ts` and defined only in `tokens.css`.
+- **An explicit density model.** `compact` · `default` · `touch`, selected by
+  `data-dh-density` on any ancestor (namespaced: plain `data-density` was already
+  taken twice, with unrelated meanings), controlling eight tokens and nothing else.
+  Density is a preference rather than a viewport (a trackpad-driven 27-inch
+  monitor is not compact; a hand-held large tablet is not default), so the
+  selector is an attribute and the `(pointer: coarse)` rule is only a default for
+  a document that has not chosen. **Density may never cost a touch target:**
+  compact's hit areas are floored back to the WCAG minimum on a coarse pointer,
+  unconditionally.
+- **The component inventory.** Every shared primitive audited and classified with
+  reasoning. Nothing came out REPLACE LATER or REMOVE LATER, which is the honest
+  result and the important one: the MD3 work was good engineering, and what it
+  left was a vocabulary gap and a missing density model rather than bad
+  components.
+- **No new dependency.** Radix, React Aria, Base UI and shadcn each evaluated per
+  component and declined — not because the code already exists, but because the
+  existing implementations encode product decisions a library cannot know (D31's
+  repainted native `<select>`, ADR-087's anchored-above-modal layer, ADR-076's
+  server-authoritative inline editing). What DS-02 needs is a `Button`.
+- **One line of visual change.** `base.css`'s control baseline reads
+  `--dh-control-height`, which is value-identical at the default density — so the
+  layer is load-bearing rather than hypothetical, and DS-03 can make a toolbar
+  denser by declaring `data-dh-density` on a region rather than by writing a height.
+  No screen was redesigned, no token renamed, no component restyled and no MD3
+  token deleted.
+- **Verification.** 15 new assertions in `test/unit/tokens/dalyhub-tokens.test.ts`
+  covering registry completeness in both directions, no authored colour, no
+  foreign design-language naming, definition confined to `tokens.css`, the exact
+  density token set per preset, density holding nothing but density, the default
+  preset matching the pre-DS-01 values, the compact/default/touch ordering, the
+  coarse-pointer target floor, and density never being selected by viewport
+  width. Typecheck, lint, format, `scheme:check`, unit, kernel and build all
+  pass.
 
 ### LATER
 
