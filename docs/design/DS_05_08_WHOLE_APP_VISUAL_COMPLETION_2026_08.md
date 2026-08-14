@@ -194,16 +194,17 @@ Feature stylesheet references to MD3 vocabulary, before and after:
 | Vocabulary | Before | After | Verdict |
 |---|---|---|---|
 | `--md-sys-color-*`, `--md-app-color-*` (with a 1:1 `--dh-*` alias) | 1,269 | **0** | migrated |
-| `--md-sys-typescale-*` | 983 | 983 | **debt** — see below |
-| `--md-sys-color-*` with no `--dh-*` equivalent | 741 | 741 | **acceptable** |
-| `--md-sys-shape-*` / `-motion-*` / `-elevation-*` | 488 | 488 | **debt** |
+| `--md-sys-typescale-*` | 979 | 979 | **debt** — see below |
+| `--md-sys-color-*`/`--md-app-color-*` with no `--dh-*` equivalent | 787 | 787 | **acceptable** |
+| `--md-sys-shape-*` / `-motion-*` / `-elevation-*` / `-state-*` | 497 | 497 | **debt** |
+| **Total in feature stylesheets** | **3,532** | **2,144** | −39% |
 
 **The migration is provably value-preserving, and was proved.** Every `--dh-*`
 colour token is literally `var(<the same underlying token>)`, and nothing outside
 `tokens.css` redefines one of the 26 mapped names in any scope (checked). The full
 Today page was captured before and after: **0 differing pixels of 2,301,120.**
 
-**Acceptable (AGENTS.md §9.8).** The 741 remaining colour references are the roles
+**Acceptable (AGENTS.md §9.8).** The 787 remaining colour references are the roles
 the DalyHub layer deliberately does not name — chart series, the priority ramp,
 the six area accents, `outline-variant`, the four `*-container` status pairs.
 Those are DATA vocabularies rather than surface vocabularies, and §9.8 says a
