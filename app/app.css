@@ -75,6 +75,10 @@
  * and only adds to it. */
 @import "./styles/schedule.css";
 @import "./styles/tasks.css";
+/* DS-04 — the product-level Task row/list/group. After `tasks.css` so the
+ * DS-04 anatomy wins over the UIX-01 card-override layer wherever a selector
+ * of equal specificity survives in both. */
+@import "./styles/task-list.css";
 @import "./styles/views.css";
 @import "./styles/segmented-filter.css";
 /* UIX-02 — the shared view TAB RAIL (`.dh-viewtabs`), drawn by both `ViewTabs`

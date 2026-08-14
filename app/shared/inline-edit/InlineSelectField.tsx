@@ -103,12 +103,37 @@ export interface InlineSelectFieldProps {
   readonly clearLabel?: string;
   /** Render the current value with the caller's own chip/pill. */
   readonly renderValue?: (option: InlineSelectOption | null) => React.ReactNode;
+  /**
+   * DS-04 — the ESCAPE HATCH at the end of a bounded option set.
+   *
+   * The Project chooser is handed the loader's bounded candidates, never "all
+   * projects", so for a large workspace the menu is a page of the answer rather
+   * than the answer. Typeahead searches what is IN the menu; this searches what
+   * is not, by handing the choice to the shared searchable picker.
+   *
+   * It is an ordinary item in the same roving-focus list, so it is reachable by
+   * keyboard, announced by a screen reader and typeahead-matchable, exactly like
+   * every other row. A field with a genuinely closed set (priority, status)
+   * passes nothing and the list is unchanged.
+   */
+  readonly searchAction?: {
+    readonly label: string;
+    readonly description?: string;
+    readonly onSelect: () => void;
+  };
   readonly className?: string;
   readonly "data-testid"?: string;
 }
 
 /** The sentinel the clear command submits. Never a real option value. */
 const CLEAR_VALUE = "";
+
+/**
+ * The sentinel the search command carries. It never reaches `onSave` — choosing
+ * it hands off to the caller's picker and closes the menu — so it must be a
+ * value no real option can hold.
+ */
+const SEARCH_VALUE = "__dh-search";
 
 /** How long a typeahead buffer survives before the next key starts a new search. */
 const TYPEAHEAD_RESET_MS = 700;
@@ -123,6 +148,7 @@ export function InlineSelectField({
   clearable = false,
   clearLabel,
   renderValue,
+  searchAction,
   className,
   "data-testid": testId,
 }: InlineSelectFieldProps) {
@@ -147,15 +173,29 @@ export function InlineSelectField({
    * defect the shared primitive exists to prevent.
    */
   const items = useMemo<readonly InlineSelectOption[]>(() => {
-    if (!clearable || value === CLEAR_VALUE) return options;
-    return [
-      ...options,
-      {
-        value: CLEAR_VALUE,
-        label: clearLabel ?? `Clear ${label.toLocaleLowerCase()}`,
-      },
-    ];
-  }, [clearable, clearLabel, label, options, value]);
+    const base =
+      !clearable || value === CLEAR_VALUE
+        ? options
+        : [
+            ...options,
+            {
+              value: CLEAR_VALUE,
+              label: clearLabel ?? `Clear ${label.toLocaleLowerCase()}`,
+            },
+          ];
+    return searchAction === undefined
+      ? base
+      : [
+          ...base,
+          {
+            value: SEARCH_VALUE,
+            label: searchAction.label,
+            ...(searchAction.description
+              ? { description: searchAction.description }
+              : {}),
+          },
+        ];
+  }, [clearable, clearLabel, label, options, searchAction, value]);
 
   const close = useCallback(() => {
     setActiveIndex(-1);
@@ -293,6 +333,14 @@ export function InlineSelectField({
   const choose = (option: InlineSelectOption) => {
     if (option.disabled) return;
     setActiveIndex(-1);
+    // The search command is a HAND-OFF, not a value. It closes the menu and
+    // opens the caller's picker; nothing is written here, so a cancelled search
+    // leaves the field exactly as it was.
+    if (option.value === SEARCH_VALUE) {
+      close();
+      searchAction?.onSelect();
+      return;
+    }
     field.submit(option.value);
   };
 
@@ -374,6 +422,29 @@ export function InlineSelectField({
               {clearLabel ?? `Clear ${label.toLocaleLowerCase()}`}
             </button>
           ) : null}
+          {/*
+           * The escape hatch, on a PHONE too.
+           *
+           * The sheet renders `options` rather than the augmented `items` list —
+           * deliberately, because its clear command is its own control rather
+           * than a row — so a `searchAction` added to `items` reached the
+           * desktop menu and silently never appeared here. On the device most
+           * likely to be holding a large workspace, the bounded loader page was
+           * the whole of the Project chooser with no way past it.
+           */}
+          {searchAction ? (
+            <button
+              type="button"
+              className="dh-inline-select-sheet__clear"
+              data-search="true"
+              onClick={() => {
+                close();
+                searchAction.onSelect();
+              }}
+            >
+              {searchAction.label}
+            </button>
+          ) : null}
         </Sheet>
       ) : null}
 
@@ -391,18 +462,28 @@ export function InlineSelectField({
         >
           {items.map((option, index) => {
             const isClear = clearable && option.value === CLEAR_VALUE;
+            const isSearch = option.value === SEARCH_VALUE;
             return (
               <button
                 key={option.value === CLEAR_VALUE ? "__clear" : option.value}
                 type="button"
-                role="menuitemradio"
-                // The clear command is still a radio in the same group: it is
+                // The search command is a COMMAND — it opens a picker rather
+                // than choosing a value — so it is a plain `menuitem` and takes
+                // no place in the radio group. Announcing "not selected" for a
+                // row that can never be selected would be a lie about the
+                // field's state.
+                role={isSearch ? "menuitem" : "menuitemradio"}
+                // The clear command IS still a radio in the same group: it is
                 // the "none of these" choice, and announcing it as unchecked
                 // beside a checked value is exactly the state of the field.
-                aria-checked={option.value === value}
+                {...(isSearch
+                  ? {}
+                  : { "aria-checked": option.value === value })}
                 aria-disabled={option.disabled ? true : undefined}
                 className="dh-inline-select__option"
                 data-clear={isClear ? "true" : undefined}
+                data-search={option.value === SEARCH_VALUE ? "true" : undefined}
+                data-selected={option.value === value ? "true" : undefined}
                 tabIndex={activeIndex === index ? 0 : -1}
                 ref={(node) => {
                   itemRefs.current[index] = node;

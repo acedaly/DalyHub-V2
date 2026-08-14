@@ -211,3 +211,103 @@
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-error-container);
 }
+
+/* -------------------------------------------------------------------------- */
+/* DS-04 — the Task Drawer joins the new visual language                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Everything below is scoped to `.dh-task-record`, which `TaskRecordDrawer`
+ * wraps its `RecordLayout` in. `RecordLayout` and `RecordSummary` are shared by
+ * every record type in the product and DS-04 redesigns the TASK record only, so
+ * a Project's, a Person's and a Note's record keep exactly what they had (§61).
+ *
+ * The panel itself already changed for everyone: `drawer.css` took the lavender
+ * `surface-container-low` wash off it and gave it the neutral raised surface,
+ * because a purple ground under every field is the clearest case of §35's
+ * "do not tint everything purple" left in the product.
+ */
+
+/*
+ * The summary stops being a CARD.
+ *
+ * It was a 16px-radius filled panel INSIDE a filled drawer — a card on a card,
+ * which is the layered-container pattern DS-04 exists to remove. Its job is to
+ * be the record's identity band, and a band is separated by a rule.
+ */
+.dh-task-record .record-summary {
+  padding-inline: 0;
+  padding-block: 0 var(--dh-space-4);
+  border: 0;
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The tab panel beneath it, likewise. */
+.dh-task-record .record-tabs__panel,
+.dh-task-record .record-layout__content > .dh-card,
+.dh-task-record .record-layout__feature {
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/*
+ * A record's actions are BUTTONS, not bars.
+ *
+ * "Mark as waiting" and "Edit details" were full-width filled-edge controls, so
+ * a panel 420px wide carried two 420px buttons — which reads as a form's submit
+ * row, gives a secondary action the visual weight of a primary one, and is the
+ * single most MD3-looking thing in the panel. They size to their words and sit
+ * at the start of their row, like every other secondary action in DalyHub.
+ */
+.dh-task-record .dh-btn--secondary,
+.dh-task-record .dh-button--secondary {
+  inline-size: auto;
+  align-self: flex-start;
+}
+
+/*
+ * The field grid tightens.
+ *
+ * Its rows were spaced for a card's internal padding; with the card gone the
+ * gaps were holding apart things that belong together — a label and its value
+ * are one object, and 20px between the pairs made six facts read as six
+ * sections.
+ */
+.dh-task-record .dh-task-drawer__meta {
+  gap: var(--dh-space-4) var(--dh-space-6);
+}
+
+.dh-task-record .dh-task-drawer__meta dt {
+  margin-block-end: var(--dh-space-px);
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-record .dh-task-drawer__meta dd {
+  font-size: var(--dh-text-row-size);
+  color: var(--dh-color-text);
+}
+
+.dh-task-record .dh-task-drawer__summary-controls {
+  gap: var(--dh-space-4);
+}
+
+/*
+ * The record's title takes the record-title role rather than a heading size it
+ * happened to inherit, and it is the loudest thing in the panel — which on a
+ * record is correct, and is the same rule the list row follows: hierarchy comes
+ * from everything else being quieter.
+ */
+.dh-task-record .record-summary__title,
+.dh-task-record .record-layout__title {
+  font-size: var(--dh-text-record-title-size);
+  line-height: var(--dh-text-record-title-line-height);
+  font-weight: var(--dh-text-record-title-weight);
+}

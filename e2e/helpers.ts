@@ -65,6 +65,36 @@ export const RESPONSIVE_VIEWPORTS = [
   { label: "ultrawide-2560", width: 2560, height: 1440 },
 ] as const;
 
+/**
+ * DS-04 — ONE locator for a task row on `/tasks`.
+ *
+ * The workspace list stopped being the generic `Card` (an `<article>`) and became
+ * the product-level `TaskRow` (an `<li>` in a real `<ul>`, so a screen reader
+ * hears "list, 24 items"). Specs asked for `getByRole("article")`, which was
+ * always a statement about the CARD rather than about the task, and would have
+ * had to be re-decided in six files.
+ *
+ * Every task-bearing surface that has NOT adopted the row — Today, a Project's
+ * task list — still renders cards, and those specs still say `article`, which is
+ * correct: they are asking about a different component.
+ */
+export function taskRows(scope: Page | Locator): Locator {
+  return scope.locator("[data-testid='task-row']");
+}
+
+/**
+ * ONE task row, found by its title.
+ *
+ * The generic Card carried `aria-label="Open <title>"` on the `<article>`, so a
+ * spec could ask for a row by accessible name. A list ITEM has no accessible
+ * name of its own — its content is its name — and giving one to fifty rows would
+ * make a screen reader read every title twice. The title is inside the row, so
+ * filtering on it is both the honest query and the one a person would describe.
+ */
+export function taskRow(scope: Page | Locator, title: string): Locator {
+  return taskRows(scope).filter({ hasText: title });
+}
+
 /** The WCAG 2.2 target-size minimum (44px), mirrored from `--dh-touch-target-min`. */
 export const TOUCH_TARGET_MIN = 44;
 

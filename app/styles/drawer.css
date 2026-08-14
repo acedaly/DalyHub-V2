@@ -66,12 +66,29 @@
   width: min(var(--app-width-narrow), 100vw);
   max-width: 100vw;
   height: 100dvh;
-  background: var(--md-sys-color-surface-container-low);
-  color: var(--md-sys-color-on-surface);
-  /* The M3 modal side drawer rounds its LEADING edge only — the edge it slid in
-   * from stays flush with the screen. */
-  border-start-start-radius: var(--md-sys-shape-corner-extra-large);
-  border-end-start-radius: var(--md-sys-shape-corner-extra-large);
+  /*
+   * DS-04 — the drawer is a RAISED SURFACE, not a tinted one.
+   *
+   * `surface-container-low` is a generated tonal step, which in DalyHub's violet
+   * scheme resolves to #f7f1ff — a lavender wash over the whole panel. On a
+   * Task record that put every field, every control and the description on a
+   * purple ground, which is precisely what D-04 §35 reserves the accent AGAINST:
+   * purple identifies the primary action, the selected state and focus, and it
+   * stops meaning any of those when it is also the paint.
+   *
+   * `--dh-color-surface-raised` is the product's own name for "a layer above
+   * the page", it is neutral in both appearances, and the elevation and the
+   * radius already say the panel floats.
+   */
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  /*
+   * The leading edge only — the edge it slid in from stays flush with the
+   * screen — at the restrained rung. `corner-extra-large` is 28px, which on a
+   * full-height panel reads as a bubble rather than as a sheet of paper (§38).
+   */
+  border-start-start-radius: var(--dh-radius-lg);
+  border-end-start-radius: var(--dh-radius-lg);
   border: none;
   box-shadow: var(--md-sys-elevation-1);
   pointer-events: auto;

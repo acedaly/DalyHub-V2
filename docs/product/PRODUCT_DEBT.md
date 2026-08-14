@@ -1967,6 +1967,38 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** A dated decision exists either way, referenced from `PRODUCT_PRINCIPLES.md` → the entities.
 - **Related roadmap item.** DS-16.
 
+### ☐ DEBT-128 — Today, Projects and search still render tasks as Cards, so one object has two anatomies — P2
+- **Current issue.** DS-04 gave `/tasks` a product-level `TaskRow`/`TaskList` ([`app/shared/task-record/TaskRow.tsx`](../../app/shared/task-record/TaskRow.tsx)) on a shared column grid. Today's focus bands, a Project record's task list and global search results still render the generic `Card` under the pre-DS-04 `.dh-collection--tasks .dh-card__*` override layer in [`tasks.css`](../../app/styles/tasks.css). A task therefore has two visual anatomies depending on which screen you are looking at, and a person who plans in Today and executes in Tasks sees both within one minute.
+- **Why it was not "fixed".** Deliberate, and it is the DS-04 brief's own instruction for a shared surface: wiring the row into one module is what makes a cross-module regression impossible by construction rather than by inspection. Converting Today and Projects in the same change would have made a bounded Tasks redesign into an eleven-module one, in a PR nobody could review for either.
+- **Impact.** The product reads as two design generations at once on the two screens the owner uses most.
+- **Desired future state.** DS-05 (Projects/Areas/Goals) and DS-06 (Today) adopt `TaskRow`, and the `.dh-collection--tasks .dh-card__*` layer is deleted with the last consumer.
+- **Closing condition.** No product surface renders a task through `~/shared/card`, and the UIX-01 task-card override block in `tasks.css` is gone.
+- **Related roadmap item.** [DS-05](../roadmap/ROADMAP_V2_2.md), [DS-06](../roadmap/ROADMAP_V2_2.md). **ADR.** [ADR-095](../decisions/ARCHITECTURE_DECISIONS.md#adr-095-the-task-row--a-product-component-over-the-generic-card-one-column-grid-and-container-queries-as-the-responsive-authority-for-a-list).
+
+### ☐ DEBT-129 — The row's date editor is still a Save/Cancel form in a popover — P3
+- **Current issue.** `InlineDateField` ([`app/shared/inline-edit/InlineDateField.tsx`](../../app/shared/inline-edit/InlineDateField.tsx)) opens a ~200px popover containing three shortcut buttons, a native `<input type="date">` and a Save/Clear/Cancel row. Every other inline editor on a task row commits on selection; the date editor is the one that still asks the owner to confirm, and the native input is the tallest control in the list's whole interaction surface.
+- **Why it was not "fixed".** DS-04's date work was scoped to the interaction being reachable, unclipped and not a modal, which it is. Replacing the native input with a calendar grid is a new shared component with its own keyboard model, its own localisation questions and its own accessibility surface — not a styling change, and not something to land inside a visual convergence pass.
+- **Impact.** Setting a due date is three interactions where setting a priority is two, on the field a planning session touches most.
+- **Desired future state.** The one-press shortcuts commit immediately (as the menu options do), and an explicit date needs Save only when a date is typed rather than chosen.
+- **Closing condition.** Choosing "Today", "Tomorrow" or "Next week" from a row writes without a second press, proven by `e2e/tasks-collection.spec.ts`.
+- **Related roadmap item.** DS-05 or a later editing pass. **ADR.** [ADR-095](../decisions/ARCHITECTURE_DECISIONS.md#adr-095-the-task-row--a-product-component-over-the-generic-card-one-column-grid-and-container-queries-as-the-responsive-authority-for-a-list).
+
+### ☐ DEBT-130 — The Task Drawer's header states the word "Task" three times — P3
+- **Current issue.** The drawer panel's own header renders "Task" and "Task record" above a `RecordLayout` whose title is preceded by the shared task `EntityIcon`. DS-04 de-carded and neutralised the panel but did not touch its header composition, so the first 100px of the panel says the same word three times before the task's own title.
+- **Why it was not "fixed."** `drawer__header` is the shared drawer's, used by every record type; changing what it publishes is a shared-shell decision rather than a Tasks one.
+- **Impact.** Cosmetic, on the surface DS-04 otherwise brought closest to the concept.
+- **Desired future state.** A record hosted in the drawer publishes its type once.
+- **Closing condition.** Opening a task shows the word "Task" at most once above the title.
+- **Related roadmap item.** DS-05.
+
+### ☐ DEBT-131 — A task row is 46px because the completion control is 45px, and nothing else decides it — P3
+- **Current issue.** MEASURED across the DS-04 baseline and final captures at 1440: the row pitch is 46px in both. `--dh-row-height` at `compact` resolves to `max(2.75rem, 45px)` and the shared `.dh-check-circle-target` inside the row is sized to the same floor, so the row cannot be shorter than the control at its leading edge. DS-04 removed the block padding that sat on top of that floor; it did not, and could not, move the floor.
+- **Impact.** The Tasks redesign gained alignment, calm and 24px at the top of the list, but essentially no extra rows on a laptop — which is one of the things a density pass is usually expected to deliver.
+- **Why it was not "fixed".** The 45px target is [D18](../design/DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material), it is asserted by `expectMinTouchTarget` in several specs, and lowering it on a fine pointer is the same move [ADR-094](../decisions/ARCHITECTURE_DECISIONS.md#adr-094-the-dark-navigation-rail--a-region-that-does-not-follow-the-appearance-a-responsive-tablet-collapse-and-one-origin-for-the-frame) decision 4 made for the navigation rail — with a materially different argument to make, because a task list IS touched by a finger where the rail never is. That is a design-system decision about D18, not a Tasks change, and the specs that assert 44px at phone WIDTHS run under a fine pointer, so the coarse-pointer floor would not save them.
+- **Desired future state.** A dated decision either way: the one-line task row stays at 45px product-wide, or the completion target takes `--dh-control-height` on a fine pointer and the affected assertions move with it.
+- **Closing condition.** D18 either restates 45px with the density argument written down, or is amended and `dalyhub-tokens.test.ts` asserts the new pair.
+- **Related roadmap item.** DS-07 (the adaptive/density audit, which already owns "decide whether the owner gets a density preference").
+
 ### ☐ DEBT-NN — <one-line title> — P<1|2|3>
 - **Current issue.** <what diverges today, with file references>
 - **Impact.** <what it costs the owner>

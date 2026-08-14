@@ -1,0 +1,1186 @@
+/*
+ * DS-04 — the Task LIST: the concept's Tasks screen, in CSS.
+ * ---------------------------------------------------------------------------
+ *
+ * The two root concept images settle the anatomy this file implements, and each
+ * rule below is here because the pre-DS-04 screen differed from them in a way
+ * that could be measured on a screenshot rather than argued about:
+ *
+ *   - rows are drawn ON THE PAGE, on hairlines. No card, no radius, no border
+ *     box, no shadow, no tonal fill per row (§9, §38, §39);
+ *   - the metadata is a COLUMN GRID with a header, declared once here and
+ *     inherited by the header cells and every row, so the dates line up (§8);
+ *   - the title is the only flexible column, and every metadata column is
+ *     dropped narrowest-first as the viewport tightens (§10);
+ *   - project is a coloured DOT and a name, the due date is ordinary text, and
+ *     priority is a dot and a tag. One pill survives on the row — the display
+ *     state, for the six states nothing else on the row expresses (§11, §12);
+ *   - purple identifies the primary action, the selected state and focus, and
+ *     paints nothing else (§35).
+ *
+ * Everything is a `--dh-*` token. The two values this file introduces —
+ * `--taskrow-columns` and `--taskrow-lead` — are LAYOUT of one component
+ * rather than design values, which is why they are local custom properties here
+ * and not new entries in the token registry: a grid template is not a colour, a
+ * radius or a step of a scale that another surface could reach for.
+ *
+ * ── Density ──────────────────────────────────────────────────────────────────
+ * The list declares `data-dh-density="compact"` in the markup, because "a dense
+ * task list" is the case the compact preset is DEFINED by (tokens.css). That
+ * gives 45px rows, a 12px inset and 36px controls on a pointer device, and the
+ * coarse-pointer floor in tokens.css hands every touch target back on a phone,
+ * unconditionally. No density value is restated here.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* The workspace the list is drawn ON (DS-04 §29)                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A flat list needs a WHITE ground; a dashboard of cards needs a grey one.
+ *
+ * Both concept images make that distinction explicitly and consistently: the
+ * Today dashboard's content area is #eff0f4 with white cards on it, and the
+ * Tasks screen's content area is #fefefe with rows drawn straight onto it.
+ * DalyHub painted the sunken app background under both, which is correct under
+ * cards and wrong under rows — a hairline-separated list on a tinted ground has
+ * neither the cards' separation nor the white page's calm, and it is why the
+ * pre-DS-04 screen still read as "cards, without the cards".
+ *
+ * This is the narrow shell fix §29 allows, and it is narrow in the literal
+ * sense: it is scoped to the Tasks collection, it changes one paint, and it
+ * touches no measurement, gutter or origin. The header band above the list takes
+ * the same surface so the workspace is one continuous plane rather than a white
+ * list under a grey toolbar.
+ */
+.dh-collection--tasks,
+/* The sticky band paints its own page colour so content scrolling under it is
+ * covered. On this surface that colour is the workspace's. */
+.dh-collection--tasks .dh-collection__sticky {
+  background: var(--dh-color-surface);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The header band (DS-04 §7, §37)                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The count sits BESIDE the title, not under it.
+ *
+ * The concept's Tasks screen spends two bands above the first row — a title row
+ * and a tab row — and nothing else. DalyHub spent three: a title, a "93 Tasks"
+ * line beneath it, then the tabs. That third line is one fact, six characters
+ * long, given a whole row of the calmest band on the page, and it pushed the
+ * first task 154px down a 950px viewport.
+ *
+ * Setting the title block as a baseline-aligned row recovers the line without
+ * removing the count: "Tasks   93 Tasks", which is how the count reads in every
+ * reference and is where a reader looks for it anyway. The subtitle keeps its
+ * own element, its own `p`, and its own muted role.
+ */
+.dh-collection--tasks .dh-pane-header__titles {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+.dh-collection--tasks .dh-pane-header__subtitle {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.dh-collection--tasks .dh-pane-header--compact {
+  padding-block: var(--dh-space-4) var(--dh-space-2);
+}
+
+/*
+ * The control row's own band, tightened to match. The tabs already carry their
+ * own height from `--dh-control-height`; the padding around them was sized for
+ * a band that also had to clear a title above it.
+ */
+.dh-collection--tasks .dh-collection__filters {
+  padding-block: 0 var(--dh-space-2);
+}
+
+/*
+ * "Filter & sort" is a GHOST control, not an outlined box.
+ *
+ * The concept's control band carries two quiet text buttons at its trailing
+ * edge; DalyHub carries one, and it was a bordered, filled capsule — after the
+ * primary "New task" it was the second-loudest object on the page, sitting in
+ * the band whose whole job is to be quiet enough that the first task is what
+ * you see. The border arrives on hover and on focus, where a control's edge is
+ * what says "this is pressable"; the ACTIVE-filter count beside it is
+ * unchanged, because that is information rather than chrome.
+ */
+/*
+ * The saved-view trigger joins the trailing CLUSTER.
+ *
+ * `tasks.css` already intends this — it gives the trigger `margin-inline-start:
+ * auto` so it follows the tab rail across the free space — but the rail's own
+ * container hugs its content, so there was never any free space for the margin
+ * to consume and "View · All active · ⋯" sat immediately after the last tab, in
+ * the middle of the row. Letting the container grow is what makes the existing
+ * rule true, and it puts every control that SHAPES the list at the trailing
+ * edge, which is where the concept clusters them.
+ */
+@media (min-width: 48rem) {
+  .dh-collection--tasks .dh-tasks-views {
+    flex: 1 1 auto;
+  }
+}
+
+.dh-collection--tasks .dh-collection-controls__trigger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--dh-color-text-muted);
+}
+
+@media (hover: hover) {
+  .dh-collection--tasks .dh-collection-controls__trigger:hover {
+    border-color: var(--dh-color-border);
+    background: var(--dh-color-surface-quiet);
+    color: var(--dh-color-text);
+  }
+}
+
+.dh-collection--tasks .dh-collection-controls__trigger:focus-visible,
+.dh-collection--tasks .dh-collection-controls__trigger[aria-expanded="true"] {
+  border-color: var(--dh-color-border-strong);
+  color: var(--dh-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The list                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-tasklist {
+  /*
+   * The shared column grid. ONE declaration, inherited by the header row and by
+   * every task row, which is the entire mechanism that makes the columns line
+   * up. The order is the concept's: lead, task, project, due, priority, status,
+   * actions.
+   *
+   * The title is `minmax(0, 1fr)` — `0` and not `auto`, so a long title
+   * TRUNCATES inside its track instead of widening the grid and pushing the
+   * date column off the right edge (§10: metadata yields before the title, and
+   * neither is allowed to break the row).
+   */
+  --taskrow-lead: auto;
+  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 11rem 6.5rem 4rem 6.5rem
+    1.75rem;
+
+  display: flex;
+  flex-direction: column;
+
+  /*
+   * The row's breakpoints are the LIST's width, not the window's.
+   *
+   * This is not a refinement, it is a correctness requirement, and the UIX-01
+   * layer already knew it: the Board and the Time Sectors presentations render
+   * the same list inside NARROW COLUMNS, so at a 1280px window a board column is
+   * ~380px — and a window-width media query happily gave it the full desktop
+   * grid, whose fixed columns alone are 480px. That is a horizontal overflow of
+   * the document, which `tasks-journey.spec` correctly refuses.
+   *
+   * The same query also fixes the quieter case in the ordinary list: at a 1024px
+   * viewport the rail takes 216px and the list has ~740px, which is LESS than a
+   * 768px phone gets with no rail at all. The list knows how wide the list is.
+   */
+  container-type: inline-size;
+  container-name: tasklist;
+
+  /*
+   * No surface. The list is not a card, has no border and no radius, and sits
+   * directly on the page. This single declaration is the most visible change
+   * DS-04 makes.
+   */
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dh-tasklist__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* -- The column header ----------------------------------------------------- */
+
+.dh-tasklist__columns {
+  display: grid;
+  grid-template-columns: var(--taskrow-columns);
+  align-items: center;
+  gap: var(--dh-control-gap);
+  padding-block: var(--dh-space-2);
+  padding-inline: var(--dh-inset-inline);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+}
+
+/* The header has no lead cell of its own — the first label sits over the title
+ * column, and the completion control's track stays empty. */
+.dh-tasklist__column--task {
+  grid-column: 2;
+}
+
+.dh-tasklist__column--project {
+  grid-column: 3;
+}
+
+.dh-tasklist__column--date {
+  grid-column: 4;
+}
+
+.dh-tasklist__column--priority {
+  grid-column: 5;
+}
+
+.dh-tasklist__column--status {
+  grid-column: 6;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The row                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-taskrow {
+  display: grid;
+  grid-template-columns: var(--taskrow-columns);
+  align-items: center;
+  gap: var(--dh-control-gap);
+
+  /*
+   * The row's height IS the completion control's target, and nothing else.
+   *
+   * `--dh-row-height` at compact resolves to `max(2.75rem, 45px)` — the WCAG 2.2
+   * target-size floor, which the shared `.dh-check-circle-target` inside the row
+   * is also sized to. Adding block padding on top of that made a 54px row for a
+   * 45px reason: nine pixels per row, fourteen rows on screen, an entire row's
+   * worth of nothing. The inline padding stays, because that is the list's
+   * inset and not a height.
+   */
+  min-block-size: var(--dh-row-height);
+  padding-block: 0;
+  padding-inline: var(--dh-inset-inline);
+
+  /* A hairline, and nothing else. Not a border box — one edge. */
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+
+  position: relative;
+  transition: background-color var(--dh-motion-instant) var(--dh-ease-standard);
+}
+
+/* The last row's hairline would double the group's own boundary. */
+.dh-taskrow:last-child {
+  border-block-end: 0;
+}
+
+/*
+ * Hover and selection are a WASH, not a border and not a tint.
+ *
+ * `surface-subtle` on hover and the accent's own selected surface for a chosen
+ * row — the row never gains an outline on hover, because an outline appearing
+ * under the cursor is what makes a list feel like a grid of buttons.
+ */
+@media (hover: hover) {
+  .dh-taskrow:hover {
+    background: var(--dh-color-surface-subtle);
+  }
+}
+
+.dh-taskrow:focus-within {
+  background: var(--dh-color-surface-subtle);
+}
+
+.dh-taskrow[data-selected="true"],
+.dh-taskrow[data-selected="true"]:hover {
+  background: var(--dh-color-surface-selected);
+}
+
+/*
+ * The completed row is CALM (§13). It does not turn green, it does not
+ * celebrate, and it does not disappear: the title goes muted and struck, the
+ * metadata recedes, and the row keeps its place until the list is re-read.
+ */
+.dh-taskrow[data-completed="true"] .dh-taskrow__title {
+  color: var(--dh-color-text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: from-font;
+}
+
+/*
+ * The completed row's metadata is NOT dimmed with opacity.
+ *
+ * A 0.72 layer over `--dh-color-text-muted` composites to #7b7983 on white —
+ * 4.28:1 at 12px, which fails WCAG 1.4.3 — and over the overdue role it
+ * composites to 4.16:1. Both were introduced by this pass and neither is visible
+ * to the eye as a defect, which is exactly why the contrast rule exists.
+ *
+ * Nothing is lost: the row already says it is finished twice, in the two places
+ * that carry meaning rather than decoration — the title goes muted and struck,
+ * and the status column says "Completed".
+ */
+
+/*
+ * A change this device is still holding (PWA-12) is stated in WORDS, by the
+ * row's own `dh-task-sync` note beside the title — not by dimming the row.
+ *
+ * Same reason as above: an opacity layer over an already-muted role composites
+ * below 4.5:1, and a whole row at 72% is the least legible way to say
+ * "unsaved" to the person most likely to be checking it carefully.
+ */
+
+/* -- The lead: selection + completion -------------------------------------- */
+
+.dh-taskrow__lead {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  align-self: center;
+  /* The gap to the title. The concept sets the circle and the first letter about
+   * a dozen pixels apart; at the row's own `--dh-control-gap` (4px at compact)
+   * they touch, and the title reads as a label on the checkbox. */
+  margin-inline-end: var(--dh-space-2);
+}
+
+.dh-taskrow__select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The hit area is the WCAG minimum even though the box is 18px, and it is not
+   * a density decision — see tokens.css. */
+  inline-size: var(--dh-space-6);
+  block-size: var(--dh-space-6);
+  cursor: pointer;
+}
+
+/* -- The title ------------------------------------------------------------- */
+
+.dh-taskrow__main {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+  margin: 0;
+
+  /*
+   * The row's own line. `--dh-text-row-*` is the role that exists for exactly
+   * this — "the densest text the product asks to be SCANNED" — and the weight
+   * is the ROW weight rather than a title weight: the pre-DS-04 row set its
+   * titles at 600, which is a heading's weight applied fifty times down a page
+   * and is most of why the old screen felt loud. Hierarchy here comes from the
+   * metadata being QUIETER, not from the title being louder.
+   */
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: var(--dh-text-row-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-taskrow__title {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-taskrow__title:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.dh-taskrow__title:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+/* Recurrence, and anything else that is a SIGNAL rather than a value: a glyph
+ * in the metadata tone, with its words in the accessibility tree. */
+.dh-taskrow__signal {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-taskrow__signal svg {
+  inline-size: var(--dh-space-4);
+  block-size: var(--dh-space-4);
+}
+
+/* -- The metadata columns -------------------------------------------------- */
+
+/*
+ * `display: contents` is the whole trick. On a desktop the wrapper vanishes and
+ * its four children become grid items of the ROW, landing on the list's shared
+ * column lines; on a phone it becomes a real flex container and the same four
+ * children become the row's second line. One DOM, two compositions.
+ */
+.dh-taskrow__meta {
+  display: contents;
+}
+
+.dh-taskrow__cell {
+  display: flex;
+  align-items: center;
+  /*
+   * The CELL carries the 24px floor too, not only the trigger inside it.
+   *
+   * On the two-line composition the cells hug their content, so a two-character
+   * priority gave an 18px cell holding a 24px-minimum button — which overflowed
+   * its own cell and overhung the DATE beside it by 6–8px. axe reported that
+   * correctly and unhelpfully as the date being "partially obscured": the
+   * neighbour was the thing at fault. A cell that cannot be narrower than the
+   * target it holds cannot produce the overlap.
+   */
+  min-inline-size: var(--dh-space-6);
+
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-taskrow__cell > * {
+  min-inline-size: 0;
+}
+
+.dh-taskrow__cell--project {
+  grid-column: 3;
+}
+
+.dh-taskrow__cell--due {
+  grid-column: 4;
+}
+
+.dh-taskrow__cell--priority {
+  grid-column: 5;
+}
+
+.dh-taskrow__cell--status {
+  grid-column: 6;
+}
+
+/* -- The one surviving pill ------------------------------------------------ */
+
+/*
+ * The display state, for the six states nothing else on the row expresses.
+ *
+ * It is the concept's status chip: a soft tonal wash, the tone's own text
+ * colour, a small radius rather than a stadium, and no border. It is the ONLY
+ * bounded coloured container left on an ordinary row.
+ */
+.dh-taskrow__state {
+  display: inline-flex;
+  align-items: center;
+  max-inline-size: 100%;
+  padding-inline: var(--dh-space-2);
+  padding-block: var(--dh-space-px);
+  border-radius: var(--dh-radius-sm);
+
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface-quiet);
+}
+
+.dh-taskrow__state[data-tone="accent"],
+.dh-taskrow__state[data-tone="primary"],
+.dh-taskrow__state[data-tone="info"] {
+  color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+}
+
+.dh-taskrow__state[data-tone="success"] {
+  color: var(--dh-color-success);
+  background: color-mix(in srgb, var(--dh-color-success) 12%, transparent);
+}
+
+.dh-taskrow__state[data-tone="warning"] {
+  color: var(--dh-color-warning);
+  background: color-mix(in srgb, var(--dh-color-warning) 14%, transparent);
+}
+
+.dh-taskrow__state[data-tone="danger"],
+.dh-taskrow__state[data-tone="error"] {
+  color: var(--dh-color-danger);
+  background: color-mix(in srgb, var(--dh-color-danger) 12%, transparent);
+}
+
+/* -- The trailing actions -------------------------------------------------- */
+
+.dh-taskrow__actions {
+  grid-column: 7;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/*
+ * ONE trailing control, and it is held back until the row is engaged with (§26).
+ *
+ * On a pointer device it appears on hover or when anything in the row takes
+ * focus; on touch, where there is no hover, it is always drawn. It is never
+ * removed from the accessibility tree — `opacity` and not `display`, so a
+ * screen reader and the keyboard reach it on a row that was never hovered.
+ */
+.dh-taskrow__overflow {
+  opacity: 1;
+  transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+@media (hover: hover) {
+  .dh-taskrow__overflow {
+    opacity: 0;
+  }
+
+  .dh-taskrow:hover .dh-taskrow__overflow,
+  .dh-taskrow:focus-within .dh-taskrow__overflow,
+  .dh-taskrow__overflow:focus-visible,
+  .dh-taskrow__overflow[aria-expanded="true"] {
+    opacity: 1;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The inline editors, ON a row                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The row's inline fields read as TEXT and edit as controls.
+ *
+ * Before DS-04 each of them painted a bordered, tinted trigger — a 24px
+ * rounded tile for the project, a bounded box for the priority — which is
+ * three more containers per row and, at fifty rows, the difference between a
+ * list and a spreadsheet. The read state is now the value alone; the affordance
+ * arrives on hover and focus, where it is needed and cannot cost density.
+ */
+.dh-tasklist .dh-inline-edit__trigger,
+.dh-tasklist .dh-inline-select__trigger {
+  /*
+   * 24px is the WCAG 2.2 AA target-size minimum (2.5.8), and it is a FLOOR
+   * rather than a look.
+   *
+   * The first pass set `min-block-size: 0` to let the trigger be as quiet as the
+   * text it replaces, which produced 16×18px targets on a row of four adjacent
+   * editors — `target-size` serious, on every task, which is exactly the kind of
+   * regression a visual pass is most likely to introduce and least likely to
+   * notice. The trigger is invisible until hover and still 24px tall: quiet is a
+   * property of the PAINT, never of the hit area.
+   *
+   * It also fills its grid track, so the whole column is the target rather than
+   * the few characters in it — which both satisfies the spacing half of the rule
+   * and is what a person aiming at a date column expects.
+   */
+  /*
+   * The shared trigger carries `margin-inline: -8px` so its text aligns
+   * optically with the static value it replaces. That is right in a wrapping
+   * metadata run, where the editors are far apart, and it is the ROOT CAUSE of
+   * every "partially obscured" target on a column grid: each trigger overhung
+   * its neighbour by 8px on each side, so the date's hit area was covered by
+   * the priority beside it. In a grid the CELL does the aligning.
+   */
+  margin-inline: 0;
+  min-block-size: var(--dh-space-6);
+  /*
+   * And 24px WIDE. On the two-line composition the cells hug their content, so a
+   * three-letter date ("Mon") gave an 11px-wide target that was 24px tall — the
+   * same `target-size` failure in the other axis, and one that only appears in
+   * the Board and Time Sectors presentations where the list is narrow.
+   */
+  min-inline-size: var(--dh-space-6);
+  inline-size: 100%;
+  padding-inline: var(--dh-space-1);
+  padding-block: 0;
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  background: transparent;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  /*
+   * INHERIT the colour, never set it.
+   *
+   * The urgency class (`dh-task-date--overdue`) lands on the field's WRAPPER,
+   * and the trigger is inside it — so a trigger that sets its own colour wins
+   * over the ancestor and a slipped date renders in ordinary text. It did:
+   * every overdue date in the list lost its colour, which is the one place on
+   * the row where colour is doing real work. The muted tone comes from the CELL
+   * instead, so both the default and the exception cascade from one place.
+   */
+  color: inherit;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+/* The cell is the track, so the trigger inside it can fill it. */
+.dh-taskrow__cell > .dh-inline-edit,
+.dh-taskrow__cell > .dh-inline-select,
+.dh-taskrow__cell .dh-task-parent .dh-inline-select {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+@media (hover: hover) {
+  .dh-tasklist .dh-inline-edit__trigger:hover,
+  .dh-tasklist .dh-inline-select__trigger:hover {
+    background: var(--dh-color-surface-quiet);
+  }
+}
+
+.dh-tasklist .dh-inline-edit__trigger:focus-visible,
+.dh-tasklist .dh-inline-select__trigger:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+/*
+ * The caret is the field's "this is editable" tell, and it is held back exactly
+ * like the overflow button. Four permanently-drawn chevrons per row was one of
+ * the counted differences from the concept, which draws none.
+ */
+@media (hover: hover) {
+  .dh-tasklist .dh-inline-select__caret {
+    opacity: 0;
+    transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
+  }
+
+  .dh-taskrow:hover .dh-inline-select__caret,
+  .dh-taskrow:focus-within .dh-inline-select__caret {
+    opacity: 0.65;
+  }
+}
+
+/* An UNSET value is quiet, and on a pointer device it waits to be looked for.
+ * "Unassigned" and "No due date" printed on every Inbox row is a column of
+ * placeholders saying that a dimension was not used (§20). */
+@media (hover: hover) {
+  .dh-tasklist .dh-inline-edit__empty {
+    opacity: 0;
+    transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
+  }
+
+  .dh-taskrow:hover .dh-inline-edit__empty,
+  .dh-taskrow:focus-within .dh-inline-edit__empty {
+    opacity: 1;
+  }
+}
+
+/* -- Project: a dot and a name --------------------------------------------- */
+
+/*
+ * The concept's project cell is a 6px identity dot and the name. The
+ * pre-DS-04 row drew the shared `EntityIcon` badge — a 24px bordered, tinted,
+ * rounded tile — which is a bounded container per row for a fact that needs
+ * none. The mark keeps the entity's own generated identity colour; it simply
+ * stops being a box.
+ */
+.dh-tasklist .dh-task-parent {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+
+.dh-tasklist .dh-task-parent__mark {
+  flex: none;
+  inline-size: var(--dh-space-2);
+  block-size: var(--dh-space-2);
+  padding: 0;
+  border: 0;
+  border-radius: var(--dh-radius-pill);
+  box-shadow: none;
+  /*
+   * The badge painted the identity colour as a PALE container behind a glyph,
+   * which at 8px and with the glyph gone is a barely-visible grey dot. The dot
+   * IS the colour now, so it takes the identity's foreground value — the same
+   * hue the record and the gallery draw, at the weight a 8px mark needs to
+   * register beside 13px text.
+   */
+  background: currentColor;
+}
+
+/* The glyph inside the badge is what made it a tile; the dot is the colour. */
+.dh-tasklist .dh-task-parent__mark svg {
+  display: none;
+}
+
+.dh-tasklist .dh-task-parent .dh-inline-select__value {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -- Due: ordinary text, and red only when it has actually slipped ---------- */
+
+/*
+ * The date says the WORD — "Yesterday", "Today", "Tomorrow", "Thu, 12 Jun" — so
+ * nothing here is conveyed by colour alone, and the colour is spent on the one
+ * state that earns it. `soon` and `future` are ordinary metadata; the
+ * pre-DS-04 screen coloured a whole column crimson, on a product whose first
+ * principle is calm over urgent.
+ */
+.dh-tasklist .dh-task-date {
+  white-space: nowrap;
+}
+
+/*
+ * Overdue takes the colour and NOT a weight step.
+ *
+ * Inside a bucket called Overdue every date in the column carries it, and
+ * colour plus a weight bump on every row of a band is the shout §4 exists to
+ * prevent. The words already say it — "Yesterday", "20 days ago", "Over a year
+ * ago" — so the colour is reinforcement, which is the only thing it is allowed
+ * to be (AGENTS.md §15).
+ */
+.dh-tasklist .dh-task-date--overdue {
+  color: var(--dh-color-overdue);
+}
+
+.dh-tasklist .dh-task-date--today {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-weight);
+}
+
+/*
+ * The PLANNED date, when it is standing in for an absent due date.
+ *
+ * Italic, because a plan is provisional where a deadline is not — and because
+ * it costs no width in a 6.5rem column. The distinction is also carried in
+ * words: the control's accessible name reads "Planned date: Tomorrow", so the
+ * two dates are never confused by ear either.
+ */
+.dh-taskrow__cell--due
+  .dh-inline-edit:not(.dh-task-date)
+  .dh-inline-edit__static {
+  font-style: italic;
+}
+
+/* -- Priority: a dot and a tag --------------------------------------------- */
+
+/*
+ * The shared `PriorityIndicator` paints a tinted, bounded chip everywhere it is
+ * used, and on a row that is a coloured container per task for a two-character
+ * fact. The dot already carries the colour and the tag already carries the word,
+ * so the container has nothing left to do.
+ *
+ * The selector is deliberately over-specified against `.dh-priority[data-
+ * priority="p1"]` in `task-signals.css`, which is the same weight and later in
+ * the cascade. Specificity is the honest fix here rather than reordering the
+ * imports: `task-signals.css` owns what a priority IS product-wide, this file
+ * owns what it looks like in this one list, and the second should not be able to
+ * change the first by moving in the file.
+ */
+.dh-tasklist .dh-priority[data-priority],
+.dh-tasklist .dh-priority {
+  gap: var(--dh-space-1);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+}
+
+/*
+ * The `color` is deliberately NOT reset above.
+ *
+ * `.dh-priority[data-priority="p1"]` sets both the container and its foreground,
+ * and the dot is `background: currentColor` — so muting the whole indicator
+ * turned four differently-coloured priorities into four identical grey dots, and
+ * the row lost the one signal a triaged list is actually scanned by. The
+ * container goes; the FOREGROUND stays, the dot keeps it, and only the two-
+ * character tag is muted back to the metadata tone.
+ */
+.dh-tasklist .dh-priority__tag {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasklist .dh-priority__dot {
+  inline-size: var(--dh-space-2);
+  block-size: var(--dh-space-2);
+}
+
+/* -- Inline title editing -------------------------------------------------- */
+
+.dh-taskrow .dh-tasks-inline-title-editor {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.dh-taskrow .dh-tasks-inline-title-editor__input {
+  inline-size: 100%;
+  min-block-size: var(--dh-space-8);
+  font-size: var(--dh-text-row-size);
+}
+
+/*
+ * The SELECTORS a row opens are styled in `inline-edit.css`, beside the
+ * primitive that draws them.
+ *
+ * They are portalled onto the overlay layer, so they are not descendants of
+ * `.dh-tasklist` and cannot be reached from here by nesting — and they are the
+ * SHARED editors every task-bearing surface uses, so a Tasks-only rule would
+ * have fixed the Tasks list and left the Drawer and Today with the old menu.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Quick capture — the next row, not a panel (DS-04 §19)                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The capture line is already the right INTERACTION: a title, Enter, the field
+ * keeps focus and clears, and the parser applies `p1`, `today`, `every Monday`
+ * deterministically. Nothing about that changes here.
+ *
+ * What changes is that it stops being an object. It was a 60px filled card with
+ * a 16px radius carrying two visible buttons, sitting above the list like a
+ * form; the concept has no such panel. It is now literally the row above the
+ * first task — the same inset, the same height, the same `+` where a completion
+ * circle goes — with a hairline under it, so capture reads as "add a line here"
+ * rather than "fill this in".
+ */
+.dh-collection--tasks .dh-tasks-quickadd {
+  margin-block-end: 0;
+  padding-inline: var(--dh-inset-inline);
+  padding-block: 0;
+  border-radius: 0;
+  background: transparent;
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  min-block-size: var(--dh-row-height);
+}
+
+.dh-collection--tasks .dh-tasks-quickadd__input {
+  min-block-size: var(--dh-row-height);
+  font-size: var(--dh-text-row-size);
+}
+
+/*
+ * `Add` and `More options` are held back exactly as the row's own affordances
+ * are: an empty field needs neither, and two permanently-drawn buttons above the
+ * list is the chrome §21 asks to be put away. They return the instant the field
+ * is engaged with — focus-within covers the keyboard, hover covers the mouse —
+ * and they are never removed from the accessibility tree.
+ */
+@media (hover: hover) {
+  .dh-collection--tasks .dh-tasks-quickadd__submit,
+  .dh-collection--tasks .dh-tasks-quickadd__more {
+    opacity: 0;
+    transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
+  }
+
+  .dh-collection--tasks .dh-tasks-quickadd:hover .dh-tasks-quickadd__submit,
+  .dh-collection--tasks .dh-tasks-quickadd:hover .dh-tasks-quickadd__more,
+  .dh-collection--tasks
+    .dh-tasks-quickadd:focus-within
+    .dh-tasks-quickadd__submit,
+  .dh-collection--tasks
+    .dh-tasks-quickadd:focus-within
+    .dh-tasks-quickadd__more {
+    opacity: 1;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The group                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-taskgroup + .dh-taskgroup {
+  margin-block-start: var(--dh-space-6);
+}
+
+/*
+ * Air above a bucket heading, and none below the rule.
+ *
+ * The heading is a LABEL for what follows: pushed away from the band above and
+ * held tight to its own rows, it groups; centred in its own gap it reads as a
+ * divider between two things instead. The first bucket needs it too — it sits
+ * directly under the column key, and two hairlines four pixels apart is a
+ * double rule rather than a structure.
+ */
+.dh-taskgroup__header {
+  margin-block-start: var(--dh-space-5);
+}
+
+.dh-tasks-grouped > *:first-child .dh-taskgroup__header {
+  margin-block-start: var(--dh-space-4);
+}
+
+/*
+ * A heading, a count and a rule. Not a card, not a coloured band, and not the
+ * crimson `OVERDUE` the pre-DS-04 screen shouted above every bucket: the row's
+ * own date already says a task has slipped, and a heading that repeats it in
+ * red is the same fact twice, louder.
+ */
+.dh-taskgroup__header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  padding-block-end: var(--dh-space-2);
+  padding-inline: var(--dh-inset-inline);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-taskgroup__title {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-taskgroup__count {
+  font-size: var(--dh-text-meta-size);
+  font-variant-numeric: var(--dh-font-numeric);
+  color: var(--dh-color-text-muted);
+  opacity: 0.75;
+}
+
+.dh-taskgroup__more {
+  margin-inline-start: auto;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-accent);
+  text-decoration: none;
+}
+
+.dh-taskgroup__more:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive — the columns yield in order                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The STATUS column goes first: it is empty on an ordinary open task, so it is
+ * the column that costs the most and says the least. Then priority narrows, then
+ * project. The title's track never shrinks below `minmax(0, 1fr)`, which is the
+ * rule this whole ladder exists to protect (§10).
+ */
+@container tasklist (max-width: 56rem) {
+  /*
+   * On the CONSUMERS, not on `.dh-tasklist`.
+   *
+   * A container query styles a container's DESCENDANTS and can never style the
+   * container itself — a container whose own size depended on a query about its
+   * own size would be circular, so the rule is dropped silently. Declaring the
+   * template on `.dh-tasklist` inside these blocks therefore did nothing, while
+   * the descendant rules below (the `grid-area` names, the hidden cells) applied
+   * perfectly — which produced a seven-column grid being addressed by
+   * three-column area names, and a Time Sectors view whose titles had no track
+   * to sit in. The header row and the task rows are both descendants, so both
+   * are named here.
+   */
+  .dh-tasklist__columns,
+  .dh-taskrow {
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 10rem 6rem 3.5rem
+      1.75rem;
+  }
+
+  .dh-tasklist__column--status,
+  .dh-taskrow__cell--status {
+    display: none;
+  }
+
+  .dh-taskrow__actions {
+    grid-column: 6;
+  }
+}
+
+@container tasklist (max-width: 44rem) {
+  .dh-tasklist__columns,
+  .dh-taskrow {
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 8rem 5.5rem 3.5rem
+      1.75rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phone — the row is RECOMPOSED, never squeezed                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The concept's phone row is two lines:
+ *
+ *     ○  Complete SAF19 issues paper
+ *        ● Work · Today                                              P1
+ *
+ * which is a different composition, not the desktop one with narrower columns.
+ * The pre-DS-04 phone squeezed the desktop layout and truncated titles at
+ * fourteen characters ("Chase the plu…") while a date column kept its full
+ * width beside them — the exact inversion of §10.
+ */
+@container tasklist (max-width: 34rem) {
+  .dh-tasklist__columns,
+  .dh-taskrow {
+    --taskrow-columns: auto minmax(0, 1fr) auto;
+  }
+
+  /* The header names desktop columns that no longer exist here. */
+  .dh-tasklist__columns {
+    display: none;
+  }
+
+  .dh-taskrow {
+    grid-template-areas:
+      "lead main actions"
+      "lead meta actions";
+    align-items: start;
+    padding-block: var(--dh-space-3);
+    column-gap: var(--dh-space-3);
+    row-gap: var(--dh-space-1);
+  }
+
+  .dh-taskrow__lead {
+    grid-area: lead;
+    /* Aligned to the FIRST line's optical centre, so the circle sits beside the
+     * title rather than in the middle of a two-line block. */
+    align-self: start;
+    padding-block-start: var(--dh-space-px);
+  }
+
+  .dh-taskrow__main {
+    grid-area: main;
+    align-items: start;
+  }
+
+  /* The title may take a second line on a phone, where horizontal room is the
+   * scarce thing and vertical room is not. Two lines, then it truncates. */
+  .dh-taskrow__title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .dh-taskrow__actions {
+    grid-area: actions;
+    align-self: start;
+  }
+
+  /* The metadata becomes a real container again: one quiet line under the
+   * title, project and date on the left, priority pinned right. */
+  .dh-taskrow__meta {
+    grid-area: meta;
+    display: flex;
+    align-items: center;
+    gap: var(--dh-space-2);
+    min-inline-size: 0;
+  }
+
+  .dh-taskrow__cell {
+    grid-column: auto;
+  }
+
+  .dh-taskrow__cell--project {
+    min-inline-size: 0;
+    flex: 0 1 auto;
+  }
+
+  .dh-taskrow__cell--due {
+    flex: none;
+  }
+
+  /* The separator between the two facts, drawn rather than typed, so it is not
+   * read aloud and disappears when there is only one of them. */
+  .dh-taskrow__cell--due::before {
+    content: "·";
+    margin-inline-end: var(--dh-space-2);
+    color: var(--dh-color-border-strong);
+  }
+
+  /*
+   * The separator disappears when there is nothing on one side of it.
+   *
+   * `:empty` was the wrong test: an unset due date is not an empty cell, it is a
+   * cell holding an editor whose label is invisible until the row is engaged
+   * with — so a task with a project and no date printed "Personal ·" with
+   * nothing after the dot. `:has()` asks the question that is actually being
+   * asked: does this cell currently show a value?
+   */
+  .dh-taskrow__cell--project:empty + .dh-taskrow__cell--due::before,
+  .dh-taskrow__cell--project:has(.dh-inline-edit__empty)
+    + .dh-taskrow__cell--due::before,
+  .dh-taskrow__cell--due:has(.dh-inline-edit__empty)::before,
+  .dh-taskrow__cell--due:first-child::before {
+    content: none;
+  }
+
+  .dh-taskrow__cell--priority {
+    flex: none;
+    margin-inline-start: auto;
+  }
+
+  .dh-taskrow__cell--status {
+    display: none;
+  }
+
+  /*
+   * The carets go entirely on a phone.
+   *
+   * A pointer device hides them until hover because there IS a hover to reveal
+   * them with; a phone has none, so the desktop compromise would have drawn
+   * three permanent chevrons on the metadata line of every row — nine glyphs on
+   * a three-row screen, for an affordance a thumb discovers by tapping the value
+   * itself. The concept's phone rows draw none. The controls are unchanged: the
+   * whole value is still the button, at the touch-target floor.
+   */
+  .dh-tasklist .dh-inline-select__caret {
+    display: none;
+  }
+}
+
+/*
+ * The page GUTTER, which is a property of the window rather than of the list.
+ *
+ * On a phone the shell's own gutter is already the page's inset, so the row
+ * adding its own would indent the list from a margin that is itself a margin —
+ * and at 320px those twelve pixels are the difference between a title fitting
+ * and not.
+ */
+@media (max-width: 47.99rem) {
+  .dh-taskgroup__header,
+  .dh-tasklist__columns,
+  .dh-taskrow,
+  .dh-collection--tasks .dh-tasks-quickadd {
+    padding-inline: 0;
+  }
+}
+
+/*
+ * 320px is the narrowest viewport the product supports, and it is where a row
+ * either fits or overflows. The due date yields to the project — "which project
+ * is this?" is asked before "when is it due?" — and the trailing overflow keeps
+ * its 44px target because a target floor is not a responsive decision.
+ */
+@container tasklist (max-width: 19rem) {
+  .dh-taskrow__cell--due {
+    display: none;
+  }
+}

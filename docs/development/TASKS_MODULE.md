@@ -1936,3 +1936,137 @@ Ordinal monthly patterns (`first Monday of every month`) are TASKS-12 and were n
 given a phrase, because the recurrence model has no ordinal rule for one to author.
 Nothing here uses AI, and nothing here proposes: capture creates the Task the owner
 described, or it keeps their words.
+
+## The Tasks list after DS-04 (2026-08-14)
+
+DS-04 replaced the generic `Card` on `/tasks` with a product-level task row, and
+recomposed the screen around it. Nothing about AUTHORITY changed: the loader, the
+single `scope.tasks` query path, the server-authoritative grouping, cursor
+pagination and every canonical mutation intent are exactly what TASKS-03/04/09
+left. What changed is the anatomy the owner reads.
+
+The design record — the concept comparison, the ten measured differences it was
+driven by, and the before/after screenshot set — is
+[`docs/design/DS_04_TASKS_REDESIGN_2026_08.md`](../design/DS_04_TASKS_REDESIGN_2026_08.md).
+
+### The components
+
+| Component | Lives in | Owns |
+|---|---|---|
+| `TaskRow` | `app/shared/task-record/TaskRow.tsx` | one task, as a row: its columns, its completion control, its inline editors, its overflow |
+| `TaskList` | `app/shared/task-record/TaskList.tsx` | the shared column grid, the list semantics, the column header |
+| `TaskListColumns` | same | the column header on its own, for a grouped view that needs it once |
+| `TaskGroup` | same | a server-authoritative bucket: a heading, a count, a rule |
+
+They are SHARED (Today and a Project's task list show the same object and will
+adopt them) but DS-04 wires them into `/tasks` alone, so the module being
+redesigned is the only one whose rows moved. Today, Projects and search still
+render the generic `Card` and are unaffected.
+
+### Row anatomy
+
+```
+[✓] Title …………………………………………  ● Project      Due       ● P1     Status   ⋯
+```
+
+The order is the concept's, and the priority order is deliberate:
+
+1. **completion** — the leading circle, the frequent act, at the row's start;
+2. **title** — the only flexible column (`minmax(0, 1fr)`), so a long title
+   truncates inside its track rather than pushing the date column off the edge;
+3. **project** — an identity DOT and the name. Never a bordered tile;
+4. **date** — ordinary text, in the bounded vocabulary Today already uses
+   (`Today`, `Yesterday`, `20 days ago`, `3 months ago`, `Over a year ago`,
+   `Thu, 12 Jun`), taking the overdue colour — and no weight step — when it has
+   actually slipped. The cell shows the DUE date, or the planned date in italic
+   when there is no due date;
+5. **priority** — the priority's own coloured dot plus `P1`…`P4`. No container;
+6. **status** — the ONE surviving pill, drawn only for the six display states
+   nothing else on the row expresses (Completed, Cancelled, Waiting, On hold,
+   Someday / Maybe, In progress). `planned` and `inbox` draw nothing, because
+   both restate the planned date beside them;
+7. **overflow** — one trailing control, revealed on hover or focus, always drawn
+   on touch, never removed from the accessibility tree.
+
+### Metadata hierarchy
+
+The title is `--dh-text-row-*` at the ROW weight, not a heading weight. Hierarchy
+comes from everything else being quieter — `--dh-text-meta-*` in the muted role —
+rather than from the title being louder. That is the rule the pre-DS-04 row broke:
+600-weight titles competing with equally saturated pills.
+
+### The pill audit
+
+An ordinary pre-DS-04 row could draw a status pill, a bordered project tile, a
+bordered priority box and a recurrence chip. It now draws at most one bounded
+coloured container — the status pill — and only when the state is not derivable
+from the rest of the row. Recurrence became an icon with its words in the
+accessibility tree.
+
+### Inline vs Drawer
+
+**Frequent planning changes inline; deeper record work in the Drawer.**
+
+| Inline, from the row | In the Drawer |
+|---|---|
+| completion | long description |
+| title (Rename, from the overflow) | relationships and links |
+| priority | Activity |
+| project / Area (and Inbox) | complex recurrence authoring |
+| due date | delegation and waiting detail |
+| | low-frequency record fields |
+
+Every inline edit posts a canonical intent through `task-inline-edit.ts` and
+reports the SERVER's answer. There is no second editor and no list-only mutation.
+
+### Selector interaction
+
+- one selection REPLACES the previous value; there is no clear-then-choose step;
+- clearing is a separated command at the foot of the menu ("Move to Inbox",
+  "Clear priority"), so an untriaged task never reads as "set to No priority";
+- the current value carries a visible tick as well as `aria-checked`;
+- options are ONE line at the menu-item rung, so a fifty-candidate project menu
+  shows ~14 at a time instead of ~5 and no label wraps;
+- the project menu ends with **Search all Projects and Areas…**, which hands off
+  to the shared searchable picker over the whole workspace — the bounded option
+  set is a fast path, not a claim to be complete;
+- placement, viewport collision, the height clamp and the internal scroll are
+  `AnchoredSurface`'s, unchanged;
+- below `md` every selector is the shared `Sheet`, with 44px rows.
+
+### Mobile adaptation
+
+The row is RECOMPOSED, never squeezed:
+
+```
+○  Complete SAF19 issues paper
+   ● Work · Today                                    P1
+```
+
+The switch is a CONTAINER query on the list's own width, not a window media
+query — which is what makes the Board and Time Sectors presentations correct,
+since their columns are ~380px inside a 1280px window. Carets are not drawn where
+there is no hover to reveal them; the value itself is the target, at the 44px
+floor.
+
+### Density
+
+The list declares its density on its own region, from the owner's `?density=`
+choice: **Compact** resolves to DS-01's `compact` preset — the rung DS-01 defines
+by this exact case — and **Comfortable** to `default`. The default is `compact`.
+
+That plumbing is not cosmetic. The list's first form declared `compact`
+unconditionally, which left the still-shipped Comfortable option changing the URL
+and the control while every row stayed exactly where it was; a preference that is
+visibly inert is worse than one that does not exist.
+
+The row's height is the completion control's 44px target and nothing else, at
+either preset; the coarse-pointer floor in `tokens.css` returns every touch
+target on a phone, unconditionally.
+
+### What was deliberately dropped
+
+The generic Card's **swipe tray** went with the Card. Nothing became unreachable:
+completion is the leading circle, and "Plan for today" is in the row's overflow,
+which is reachable by pointer, keyboard and screen reader on every device. A
+gesture was always an accelerator over affordances that exist elsewhere.

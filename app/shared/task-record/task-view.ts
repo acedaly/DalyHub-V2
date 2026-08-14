@@ -461,11 +461,27 @@ export type RelativeDateUrgency = "overdue" | "today" | "soon" | "future";
  * UIX-01 design: the near days get their names, and only the far ones get a
  * date.
  *
- *     -1        Yesterday          (and further back: "3 days ago")
+ *     beyond    Over a year ago
+ *     -365…-31  3 months ago
+ *     -30 … -2  20 days ago
+ *     -1        Yesterday
  *      0        Today
- *     +1        Tomorrow
+ *      +1       Tomorrow
  *     +2 … +6   Thu               (this coming week — the weekday alone)
  *     beyond    Thu, 12 Jun       (and "Thu, 12 Jun 2027" across a year)
+ *
+ * DS-04 BOUNDED the past, and deliberately did not make it absolute.
+ *
+ * The unbounded form was the worst-reading thing on the Tasks screen — a column
+ * ending in "9722 days ago" is arithmetic the reader has to undo, and it grows
+ * without limit. The first fix was to print a date past a week, and that was
+ * wrong for a reason a screenshot does not show: an absolute date says nothing
+ * about having PASSED, so in an ungrouped list the only thing left saying a task
+ * had slipped was the colour — which §15 forbids as the sole carrier.
+ *
+ * The ladder above is the one `relativePastLabel` already uses on Today, so the
+ * product has ONE vocabulary for how long ago something was rather than two. It
+ * is bounded at every distance, and it keeps the state in words.
  *
  * The `urgency` alongside is what a surface tints with. It is never the only
  * signal: the label itself SAYS the state ("Yesterday", "Today"), which is why
@@ -491,7 +507,7 @@ export function relativeCalendarDate(
   if (days === 1) return { label: "Tomorrow", urgency: "soon" };
   if (days === -1) return { label: "Yesterday", urgency: "overdue" };
   if (days < -1) {
-    return { label: `${-days} days ago`, urgency: "overdue" };
+    return { label: elapsedPhrase(-days), urgency: "overdue" };
   }
   const weekday = calendarWeekday(value);
   if (weekday === null) {
@@ -499,15 +515,47 @@ export function relativeCalendarDate(
   }
   // Inside the coming week the weekday alone is unambiguous and shortest.
   if (days <= 6) return { label: weekday, urgency: "soon" };
-  // Beyond it the weekday needs a date. `formatCalendarDate` already produced
-  // "12 Jun 2027"; the YEAR is dropped when the value is in the owner's current
-  // year, which is the only case where it disambiguates nothing.
-  const sameYear = value.slice(0, 4) === todayIso.slice(0, 4);
-  const dayAndMonth = absolute.slice(0, absolute.lastIndexOf(" "));
+  // Beyond it the weekday needs a date.
   return {
-    label: `${weekday}, ${sameYear ? dayAndMonth : absolute}`,
+    label: absoluteWithWeekday(absolute, weekday, value, todayIso),
     urgency: "future",
   };
+}
+
+/**
+ * "20 days ago" / "3 months ago" / "Over a year ago" — the elapsed phrase.
+ *
+ * The SAME ladder `relativePastLabel` uses on Today (`app/modules/today/day/
+ * day-view.ts`), so the product has one answer to "how long ago was that?".
+ * Bounded at every distance: a task whose due date is a seeded 1 Jan 2000 reads
+ * "Over a year ago" rather than counting nine thousand days.
+ */
+function elapsedPhrase(days: number): string {
+  if (days <= 30) return `${days} days ago`;
+  if (days <= 365) {
+    const months = Math.round(days / 30);
+    return months === 1 ? "1 month ago" : `${months} months ago`;
+  }
+  return "Over a year ago";
+}
+
+/**
+ * "Thu, 12 Jun" — the far form, in ONE place so the far past and the far future
+ * cannot drift into two spellings of the same thing.
+ *
+ * `formatCalendarDate` already produced "12 Jun 2027"; the YEAR is dropped when
+ * the value is in the owner's current year, which is the only case where it
+ * disambiguates nothing.
+ */
+function absoluteWithWeekday(
+  absolute: string,
+  weekday: string,
+  value: string,
+  todayIso: string,
+): string {
+  const sameYear = value.slice(0, 4) === todayIso.slice(0, 4);
+  const dayAndMonth = absolute.slice(0, absolute.lastIndexOf(" "));
+  return `${weekday}, ${sameYear ? dayAndMonth : absolute}`;
 }
 
 /** Whole calendar days from `fromIso` to `toIso`, or null if either is malformed. */

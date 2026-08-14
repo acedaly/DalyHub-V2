@@ -13,11 +13,34 @@
 }
 
 /* Header + filter bar pin together at the top of the pane's scroll container. */
+/*
+ * DS-04 — the pinned band sticks BELOW the top bar, not under it.
+ *
+ * The shell's `.dh-topbar` is itself `position: sticky; top: 0` at a higher
+ * z-rung, so a collection header pinned to `top: 0` slid underneath it the
+ * moment the page scrolled: the title, the count and — measurably — the page's
+ * one primary action ended up behind 56px of bar. Found by the accessibility
+ * sweep rather than by eye, as a `target-size` failure ("New task" reduced to
+ * 114.5×6.5px of unobscured target on a scrolled Tasks page), which is what a
+ * control hidden behind another control looks like to a machine.
+ *
+ * The defect predates DS-04 and is the narrow shell fix DS-04 §29 licenses: it
+ * is one declaration, it changes no measurement or origin, and it is correct for
+ * every one of the twelve collections that pin a header. Below `md` the desktop
+ * bar is `display: none` and the phone's own bar is not sticky, so the offset
+ * goes back to zero there.
+ */
 .dh-collection__sticky {
   position: sticky;
-  top: 0;
+  top: var(--dh-shell-bar-height);
   z-index: var(--app-z-sticky);
   background: var(--md-app-color-surface-page);
+}
+
+@media (max-width: 47.99rem) {
+  .dh-collection__sticky {
+    top: 0;
+  }
 }
 
 /*

@@ -7,6 +7,8 @@ import {
   expectMinTouchTarget,
   gotoFixture,
   ownerToday,
+  taskRows,
+  taskRow,
 } from "./helpers";
 
 /**
@@ -42,7 +44,7 @@ const SAVED_VIEW = "E2E deep work view";
  * by gesture without occupying the row.
  */
 async function planForToday(page: Page, title: string) {
-  const card = page.getByRole("article", { name: `Open ${title}` }).first();
+  const card = taskRow(page, title).first();
   await card.hover();
   await card.getByRole("button", { name: /^More actions for / }).click();
   await page
@@ -96,7 +98,7 @@ test.describe("TASKS-03 — the primary workspace", () => {
     await expect(
       page.getByRole("link", { name: "Matrix", exact: true }),
     ).toHaveCount(0);
-    await expect(page.getByRole("article").first()).toBeVisible();
+    await expect(taskRows(page).first()).toBeVisible();
     // The switcher names what is on screen rather than reporting "Custom".
     await expect(page.getByTestId("tasks-view-trigger")).toContainText(
       "All active",
@@ -119,7 +121,9 @@ test.describe("TASKS-03 — the primary workspace", () => {
     for (const [label, marker] of [
       ["Sectors", ".dh-tasks-sectors"],
       ["Board", ".dh-tasks-board"],
-      ["List", ".dh-card-collection"],
+      // DS-04 — the List presentation is the product-level task list, not the
+      // generic card collection it was configured from.
+      ["List", ".dh-tasklist"],
     ] as const) {
       await page.getByTestId("tasks-overflow").click();
       await page
@@ -142,7 +146,7 @@ test.describe("TASKS-03 — the primary workspace", () => {
     // about which configuration is actually applied.
     await expect(page).toHaveURL(/view=list/);
     await expect(page).toHaveURL(/system=all/);
-    await expect(page.getByRole("article").first()).toBeVisible();
+    await expect(taskRows(page).first()).toBeVisible();
   });
 });
 
@@ -242,7 +246,7 @@ test.describe("TASKS-03 — filtering", () => {
       "/tasks?priority=p9%27%20OR%201%3D1&sort=e.title%20DESC&group=%3Bdrop",
     );
     // The page renders normally; the unrecognised values simply did not apply.
-    await expect(page.getByRole("article").first()).toBeVisible();
+    await expect(taskRows(page).first()).toBeVisible();
     await expect(
       page.getByTestId("collection-filter-trigger"),
     ).not.toContainText("1");
@@ -263,7 +267,7 @@ test.describe("TASKS-03 — sorting and grouping", () => {
 
     // The bucket's own filtered list holds exactly the records the count promised.
     await gotoFixture(page, "/tasks?view=list&system=all&due=overdue");
-    await expect(page.getByRole("article")).toHaveCount(count);
+    await expect(taskRows(page)).toHaveCount(count);
   });
 
   test("hides EMPTY groups outside the specialist views, and keeps them inside", async ({
@@ -307,7 +311,7 @@ test.describe("TASKS-03 — sorting and grouping", () => {
     page,
   }) => {
     const titles = async () =>
-      page.getByRole("article").locator("h2, h3").allTextContents();
+      taskRows(page).locator("h2, h3").allTextContents();
 
     /*
      * `group=none` is explicit here, and has to be.
@@ -448,7 +452,7 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     await field.fill(title);
     await field.press("Enter");
 
-    const card = page.getByRole("article", { name: `Open ${title}` });
+    const card = taskRow(page, title);
     await expect(card).toBeVisible();
     // UIQ-002 — on a fine pointer the row's action rail reveals on hover and is
     // pointer-inert while concealed, so pointing at the row precedes the click,
@@ -480,7 +484,7 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     await field.fill(title);
     await field.press("Enter");
 
-    const card = page.getByRole("article", { name: `Open ${title}` });
+    const card = taskRow(page, title);
     await expect(card).toBeVisible();
 
     // TASKS-05 — the DUE date edits IN PLACE on the row. The value is the button:
@@ -495,6 +499,17 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     // UIX-01 — the row states the due date as the word "Today". The separate
     // "Due today" urgency chip is gone: a relative date says it itself.
     await expect(card).toContainText("Today");
+    /*
+     * Wait for the SERVER's answer before opening a menu on this row.
+     *
+     * The word above is painted optimistically off the client's patch map; the
+     * BUCKET is the server's, and the revalidation the save asked for lands a
+     * moment later and RE-CREATES the row under its new due state — taking any
+     * menu open on it with it ("element was detached from the DOM"). HARDEN-04
+     * added the same wait to `tasks-journey` for the same reason, and it was
+     * missing here: the next step opens this row's overflow.
+     */
+    await page.waitForLoadState("networkidle");
 
     // Then PLAN it for today. The due date is a deadline and the planned date is
     // a commitment (ADR-043 §3): setting one must never overwrite the other, so
@@ -523,7 +538,7 @@ test.describe("TASKS-03 — Today integration", () => {
     await field.fill(title);
     await field.press("Enter");
 
-    const card = page.getByRole("article", { name: `Open ${title}` });
+    const card = taskRow(page, title);
     // UIQ-002 — the rail reveals on hover; pointing at the row precedes the
     // click, exactly as a person performs it.
     await card.hover();
@@ -538,9 +553,7 @@ test.describe("TASKS-03 — Today integration", () => {
      * nothing to prove without this.
      */
     await gotoFixture(page, "/tasks?view=list&system=today");
-    await expect(
-      page.getByRole("article", { name: `Open ${title}` }),
-    ).toBeVisible();
+    await expect(taskRow(page, title)).toBeVisible();
 
     // Today reads the SAME canonical planning field — there is no second
     // definition of "today" to keep in step.
@@ -549,7 +562,7 @@ test.describe("TASKS-03 — Today integration", () => {
 
     // Completing from Today's own surface is reflected back in Tasks.
     await gotoFixture(page, "/tasks?view=list&system=completed&sort=updated");
-    await expect(page.getByRole("article").first()).toBeVisible();
+    await expect(taskRows(page).first()).toBeVisible();
 
     // Clear the plan so a lingering scheduled-today task cannot leak a "Today"
     // band into another spec's view of the dashboard. (It moves to the always-
@@ -559,7 +572,7 @@ test.describe("TASKS-03 — Today integration", () => {
       page,
       "/tasks?view=list&system=all&sort=created&dir=desc",
     );
-    const again = page.getByRole("article", { name: `Open ${title}` });
+    const again = taskRow(page, title);
     await again.hover();
     /*
      * HARDEN-02 — the planned date is edited from the row's QUICK-EDIT panel.
@@ -601,9 +614,7 @@ test.describe("TASKS-03 — Today integration", () => {
      * because no row says it any more.
      */
     await gotoFixture(page, "/tasks?view=list&system=today");
-    await expect(
-      page.getByRole("article", { name: `Open ${title}` }),
-    ).toHaveCount(0);
+    await expect(taskRow(page, title)).toHaveCount(0);
   });
 
   test("choosing a DEFAULT Tasks view does not change the Today dashboard", async ({
@@ -722,7 +733,7 @@ test.describe("TASKS-03 — accessibility, keyboard and responsive", () => {
     await field.fill(title);
     await field.press("Enter");
 
-    const card = page.getByRole("article", { name: `Open ${title}` });
+    const card = taskRow(page, title);
     // UIQ-002 — the rail reveals on hover; pointer users point before clicking.
     await card.hover();
     await card.getByRole("checkbox", { name: `Complete ${title}` }).check();
@@ -787,7 +798,7 @@ test.describe("TASKS-03 — phone", () => {
       await expectMinTouchTarget(page.getByTestId("collection-filter-trigger"));
       await expectMinTouchTarget(page.getByTestId("collection-reset-filters"));
       // And a row's own quick edits: complete and the overflow.
-      const row = page.getByRole("article").first();
+      const row = taskRows(page).first();
       /*
        * UIX-01 — the 20px circle sits inside a 44px LABEL, which is the thing a
        * thumb aims at. The reference draws a small circle and WCAG 2.2 (2.5.8)
