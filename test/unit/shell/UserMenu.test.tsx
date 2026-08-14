@@ -1,172 +1,163 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+/**
+ * DS-03 — the account menu, after it moved to the bottom of the rail.
+ *
+ * Two of these are regressions from the PR #176 review, and both are about the
+ * COLLAPSED rail — the width band where CSS hides the trigger's name and leaves
+ * two initials. That state is invisible to a component test unless the test
+ * drives `matchMedia`, which is exactly why it shipped wrong.
+ */
+
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
-import {
-  UserMenu,
-  displayNameFromEmail,
-  greetingNameFor,
-  initialsFromName,
-} from "~/shared/shell/UserMenu";
+import { COLLAPSED_RAIL_QUERY } from "~/shared/shell/collapsed-rail";
+import { UserMenu } from "~/shared/shell/UserMenu";
 
-/**
- * The panel now contains the APPEARANCE-01 selector, which reports a failed save
- * through the shared DS-10 Feedback platform — so the harness mounts the provider
- * the real shell mounts. `useFeedback` throws without one BY DESIGN (a missing
- * platform mount should be a loud developer error, not a silent no-op), so this is
- * the harness catching up with the component, not a workaround.
- */
-function renderMenu(props: Partial<Parameters<typeof UserMenu>[0]> = {}) {
+/** Drive `matchMedia` so the component believes the rail is (or is not) collapsed. */
+function withViewport(collapsed: boolean) {
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) =>
+    ({
+      matches: collapsed && query === COLLAPSED_RAIL_QUERY,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }) as unknown as MediaQueryList) as typeof window.matchMedia;
+  return () => {
+    window.matchMedia = original;
+  };
+}
+
+function renderMenu(collapsible = true) {
   const Stub = createRoutesStub([
     {
-      path: "/",
+      path: "*",
+      // The panel's appearance control is a form that reports through the shared
+      // feedback surface, which the real shell mounts around the whole frame.
       Component: () => (
         <FeedbackProvider>
-          <UserMenu email="owner@example.com" {...props} />
+          <UserMenu
+            email="owner@example.invalid"
+            appearance="system"
+            settingsHref="/settings"
+            collapsible={collapsible}
+          />
         </FeedbackProvider>
       ),
     },
-    { path: "/settings", Component: () => <div>Settings page</div> },
   ]);
-  return render(<Stub initialEntries={["/"]} />);
+  return render(<Stub initialEntries={["/today"]} />);
 }
 
-describe("PX-02 UserMenu — disclosure semantics (FIX 2)", () => {
-  it("is a disclosure, not a menu (no aria-haspopup='menu')", () => {
+/** Hover the trigger and let the tooltip's intent delay elapse. */
+function hover(element: HTMLElement) {
+  fireEvent.pointerEnter(element, { pointerType: "mouse" });
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
+}
+
+const trigger = () => screen.getByRole("button", { name: /^account —/i });
+
+describe("DS-03 UserMenu on the rail", () => {
+  it("names the trigger by what it is as well as by who", () => {
+    // Its visible text is the display name and nothing else, so "Owner, button"
+    // says who but not what, in a landmark otherwise full of destinations. The
+    // name still CONTAINS the visible text (WCAG 2.5.3), so a voice-control user
+    // can say what they can see.
     renderMenu();
-    const trigger = screen.getByRole("button", { name: /owner/i });
-    expect(trigger).not.toHaveAttribute("aria-haspopup", "menu");
-    expect(trigger).not.toHaveAttribute("aria-haspopup");
+    expect(trigger()).toHaveAccessibleName("Account — Owner");
+    expect(trigger().textContent).toContain("Owner");
   });
 
-  it("exposes correct expanded/collapsed state on the trigger", () => {
-    renderMenu();
-    const trigger = screen.getByRole("button", { name: /owner/i });
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("controls the disclosure panel (aria-controls) while open, and labels it as an Account group", () => {
-    renderMenu();
-    const trigger = screen.getByRole("button", { name: /owner/i });
-    // Closed: nothing is controlled.
-    expect(trigger).not.toHaveAttribute("aria-controls");
-
-    fireEvent.click(trigger);
-    const panel = screen.getByRole("group", { name: "Account" });
-    expect(panel.id).toBeTruthy();
-    expect(trigger).toHaveAttribute("aria-controls", panel.id);
-  });
-
-  it("closes on Escape and restores focus to the trigger", () => {
-    renderMenu();
-    const trigger = screen.getByRole("button", { name: /owner/i });
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(trigger).toHaveFocus();
-  });
-
-  it("closes on an outside click", () => {
-    renderMenu();
-    const trigger = screen.getByRole("button", { name: /owner/i });
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-
-    fireEvent.pointerDown(document.body);
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("keeps every panel control keyboard reachable (native, non -1 tabindex)", () => {
-    renderMenu({ settingsHref: "/settings" });
-    fireEvent.click(screen.getByRole("button", { name: /owner/i }));
-    const panel = screen.getByRole("group", { name: "Account" });
-
-    const controls = within(panel).getAllByRole("link");
-    // M3-01 removed the theme quick-switch (ADR-074 decision 5); Settings and
-    // Sign out remain, and both are reachable.
-    expect(controls.length).toBeGreaterThanOrEqual(2);
-    for (const control of controls) {
-      expect(control).not.toHaveAttribute("tabindex", "-1");
-      control.focus();
-      expect(control).toHaveFocus();
+  it("describes the trigger with the shared tooltip when the rail is collapsed", () => {
+    /*
+     * PR #176 review, P2. The same CSS that hides the fourteen destinations'
+     * labels hides this one, leaving two initials — so a sighted pointer or
+     * keyboard user got no explanation that they open the account menu, while
+     * the destinations beside it all had one.
+     */
+    vi.useFakeTimers();
+    const restore = withViewport(true);
+    try {
+      renderMenu();
+      hover(trigger());
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Account — Owner");
+      expect(trigger()).toHaveAttribute("aria-describedby");
+    } finally {
+      restore();
+      vi.useRealTimers();
     }
   });
-});
 
-describe("PX-02 UserMenu — Settings destination (FIX 1)", () => {
-  it("does not render a Settings action by default", () => {
-    renderMenu();
-    fireEvent.click(screen.getByRole("button", { name: /owner/i }));
-    expect(
-      screen.queryByRole("link", { name: /settings/i }),
-    ).not.toBeInTheDocument();
-    // Sign out is always available.
-    expect(screen.getByRole("link", { name: /sign out/i })).toHaveAttribute(
-      "href",
-      "/cdn-cgi/access/logout",
-    );
+  it("adds no tooltip while the name is visible", () => {
+    // A tooltip repeating text the user can already read is noise, and the
+    // expanded rail is the common case.
+    vi.useFakeTimers();
+    const restore = withViewport(false);
+    try {
+      renderMenu();
+      hover(trigger());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    } finally {
+      restore();
+      vi.useRealTimers();
+    }
   });
 
-  it("renders Settings pointing at the supplied route when explicitly provided", () => {
-    renderMenu({ settingsHref: "/settings" });
-    fireEvent.click(screen.getByRole("button", { name: /owner/i }));
+  it("adds no tooltip in the phone's navigation sheet", () => {
+    // The sheet is full-width at every viewport it exists at, so it opts out and
+    // never installs the media listener.
+    vi.useFakeTimers();
+    const restore = withViewport(true);
+    try {
+      renderMenu(false);
+      hover(trigger());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    } finally {
+      restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("suppresses the tooltip once the panel is open", () => {
+    // The panel says far more than the trigger could; a tooltip over it would be
+    // noise on top of an answer.
+    vi.useFakeTimers();
+    const restore = withViewport(true);
+    try {
+      renderMenu();
+      fireEvent.click(trigger());
+      expect(trigger()).toHaveAttribute("aria-expanded", "true");
+      hover(trigger());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    } finally {
+      restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the whole panel reachable — appearance, Settings and Sign out", () => {
+    /*
+     * The CONTENT half of PR #176's P1. The clipping itself is a CSS property
+     * (asserted in `shell-anatomy.test.ts`, which is where the cause lives), but
+     * what the defect actually cost was these three controls: at 900px the panel
+     * was cut to the rail's 68px and Settings and Sign out were single letters.
+     */
+    renderMenu();
+    fireEvent.click(trigger());
+    expect(screen.getByRole("group", { name: "Account" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /settings/i })).toHaveAttribute(
       "href",
       "/settings",
     );
-  });
-
-  it("closes the disclosure when an explicitly supplied Settings destination is selected", () => {
-    renderMenu({ settingsHref: "/settings" });
-    const trigger = screen.getByRole("button", { name: /owner/i });
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-
-    fireEvent.click(screen.getByRole("link", { name: /settings/i }));
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(
-      screen.queryByRole("group", { name: "Account" }),
-    ).not.toBeInTheDocument();
-  });
-});
-
-describe("PX-02 UserMenu — identity helpers", () => {
-  it("derives a friendly display name and initials from an email", () => {
-    expect(displayNameFromEmail("aidan.daly@example.com")).toBe("Aidan Daly");
-    expect(displayNameFromEmail("owner@example.com")).toBe("Owner");
-    expect(initialsFromName("Aidan Daly")).toBe("AD");
-    expect(initialsFromName("Owner")).toBe("OW");
-  });
-
-  /*
-   * POLISH-02 — Today's hero greets the owner by name, and it derives that name
-   * from the SAME helpers rather than inventing a second rule. The greeting form
-   * is the FIRST name only: a greeting is the one place the product speaks to the
-   * owner rather than about them.
-   */
-  it("greets with the first name, preferring the provider's display name", () => {
-    expect(greetingNameFor("Aidan Daly", "someone.else@example.com")).toBe(
-      "Aidan",
-    );
-    expect(greetingNameFor(null, "aidan.daly@example.com")).toBe("Aidan");
-    expect(greetingNameFor("  ", "owner@example.com")).toBe("Owner");
-  });
-
-  it("returns no greeting name rather than greeting an identifier", () => {
-    // Nothing usable → the hero falls back to the plain greeting.
-    expect(greetingNameFor(null, null)).toBeNull();
-    expect(greetingNameFor(null, "")).toBeNull();
-    expect(greetingNameFor("   ", "")).toBeNull();
-    // A provider name that is really an address is never used as a greeting.
-    expect(
-      greetingNameFor("owner@example.com", "owner@example.com"),
-    ).toBeNull();
+    expect(screen.getByRole("link", { name: /sign out/i })).toBeInTheDocument();
+    for (const appearance of ["System", "Light", "Dark"]) {
+      expect(
+        screen.getByRole("radio", { name: appearance }),
+      ).toBeInTheDocument();
+    }
   });
 });

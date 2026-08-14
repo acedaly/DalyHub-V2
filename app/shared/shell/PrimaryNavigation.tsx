@@ -42,8 +42,10 @@ import { Fragment } from "react";
 import { Link, useLocation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
+import { Tooltip } from "~/shared/tooltip";
 
 import { NavIcon } from "./NavIcon";
+import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
 
 export type PrimaryNavigationProps = {
@@ -53,12 +55,19 @@ export type PrimaryNavigationProps = {
   readonly items: readonly NavigationItem[];
   /** Called when a navigation target is chosen (used to close the mobile sheet). */
   readonly onNavigate?: () => void;
+  /**
+   * Whether this instance is the RAIL, which collapses to glyphs on a tablet.
+   * The mobile sheet never collapses — it is a full-width sheet at every width
+   * it exists at — so it opts out and never pays for the media listener.
+   */
+  readonly collapsible?: boolean;
 };
 
 export function PrimaryNavigation({
   id,
   items,
   onNavigate,
+  collapsible = false,
 }: PrimaryNavigationProps) {
   const { pathname } = useLocation();
   // Exactly one row is current for any route — the longest matching destination.
@@ -66,6 +75,26 @@ export function PrimaryNavigation({
     items.map((item) => item.href),
     pathname,
   );
+
+  /*
+   * DS-03 — the collapsed rail's rows are glyph-only, so each one needs its
+   * name back.
+   *
+   * The accessible NAME never went anywhere: the label element stays in the DOM
+   * and is hidden with the visually-hidden treatment rather than `display:none`,
+   * so a screen reader reads "Projects" at every width. What a collapsed row
+   * loses is the name for a POINTER and for a sighted keyboard user, and that is
+   * exactly what the shared tooltip is for (M3-TIP finding 2). It is the
+   * description, never the name — the two are different, and a tooltip that is
+   * also the name disappears for anyone whose assistive technology does not
+   * announce descriptions.
+   *
+   * SSR renders `false`, so the first byte is the labelled rail and the tooltip
+   * is only ever added after mount. Nothing about the layout depends on it, so
+   * there is no hydration shift — the width is decided by the media query in
+   * `shell.css`, which the server and the browser resolve identically.
+   */
+  const collapsed = useCollapsedRail(collapsible);
 
   return (
     <div id={id} className="dh-nav">
@@ -82,24 +111,34 @@ export function PrimaryNavigation({
                 </li>
               ) : null}
               <li className="dh-nav__item">
-                <Link
-                  to={item.href}
-                  className={
-                    current
-                      ? "dh-nav__link dh-nav__link--active md-state-layer"
-                      : "dh-nav__link md-state-layer"
-                  }
-                  aria-current={current ? "page" : undefined}
-                  onClick={onNavigate}
+                <Tooltip
+                  label={item.label}
+                  placement="bottom"
+                  disabled={!collapsed}
                 >
-                  <span className="dh-nav__icon">
-                    <NavIcon
-                      entityType={item.entityType}
-                      navIcon={item.navIcon}
-                    />
-                  </span>
-                  <span className="dh-nav__label">{item.label}</span>
-                </Link>
+                  {(tip) => (
+                    <Link
+                      to={item.href}
+                      ref={tip.ref}
+                      className={
+                        current
+                          ? "dh-nav__link dh-nav__link--active md-state-layer"
+                          : "dh-nav__link md-state-layer"
+                      }
+                      aria-current={current ? "page" : undefined}
+                      aria-describedby={tip.describedBy}
+                      onClick={onNavigate}
+                    >
+                      <span className="dh-nav__icon">
+                        <NavIcon
+                          entityType={item.entityType}
+                          navIcon={item.navIcon}
+                        />
+                      </span>
+                      <span className="dh-nav__label">{item.label}</span>
+                    </Link>
+                  )}
+                </Tooltip>
               </li>
             </Fragment>
           );

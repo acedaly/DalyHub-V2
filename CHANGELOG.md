@@ -17,6 +17,48 @@ no version number to group them under.
 
 ---
 
+## A new frame for the whole app (DS-03)
+
+This is the change you will notice before you read anything: the sidebar is now
+a dark column down the left of the window, in the light theme as well as the
+dark one, and the app is arranged around it.
+
+- **The sidebar went dark.** It is the same navigation, in the same order, with
+  the same destinations — but it now reads as a quiet frame around your work
+  rather than a second page beside it. Whichever section you are in is marked
+  with a solid purple block, so "where am I" is answered from across the room.
+- **Your account moved to the bottom of the sidebar.** It used to sit in the top
+  right. The sidebar now opens with DalyHub and closes with you, and the top of
+  the window has room for the thing you actually use.
+- **Search moved to the top left.** It is a proper field again, at the start of
+  the row, lined up with the page title underneath it and the first card under
+  that. `/` still opens it and `⌘K` still opens the command palette.
+- **The top bar is shorter and the page starts higher.** Roughly a third less
+  chrome above the first task on an ordinary laptop screen.
+- **Laptops get more room.** The navigation rows are tighter, so the whole
+  sidebar — including your account — fits a laptop screen without crowding, and
+  every destination is still one click away.
+- **Tablets get their own layout.** Between phone and laptop size the sidebar
+  becomes a narrow column of icons, giving about 150px back to the page. Hover
+  or focus an icon and its name appears; nothing is hidden from a screen reader.
+- **Wide screens line up properly.** On a large monitor the page title used to
+  drift right of the list it was titling. Everything now starts on one line, at
+  every window size.
+- **The phone is tidier.** The top bar is shorter, and the navigation menu's two
+  large search buttons are now ordinary compact fields. The bottom bar —
+  Today · Tasks · Capture · Diary · More — is unchanged; it was already right.
+- **Dark mode was designed, not inverted.** The sidebar is the same object in
+  both themes and the selected section is a confident purple in both.
+- **A keyboard fix that came with it.** The focus outline was too faint against
+  the new dark sidebar to meet the accessibility contrast standard, so the
+  sidebar draws its own. Every destination keeps its name for a screen reader at
+  every window size, including when the sidebar is collapsed to icons.
+
+Your routes, shortcuts, search, command palette, settings and sign-in are
+unchanged. Nothing moved except the frame around them.
+
+---
+
 ## A tighter, quieter interface (DS-02)
 
 DalyHub's buttons, fields, menus and dialogs have been rebuilt on one shared

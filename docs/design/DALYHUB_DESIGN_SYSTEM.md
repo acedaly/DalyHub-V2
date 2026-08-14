@@ -150,7 +150,7 @@ specification does not, because the specification's answer was worse *here*.
 | D9 | **An optional select is EMPTY, never "No priority"** | An absence is not a decision. It also stops the unset state taking the first slot in a menu, where the eye and the keyboard both start |
 | D10 | **Five generated colour SCHEMES, and still no theme feature.** Each is a token map over the one design system — light and dark, both first-class — selected by `<html data-color-scheme>` alongside the independent appearance preference (THEME-01, [ADR-088](../decisions/ARCHITECTURE_DECISIONS.md#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance)) | A component styled once is correct in all ten combinations, because nothing outside `tokens.css` may branch on a scheme — asserted by test. A scheme changes colour personality; typography, spacing, shape, layout and motion are identical in all five |
 | D11 | **Today has no hero.** Its figures are a row of quiet cards on the canvas | A hero spends the page's largest type on a headline and leaves the numbers at label size beside it — on the one screen whose entire question is the numbers. The row spends it on the figures, and tints nothing |
-| D12 | **The permanent navigation drawer is 216px**, outside M3's 232–248 band, and a destination is **44px of visual row** — the touch floor itself | 240 is the specification's figure for a drawer a user *opens*; DalyHub's is permanent, holds fourteen destinations and is on screen for the whole session. A painted row larger than the target it serves is mass without reach |
+| D12 | **The permanent navigation drawer is 216px**, outside M3's 232–248 band, and a destination is **36px of visual row on a fine pointer** — floored to the 45px target on a coarse one (amended by DS-03) | 240 is the specification's figure for a drawer a user *opens*; DalyHub's is permanent, holds fourteen destinations and is on screen for the whole session. VIS-01's 44px came from "a painted row should not be larger than the target it serves", which is a rule about a TOUCH target — and the rail is the one navigation surface a finger never touches, since it is hidden below `md` and the phone bar (D15) is what a thumb gets. Fourteen destinations at 36 is 504px of column rather than 616, which is what fits the rail and its account block on a 900px laptop viewport. The floor is unconditional under `(pointer: coarse)`, so the tablet rail and the phone's navigation sheet keep a full target |
 | D13 | ~~**A pill is reserved for a primary or destructive action.**~~ **Superseded by D33** (DS-02). It was the right correction to `corner-full` on all five variants — but the answer turned out to be no stadium at all, not a smaller number of them | `corner-full` on all five variants made shape say nothing about emphasis. A stadium means "this is the action" only when most things are not one |
 | D14 | **The segmented control is a sunken track with a soft raised chip**, not M3's outlined capsule with inter-segment dividers | Three pieces of chrome to say "one of these is chosen", in seven collection headers. The track and the lifted chip draw the same boundary the border and the dividers did |
 | D15 | **The phone navigation bar is 60px** with a 40×26 indicator, not M3's 80px with a 64×32 capsule | The extra 20px exists to make room for the capsule, and the capsule was the most painted chrome on the phone's most permanent surface. Every destination is still a full-height target well over 44px |
@@ -172,7 +172,10 @@ specification does not, because the specification's answer was worse *here*.
 | D31 | **A `<select>` is REPAINTED, never replaced** (UIX-06) | Four collection headers shipped the user-agent chevron beside a designed control. Replacing the element with a bespoke listbox costs the platform picker on touch, the free keyboard behaviour, the assistive-technology semantics and the no-JS form submit — for a visual problem `appearance: none` solves outright, since it changes only how the CLOSED control is painted. The chevron is a gradient pair rather than an asset, so it takes `currentColor` and is correct in both appearances and in forced colours by construction |
 | D32 | **A task row draws its LOW tier nowhere** (UIX-06) | D18 already put the sector, the delegate and the waiting note "on hover, in the overflow, or on the record"; the row drew all three permanently anyway, which is what made its two "aligned trailing columns" impossible to align — the marks spread over 200px, and `Sector: This Week` wrapped to a second line inside a 45px row. Squaring the columns up only made the cost visible: the facts compressed to "Se… De…", and a fact that ellipsises to two letters has stopped carrying information |
 | D33 | **No button is a stadium.** Every variant — primary and destructive included — takes `--dh-radius-control`, and so does every field, select and icon button beside it (DS-02) | D13 kept the pill for the one primary action and that is still a real distinction; it is just not one that shape should carry. At DS-02's control height a stadium is a lozenge, and a header holding a filled "New task" pill, an outlined "Filter & sort" pill and an 8px-cornered search field read as two design systems sharing a row. Emphasis is fill, border and content colour — three axes, all of which survive being the same shape — and the shape rung is then shared with the control beside it, which is what makes a toolbar read as one control set. The stadium survives where it is a *drawing* rather than a control's corner: a status dot, a spinner, an avatar |
-| D34 | **A generic card may draw a hairline** — amending D1's scope for the plain bounded surface only (DS-02) | D1 said separation is the surface step alone, and on a canvas holding a few large tonal cards that is right and still holds for the six record families. At the count a dense productivity surface actually renders — Today draws seven titled panels — the tonal step stops being a boundary and the eye reads a field of slightly-different-white rectangles. The card still spends only ONE device: a hairline and no shadow, on a corner one rung smaller than a record card's. `raised` exists for a surface that has genuinely left the canvas, never for emphasis |
+| D34 | **A generic card may draw a hairline** — amending D1's scope for the plain bounded surface only (DS-02) | D1 said separation is the surface step alone, and on a canvas holding a few large tonal cards that is right and still holds for the six record families. At the count a dense productivity surface actually renders — Today draws seven titled panels — the tonal step stops being a boundary and the eye reads a field of slightly-different-white rectangles. The card still spends only ONE device: a hairline and no shadow, on a corner one rung smaller than a record card's. `raised` exists for a surface that has genuinely left the canvas, never for emphasis || D35 | **The navigation rail is DARK in both appearances** — near-black in light and darker still in dark, with its own foreground, border, selection and focus names (DS-03) | The one region of DalyHub whose value does not follow the appearance, and the thing the product is recognised by before a word of it is read. Both concept references draw it. It is a separate colour family from `surface-navigation` rather than a re-toning of it, because a navigation object drawn ON the page — the phone bar, the modal navigation sheet — must stay bright over a bright page a thumb is holding; the rail is not on the page, it is the frame the page sits inside. A surface whose value inverts cannot borrow `on-surface` for its labels, which is exactly how a dark rail ships invisible, so the foregrounds are named for the rail and travel with it |
+| D36 | **The selected destination's accent is a different ROLE per appearance** — `primary` in light, `primary-container` in dark (DS-03) | M3's own construction rather than a DalyHub preference: `primary` is a saturated mid-tone in light and a pale tone-80 in dark, because in dark it must be legible AS TEXT on a dark surface. Mixed into a near-black rail it therefore lightens rather than saturates, and the first build of D35 shipped a pale lavender pill. `primary-container` is the mirror image. Each appearance takes the role that is the saturated violet in it, emitted by the generator — the only place a value may differ by appearance |
+| D37 | **The rail draws its own focus ring**, in its own text colour rather than the product's one `primary` indicator (DS-03) | Not a style choice — a WCAG 1.4.11 fix. `primary` over the rail measures 2.40–2.42:1 in all five schemes, so the most-traversed keyboard region in the product would have shipped with a failing indicator, invisible to a light-only review because every other light surface passes. Only `outline-color` changes; the width and offset stay the DS-01 tokens |
+| D38 | **The rail collapses to glyphs on a TABLET, and there is no collapse preference** (DS-03) | 216px of labelled rail on a 900px window is 24% of the screen spent on navigation on the device class with the least to spare — and it was the absence of a decision rather than one, because the shell's only breakpoint was "is this a phone". A media query is correct on the first byte, costs no state, and cannot disagree with itself between the server and the browser; a toggle would need a persisted preference, a server read to avoid a first-paint flash, and an action. Labels are hidden VISUALLY, never removed, so every destination keeps its accessible name at every width |
 
 ## 5a. Projects and Areas — related, and deliberately not alike
 
@@ -423,6 +426,19 @@ The laptop widths get the most attention, because that is where a title wraps or
 a gallery loses a column. **A title that wraps unnecessarily at a normal laptop
 width is a defect**, not a nuance.
 
+**The FRAME has three compositions, not two** (DS-03). Desktop and phone were the
+only two the shell distinguished, so a tablet got the desktop rail at full width:
+
+| | ≥ `lg` (1024) | `md`–`lg` (768–1023) | < `md` |
+| --- | --- | --- | --- |
+| Navigation | 216px labelled rail | **68px glyph rail**, tooltipped | bottom bar + More sheet |
+| Top chrome | 56px bar, search field at the gutter | 56px bar, search as a glyph | 52px title bar |
+| Identity | brand top of rail, account bottom | mark and avatar only | in the More sheet |
+
+The middle column is a media query rather than a preference — see D38. The page
+frame itself does not change between them: one origin (rail → gutter →
+everything), one content measure, one page-header anatomy at every width.
+
 ## 9. Accessibility
 
 WCAG 2.2 AA, verified rather than assumed. Contrast is asserted over the
@@ -654,9 +670,9 @@ The full table — dependencies, risk, and what each stage must not break — is
 [`DS_01…` §9](DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#9-the-migration-map).
 
 ```
-DS-01  design-system foundation      ← this
+DS-01  design-system foundation
 DS-02  generic UI primitives          (a real Button; the boundary breaches)
-DS-03  shell and navigation           (first `compact` adopter)
+DS-03  shell and navigation           (the dark rail; the frame's one origin)
 DS-04  Tasks
 DS-05  Projects · Areas · Goals
 DS-06  Today
@@ -685,12 +701,12 @@ product whose specification was elsewhere, and this one's is here.*
 DalyHub is a bespoke personal-productivity design system that **owns its own
 specification**, uses Material 3 as generated machinery beneath it, and is edited
 down by Apple-like restraint. **What is bespoke** is
-everything the owner recognises a screen by: six record surface families that are
-told apart by SHAPE before a word of them is read, a decorative identity ramp
-that is never a semantic one, a 216px permanent navigation drawer, a 60px phone
-navigation bar, a one-line 45px task row with two aligned trailing columns,
-writing surfaces with no box at all, and the thirty-two documented departures
-that record each of those decisions. **What remains MD3-derived** is the
+everything the owner recognises a screen by: a 216px permanent navigation rail
+that is DARK in both appearances, six record surface families that are told apart
+by SHAPE before a word of them is read, a decorative identity ramp that is never a
+semantic one, a 66px phone navigation bar, a one-line 45px task row with two
+aligned trailing columns, writing surfaces with no box at all, and the
+thirty-eight documented departures that record each of those decisions. **What remains MD3-derived** is the
 machinery rather than the look: the colour roles — generated from one violet
 seed, never authored — the typescale, the shape and elevation scales, the state
 layer, the motion tokens and the whole accessibility contract; DS-01 put a

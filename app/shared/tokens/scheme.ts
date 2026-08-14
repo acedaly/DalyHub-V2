@@ -223,6 +223,11 @@ export const SCHEME_ROLE_NAMES = [
   "app-surface-raised",
   "app-surface-sunken",
   "app-outline-hairline",
+  "app-surface-rail",
+  "app-on-rail",
+  "app-on-rail-muted",
+  "app-rail-hairline",
+  "app-rail-accent",
 ] as const;
 
 /** A colour role name. */
@@ -280,6 +285,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
+      "rail-selected": 62,
     },
     dark: {
       expressive: 28,
@@ -288,6 +294,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 30,
       identity: 48,
       wash: 8,
+      "rail-selected": 80,
     },
   },
   electric: {
@@ -298,6 +305,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
+      "rail-selected": 62,
     },
     dark: {
       expressive: 28,
@@ -306,6 +314,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 30,
       identity: 48,
       wash: 8,
+      "rail-selected": 80,
     },
   },
   pulse: {
@@ -316,6 +325,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
+      "rail-selected": 62,
     },
     dark: {
       expressive: 22,
@@ -324,6 +334,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 26,
       identity: 44,
       wash: 7,
+      "rail-selected": 80,
     },
   },
   ocean: {
@@ -334,6 +345,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
+      "rail-selected": 62,
     },
     dark: {
       expressive: 28,
@@ -342,6 +354,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 30,
       identity: 48,
       wash: 8,
+      "rail-selected": 80,
     },
   },
   graphite: {
@@ -352,6 +365,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
+      "rail-selected": 62,
     },
     dark: {
       expressive: 28,
@@ -360,6 +374,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 30,
       identity: 48,
       wash: 8,
+      "rail-selected": 80,
     },
   },
 };
@@ -571,6 +586,11 @@ const VIOLET_LIGHT: SchemeColorMap = {
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#eeedf1",
   "app-outline-hairline": "#e9e7eb",
+  "app-surface-rail": "#222427",
+  "app-on-rail": "#f7f6fa",
+  "app-on-rail-muted": "#b6b5b9",
+  "app-rail-hairline": "#46474a",
+  "app-rail-accent": "#6326ff",
 };
 
 /** Daly Violet — dark. */
@@ -780,6 +800,11 @@ const VIOLET_DARK: SchemeColorMap = {
   "app-surface-raised": "#313236",
   "app-surface-sunken": "#141618",
   "app-outline-hairline": "#3a3b3e",
+  "app-surface-rail": "#16181a",
+  "app-on-rail": "#eeedf1",
+  "app-on-rail-muted": "#ababae",
+  "app-rail-hairline": "#343538",
+  "app-rail-accent": "#4b00d4",
 };
 
 /** Electric — light. */
@@ -989,6 +1014,11 @@ const ELECTRIC_LIGHT: SchemeColorMap = {
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#ededf3",
   "app-outline-hairline": "#e8e8ed",
+  "app-surface-rail": "#222428",
+  "app-on-rail": "#f6f6fb",
+  "app-on-rail-muted": "#b5b6bb",
+  "app-rail-hairline": "#45474b",
+  "app-rail-accent": "#004fe4",
 };
 
 /** Electric — dark. */
@@ -1198,6 +1228,11 @@ const ELECTRIC_DARK: SchemeColorMap = {
   "app-surface-raised": "#2e353f",
   "app-surface-sunken": "#0d141d",
   "app-outline-hairline": "#373e48",
+  "app-surface-rail": "#111821",
+  "app-on-rail": "#e8eefb",
+  "app-on-rail-muted": "#a5acb8",
+  "app-rail-hairline": "#2e353f",
+  "app-rail-accent": "#003baf",
 };
 
 /** Pulse — light. */
@@ -1407,6 +1442,11 @@ const PULSE_LIGHT: SchemeColorMap = {
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#f0edf0",
   "app-outline-hairline": "#ebe7ea",
+  "app-surface-rail": "#242326",
+  "app-on-rail": "#f9f5f9",
+  "app-on-rail-muted": "#b8b5b8",
+  "app-rail-hairline": "#474649",
+  "app-rail-accent": "#ad009a",
 };
 
 /** Pulse — dark. */
@@ -1616,6 +1656,11 @@ const PULSE_DARK: SchemeColorMap = {
   "app-surface-raised": "#313036",
   "app-surface-sunken": "#131318",
   "app-outline-hairline": "#3a383e",
+  "app-surface-rail": "#18171c",
+  "app-on-rail": "#f1ecf4",
+  "app-on-rail-muted": "#adaab1",
+  "app-rail-hairline": "#35343a",
+  "app-rail-accent": "#840075",
 };
 
 /** Ocean — light. */
@@ -1825,6 +1870,11 @@ const OCEAN_LIGHT: SchemeColorMap = {
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#edeef1",
   "app-outline-hairline": "#e8e8eb",
+  "app-surface-rail": "#222426",
+  "app-on-rail": "#f6f6f9",
+  "app-on-rail-muted": "#b5b6b9",
+  "app-rail-hairline": "#45474a",
+  "app-rail-accent": "#0062a1",
 };
 
 /** Ocean — dark. */
@@ -2034,6 +2084,11 @@ const OCEAN_DARK: SchemeColorMap = {
   "app-surface-raised": "#2f363b",
   "app-surface-sunken": "#12181d",
   "app-outline-hairline": "#383e44",
+  "app-surface-rail": "#12181d",
+  "app-on-rail": "#e9eef5",
+  "app-on-rail-muted": "#a6acb2",
+  "app-rail-hairline": "#2f363b",
+  "app-rail-accent": "#00497a",
 };
 
 /** Graphite — light. */
@@ -2243,6 +2298,11 @@ const GRAPHITE_LIGHT: SchemeColorMap = {
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#efedf0",
   "app-outline-hairline": "#e9e7ea",
+  "app-surface-rail": "#232426",
+  "app-on-rail": "#f8f6f8",
+  "app-on-rail-muted": "#b6b6b8",
+  "app-rail-hairline": "#464749",
+  "app-rail-accent": "#595f67",
 };
 
 /** Graphite — dark. */
@@ -2452,6 +2512,11 @@ const GRAPHITE_DARK: SchemeColorMap = {
   "app-surface-raised": "#363739",
   "app-surface-sunken": "#191a1c",
   "app-outline-hairline": "#3f4042",
+  "app-surface-rail": "#17181a",
+  "app-on-rail": "#efedf0",
+  "app-on-rail-muted": "#ababad",
+  "app-rail-hairline": "#343537",
+  "app-rail-accent": "#41474f",
 };
 
 /** Every scheme, keyed by scheme then appearance. */
