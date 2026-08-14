@@ -69,7 +69,7 @@ function uniqueName(kind: string): string {
 /** Create a Person through the real drawer quick-add and land on their record. */
 async function createPerson(page: Page, name: string): Promise<string> {
   await gotoFixture(page, "/people");
-  await page.getByRole("link", { name: "New Person" }).first().click();
+  await page.getByRole("link", { name: "New person" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New Person" });
   await dialog.getByRole("textbox", { name: /^Name/ }).fill(name);
   await dialog.getByRole("button", { name: "Create person" }).click();
@@ -151,7 +151,7 @@ test.describe("PEOPLE-04 / DIARY-02 — contextual relationships", () => {
 
     // Write first, connect later — the DIARY-01A order this item must preserve.
     await gotoFixture(page, "/diary");
-    await page.getByRole("button", { name: "New Diary entry" }).first().click();
+    await page.getByRole("button", { name: "New diary entry" }).first().click();
     const capture = page.locator(".dh-diary-capture");
     await expect(capture.getByLabel("Title")).toBeVisible({ timeout: 15_000 });
     await capture.getByLabel("Title").fill(entryTitle);
@@ -282,7 +282,7 @@ test.describe("PEOPLE-04 / DIARY-02 — contextual relationships", () => {
     await page.setViewportSize(PHONE);
     const entryTitle = uniqueName("A11y");
     await gotoFixture(page, "/diary");
-    await page.getByRole("button", { name: "New Diary entry" }).first().click();
+    await page.getByRole("button", { name: "New diary entry" }).first().click();
     const capture = page.locator(".dh-diary-capture");
     await expect(capture.getByLabel("Title")).toBeVisible({ timeout: 15_000 });
     await capture.getByLabel("Title").fill(entryTitle);

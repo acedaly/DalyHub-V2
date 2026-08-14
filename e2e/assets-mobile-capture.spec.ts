@@ -374,7 +374,7 @@ test.describe("desktop is untouched", () => {
     owned.add(title);
 
     await gotoFixture(page, "/assets");
-    await page.getByRole("link", { name: "New Asset" }).first().click();
+    await page.getByRole("link", { name: "New asset" }).first().click();
     await expect(page).toHaveURL(/\/new\/asset$/);
 
     await page.getByRole("textbox", { name: /^Name/ }).fill(title);

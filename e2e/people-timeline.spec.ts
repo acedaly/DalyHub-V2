@@ -71,7 +71,7 @@ async function createNote(page: Page, title: string): Promise<void> {
 
 async function createPerson(page: Page, name: string): Promise<string> {
   await gotoFixture(page, "/people");
-  await page.getByRole("link", { name: "New Person" }).first().click();
+  await page.getByRole("link", { name: "New person" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New Person" });
   await dialog.getByRole("textbox", { name: /^Name/ }).fill(name);
   await dialog.getByRole("button", { name: "Create person" }).click();

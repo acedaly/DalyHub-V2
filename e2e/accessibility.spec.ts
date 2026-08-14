@@ -165,7 +165,7 @@ test.describe("automated accessibility — open overlays", () => {
   // PROJ-06 — real Projects overlays: the create sheet and shared task Drawer.
   test("Projects new-project sheet has no violations", async ({ page }) => {
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New Project" }).first().click();
+    await page.getByRole("link", { name: "New project" }).first().click();
     await page.getByRole("dialog", { name: "New Project" }).waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");
@@ -173,7 +173,7 @@ test.describe("automated accessibility — open overlays", () => {
 
   test("Areas new-area sheet has no violations", async ({ page }) => {
     await gotoFixture(page, "/areas");
-    await page.getByRole("link", { name: "New Area" }).first().click();
+    await page.getByRole("link", { name: "New area" }).first().click();
     await page.getByRole("dialog", { name: "New Area" }).waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");

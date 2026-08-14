@@ -247,7 +247,7 @@ test.describe("retained creation — contextual and primary-entity actions stay"
   }) => {
     await gotoFixture(page, "/areas");
     await expect(
-      page.getByRole("link", { name: "New Area" }).first(),
+      page.getByRole("link", { name: "New area" }).first(),
     ).toBeVisible();
   });
 
@@ -256,7 +256,7 @@ test.describe("retained creation — contextual and primary-entity actions stay"
   }) => {
     await gotoFixture(page, "/projects");
     await expect(
-      page.getByRole("link", { name: "New Project" }).first(),
+      page.getByRole("link", { name: "New project" }).first(),
     ).toBeVisible();
   });
 
@@ -265,7 +265,7 @@ test.describe("retained creation — contextual and primary-entity actions stay"
   }) => {
     await gotoFixture(page, "/people");
     await expect(
-      page.getByRole("link", { name: "New Person" }).first(),
+      page.getByRole("link", { name: "New person" }).first(),
     ).toBeVisible();
   });
 
@@ -277,7 +277,7 @@ test.describe("retained creation — contextual and primary-entity actions stay"
     // does not do.
     await gotoFixture(page, "/diary");
     await expect(
-      page.getByRole("button", { name: "New Diary entry" }).first(),
+      page.getByRole("button", { name: "New diary entry" }).first(),
     ).toBeVisible();
   });
 

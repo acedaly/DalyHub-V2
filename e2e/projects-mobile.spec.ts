@@ -89,7 +89,7 @@ async function enterProjectsFromMobileShell(page: Page) {
 }
 
 async function openNewProjectSheet(page: Page) {
-  const trigger = page.getByRole("link", { name: "New Project" }).first();
+  const trigger = page.getByRole("link", { name: "New project" }).first();
   await expectMinTouchTarget(trigger);
   await trigger.focus();
   await trigger.click();

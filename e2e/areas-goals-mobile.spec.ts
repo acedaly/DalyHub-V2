@@ -124,7 +124,7 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await enterAreasFromMobileShell(page);
 
     // 2. Create an Area through the New Area sheet (route-backed Drawer).
-    const newAreaTrigger = page.getByRole("link", { name: "New Area" }).first();
+    const newAreaTrigger = page.getByRole("link", { name: "New area" }).first();
     await expectMinTouchTarget(newAreaTrigger);
     await newAreaTrigger.focus();
     await newAreaTrigger.click();
@@ -272,7 +272,7 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     // through the UI, so the Goal's Alignment reads "Recently active" with
     // real evidence.
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New Project" }).first().click();
+    await page.getByRole("link", { name: "New project" }).first().click();
     const newProjectDialog = page.getByRole("dialog", { name: "New Project" });
     const combo = newProjectDialog.getByRole("combobox", {
       name: /Area or Goal/,
@@ -400,7 +400,7 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await gotoFixture(page, "/areas");
     await expectNoHorizontalOverflow(page);
 
-    const trigger = page.getByRole("link", { name: "New Area" }).first();
+    const trigger = page.getByRole("link", { name: "New area" }).first();
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "New Area" });
     await expect(dialog).toBeVisible();
@@ -446,7 +446,7 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     const goalTitle = `${GOAL_TITLE_PREFIX}${stamp}`;
 
     await gotoFixture(page, "/areas");
-    await page.getByRole("link", { name: "New Area" }).first().click();
+    await page.getByRole("link", { name: "New area" }).first().click();
     const newAreaDialog = page.getByRole("dialog", { name: "New Area" });
     await newAreaDialog.getByLabel(/Title/).fill(areaTitle);
     await newAreaDialog.getByRole("button", { name: "Create Area" }).click();

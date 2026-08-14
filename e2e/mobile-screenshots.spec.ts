@@ -111,7 +111,7 @@ test.describe("MOBILE-01 screenshots — 390px", () => {
     await shoot(page, "diary-timeline-390");
     await page
       .locator(".dh-pane-header")
-      .getByRole("button", { name: "New Diary entry" })
+      .getByRole("button", { name: "New diary entry" })
       .click();
     await page.getByRole("textbox", { name: /Title/ }).waitFor();
     await shoot(page, "diary-capture-390");

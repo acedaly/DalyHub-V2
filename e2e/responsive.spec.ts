@@ -206,7 +206,7 @@ test.describe("responsive — open overlays never overflow", () => {
         height: viewport.height,
       });
       await gotoFixture(page, "/projects");
-      await page.getByRole("link", { name: "New Project" }).first().click();
+      await page.getByRole("link", { name: "New project" }).first().click();
       await page.getByRole("dialog", { name: "New Project" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
@@ -218,7 +218,7 @@ test.describe("responsive — open overlays never overflow", () => {
         height: viewport.height,
       });
       await gotoFixture(page, "/areas");
-      await page.getByRole("link", { name: "New Area" }).first().click();
+      await page.getByRole("link", { name: "New area" }).first().click();
       await page.getByRole("dialog", { name: "New Area" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");

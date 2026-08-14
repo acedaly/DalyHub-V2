@@ -133,7 +133,7 @@ test.describe("UIQ-014 — the primary action, in one place", () => {
     const primary = page.locator(".dh-pane-header__primary");
     await expect(primary).toBeVisible();
     await expect(
-      primary.getByRole("link", { name: "New Review" }),
+      primary.getByRole("link", { name: "New review" }),
     ).toBeVisible();
 
     // The arrangement UIQ-014 named: the create action is no longer a fifth

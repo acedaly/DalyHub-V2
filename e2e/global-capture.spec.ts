@@ -164,7 +164,7 @@ test.describe("compact widths — ONE global Capture affordance, not two", () =>
     await gotoFixture(page, "/diary");
     await expect(page.locator(".dh-diary-header-create")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "New Diary entry" }).first(),
+      page.getByRole("button", { name: "New diary entry" }).first(),
     ).toBeVisible();
   });
 });

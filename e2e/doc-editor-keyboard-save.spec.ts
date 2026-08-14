@@ -43,7 +43,7 @@ function cleanup(): void {
 /** Capture one Diary entry through the real capture panel and open its editor. */
 async function captureAndEdit(page: Page, title: string): Promise<void> {
   await gotoFixture(page, "/diary");
-  await page.getByRole("button", { name: "New Diary entry" }).first().click();
+  await page.getByRole("button", { name: "New diary entry" }).first().click();
   const capture = page.getByRole("form", { name: "Quick capture" });
   await capture.getByRole("textbox", { name: /Title/ }).fill(title);
   await capture.getByRole("button", { name: "Capture" }).click();

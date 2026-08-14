@@ -493,7 +493,7 @@ test.describe("PROJ-01 — Projects", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New Project" }).first().click();
+    await page.getByRole("link", { name: "New project" }).first().click();
     const dialog = page.getByRole("dialog", { name: "New Project" });
     await expect(dialog).toBeVisible();
 
