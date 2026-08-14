@@ -3882,11 +3882,18 @@
 /*
  * The commitment — the card's ANSWER, and the one region that carries tone.
  *
- * A tinted block rather than a coloured line, for the same reason the Goal
- * card's reading sits in one: at gallery width a single toned sentence reads as
- * an error message, and a block reads as a state. The tint is the state role at
- * container strength, so it stays a wash in light and a calm slab in dark; the
- * words are always the statement, and the dot only agrees with them.
+ * DS-08 — a coloured LINE, not a tinted block. The fill is gone.
+ *
+ * It was a block "for the same reason the Goal card's reading sits in one", and
+ * DS-05 removed that one too — for the reason that applies here with less force
+ * but the same direction: at the two-to-six cards an Assets gallery renders, a
+ * filled peach panel was the largest object on the card and the last tonal slab
+ * left in the card family after Settings, Notes, Diary and Goals had all lost
+ * theirs.
+ *
+ * Nothing is carried by colour alone, and nothing was: the DOT keeps the state's
+ * full-strength tone, and the WORDS ("2 obligations due soon", "Nothing
+ * scheduled") are the statement they always were.
  */
 .dh-acard__due {
   display: flex;
@@ -3894,9 +3901,8 @@
   gap: var(--app-space-px);
   margin: 0;
   min-inline-size: 0;
-  padding: var(--app-space-3);
-  border-radius: var(--app-shape-metric);
-  background: var(--dh-color-bg-sunken);
+  padding: 0;
+  background: none;
   color: var(--dh-color-text);
 }
 
@@ -3944,25 +3950,10 @@
  * carries a word — "Service overdue", "Renewal due in 12 days" — so nothing on
  * this card is signalled by colour alone.
  */
-.dh-acard__due[data-tone="danger"] {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-state-overdue-container)
-      var(--app-tint-strength-identity),
-    var(--dh-color-surface)
-  );
-}
 .dh-acard__due[data-tone="danger"] .dh-acard__dot {
   background: var(--dh-color-overdue);
 }
 
-.dh-acard__due[data-tone="warning"] {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-warning-container) var(--app-tint-strength-identity),
-    var(--dh-color-surface)
-  );
-}
 .dh-acard__due[data-tone="warning"] .dh-acard__dot {
   background: var(--dh-color-warning);
 }
