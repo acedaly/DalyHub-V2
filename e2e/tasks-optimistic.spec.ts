@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-import { gotoFixture } from "./helpers";
+import { gotoFixture, taskRows, taskRow } from "./helpers";
 
 /**
  * TASKS-09 / ADR-086 — the `/tasks` latency contract, end to end.
@@ -45,7 +45,7 @@ async function quickAdd(page: Page, text: string) {
 }
 
 function cardFor(page: Page, title: string): Locator {
-  return page.getByRole("article", { name: `Open ${title}` });
+  return taskRow(page, title);
 }
 
 /**
@@ -215,12 +215,12 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
       "the seeded workspace holds a single page of active tasks",
     );
 
-    const before = await page.getByRole("article").count();
+    const before = await taskRows(page).count();
     await loadMore.click();
     await expect
-      .poll(async () => page.getByRole("article").count())
+      .poll(async () => taskRows(page).count())
       .toBeGreaterThan(before);
-    const accumulated = await page.getByRole("article").count();
+    const accumulated = await taskRows(page).count();
 
     // A completion on this view revalidates (it excludes completed work). The
     // accumulated pages must survive that re-read rather than collapsing to page one.
@@ -231,8 +231,8 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
 
     // The captured-then-completed row is the only one that legitimately left.
     await expect
-      .poll(async () => page.getByRole("article").count())
+      .poll(async () => taskRows(page).count())
       .toBeGreaterThanOrEqual(accumulated - 1);
-    expect(await page.getByRole("article").count()).toBeGreaterThan(before);
+    expect(await taskRows(page).count()).toBeGreaterThan(before);
   });
 });

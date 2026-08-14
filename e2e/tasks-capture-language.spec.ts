@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { completeTaskRow, gotoFixture, ownerToday } from "./helpers";
+import { completeTaskRow, gotoFixture, ownerToday, taskRow } from "./helpers";
 
 /**
  * TASKS-11 — the deterministic capture journey, end to end through the real UI.
@@ -42,7 +42,7 @@ async function quickAdd(page: Page, text: string) {
 
 /** The card for a task title, by its stable open-control accessible name. */
 function cardFor(page: Page, title: string) {
-  return page.getByRole("article", { name: `Open ${title}` });
+  return taskRow(page, title);
 }
 
 /**
@@ -128,7 +128,8 @@ test.describe("TASKS-11 — deterministic natural-language capture", () => {
 
     await gotoFixture(page, LIST);
     const open = page
-      .getByRole("article", { name: `Open ${title}` })
+      .locator("[data-testid='task-row']")
+      .filter({ hasText: title })
       .filter({ hasNotText: "Completed" });
     await expect(open).toHaveCount(1);
     await expect(open.first()).toContainText("6 months after completion");

@@ -1520,7 +1520,7 @@ Add a `size` variant, a stack-metadata field or a presentation option to the sha
 
 ## Shared Cards (DS-04)
 
-The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic component: the **Shared Card** ([DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards)), in [`app/shared/card`](../../app/shared/card). Every entity type — Area, Goal, Project, Task, Person, Note, … — renders through this one Card configured with data. There is **no** `TaskCard`/`ProjectCard`/`GoalCard`/`PersonCard`/`NoteCard`; a bespoke per-module card is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. The Card builds entirely on [DS-01 tokens](#design-tokens-ds-01) (card.css) and opens records through the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
+The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic component: the **Shared Card** ([DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards)), in [`app/shared/card`](../../app/shared/card). Every entity type — Area, Goal, Project, Task, Person, Note, … — renders through this one Card configured with data. There is **no** `TaskCard`/`ProjectCard`/`GoalCard`/`PersonCard`/`NoteCard`; a bespoke per-module card is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. **The one documented exception is the task ROW** ([below](#the-task-row-ds-04-2026-08)), which is not a card and does not try to be: it is a column grid, and the rule it establishes is that a product component is legitimate when the generic one cannot express the LAYOUT — never when it merely wants different styling. The Card builds entirely on [DS-01 tokens](#design-tokens-ds-01) (card.css) and opens records through the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
 
 **Purpose.** The shared unit for representing an entity in a list, board or grid, with selection, quick actions, density and an accessible primary open action — configured, never forked.
 
@@ -1580,6 +1580,37 @@ Two rules the August 2026 UI quality audit made explicit (UIQ-001/UIQ-002), beca
 **Extension rules.** Add an affordance to the **one** shared Card (and document it here) only when a real entity needs it; never fork per module. Real product card usages arrive when a module first adopts DS-04 — this ships the component plus a development fixture only.
 
 ---
+
+## The task ROW (DS-04, 2026-08)
+
+The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It renders a **row** — `TaskRow` / `TaskList` / `TaskGroup` in [`app/shared/task-record/`](../../app/shared/task-record/) — accepted in [ADR-095](../decisions/ARCHITECTURE_DECISIONS.md#adr-095-the-task-row--a-product-component-over-the-generic-card-one-column-grid-and-container-queries-as-the-responsive-authority-for-a-list) and specified in [`DS_04_TASKS_REDESIGN_2026_08.md`](DS_04_TASKS_REDESIGN_2026_08.md).
+
+**Why this is not a forked card.** The Card lays its metadata out as a wrapping flex RUN. A task list is a COLUMN GRID: a date column only reads as a column because every date in it starts at the same x, and no amount of styling makes a flex run do that. The distinction is structural, which is what makes the exception a rule rather than a precedent for "my module wants different padding".
+
+**Anatomy.**
+
+```
+<div class="dh-tasklist" data-dh-density="compact">     ← declares --taskrow-columns, is a query CONTAINER
+  <div class="dh-tasklist__columns" aria-hidden>        ← Task · Project · Due · Priority · Status
+  <ul class="dh-tasklist__rows" aria-label>             ← real list semantics
+    <li class="dh-taskrow">                             ← no surface: a hairline, a hover wash
+      lead     [select?] [completion circle]
+      main     <h2|h3> title link · repeat/sync signals
+      meta     project · due · priority · status        ← display:contents on desktop, flex on a phone
+      actions  overflow menu (hover/focus; always on touch)
+```
+
+**The rules a task-bearing surface inherits.**
+
+1. **The title is the only flexible column.** `minmax(0, 1fr)`, so it truncates inside its track. Metadata yields before the title does — status first, then priority, then project.
+2. **Hierarchy is the metadata being quieter, never the title being louder.** The title takes `--dh-text-row-*` at the ROW weight; cells take `--dh-text-meta-*` in the muted role.
+3. **One bounded coloured container per row**, and only where the fact appears nowhere else. Project is a dot; a date is text; priority is a dot and a tag.
+4. **The row's height is the completion control's target.** No block padding on top of it.
+5. **Breakpoints are the LIST's width.** `container-type: inline-size`, and the template is re-declared on `.dh-tasklist__columns, .dh-taskrow` inside each query — a container query can never style its own container.
+6. **Quiet is a property of the paint.** An affordance may be invisible until hover; it may never be smaller than 24×24.
+7. **The row owns no authority.** Every edit is a shared control posting a canonical intent.
+
+**Adoption.** DS-04 wired it into `/tasks` only; Today, Projects and search still render Cards ([DEBT-128](../product/PRODUCT_DEBT.md)).
 
 ## Shared overflow menu (DS-12)
 

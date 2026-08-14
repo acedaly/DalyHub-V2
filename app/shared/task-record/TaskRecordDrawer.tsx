@@ -715,91 +715,102 @@ export function TaskRecordDrawer({
   ];
 
   return (
-    <RecordLayout
-      title={task.title}
-      titleSlot={
-        <InlineTextField
-          label="Task title"
-          value={task.title}
-          onSave={renameTask}
-          variant="heading"
-          maxLength={TITLE_MAX_LENGTH}
-          data-testid="task-title-edit"
-        />
-      }
-      headingLevel={3}
-      /*
-       * RECORD-01 — no `typeLabel`. This record has no breadcrumb because it is
-       * hosted in the Drawer, whose own panel header says "Task" and "Task
-       * record" directly above the title — so the eyebrow was the third
-       * statement of the same word in the first 100px of the panel.
-       */
-      icon={<EntityIcon type="task" />}
-      status={status}
-      summary={{
-        description: (
-          <div className="dh-task-drawer__summary-controls">
-            <TaskCompletion
-              completed={completed}
-              pending={completionPending}
-              onToggle={toggleCompletion}
-            />
-            <TaskWaitingSection
-              waiting={task.waiting}
-              completed={completed}
-              searchTargets={searchWaitingTargets}
-              onSetWaiting={setWaiting}
-              onClear={clearWaiting}
-            />
-            <TaskPlanningSection
-              scheduledDate={task.scheduledDate}
-              dueDate={task.dueDate}
-              todayIso={data.todayIso}
-              completed={completed}
-              onPlan={planTask}
-              onClear={clearPlan}
-              onSetDue={setDueDate}
-            />
-          </div>
-        ),
-        metadata,
-      }}
-      tabs={[
-        {
-          id: "details",
-          label: "Details",
-          content: (
-            <TaskDetailsTab
-              task={task}
-              isEditing={isEditing}
-              onEdit={() => setEditing(true)}
-              onCancel={() => setEditing(false)}
-              onSubmit={submitUpdate}
-              onSaved={() => setEditing(false)}
-            />
+    /*
+     * DS-04 — the Task record's own scope hook.
+     *
+     * `RecordLayout` and `RecordSummary` are shared by every record type, and
+     * DS-04 redesigns the TASK Drawer only (§27, §61). The wrapper is the
+     * narrowest way to say "this one": the shared components are untouched, a
+     * Project's or a Person's record keeps exactly what it had, and the rules
+     * that de-card this panel cannot reach them.
+     */
+    <div className="dh-task-record">
+      <RecordLayout
+        title={task.title}
+        titleSlot={
+          <InlineTextField
+            label="Task title"
+            value={task.title}
+            onSave={renameTask}
+            variant="heading"
+            maxLength={TITLE_MAX_LENGTH}
+            data-testid="task-title-edit"
+          />
+        }
+        headingLevel={3}
+        /*
+         * RECORD-01 — no `typeLabel`. This record has no breadcrumb because it is
+         * hosted in the Drawer, whose own panel header says "Task" and "Task
+         * record" directly above the title — so the eyebrow was the third
+         * statement of the same word in the first 100px of the panel.
+         */
+        icon={<EntityIcon type="task" />}
+        status={status}
+        summary={{
+          description: (
+            <div className="dh-task-drawer__summary-controls">
+              <TaskCompletion
+                completed={completed}
+                pending={completionPending}
+                onToggle={toggleCompletion}
+              />
+              <TaskWaitingSection
+                waiting={task.waiting}
+                completed={completed}
+                searchTargets={searchWaitingTargets}
+                onSetWaiting={setWaiting}
+                onClear={clearWaiting}
+              />
+              <TaskPlanningSection
+                scheduledDate={task.scheduledDate}
+                dueDate={task.dueDate}
+                todayIso={data.todayIso}
+                completed={completed}
+                onPlan={planTask}
+                onClear={clearPlan}
+                onSetDue={setDueDate}
+              />
+            </div>
           ),
-        },
-        {
-          id: "linked",
-          label: "Linked",
-          content: (
-            <TaskLinksTab
-              task={task}
-              links={data.links}
-              searchTargets={searchTargets}
-              onLink={linkTarget}
-              onUnlink={unlinkTarget}
-              contextualActions={contextualActions}
-            />
-          ),
-        },
-        {
-          id: "activity",
-          label: "Activity",
-          content: <TaskTimelineTab taskId={taskId} basePath={basePath} />,
-        },
-      ]}
-    />
+          metadata,
+        }}
+        tabs={[
+          {
+            id: "details",
+            label: "Details",
+            content: (
+              <TaskDetailsTab
+                task={task}
+                isEditing={isEditing}
+                onEdit={() => setEditing(true)}
+                onCancel={() => setEditing(false)}
+                onSubmit={submitUpdate}
+                onSaved={() => setEditing(false)}
+              />
+            ),
+          },
+          {
+            id: "linked",
+            label: "Linked",
+            content: (
+              <TaskLinksTab
+                task={task}
+                links={data.links}
+                searchTargets={searchTargets}
+                onLink={linkTarget}
+                onUnlink={unlinkTarget}
+                contextualActions={contextualActions}
+              />
+            ),
+          },
+          {
+            id: "activity",
+            label: "Activity",
+            content: <TaskTimelineTab taskId={taskId} basePath={basePath} />,
+          },
+        ]}
+      />
+    </div>
   );
 }
 

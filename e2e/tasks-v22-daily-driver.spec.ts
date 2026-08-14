@@ -7,6 +7,8 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   ownerToday,
+  taskRows,
+  taskRow,
 } from "./helpers";
 
 /**
@@ -87,7 +89,7 @@ async function createTasksThroughRoute(
 }
 
 function cardFor(page: Page, title: string): Locator {
-  return page.getByRole("article", { name: `Open ${title}` });
+  return taskRow(page, title);
 }
 
 /** The bulk bar, which only exists while something is selected. */
@@ -214,9 +216,10 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
      * documented regroup, which nothing asserted before.
      */
     await expect(
-      page
-        .locator('.dh-tasks-grouped__section[aria-label="Today"]')
-        .getByRole("article", { name: `Open ${title}` }),
+      taskRow(
+        page.locator('.dh-tasks-grouped__section[aria-label="Today"]'),
+        title,
+      ),
     ).toBeVisible();
 
     // PROJECT, in place. ONE selection replaces the previous value — there is no
@@ -413,15 +416,15 @@ test.describe("TASKS-06 — bulk management", () => {
     await createTasksThroughRoute(page, prefix, 105);
     await gotoFixture(page, LIST);
 
-    while ((await page.getByRole("article").count()) <= 100) {
-      const before = await page.getByRole("article").count();
+    while ((await taskRows(page).count()) <= 100) {
+      const before = await taskRows(page).count();
       await page.getByRole("button", { name: "Load more tasks" }).click();
       await expect
-        .poll(async () => page.getByRole("article").count())
+        .poll(async () => taskRows(page).count())
         .toBeGreaterThan(before);
     }
 
-    const loaded = await page.getByRole("article").count();
+    const loaded = await taskRows(page).count();
     expect(loaded).toBeGreaterThan(100);
 
     await enterTaskSelection(page);
@@ -452,9 +455,9 @@ test.describe("TASKS-06 — bulk management", () => {
      */
     await bulkBar(page).getByRole("button", { name: "Done" }).click();
     await enterTaskSelection(page);
-    const rowChecks = page
-      .getByRole("article")
-      .getByRole("checkbox", { name: /^Select / });
+    const rowChecks = taskRows(page).getByRole("checkbox", {
+      name: /^Select /,
+    });
     await rowChecks.nth(0).check();
     await rowChecks.nth(100).click({ modifiers: ["Shift"] });
     await expect(bulkBar(page)).toContainText("101 selected");

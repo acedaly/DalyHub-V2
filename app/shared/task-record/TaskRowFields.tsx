@@ -299,6 +299,7 @@ export function InlineTaskParent({
   parent,
   options,
   onSaved,
+  onSearchAll,
   disabled = false,
 }: TaskRowFieldProps & {
   readonly parent: {
@@ -307,6 +308,18 @@ export function InlineTaskParent({
     readonly title: string;
   } | null;
   readonly options: readonly TaskParentOption[];
+  /**
+   * DS-04 — open the shared searchable picker over the WHOLE workspace.
+   *
+   * The inline menu offers the loader's bounded candidates, which for a small
+   * workspace is every Project and Area and for a large one is a page of them.
+   * The row's overflow has always carried "Move to Project or Area…" for the
+   * rest; putting it at the foot of the menu ITSELF is what makes it findable
+   * from the control the owner is already looking at, which is what §16's
+   * "compact and searchable" actually asks for. A caller that has no picker
+   * passes nothing and the menu is exactly the bounded set.
+   */
+  readonly onSearchAll?: () => void;
 }) {
   const save = useCallback(
     async (next: string): Promise<InlineSaveOutcome> => {
@@ -403,6 +416,14 @@ export function InlineTaskParent({
         clearable
         clearLabel="Move to Inbox"
         readOnly={disabled}
+        {...(onSearchAll
+          ? {
+              searchAction: {
+                label: "Search all Projects and Areas…",
+                onSelect: onSearchAll,
+              },
+            }
+          : {})}
         data-testid="task-row-parent"
       />
     </span>

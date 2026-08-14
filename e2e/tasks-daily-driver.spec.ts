@@ -8,6 +8,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRow,
 } from "./helpers";
 
 /**
@@ -69,7 +70,7 @@ async function quickAdd(page: Page, text: string) {
 
 /** The card for a task title, by its stable open-control accessible name. */
 function cardFor(page: Page, title: string) {
-  return page.getByRole("article", { name: `Open ${title}` });
+  return taskRow(page, title);
 }
 
 /**
@@ -279,7 +280,8 @@ test.describe("TASKS-04 — persisted recurrence", () => {
 
     await gotoFixture(page, LIST);
     const open = page
-      .getByRole("article", { name: `Open ${title}` })
+      .locator("[data-testid='task-row']")
+      .filter({ hasText: title })
       .filter({ hasNotText: "Completed" });
     await expect(open).toHaveCount(1);
     /*
@@ -317,7 +319,8 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await gotoFixture(page, LIST);
     await expect(
       page
-        .getByRole("article", { name: `Open ${title}` })
+        .locator("[data-testid='task-row']")
+        .filter({ hasText: title })
         .filter({ hasNotText: "Completed" }),
     ).toHaveCount(1);
   });

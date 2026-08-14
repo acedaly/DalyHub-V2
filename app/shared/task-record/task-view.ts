@@ -461,11 +461,20 @@ export type RelativeDateUrgency = "overdue" | "today" | "soon" | "future";
  * UIX-01 design: the near days get their names, and only the far ones get a
  * date.
  *
- *     -1        Yesterday          (and further back: "3 days ago")
+ *     -7 …      Thu, 12 Jun       (further back than a week — an absolute date)
+ *     -6 … -2   3 days ago        (this past week — the elapsed count)
+ *     -1        Yesterday
  *      0        Today
  *     +1        Tomorrow
  *     +2 … +6   Thu               (this coming week — the weekday alone)
  *     beyond    Thu, 12 Jun       (and "Thu, 12 Jun 2027" across a year)
+ *
+ * DS-04 bounded the PAST at a week, because the unbounded form was the single
+ * worst-reading thing on the Tasks screen: a column of "20 days ago", "35 days
+ * ago", "9722 days ago" is arithmetic the reader has to undo to learn anything,
+ * it is longer than the date it replaces, and it grows without limit. Inside a
+ * week "3 days ago" is genuinely faster than a date; past that a date is the
+ * shorter and more useful string, and it is what the concept draws.
  *
  * The `urgency` alongside is what a surface tints with. It is never the only
  * signal: the label itself SAYS the state ("Yesterday", "Today"), which is why
@@ -490,24 +499,48 @@ export function relativeCalendarDate(
   if (days === 0) return { label: "Today", urgency: "today" };
   if (days === 1) return { label: "Tomorrow", urgency: "soon" };
   if (days === -1) return { label: "Yesterday", urgency: "overdue" };
-  if (days < -1) {
+  if (days < -1 && days >= -6) {
     return { label: `${-days} days ago`, urgency: "overdue" };
   }
   const weekday = calendarWeekday(value);
   if (weekday === null) {
-    return { label: absolute, urgency: "future" };
+    return { label: absolute, urgency: days < 0 ? "overdue" : "future" };
+  }
+  // Further back than a week: the same absolute form the far FUTURE takes, so
+  // one column reads one way. The urgency is still `overdue` — the colour and
+  // the group heading carry the state that the words no longer restate.
+  if (days < -6) {
+    return {
+      label: absoluteWithWeekday(absolute, weekday, value, todayIso),
+      urgency: "overdue",
+    };
   }
   // Inside the coming week the weekday alone is unambiguous and shortest.
   if (days <= 6) return { label: weekday, urgency: "soon" };
-  // Beyond it the weekday needs a date. `formatCalendarDate` already produced
-  // "12 Jun 2027"; the YEAR is dropped when the value is in the owner's current
-  // year, which is the only case where it disambiguates nothing.
-  const sameYear = value.slice(0, 4) === todayIso.slice(0, 4);
-  const dayAndMonth = absolute.slice(0, absolute.lastIndexOf(" "));
+  // Beyond it the weekday needs a date.
   return {
-    label: `${weekday}, ${sameYear ? dayAndMonth : absolute}`,
+    label: absoluteWithWeekday(absolute, weekday, value, todayIso),
     urgency: "future",
   };
+}
+
+/**
+ * "Thu, 12 Jun" — the far form, in ONE place so the far past and the far future
+ * cannot drift into two spellings of the same thing.
+ *
+ * `formatCalendarDate` already produced "12 Jun 2027"; the YEAR is dropped when
+ * the value is in the owner's current year, which is the only case where it
+ * disambiguates nothing.
+ */
+function absoluteWithWeekday(
+  absolute: string,
+  weekday: string,
+  value: string,
+  todayIso: string,
+): string {
+  const sameYear = value.slice(0, 4) === todayIso.slice(0, 4);
+  const dayAndMonth = absolute.slice(0, absolute.lastIndexOf(" "));
+  return `${weekday}, ${sameYear ? dayAndMonth : absolute}`;
 }
 
 /** Whole calendar days from `fromIso` to `toIso`, or null if either is malformed. */

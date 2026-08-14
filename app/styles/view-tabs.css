@@ -144,6 +144,20 @@
     font-size: var(--md-sys-typescale-label-medium-size);
   }
 
+  /*
+   * DS-04 — the capsule is a WASH, and the unselected tabs have none.
+   *
+   * It was a filled `primary` pill for the current tab and a filled card surface
+   * for every other one, which made a scrolling row of five solid objects the
+   * loudest band on a phone screen — and spent the brand on "which filter is
+   * applied". Both concept phone screens draw this the other way round: the
+   * unselected tabs are bare text, and the current one is a PALE accent capsule
+   * with accent text and an accent underline beneath it.
+   *
+   * That is still three signals plus `aria-current` — colour, weight and the
+   * indicator — so nothing is carried by colour alone, and the accent now means
+   * "this one" instead of meaning "tabs".
+   */
   .dh-viewtabs__tab::before {
     content: "";
     position: absolute;
@@ -151,14 +165,17 @@
     inset-inline: 0;
     z-index: -1;
     border-radius: var(--md-sys-shape-corner-full);
-    background: var(--md-app-color-surface-card);
+    background: transparent;
   }
 
   .dh-viewtabs__tab[aria-current="page"] {
-    color: var(--md-sys-color-on-primary);
+    color: var(--dh-color-accent);
+    /* The underline the desktop rail uses, kept — an indicator that survives the
+     * row scrolling under the reader's thumb. */
+    border-block-end: var(--dh-border-width-strong) solid var(--dh-color-accent);
   }
 
   .dh-viewtabs__tab[aria-current="page"]::before {
-    background: var(--md-sys-color-primary);
+    background: var(--dh-color-accent-subtle);
   }
 }

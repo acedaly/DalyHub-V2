@@ -17,6 +17,58 @@ no version number to group them under.
 
 ---
 
+## Tasks, rebuilt as a list (DS-04)
+
+Tasks is the screen you spend the most time on, and it now looks like it.
+
+**The list stopped being a stack of cards.** Every task used to sit in its own
+rounded, bordered panel on a grey page. Tasks are now plain rows on a white
+page, separated by a hairline, in real columns — **Task · Project · Due ·
+Priority · Status**, with the column names above them. Dates line up, projects
+line up, and about a third more of your list fits on a laptop screen.
+
+**Rows say less, and mean more.** A project is a small coloured dot and its
+name instead of a bordered tile. A due date reads `Today`, `Yesterday` or
+`Sat, 25 Jul` in ordinary text instead of `20 days ago` in red — the count-up
+went on forever and got harder to read the further back it went. Priority is a
+coloured dot and `P1`. The only coloured pill left on a row is the status, and
+only when the status says something the rest of the row does not.
+
+**Overdue is calmer.** The completion circle no longer turns crimson. The date
+already says the task has slipped, and the heading above it already says
+Overdue; a red ring on the button that finishes the task was alarm, not
+information.
+
+**Adding a task is now just the next line.** The capture field was a large box
+with two buttons above the list. It is now the row above the first task, same
+size, same shape. Type, press Enter, keep typing — exactly as before.
+
+**Choosing a project, a priority or a date got faster.** The project menu used
+to show five projects at a time in three-line rows that ran off the bottom of
+the screen. Options are one line each now, so you see about fourteen, the name
+you picked carries a tick, and there is a **Search all Projects and Areas…**
+entry at the bottom for everything not in the list. Choosing a value replaces
+the old one — there was never a need to clear it first, and now nothing implies
+there is.
+
+**On a phone, a task is two lines instead of a squeeze.** The title gets the
+whole width and no longer gets cut to "Chase the plu…"; the project, the date
+and the priority sit underneath it. The filter tabs across the top are quiet
+text with a purple underline instead of solid purple buttons running off the
+edge of the screen.
+
+**The task panel is no longer purple.** Opening a task used to show a
+lavender-tinted panel with two white cards inside it. It is now a plain panel
+with the sections separated by lines, and its buttons are the size of their
+words instead of the width of the panel. Purple is back to meaning "this is the
+action" and "this is selected".
+
+Nothing about how tasks work changed: the same dates, the same priorities, the
+same Inbox, the same recurrence, the same filters, sorting, grouping and saved
+views, and the same links you can share.
+
+---
+
 ## A new frame for the whole app (DS-03)
 
 This is the change you will notice before you read anything: the sidebar is now

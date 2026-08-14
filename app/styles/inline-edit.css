@@ -537,3 +537,93 @@
     border: var(--app-border-width-thin) solid Highlight;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* The selectors a row opens (DS-04 §15–§18)                                   */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The project menu was the worst-measuring object on the pre-DS-04 screen, and
+ * every one of its defects came from the same two decisions:
+ *
+ *   - it matched the ANCHOR's width. The project column is 176px, so a menu of
+ *     project names was 176px wide, and "Consolidate every household insurance,
+ *     utility and subscription renewal into one annual review cycle" wrapped to
+ *     three lines in a 59px-tall row;
+ *   - each option stacked its label over its description, at the TOUCH target
+ *     height, on a pointer device. Fifty options were therefore ~3,000px of
+ *     menu — clamped and scrollable, correctly, but requiring six screens of
+ *     scrolling to reach the end of a list the loader deliberately bounded to
+ *     fifty so it would be reachable.
+ *
+ * Widening it and putting each option on ONE line at the menu-item rung fits
+ * roughly fourteen options per screen instead of five, with no wrapping. The
+ * clamp and the internal scroll are `AnchoredSurface`'s and are untouched — the
+ * fix is to need less of them.
+ */
+.dh-inline-select__menu {
+  min-inline-size: min(20rem, calc(100vw - 2 * var(--dh-space-4)));
+  max-inline-size: min(28rem, calc(100vw - 2 * var(--dh-space-4)));
+}
+
+.dh-inline-select__option {
+  /*
+   * One line, at the menu-item rung. `--dh-menu-item-height` is 36px on a fine
+   * pointer and floors back to 45px on a coarse one, which is exactly the
+   * distinction the old fixed `--app-touch-target-min` could not make.
+   */
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  min-block-size: var(--dh-menu-item-height);
+  padding-block: var(--dh-space-1);
+}
+
+.dh-inline-select__option-label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The description becomes a trailing qualifier — "Kitchen fit-out · Project" —
+ * rather than a second line, and it yields the whole width to the name it
+ * qualifies. */
+.dh-inline-select__option-description {
+  flex: none;
+  margin-inline-start: auto;
+  padding-inline-start: var(--dh-space-2);
+}
+
+/*
+ * The chosen option is marked, visibly, by a TICK as well as by its fill.
+ *
+ * `aria-checked` told a screen reader which one was current and a
+ * `secondary-container` fill told a sighted reader — but a filled row in a menu
+ * also reads as "hovered", which is why "which one is set?" was genuinely
+ * ambiguous on a fifty-item list.
+ */
+.dh-inline-select__option[aria-checked="true"]:not(
+    [data-clear="true"]
+  )::before {
+  content: "✓";
+  flex: none;
+  /* After the label and the description in the visual order, and — being a
+   * pseudo-element — nowhere at all in the accessible name or in `textContent`.
+   * It cannot be `::after`: `base.css` owns that on every interactive control as
+   * the shared M3 state layer, so a tick drawn there is silently replaced by a
+   * hover wash. */
+  order: 1;
+  margin-inline-start: var(--dh-space-2);
+  color: var(--dh-color-accent);
+}
+
+/* The escape hatch to the full searchable picker, set apart from the values the
+ * way the clear command is — it is a different KIND of item. */
+.dh-inline-select__option[data-search="true"] {
+  margin-block-start: var(--dh-space-1);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  color: var(--dh-color-accent);
+}
