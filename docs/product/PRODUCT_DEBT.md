@@ -1991,6 +1991,14 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** Opening a task shows the word "Task" at most once above the title.
 - **Related roadmap item.** DS-05.
 
+### ☐ DEBT-131 — A task row is 46px because the completion control is 45px, and nothing else decides it — P3
+- **Current issue.** MEASURED across the DS-04 baseline and final captures at 1440: the row pitch is 46px in both. `--dh-row-height` at `compact` resolves to `max(2.75rem, 45px)` and the shared `.dh-check-circle-target` inside the row is sized to the same floor, so the row cannot be shorter than the control at its leading edge. DS-04 removed the block padding that sat on top of that floor; it did not, and could not, move the floor.
+- **Impact.** The Tasks redesign gained alignment, calm and 24px at the top of the list, but essentially no extra rows on a laptop — which is one of the things a density pass is usually expected to deliver.
+- **Why it was not "fixed".** The 45px target is [D18](../design/DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material), it is asserted by `expectMinTouchTarget` in several specs, and lowering it on a fine pointer is the same move [ADR-094](../decisions/ARCHITECTURE_DECISIONS.md#adr-094-the-dark-navigation-rail--a-region-that-does-not-follow-the-appearance-a-responsive-tablet-collapse-and-one-origin-for-the-frame) decision 4 made for the navigation rail — with a materially different argument to make, because a task list IS touched by a finger where the rail never is. That is a design-system decision about D18, not a Tasks change, and the specs that assert 44px at phone WIDTHS run under a fine pointer, so the coarse-pointer floor would not save them.
+- **Desired future state.** A dated decision either way: the one-line task row stays at 45px product-wide, or the completion target takes `--dh-control-height` on a fine pointer and the affected assertions move with it.
+- **Closing condition.** D18 either restates 45px with the density argument written down, or is amended and `dalyhub-tokens.test.ts` asserts the new pair.
+- **Related roadmap item.** DS-07 (the adaptive/density audit, which already owns "decide whether the owner gets a density preference").
+
 ### ☐ DEBT-NN — <one-line title> — P<1|2|3>
 - **Current issue.** <what diverges today, with file references>
 - **Impact.** <what it costs the owner>

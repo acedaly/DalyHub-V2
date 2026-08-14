@@ -82,10 +82,19 @@ rows — a hairline-separated list on a tinted ground has neither the cards'
 separation nor the white page's calm. Scoped to `.dh-collection--tasks`; the
 narrow shell fix DS-04 §29 allows.
 
-**Row height is the completion target and nothing else.** `--dh-row-height` at
-compact resolves to `max(2.75rem, 45px)`, which the shared `.dh-check-circle-target`
-inside the row is already sized to. Block padding on top made a 54px row for a 45px
-reason. Density never costs a touch target, so the floor stays.
+**Row height is the completion target and nothing else — and that is also the
+limit of the density gain.** `--dh-row-height` at compact resolves to
+`max(2.75rem, 45px)`, which the shared `.dh-check-circle-target` inside the row
+is already sized to. Block padding on top made a 54px row for a 45px reason, so
+the padding went.
+
+MEASURED, and stated because the checklist would otherwise imply more: the row
+PITCH is 46px in both the baseline and the final capture at 1440, so the number
+of visible rows is essentially unchanged. What the laptop gained is 24px at the
+top of the list and a column alignment it did not have. Going tighter means a
+smaller completion target on a fine pointer, which amends D18 and the 44px
+assertions built on it — a design-system decision rather than a Tasks one, and
+[DEBT-131](../product/PRODUCT_DEBT.md).
 
 **Breakpoints are the LIST's width, not the window's.** The Board and Time Sectors
 presentations render the same list inside ~380px columns. A window media query gave

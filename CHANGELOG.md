@@ -25,7 +25,7 @@ Tasks is the screen you spend the most time on, and it now looks like it.
 rounded, bordered panel on a grey page. Tasks are now plain rows on a white
 page, separated by a hairline, in real columns — **Task · Project · Due ·
 Priority · Status**, with the column names above them. Dates line up, projects
-line up, and about a third more of your list fits on a laptop screen.
+line up, and the list starts a little higher up the page.
 
 **Rows say less, and mean more.** A project is a small coloured dot and its
 name instead of a bordered tile. A date that has passed still says so in

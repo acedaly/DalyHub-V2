@@ -66,10 +66,21 @@ the real dev server and the real seeded workspace.
 |---|---|
 | ![](final/tasks-1366-light.png) | ![](final/tasks-wide-light.png) |
 
-The row is the completion control's 45px target with no padding on top of it, and
-the header band lost a line, so a 1366×900 laptop shows meaningfully more of the
-list than it did. At 1920 the metadata columns stay fixed and the title takes the
-extra width — metadata does not spread.
+**Measured, and worth stating plainly: the row PITCH did not change.** Both the
+baseline and the final list run at 46px per row at 1440 — the row is the
+completion control's 45px target plus a hairline, and DS-04 removed the block
+padding that was on top of it rather than the target underneath it. The first
+task starts 24px higher than it did (the header band lost a line, the column key
+gave some of that back), which is about half a row.
+
+So the laptop gain here is legibility and alignment, not row count. Reducing the
+pitch further means giving the completion control a smaller target on a fine
+pointer, which amends a documented departure (D18: the 45px one-line task row)
+and the 44px assertions built on it — a design-system decision rather than a
+Tasks one. Recorded as [DEBT-131](../../../product/PRODUCT_DEBT.md).
+
+At 1920 the metadata columns stay fixed and the title takes the extra width —
+metadata does not spread.
 
 ## 3. The phone (Concept A, "Tasks (Mobile)")
 
