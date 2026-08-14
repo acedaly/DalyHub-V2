@@ -93,11 +93,22 @@ test.describe("PX-02 frame — desktop", () => {
     page,
   }) => {
     await page.goto("/");
-    // The account control moved into the top app bar with the rest of the
-    // application's own utilities, and it is compact there — avatar and
-    // chevron, with the name in its accessible label.
+    /*
+     * The account control lives at the BOTTOM OF THE RAIL (DS-03), which is
+     * where both concept references put it.
+     *
+     * It was in the top app bar between VIS-01 and DS-03. The distinction that
+     * moved it is what each thing IS: Search is an ACTION — it opens a surface,
+     * it has a shortcut, it belongs with the other actions at the top of the
+     * working area — and the account is an IDENTITY, which belongs with the
+     * frame's other identity, the product mark at the top of the same column.
+     * See ADR-094 decision 6.
+     *
+     * Scoped to the rail rather than to the page, because the phone's
+     * navigation sheet renders the same menu and both are in the DOM at once.
+     */
     const trigger = page
-      .locator(".dh-topbar")
+      .locator(".dh-sidebar--rail")
       .getByRole("button", { name: /^Account —/ });
     await trigger.click();
     await expect(page.getByText("owner@example.invalid")).toBeVisible();
