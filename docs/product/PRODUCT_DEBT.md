@@ -2022,11 +2022,16 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** The token exists in `tokens.css` and `dalyhub.ts`, or the 173 sites have moved to `--dh-color-border`.
 - **Related roadmap item.** DS-08 (token finalisation).
 
-### ☐ DEBT-135 — Six E2E journeys are red on `main`, independently of DS-05…DS-08 — P2
-- **Current issue.** Verified by stashing the whole DS-05…DS-08 change and re-running the same six on an otherwise-clean tree: `areas.spec.ts:180`, `collection-header.spec.ts:404/412/435/457`, `diary.spec.ts:67`. Four are the shared menu's viewport-fit journeys (UIQ-021); one is Areas' collection assertions; one is Diary's day-mode axe pass, which reports `target-size` on `.dh-btn--secondary` and `.dh-feedback__dismiss-all` inside the feedback surface.
-- **Impact.** A red baseline makes "did my change break this?" cost a stash-and-rerun every time, which is what it cost this pass.
-- **Desired future state.** Either fixed, or each one recorded with a dated reason it is expected to fail.
-- **Closing condition.** The six pass on `main`, or the register names them individually.
+### ☐ DEBT-135 — Nine E2E journeys are red at `de4f5d1` (DS-04), independently of DS-05…DS-08 — P2
+- **Current issue.** Each was verified by checking out **`de4f5d1`** — the DS-04 merge, and the actual base of the DS-05…DS-08 branch — and re-running it there. Nine fail on that tree:
+  - `collection-header.spec.ts:404/412/435/457` — the shared menu's viewport-fit journeys (UIQ-021).
+  - `areas.spec.ts:180` — the Areas collection's icon/count/work-state assertions.
+  - `diary.spec.ts:67` — Diary's day-mode axe pass, reporting `target-size` on `.dh-btn--secondary` and `.dh-feedback__dismiss-all` inside the FEEDBACK surface.
+  - `today-mobile.spec.ts:186/208/225` — the Tasks swipe tray. These are **stale from DS-04 specifically**: they locate `.dh-card[data-card-id="t-drawer"]`, and [DS-04 §5](../design/DS_04_TASKS_REDESIGN_2026_08.md) records that it "did not keep the swipe tray — it went with the Card". The three assert an object DS-04 deliberately deleted, so they are testing a removed feature rather than reporting a regression.
+- **A methodology note, because it nearly produced a wrong answer.** The first attempt verified by `git stash`-ing the change — on a tree where everything was already committed, so nothing was stashed and the "baseline" run was the branch itself. The second attempt used local `main`, which was stale at `d4592d5` (DS-03) and where the swipe-tray tests still PASS because the Card had not yet been removed. Only the third — an explicit checkout of the branch's own parent — answers the question. **Compare against the branch's base commit, not against a branch name.**
+- **Impact.** A red baseline makes "did my change break this?" cost a checkout-and-rerun every time, which is what it cost this pass three times over.
+- **Desired future state.** The three swipe-tray journeys are deleted or rewritten against `TaskRow` (DS-04 owns that decision); the other six are fixed or each recorded with a dated reason it is expected to fail.
+- **Closing condition.** The nine pass at `main`'s tip, or the register names them individually with a reason.
 - **Related roadmap item.** The E2E reliability programme (see DEBT-41's lineage).
 
 ### ☐ DEBT-NN — <one-line title> — P<1|2|3>

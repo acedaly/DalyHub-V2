@@ -253,3 +253,33 @@ mechanical pass would erase it.
 - `assets/ds-final/mobile/` — 390 in both appearances.
 - `assets/ds-final/convergence/` — 1366 and 1920.
 - `assets/ds-final/final/` — the representative set per module.
+
+---
+
+## 10. Validation
+
+| Gate | Result |
+|---|---|
+| `format:check`, `lint`, `typecheck` | pass |
+| `scheme:check`, `icons:check` | pass |
+| `build` | pass |
+| `test:unit` | **5,577 passed** (399 files) |
+| `test:kernel` | **2,531 passed** (162 files) |
+| E2E — accessibility, tasks-collection, today-mobile, responsive, areas-goals-mobile, projects-mobile | **625 passed, 3 failed** |
+| E2E — creation-controls, people, assets, collection-header, goals, projects | **69 passed, 4 failed** |
+| `ds-final-audit.mjs` — 13 routes × {320,390,768,1366,1920} × {light,dark} | no overflow; one axe finding, fixed |
+
+**All seven E2E failures are red at `de4f5d1` (the DS-04 merge, and this
+branch's base) too**, verified by checking that commit out and re-running each
+one there. They are recorded individually in
+[DEBT-135](../product/PRODUCT_DEBT.md), together with the two ways the
+verification was got WRONG first — a `git stash` on an already-clean tree, which
+"baselines" against the branch itself, and a stale local `main` at DS-03, where
+the swipe-tray journeys still pass because the Card they locate had not yet been
+removed. Compare against the branch's base COMMIT, never against a branch name.
+
+Seven unit assertions were updated rather than weakened: they asserted the old
+create-action copy ("New Project"), which D47 deliberately changed. Twenty-four
+E2E spec files had their create-action LOCATORS repointed for the same reason —
+and only the link/button locators, never the `dialog`/`form` titles, which name
+the record type and are a different string.
