@@ -1902,6 +1902,26 @@
 }
 
 /*
+ * DS-07 — an ODD last tile spans, so the phone never shows a ragged row.
+ *
+ * `auto-fill` at the phone track resolves to exactly two columns at 390px, and
+ * Today renders three figures on an ordinary day (four when the day has
+ * progress). Three into two is a full row and one orphan sitting beside a
+ * tile-shaped hole — MEASURED on `final/today-390-*`, and the one thing on the
+ * phone dashboard that read as a layout accident rather than a decision.
+ *
+ * `:last-child:nth-child(odd)` is "the last of an odd number", so it fires for
+ * three tiles and not for four, and it needs no count in the markup. Bounded to
+ * the width where the grid is two columns: above it the row has three to five,
+ * and a spanning last tile there would be the accident instead.
+ */
+@media (max-width: 47.99rem) {
+  .dh-stat-row__item:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/*
  * UIX-01 — a two-column grid, so the RING costs no height.
  *
  * It used to be a column with the ring inline beside the figure, which made the
