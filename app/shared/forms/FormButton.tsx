@@ -67,8 +67,11 @@ export function FormButton({
     <Button
       type={type}
       variant={VARIANTS[variant]}
-      // `dh-btn--pending` is kept in the class list: it is a state hook several
-      // module stylesheets and e2e locators match on, and it costs nothing.
+      // `dh-btn--pending` is kept in the class list. Nothing in the repository
+      // styles or queries it today — `aria-busy` is what carries the state —
+      // but it is part of the markup contract this component shipped with, it
+      // costs nothing, and dropping it belongs with the rest of the `.dh-btn`
+      // bridge rather than in the change that introduces the component.
       className={[pending ? "dh-btn--pending" : null, className]
         .filter(Boolean)
         .join(" ")}

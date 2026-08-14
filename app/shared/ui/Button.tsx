@@ -78,11 +78,42 @@ export interface ButtonProps
 }
 
 /**
+ * The legacy modifier each family answers to while the bridge is up.
+ *
+ * Only `subtle` actually differs: it was `--ghost`. The rest kept their names,
+ * which is most of why the bridge is cheap.
+ */
+const LEGACY_VARIANTS: Record<ButtonVariant, string> = {
+  primary: "primary",
+  secondary: "secondary",
+  subtle: "ghost",
+  danger: "danger",
+};
+
+/**
  * Build the class list. Exported because `ButtonLink` and the small number of
  * call sites that must render something else (a `<label>` acting as a file
  * picker, a router `<Link>`) need the SAME paint without a second stylesheet.
  * A raw string of `dh-button dh-button--primary` at a call site is the thing
  * DS-02 exists to remove; this function is the supported way to reach it.
+ *
+ * ── Why the legacy `.dh-btn` classes are emitted too ─────────────────────────
+ *
+ * `ui.css` names `.dh-btn` beside `.dh-button` on every rule, so an UNMIGRATED
+ * call site takes the new paint. This is the other half of that bridge, and
+ * without it the migration is not symmetric: thirteen module stylesheets carry
+ * rules like `.dh-settings-row__control .dh-btn`, `.dh-record-toolbar > .dh-btn`
+ * and `.dh-review-guide__nav .dh-btn` — layout adjustments belonging to the
+ * surface rather than to the button. Converting a call site to `<Button>` would
+ * silently drop out of every one of them, which is the worst kind of regression:
+ * invisible in review, invisible in a unit test, and visible only as a button
+ * that has quietly stopped filling its row on one screen.
+ *
+ * Emitting both makes the conversion a genuine no-op, which is the property the
+ * whole staged migration rests on. It costs one duplicated class in the markup
+ * and nothing at all in the cascade, because both names resolve to the same
+ * declarations. **It comes out with the bridge**, when the last `.dh-btn`
+ * literal and the last module rule naming it are gone.
  */
 export function buttonClassName(options: {
   readonly variant?: ButtonVariant;
@@ -96,6 +127,10 @@ export function buttonClassName(options: {
     `dh-button--${variant}`,
     size === "sm" ? "dh-button--sm" : null,
     block ? "dh-button--block" : null,
+    // The bridge. Temporary, and deliberate — see above.
+    "dh-btn",
+    `dh-btn--${LEGACY_VARIANTS[variant]}`,
+    size === "sm" ? "dh-btn--sm" : null,
     className,
   ]
     .filter(Boolean)

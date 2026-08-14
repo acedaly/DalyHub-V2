@@ -113,9 +113,18 @@ So three class names are named beside their successors on every rule in
 | `.dh-input` | `.dh-control` | ~100 shared-field instances take the new shape |
 | `.dh-pill` | `.dh-badge` | `StatusPill` renders `Badge`; existing selectors keep matching |
 
-A call site's later conversion to `<Button>` is then a pure structural change
-with no visual diff to review. **The bridges are temporary** and come out when
-the last literal does.
+The bridge runs in **both** directions for the button. `Button` also emits the
+legacy `.dh-btn` classes, because thirteen module stylesheets carry rules like
+`.dh-record-toolbar > .dh-btn` and `.dh-settings-row__control .dh-btn` — layout
+belonging to the surface rather than to the button. A converted call site that
+dropped the class would fall silently out of all of them, which is the worst
+kind of regression: invisible in review, invisible in a unit test, and visible
+only as a button that has quietly stopped filling its row on one screen.
+
+With both halves up, a call site's conversion to `<Button>` is a genuine no-op,
+which is the property the whole staged migration rests on. **The bridges are
+temporary** and come out together, when the last literal and the last module
+rule naming it are gone.
 
 Migrated in DS-02, chosen for reach rather than count:
 

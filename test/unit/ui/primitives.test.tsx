@@ -147,8 +147,23 @@ describe("DS-02 Button", () => {
     // If it drifted from the component, a migrated call site would silently
     // stop looking like a button.
     expect(buttonClassName({ variant: "primary", size: "sm" })).toBe(
-      "dh-button dh-button--primary dh-button--sm",
+      "dh-button dh-button--primary dh-button--sm dh-btn dh-btn--primary dh-btn--sm",
     );
+  });
+
+  it("carries the legacy class so a migrated call site keeps module rules", () => {
+    // The half of the bridge that is easy to forget. Thirteen module
+    // stylesheets carry rules like `.dh-record-toolbar > .dh-btn` — layout
+    // belonging to the surface, not to the button. A converted call site that
+    // dropped `.dh-btn` would fall out of all of them silently: invisible in
+    // review, invisible in a unit test, visible only as a button that has
+    // stopped filling its row on one screen. This is what makes the conversion
+    // a real no-op, and it is what to delete when the bridge comes down.
+    render(<Button variant="subtle">Act</Button>);
+    const button = screen.getByRole("button", { name: "Act" });
+    expect(button).toHaveClass("dh-btn");
+    // `subtle` is the one family whose legacy name differs.
+    expect(button).toHaveClass("dh-btn--ghost");
   });
 });
 
