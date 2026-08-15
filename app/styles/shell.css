@@ -138,8 +138,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-1);
-  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-3);
-  background: var(--dh-color-surface-nav);
+  padding: 8px 8px 12px;
+  background: var(--surface);
   min-width: 0;
 }
 
@@ -241,7 +241,7 @@
 .dh-sidebar__brand {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: 8px;
   min-block-size: var(--dh-shell-bar-height);
   padding-inline: var(--dh-space-2);
   padding-block: 0 var(--dh-space-2);
@@ -290,7 +290,7 @@
  * detail (the D's counter and the three-node network) rather than seven dots. */
 .dh-sidebar__brand-mark {
   display: inline-flex;
-  font-size: 1.75rem;
+  font-size: 28px;
   line-height: 0;
 }
 
@@ -301,11 +301,11 @@
 }
 
 .dh-sidebar__brand-name {
-  font-size: var(--md-sys-typescale-title-medium-size);
-  line-height: var(--md-sys-typescale-title-medium-line-height);
-  font-weight: var(--md-sys-typescale-title-medium-weight);
-  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
-  color: var(--dh-color-text);
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
 }
 
 /* BRAND-01 — the workspace, when it has a name of its own. Secondary by every
@@ -433,16 +433,16 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: 11px;
   min-height: var(--dh-shell-nav-row-height);
-  padding-inline: var(--dh-space-3);
-  border-radius: var(--dh-radius-control);
+  padding: 7px 10px;
+  border-radius: var(--radius-nav);
   text-decoration: none;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: var(--dh-text-row-weight);
-  transition: color var(--dh-motion-instant) var(--dh-ease-standard);
+  color: var(--ink-secondary);
+  font: var(--t-nav);
+  transition:
+    background-color var(--dur-hover) var(--ease),
+    color var(--dur-hover) var(--ease);
 }
 
 /*
@@ -464,7 +464,12 @@
  */
 .dh-sidebar--rail .dh-nav__link {
   color: var(--dh-color-rail-text);
-  font-weight: 500;
+  font-weight: 400;
+}
+
+.dh-nav__link:hover {
+  background: var(--surface-muted);
+  color: var(--ink);
 }
 
 /*
@@ -530,9 +535,9 @@
    * a 240px row. See the token for the full argument. This is what the phone's
    * navigation SHEET still draws.
    */
-  background: var(--dh-color-surface-selected);
-  color: var(--dh-color-text);
-  font-weight: 600;
+  background: var(--ink);
+  color: var(--ink-inverse);
+  font-weight: 500;
 }
 
 /*
@@ -545,7 +550,7 @@
  */
 .dh-nav__link--active .dh-nav__icon,
 .dh-nav__link[aria-current="page"] .dh-nav__icon {
-  color: var(--dh-color-accent);
+  color: currentColor;
 }
 
 /*
@@ -574,8 +579,8 @@
  */
 .dh-sidebar--rail .dh-nav__link--active,
 .dh-sidebar--rail .dh-nav__link[aria-current="page"] {
-  background: var(--dh-color-rail-selected);
-  color: var(--dh-color-rail-text-selected);
+  background: var(--ink);
+  color: var(--ink-inverse);
 }
 
 .dh-sidebar--rail .dh-nav__link--active .dh-nav__icon,

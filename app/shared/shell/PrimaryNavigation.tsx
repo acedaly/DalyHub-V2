@@ -122,8 +122,8 @@ export function PrimaryNavigation({
                       ref={tip.ref}
                       className={
                         current
-                          ? "dh-nav__link dh-nav__link--active md-state-layer"
-                          : "dh-nav__link md-state-layer"
+                          ? "dh-nav__link dh-nav__link--active"
+                          : "dh-nav__link"
                       }
                       aria-current={current ? "page" : undefined}
                       aria-describedby={tip.describedBy}

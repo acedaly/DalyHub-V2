@@ -1,22 +1,10 @@
 /**
- * TASKS-02 — the shared task Priority indicator.
+ * Shared task priority flag.
  *
- * ONE component renders a task's priority (P1–P4) as a compact, coloured
- * indicator on every task-bearing surface (Today, Projects, Tasks, the Drawer). It
- * is driven entirely by the canonical `taskPriorityTag` / `taskPriorityLabel`
- * derivations in `task-view.ts`, so priority reads identically everywhere and there
- * is no second, drifting vocabulary. Since V2.2 removed the Matrix there is exactly
- * one priority vocabulary to render (TASKS-05).
- *
- * Accessibility (AGENTS.md §15, DEBT-28): the meaning is carried by TEXT, never by
- * colour alone. The short tag ("P1") is visible; the concise priority language is
- * available to assistive technology via a
- * visually-hidden suffix, so a monochrome or screen-reader user loses nothing. The
- * colour is reinforcement only. The indicator stays legible at compact density and
- * at 320px because it degrades to just the tag + accessible text.
+ * Priority has one visual language across DalyHub: a flag. Legacy stored `null`
+ * is treated as normal Priority 4 in the UI until a deliberate persistence
+ * migration changes the database shape.
  */
-
-import { FlagIcon } from "~/shared/icons";
 
 import type { TaskPriority } from "~/kernel/tasks";
 
@@ -25,66 +13,80 @@ import { taskPriorityLabel, taskPriorityTag } from "./task-view";
 export interface PriorityIndicatorProps {
   /** The task's priority, or null for an untriaged task. */
   readonly priority: TaskPriority | null;
+  /** Menus, filters, detail panels and quick-add chips show the full label. */
+  readonly showLabel?: boolean;
+  /** Task rows suppress Priority 4 so normal work does not show a grey flag. */
+  readonly hideNormal?: boolean;
+  readonly size?: "sm" | "md";
   /**
-   * When true, an untriaged (null) priority renders a muted "No priority" chip
-   * instead of nothing. Off by default so lists stay calm — absence of a priority
-   * badge already reads as "no priority" in a collection.
+   * Compatibility prop for older call sites. In the new UI null is Priority 4;
+   * this only controls whether a hidden normal value is forced visible.
    */
   readonly showEmpty?: boolean;
   readonly className?: string;
   readonly "data-testid"?: string;
 }
 
-/** Render a task's priority as a shared, accessible, coloured indicator. */
-export function PriorityIndicator({
+function priorityKey(priority: TaskPriority | null): TaskPriority {
+  return priority ?? "p4";
+}
+
+function PriorityFlagGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5 21V5" />
+      <path d="M5 5c2.6-1.3 5.1-1.3 7.6 0 2.1 1.1 4.2 1.1 6.4 0v9c-2.2 1.1-4.3 1.1-6.4 0-2.5-1.3-5-1.3-7.6 0" />
+    </svg>
+  );
+}
+
+/** Render a task's priority as the canonical accessible flag. */
+export function PriorityFlag({
   priority,
+  showLabel = false,
+  hideNormal,
+  size = "sm",
   showEmpty = false,
   className,
   "data-testid": testId,
 }: PriorityIndicatorProps) {
-  if (priority === null) {
-    if (!showEmpty) {
-      return null;
-    }
-    return (
-      <span
-        className={["dh-priority", "dh-priority--none", className]
-          .filter(Boolean)
-          .join(" ")}
-        data-priority="none"
-        data-testid={testId}
-      >
-        <span className="dh-priority__tag">No priority</span>
-      </span>
-    );
+  const key = priorityKey(priority);
+  const suppressNormal = hideNormal ?? !showLabel;
+  if (suppressNormal && key === "p4" && !showEmpty) {
+    return null;
   }
 
-  const action = taskPriorityLabel(priority);
+  const label = taskPriorityLabel(key);
   return (
     <span
       className={["dh-priority", className].filter(Boolean).join(" ")}
-      data-priority={priority}
+      data-priority={key}
+      data-size={size}
       data-testid={testId}
+      aria-label={label}
     >
-      {/*
-       * FINAL-UI — a FLAG, where DS-04 drew a dot.
-       *
-       * All three approved concepts draw priority the same way and draw it a
-       * lot: a small filled flag in the priority's own colour, then the tag in
-       * ordinary metadata grey. A dot is a generic "there is a value here"; a
-       * flag is the shape the productivity vocabulary already uses for
-       * "flagged", which is what lets a scanning eye pick the P1s out of thirty
-       * rows without reading a single tag.
-       *
-       * The accessibility contract is untouched: the glyph is `aria-hidden`, the
-       * visible tag carries the meaning as TEXT, and the visually-hidden suffix
-       * still spells out the priority language. Colour remains reinforcement.
-       */}
       <span className="dh-priority__flag" aria-hidden="true">
-        <FlagIcon />
+        <PriorityFlagGlyph />
       </span>
-      <span className="dh-priority__tag">{taskPriorityTag(priority)}</span>
-      <span className="dh-visually-hidden"> priority — {action}</span>
+      {showLabel ? (
+        <span className="dh-priority__label">{label}</span>
+      ) : (
+        <span className="dh-visually-hidden">{taskPriorityTag(key)}</span>
+      )}
     </span>
   );
+}
+
+/** Compatibility name during the migration to `PriorityFlag`. */
+export function PriorityIndicator(props: PriorityIndicatorProps) {
+  return <PriorityFlag {...props} />;
 }

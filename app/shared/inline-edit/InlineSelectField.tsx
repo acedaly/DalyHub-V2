@@ -103,6 +103,8 @@ export interface InlineSelectFieldProps {
   readonly clearLabel?: string;
   /** Render the current value with the caller's own chip/pill. */
   readonly renderValue?: (option: InlineSelectOption | null) => React.ReactNode;
+  /** Render an option row with the caller's own visual language. */
+  readonly renderOption?: (option: InlineSelectOption) => React.ReactNode;
   /**
    * DS-04 — the ESCAPE HATCH at the end of a bounded option set.
    *
@@ -148,6 +150,7 @@ export function InlineSelectField({
   clearable = false,
   clearLabel,
   renderValue,
+  renderOption,
   searchAction,
   className,
   "data-testid": testId,
@@ -492,7 +495,7 @@ export function InlineSelectField({
                 onClick={() => choose(option)}
               >
                 <span className="dh-inline-select__option-label">
-                  {option.label}
+                  {renderOption ? renderOption(option) : option.label}
                 </span>
                 {option.description ? (
                   <span className="dh-inline-select__option-description">

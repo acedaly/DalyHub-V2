@@ -121,10 +121,10 @@ const SINGLE_SECTOR_TOKENS: Record<string, TimeSector> = {
 };
 
 const PRIORITY_PREVIEW: Record<TaskPriority, string> = {
-  p1: "P1 · Urgent",
-  p2: "P2 · High",
-  p3: "P3 · Normal",
-  p4: "P4 · Low",
+  p1: "Priority 1",
+  p2: "Priority 2",
+  p3: "Priority 3",
+  p4: "Priority 4",
 };
 
 const SECTOR_PREVIEW: Record<TimeSector, string> = {

@@ -63,7 +63,6 @@ export interface TaskQuickEditPanelProps {
 }
 
 const PRIORITY_OPTIONS = [
-  { value: "", label: "No priority" },
   ...TASK_PRIORITIES.map((priority) => ({
     value: priority,
     label: taskPriorityLabel(priority),
@@ -248,15 +247,13 @@ export function TaskQuickEditPanel({
         label="Priority"
         id={`${groupId}-priority`}
         showOptionalCue={false}
-        value={task.priority ?? ""}
+        value={task.priority ?? "p4"}
         options={PRIORITY_OPTIONS}
         disabled={busy}
         onChange={(value) =>
           bulk(
             { intent: "set_priority", priority: value },
-            value.length === 0
-              ? `Cleared the priority on ${task.title}.`
-              : `${task.title} set to ${taskPriorityLabel(value as (typeof TASK_PRIORITIES)[number])}.`,
+            `${task.title} set to ${taskPriorityLabel(value as (typeof TASK_PRIORITIES)[number])}.`,
           )
         }
       />

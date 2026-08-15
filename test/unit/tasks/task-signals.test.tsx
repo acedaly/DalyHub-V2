@@ -15,44 +15,39 @@ import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 
 describe("PriorityIndicator", () => {
-  it("renders the short tag AND the full priority label for assistive tech", () => {
+  it("renders a flag with the full priority label for assistive tech", () => {
     render(<PriorityIndicator priority="p1" data-testid="pi" />);
     const el = screen.getByTestId("pi");
-    // The visible tag is short; the full text content includes the priority label
-    // so a screen-reader user hears "P1 priority — P1 · Urgent", never a bare colour.
-    expect(el).toHaveTextContent("P1");
-    expect(el).toHaveTextContent(/priority — P1 · Urgent/);
-    // Colour is reinforcement only — the meaning-bearing attribute is the value.
+    expect(el).toHaveAttribute("aria-label", "Priority 1");
     expect(el).toHaveAttribute("data-priority", "p1");
   });
 
   it("maps each priority to its everyday label", () => {
     for (const [priority, label] of [
-      ["p1", "P1 · Urgent"],
-      ["p2", "P2 · High"],
-      ["p3", "P3 · Normal"],
-      ["p4", "P4 · Low"],
+      ["p1", "Priority 1"],
+      ["p2", "Priority 2"],
+      ["p3", "Priority 3"],
+      ["p4", "Priority 4"],
     ] as const) {
       const { unmount } = render(
-        <PriorityIndicator priority={priority} data-testid="pi" />,
+        <PriorityIndicator priority={priority} showLabel data-testid="pi" />,
       );
-      expect(screen.getByTestId("pi")).toHaveTextContent(
-        new RegExp(`priority — ${label.replace("·", "·")}`),
-      );
+      expect(screen.getByTestId("pi")).toHaveTextContent(label);
+      expect(screen.getByTestId("pi")).toHaveAttribute("aria-label", label);
       unmount();
     }
   });
 
-  it("renders nothing for an untriaged task by default", () => {
+  it("renders nothing for legacy null priority in row mode by default", () => {
     const { container } = render(<PriorityIndicator priority={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders an explicit 'No priority' chip when showEmpty is set", () => {
+  it("renders normal Priority 4 when a labelled context requests it", () => {
     render(<PriorityIndicator priority={null} showEmpty data-testid="pi" />);
     const el = screen.getByTestId("pi");
-    expect(el).toHaveTextContent("No priority");
-    expect(el).toHaveAttribute("data-priority", "none");
+    expect(el).toHaveAttribute("aria-label", "Priority 4");
+    expect(el).toHaveAttribute("data-priority", "p4");
   });
 });
 

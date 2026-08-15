@@ -34,7 +34,7 @@ import { EntityIcon } from "~/shared/entity";
 import { RepeatIcon } from "~/shared/icons";
 import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
 
-import { PriorityIndicator } from "./PriorityIndicator";
+import { PriorityFlag } from "./PriorityIndicator";
 import { taskDateShortcuts } from "./plan-targets";
 import { saveTaskBulkField, saveTaskRecordField } from "./task-inline-edit";
 import {
@@ -133,9 +133,16 @@ export function InlineTaskPriority({
       readOnly={disabled}
       renderValue={(option) =>
         option ? (
-          <PriorityIndicator priority={option.value as TaskPriority} />
+          <PriorityFlag priority={option.value as TaskPriority} hideNormal />
         ) : null
       }
+      renderOption={(option) => (
+        <PriorityFlag
+          priority={option.value as TaskPriority}
+          size="md"
+          showLabel
+        />
+      )}
       data-testid="task-row-priority"
     />
   );

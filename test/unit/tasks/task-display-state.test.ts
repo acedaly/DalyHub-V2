@@ -20,16 +20,16 @@ const base: TaskDisplayStateInput = {
 
 describe("priority labels", () => {
   it("labels priority concisely — ONE vocabulary since the Matrix was removed", () => {
-    expect(taskPriorityLabel("p1")).toBe("P1 · Urgent");
-    expect(taskPriorityLabel("p2")).toBe("P2 · High");
-    expect(taskPriorityLabel("p3")).toBe("P3 · Normal");
-    expect(taskPriorityLabel("p4")).toBe("P4 · Low");
-    expect(taskPriorityLabel(null)).toBe("No priority");
+    expect(taskPriorityLabel("p1")).toBe("Priority 1");
+    expect(taskPriorityLabel("p2")).toBe("Priority 2");
+    expect(taskPriorityLabel("p3")).toBe("Priority 3");
+    expect(taskPriorityLabel("p4")).toBe("Priority 4");
+    expect(taskPriorityLabel(null)).toBe("Priority 4");
   });
 
-  it("tags priority shortly, and an untriaged task as an em dash", () => {
+  it("tags priority shortly, with legacy null mapped to normal P4", () => {
     expect(taskPriorityTag("p1")).toBe("P1");
-    expect(taskPriorityTag(null)).toBe("—");
+    expect(taskPriorityTag(null)).toBe("P4");
   });
 
   it("labels sectors and treats null as No sector", () => {

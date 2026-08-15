@@ -148,10 +148,10 @@ describe("task record rendering", () => {
       "Unscheduled",
     );
     expect(screen.getByText("1 Aug 2026")).toBeInTheDocument();
-    // Priority is the shared PriorityIndicator: the short tag is visible and the
-    // full everyday label is available to assistive tech.
-    expect(screen.getByText("P1")).toBeInTheDocument();
-    expect(screen.getByText(/priority — P1 · Urgent/)).toBeInTheDocument();
+    // Priority is the shared PriorityFlag: the full label is shown in detail
+    // contexts and exposed as the accessible name.
+    expect(screen.getByText("Priority 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Priority 1")).toBeInTheDocument();
     expect(screen.getByText("Ship V2")).toBeInTheDocument();
   });
 
@@ -293,12 +293,12 @@ describe("priority and dates, changed on the record (EDIT-02)", () => {
 
     // The current value IS the control, and it names its field.
     fireEvent.click(
-      await screen.findByRole("button", { name: "Priority: P1 · Urgent" }),
+      await screen.findByRole("button", { name: "Priority: Priority 1" }),
     );
     expect(
-      screen.getByRole("menuitemradio", { name: "P1 · Urgent" }),
+      screen.getByRole("menuitemradio", { name: "Priority 1" }),
     ).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "P3 · Normal" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Priority 3" }));
 
     await waitFor(() =>
       expect(posts.some((post) => post.url.includes("/tasks/bulk"))).toBe(true),
@@ -309,17 +309,15 @@ describe("priority and dates, changed on the record (EDIT-02)", () => {
     expect(bulk.body.get("id")).toBe("t1");
   });
 
-  it("clears the priority through the one separated Clear command", async () => {
+  it("sets normal priority through the same priority list", async () => {
     const posts: Array<{ url: string; body: FormData }> = [];
     stubFetch({ onPostUrl: (url, body) => posts.push({ url, body }) });
     renderDrawer(<TaskDrawerContent taskId="t1" />);
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Priority: P1 · Urgent" }),
+      await screen.findByRole("button", { name: "Priority: Priority 1" }),
     );
-    fireEvent.click(
-      screen.getByRole("menuitemradio", { name: "Clear priority" }),
-    );
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Priority 4" }));
     await waitFor(() =>
       expect(posts.some((post) => post.url.includes("/tasks/bulk"))).toBe(true),
     );
@@ -327,7 +325,7 @@ describe("priority and dates, changed on the record (EDIT-02)", () => {
       posts
         .find((post) => post.url.includes("/tasks/bulk"))!
         .body.get("priority"),
-    ).toBe("");
+    ).toBe("p4");
   });
 
   it("sets the due date without opening the details form", async () => {

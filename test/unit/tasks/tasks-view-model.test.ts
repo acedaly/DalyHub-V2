@@ -163,7 +163,7 @@ describe("resolveGroupedSections — grouped by priority", () => {
 
   it("labels a bucket in the ONE priority vocabulary", () => {
     const sections = resolveGroupedSections(grouping);
-    expect(sections[0]?.title).toBe("P1 · Urgent");
+    expect(sections[0]?.title).toBe("Priority 1");
     expect(sections.at(-1)?.title).toBe("No priority");
   });
 

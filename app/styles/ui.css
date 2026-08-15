@@ -66,9 +66,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--dh-space-2);
-  /* Density's, never the button's. See the file header. */
-  min-block-size: var(--dh-control-height);
-  padding-inline: var(--dh-space-4);
+  min-block-size: var(--button-height-md);
+  padding-inline: var(--button-padding-md);
   /*
    * D33 — a rounded rectangle, including for the primary action.
    *
@@ -84,18 +83,16 @@
   border-radius: var(--dh-radius-control);
   border: var(--dh-border-width) solid transparent;
   font-family: var(--dh-font-family);
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
-  font-weight: var(--dh-text-label-weight);
+  font: var(--t-control);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   /* Keeps the shared state layer inside the corner. */
   overflow: hidden;
   transition:
-    background-color var(--dh-motion-fast) var(--dh-ease-standard),
-    border-color var(--dh-motion-fast) var(--dh-ease-standard),
-    color var(--dh-motion-fast) var(--dh-ease-standard);
+    background-color var(--dur-hover) var(--ease),
+    border-color var(--dur-hover) var(--ease),
+    color var(--dur-hover) var(--ease);
 }
 
 /* A leading or trailing glyph takes the tighter inline inset on its own side, so
@@ -142,16 +139,24 @@
  * from a comment.
  */
 :is(.dh-button--sm, .dh-btn--sm) {
-  padding-inline: var(--dh-space-3);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
+  min-block-size: var(--button-height-sm);
+  padding-inline: var(--button-padding-sm);
+  font: var(--t-control);
 }
 
 /* PRIMARY — the one action a surface exists for. The only place in the
  * primitive layer that spends a full-strength accent fill. */
 :is(.dh-button--primary, .dh-btn--primary) {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-text-on-accent);
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+
+:is(.dh-button--primary, .dh-btn--primary):hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+:is(.dh-button--primary, .dh-btn--primary):active:not(:disabled) {
+  background: var(--accent-pressed);
 }
 
 /*
@@ -170,30 +175,56 @@
  * one thing.
  */
 :is(.dh-button--secondary, .dh-btn--secondary, .dh-btn--outlined) {
-  background: var(--dh-color-surface);
+  background: var(--surface);
   /* `-strong`, not the hairline: this border is what IDENTIFIES the control, so
    * it carries WCAG 1.4.11's 3:1 requirement (DS-01 §8). A card's edge, which
    * only separates, takes `--dh-color-border`. */
-  border-color: var(--dh-color-border-strong);
-  color: var(--dh-color-text);
+  border-color: var(--border-strong);
+  color: var(--ink-secondary);
+}
+
+:is(.dh-button--secondary, .dh-btn--secondary, .dh-btn--outlined):hover:not(
+    :disabled
+  ) {
+  background: var(--surface-muted);
+}
+
+:is(.dh-button--secondary, .dh-btn--secondary, .dh-btn--outlined):active:not(
+    :disabled
+  ) {
+  background: var(--surface-sunken);
 }
 
 /* SUBTLE — the lowest-emphasis action. No container until it is interacted
  * with, which the shared state layer supplies. */
 :is(.dh-button--subtle, .dh-btn--ghost) {
   background: transparent;
-  color: var(--dh-color-text-muted);
-  padding-inline: var(--dh-space-3);
+  color: var(--ink-secondary);
+  padding-inline: var(--button-padding-sm);
 }
 
 :is(.dh-button--subtle, .dh-btn--ghost):hover:not(:disabled) {
-  color: var(--dh-color-text);
+  background: var(--surface-muted);
+  color: var(--ink-secondary);
+}
+
+:is(.dh-button--subtle, .dh-btn--ghost):active:not(:disabled) {
+  background: var(--surface-sunken);
 }
 
 /* DANGER — destructive, and always carrying the word as well as the colour. */
 :is(.dh-button--danger, .dh-btn--danger) {
-  background: var(--dh-color-danger);
-  color: var(--dh-color-text-on-danger);
+  background: transparent;
+  color: var(--danger);
+}
+
+:is(.dh-button--danger, .dh-btn--danger):hover:not(:disabled) {
+  background: var(--danger-tint);
+}
+
+:is(.dh-button--danger, .dh-btn--danger):active:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-tint);
 }
 
 /*
@@ -203,14 +234,14 @@
  */
 :is(.dh-button, .dh-btn):disabled,
 :is(.dh-button, .dh-btn)[aria-disabled="true"] {
-  background: var(--dh-color-surface-quiet);
+  background: var(--surface-muted);
   border-color: transparent;
-  color: var(--dh-color-text-muted);
+  color: var(--ink-faint);
   cursor: not-allowed;
   /* Opacity rather than a second set of colour tokens: it is one declaration,
    * it is correct in both appearances and in all five schemes by construction,
    * and it cannot drift from the palette. */
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
 :is(.dh-button--subtle, .dh-btn--ghost):disabled {
@@ -335,9 +366,9 @@
   inline-size: 100%;
   max-inline-size: 100%;
   box-sizing: border-box;
-  min-block-size: var(--dh-control-height);
-  padding-block: var(--dh-space-1);
-  padding-inline: var(--dh-inset-inline);
+  min-block-size: var(--input-height);
+  padding-block: 0;
+  padding-inline: var(--field-padding-inline);
   font-family: var(--dh-font-family);
   /*
    * The anti-zoom floor, by token (MOBILE-01).
@@ -349,27 +380,26 @@
    * `--dh-*` name would create a second thing to keep in step with iOS.
    * DS-08 decides where it finally lives.
    */
-  font-size: var(--app-field-font-size-compact);
-  line-height: var(--dh-text-row-line-height);
-  color: var(--dh-color-text);
+  font: var(--t-item);
+  color: var(--ink-body);
   /* `background-color`, not the `background` SHORTHAND: the shorthand resets
    * `background-image`, and a `<select>` draws its chevron with one (UIX-06). */
-  background-color: var(--dh-color-surface);
-  border: var(--dh-border-width) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
+  background-color: var(--surface);
+  border: var(--dh-border-width) solid var(--border-strong);
+  border-radius: var(--radius-input);
   transition:
     border-color var(--dh-motion-fast) var(--dh-ease-standard),
     box-shadow var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 :is(.dh-control, .dh-input)::placeholder {
-  color: var(--dh-color-text-muted);
+  color: var(--ink-faint);
   /* The placeholder is not a label and must not be mistaken for a value. */
   opacity: 1;
 }
 
 :is(.dh-control, .dh-input):hover:not(:disabled):not([readonly]) {
-  border-color: var(--dh-color-text-muted);
+  border-color: var(--border-hover);
 }
 
 /*
@@ -387,15 +417,15 @@
 :is(.dh-control, .dh-input):focus-visible,
 :is(.dh-control, .dh-input):focus {
   border-color: var(--dh-color-focus);
-  box-shadow: 0 0 0 var(--dh-focus-width) var(--dh-color-accent-subtle);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 
 :is(.dh-control--multiline, .dh-input--multiline) {
   /* Three rows of the control rung — a multi-line field should look like one
    * before it is typed in. */
-  min-block-size: calc(var(--dh-control-height) * 3);
-  padding-block: var(--dh-space-2);
+  min-block-size: var(--textarea-min-height);
+  padding-block: var(--field-padding-block);
   /* Vertical only: a textarea dragged wider than its column breaks the form
    * grid and nothing is gained. */
   resize: vertical;
@@ -408,20 +438,20 @@
 }
 
 :is(.dh-control, .dh-input)[aria-invalid="true"]:focus {
-  box-shadow: 0 0 0 var(--dh-focus-width) var(--dh-color-danger);
+  box-shadow: var(--danger-focus-ring);
   /* The danger ring is the accent ring's twin and must not also be tinted with
    * the accent, or an invalid field focuses to a violet halo. */
   border-color: var(--dh-color-danger);
 }
 
 :is(.dh-control, .dh-input):disabled {
-  background-color: var(--dh-color-surface-quiet);
-  color: var(--dh-color-text-muted);
+  background-color: var(--surface-muted);
+  color: var(--ink-faint);
   cursor: not-allowed;
 }
 
 :is(.dh-control, .dh-input)[readonly] {
-  background-color: var(--dh-color-surface-quiet);
+  background-color: var(--surface-muted);
 }
 
 /* SELECT — repainted, never replaced (D31). Only the closed control's padding
@@ -454,6 +484,16 @@
   padding-inline-start: calc(
     var(--dh-inset-inline) + var(--dh-icon-size) + var(--dh-space-2)
   );
+}
+
+@media (hover: none) {
+  :is(.dh-button, .dh-btn) {
+    min-block-size: var(--button-height-touch);
+  }
+
+  :is(.dh-control, .dh-input) {
+    min-block-size: var(--input-height-touch);
+  }
 }
 
 /* ========================================================================== */

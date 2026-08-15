@@ -54,8 +54,8 @@ describe("the declared filter dimensions", () => {
     // filter used to carry alongside them had no surface left to serve.
     expect(byId("quadrant")).toBeUndefined();
     const labels = byId("priority")?.options.map((o) => o.label) ?? [];
-    expect(labels.join(" ")).toContain("P1 · Urgent");
-    expect(labels.join(" ")).toContain("P3 · Normal");
+    expect(labels.join(" ")).toContain("Priority 1");
+    expect(labels.join(" ")).toContain("Priority 3");
     expect(labels.join(" ")).not.toContain("Delegate");
   });
 

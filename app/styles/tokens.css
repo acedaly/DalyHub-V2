@@ -1,5 +1,5 @@
 /*
- * M3-01 — DalyHub design tokens (the authoritative token layer).
+ * DalyHub design tokens (the authoritative token layer).
  *
  * This file is the single source of truth for every design VALUE in DalyHub:
  * colour, typography, spacing, sizing, shape, elevation, state, motion, z-index
@@ -7,28 +7,10 @@
  * and never hard-codes a raw hex, pixel or duration where a token exists
  * (AGENTS.md §9.8, DESIGN_SYSTEM.md → Foundations).
  *
- * ── The design language is Material Design 3 (ADR-074) ───────────────────────
- * The vocabulary is M3's, not a private one:
- *
- *   --md-sys-color-*        the colour roles, DERIVED from one seed
- *   --md-app-color-*        the application surfaces, from their own APP-NEUTRAL
- *                           palette (page, navigation, app bar, card,
- *                           card-subtle, raised, sunken, plus the card hairline)
- *   --md-ref-typeface-*     the two reference typefaces
- *   --md-sys-typescale-*    the fifteen type styles
- *   --md-sys-shape-*        the corner scale
- *   --md-sys-elevation-*    the five shadow levels
- *   --md-sys-state-*        the state-layer opacities
- *   --md-sys-motion-*       durations and easing curves
- *
- * ── Colour is generated, never authored ──────────────────────────────────────
- * Every colour between the generated markers below comes out of
- * `scripts/generate-m3-scheme.mjs`, which runs the M3 tonal-palette algorithm
- * over the single seed `#2563EB`. Do not hand-edit those blocks: `pnpm run
- * scheme:check` (inside `pnpm run verify`) regenerates them in memory and fails
- * naming the drifted token. To change a colour, change the seed — or, where WCAG
- * forces a hand adjustment, change the generator and record the reason in the
- * ADR.
+ * DalyHub now owns its visual language directly. The legacy `--md-*` variables
+ * below remain temporarily as compatibility aliases for unmigrated styles, but
+ * product components should consume `--dh-*` tokens. New design work must not
+ * depend on Material concepts to explain the interface.
  *
  * There is ONE light/dark pair and no theme feature — no palettes, no
  * `data-theme`, no colour gallery (ADR-074). APPEARANCE-01 adds the one control
@@ -5026,6 +5008,140 @@
  */
 :root {
   /* ---------------------------------------------------------------------- */
+  /* DalyHub redesign primitive tokens (Part B §2.1a)                       */
+  /* ---------------------------------------------------------------------- */
+  --canvas: #f6f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #fafafb;
+  --surface-muted: #f4f4f6;
+  --surface-sunken: #f0f0f3;
+  --overlay-scrim: rgba(16, 16, 20, 0.32);
+
+  --border: rgba(16, 16, 20, 0.06);
+  --border-strong: rgba(16, 16, 20, 0.09);
+  --hairline: rgba(16, 16, 20, 0.055);
+
+  --ink: #101014;
+  --ink-body: #1c1c22;
+  --ink-secondary: #45454e;
+  --ink-muted: #82828c;
+  --ink-faint: #a3a3ac;
+  --ink-icon: #8a8a94;
+  --ink-inverse: #ffffff;
+
+  --accent: #5b4bd6;
+  --accent-hover: #4b3cc2;
+  --accent-pressed: #3a2fa0;
+  --accent-tint: #efedfc;
+  --accent-tint-hover: #e6e2fa;
+
+  --danger: #d9483b;
+  --danger-tint: #fbeae8;
+  --warning: #d98324;
+  --warning-tint: #fbf0e2;
+  --success: #2e9e6b;
+  --success-tint: #e7f5ee;
+  --info: #3b82c4;
+  --info-tint: #eaf1f9;
+
+  --priority-1: var(--danger);
+  --priority-2: var(--warning);
+  --priority-3: var(--info);
+  --priority-4: var(--ink-icon);
+
+  --category-purple: #5b4bd6;
+  --category-purple-tint: #efedfc;
+  --category-blue: #3b82c4;
+  --category-blue-tint: #eaf1f9;
+  --category-orange: #d98324;
+  --category-orange-tint: #fbf0e2;
+  --category-green: #2e9e6b;
+  --category-green-tint: #e7f5ee;
+  --category-red: #d9483b;
+  --category-red-tint: #fbeae8;
+
+  --radius-card: 16px;
+  --radius-panel: 14px;
+  --radius-card-sm: 12px;
+  --radius-control: 10px;
+  --radius-nav: 9px;
+  --radius-input: 9px;
+  --radius-badge: 6px;
+  --radius-pill: 999px;
+
+  --button-height-sm: 32px;
+  --button-height-md: 36px;
+  --button-height-lg: 40px;
+  --button-height-touch: 44px;
+  --button-padding-sm: 12px;
+  --button-padding-md: 15px;
+  --input-height: 38px;
+  --input-height-touch: 44px;
+  --textarea-min-height: 88px;
+  --field-padding-inline: 12px;
+  --field-padding-block: 10px;
+  --focus-ring: 0 0 0 3px var(--accent-tint);
+  --danger-focus-ring: 0 0 0 3px var(--danger-tint);
+  --border-hover: rgba(16, 16, 20, 0.14);
+
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 24px;
+  --space-10: 30px;
+  --space-11: 32px;
+
+  --font:
+    "Instrument Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --shadow-popover:
+    0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
+  --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
+  --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-hover: 120ms;
+  --dur-complete: 180ms;
+  --dur-panel: 200ms;
+  --dur-progress: 360ms;
+
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-panel: 40;
+  --z-popover: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
+  --t-title: 600 26px/1.15 var(--font);
+  --t-title-tracking: -0.02em;
+  --t-heading: 600 20px/1.2 var(--font);
+  --t-heading-tracking: -0.015em;
+  --t-subhead: 600 18px/1.25 var(--font);
+  --t-subhead-tracking: -0.01em;
+  --t-card: 600 15px/1.3 var(--font);
+  --t-group: 600 14.5px/1.3 var(--font);
+  --t-item: 400 14px/1.4 var(--font);
+  --t-item-strong: 500 14px/1.4 var(--font);
+  --t-body: 400 14px/1.55 var(--font);
+  --t-editor: 400 15px/1.6 var(--font);
+  --t-nav: 400 13.5px/1.3 var(--font);
+  --t-control: 500 13px/1.2 var(--font);
+  --t-meta: 400 12.5px/1.35 var(--font);
+  --t-meta-sm: 400 12px/1.35 var(--font);
+  --t-eyebrow: 600 11px/1.2 var(--font);
+  --t-eyebrow-tracking: 0.07em;
+  --t-stat: 600 24px/1 var(--font);
+  --t-stat-lg: 600 32px/1 var(--font);
+  --t-stat-tracking: -0.02em;
+
+  /* ---------------------------------------------------------------------- */
   /* Colour                                                                 */
   /* ---------------------------------------------------------------------- */
   /*
@@ -5039,23 +5155,23 @@
    */
 
   /** The page itself — the canvas everything is drawn on. */
-  --dh-color-bg: var(--md-app-color-surface-page);
+  --dh-color-bg: var(--canvas);
   /** A well recessed BELOW the page: a filter track, a segmented control. */
-  --dh-color-bg-sunken: var(--md-app-color-surface-sunken);
+  --dh-color-bg-sunken: var(--surface-sunken);
   /** The default container: a card, a panel, a popover's own body. */
-  --dh-color-surface: var(--md-app-color-surface-card);
+  --dh-color-surface: var(--surface);
   /** One rung below a card, for a container inside a container. */
-  --dh-color-surface-subtle: var(--md-app-color-surface-card-subtle);
+  --dh-color-surface-subtle: var(--surface-subtle);
   /** Something that genuinely floats — a menu, a dialog, a hovered card. */
-  --dh-color-surface-raised: var(--md-app-color-surface-raised);
+  --dh-color-surface-raised: var(--surface);
   /** A quiet tinted run INSIDE a surface. Neutral, never branded (M3X). */
-  --dh-color-surface-quiet: var(--md-app-color-surface-quiet);
+  --dh-color-surface-quiet: var(--surface-muted);
   /** The persistent navigation region. */
-  --dh-color-surface-nav: var(--md-app-color-surface-navigation);
+  --dh-color-surface-nav: var(--surface);
   /** The top app bar. */
-  --dh-color-surface-bar: var(--md-app-color-surface-app-bar);
+  --dh-color-surface-bar: var(--canvas);
   /** A SELECTED destination or row. A tint, not a slab (see the M3X note). */
-  --dh-color-surface-selected: var(--md-app-color-surface-nav-selected);
+  --dh-color-surface-selected: var(--surface-muted);
 
   /*
    * THE RAIL, and the seven names that make it self-contained.
@@ -5078,19 +5194,19 @@
    * `shell.css`.
    */
   /** The permanent desktop rail's own surface. Two tones under the canvas. */
-  --dh-color-rail: var(--md-app-color-surface-rail);
+  --dh-color-rail: var(--surface);
   /** A label, a brand wordmark, a selected destination — text ON the rail. */
-  --dh-color-rail-text: var(--md-app-color-on-rail);
+  --dh-color-rail-text: var(--ink-secondary);
   /** An unselected destination, the account line. Still AA on the rail. */
-  --dh-color-rail-text-muted: var(--md-app-color-on-rail-muted);
+  --dh-color-rail-text-muted: var(--ink-muted);
   /** The one quiet edge inside the rail (the account block's rule). */
-  --dh-color-rail-border: var(--md-app-color-rail-hairline);
+  --dh-color-rail-border: var(--border);
   /** The current destination: a pale lavender row in light, a block in dark. */
-  --dh-color-rail-selected: var(--md-app-color-surface-rail-selected);
+  --dh-color-rail-selected: var(--ink);
   /** Its label and glyph — the product's violet in light, the rail's own
    * foreground in dark. Violet-on-violet is the least legible pairing on a dark
    * rail; a pale tint with grey text is not a selection on a light one. */
-  --dh-color-rail-text-selected: var(--md-app-color-on-rail-selected);
+  --dh-color-rail-text-selected: var(--ink-inverse);
   /*
    * The focus indicator ON the rail, and it is a real accessibility fix rather
    * than a nicety.
@@ -5107,18 +5223,18 @@
    * ~10:1 against the selected block the ring is also drawn over. Both are
    * asserted per scheme, per appearance.
    */
-  --dh-color-rail-focus: var(--md-app-color-on-rail);
+  --dh-color-rail-focus: var(--accent);
 
   /** Body text, titles, glyphs — anything that has to be read. */
-  --dh-color-text: var(--md-sys-color-on-surface);
+  --dh-color-text: var(--ink);
   /** Metadata, supporting lines, placeholder-adjacent text. Still AA. */
-  --dh-color-text-muted: var(--md-sys-color-on-surface-variant);
+  --dh-color-text-muted: var(--ink-muted);
   /** Text on a filled accent surface. */
-  --dh-color-text-on-accent: var(--md-sys-color-on-primary);
+  --dh-color-text-on-accent: var(--ink-inverse);
   /** Text on the pale accent surface. */
-  --dh-color-text-on-accent-subtle: var(--md-sys-color-on-primary-container);
+  --dh-color-text-on-accent-subtle: var(--accent-pressed);
   /** Text on a filled danger surface. */
-  --dh-color-text-on-danger: var(--md-sys-color-on-error);
+  --dh-color-text-on-danger: var(--ink-inverse);
 
   /*
    * TWO borders, and the split is the WCAG one rather than a visual one.
@@ -5128,8 +5244,8 @@
    * a checkbox's box. Using the first where the second belongs is the defect
    * this pair exists to make nameable.
    */
-  --dh-color-border: var(--md-app-color-outline-hairline);
-  --dh-color-border-strong: var(--md-sys-color-outline);
+  --dh-color-border: var(--border);
+  --dh-color-border-strong: var(--border-strong);
   /*
    * FINAL-UI — the THIRD border, and the split is the one the concepts draw.
    *
@@ -5145,28 +5261,28 @@
    * which IDENTIFIES a control and owes 3:1 under WCAG 1.4.11). The question
    * this pair answers is which of two quiet lines a surface is drawing.
    */
-  --dh-color-divider: var(--md-app-color-outline-divider);
+  --dh-color-divider: var(--hairline);
 
   /** The brand, spent on ACTION: the one primary control, a progress fill. */
-  --dh-color-accent: var(--md-sys-color-primary);
+  --dh-color-accent: var(--accent);
   /** Its pale container, for a wash or a selected chip. Used sparingly. */
-  --dh-color-accent-subtle: var(--md-sys-color-primary-container);
+  --dh-color-accent-subtle: var(--accent-tint);
 
   /*
    * Status. Four names, and `danger` is not `overdue` — D3: a slipped Task is a
    * state of a record, not an application fault, and the two must stay
    * separable so a red list is never mistaken for a broken one.
    */
-  --dh-color-danger: var(--md-sys-color-error);
-  --dh-color-success: var(--md-sys-color-success);
-  --dh-color-warning: var(--md-sys-color-warning);
-  --dh-color-overdue: var(--md-sys-color-state-overdue);
+  --dh-color-danger: var(--danger);
+  --dh-color-success: var(--success);
+  --dh-color-warning: var(--warning);
+  --dh-color-overdue: var(--danger);
 
   /** The focus indicator. Named separately from the accent because it is an
    * accessibility contract, not a brand decision, and must survive a rebrand. */
-  --dh-color-focus: var(--md-sys-color-primary);
+  --dh-color-focus: var(--accent);
   /** The scrim behind a modal surface. */
-  --dh-color-scrim: var(--md-sys-color-scrim);
+  --dh-color-scrim: var(--overlay-scrim);
 
   /* ---------------------------------------------------------------------- */
   /* Space                                                                  */
@@ -5201,14 +5317,12 @@
    * ONE primary or destructive action on a surface. It is a rung here so that
    * the reservation is a documented choice rather than a missing value.
    */
-  --dh-radius-sm: var(--md-sys-shape-corner-extra-small); /* 4 */
-  --dh-radius-control: var(
-    --app-shape-control
-  ); /* 8 — inputs, buttons, menu items */
-  --dh-radius-md: var(--app-shape-metric); /* 12 — figure tiles, inset runs */
-  --dh-radius-lg: var(--app-shape-card); /* 16 — cards, panels */
-  --dh-radius-xl: var(--app-shape-hero); /* 20 — the one expressive surface */
-  --dh-radius-pill: var(--md-sys-shape-corner-full);
+  --dh-radius-sm: var(--radius-badge);
+  --dh-radius-control: var(--radius-control);
+  --dh-radius-md: var(--radius-card-sm);
+  --dh-radius-lg: var(--radius-card);
+  --dh-radius-xl: var(--radius-card);
+  --dh-radius-pill: var(--radius-pill);
 
   /* ---------------------------------------------------------------------- */
   /* Borders and elevation                                                  */
@@ -5225,12 +5339,12 @@
   --dh-border-width: var(--app-border-width-thin);
   --dh-border-width-strong: var(--app-border-width-thick);
 
-  --dh-elevation-flat: var(--app-elevation-resting);
-  --dh-elevation-raised: var(--app-elevation-raised);
+  --dh-elevation-flat: none;
+  --dh-elevation-raised: none;
   /** A popover, a menu, an anchored editor. */
-  --dh-elevation-overlay: var(--md-sys-elevation-2);
+  --dh-elevation-overlay: var(--shadow-popover);
   /** A dialog, a sheet, a drawer — the layer above everything. */
-  --dh-elevation-modal: var(--md-sys-elevation-3);
+  --dh-elevation-modal: var(--shadow-panel);
 
   /* ---------------------------------------------------------------------- */
   /* Focus                                                                  */
@@ -5239,7 +5353,7 @@
    * It follows the component's own radius, which is why there is no shape here
    * to keep in sync (ADR-074 Decision 10). */
   --dh-focus-width: var(--app-border-width-thick);
-  --dh-focus-offset: var(--app-space-px);
+  --dh-focus-offset: 2px;
   --dh-focus-color: var(--dh-color-focus);
 
   /* ---------------------------------------------------------------------- */
@@ -5262,8 +5376,8 @@
    * reaches all of them (AGENTS.md §15).
    */
 
-  --dh-font-family: var(--md-ref-typeface-plain);
-  --dh-font-family-mono: var(--md-ref-typeface-mono);
+  --dh-font-family: var(--font);
+  --dh-font-family-mono: var(--font-mono);
 
   /**
    * A page's own title. One per route.
@@ -5276,51 +5390,39 @@
    * is §14 of the brief ("avoid oversized display styles in normal productivity
    * views") stated as a token rather than as a rule authors have to remember.
    */
-  --dh-text-page-title-size: var(--md-sys-typescale-title-large-size);
-  --dh-text-page-title-line-height: var(
-    --md-sys-typescale-title-large-line-height
-  );
-  --dh-text-page-title-weight: var(
-    --md-sys-typescale-title-large-weight-emphasized
-  );
+  --dh-text-page-title-size: 26px;
+  --dh-text-page-title-line-height: 1.15;
+  --dh-text-page-title-weight: 600;
 
   /** A record's title, and a dominant surface's headline. */
-  --dh-text-record-title-size: var(--md-sys-typescale-title-large-size);
-  --dh-text-record-title-line-height: var(
-    --md-sys-typescale-title-large-line-height
-  );
-  --dh-text-record-title-weight: var(
-    --md-sys-typescale-title-large-weight-emphasized
-  );
+  --dh-text-record-title-size: 26px;
+  --dh-text-record-title-line-height: 1.15;
+  --dh-text-record-title-weight: 600;
 
   /** A section heading, a card title, a widget title. */
-  --dh-text-section-title-size: var(--md-sys-typescale-title-medium-size);
-  --dh-text-section-title-line-height: var(
-    --md-sys-typescale-title-medium-line-height
-  );
-  --dh-text-section-title-weight: var(
-    --md-sys-typescale-title-medium-weight-emphasized
-  );
+  --dh-text-section-title-size: 18px;
+  --dh-text-section-title-line-height: 1.25;
+  --dh-text-section-title-weight: 600;
 
   /** Prose, descriptions, anything read continuously. */
-  --dh-text-body-size: var(--md-sys-typescale-body-large-size);
-  --dh-text-body-line-height: var(--md-sys-typescale-body-large-line-height);
-  --dh-text-body-weight: var(--md-sys-typescale-body-large-weight);
+  --dh-text-body-size: 14px;
+  --dh-text-body-line-height: 1.55;
+  --dh-text-body-weight: 400;
 
   /** A list row's own line — the densest text the product asks to be SCANNED. */
-  --dh-text-row-size: var(--md-sys-typescale-body-medium-size);
-  --dh-text-row-line-height: var(--md-sys-typescale-body-medium-line-height);
-  --dh-text-row-weight: var(--md-sys-typescale-body-medium-weight);
+  --dh-text-row-size: 14px;
+  --dh-text-row-line-height: 1.4;
+  --dh-text-row-weight: 400;
 
   /** Metadata: a date, a count, a supporting fact beside something else. */
-  --dh-text-meta-size: var(--md-sys-typescale-body-small-size);
-  --dh-text-meta-line-height: var(--md-sys-typescale-body-small-line-height);
-  --dh-text-meta-weight: var(--md-sys-typescale-body-small-weight);
+  --dh-text-meta-size: 12.5px;
+  --dh-text-meta-line-height: 1.35;
+  --dh-text-meta-weight: 400;
 
   /** A control's own text: a button, a tab, a menu item, a field label. */
-  --dh-text-label-size: var(--md-sys-typescale-label-large-size);
-  --dh-text-label-line-height: var(--md-sys-typescale-label-large-line-height);
-  --dh-text-label-weight: var(--md-sys-typescale-label-large-weight);
+  --dh-text-label-size: 13px;
+  --dh-text-label-line-height: 1.2;
+  --dh-text-label-weight: 500;
 
   /*
    * NUMERIC readability, as a property rather than as a size.
@@ -5344,22 +5446,16 @@
    * `--dh-motion-none` is the one duration allowed to be nothing, and
    * `prefers-reduced-motion` in `base.css` is what resolves to it.
    */
-  --dh-motion-none: var(--md-sys-motion-duration-none);
-  --dh-motion-instant: var(
-    --md-sys-motion-duration-short2
-  ); /* 100 — state layers */
-  --dh-motion-fast: var(
-    --md-sys-motion-duration-short3
-  ); /* 150 — hover, small moves */
-  --dh-motion-base: var(--md-sys-motion-duration-short4); /* 200 — open/close */
-  --dh-motion-slow: var(
-    --md-sys-motion-duration-medium2
-  ); /* 300 — a sheet, a drawer */
+  --dh-motion-none: 0ms;
+  --dh-motion-instant: var(--dur-hover);
+  --dh-motion-fast: var(--dur-hover);
+  --dh-motion-base: var(--dur-panel);
+  --dh-motion-slow: var(--dur-progress);
 
-  --dh-ease-standard: var(--md-sys-motion-easing-standard);
-  --dh-ease-enter: var(--md-sys-motion-easing-standard-decelerate);
-  --dh-ease-exit: var(--md-sys-motion-easing-standard-accelerate);
-  --dh-ease-emphasized: var(--md-sys-motion-easing-emphasized);
+  --dh-ease-standard: var(--ease);
+  --dh-ease-enter: var(--ease);
+  --dh-ease-exit: var(--ease);
+  --dh-ease-emphasized: var(--ease);
 
   /* ---------------------------------------------------------------------- */
   /* Density — the DEFAULT preset                                           */
@@ -5377,21 +5473,21 @@
    */
 
   /** A button, an input, a select — anything with a hit area and a border. */
-  --dh-control-height: var(--app-control-height-lg); /* 45 */
+  --dh-control-height: 36px;
   /** A menu item, a listbox option, a command-palette result. */
-  --dh-menu-item-height: var(--app-control-height-lg); /* 45 */
+  --dh-menu-item-height: 34px;
   /** A row in a list or a table. A FLOOR — a row whose content wraps grows. */
-  --dh-row-height: var(--app-list-row-height-one-line); /* 56 */
+  --dh-row-height: 56px;
   /** The inline padding a row, a menu item or a table cell holds its content in. */
-  --dh-inset-inline: var(--app-space-4); /* 16 */
+  --dh-inset-inline: 12px;
   /** Its block padding. */
-  --dh-inset-block: var(--app-space-3); /* 12 */
+  --dh-inset-block: 10px;
   /** The padding a card or panel holds its content in. */
-  --dh-surface-padding: var(--app-card-padding); /* 20 */
+  --dh-surface-padding: 16px;
   /** The gap between sibling controls in a toolbar, a field row, a chip run. */
-  --dh-control-gap: var(--app-space-2); /* 8 */
+  --dh-control-gap: 8px;
   /** A control's own glyph. */
-  --dh-icon-size: var(--app-entity-icon-size); /* 20 */
+  --dh-icon-size: 16px;
 
   /* ---------------------------------------------------------------------- */
   /* Shell anatomy (DS-03)                                                  */
@@ -5412,19 +5508,19 @@
    */
 
   /** The permanent desktop rail. D12's 216px, unchanged since VIS-01. */
-  --dh-shell-rail-width: var(--app-shell-navigation-width);
+  --dh-shell-rail-width: 224px;
   /** The rail collapsed to glyphs — what a tablet gets (DS-03). */
-  --dh-shell-rail-width-collapsed: var(--app-shell-navigation-width-collapsed);
+  --dh-shell-rail-width-collapsed: 68px;
   /** The desktop top bar. */
   --dh-shell-bar-height: var(--app-shell-topbar-height);
   /** The phone's own top bar, which is a different component. */
   --dh-shell-mobile-bar-height: var(--app-shell-mobilebar-height);
   /** One navigation destination's painted row. */
-  --dh-shell-nav-row-height: var(--app-nav-row-height);
+  --dh-shell-nav-row-height: 36px;
   /** The page gutter currently in force (stepped by width in `base.css`). */
   --dh-shell-gutter: var(--app-page-padding);
   /** The measure ordinary page content is held to. */
-  --dh-shell-content-max-width: var(--app-content-max-width);
+  --dh-shell-content-max-width: 1440px;
 
   /* ---------------------------------------------------------------------- */
   /* Safe areas (DS-03)                                                     */
@@ -5500,8 +5596,8 @@
 [data-dh-density="compact"] {
   /* 36px — the `md` control rung, which is what a dense desktop toolbar and a
    * table's own controls already want and currently hard-code around. */
-  --dh-control-height: var(--app-control-height-md);
-  --dh-menu-item-height: var(--app-control-height-md);
+  --dh-control-height: 32px;
+  --dh-menu-item-height: 34px;
   /*
    * FINAL-UI — 36px, down from 45.
    *
@@ -5517,34 +5613,34 @@
    * of 3.5 — which is the single biggest reason the shipped list read as
    * comfortable where the concepts read as fast.
    */
-  --dh-row-height: var(--app-control-height-md);
-  --dh-inset-inline: var(--app-space-3); /* 12 */
-  --dh-inset-block: var(--app-space-2); /* 8 */
-  --dh-surface-padding: var(--app-card-padding-compact); /* 16 */
-  --dh-control-gap: var(--app-space-1); /* 4 */
-  --dh-icon-size: var(--app-entity-icon-size-sm); /* 18 */
+  --dh-row-height: 44px;
+  --dh-inset-inline: 12px;
+  --dh-inset-block: 8px;
+  --dh-surface-padding: 16px;
+  --dh-control-gap: 6px;
+  --dh-icon-size: 16px;
 }
 
 [data-dh-density="default"] {
-  --dh-control-height: var(--app-control-height-lg);
-  --dh-menu-item-height: var(--app-control-height-lg);
-  --dh-row-height: var(--app-list-row-height-one-line);
-  --dh-inset-inline: var(--app-space-4);
-  --dh-inset-block: var(--app-space-3);
-  --dh-surface-padding: var(--app-card-padding);
-  --dh-control-gap: var(--app-space-2);
-  --dh-icon-size: var(--app-entity-icon-size);
+  --dh-control-height: 36px;
+  --dh-menu-item-height: 34px;
+  --dh-row-height: 56px;
+  --dh-inset-inline: 12px;
+  --dh-inset-block: 10px;
+  --dh-surface-padding: 16px;
+  --dh-control-gap: 8px;
+  --dh-icon-size: 16px;
 }
 
 [data-dh-density="touch"] {
-  --dh-control-height: var(--app-touch-target-min); /* 45 */
-  --dh-menu-item-height: var(--app-touch-target-min);
-  --dh-row-height: var(--app-list-row-height-two-line); /* 64 */
-  --dh-inset-inline: var(--app-space-4); /* 16 */
-  --dh-inset-block: var(--app-space-4); /* 16 */
-  --dh-surface-padding: var(--app-card-padding); /* 20 */
-  --dh-control-gap: var(--app-space-3); /* 12 */
-  --dh-icon-size: var(--app-entity-icon-size); /* 20 */
+  --dh-control-height: 44px;
+  --dh-menu-item-height: 44px;
+  --dh-row-height: 56px;
+  --dh-inset-inline: 16px;
+  --dh-inset-block: 12px;
+  --dh-surface-padding: 16px;
+  --dh-control-gap: 12px;
+  --dh-icon-size: 18px;
 }
 
 /*
@@ -5557,14 +5653,14 @@
  */
 @media (pointer: coarse) {
   :root:not([data-dh-density]) {
-    --dh-control-height: var(--app-touch-target-min);
-    --dh-menu-item-height: var(--app-touch-target-min);
-    --dh-row-height: var(--app-list-row-height-two-line);
-    --dh-inset-inline: var(--app-space-4);
-    --dh-inset-block: var(--app-space-4);
-    --dh-surface-padding: var(--app-card-padding);
-    --dh-control-gap: var(--app-space-3);
-    --dh-icon-size: var(--app-entity-icon-size);
+    --dh-control-height: 44px;
+    --dh-menu-item-height: 44px;
+    --dh-row-height: 56px;
+    --dh-inset-inline: 16px;
+    --dh-inset-block: 12px;
+    --dh-surface-padding: 16px;
+    --dh-control-gap: 12px;
+    --dh-icon-size: 18px;
   }
 
   /*
@@ -5574,9 +5670,9 @@
    * file, so it beats the preset whatever the source order.
    */
   [data-dh-density="compact"] {
-    --dh-control-height: var(--app-touch-target-min);
-    --dh-menu-item-height: var(--app-touch-target-min);
-    --dh-row-height: var(--app-touch-target-min);
+    --dh-control-height: 44px;
+    --dh-menu-item-height: 44px;
+    --dh-row-height: 44px;
   }
 
   /*
