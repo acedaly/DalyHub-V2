@@ -77,7 +77,13 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   // DS-02 retired `.dh-confirm__button` entirely — the confirmation dialog's
   // actions are the shared `Button`, which is a host of the one implementation.
   // One entry off the ratchet.
-  "settings.css: .dh-settings-page__nav-link:hover",
+  //
+  // FINAL-UI took `settings.css: .dh-settings-page__nav-link:hover` off it too.
+  // The Settings section list became a two-line row (a title over the sentence
+  // that says what is inside, which is what concept 1 draws), so the fill had to
+  // move from the link to the row — and moving it was the moment to stop
+  // re-implementing it. The row carries `md-state-layer` in the markup and gains
+  // the pressed state the hand-rolled rule never had.
   "sheet.css: .dh-sheet-option:hover",
   "sheet.css: .dh-sheet__close:hover",
   "summary-cards.css: .dh-summary-card--link:hover",

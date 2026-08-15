@@ -657,17 +657,33 @@
   flex-direction: column;
   justify-content: center;
   min-inline-size: 0;
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
+/*
+ * FINAL-UI — the section is a TITLE over a line, at every width.
+ *
+ * Concept 1's Settings is the screen the brief singles out (§53), and it is a
+ * list of two-line rows: "Account / Profile, plan, billing", "Preferences /
+ * Appearance, behaviour". DalyHub already carries exactly that sentence for
+ * every section — it wrote them for the phone list and hid them on the desktop
+ * rail — so the concept's screen was one `clip-path` away.
+ *
+ * The label steps up to the row type role with it: a two-line row whose first
+ * line is `body-small` reads as two pieces of supporting text rather than as a
+ * title and its explanation.
+ */
 .dh-settings-page__nav-link {
   display: flex;
   align-items: center;
   min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-medium);
-  color: var(--dh-color-text-muted);
+  padding: var(--app-space-2) var(--app-space-3) 0;
+  border-radius: var(--md-sys-shape-corner-medium)
+    var(--md-sys-shape-corner-medium) 0 0;
+  color: var(--dh-color-text);
   text-decoration: none;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
   font-weight: 500;
 }
 
@@ -679,21 +695,19 @@
 }
 
 /*
- * The summary is carried in the DOM at every width, because it is the link's
+ * The summary is carried in the DOM at every width because it is the link's
  * accessible DESCRIPTION — a section called "General" says nothing on its own —
- * but a desktop RAIL is a rail, so it is hidden visually and stays available to
- * assistive technology. The phone list below reveals it.
+ * and FINAL-UI made it VISIBLE at every width too, for the same reason it exists
+ * at all. It stays a described sibling rather than part of the link's name (see
+ * the note in `routes/index.tsx`), and the link's `::after` still covers the
+ * whole two-line row, so the target is unchanged.
  */
 .dh-settings-page__nav-summary {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
+  margin: 0;
+  padding: 0 var(--app-space-3) var(--app-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
 }
 
 /* The phone-only way back to the section list. */
@@ -702,9 +716,25 @@
   margin: 0;
 }
 
+/*
+ * FINAL-UI — hover and selection paint the ROW, not the link.
+ *
+ * The row is now two elements (the link and its summary) and the link is only
+ * its first line, so a background on the link alone tinted the title and left
+ * the sentence under it on the bare page — half a highlighted row.
+ *
+ * HOVER is the shared state layer, opted into by putting `md-state-layer` on
+ * the item in the markup (`routes/index.tsx`) rather than by a fill written
+ * here — which is the whole point of `state-layer.test.ts` refusing a
+ * hand-rolled one, and it also gains the pressed state the old rule never had.
+ * The link's own `::after` still covers the item, so the whole two-line row is
+ * one target and hovering the summary hovers the row.
+ *
+ * SELECTION is not a state layer — it is a durable surface — so it stays a real
+ * background, moved up to the row it describes.
+ */
 .dh-settings-page__nav-link:hover {
   color: var(--dh-color-text);
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-settings-page__nav-link:focus-visible {
@@ -726,10 +756,13 @@
  * beside the appearance rows was most of why Settings read as a different
  * product. The weight and `aria-current` are untouched.
  */
+.dh-settings-page__nav-item:has(.dh-settings-page__nav-link--active) {
+  background: var(--dh-color-surface-selected);
+}
+
 .dh-settings-page__nav-link--active {
   color: var(--dh-color-text);
-  background: var(--dh-color-surface-selected);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .dh-settings-page__content {
@@ -859,23 +892,24 @@
   }
 
   /* The list is a list of destinations, not a set of tabs: nothing in it is
-   * "current" while the list itself is what is on screen. */
-  .dh-settings-page__nav-link--active {
+   * "current" while the list itself is what is on screen. FINAL-UI moved the
+   * selected paint to the row, so this clears it there. */
+  .dh-settings-page__nav-item:has(.dh-settings-page__nav-link--active) {
     background: transparent;
+  }
+
+  .dh-settings-page__nav-link--active {
     color: var(--dh-color-text);
   }
 
-  /* The summary becomes visible — it is what makes a list of eight nouns
-   * navigable without opening each one. */
+  /*
+   * The phone summary keeps its own type. FINAL-UI made the summary visible at
+   * every width (see the base rule), so all this block still owns is the
+   * WRAPPING: a phone row is two or three lines of sentence, a desktop rail row
+   * is one, and `text-wrap: pretty` is what stops the last of them being a
+   * single orphan word.
+   */
   .dh-settings-page__nav-summary {
-    position: static;
-    inline-size: auto;
-    block-size: auto;
-    margin: 0;
-    overflow: visible;
-    clip-path: none;
-    white-space: normal;
-    color: var(--dh-color-text-muted);
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: var(--md-sys-typescale-body-small-line-height);
     font-weight: 400;

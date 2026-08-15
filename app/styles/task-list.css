@@ -1138,9 +1138,44 @@
     content: none;
   }
 
+  /*
+   * FINAL-UI — the priority keeps a gap it cannot lose.
+   *
+   * `margin-inline-start: auto` pushes it to the trailing edge, and when the
+   * project name is long enough to consume the free space there is no auto
+   * margin left to be a gap — MEASURED at 390 on `/tasks`, where "Task Dataset
+   * Gamma" ran into the P1 flag with no space between them. The padding is a
+   * floor the auto margin cannot eat; the project truncates below rather than
+   * pushing further.
+   */
   .dh-taskrow__cell--priority {
     flex: none;
     margin-inline-start: auto;
+    padding-inline-start: var(--dh-space-2);
+  }
+
+  /*
+   * And the project TRUNCATES with an ellipsis rather than being chopped.
+   *
+   * `.dh-inline-select__value` is an `inline-flex` box holding the label and a
+   * caret, and `text-overflow` does not apply to a flex container's anonymous
+   * text item — a shrinking cell around it clips mid-glyph, which reads as a
+   * rendering fault rather than as truncation. The caret is already hidden at
+   * this width (see the note further down), so the box has one child and can be
+   * a block, where the ellipsis works.
+   */
+  .dh-taskrow__cell--project .dh-inline-select__value,
+  .dh-taskrow__cell--project .dh-inline-edit__value {
+    display: block;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dh-taskrow__cell--project .dh-inline-edit__trigger {
+    min-inline-size: 0;
   }
 
   .dh-taskrow__cell--status {
@@ -1187,5 +1222,17 @@
 @container tasklist (max-width: 19rem) {
   .dh-taskrow__cell--due {
     display: none;
+  }
+
+  /*
+   * FINAL-UI — and the separator goes with it.
+   *
+   * The `:has()` guards above suppress the dot when the date cell holds no
+   * VALUE; this cell holds one and is simply not displayed, so the guards did
+   * not fire and a 320px row opened with a leading "· Kitchen fit-out".
+   * MEASURED at 320 on `/tasks`.
+   */
+  .dh-taskrow__cell--project::before {
+    content: none;
   }
 }
