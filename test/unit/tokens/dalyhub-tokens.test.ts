@@ -33,6 +33,9 @@ import {
   appRelative,
   appSourceFiles,
   blockBody,
+  darkSchemeTokens,
+  explicitDarkSchemeTokens,
+  lightSchemeTokens,
   parseDeclarations,
   readAppFile,
   repoRelative,
@@ -120,8 +123,22 @@ describe("DS-01 the DalyHub layer is complete and closed", () => {
 describe("DS-01 the layer is semantic over the Part B primitives", () => {
   const tokens = allTokens();
 
-  it("defines the authored Part B colour primitives", () => {
-    const root = parseDeclarations(blockBody(dalyhubSection(), /:root\s*\{/));
+  /*
+   * REDESIGN-03 — the colour primitives moved into the GENERATOR.
+   *
+   * They were authored on the DalyHub layer's bare `:root` with light values
+   * and no dark counterpart, and because every `--dh-color-*` name resolves
+   * onto them, that pinned the whole product to the light appearance: choosing
+   * Dark left a light page and a white navigation rail. The fix could not be a
+   * hand-written dark block — `appearance-cascade.test.ts` rules those out, and
+   * is right to — so `DALYHUB_PRIMITIVES` in `generate-m3-scheme.mjs` now emits
+   * the pair inside the generated markers.
+   *
+   * The assertion is unchanged in substance and reads from the new home: these
+   * are still the Part B values, to the digit, in the light appearance.
+   */
+  it("defines the authored Part B colour primitives in light", () => {
+    const root = lightSchemeTokens();
     const expected: Record<string, string> = {
       canvas: "#f6f6f8",
       surface: "#ffffff",
@@ -148,12 +165,46 @@ describe("DS-01 the layer is semantic over the Part B primitives", () => {
     }
   });
 
+  /*
+   * The half that did not exist. Every primitive that carries a colour has to
+   * be redefined in BOTH dark blocks — the device one and the explicit one — or
+   * an owner on a dark device and an owner who chose Dark get different
+   * products. A missing name here is precisely the defect this pass found.
+   */
+  it("gives every colour primitive a dark counterpart in both dark blocks", () => {
+    const light = lightSchemeTokens();
+    const names = [...light.keys()].filter(
+      (name) =>
+        /^(canvas|surface|overlay-scrim|border|hairline|ink|accent|danger|warning|success|info|priority-\d|category-|shadow-)/.test(
+          name,
+        ) && !name.startsWith("md-"),
+    );
+    expect(names.length).toBeGreaterThan(30);
+
+    for (const [label, block] of [
+      ["device dark", darkSchemeTokens()],
+      ["explicit dark", explicitDarkSchemeTokens()],
+    ] as const) {
+      for (const name of names) {
+        expect(block.get(name), `${label}: --${name}`).toBeTruthy();
+        // A dark value that equals its light one is a primitive that was
+        // copied rather than chosen — the page and the ink cannot both be
+        // right in both appearances at the same value.
+        if (name === "canvas" || name === "surface" || name === "ink") {
+          expect(block.get(name), `${label}: --${name}`).not.toBe(
+            light.get(name),
+          );
+        }
+      }
+    }
+  });
+
   it("gives priority its own four colours rather than borrowing feedback", () => {
     // Priority used to alias danger/warning/info. They are different CONCEPTS —
     // a P1 task is not an error — and the alias capped how separable the ramp
     // could be: at flag size, the danger red and the warning amber were one warm
     // smudge, so P1 and P2 were the hardest pair in the list to tell apart.
-    const root = parseDeclarations(blockBody(dalyhubSection(), /:root\s*\{/));
+    const root = lightSchemeTokens();
     const levels = ["priority-1", "priority-2", "priority-3", "priority-4"];
     const values = levels.map((name) => root.get(name));
 

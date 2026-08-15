@@ -346,10 +346,10 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     expect(stated).not.toBeNull();
 
     // The number is the TRUE size of the view it links to — never a guess and
-    // never the slice. The figure above the panel says the same thing.
-    await expect(page.getByTestId("today-stat-tasks")).toContainText(
-      stated![1]!,
-    );
+    // never the slice. REDESIGN-03 removed the stat card that used to restate
+    // it above the panel (it duplicated the band the link sits under), so the
+    // claim is checked where it has always mattered most: against the
+    // destination's own count, below.
     await viewAll.click();
     await expect(page).toHaveURL(/\/tasks\?system=today/);
     await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();

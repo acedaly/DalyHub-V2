@@ -7,20 +7,65 @@
  * ── WHAT IT IS ───────────────────────────────────────────────────────────────
  *
  *   greeting + date                                        [ Plan day ]
- *   ┌────────────┐┌────────────┐┌────────────┐┌────────────┐
- *   │ Tasks today││ Overdue    ││ Meetings   ││ Progress ◯ │  the day's figures
- *   │ 6          ││ 2          ││ 2          ││ 68%        │  as quiet cards
- *   └────────────┘└────────────┘└────────────┘└────────────┘
+ *   Today · Tomorrow · Next 7 days
+ *   ┌──────────────────┐┌──────────────────┐┌──────────────────┐
+ *   │ Tasks completed  ││ Tasks captured   ││ Goals on track   │  the week's
+ *   │ 24               ││ 31               ││ 3 of 5           │  three measures
+ *   └──────────────────┘└──────────────────┘└──────────────────┘
  *   ┌───────────────────────────────────┐┌──────────────────┐
- *   │ Focus                             ││ Schedule         │
- *   │  OVERDUE                          ││  09:30 Standup   │
- *   │   ▏Send the summary  Due 2 days ago│├──────────────────┤
- *   │  DUE TODAY                        ││ Needs attention  │
+ *   │ Focus                             ││ Needs attention  │
+ *   │  OVERDUE                          │├──────────────────┤
+ *   │   ▏Send the summary  Due 2 days ago││ Schedule         │
+ *   │  DUE TODAY                        ││  09:30 Standup   │
  *   │   ☐ Draft the notes    P1  Project │├──────────────────┤
- *   │  PLANNED TODAY                    ││ Continue working │
- *   │   ☐ Refactor the tokens    Project ││                  │
- *   │  View all 14 tasks for today      ││                  │
+ *   │  PLANNED TODAY                    ││ Goal progress    │
+ *   │   ☐ Refactor the tokens    Project │├──────────────────┤
+ *   │  View all 14 tasks for today      ││ Continue working │
  *   └───────────────────────────────────┘└──────────────────┘
+ *
+ * ── REDESIGN-03: what this surface STOPPED doing ─────────────────────────────
+ * The convergence merge landed two independently redesigned Todays on top of
+ * each other and kept both. The page carried FIVE metric cards above the first
+ * task — a `StatCardRow` of Meetings/Overdue/Daily-progress, and then this
+ * summary's three — and a workload chart at the bottom restating two of them a
+ * third time. Measured on the base commit at 390px, the entire first viewport
+ * was chrome: greeting, two cards, the day rail, three more cards, and not one
+ * row of the owner's actual work.
+ *
+ * Every figure in the row that went was already on the page, said better:
+ *
+ *   Meetings today · Next 20:00   →  the Schedule panel, which names the meeting
+ *   Overdue 44                    →  Focus's own Overdue band and "+41 more"
+ *   Daily progress 68%            →  removed outright, see below
+ *
+ * The workload chart went with them. It plotted `completed` against `created`
+ * for seven days and then printed "21 completed · 124 created" underneath —
+ * which is the first two cards of this summary, in the same units, over the same
+ * window, one screen apart. Trends belong to Analytics, which owns a real range
+ * picker and states each figure's provenance; the summary's completed measure
+ * links there.
+ *
+ * ── WHY THERE IS NO DAILY-PROGRESS PERCENTAGE ────────────────────────────────
+ * Because the product does not have one. `DALYHUB_DESIGN_SYSTEM.md` §5d rules
+ * out "no focus time, no 'daily progress' percentage — DalyHub tracks no time
+ * and computes no percentage of a life", and `~/kernel/analytics/analytics.ts`
+ * refuses the same two figures by name where the supplied reference asks for
+ * them. Analytics has held that line since UIX-05. Today had quietly broken it:
+ * a green ring reading `completed / today's tasks` as a headline percentage.
+ *
+ * It is not a defensible daily metric either. The denominator is whatever the
+ * owner happened to date for today, so clearing three of three reads 100% and
+ * clearing nine of twelve reads 75% — the emptier day scores better. The
+ * information it carried is on the page as the thing itself: the day's list,
+ * with what is done dimmed in place.
+ *
+ * ── WHY THERE IS NO FOCUS TIME ───────────────────────────────────────────────
+ * The reference's middle card reads "Focus time · 6h 45m". DalyHub captures no
+ * focus time — no timer, no session record, no field it could be derived from —
+ * and the brief is explicit that an unavailable metric is left out rather than
+ * faked to match a screenshot. The slot goes to the honest sibling of the first
+ * figure, from the same bounded query: what was CAPTURED this week beside what
+ * was completed. Read together they say whether the week is clearing or filling.
  *
  * ── WHY FOCUS HAS THREE BANDS (TODAY-10) ─────────────────────────────────────
  * It had two: an unnamed run of slipped work, and one list called "For today".
@@ -32,18 +77,13 @@
  * unchanged; only its legibility is. See `day-view.ts` for the classifier.
  *
  * ── WHY THERE IS NO HERO ─────────────────────────────────────────────────────
- * There was one: a tinted, elevated summary carrying the same three counts. The
- * approved direction replaced it with this row, and the trade is deliberate.
- * A hero spends the page's largest type on a HEADLINE ("Your day") and leaves
- * the figures at label size beside it; a row of stat cards spends it on the
- * FIGURES, which is what the screen is actually asked. It is also calmer: four
- * cards on the canvas instead of one violet band, which is the restraint the
- * DalyHub design system asks for (DALYHUB_DESIGN_SYSTEM.md §1).
- *
- * The rules the hero held are unchanged and are still enforced in one pure,
- * unit-tested place (`dayChips` / `dayProgress`): a zero never paints, every
- * figure links to the canonical view that holds it, and slipped work is the one
- * thing given a tone.
+ * There was one: a tinted, elevated summary carrying the day's counts. The
+ * approved direction replaced it, and the trade is deliberate. A hero spends the
+ * page's largest type on a HEADLINE ("Your day") and leaves the figures at label
+ * size beside it; the reference spends it on the FIGURES, and it spends it on
+ * the WEEK rather than the day — because the day itself is the list directly
+ * underneath, and a figure that counts what is visible two inches below it is
+ * not a measure, it is a caption.
  *
  * ── WHAT IT DELIBERATELY IS NOT ──────────────────────────────────────────────
  * There is no search hero (search is an icon in the top app bar with `/`), no
@@ -54,22 +94,24 @@
  * with nothing to say is not painted at all.
  *
  * ── THE RULES THAT KEEP IT HONEST ────────────────────────────────────────────
- *   - **Zeros never render.** Every figure, the progress ring, every timeline
- *     section and every rail row is conditional on its own count. A quiet day is
- *     a short page, not a page of noughts — and the summary itself does not
- *     paint when it would have nothing to say.
- *   - **One fact, one place.** Overdue work is a summary figure AND actionable
- *     rows — and is banned from the rail, which holds only what the timeline
- *     does not show. M3X's summary REPLACED the assist-chip row for this reason;
- *     it did not join it.
+ *   - **Zeros never render.** Every measure, every timeline section and every
+ *     rail row is conditional on its own count. A quiet day is a short page, not
+ *     a page of noughts — and the summary itself does not paint when it would
+ *     have nothing to say.
+ *   - **One fact, one place.** This is the rule REDESIGN-03 enforced. Overdue
+ *     work is actionable ROWS in Focus and nothing else: not a card above them,
+ *     not a rail entry beside them. A figure earns its place by counting
+ *     something the page does not otherwise show.
  *   - **No tinted surface at all.** Today is the product's calmest screen by
- *     design: the figures lead, the day follows, and colour is spent only on
- *     slipped work and on the progress ring. Every panel is one quiet tonal
- *     surface.
+ *     design: the day leads and colour is spent on slipped work alone. No
+ *     metric tile carries an accent, and nothing on the page is a coloured
+ *     block.
  *   - **Tasks have no times.** A task is a date; a meeting is an instant. So
  *     there is no Morning/Afternoon grouping and no invented time beside a task.
- *   - **Tonal surfaces, not outlined cards.** Each column is ONE surface with
- *     plain rows inside it. No panel inside a panel.
+ *   - **ONE card, and it holds the work.** The day's own tasks sit inside a
+ *     bordered surface; every supporting section beside them is a heading, its
+ *     rows and space. No panel inside a panel, and no row of equal-weight
+ *     rectangles pretending each section matters as much as the day.
  *
  * Capture is the global `+` alone: this screen offers no second capture control.
  */
@@ -81,24 +123,19 @@ import { Link, useSearchParams } from "react-router";
 // so the Today route chunk does not eagerly pull the palette controller.
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 import type { AppAction } from "~/shared/commands/action";
-import { StatCard, StatCardItem, StatCardRow } from "~/shared/card";
 import { AccentIcon } from "~/shared/entity";
 import { areaAccentForRank } from "~/shared/pill";
-import { ProgressRing } from "~/shared/charts";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
   AssetIcon,
-  CalendarIcon,
   CheckCircleIcon,
   GoalIcon,
   ProjectIcon,
   ScheduleIcon,
   TaskIcon,
-  TrendingUpIcon,
   ToneIcon,
   type ToneName,
 } from "~/shared/icons";
-import { ComparisonBars } from "~/shared/charts";
 import {
   GoalProgressReadout,
   formatMeasurementChange,
@@ -112,12 +149,9 @@ import { ScheduleList } from "../schedule/ScheduleList";
 
 import {
   bucketDay,
-  dayChips,
-  dayProgress,
   focusTodaySlice,
   greetingFor,
   dayPartForHour,
-  nextUp,
   overdueLabel,
   overdueSlice,
   tasksForTodayCount,
@@ -132,7 +166,6 @@ import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
 import { goalIsOnTrack } from "~/shared/goal-progress";
 
 import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
-import { activityTrendSummary, weekdayLabel } from "./trend-view";
 import type { TodayDayData } from "./load";
 
 export type TodayScreenProps = {
@@ -198,33 +231,6 @@ const ATTENTION_TONES: Readonly<Record<AttentionKind, ToneName>> = {
   asset: "teal",
   inbox: "violet",
 };
-
-/**
- * UIX-01 — the glance row's tonal identities, keyed by the chip model's id.
- *
- * Four figures, four hues, in the reference's own distribution: the day's work
- * in the product's violet, slipped work in coral, the day's timed events in
- * blue, and progress in green. Overdue's coral is IDENTITY; what says the
- * figure needs attention is `tone="attention"` on the number itself, plus the
- * word "Overdue" above it.
- */
-const STAT_ACCENTS: Readonly<Record<string, ToneName>> = {
-  tasks: "violet",
-  meetings: "blue",
-  overdue: "coral",
-};
-
-/** The glyph each glance figure carries. Decorative; the label states the fact. */
-function statGlyph(id: string) {
-  switch (id) {
-    case "meetings":
-      return <CalendarIcon />;
-    case "overdue":
-      return <ScheduleIcon />;
-    default:
-      return <CheckCircleIcon />;
-  }
-}
 
 /**
  * One task row: a checkbox that completes, and a title that opens the record.
@@ -393,6 +399,20 @@ function FocusBand({
  *
  * Every figure here is a real reading. A card whose data is missing renders no
  * card, so the strip can be three, two, one or none.
+ *
+ * ── REDESIGN-03: the measures that CAN be checked, link ──────────────────────
+ * The workload chart that used to sit at the foot of this page plotted the first
+ * two figures per-day and then restated their totals in a sentence, so the same
+ * two numbers appeared twice on one screen. Removing it left a real question —
+ * where does the owner go to see the SHAPE of the week? — and Analytics is the
+ * honest answer: it owns a range picker, states each figure's provenance and
+ * refuses the same invented metrics this screen does. So "Tasks completed" is a
+ * link now rather than a dead figure, which is the rule every other number on
+ * Today already followed.
+ *
+ * "Tasks captured" deliberately does not link: there is no canonical view of
+ * "created in the last seven days", and a link to an approximation of itself is
+ * worse than no link at all.
  */
 function TodaySummary({
   trend,
@@ -406,6 +426,7 @@ function TodaySummary({
     label: string;
     value: string;
     note: string;
+    href?: string;
   }[] = [];
 
   if (trend !== null) {
@@ -435,6 +456,7 @@ function TodaySummary({
           : delta === 0
             ? "Last 7 days · level with the previous 7"
             : `Last 7 days · ${delta > 0 ? "+" : "−"}${Math.abs(delta)} on the previous 7`,
+      href: "/analytics",
     });
     measures.push({
       id: "captured",
@@ -463,6 +485,7 @@ function TodaySummary({
       label: "Goals on track",
       value: String(onTrack),
       note: `of ${goals.length} goal${goals.length === 1 ? "" : "s"}`,
+      href: "/goals",
     });
   }
 
@@ -470,19 +493,38 @@ function TodaySummary({
 
   return (
     <ul className="dh-today__summary" data-testid="today-summary">
-      {measures.map((measure) => (
-        <li className="dh-today__measure" key={measure.id}>
-          {/*
-           * The LABEL leads and the figure follows, because that is the reading
-           * order the reference sets and the only one that works when three
-           * cards sit side by side: the eye lands on the number, and the words
-           * above it are what the number is OF.
-           */}
-          <span className="dh-today__measure-label">{measure.label}</span>
-          <span className="dh-today__measure-value">{measure.value}</span>
-          <span className="dh-today__measure-note">{measure.note}</span>
-        </li>
-      ))}
+      {measures.map((measure) => {
+        /*
+         * The LABEL leads and the figure follows, because that is the reading
+         * order the reference sets and the only one that works when three cards
+         * sit side by side: the eye lands on the number, and the words above it
+         * are what the number is OF.
+         *
+         * The three parts are the same markup whether or not the measure links,
+         * so a linked and an unlinked card are the same object at a glance —
+         * the link is an affordance on the card, not a different card.
+         */
+        const body = (
+          <>
+            <span className="dh-today__measure-label">{measure.label}</span>
+            <span className="dh-today__measure-value">{measure.value}</span>
+            <span className="dh-today__measure-note">{measure.note}</span>
+          </>
+        );
+        return (
+          <li className="dh-today__measure" key={measure.id}>
+            {measure.href === undefined ? (
+              body
+            ) : (
+              /* The whole card is the target — a figure the owner is being
+                 invited to check should not need them to aim at its label. */
+              <Link className="dh-today__measure-link" to={measure.href}>
+                {body}
+              </Link>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -550,71 +592,19 @@ export function TodayScreen({
     return bucketDay(applied, data.todayIso);
   }, [data, overrides]);
 
-  const progress = dayProgress(buckets);
   /*
    * TODAY-10 — the figure is the CANONICAL count, not the row count.
    *
-   * "Tasks for today" links straight to `/tasks?system=today`, so it has to be
-   * that view's number. A Task due today that has also slipped its plan is filed
-   * under Overdue here and counted by that view there; deriving the figure from
-   * the membership rule rather than from the "for today" run is what stops the
-   * card and its own destination disagreeing.
+   * "View all N tasks for today" links straight to `/tasks?system=today`, so it
+   * has to be that view's number. A Task due today that has also slipped its
+   * plan is filed under Overdue here and counted by that view there; deriving
+   * the figure from the membership rule rather than from the "for today" run is
+   * what stops the link and its own destination disagreeing.
    */
   const todayCount = tasksForTodayCount(buckets, data.todayIso);
-  const chips = dayChips({
-    taskCount: todayCount,
-    meetingCount: data.meetings.length,
-    // A task completed this morning is not overdue work any more, however far
-    // its date has passed — it stays in the band, dimmed, but it is not counted.
-    overdueCount: buckets.overdue.filter((task) => !isDone(task)).length,
-  });
   const overdue = overdueSlice(buckets.overdue);
   const focus = focusTodaySlice(buckets);
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
-
-  /*
-   * The day's figures, as the stat-card row.
-   *
-   * They ARE the chip model — `dayChips` supplies the count, the noun, the tone
-   * and the destination — so every rule that model has always held is still
-   * enforced in one pure, unit-tested place rather than re-derived here: a zero
-   * never paints, every figure links to the canonical view that holds it, and
-   * `state-overdue` is spent on slipped work alone.
-   */
-  /*
-   * The one thing on the day that is still AHEAD, from the shared derivation.
-   *
-   * It is no longer a surface of its own — the approved direction answers "what
-   * next?" on the figure it belongs to, which is the meetings card. It is
-   * re-derived against the OPTIMISTIC buckets, so ticking a task off updates it
-   * without waiting for the loader.
-   */
-  const next = useMemo(
-    () => nextUp({ meetings: data.meetings, buckets }),
-    [data.meetings, buckets],
-  );
-
-  const stats = useMemo(
-    () =>
-      chips.map((chip) => ({
-        id: chip.id,
-        value: String(chip.count),
-        // "6 / Tasks for today" rather than "6 / tasks": a label above a figure
-        // is read as a heading for it, and a heading is not a plural noun.
-        label: chip.heading,
-        href: chip.href,
-        tone: chip.tone === "error" ? ("attention" as const) : undefined,
-        // The meetings card carries the day's next START TIME, because that is
-        // the one figure on this row with something ahead of it. A meeting that
-        // has already begun is not "next", which is why the flag is decided on
-        // the server against the request instant.
-        supporting:
-          chip.id === "meetings" && next?.kind === "meeting"
-            ? `Next: ${next.timeLabel}`
-            : undefined,
-      })),
-    [chips, next],
-  );
 
   const openTask = useCallback(
     (id: string) => openDrawer(`task:${id}`),
@@ -667,16 +657,17 @@ export function TodayScreen({
 
   return (
     <div className="dh-today">
-      {/* The header block is PAGE CONTENT on the canvas — the greeting is the
-          screen's heading, not a widget with a label above it. It is compact by
-          design: M3X moved the day's WEIGHT into the summary below it, so the
-          greeting states who and when and then gets out of the way. */}
       {/*
        * The header block is PAGE CONTENT on the canvas — the greeting is the
-       * screen's heading, not a widget with a label above it. "Plan day" sits
-       * here now that there is no hero to carry it: it is a NAVIGATION to the
-       * canonical Tasks view of today's work, and the page header is where a
-       * page-level navigation belongs.
+       * screen's heading, not a widget with a label above it. It is compact by
+       * design: the day's WEIGHT is in the work below it, so the greeting states
+       * who and when and then gets out of the way. "Plan day" sits here because
+       * it is a NAVIGATION to the canonical Tasks view of today's work, and the
+       * page header is where a page-level navigation belongs.
+       *
+       * (This comment was duplicated verbatim by the convergence merge — two
+       * copies of the same paragraph, one describing a hero that no longer
+       * existed. REDESIGN-03 kept one.)
        */}
       <header className="dh-today__head">
         <div className="dh-today__identity">
@@ -688,82 +679,60 @@ export function TodayScreen({
         </Link>
       </header>
 
-      {stats.length > 0 || progress ? (
-        <StatCardRow label="Today at a glance" data-testid="today-stats">
-          {stats.map((stat) => (
-            <StatCardItem key={stat.id}>
-              <StatCard
-                label={stat.label}
-                value={stat.value}
-                supporting={stat.supporting}
-                tone={stat.tone}
-                accent={STAT_ACCENTS[stat.id] ?? "violet"}
-                icon={statGlyph(stat.id)}
-                href={stat.href}
-                data-testid={`today-stat-${stat.id}`}
-              />
-            </StatCardItem>
-          ))}
-          {progress ? (
-            <StatCardItem>
-              <StatCard
-                label="Daily progress"
-                value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
-                supporting={`${progress.done} of ${progress.total} done today`}
-                accent="green"
-                icon={<TrendingUpIcon />}
-                data-testid="today-stat-progress"
-                ring={
-                  <ProgressRing
-                    value={progress.done / Math.max(1, progress.total)}
-                    label={`Today's progress: ${progress.done} of ${progress.total} done`}
-                    size={44}
-                    thickness={5}
-                    color="var(--md-sys-color-accent-green)"
-                  />
-                }
-              />
-            </StatCardItem>
-          ) : null}
-        </StatCardRow>
-      ) : null}
-
       {/* CAL-02 — the three daily surfaces. A restrained text rail directly
           under the page's own heading block, exactly where every other
-          collection in DalyHub puts its principal-mode rail. */}
+          collection in DalyHub puts its principal-mode rail. It is a MODE
+          switch for this page, so it stays adjacent to the page's title rather
+          than being pushed below the figures. */}
       <DayNav active="today" />
 
+      {/*
+       * ONE row of measures, and it is about the WEEK.
+       *
+       * The `StatCardRow` that used to sit above this — Meetings today, Overdue,
+       * Daily progress — is gone (see the note at the top of this file). Every
+       * figure on it counted something the page renders in full a few hundred
+       * pixels lower, which made it a caption printed at headline size; two of
+       * the three also spent an accent colour and a glyph tile doing it, which
+       * is what made the top of Today read as a dashboard rather than as a
+       * workspace.
+       */}
       <TodaySummary trend={data.activityTrend} goals={data.goals} />
 
       {/*
-       * UIX-01 — THREE balanced regions, then progress across the full width.
+       * REDESIGN-03 — the day, then the day's context beside it.
        *
-       *   ┌──────────────┐┌──────────┐┌──────────┐
-       *   │ Focus        ││ Schedule ││ Needs    │
-       *   │              ││          ││ attention│
-       *   └──────────────┘└──────────┘└──────────┘
-       *   ┌────────────────────────────────────────┐
-       *   │ Goal progress · This week              │
-       *   └────────────────────────────────────────┘
+       *   ┌──────────────────────────┐┌──────────────────┐
+       *   │ Focus                    ││ Needs attention  │
+       *   │                          │├──────────────────┤
+       *   │                          ││ Schedule         │
+       *   │                          │├──────────────────┤
+       *   │                          ││ Goal progress    │
+       *   │                          │├──────────────────┤
+       *   │                          ││ Continue working │
+       *   └──────────────────────────┘└──────────────────┘
        *
-       * The redesign's composition, and a real improvement on the two unequal
-       * columns it replaces: the rail used to stack Schedule, attention and
-       * Continue working into one 21rem strip beside a list that is usually
-       * shorter than they are, so a 1440px window ended in a tall thin column
-       * beside empty canvas. Three regions of comparable height fill the fold,
-       * and Goal progress — which is horizontal by nature, a row of compact
-       * measures — gets the width it always wanted underneath.
+       * ── Why the three-region grid went ───────────────────────────────────────
+       * UIX-01 replaced a work column plus a rail with THREE side-by-side regions
+       * on the reasoning that they would be of "comparable height". Measured on a
+       * seeded workspace at 1440px they are not, and the merge made it worse by
+       * landing Goal progress in the middle track instead of the full-width row
+       * its own comment still described: Focus ran to ~300px while the region
+       * beside it ran to ~780px, leaving a ~470×640px hole of empty canvas in the
+       * bottom-left of the page — directly under the day's own work, which is the
+       * worst place on the screen to put nothing.
        *
-       * `data-columns` states how many regions actually have content, so the
-       * grid never renders an empty track: a day with no meetings is two
-       * regions, not three with a hole in the middle. Nothing is moved by CSS
-       * `order` — the DOM order IS the phone composition (Focus, then the day's
-       * context, then progress), which is also the reading and tab order.
+       * A dominant work column with a single supporting rail is what the approved
+       * reference draws, and it cannot produce that hole: the rail's sections
+       * stack, so the two columns end when their content ends rather than being
+       * forced to a common row height by the grid.
+       *
+       * The rail's order is the brief's priority order — what needs attention,
+       * what is happening at a time, whether the longer game is moving, and then
+       * where to pick work back up. Nothing is moved by CSS `order`: the DOM
+       * order IS the phone composition, which is also the reading and tab order.
        */}
-      <div
-        className="dh-today__body"
-        data-columns={data.schedule.count > 0 ? 3 : 2}
-      >
+      <div className="dh-today__body">
         <div className="dh-today__col dh-today__col--focus">
           <section
             /* FINAL-UI — the ONE card on Today. Concept 1 draws the day's own
@@ -908,63 +877,14 @@ export function TodayScreen({
         </div>
 
         {/*
-         * CAL-01 — the day's unified SCHEDULE, in its own region.
+         * The RAIL: everything that gives the day its context, in the brief's
+         * own priority order — attention, then the timed day, then the longer
+         * game, then where to pick work back up.
          *
-         * Every occurrence from every enabled external calendar source, plus the
-         * DalyHub Meetings no occurrence already represents, in one chronology.
-         * It replaced a panel that held Meetings alone; the region, its heading
-         * and its position are unchanged, which is deliberate — CAL-01 adds the
-         * owner's real day to Today, it does not redesign Today (§16).
-         *
-         * Absent when the day holds nothing, and `data-columns` above drops its
-         * track with it: a "Schedule" heading over nothing is chrome.
+         * One column rather than three regions, so a short section is followed
+         * by the next one instead of by empty canvas.
          */}
-        {data.schedule.count > 0 ? (
-          <div className="dh-today__col dh-today__col--schedule">
-            <section
-              className="dh-today__panel"
-              aria-labelledby="today-schedule-heading"
-              data-testid="today-schedule"
-            >
-              <div className="dh-today__panel-head">
-                <h2
-                  className="dh-today__panel-title"
-                  id="today-schedule-heading"
-                >
-                  Schedule
-                </h2>
-              </div>
-              <ScheduleList
-                schedule={data.schedule}
-                onOpenEvent={onOpenEvent}
-                eventHref={eventHref}
-              />
-              {/*
-               * Freshness, stated only when it is NOT fine.
-               *
-               * A line saying "everything synced" on every visit is noise; a day
-               * built from a failed refresh that says nothing is a lie. So the
-               * panel is silent when the projection is current and says so
-               * plainly when it is not — and points at the place that can fix it.
-               */}
-              {data.scheduleStale ? (
-                <p className="dh-today__panel-foot">
-                  <Link
-                    className="dh-btn dh-btn--ghost"
-                    to="/settings?section=calendars"
-                  >
-                    A calendar did not refresh — showing the last schedule
-                    DalyHub loaded
-                  </Link>
-                </p>
-              ) : null}
-            </section>
-          </div>
-        ) : null}
-
-        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
-
-        <div className="dh-today__col dh-today__col--attention">
+        <div className="dh-today__col dh-today__col--rail">
           <section
             className="dh-today__panel"
             aria-labelledby="today-attention-heading"
@@ -1011,6 +931,65 @@ export function TodayScreen({
               </p>
             )}
           </section>
+
+          {/*
+           * CAL-01 — the day's unified SCHEDULE.
+           *
+           * Every occurrence from every enabled external calendar source, plus
+           * the DalyHub Meetings no occurrence already represents, in one
+           * chronology. It replaced a panel that held Meetings alone; its
+           * heading and its contents are unchanged, which is deliberate —
+           * CAL-01 adds the owner's real day to Today, it does not redesign
+           * Today (§16). REDESIGN-03 moved it from a track of its own into the
+           * rail, and it now carries the day's timed commitments alone: the
+           * "Meetings today · Next 20:00" card that used to sit above the fold
+           * said less about the same meeting than this panel's first row does.
+           *
+           * Absent when the day holds nothing: a "Schedule" heading over
+           * nothing is chrome.
+           */}
+          {data.schedule.count > 0 ? (
+            <section
+              className="dh-today__panel"
+              aria-labelledby="today-schedule-heading"
+              data-testid="today-schedule"
+            >
+              <div className="dh-today__panel-head">
+                <h2
+                  className="dh-today__panel-title"
+                  id="today-schedule-heading"
+                >
+                  Schedule
+                </h2>
+              </div>
+              <ScheduleList
+                schedule={data.schedule}
+                onOpenEvent={onOpenEvent}
+                eventHref={eventHref}
+              />
+              {/*
+               * Freshness, stated only when it is NOT fine.
+               *
+               * A line saying "everything synced" on every visit is noise; a day
+               * built from a failed refresh that says nothing is a lie. So the
+               * panel is silent when the projection is current and says so
+               * plainly when it is not — and points at the place that can fix it.
+               */}
+              {data.scheduleStale ? (
+                <p className="dh-today__panel-foot">
+                  <Link
+                    className="dh-btn dh-btn--ghost"
+                    to="/settings?section=calendars"
+                  >
+                    A calendar did not refresh — showing the last schedule
+                    DalyHub loaded
+                  </Link>
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
+          <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
 
           {/* Absent entirely when no project has open work — "continue working"
               on a project with nothing left to do is not a suggestion. */}
@@ -1081,62 +1060,6 @@ export function TodayScreen({
             </section>
           ) : null}
         </div>
-
-        {/*
-         * DS-06 — Goal progress, as the body grid's last child.
-         *
-         * "Am I making progress?" is the question Today's second half exists to
-         * answer, and both concepts give it a band of its own directly under the
-         * day's work. It is placed by the grid (see `today.css`) into the row
-         * beneath Focus and Schedule, with the attention column spanning past
-         * it — so it fills the hole those two unequal columns leave rather than
-         * starting a new band below everything.
-         *
-         * Last in the DOM, which keeps the phone's hierarchy unchanged:
-         * immediate actions, then what needs a look, then progress. Nothing here
-         * is moved by CSS `order`.
-         */}
-      </div>
-
-      {/*
-       * DS-06 — the week's trend, across the full width beneath the day.
-       *
-       * Goal progress USED to sit here beside it. It has moved INTO the body
-       * grid above (as its last child, so the reading and tab order are
-       * unchanged) because the three regions were not the "comparable height"
-       * UIX-01 assumed: measured on a real workspace, Focus ran to ~400px,
-       * Schedule to ~130px and the attention column to ~680px, which left a
-       * 500×300px hole in the bottom-left of the fold with Goal progress
-       * stranded below it. The body's grid now spans the attention column across
-       * both rows and lands Goal progress in that hole — the same full-width-ish
-       * row of compact measures, in the space the page already had.
-       *
-       * The trend stays here: it is a wide, thin band about the WEEK rather than
-       * the day, it is the last thing on the phone for the same reason, and it
-       * wants the whole page rather than two thirds of it.
-       */}
-      {/*
-       * The day's figures, as quiet cards on the canvas — BELOW the day's work.
-       *
-       * Every card is still conditional on its own count, exactly as the chip
-       * row and the hero before it were: a quiet day renders no row at all
-       * rather than a line of noughts, and the progress card appears only once
-       * something is done — a 0% ring first thing in the morning is a guilt
-       * meter rather than a measure (see `dayProgress`).
-       *
-       * FINAL-UI moved the whole row from ABOVE the body grid to below it, and
-       * §45 of the brief is the rule: "do not put decorative stats before
-       * actionable content". Concept 1's Today opens on the day's tasks and its
-       * schedule and keeps its two small measures — "This week", "Focus" — at
-       * the bottom of the page. Two 80px figure cards between the greeting and
-       * the first task were the difference between a command centre and a
-       * dashboard, and they cost the fold ~110px of the owner's actual work.
-       *
-       * Nothing is hidden and nothing is moved by CSS `order`: the DOM order is
-       * the phone order too, which is the same reordering §45 asks for there.
-       */}
-      <div className="dh-today__progress">
-        <ActivityTrendSection trend={data.activityTrend} />
       </div>
     </div>
   );
@@ -1266,50 +1189,23 @@ function GoalProgressSection({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Workload trend                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Seven days of tasks created against tasks completed.
+/*
+ * The workload trend USED to be here — seven days of created against completed,
+ * as paired bars, with the week's totals in a sentence beneath.
  *
- * Chosen over a productivity score because a score is a number nobody can check
- * and this is two numbers everybody can. The sentence beneath states the week's
- * totals, and it only claims the workload moved when the arithmetic supports it.
+ * REDESIGN-03 removed it. Not because a chart is wrong on a daily surface, but
+ * because this one said what the summary above it already said: the sentence
+ * under the bars read "21 completed · 124 created", and the first two cards of
+ * `TodaySummary` read "Tasks completed 21" and "Tasks captured 124" over the
+ * same rolling seven days. One page, two renderings, one screen apart.
+ *
+ * The shape it added was also the least trustworthy thing on the page. The bars
+ * share one linear scale, so a single day of bulk capture flattens the other six
+ * to hairlines — on the seeded design fixture the Sunday "created" bar is 124
+ * against a weekday range of 0–7, and the chart becomes one block and a row of
+ * lines. A chart that is only legible on unremarkable weeks is not a chart.
+ *
+ * Trends belong to Analytics, which has a real range picker, states where each
+ * figure comes from, and refuses the same invented metrics this screen does. The
+ * summary's completed measure links straight there.
  */
-function ActivityTrendSection({
-  trend,
-}: {
-  readonly trend: TodayActivityTrend | null;
-}) {
-  // A week with nothing in it is not a chart with no bars — it is no section.
-  if (trend === null) return null;
-
-  const summary = activityTrendSummary(trend);
-  return (
-    <section
-      className="dh-today__panel"
-      aria-labelledby="today-trend-heading"
-      data-testid="today-activity-trend"
-    >
-      <div className="dh-today__panel-head">
-        <h2 className="dh-today__panel-title" id="today-trend-heading">
-          This week
-        </h2>
-      </div>
-      <ComparisonBars
-        data-testid="today-trend-chart"
-        points={trend.days.map((day) => ({
-          key: day.dateIso,
-          label: weekdayLabel(day.dateIso),
-          primary: day.completed,
-          secondary: day.created,
-        }))}
-        primaryLabel="Completed"
-        secondaryLabel="Created"
-        summary={summary.accessible}
-      />
-      <p className="dh-today__trend-note">{summary.visible}</p>
-    </section>
-  );
-}

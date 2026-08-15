@@ -36,8 +36,8 @@ a.dh-btn {
 .dh-project-overview__archived-banner {
   margin: 0 0 var(--app-space-3);
   padding: var(--app-space-3) var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-bg-sunken);
   color: var(--dh-color-text);
   font-weight: 500;
@@ -102,6 +102,6 @@ a.dh-btn {
 .dh-project-tasks__error {
   margin: 0 0 var(--app-space-3);
   color: var(--dh-color-danger);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
 }

@@ -332,6 +332,56 @@
   --md-app-color-preview-graphite-primary: #595f67;
   --md-app-color-preview-graphite-secondary: #51606f;
   --md-app-color-preview-graphite-tertiary: #515b92;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #f6f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #fafafb;
+  --surface-muted: #f4f4f6;
+  --surface-sunken: #f0f0f3;
+  --overlay-scrim: rgba(16, 16, 20, 0.32);
+  --border: rgba(16, 16, 20, 0.06);
+  --border-strong: rgba(16, 16, 20, 0.09);
+  --border-hover: rgba(16, 16, 20, 0.14);
+  --hairline: rgba(16, 16, 20, 0.055);
+  --ink: #101014;
+  --ink-body: #1c1c22;
+  --ink-secondary: #45454e;
+  --ink-muted: #82828c;
+  --ink-faint: #a3a3ac;
+  --ink-icon: #8a8a94;
+  --ink-inverse: #ffffff;
+  --accent: #5b4bd6;
+  --accent-hover: #4b3cc2;
+  --accent-pressed: #3a2fa0;
+  --accent-tint: #efedfc;
+  --accent-tint-hover: #e6e2fa;
+  --danger: #d9483b;
+  --danger-tint: #fbeae8;
+  --warning: #d98324;
+  --warning-tint: #fbf0e2;
+  --success: #2e9e6b;
+  --success-tint: #e7f5ee;
+  --info: #3b82c4;
+  --info-tint: #eaf1f9;
+  --priority-1: #dd302a;
+  --priority-2: #e2680a;
+  --priority-3: #2e56e3;
+  --priority-4: #8a8a94;
+  --category-purple: #5b4bd6;
+  --category-purple-tint: #efedfc;
+  --category-blue: #3b82c4;
+  --category-blue-tint: #eaf1f9;
+  --category-orange: #d98324;
+  --category-orange-tint: #fbf0e2;
+  --category-green: #2e9e6b;
+  --category-green-tint: #e7f5ee;
+  --category-red: #d9483b;
+  --category-red-tint: #fbeae8;
+  --shadow-popover:
+    0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
+  --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
+  --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
 }
 
 /* Electric — light. */
@@ -591,6 +641,56 @@
   --md-app-color-preview-graphite-primary: #595f67;
   --md-app-color-preview-graphite-secondary: #51606f;
   --md-app-color-preview-graphite-tertiary: #515b92;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #f6f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #fafafb;
+  --surface-muted: #f4f4f6;
+  --surface-sunken: #f0f0f3;
+  --overlay-scrim: rgba(16, 16, 20, 0.32);
+  --border: rgba(16, 16, 20, 0.06);
+  --border-strong: rgba(16, 16, 20, 0.09);
+  --border-hover: rgba(16, 16, 20, 0.14);
+  --hairline: rgba(16, 16, 20, 0.055);
+  --ink: #101014;
+  --ink-body: #1c1c22;
+  --ink-secondary: #45454e;
+  --ink-muted: #82828c;
+  --ink-faint: #a3a3ac;
+  --ink-icon: #8a8a94;
+  --ink-inverse: #ffffff;
+  --accent: #5b4bd6;
+  --accent-hover: #4b3cc2;
+  --accent-pressed: #3a2fa0;
+  --accent-tint: #efedfc;
+  --accent-tint-hover: #e6e2fa;
+  --danger: #d9483b;
+  --danger-tint: #fbeae8;
+  --warning: #d98324;
+  --warning-tint: #fbf0e2;
+  --success: #2e9e6b;
+  --success-tint: #e7f5ee;
+  --info: #3b82c4;
+  --info-tint: #eaf1f9;
+  --priority-1: #dd302a;
+  --priority-2: #e2680a;
+  --priority-3: #2e56e3;
+  --priority-4: #8a8a94;
+  --category-purple: #5b4bd6;
+  --category-purple-tint: #efedfc;
+  --category-blue: #3b82c4;
+  --category-blue-tint: #eaf1f9;
+  --category-orange: #d98324;
+  --category-orange-tint: #fbf0e2;
+  --category-green: #2e9e6b;
+  --category-green-tint: #e7f5ee;
+  --category-red: #d9483b;
+  --category-red-tint: #fbeae8;
+  --shadow-popover:
+    0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
+  --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
+  --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
 }
 
 /* Pulse — light. */
@@ -850,6 +950,56 @@
   --md-app-color-preview-graphite-primary: #595f67;
   --md-app-color-preview-graphite-secondary: #51606f;
   --md-app-color-preview-graphite-tertiary: #515b92;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #f6f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #fafafb;
+  --surface-muted: #f4f4f6;
+  --surface-sunken: #f0f0f3;
+  --overlay-scrim: rgba(16, 16, 20, 0.32);
+  --border: rgba(16, 16, 20, 0.06);
+  --border-strong: rgba(16, 16, 20, 0.09);
+  --border-hover: rgba(16, 16, 20, 0.14);
+  --hairline: rgba(16, 16, 20, 0.055);
+  --ink: #101014;
+  --ink-body: #1c1c22;
+  --ink-secondary: #45454e;
+  --ink-muted: #82828c;
+  --ink-faint: #a3a3ac;
+  --ink-icon: #8a8a94;
+  --ink-inverse: #ffffff;
+  --accent: #5b4bd6;
+  --accent-hover: #4b3cc2;
+  --accent-pressed: #3a2fa0;
+  --accent-tint: #efedfc;
+  --accent-tint-hover: #e6e2fa;
+  --danger: #d9483b;
+  --danger-tint: #fbeae8;
+  --warning: #d98324;
+  --warning-tint: #fbf0e2;
+  --success: #2e9e6b;
+  --success-tint: #e7f5ee;
+  --info: #3b82c4;
+  --info-tint: #eaf1f9;
+  --priority-1: #dd302a;
+  --priority-2: #e2680a;
+  --priority-3: #2e56e3;
+  --priority-4: #8a8a94;
+  --category-purple: #5b4bd6;
+  --category-purple-tint: #efedfc;
+  --category-blue: #3b82c4;
+  --category-blue-tint: #eaf1f9;
+  --category-orange: #d98324;
+  --category-orange-tint: #fbf0e2;
+  --category-green: #2e9e6b;
+  --category-green-tint: #e7f5ee;
+  --category-red: #d9483b;
+  --category-red-tint: #fbeae8;
+  --shadow-popover:
+    0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
+  --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
+  --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
 }
 
 /* Ocean — light. */
@@ -1109,6 +1259,56 @@
   --md-app-color-preview-graphite-primary: #595f67;
   --md-app-color-preview-graphite-secondary: #51606f;
   --md-app-color-preview-graphite-tertiary: #515b92;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #f6f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #fafafb;
+  --surface-muted: #f4f4f6;
+  --surface-sunken: #f0f0f3;
+  --overlay-scrim: rgba(16, 16, 20, 0.32);
+  --border: rgba(16, 16, 20, 0.06);
+  --border-strong: rgba(16, 16, 20, 0.09);
+  --border-hover: rgba(16, 16, 20, 0.14);
+  --hairline: rgba(16, 16, 20, 0.055);
+  --ink: #101014;
+  --ink-body: #1c1c22;
+  --ink-secondary: #45454e;
+  --ink-muted: #82828c;
+  --ink-faint: #a3a3ac;
+  --ink-icon: #8a8a94;
+  --ink-inverse: #ffffff;
+  --accent: #5b4bd6;
+  --accent-hover: #4b3cc2;
+  --accent-pressed: #3a2fa0;
+  --accent-tint: #efedfc;
+  --accent-tint-hover: #e6e2fa;
+  --danger: #d9483b;
+  --danger-tint: #fbeae8;
+  --warning: #d98324;
+  --warning-tint: #fbf0e2;
+  --success: #2e9e6b;
+  --success-tint: #e7f5ee;
+  --info: #3b82c4;
+  --info-tint: #eaf1f9;
+  --priority-1: #dd302a;
+  --priority-2: #e2680a;
+  --priority-3: #2e56e3;
+  --priority-4: #8a8a94;
+  --category-purple: #5b4bd6;
+  --category-purple-tint: #efedfc;
+  --category-blue: #3b82c4;
+  --category-blue-tint: #eaf1f9;
+  --category-orange: #d98324;
+  --category-orange-tint: #fbf0e2;
+  --category-green: #2e9e6b;
+  --category-green-tint: #e7f5ee;
+  --category-red: #d9483b;
+  --category-red-tint: #fbeae8;
+  --shadow-popover:
+    0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
+  --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
+  --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
 }
 
 /* Graphite — light. */
@@ -1368,6 +1568,56 @@
   --md-app-color-preview-graphite-primary: #595f67;
   --md-app-color-preview-graphite-secondary: #51606f;
   --md-app-color-preview-graphite-tertiary: #515b92;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #f6f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #fafafb;
+  --surface-muted: #f4f4f6;
+  --surface-sunken: #f0f0f3;
+  --overlay-scrim: rgba(16, 16, 20, 0.32);
+  --border: rgba(16, 16, 20, 0.06);
+  --border-strong: rgba(16, 16, 20, 0.09);
+  --border-hover: rgba(16, 16, 20, 0.14);
+  --hairline: rgba(16, 16, 20, 0.055);
+  --ink: #101014;
+  --ink-body: #1c1c22;
+  --ink-secondary: #45454e;
+  --ink-muted: #82828c;
+  --ink-faint: #a3a3ac;
+  --ink-icon: #8a8a94;
+  --ink-inverse: #ffffff;
+  --accent: #5b4bd6;
+  --accent-hover: #4b3cc2;
+  --accent-pressed: #3a2fa0;
+  --accent-tint: #efedfc;
+  --accent-tint-hover: #e6e2fa;
+  --danger: #d9483b;
+  --danger-tint: #fbeae8;
+  --warning: #d98324;
+  --warning-tint: #fbf0e2;
+  --success: #2e9e6b;
+  --success-tint: #e7f5ee;
+  --info: #3b82c4;
+  --info-tint: #eaf1f9;
+  --priority-1: #dd302a;
+  --priority-2: #e2680a;
+  --priority-3: #2e56e3;
+  --priority-4: #8a8a94;
+  --category-purple: #5b4bd6;
+  --category-purple-tint: #efedfc;
+  --category-blue: #3b82c4;
+  --category-blue-tint: #eaf1f9;
+  --category-orange: #d98324;
+  --category-orange-tint: #fbf0e2;
+  --category-green: #2e9e6b;
+  --category-green-tint: #e7f5ee;
+  --category-red: #d9483b;
+  --category-red-tint: #fbeae8;
+  --shadow-popover:
+    0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
+  --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
+  --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1629,6 +1879,56 @@
     --md-app-color-preview-graphite-primary: #c1c7d0;
     --md-app-color-preview-graphite-secondary: #b9c8da;
     --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+    /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+    --canvas: #121215;
+    --surface: #1a1a1f;
+    --surface-subtle: #202027;
+    --surface-muted: #26262e;
+    --surface-sunken: #0c0c0f;
+    --overlay-scrim: rgba(0, 0, 0, 0.58);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --hairline: rgba(255, 255, 255, 0.075);
+    --ink: #f3f3f6;
+    --ink-body: #e5e5ea;
+    --ink-secondary: #b7b7c1;
+    --ink-muted: #8c8c97;
+    --ink-faint: #6d6d78;
+    --ink-icon: #9b9ba6;
+    --ink-inverse: #101014;
+    --accent: #b5a8ff;
+    --accent-hover: #c6bcff;
+    --accent-pressed: #a08fff;
+    --accent-tint: rgba(139, 122, 255, 0.18);
+    --accent-tint-hover: rgba(139, 122, 255, 0.26);
+    --danger: #ff8578;
+    --danger-tint: rgba(255, 133, 120, 0.16);
+    --warning: #ffab52;
+    --warning-tint: rgba(255, 171, 82, 0.16);
+    --success: #5ec899;
+    --success-tint: rgba(94, 200, 153, 0.16);
+    --info: #74b0e8;
+    --info-tint: rgba(116, 176, 232, 0.16);
+    --priority-1: #ff7268;
+    --priority-2: #ff9a3d;
+    --priority-3: #7d9bff;
+    --priority-4: #9b9ba6;
+    --category-purple: #b5a8ff;
+    --category-purple-tint: rgba(139, 122, 255, 0.18);
+    --category-blue: #74b0e8;
+    --category-blue-tint: rgba(116, 176, 232, 0.16);
+    --category-orange: #ffab52;
+    --category-orange-tint: rgba(255, 171, 82, 0.16);
+    --category-green: #5ec899;
+    --category-green-tint: rgba(94, 200, 153, 0.16);
+    --category-red: #ff8578;
+    --category-red-tint: rgba(255, 133, 120, 0.16);
+    --shadow-popover:
+      0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+    --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
   }
 
   /* Electric — the device's dark. */
@@ -1888,6 +2188,56 @@
     --md-app-color-preview-graphite-primary: #c1c7d0;
     --md-app-color-preview-graphite-secondary: #b9c8da;
     --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+    /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+    --canvas: #121215;
+    --surface: #1a1a1f;
+    --surface-subtle: #202027;
+    --surface-muted: #26262e;
+    --surface-sunken: #0c0c0f;
+    --overlay-scrim: rgba(0, 0, 0, 0.58);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --hairline: rgba(255, 255, 255, 0.075);
+    --ink: #f3f3f6;
+    --ink-body: #e5e5ea;
+    --ink-secondary: #b7b7c1;
+    --ink-muted: #8c8c97;
+    --ink-faint: #6d6d78;
+    --ink-icon: #9b9ba6;
+    --ink-inverse: #101014;
+    --accent: #b5a8ff;
+    --accent-hover: #c6bcff;
+    --accent-pressed: #a08fff;
+    --accent-tint: rgba(139, 122, 255, 0.18);
+    --accent-tint-hover: rgba(139, 122, 255, 0.26);
+    --danger: #ff8578;
+    --danger-tint: rgba(255, 133, 120, 0.16);
+    --warning: #ffab52;
+    --warning-tint: rgba(255, 171, 82, 0.16);
+    --success: #5ec899;
+    --success-tint: rgba(94, 200, 153, 0.16);
+    --info: #74b0e8;
+    --info-tint: rgba(116, 176, 232, 0.16);
+    --priority-1: #ff7268;
+    --priority-2: #ff9a3d;
+    --priority-3: #7d9bff;
+    --priority-4: #9b9ba6;
+    --category-purple: #b5a8ff;
+    --category-purple-tint: rgba(139, 122, 255, 0.18);
+    --category-blue: #74b0e8;
+    --category-blue-tint: rgba(116, 176, 232, 0.16);
+    --category-orange: #ffab52;
+    --category-orange-tint: rgba(255, 171, 82, 0.16);
+    --category-green: #5ec899;
+    --category-green-tint: rgba(94, 200, 153, 0.16);
+    --category-red: #ff8578;
+    --category-red-tint: rgba(255, 133, 120, 0.16);
+    --shadow-popover:
+      0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+    --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
   }
 
   /* Pulse — the device's dark. */
@@ -2147,6 +2497,56 @@
     --md-app-color-preview-graphite-primary: #c1c7d0;
     --md-app-color-preview-graphite-secondary: #b9c8da;
     --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+    /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+    --canvas: #121215;
+    --surface: #1a1a1f;
+    --surface-subtle: #202027;
+    --surface-muted: #26262e;
+    --surface-sunken: #0c0c0f;
+    --overlay-scrim: rgba(0, 0, 0, 0.58);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --hairline: rgba(255, 255, 255, 0.075);
+    --ink: #f3f3f6;
+    --ink-body: #e5e5ea;
+    --ink-secondary: #b7b7c1;
+    --ink-muted: #8c8c97;
+    --ink-faint: #6d6d78;
+    --ink-icon: #9b9ba6;
+    --ink-inverse: #101014;
+    --accent: #b5a8ff;
+    --accent-hover: #c6bcff;
+    --accent-pressed: #a08fff;
+    --accent-tint: rgba(139, 122, 255, 0.18);
+    --accent-tint-hover: rgba(139, 122, 255, 0.26);
+    --danger: #ff8578;
+    --danger-tint: rgba(255, 133, 120, 0.16);
+    --warning: #ffab52;
+    --warning-tint: rgba(255, 171, 82, 0.16);
+    --success: #5ec899;
+    --success-tint: rgba(94, 200, 153, 0.16);
+    --info: #74b0e8;
+    --info-tint: rgba(116, 176, 232, 0.16);
+    --priority-1: #ff7268;
+    --priority-2: #ff9a3d;
+    --priority-3: #7d9bff;
+    --priority-4: #9b9ba6;
+    --category-purple: #b5a8ff;
+    --category-purple-tint: rgba(139, 122, 255, 0.18);
+    --category-blue: #74b0e8;
+    --category-blue-tint: rgba(116, 176, 232, 0.16);
+    --category-orange: #ffab52;
+    --category-orange-tint: rgba(255, 171, 82, 0.16);
+    --category-green: #5ec899;
+    --category-green-tint: rgba(94, 200, 153, 0.16);
+    --category-red: #ff8578;
+    --category-red-tint: rgba(255, 133, 120, 0.16);
+    --shadow-popover:
+      0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+    --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
   }
 
   /* Ocean — the device's dark. */
@@ -2406,6 +2806,56 @@
     --md-app-color-preview-graphite-primary: #c1c7d0;
     --md-app-color-preview-graphite-secondary: #b9c8da;
     --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+    /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+    --canvas: #121215;
+    --surface: #1a1a1f;
+    --surface-subtle: #202027;
+    --surface-muted: #26262e;
+    --surface-sunken: #0c0c0f;
+    --overlay-scrim: rgba(0, 0, 0, 0.58);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --hairline: rgba(255, 255, 255, 0.075);
+    --ink: #f3f3f6;
+    --ink-body: #e5e5ea;
+    --ink-secondary: #b7b7c1;
+    --ink-muted: #8c8c97;
+    --ink-faint: #6d6d78;
+    --ink-icon: #9b9ba6;
+    --ink-inverse: #101014;
+    --accent: #b5a8ff;
+    --accent-hover: #c6bcff;
+    --accent-pressed: #a08fff;
+    --accent-tint: rgba(139, 122, 255, 0.18);
+    --accent-tint-hover: rgba(139, 122, 255, 0.26);
+    --danger: #ff8578;
+    --danger-tint: rgba(255, 133, 120, 0.16);
+    --warning: #ffab52;
+    --warning-tint: rgba(255, 171, 82, 0.16);
+    --success: #5ec899;
+    --success-tint: rgba(94, 200, 153, 0.16);
+    --info: #74b0e8;
+    --info-tint: rgba(116, 176, 232, 0.16);
+    --priority-1: #ff7268;
+    --priority-2: #ff9a3d;
+    --priority-3: #7d9bff;
+    --priority-4: #9b9ba6;
+    --category-purple: #b5a8ff;
+    --category-purple-tint: rgba(139, 122, 255, 0.18);
+    --category-blue: #74b0e8;
+    --category-blue-tint: rgba(116, 176, 232, 0.16);
+    --category-orange: #ffab52;
+    --category-orange-tint: rgba(255, 171, 82, 0.16);
+    --category-green: #5ec899;
+    --category-green-tint: rgba(94, 200, 153, 0.16);
+    --category-red: #ff8578;
+    --category-red-tint: rgba(255, 133, 120, 0.16);
+    --shadow-popover:
+      0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+    --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
   }
 
   /* Graphite — the device's dark. */
@@ -2665,6 +3115,56 @@
     --md-app-color-preview-graphite-primary: #c1c7d0;
     --md-app-color-preview-graphite-secondary: #b9c8da;
     --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+    /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+    --canvas: #121215;
+    --surface: #1a1a1f;
+    --surface-subtle: #202027;
+    --surface-muted: #26262e;
+    --surface-sunken: #0c0c0f;
+    --overlay-scrim: rgba(0, 0, 0, 0.58);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --hairline: rgba(255, 255, 255, 0.075);
+    --ink: #f3f3f6;
+    --ink-body: #e5e5ea;
+    --ink-secondary: #b7b7c1;
+    --ink-muted: #8c8c97;
+    --ink-faint: #6d6d78;
+    --ink-icon: #9b9ba6;
+    --ink-inverse: #101014;
+    --accent: #b5a8ff;
+    --accent-hover: #c6bcff;
+    --accent-pressed: #a08fff;
+    --accent-tint: rgba(139, 122, 255, 0.18);
+    --accent-tint-hover: rgba(139, 122, 255, 0.26);
+    --danger: #ff8578;
+    --danger-tint: rgba(255, 133, 120, 0.16);
+    --warning: #ffab52;
+    --warning-tint: rgba(255, 171, 82, 0.16);
+    --success: #5ec899;
+    --success-tint: rgba(94, 200, 153, 0.16);
+    --info: #74b0e8;
+    --info-tint: rgba(116, 176, 232, 0.16);
+    --priority-1: #ff7268;
+    --priority-2: #ff9a3d;
+    --priority-3: #7d9bff;
+    --priority-4: #9b9ba6;
+    --category-purple: #b5a8ff;
+    --category-purple-tint: rgba(139, 122, 255, 0.18);
+    --category-blue: #74b0e8;
+    --category-blue-tint: rgba(116, 176, 232, 0.16);
+    --category-orange: #ffab52;
+    --category-orange-tint: rgba(255, 171, 82, 0.16);
+    --category-green: #5ec899;
+    --category-green-tint: rgba(94, 200, 153, 0.16);
+    --category-red: #ff8578;
+    --category-red-tint: rgba(255, 133, 120, 0.16);
+    --shadow-popover:
+      0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+    --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
   }
 }
 
@@ -2933,6 +3433,56 @@
   --md-app-color-preview-graphite-primary: #c1c7d0;
   --md-app-color-preview-graphite-secondary: #b9c8da;
   --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #121215;
+  --surface: #1a1a1f;
+  --surface-subtle: #202027;
+  --surface-muted: #26262e;
+  --surface-sunken: #0c0c0f;
+  --overlay-scrim: rgba(0, 0, 0, 0.58);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --hairline: rgba(255, 255, 255, 0.075);
+  --ink: #f3f3f6;
+  --ink-body: #e5e5ea;
+  --ink-secondary: #b7b7c1;
+  --ink-muted: #8c8c97;
+  --ink-faint: #6d6d78;
+  --ink-icon: #9b9ba6;
+  --ink-inverse: #101014;
+  --accent: #b5a8ff;
+  --accent-hover: #c6bcff;
+  --accent-pressed: #a08fff;
+  --accent-tint: rgba(139, 122, 255, 0.18);
+  --accent-tint-hover: rgba(139, 122, 255, 0.26);
+  --danger: #ff8578;
+  --danger-tint: rgba(255, 133, 120, 0.16);
+  --warning: #ffab52;
+  --warning-tint: rgba(255, 171, 82, 0.16);
+  --success: #5ec899;
+  --success-tint: rgba(94, 200, 153, 0.16);
+  --info: #74b0e8;
+  --info-tint: rgba(116, 176, 232, 0.16);
+  --priority-1: #ff7268;
+  --priority-2: #ff9a3d;
+  --priority-3: #7d9bff;
+  --priority-4: #9b9ba6;
+  --category-purple: #b5a8ff;
+  --category-purple-tint: rgba(139, 122, 255, 0.18);
+  --category-blue: #74b0e8;
+  --category-blue-tint: rgba(116, 176, 232, 0.16);
+  --category-orange: #ffab52;
+  --category-orange-tint: rgba(255, 171, 82, 0.16);
+  --category-green: #5ec899;
+  --category-green-tint: rgba(94, 200, 153, 0.16);
+  --category-red: #ff8578;
+  --category-red-tint: rgba(255, 133, 120, 0.16);
+  --shadow-popover:
+    0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+  --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
 }
 
 /* Electric — an explicit Dark, whatever the device says. */
@@ -3194,6 +3744,56 @@
   --md-app-color-preview-graphite-primary: #c1c7d0;
   --md-app-color-preview-graphite-secondary: #b9c8da;
   --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #121215;
+  --surface: #1a1a1f;
+  --surface-subtle: #202027;
+  --surface-muted: #26262e;
+  --surface-sunken: #0c0c0f;
+  --overlay-scrim: rgba(0, 0, 0, 0.58);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --hairline: rgba(255, 255, 255, 0.075);
+  --ink: #f3f3f6;
+  --ink-body: #e5e5ea;
+  --ink-secondary: #b7b7c1;
+  --ink-muted: #8c8c97;
+  --ink-faint: #6d6d78;
+  --ink-icon: #9b9ba6;
+  --ink-inverse: #101014;
+  --accent: #b5a8ff;
+  --accent-hover: #c6bcff;
+  --accent-pressed: #a08fff;
+  --accent-tint: rgba(139, 122, 255, 0.18);
+  --accent-tint-hover: rgba(139, 122, 255, 0.26);
+  --danger: #ff8578;
+  --danger-tint: rgba(255, 133, 120, 0.16);
+  --warning: #ffab52;
+  --warning-tint: rgba(255, 171, 82, 0.16);
+  --success: #5ec899;
+  --success-tint: rgba(94, 200, 153, 0.16);
+  --info: #74b0e8;
+  --info-tint: rgba(116, 176, 232, 0.16);
+  --priority-1: #ff7268;
+  --priority-2: #ff9a3d;
+  --priority-3: #7d9bff;
+  --priority-4: #9b9ba6;
+  --category-purple: #b5a8ff;
+  --category-purple-tint: rgba(139, 122, 255, 0.18);
+  --category-blue: #74b0e8;
+  --category-blue-tint: rgba(116, 176, 232, 0.16);
+  --category-orange: #ffab52;
+  --category-orange-tint: rgba(255, 171, 82, 0.16);
+  --category-green: #5ec899;
+  --category-green-tint: rgba(94, 200, 153, 0.16);
+  --category-red: #ff8578;
+  --category-red-tint: rgba(255, 133, 120, 0.16);
+  --shadow-popover:
+    0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+  --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
 }
 
 /* Pulse — an explicit Dark, whatever the device says. */
@@ -3455,6 +4055,56 @@
   --md-app-color-preview-graphite-primary: #c1c7d0;
   --md-app-color-preview-graphite-secondary: #b9c8da;
   --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #121215;
+  --surface: #1a1a1f;
+  --surface-subtle: #202027;
+  --surface-muted: #26262e;
+  --surface-sunken: #0c0c0f;
+  --overlay-scrim: rgba(0, 0, 0, 0.58);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --hairline: rgba(255, 255, 255, 0.075);
+  --ink: #f3f3f6;
+  --ink-body: #e5e5ea;
+  --ink-secondary: #b7b7c1;
+  --ink-muted: #8c8c97;
+  --ink-faint: #6d6d78;
+  --ink-icon: #9b9ba6;
+  --ink-inverse: #101014;
+  --accent: #b5a8ff;
+  --accent-hover: #c6bcff;
+  --accent-pressed: #a08fff;
+  --accent-tint: rgba(139, 122, 255, 0.18);
+  --accent-tint-hover: rgba(139, 122, 255, 0.26);
+  --danger: #ff8578;
+  --danger-tint: rgba(255, 133, 120, 0.16);
+  --warning: #ffab52;
+  --warning-tint: rgba(255, 171, 82, 0.16);
+  --success: #5ec899;
+  --success-tint: rgba(94, 200, 153, 0.16);
+  --info: #74b0e8;
+  --info-tint: rgba(116, 176, 232, 0.16);
+  --priority-1: #ff7268;
+  --priority-2: #ff9a3d;
+  --priority-3: #7d9bff;
+  --priority-4: #9b9ba6;
+  --category-purple: #b5a8ff;
+  --category-purple-tint: rgba(139, 122, 255, 0.18);
+  --category-blue: #74b0e8;
+  --category-blue-tint: rgba(116, 176, 232, 0.16);
+  --category-orange: #ffab52;
+  --category-orange-tint: rgba(255, 171, 82, 0.16);
+  --category-green: #5ec899;
+  --category-green-tint: rgba(94, 200, 153, 0.16);
+  --category-red: #ff8578;
+  --category-red-tint: rgba(255, 133, 120, 0.16);
+  --shadow-popover:
+    0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+  --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
 }
 
 /* Ocean — an explicit Dark, whatever the device says. */
@@ -3716,6 +4366,56 @@
   --md-app-color-preview-graphite-primary: #c1c7d0;
   --md-app-color-preview-graphite-secondary: #b9c8da;
   --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #121215;
+  --surface: #1a1a1f;
+  --surface-subtle: #202027;
+  --surface-muted: #26262e;
+  --surface-sunken: #0c0c0f;
+  --overlay-scrim: rgba(0, 0, 0, 0.58);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --hairline: rgba(255, 255, 255, 0.075);
+  --ink: #f3f3f6;
+  --ink-body: #e5e5ea;
+  --ink-secondary: #b7b7c1;
+  --ink-muted: #8c8c97;
+  --ink-faint: #6d6d78;
+  --ink-icon: #9b9ba6;
+  --ink-inverse: #101014;
+  --accent: #b5a8ff;
+  --accent-hover: #c6bcff;
+  --accent-pressed: #a08fff;
+  --accent-tint: rgba(139, 122, 255, 0.18);
+  --accent-tint-hover: rgba(139, 122, 255, 0.26);
+  --danger: #ff8578;
+  --danger-tint: rgba(255, 133, 120, 0.16);
+  --warning: #ffab52;
+  --warning-tint: rgba(255, 171, 82, 0.16);
+  --success: #5ec899;
+  --success-tint: rgba(94, 200, 153, 0.16);
+  --info: #74b0e8;
+  --info-tint: rgba(116, 176, 232, 0.16);
+  --priority-1: #ff7268;
+  --priority-2: #ff9a3d;
+  --priority-3: #7d9bff;
+  --priority-4: #9b9ba6;
+  --category-purple: #b5a8ff;
+  --category-purple-tint: rgba(139, 122, 255, 0.18);
+  --category-blue: #74b0e8;
+  --category-blue-tint: rgba(116, 176, 232, 0.16);
+  --category-orange: #ffab52;
+  --category-orange-tint: rgba(255, 171, 82, 0.16);
+  --category-green: #5ec899;
+  --category-green-tint: rgba(94, 200, 153, 0.16);
+  --category-red: #ff8578;
+  --category-red-tint: rgba(255, 133, 120, 0.16);
+  --shadow-popover:
+    0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+  --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
 }
 
 /* Graphite — an explicit Dark, whatever the device says. */
@@ -3977,6 +4677,56 @@
   --md-app-color-preview-graphite-primary: #c1c7d0;
   --md-app-color-preview-graphite-secondary: #b9c8da;
   --md-app-color-preview-graphite-tertiary: #bac3ff;
+
+  /* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */
+  --canvas: #121215;
+  --surface: #1a1a1f;
+  --surface-subtle: #202027;
+  --surface-muted: #26262e;
+  --surface-sunken: #0c0c0f;
+  --overlay-scrim: rgba(0, 0, 0, 0.58);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --hairline: rgba(255, 255, 255, 0.075);
+  --ink: #f3f3f6;
+  --ink-body: #e5e5ea;
+  --ink-secondary: #b7b7c1;
+  --ink-muted: #8c8c97;
+  --ink-faint: #6d6d78;
+  --ink-icon: #9b9ba6;
+  --ink-inverse: #101014;
+  --accent: #b5a8ff;
+  --accent-hover: #c6bcff;
+  --accent-pressed: #a08fff;
+  --accent-tint: rgba(139, 122, 255, 0.18);
+  --accent-tint-hover: rgba(139, 122, 255, 0.26);
+  --danger: #ff8578;
+  --danger-tint: rgba(255, 133, 120, 0.16);
+  --warning: #ffab52;
+  --warning-tint: rgba(255, 171, 82, 0.16);
+  --success: #5ec899;
+  --success-tint: rgba(94, 200, 153, 0.16);
+  --info: #74b0e8;
+  --info-tint: rgba(116, 176, 232, 0.16);
+  --priority-1: #ff7268;
+  --priority-2: #ff9a3d;
+  --priority-3: #7d9bff;
+  --priority-4: #9b9ba6;
+  --category-purple: #b5a8ff;
+  --category-purple-tint: rgba(139, 122, 255, 0.18);
+  --category-blue: #74b0e8;
+  --category-blue-tint: rgba(116, 176, 232, 0.16);
+  --category-orange: #ffab52;
+  --category-orange-tint: rgba(255, 171, 82, 0.16);
+  --category-green: #5ec899;
+  --category-green-tint: rgba(94, 200, 153, 0.16);
+  --category-red: #ff8578;
+  --category-red-tint: rgba(255, 133, 120, 0.16);
+  --shadow-popover:
+    0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
+  --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
 }
 
 /* @end generated by scripts/generate-m3-scheme.mjs */
@@ -5010,39 +5760,6 @@
   /* ---------------------------------------------------------------------- */
   /* DalyHub redesign primitive tokens (Part B §2.1a)                       */
   /* ---------------------------------------------------------------------- */
-  --canvas: #f6f6f8;
-  --surface: #ffffff;
-  --surface-subtle: #fafafb;
-  --surface-muted: #f4f4f6;
-  --surface-sunken: #f0f0f3;
-  --overlay-scrim: rgba(16, 16, 20, 0.32);
-
-  --border: rgba(16, 16, 20, 0.06);
-  --border-strong: rgba(16, 16, 20, 0.09);
-  --hairline: rgba(16, 16, 20, 0.055);
-
-  --ink: #101014;
-  --ink-body: #1c1c22;
-  --ink-secondary: #45454e;
-  --ink-muted: #82828c;
-  --ink-faint: #a3a3ac;
-  --ink-icon: #8a8a94;
-  --ink-inverse: #ffffff;
-
-  --accent: #5b4bd6;
-  --accent-hover: #4b3cc2;
-  --accent-pressed: #3a2fa0;
-  --accent-tint: #efedfc;
-  --accent-tint-hover: #e6e2fa;
-
-  --danger: #d9483b;
-  --danger-tint: #fbeae8;
-  --warning: #d98324;
-  --warning-tint: #fbf0e2;
-  --success: #2e9e6b;
-  --success-tint: #e7f5ee;
-  --info: #3b82c4;
-  --info-tint: #eaf1f9;
 
   /*
    * Priority owns its FOUR colours outright; it no longer borrows the feedback
@@ -5061,21 +5778,6 @@
    * (#f57c11) and P4 (#afadb0) sit at 2.5:1 and 2.1:1, so those two are deepened;
    * P1 and P3 are the reference values unchanged.
    */
-  --priority-1: #dd302a;
-  --priority-2: #e2680a;
-  --priority-3: #2e56e3;
-  --priority-4: #8a8a94;
-
-  --category-purple: #5b4bd6;
-  --category-purple-tint: #efedfc;
-  --category-blue: #3b82c4;
-  --category-blue-tint: #eaf1f9;
-  --category-orange: #d98324;
-  --category-orange-tint: #fbf0e2;
-  --category-green: #2e9e6b;
-  --category-green-tint: #e7f5ee;
-  --category-red: #d9483b;
-  --category-red-tint: #fbeae8;
 
   --radius-card: 16px;
   --radius-panel: 14px;
@@ -5432,10 +6134,37 @@
   --dh-text-record-title-line-height: 1.15;
   --dh-text-record-title-weight: 600;
 
-  /** A section heading, a card title, a widget title. */
+  /** A section heading, a widget title. */
   --dh-text-section-title-size: 18px;
   --dh-text-section-title-line-height: 1.25;
   --dh-text-section-title-weight: 600;
+
+  /**
+   * REDESIGN-03 — a record CARD's own name, one rung under a section heading.
+   *
+   * The card families had no DalyHub role for this and were reading Material's
+   * `title-medium` (16px) directly. The single pixel matters at gallery widths:
+   * at four columns on a 1440 a Project card's title track is ~200px, and 16px
+   * is what wrapped the longer Project names onto a second line — so the grid's
+   * rows were ragged and every card was as tall as its worst neighbour. 15px is
+   * the size the approved references draw a card title at.
+   */
+  --dh-text-card-title-size: 15px;
+  --dh-text-card-title-line-height: 1.3;
+  --dh-text-card-title-weight: 600;
+
+  /**
+   * REDESIGN-03 — a figure meant to be READ AS A FIGURE.
+   *
+   * One role replacing a mix of Material's `title-large` (22px) and
+   * `headline-small` (24px) that varied by which surface happened to draw the
+   * number rather than by what the number meant. Pairs with
+   * `--dh-font-numeric`, because a measure that shifts its own label as it
+   * ticks is not a measure.
+   */
+  --dh-text-metric-size: 24px;
+  --dh-text-metric-line-height: 1.1;
+  --dh-text-metric-weight: 600;
 
   /** Prose, descriptions, anything read continuously. */
   --dh-text-body-size: 14px;

@@ -1,10 +1,10 @@
 /**
- * GOAL-02 — Today's Goal Progress and workload-trend sections.
+ * GOAL-02 — Today's Goal Progress section.
  *
  * Today's own contract is that a figure with nothing to say is not painted, so
- * these hold the two new sections to it: an empty week renders no chart at all,
- * an owner with no measurable Goals gets a compact line rather than a large empty
- * analytics container, and every number on either section exists as text.
+ * these hold the section to it: an owner with no measurable Goals gets a compact
+ * line rather than a large empty analytics container, and every number on the
+ * section exists as text.
  */
 
 import type { ReactElement } from "react";
@@ -187,55 +187,12 @@ describe("Goal progress on Today", () => {
   });
 });
 
-describe("the 7-day workload trend", () => {
-  const trend = {
-    days: [
-      { dateIso: "2026-08-03", created: 3, completed: 5 },
-      { dateIso: "2026-08-04", created: 6, completed: 4 },
-      { dateIso: "2026-08-05", created: 2, completed: 7 },
-      { dateIso: "2026-08-06", created: 4, completed: 4 },
-      { dateIso: "2026-08-07", created: 5, completed: 6 },
-      { dateIso: "2026-08-08", created: 1, completed: 2 },
-      { dateIso: "2026-08-09", created: 2, completed: 3 },
-    ],
-    totalCreated: 23,
-    totalCompleted: 31,
-    // The prior week's completions, which the summary strip compares against.
-    // These assertions are about the chart, so the value only has to be real.
-    previousCompleted: 23,
-  };
-
-  it("draws the comparison and states the week in words beneath it", () => {
-    renderScreen(day({ activityTrend: trend }));
-    const section = screen.getByTestId("today-activity-trend");
-    expect(
-      within(section).getByText(
-        "31 completed · 23 created · 8 tasks fewer in your active workload",
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("names both series and gives the chart a text equivalent", () => {
-    renderScreen(day({ activityTrend: trend }));
-    const section = screen.getByTestId("today-activity-trend");
-    // The legend names them — the two series are never distinguished by colour
-    // alone.
-    expect(
-      within(section).getByText("Completed", { exact: true }),
-    ).toBeInTheDocument();
-    expect(
-      within(section).getByText("Created", { exact: true }),
-    ).toBeInTheDocument();
-    const chart = within(section).getByRole("img");
-    expect(chart.getAttribute("aria-label")).toContain(
-      "Mon 5 completed, 3 created",
-    );
-  });
-
-  it("renders no section at all when the week is empty", () => {
-    renderScreen(day({ activityTrend: null }));
-    expect(
-      screen.queryByTestId("today-activity-trend"),
-    ).not.toBeInTheDocument();
-  });
-});
+/*
+ * REDESIGN-03 — the 7-day workload trend's tests used to be here.
+ *
+ * The chart plotted `created` against `completed` for seven days and printed
+ * "31 completed · 23 created · 8 tasks fewer in your active workload" beneath
+ * it — which is the first two cards of Today's own measure row, in the same
+ * units, over the same rolling window, one screen apart. `TodayScreen.test.tsx`
+ * now asserts the chart's ABSENCE, and Analytics keeps the trend.
+ */

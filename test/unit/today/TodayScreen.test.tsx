@@ -206,144 +206,128 @@ describe("the header block", () => {
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText(/done today/)).not.toBeInTheDocument();
   });
-
-  it("states progress over everything on today once one is done", () => {
-    const done = task("c", "Gamma", { completed: true, completedDate: TODAY });
-    renderScreen(
-      day({
-        today: [task("a", "Alpha"), task("b", "Beta"), done],
-        completedToday: [done],
-      }),
-    );
-    expect(screen.getByText("1 of 3 done today")).toBeInTheDocument();
-  });
 });
 
 /*
- * The day's FIGURES.
+ * The WEEK's measures.
  *
- * The hero is gone — the approved direction states the day as a row of quiet
- * stat cards on the canvas rather than as one tinted band. What these assert is
- * that the rules survived the move, because they are the reason the surface was
- * worth keeping: a zero never paints, the row does not render at all when it
- * would have nothing to say, every figure links to the canonical view that holds
- * it, and slipped work is the one thing given a tone.
+ * REDESIGN-03 removed the day's stat-card row entirely. Every figure on it —
+ * "Meetings today · Next 20:00", "Overdue 44", "Daily progress 68%" — counted
+ * something the same page renders in full a few hundred pixels lower, so it was
+ * a caption printed at headline size. The tests that pinned those cards down
+ * went with them; what survives is the rule they existed to protect, asserted
+ * against the one measure row that is left.
+ *
+ * The row is about the WEEK, which is what earns it a place above the day: a
+ * figure that counts what is visible immediately below it is not a measure.
  */
-describe("the day's figures", () => {
-  it("does not render at all on a quiet day", () => {
-    const { container } = renderScreen(day());
-    expect(container.querySelector(".dh-stat-row")).toBeNull();
-  });
-
-  it("renders only the figures whose counts are non-zero", () => {
-    renderScreen(day({ today: [task("a", "Alpha")] }));
-    expect(screen.getByTestId("today-stat-tasks")).toBeInTheDocument();
-    expect(screen.queryByTestId("today-stat-meetings")).toBeNull();
-    expect(screen.queryByTestId("today-stat-overdue")).toBeNull();
-  });
-
-  it("names each figure as a heading over its number", () => {
-    renderScreen(day({ today: [task("a", "Alpha")] }));
-    const card = screen.getByTestId("today-stat-tasks");
-    expect(within(card).getByText("Tasks for today")).toBeInTheDocument();
-    expect(within(card).getByText("1")).toBeInTheDocument();
-  });
-
-  it("counts only unfinished work in the Tasks figure, while progress keeps the full day", () => {
-    const done = task("b", "Beta", { completed: true, completedDate: TODAY });
-    renderScreen(
-      day({ today: [task("a", "Alpha"), done], completedToday: [done] }),
-    );
-    expect(
-      within(screen.getByTestId("today-stat-tasks")).getByText("1"),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId("today-stat-progress")).getByText(
-        "1 of 2 done today",
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("gives the tone to slipped work and to nothing else", () => {
+describe("the week's measures", () => {
+  it("does not render the removed stat-card row", () => {
+    // The guard against the merge that put it back. Both classes are the shared
+    // StatCard family's, so this fails if any of it returns to Today.
     const { container } = renderScreen(
       day({
-        overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
         today: [task("a", "Alpha")],
+        overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
         meetings: [meeting("m1", "Standup", "09:30")],
       }),
     );
-    const toned = container.querySelectorAll(
-      '.dh-stat__value[data-tone="attention"]',
-    );
-    expect(toned).toHaveLength(1);
-    expect(toned[0].closest(".dh-stat")).toBe(
-      screen.getByTestId("today-stat-overdue"),
-    );
-  });
-
-  it("navigates each figure to the filtered view that holds its number", () => {
-    renderScreen(
-      day({
-        today: [task("a", "Alpha")],
-        meetings: [meeting("m1", "Standup", "09:30")],
-        overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
-      }),
-    );
-    expect(screen.getByTestId("today-stat-tasks")).toHaveAttribute(
-      "href",
-      "/tasks?system=today",
-    );
-    expect(screen.getByTestId("today-stat-meetings")).toHaveAttribute(
-      "href",
-      "/meetings",
-    );
-    expect(screen.getByTestId("today-stat-overdue")).toHaveAttribute(
-      "href",
-      "/tasks?system=overdue",
-    );
+    expect(container.querySelector(".dh-stat-row")).toBeNull();
+    expect(container.querySelector(".dh-stat")).toBeNull();
   });
 
   /*
-   * The day's "what next?" is answered ON the figure it belongs to. A meeting
-   * that has already started is not next, which is the whole reason the flag is
-   * decided on the server against the request instant.
+   * DALYHUB_DESIGN_SYSTEM.md §5d — "no focus time, no 'daily progress'
+   * percentage". Analytics has refused both since UIX-05 and states why in
+   * `~/kernel/analytics/analytics.ts`; Today had quietly reintroduced the
+   * second one as a green ring. This is the line, asserted on the surface that
+   * crossed it.
    */
-  it("states the next START TIME on the meetings figure", () => {
-    renderScreen(
-      day({
-        meetings: [
-          meeting("m0", "Already started", "08:00"),
-          meeting("m1", "Ops planning", "09:30", { upcoming: true }),
-        ],
-      }),
+  it("states no daily-progress percentage", () => {
+    const done = task("b", "Beta", { completed: true, completedDate: TODAY });
+    const { container } = renderScreen(
+      day({ today: [task("a", "Alpha"), done], completedToday: [done] }),
     );
-    expect(
-      within(screen.getByTestId("today-stat-meetings")).getByText(
-        "Next: 09:30",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Daily progress")).toBeNull();
+    expect(screen.queryByText("50%")).toBeNull();
+    expect(screen.queryByText(/done today/)).toBeNull();
+    expect(container.querySelector(".dh-progress-ring")).toBeNull();
   });
 
-  it("states no next time when every meeting has already started", () => {
+  it("does not render at all when there is nothing real to measure", () => {
+    // No trend and no Goals: three empty cards would be a row of noughts.
+    const { container } = renderScreen(day({ activityTrend: null, goals: [] }));
+    expect(container.querySelector(".dh-today__summary")).toBeNull();
+  });
+
+  it("measures the week rather than the day", () => {
     renderScreen(
-      day({ meetings: [meeting("m0", "Already started", "08:00")] }),
+      day({
+        activityTrend: {
+          days: [],
+          totalCompleted: 21,
+          totalCreated: 12,
+          previousCompleted: 27,
+        },
+      }),
     );
+    const summary = screen.getByTestId("today-summary");
+    expect(within(summary).getByText("Tasks completed")).toBeInTheDocument();
+    expect(within(summary).getByText("21")).toBeInTheDocument();
     expect(
-      within(screen.getByTestId("today-stat-meetings")).queryByText(/^Next:/),
+      within(summary).getByText("Last 7 days · −6 on the previous 7"),
+    ).toBeInTheDocument();
+    expect(within(summary).getByText("Tasks captured")).toBeInTheDocument();
+    expect(within(summary).getByText("12")).toBeInTheDocument();
+  });
+
+  /*
+   * The rule every figure on this screen has always followed: a number the
+   * owner cannot check is a number they have to trust. Removing the workload
+   * chart made this one matter more, not less — Analytics is now the only place
+   * the week has a shape, so the figure that used to sit beside the chart has
+   * to point at it.
+   */
+  it("links the checkable measures to where the records are", () => {
+    renderScreen(
+      day({
+        activityTrend: {
+          days: [],
+          totalCompleted: 4,
+          totalCreated: 2,
+          previousCompleted: null,
+        },
+      }),
+    );
+    const summary = screen.getByTestId("today-summary");
+    expect(
+      within(summary).getByRole("link", { name: /Tasks completed/ }),
+    ).toHaveAttribute("href", "/analytics");
+    // "Created in the last seven days" has no canonical view, so it does not
+    // pretend to have one.
+    expect(
+      within(summary).queryByRole("link", { name: /Tasks captured/ }),
     ).toBeNull();
   });
 
-  it("shows the progress figure only once something is done", () => {
-    renderScreen(day({ today: [task("a", "Alpha"), task("b", "Beta")] }));
-    expect(screen.queryByTestId("today-stat-progress")).toBeNull();
-
-    const done = task("c", "Gamma", { completed: true, completedDate: TODAY });
+  /*
+   * The workload chart restated the summary's first two figures — its own
+   * caption read "21 completed · 124 created" — and shared one linear scale, so
+   * a single day of bulk capture flattened the other six to hairlines.
+   */
+  it("does not render the removed workload chart", () => {
     renderScreen(
-      day({ today: [task("a", "Alpha"), done], completedToday: [done] }),
+      day({
+        activityTrend: {
+          days: [{ dateIso: TODAY, completed: 3, created: 5 }],
+          totalCompleted: 3,
+          totalCreated: 5,
+          previousCompleted: 1,
+        },
+      }),
     );
-    const card = screen.getByTestId("today-stat-progress");
-    expect(within(card).getByText("50%")).toBeInTheDocument();
-    expect(within(card).getByText("1 of 2 done today")).toBeInTheDocument();
+    expect(screen.queryByTestId("today-activity-trend")).toBeNull();
+    expect(screen.queryByText("This week")).toBeNull();
   });
 });
 
@@ -451,45 +435,67 @@ describe("the day timeline", () => {
 
   it("carries the day's first actionable row above the laptop fold", () => {
     /*
-     * A position guard, not a pixel test. The reading order is the greeting, the
-     * DAY, and only then the day's figures — at every width, because nothing on
-     * this screen is moved by CSS `order`. If a band is ever added between the
-     * greeting and the first task the sequence changes and this fails.
+     * A position guard, not a pixel test. If a band is ever added between the
+     * page heading and the first task, the sequence changes and this fails.
      *
-     * FINAL-UI swapped the last two. §45 of the brief is the rule the concepts
-     * state ("do not put decorative stats before actionable content") and
-     * concept 1's Today is drawn that way: the day's tasks and its schedule
-     * open the page, and the two small measures sit at the bottom. The figures
-     * cost the fold ~110px of the owner's actual work, which is the opposite of
-     * what a test named for the laptop fold should be protecting.
+     * ── What this test caught, and what REDESIGN-03 did about it ─────────────
+     * FINAL-UI put the day's figures BELOW the day, citing §45 of the brief
+     * ("do not put decorative stats before actionable content"), and wrote the
+     * order down here. The convergence merge then put a stat-card row back above
+     * the day and left this assertion red on `main` — which is where REDESIGN-03
+     * found it, still failing, still correct about the problem.
+     *
+     * The resolution is not the swap it was asking for. The stat row is gone
+     * outright: every figure on it counted something rendered in full lower down
+     * the same page, so moving it merely relocated the duplication. What is
+     * above the day now is ONE row of three measures about the WEEK, which is
+     * the composition the approved reference draws and the only kind of figure
+     * that earns the position — it says something the day itself does not.
+     *
+     * Measured at 390×844 on the seeded fixture: the base commit put ZERO task
+     * rows in the first viewport, and this composition puts three.
      */
     const { container } = renderScreen(
       day({
         overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
         today: [task("a", "Alpha")],
+        // The measure row only paints when it has a real reading, so the
+        // fixture has to give it one for the ORDER to be assertable at all.
+        activityTrend: {
+          days: [],
+          totalCompleted: 4,
+          totalCreated: 2,
+          previousCompleted: 3,
+        },
       }),
     );
     const surface = container.querySelector(".dh-today")!;
-    const roles = ["dh-today__head", "dh-today__timeline", "dh-stat-row"];
+    const roles = ["dh-today__head", "dh-today__summary", "dh-today__timeline"];
     const blocks = [...surface.querySelectorAll("*")]
       .map((node) => roles.find((role) => node.classList.contains(role)))
       .filter((role): role is string => role !== undefined);
     expect(blocks).toEqual(roles);
+
     /*
-     * GOAL-02 / UIX-01 — progress is the LAST block on the screen, so it can
-     * never come between the figures and the first actionable row. The DOM order
-     * is what the phone layout stacks, so this is the hierarchy guard.
-     *
-     * UIX-01 moved it OUT of the day's own column (which no longer exists — the
-     * body is three sibling regions) and made it a full-width row under the
-     * whole body. The guard is the same claim about the same order, read off the
-     * screen root rather than off a column that has been replaced.
+     * Exactly ONE block sits between the heading and the day's work. This is the
+     * assertion that would have caught the merge: it fails on a second figure
+     * row whatever that row is called, rather than naming the one component that
+     * happened to be there.
      */
-    expect(surface.lastElementChild?.className).toContain("dh-today__progress");
+    const body = surface.querySelector(".dh-today__body")!;
+    const beforeBody = [...surface.children].slice(
+      0,
+      [...surface.children].indexOf(body),
+    );
+    expect(beforeBody).toHaveLength(3); // head, day rail, measures
+    expect(beforeBody.at(-1)?.className).toContain("dh-today__summary");
+
     const focusColumn = surface.querySelector(".dh-today__col--focus")!;
     expect(focusColumn.firstElementChild?.className).toContain(
       "dh-today__timeline",
     );
+    // The day's own work is the FIRST column of the body, ahead of the rail.
+    expect(body.firstElementChild?.className).toContain("dh-today__col--focus");
     // The first row inside the day column is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");
@@ -647,23 +653,29 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     expect(screen.queryByText(/Capture anything new/)).not.toBeInTheDocument();
   });
 
-  it("counts the canonical today set on the figure, not the rows drawn", () => {
+  it("counts the canonical today set on the bound, not the rows drawn", () => {
+    /*
+     * The claim survives the stat card that used to carry it. "View all N tasks
+     * for today" links to `/tasks?system=today`, so N has to be THAT view's
+     * number: a task due today whose plan has also slipped is filed under
+     * Overdue here and counted by the system view there, and deriving the
+     * figure from the membership rule rather than from the drawn rows is what
+     * stops the link and its own destination disagreeing.
+     */
     renderScreen(
       day({
-        // Due today but its PLAN slipped: filed under Overdue here, and counted
-        // by `/tasks?system=today`, which the figure links to.
         overdue: [
           task("slipped", "Slipped plan", { scheduledDate: "2026-08-01" }),
         ],
-        today: [task("a", "Alpha")],
+        today: Array.from({ length: 12 }, (_, index) =>
+          task(`t${index}`, `Task ${index}`),
+        ),
       }),
     );
-    const card = screen.getByTestId("today-stat-tasks");
-    expect(within(card).getByText("2")).toBeInTheDocument();
-    expect(card.closest("a") ?? card.querySelector("a")).toHaveAttribute(
-      "href",
-      "/tasks?system=today",
-    );
+    const link = screen.getByTestId("today-focus-view-all");
+    // 12 on today + the one due today whose plan slipped = the system view's 13.
+    expect(link).toHaveTextContent("View all 13 tasks for today");
+    expect(link).toHaveAttribute("href", "/tasks?system=today");
   });
 
   it("does not move a row between bands when it is ticked", () => {
@@ -729,7 +741,7 @@ describe("the Schedule panel", () => {
 });
 
 describe("completing a task from the timeline", () => {
-  it("writes through the existing completion path and updates progress", () => {
+  it("writes through the existing completion path and ticks optimistically", () => {
     const onCompleteTask = vi.fn();
     const done = task("c", "Gamma", { completed: true, completedDate: TODAY });
     renderScreen(
@@ -740,15 +752,20 @@ describe("completing a task from the timeline", () => {
       onCompleteTask,
     );
 
-    expect(screen.getByText("1 of 3 done today")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Complete Alpha" }));
 
     expect(onCompleteTask).toHaveBeenCalledWith("a", true);
-    // Optimistic: the figure moves before any revalidation.
-    expect(screen.getByText("2 of 3 done today")).toBeInTheDocument();
+    /*
+     * Optimistic: the ROW changes state before any revalidation. This used to
+     * watch the daily-progress figure move from "1 of 3" to "2 of 3"; that
+     * figure is gone (see "the week's measures"), so the assertion is made on
+     * the thing the owner actually pressed. The row also stays in its band —
+     * completion changes how a row is DRAWN, never where it sits.
+     */
     expect(
       screen.getByRole("checkbox", { name: "Reopen Alpha" }),
     ).toBeChecked();
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
   });
 
   it("reopens a completed task through the same path", () => {

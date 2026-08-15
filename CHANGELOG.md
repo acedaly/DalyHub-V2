@@ -17,6 +17,59 @@ no version number to group them under.
 
 ---
 
+## Today, Projects, Goals and Areas, converged (REDESIGN-03)
+
+DalyHub had been through several redesigns, and the last merge brought two of
+them together without deciding between them. This pass decided.
+
+**Dark mode now exists.** This is the big one. Choosing Dark used to repaint a
+few badges and leave the page, the sidebar and every card white — because the
+colour palette the redesign introduced had only ever been given light values.
+It has both halves now: a near-black frame, a charcoal sidebar, cards that sit a
+step above the page, quiet borders, and red, orange, blue and grey that still
+mean what they mean. Every screen, not just the ones in this pass.
+
+**Today opens on your day, not on statistics.** The morning screen had grown two
+rows of number cards and a chart, and on a phone you could scroll past all of it
+without seeing a single task. Nearly every number was counting something printed
+in full a little further down the same page: "Overdue 44" sat above the overdue
+list, "Meetings today · Next 20:00" sat above the meeting it was describing, and
+the week's chart restated the two figures directly above it.
+
+They are gone. What is left is one row of three measures about the week —
+completed, captured, and Goals on track — and then the day. On a phone the
+measures are a compact band rather than three tall cards, so the first thing you
+see is the first thing you have to do.
+
+**No more "Daily progress" percentage.** It divided what you had finished by
+however many tasks happened to carry today's date, which meant a day with three
+tasks scored better than a day with twelve. DalyHub does not measure your life as
+a percentage — Analytics has refused to for a while, and Today now agrees.
+
+**The empty rectangle under Today is gone.** The day's work and the things around
+it were laid out as three columns forced to the same height, so a short day left
+a large blank area sitting directly under your tasks. Your work now has a column
+of its own with a single supporting rail beside it, and the page ends where its
+content ends.
+
+**Trends live in Analytics.** Today's week chart could not be read on a busy week
+— one heavy day flattened the rest to hairlines — and Analytics already does this
+properly. "Tasks completed" on Today now takes you there.
+
+**Projects scan faster.** Project names were a pixel too large, which wrapped the
+longer ones onto a second line and made every card in the row as tall as the
+worst one. Titles are smaller; the gallery is even again.
+
+**Goals read as one measurement.** "83 kg" was printed half as large again as the
+Start, Target and Remaining figures beside it, so it stopped being the lead
+number in a set and became a banner with three captions. All four can be read
+together now, and the grey slab behind the pace figures is a quiet line instead.
+
+**Areas were left alone,** deliberately. They are quiet, they never imply a
+percentage complete, and that was already right.
+
+---
+
 ## The refinement pass (FINAL-UI, part two)
 
 The redesign landed the structure. This pass made it confident.

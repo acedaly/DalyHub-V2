@@ -513,15 +513,42 @@ heading for DalyHub owning both — deleting it would be the migration failing.
 The prefix is reused because `.dh-` is already the CSS class namespace, so a
 component's class and its tokens speak one name.
 
-**The type roles.** Seven, named for the job rather than for a rung: page-title,
-record-title, section-title, body, row, meta, label. What this adds over the
-typescale is the answer to "what size is a list row's title?" — which
-`body-medium` is not, because `body-medium` is a size and three different things
-are it for three different reasons. The scale is compact deliberately: the
-largest role on an ordinary surface is 24px and there is no display rung.
-**Emphasis is weight, not size.** `--dh-font-numeric` is the tabular-figures
-request, in one place, so a column of readings lines up without every author
-remembering the CSS.
+**The type roles.** Nine, named for the job rather than for a rung: page-title,
+record-title, section-title, **card-title**, **metric**, body, row, meta, label.
+What this adds over the typescale is the answer to "what size is a list row's
+title?" — which `body-medium` is not, because `body-medium` is a size and three
+different things are it for three different reasons. The scale is compact
+deliberately: the largest role on an ordinary surface is 24px and there is no
+display rung. **Emphasis is weight, not size.** `--dh-font-numeric` is the
+tabular-figures request, in one place, so a column of readings lines up without
+every author remembering the CSS.
+
+REDESIGN-03 added the last two, and their absence is *why* the record card
+families were still reading Material's typescale directly — both are real jobs in
+this product and neither had a DalyHub role to reach for:
+
+| Role | Value | The job, and what it replaced |
+| --- | --- | --- |
+| `card-title` | 15px / 1.3 / 600 | A record CARD's own name. Was `title-medium` (16px), and that pixel is what wrapped longer Project names onto a second line at gallery widths, leaving every card in a row as tall as its worst neighbour. |
+| `metric` | 24px / 1.1 / 600 | A figure meant to be READ AS A FIGURE. Replaced a mix of `title-large` (22px) and `headline-small` (24px) that varied by which surface drew the number rather than by what the number meant. Pairs with `--dh-font-numeric`. |
+
+**A figure is never a display rung.** The Goal record led with `display-small`
+(36px) against 18px siblings, which stopped the current value being the lead
+number of Start / Now / Target / Remaining and made it a banner with three
+captions underneath. `metric` at 24px still reads as the lead at a glance and
+lets the four be read as one reading, which is the point of the row: the
+relationship between them is the measurement.
+
+**Colour primitives are GENERATED, not authored.** Rule 1 above is not advice.
+The Part B primitives — `--canvas`, `--surface*`, `--ink*`, `--border*`,
+`--accent*`, the feedback, priority and category ramps — were authored as literal
+values on a bare `:root`, and because every `--dh-color-*` name resolves onto
+them and `base.css` paints the document from `--dh-color-bg`, that pinned the
+whole product to the light appearance: choosing Dark repainted only the fragments
+still reading a generated role. They now come from the generator as a light/dark
+pair inside the generated markers, which is the only region `scheme:check`
+compares. See
+[ADR-097](../decisions/ARCHITECTURE_DECISIONS.md#adr-097-the-dalyhub-colour-primitives-are-generated-not-authored--the-appearance-pair-the-redesign-foundation-never-shipped).
 
 ## 11. Density (DS-01)
 
