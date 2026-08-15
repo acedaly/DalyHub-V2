@@ -540,7 +540,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     expect(within(row).getByText("Kitchen renovation")).toBeInTheDocument();
   });
 
-  it("shows priority only where there IS one, using the shared indicator", () => {
+  it("shows every row's priority through the shared indicator", () => {
     const { container } = renderScreen(
       day({
         today: [
@@ -554,13 +554,25 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       "aria-label",
       "Priority 1",
     );
+    /*
+     * An untriaged task draws a grey Priority 4 rather than a blank.
+     *
+     * This used to assert the opposite. The visual references show all four
+     * levels in the list, and the reason holds up: an empty cell is ambiguous
+     * between "normal" and "not looked at yet", and the gaps left the priority
+     * column ragged down a panel whose whole value is that it scans in one
+     * pass. Grey on grey is quiet enough that P4 does not compete.
+     */
     const plain = within(timelineSection())
       .getByText("Untriaged")
       .closest("li")!;
-    expect(plain.querySelector(".dh-priority")).toBeNull();
-    // And the whole panel draws exactly one, so nothing gained a placeholder.
+    expect(plain.querySelector(".dh-priority")).toHaveAttribute(
+      "aria-label",
+      "Priority 4",
+    );
+    // Still exactly one indicator per row — nothing gained a second marker.
     expect(container.querySelectorAll(".dh-day-row .dh-priority")).toHaveLength(
-      1,
+      2,
     );
   });
 

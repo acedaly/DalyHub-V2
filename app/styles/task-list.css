@@ -146,18 +146,26 @@
    * neither is allowed to break the row).
    */
   /*
-   * FINAL-UI — the order is DATE, then project, then priority.
+   * The order is DATE, then PRIORITY, then project.
    *
-   * Concepts 2 and 3 both run `title · date · project · priority`, and §22 of
-   * the brief states the emphasis order behind it: after the title, WHEN comes
-   * before WHERE. DS-04 shipped `project · date`, which put the slower-changing
-   * fact first. The DOM order is unchanged (the cells keep their source
-   * positions and are placed by `grid-column`, with `order` handling the phone's
-   * flex composition), so nothing about the accessible reading order moves.
+   * After the title, WHEN comes before WHERE — that much was already right. What
+   * was wrong is what came next: a 10.5rem project column sat between the date
+   * and the priority, so the two facts that decide whether a row needs acting on
+   * TODAY were held apart by the one that does not. The reference list runs
+   * `title · date · priority · project`, and reading it confirms why — date and
+   * flag form a single urgency cluster the eye takes in at once, and the project
+   * is context you consult afterwards.
+   *
+   * The DOM order is unchanged (cells keep their source positions and are placed
+   * by `grid-column`, with `order` handling the phone's flex composition), so
+   * nothing about the accessible reading order moves.
+   *
+   * Priority widened from 4.5rem to 5rem now that the tag is drawn for every
+   * level rather than suppressed for P4, and project gave up the difference.
    */
   --taskrow-lead: auto;
-  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 7rem 10.5rem 4.5rem
-    6.5rem 1.75rem;
+  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 7rem 5rem 10rem 6.5rem
+    1.75rem;
 
   display: flex;
   flex-direction: column;
@@ -455,12 +463,12 @@
   grid-row: 1;
 }
 
-.dh-taskrow__cell--project {
+.dh-taskrow__cell--priority {
   grid-column: 4;
   grid-row: 1;
 }
 
-.dh-taskrow__cell--priority {
+.dh-taskrow__cell--project {
   grid-column: 5;
   grid-row: 1;
 }
@@ -900,19 +908,20 @@
 }
 
 /*
- * FINAL-UI — a heading, a middot and a count. No rule, no band, no small caps.
+ * A chevron, a heading and a count. No rule, no band, no small caps, no colour.
  *
- * Concepts 2 and 3 draw this identically: "Overdue · 2" in red and "Today · 5"
- * in near-black, both sentence case, both a clear step ABOVE the rows they
- * label. DS-04 drew a muted uppercase band with a hairline under it and argued
- * a red heading repeats what the row's date already says; the approved concepts
- * are the authority for this pass and they say the bucket's state belongs where
- * the eye lands while scanning.
+ * An earlier pass drew "Overdue · 2" in red on the reading that a bucket's state
+ * should be legible while scanning. The current references draw every heading in
+ * the same near-black and put the red on the row's own date — sampled from the
+ * reference, the word is #000 and the figure is grey — which is also what the
+ * brief means by "Overdue uses controlled red; do not colour an entire section
+ * red". So the tone attribute survives on the section (it still says which
+ * bucket this is, and forced-colours and tests read it) and simply no longer
+ * repaints the heading.
  *
- * The rule under the heading goes with it. A bucket is separated from the one
- * above by SPACE (`.dh-taskgroup + .dh-taskgroup`), and the rows below the
- * heading carry their own hairlines — a third line four pixels above the first
- * of those is a double rule, which is what the baseline measured.
+ * There is still no hairline under it: the buckets are separated from each other
+ * by SPACE, and the rows below carry their own hairlines — a third line four
+ * pixels above the first of those is a double rule.
  */
 .dh-taskgroup__header {
   display: flex;
@@ -920,6 +929,39 @@
   gap: var(--dh-space-2);
   padding-block-end: var(--dh-space-2);
   padding-inline: var(--dh-inset-inline);
+}
+
+/* The disclosure is a bare control: the heading inside supplies every visual
+ * value, so folding a bucket adds a target rather than a button. */
+.dh-taskgroup__disclosure {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-taskgroup__chevron {
+  display: inline-flex;
+  flex: none;
+  inline-size: 16px;
+  block-size: 16px;
+  color: var(--dh-color-text-muted);
+  /* Reduced motion is honoured globally; this is a 120ms hover-class change. */
+  transition: transform var(--dh-duration-fast, 120ms) ease;
+}
+
+.dh-taskgroup__disclosure[aria-expanded="false"] .dh-taskgroup__chevron {
+  transform: rotate(-90deg);
+}
+
+.dh-taskgroup__disclosure:hover .dh-taskgroup__chevron {
+  color: var(--dh-color-text);
 }
 
 .dh-taskgroup__title {
@@ -932,30 +974,12 @@
   color: var(--dh-color-text);
 }
 
-/* The count is the same weight and the same colour as the word it belongs to —
- * it is part of the heading, not an annotation on it. The middot between them
- * is the one quiet mark. */
+/* The count is an ANNOTATION on the heading, not part of the word: muted and
+ * regular weight, so "Overdue" is what is read and "2" is what is checked. */
 .dh-taskgroup__count {
   font-variant-numeric: var(--dh-font-numeric);
-  color: inherit;
-}
-
-.dh-taskgroup__sep {
-  color: var(--dh-color-text-muted);
   font-weight: 400;
-}
-
-/*
- * The overdue bucket, which is the only tone.
- *
- * `--dh-color-overdue` and not `--dh-color-danger`: a slipped task is a state of
- * a record, not an application fault, and D3 keeps the two separable so a red
- * list is never mistaken for a broken one. The middot follows the heading so the
- * whole line reads as one object.
- */
-.dh-taskgroup[data-tone="overdue"] .dh-taskgroup__title,
-.dh-taskgroup[data-tone="overdue"] .dh-taskgroup__sep {
-  color: var(--dh-color-overdue);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-taskgroup__more {

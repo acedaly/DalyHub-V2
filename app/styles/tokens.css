@@ -5342,6 +5342,22 @@
   --dh-radius-pill: var(--radius-pill);
 
   /* ---------------------------------------------------------------------- */
+  /* Overlay geometry                                                       */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * The width of a contextual DETAIL PANEL — the right-hand pane a record opens
+   * into beside the list it came from.
+   *
+   * 26rem (416px) sits in the middle of the 380–420px the brief specifies and is
+   * what the references draw: wide enough for a property column and a note,
+   * narrow enough that the list it explains is still readable next to it. It is
+   * a design value of its own rather than a reuse of `--app-width-narrow`, which
+   * means "a single-column page" and is 42rem for good reasons that are not
+   * these ones.
+   */
+  --dh-detail-panel-width: 26rem;
+
+  /* ---------------------------------------------------------------------- */
   /* Borders and elevation                                                  */
   /* ---------------------------------------------------------------------- */
   /*
