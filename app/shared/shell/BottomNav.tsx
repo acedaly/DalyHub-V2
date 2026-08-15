@@ -5,7 +5,7 @@
  * route to every destination). The bar is persistent at phone widths and carries
  * the product's most frequent daily moves within thumb reach:
  *
- *     Today · Tasks · Capture · Diary · More
+ *     Today · Tasks · Add · Projects · More
  *
  * CAPTURE-02 — the Capture slot is the SINGLE global capture affordance at these
  * widths. The floating action button is hidden below `md` (`shell.css`), so a
@@ -118,7 +118,7 @@ export function BottomNav({
                       <PlusIcon />
                     </span>
                   </span>
-                  <span className="dh-bottomnav__label">Capture</span>
+                  <span className="dh-bottomnav__label">Add</span>
                 </button>
               </li>
             );

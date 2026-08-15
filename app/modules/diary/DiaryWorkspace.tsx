@@ -466,6 +466,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
         emptySlot={
           <EmptyState
             icon={<EntityIcon type="diary" />}
+            size="inline"
             title={
               mode === "day"
                 ? "Nothing recorded on this day"
@@ -491,6 +492,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
         filteredEmptySlot={
           <EmptyState
             icon={<EntityIcon type="diary" />}
+            size="inline"
             title="No entries match this filter"
             description="No diary entries match the current type. Clear the filter to see more."
             primaryAction={

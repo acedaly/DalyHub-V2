@@ -48,6 +48,103 @@ import { NavIcon } from "./NavIcon";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
 
+type NavigationGroup = {
+  readonly id: string;
+  readonly label?: string;
+  readonly items: readonly NavigationItem[];
+};
+
+const PRIMARY_ORDER = ["Today", "Inbox", "Upcoming", "Tasks"] as const;
+const ORGANISE_ORDER = [
+  "Projects",
+  "Goals",
+  "Areas",
+  "Notes",
+  "Diary",
+  "Meetings",
+  "People",
+  "Analytics",
+] as const;
+
+const SYSTEM_ORDER = [
+  "Views",
+  "Assets",
+  "Reviews",
+  "AI",
+  "Settings",
+  "Help",
+  "About",
+] as const;
+
+function syntheticTaskView(
+  id: string,
+  label: string,
+  href: string,
+  order: number,
+  taskItem: NavigationItem,
+): NavigationItem {
+  return {
+    id,
+    moduleId: taskItem.moduleId,
+    label,
+    href,
+    order,
+    entityType: "task",
+  };
+}
+
+function sortByLabelOrder(
+  items: readonly NavigationItem[],
+  order: readonly string[],
+): readonly NavigationItem[] {
+  const byLabel = new Map(items.map((item) => [item.label, item]));
+  return order
+    .map((label) => byLabel.get(label))
+    .filter((item): item is NavigationItem => item !== undefined);
+}
+
+function buildShellNavigationGroups(
+  items: readonly NavigationItem[],
+): readonly NavigationGroup[] {
+  const taskItem = items.find((item) => item.label === "Tasks");
+  const augmented = [
+    ...items,
+    ...(taskItem
+      ? [
+          syntheticTaskView(
+            "tasks.inbox.nav",
+            "Inbox",
+            "/tasks?view=list&system=inbox",
+            15,
+            taskItem,
+          ),
+          syntheticTaskView(
+            "tasks.upcoming.nav",
+            "Upcoming",
+            "/tasks?view=list&system=upcoming",
+            25,
+            taskItem,
+          ),
+        ]
+      : []),
+  ];
+
+  const primary = sortByLabelOrder(augmented, PRIMARY_ORDER);
+  const organise = sortByLabelOrder(augmented, ORGANISE_ORDER);
+  const system = sortByLabelOrder(augmented, SYSTEM_ORDER);
+
+  return [
+    { id: "primary", items: primary },
+    { id: "organise", label: "Organise", items: organise },
+    { id: "system", items: system },
+  ].filter((group) => group.items.length > 0);
+}
+
+function taskSystemViewFromSearch(search: string): string | null {
+  const params = new URLSearchParams(search);
+  return params.get("system");
+}
+
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
   readonly id: string;
@@ -69,10 +166,14 @@ export function PrimaryNavigation({
   onNavigate,
   collapsible = false,
 }: PrimaryNavigationProps) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const groups = buildShellNavigationGroups(items);
+  const visibleItems = groups.flatMap((group) => group.items);
+  const activeTaskSystem =
+    pathname === "/tasks" ? taskSystemViewFromSearch(search) : null;
   // Exactly one row is current for any route — the longest matching destination.
   const currentHref = activeNavigationHref(
-    items.map((item) => item.href),
+    visibleItems.map((item) => item.href.split("?")[0] ?? item.href),
     pathname,
   );
 
@@ -98,52 +199,62 @@ export function PrimaryNavigation({
 
   return (
     <div id={id} className="dh-nav">
-      <ul className="dh-nav__list">
-        {items.map((item, index) => {
-          const previous = items[index - 1];
-          const startsNewGroup = index > 0 && previous?.group !== item.group;
-          const current = item.href === currentHref;
-          return (
-            <Fragment key={item.id}>
-              {startsNewGroup ? (
-                <li className="dh-nav__divider" aria-hidden="true">
-                  <hr />
+      {groups.map((group, groupIndex) => (
+        <Fragment key={group.id}>
+          {groupIndex > 0 ? (
+            <div className="dh-nav__group-heading">
+              {group.label ? <span>{group.label}</span> : null}
+            </div>
+          ) : null}
+          <ul className="dh-nav__list">
+            {group.items.map((item) => {
+              const hrefPath = item.href.split("?")[0] ?? item.href;
+              const current =
+                item.label === "Inbox"
+                  ? activeTaskSystem === "inbox"
+                  : item.label === "Upcoming"
+                    ? activeTaskSystem === "upcoming"
+                    : item.label === "Tasks"
+                      ? pathname === "/tasks" &&
+                        activeTaskSystem !== "inbox" &&
+                        activeTaskSystem !== "upcoming"
+                      : hrefPath === currentHref;
+              return (
+                <li key={item.id} className="dh-nav__item">
+                  <Tooltip
+                    label={item.label}
+                    placement="bottom"
+                    disabled={!collapsed}
+                  >
+                    {(tip) => (
+                      <Link
+                        to={item.href}
+                        ref={tip.ref}
+                        className={
+                          current
+                            ? "dh-nav__link dh-nav__link--active"
+                            : "dh-nav__link"
+                        }
+                        aria-current={current ? "page" : undefined}
+                        aria-describedby={tip.describedBy}
+                        onClick={onNavigate}
+                      >
+                        <span className="dh-nav__icon">
+                          <NavIcon
+                            entityType={item.entityType}
+                            navIcon={item.navIcon}
+                          />
+                        </span>
+                        <span className="dh-nav__label">{item.label}</span>
+                      </Link>
+                    )}
+                  </Tooltip>
                 </li>
-              ) : null}
-              <li className="dh-nav__item">
-                <Tooltip
-                  label={item.label}
-                  placement="bottom"
-                  disabled={!collapsed}
-                >
-                  {(tip) => (
-                    <Link
-                      to={item.href}
-                      ref={tip.ref}
-                      className={
-                        current
-                          ? "dh-nav__link dh-nav__link--active"
-                          : "dh-nav__link"
-                      }
-                      aria-current={current ? "page" : undefined}
-                      aria-describedby={tip.describedBy}
-                      onClick={onNavigate}
-                    >
-                      <span className="dh-nav__icon">
-                        <NavIcon
-                          entityType={item.entityType}
-                          navIcon={item.navIcon}
-                        />
-                      </span>
-                      <span className="dh-nav__label">{item.label}</span>
-                    </Link>
-                  )}
-                </Tooltip>
-              </li>
-            </Fragment>
-          );
-        })}
-      </ul>
+              );
+            })}
+          </ul>
+        </Fragment>
+      ))}
     </div>
   );
 }

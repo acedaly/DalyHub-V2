@@ -15,13 +15,10 @@ const routes: readonly RouteContribution[] = [
     id: "diary.index",
     path: "diary",
     file: "routes/index.tsx",
-    // MOBILE-01: Diary is the third phone bottom-navigation destination — daily
-    // capture is a phone-first workflow.
     meta: {
       navLabel: "Diary",
       navGroup: "capture",
       navOrder: 110,
-      mobilePrimaryOrder: 30,
     },
   },
   {

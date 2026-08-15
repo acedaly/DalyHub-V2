@@ -33,18 +33,18 @@ function priorityKey(priority: TaskPriority | null): TaskPriority {
 
 function PriorityFlagGlyph() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M5 21V5" />
-      <path d="M5 5c2.6-1.3 5.1-1.3 7.6 0 2.1 1.1 4.2 1.1 6.4 0v9c-2.2 1.1-4.3 1.1-6.4 0-2.5-1.3-5-1.3-7.6 0" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M5 21V4.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6.1 4.7c2.3-1 4.5-1 6.8.1 1.9.9 3.7.9 5.9-.1v9.4c-2.2 1-4 .9-5.9-.1-2.3-1.1-4.5-1.1-6.8-.1V4.7Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }

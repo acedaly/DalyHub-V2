@@ -5202,11 +5202,11 @@
   /** The one quiet edge inside the rail (the account block's rule). */
   --dh-color-rail-border: var(--border);
   /** The current destination: a pale lavender row in light, a block in dark. */
-  --dh-color-rail-selected: var(--ink);
+  --dh-color-rail-selected: var(--accent-tint);
   /** Its label and glyph — the product's violet in light, the rail's own
    * foreground in dark. Violet-on-violet is the least legible pairing on a dark
    * rail; a pale tint with grey text is not a selection on a light one. */
-  --dh-color-rail-text-selected: var(--ink-inverse);
+  --dh-color-rail-text-selected: var(--accent);
   /*
    * The focus indicator ON the rail, and it is a real accessibility fix rather
    * than a nicety.

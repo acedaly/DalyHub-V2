@@ -573,6 +573,46 @@ export function TodayScreen({
         </Link>
       </header>
 
+      {stats.length > 0 || progress ? (
+        <StatCardRow label="Today at a glance" data-testid="today-stats">
+          {stats.map((stat) => (
+            <StatCardItem key={stat.id}>
+              <StatCard
+                label={stat.label}
+                value={stat.value}
+                supporting={stat.supporting}
+                tone={stat.tone}
+                accent={STAT_ACCENTS[stat.id] ?? "violet"}
+                icon={statGlyph(stat.id)}
+                href={stat.href}
+                data-testid={`today-stat-${stat.id}`}
+              />
+            </StatCardItem>
+          ))}
+          {progress ? (
+            <StatCardItem>
+              <StatCard
+                label="Daily progress"
+                value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
+                supporting={`${progress.done} of ${progress.total} done today`}
+                accent="green"
+                icon={<TrendingUpIcon />}
+                data-testid="today-stat-progress"
+                ring={
+                  <ProgressRing
+                    value={progress.done / Math.max(1, progress.total)}
+                    label={`Today's progress: ${progress.done} of ${progress.total} done`}
+                    size={44}
+                    thickness={5}
+                    color="var(--md-sys-color-accent-green)"
+                  />
+                }
+              />
+            </StatCardItem>
+          ) : null}
+        </StatCardRow>
+      ) : null}
+
       {/* CAL-02 — the three daily surfaces. A restrained text rail directly
           under the page's own heading block, exactly where every other
           collection in DalyHub puts its principal-mode rail. */}
@@ -805,6 +845,8 @@ export function TodayScreen({
           </div>
         ) : null}
 
+        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
+
         <div className="dh-today__col dh-today__col--attention">
           <section
             className="dh-today__panel"
@@ -937,7 +979,6 @@ export function TodayScreen({
          * immediate actions, then what needs a look, then progress. Nothing here
          * is moved by CSS `order`.
          */}
-        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
       </div>
 
       {/*
@@ -977,49 +1018,6 @@ export function TodayScreen({
        * Nothing is hidden and nothing is moved by CSS `order`: the DOM order is
        * the phone order too, which is the same reordering §45 asks for there.
        */}
-      {stats.length > 0 || progress ? (
-        <StatCardRow label="Today at a glance" data-testid="today-stats">
-          {stats.map((stat) => (
-            <StatCardItem key={stat.id}>
-              <StatCard
-                label={stat.label}
-                value={stat.value}
-                supporting={stat.supporting}
-                tone={stat.tone}
-                accent={STAT_ACCENTS[stat.id] ?? "violet"}
-                icon={statGlyph(stat.id)}
-                href={stat.href}
-                data-testid={`today-stat-${stat.id}`}
-              />
-            </StatCardItem>
-          ))}
-          {progress ? (
-            <StatCardItem>
-              <StatCard
-                label="Daily progress"
-                value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
-                supporting={`${progress.done} of ${progress.total} done today`}
-                accent="green"
-                icon={<TrendingUpIcon />}
-                data-testid="today-stat-progress"
-                ring={
-                  <ProgressRing
-                    value={progress.done / Math.max(1, progress.total)}
-                    label={`Today's progress: ${progress.done} of ${progress.total} done`}
-                    size={44}
-                    thickness={5}
-                    // The ring belongs to the card's own identity, not to the
-                    // brand: four figure cards each painting a violet ring is
-                    // how a glance row becomes monochrome.
-                    color="var(--md-sys-color-accent-green)"
-                  />
-                }
-              />
-            </StatCardItem>
-          ) : null}
-        </StatCardRow>
-      ) : null}
-
       <div className="dh-today__progress">
         <ActivityTrendSection trend={data.activityTrend} />
       </div>
