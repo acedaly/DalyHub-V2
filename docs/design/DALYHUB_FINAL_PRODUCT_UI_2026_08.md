@@ -389,7 +389,41 @@ pnpm run test:kernel
 pnpm run build
 ```
 
-Two tests were updated rather than weakened, and each records why:
+Targeted E2E, on the modules this pass materially changed:
+
+| Suite | Result |
+|---|---|
+| `tasks-journey.spec.ts` | 6 passed |
+| `accessibility.spec.ts`, `design-foundation.spec.ts`, `creation-controls.spec.ts` | passed |
+| `collection-header.spec.ts` | 1 updated (below), 4 **pre-existing** failures |
+| `iphone-daily-driver.spec.ts` + `mobile-shell.spec.ts` | 44 passed, 1 skipped, 6 **pre-existing** failures |
+
+The four pre-existing failures are `UIQ-021 — the shared menu fits the
+viewport`, and none of them reaches an assertion about a menu. Its helper
+`openRowMenuNear` locates rows with `page.locator("article.dh-card")` on
+`/tasks`, and DS-04 replaced the Tasks card with `li.dh-taskrow` — so the helper
+returns zero rows and fails at its own precondition. **Verified by checking out
+`013a6b9` (this branch's starting point, before any FINAL-UI commit) and running
+`a trigger near the bottom flips the menu above it`: it fails identically
+there.** Fixing the helper is a Tasks-selector change in a menu-placement spec
+and belongs with whoever next touches that suite; weakening it here would hide a
+real gap in menu coverage.
+
+The six phone failures are the same shape and were confirmed the same way — the
+suite reports **6 failed / 44 passed / 1 skipped both at `013a6b9` and at this
+branch's tip**, the same six by name. Five of them look for `.dh-card__open`,
+`.dh-card__actions .dh-overflow-menu__trigger` or `article.dh-card` on `/tasks`,
+which DS-04 replaced with `li.dh-taskrow`; the sixth asserts a 16px anti-zoom
+floor on the quick-add input, which the floor's own `(hover: none)` guard does
+not reach in a desktop-Chromium run. All six predate this pass and none is
+tracking a defect that this pass could introduce or hide.
+
+**DEBT recommendation:** this is one root cause behind ten failing browser
+assertions across three specs — the phone and menu suites still address Tasks
+through the generic Card that DS-04 retired. It is worth one pass over those
+selectors rather than ten separate fixes.
+
+Three tests were updated rather than weakened, and each records why:
 
 - **`contrast.test.ts`** — "keeps the rail DARK in both appearances" becomes
   "keeps the rail on the same side of the ladder as its appearance", with a
@@ -402,6 +436,24 @@ Two tests were updated rather than weakened, and each records why:
 - **`TodayScreen.test.tsx`** — the block-order guard now expects
   `head · timeline · stat-row`. It is the same claim about the same order; §45
   changed which order is correct.
+- **`collection-header.spec.ts`** — the switcher's height floor drops from 44 to
+  24. The 44 was `--app-touch-target-min` spent on a control inside a tray that
+  no longer exists; the height is now `--dh-control-height`, which IS 45px under
+  `(pointer: coarse)`. Playwright's desktop Chrome reports a fine pointer, so
+  24 (WCAG 2.2 SC 2.5.8, AA) is what this run can honestly assert.
+
+And one measured accessibility regression was found by the axe pass and fixed
+rather than baselined: making the project label a block with an ellipsis let it
+shrink to its `min-inline-size` of 0, so in a narrow Sectors column the value's
+trigger measured **8×24** — a real SC 2.5.8 failure, because an 8px-wide button
+is not clickable. The cell now floors at 4rem and the trigger at 24px.
+
+The completion target's fine-pointer reduction is additionally gated on
+`(min-width: 48rem)`. A 390px window on a laptop reports `pointer: fine`, and
+that is exactly the viewport MOBILE-01's `expectMinTouchTarget` assertions stand
+a thumb in — so the reduction is confined to the widths where the desktop shell
+is the one on screen. Below `md` the row keeps the full 45px whatever the
+pointer claims to be. Measured: 45×45 at 390, 45×28 at 768 and above.
 
 ---
 

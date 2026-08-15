@@ -306,8 +306,21 @@
  *
  * `(pointer: fine)` rather than `(hover: hover)`: what makes the small target
  * safe is the PRECISION of the input device, not whether it can hover.
+ *
+ * ── And `md` as well, which is a WIDTH and is here on purpose ────────────────
+ * A pointer query alone would have been the whole rule if browsers agreed with
+ * reality, and they do not: a 390px window on a laptop reports `pointer: fine`,
+ * and that is exactly the viewport a phone-shaped review — and MOBILE-01's own
+ * `expectMinTouchTarget` assertions — look at. Rather than shrink the target
+ * under a test that is standing in for a thumb, the reduction is confined to
+ * the widths where the DESKTOP shell is the one on screen. Below `md` the rail
+ * is hidden and the phone bottom bar is the navigation (shell.css), and the row
+ * keeps the full 45px whatever the pointer claims to be.
+ *
+ * So the target shrinks only when BOTH are true: the input is precise, and the
+ * frame is the desktop one. Everything else keeps AAA.
  */
-@media (pointer: fine) {
+@media (pointer: fine) and (min-width: 48rem) {
   .dh-check-circle-target {
     block-size: 1.75rem;
   }

@@ -88,14 +88,31 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
    * are the widest switcher in the product, which is the hardest case for the
    * "geometry does not move" half.
    */
-  test("the switcher holds the 44px target and does not move when the view changes", async ({
+  test("the switcher holds its target and does not move when the view changes", async ({
     page,
   }) => {
     await gotoFixture(page, "/assets");
     const group = page.getByRole("group", { name: "Asset views" });
     const before = await group.boundingBox();
     expect(before).not.toBeNull();
-    expect(before!.height).toBeGreaterThanOrEqual(44);
+    /*
+     * FINAL-UI — 24, not 44, and only because this runs on a FINE pointer.
+     *
+     * UIQ-013 gave the segment a hard `--app-touch-target-min` (45px) when it
+     * still sat inside a sunken tray and had to fill it. ADR-096 decision 4
+     * removed the tray, and a scope filter that is taller than the "+ New asset"
+     * button beside it — 36px, like every other control in the header — is the
+     * oversized control this pass exists to stop preserving.
+     *
+     * The height is now `--dh-control-height`, which IS `--app-touch-target-min`
+     * under `(pointer: coarse)`: the density model floors it back
+     * unconditionally in `tokens.css`, so nothing a thumb touches got smaller.
+     * Playwright's desktop Chrome reports a fine pointer, so what this run can
+     * honestly assert is WCAG 2.2 SC 2.5.8's AA floor of 24px — which 36 clears
+     * with a third to spare. The coarse-pointer floor is asserted where a coarse
+     * pointer actually exists: `iphone-daily-driver.spec.ts`.
+     */
+    expect(before!.height).toBeGreaterThanOrEqual(24);
 
     const optionsBefore = await group.getByRole("link").all();
     const widthsBefore = await Promise.all(

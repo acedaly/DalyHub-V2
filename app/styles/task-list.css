@@ -1092,9 +1092,26 @@
     order: 3;
   }
 
+  /*
+   * FINAL-UI — the project cell shrinks, but never below a TARGET.
+   *
+   * Making its label a block with an ellipsis (below) let it shrink to its
+   * `min-inline-size`, which was 0 — so in a narrow Sectors column the value's
+   * trigger measured 8×24 and axe reported it, correctly, as a WCAG 2.2 SC 2.5.8
+   * failure. It is a real one: an 8px-wide button is not clickable.
+   *
+   * 4rem is the floor for the CELL (a readable stub plus its ellipsis) and 24px
+   * — the SC 2.5.8 minimum — is the floor for the trigger inside it, stated
+   * separately because the trigger is the thing being measured. Between them the
+   * label truncates, which is what an ellipsis is for.
+   */
   .dh-taskrow__cell--project {
-    min-inline-size: 0;
+    min-inline-size: 4rem;
     flex: 0 1 auto;
+  }
+
+  .dh-taskrow__cell .dh-inline-edit__trigger {
+    min-inline-size: var(--dh-space-6);
   }
 
   .dh-taskrow__cell--due {
