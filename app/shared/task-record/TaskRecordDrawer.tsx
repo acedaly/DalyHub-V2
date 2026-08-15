@@ -54,7 +54,7 @@ import {
   TaskWaitingSection,
   type WaitingActionOutcome,
 } from "./TaskWaitingSection";
-import { PriorityIndicator } from "./PriorityIndicator";
+import { PriorityFlag } from "./PriorityIndicator";
 import { UrgencyChip } from "./UrgencyChip";
 import {
   isTaskComplete,
@@ -622,16 +622,23 @@ export function TaskRecordDrawer({
         value={task.priority ?? ""}
         options={PRIORITY_OPTIONS}
         onSave={setPriority}
-        emptyLabel="No priority"
-        clearable
-        clearLabel="Clear priority"
+        emptyLabel="Priority 4"
         renderValue={(option) =>
           option ? (
-            <PriorityIndicator
+            <PriorityFlag
               priority={option.value as SerializedTaskView["priority"]}
+              size="md"
+              showLabel
             />
           ) : null
         }
+        renderOption={(option) => (
+          <PriorityFlag
+            priority={option.value as SerializedTaskView["priority"]}
+            size="md"
+            showLabel
+          />
+        )}
         data-testid="task-priority-edit"
       />
     ),

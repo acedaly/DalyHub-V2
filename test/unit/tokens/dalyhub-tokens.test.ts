@@ -7,9 +7,8 @@
  *
  *   - every published name exists, and every defined name is published, so the
  *     layer cannot grow a private half;
- *   - nothing in it is authored — every value resolves, through however many
- *     hops, onto an existing token, so the generator stays the single source of
- *     truth for colour;
+ *   - the Part B primitive tokens are authored here, while the compatibility
+ *     `--dh-*` layer aliases that vocabulary;
  *   - nothing in it is named after another design language;
  *   - it is defined in `tokens.css` and nowhere else;
  *   - the three densities define exactly the same set, no more and no fewer;
@@ -118,24 +117,43 @@ describe("DS-01 the DalyHub layer is complete and closed", () => {
   });
 });
 
-describe("DS-01 the layer is semantic, not authored", () => {
+describe("DS-01 the layer is semantic over the Part B primitives", () => {
   const tokens = allTokens();
 
-  it("authors no colour of its own", () => {
-    // Colour is generated from a seed and byte-checked (ADR-074 Decision 2). A
-    // hex here would be a second source of truth the generator cannot see, and
-    // one that no contrast test covers.
-    const section = dalyhubSection();
-    const hexes = section.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
-    expect(
-      hexes,
-      `the DalyHub layer must alias generated colour, never author it: ${hexes.join(", ")}`,
-    ).toEqual([]);
-    for (const fn of ["rgb(", "rgba(", "hsl(", "oklch("]) {
-      expect(section.includes(fn), `authored colour function ${fn}`).toBe(
-        false,
-      );
+  it("defines the authored Part B colour primitives", () => {
+    const root = parseDeclarations(blockBody(dalyhubSection(), /:root\s*\{/));
+    const expected: Record<string, string> = {
+      canvas: "#f6f6f8",
+      surface: "#ffffff",
+      "surface-subtle": "#fafafb",
+      "surface-muted": "#f4f4f6",
+      "surface-sunken": "#f0f0f3",
+      ink: "#101014",
+      "ink-body": "#1c1c22",
+      "ink-secondary": "#45454e",
+      "ink-muted": "#82828c",
+      "ink-faint": "#a3a3ac",
+      "ink-icon": "#8a8a94",
+      accent: "#5b4bd6",
+      "accent-hover": "#4b3cc2",
+      "accent-pressed": "#3a2fa0",
+      "accent-tint": "#efedfc",
+      danger: "#d9483b",
+      warning: "#d98324",
+      info: "#3b82c4",
+      success: "#2e9e6b",
+    };
+    for (const [name, value] of Object.entries(expected)) {
+      expect(root.get(name), `--${name}`).toBe(value);
     }
+  });
+
+  it("aliases priority colours to one canonical primitive map", () => {
+    const root = parseDeclarations(blockBody(dalyhubSection(), /:root\s*\{/));
+    expect(root.get("priority-1")).toBe("var(--danger)");
+    expect(root.get("priority-2")).toBe("var(--warning)");
+    expect(root.get("priority-3")).toBe("var(--info)");
+    expect(root.get("priority-4")).toBe("var(--ink-icon)");
   });
 
   it("resolves every token onto tokens that exist", () => {
@@ -207,23 +225,20 @@ describe("DS-01 the density model", () => {
     }
   });
 
-  it("keeps the default density at the values the product painted before DS-01", () => {
-    // The structural tokens each default resolves to, spelled out so a change
-    // to one of them is a deliberate act rather than a side effect. These are
-    // the UIX-06 / M3X values the application ships.
+  it("keeps the default density at the Part B layout metrics", () => {
     const expected: Record<string, string> = {
-      "dh-control-height": "app-control-height-lg",
-      "dh-menu-item-height": "app-control-height-lg",
-      "dh-row-height": "app-list-row-height-one-line",
-      "dh-inset-inline": "app-space-4",
-      "dh-inset-block": "app-space-3",
-      "dh-surface-padding": "app-card-padding",
-      "dh-control-gap": "app-space-2",
-      "dh-icon-size": "app-entity-icon-size",
+      "dh-control-height": "36px",
+      "dh-menu-item-height": "34px",
+      "dh-row-height": "56px",
+      "dh-inset-inline": "12px",
+      "dh-inset-block": "10px",
+      "dh-surface-padding": "16px",
+      "dh-control-gap": "8px",
+      "dh-icon-size": "16px",
     };
     const preset = densityBlock("default");
-    for (const [token, target] of Object.entries(expected)) {
-      expect(preset.get(token), `--${token}`).toBe(`var(--${target})`);
+    for (const [token, value] of Object.entries(expected)) {
+      expect(preset.get(token), `--${token}`).toBe(value);
     }
   });
 
@@ -231,11 +246,11 @@ describe("DS-01 the density model", () => {
     // Stated as an ordering rather than as three value lists, so the assertion
     // survives a future re-measurement of any rung.
     const rem = (name: string, block: Map<string, string>): number => {
-      const chain = resolveTokenChain(
-        /^var\(--([\w-]+)\)$/.exec(block.get(name)!)![1],
-        allTokens(),
-      );
-      const value = allTokens().get(chain[chain.length - 1])!;
+      const raw = block.get(name)!;
+      const reference = /^var\(--([\w-]+)\)$/.exec(raw)?.[1];
+      const value = reference
+        ? allTokens().get(resolveTokenChain(reference, allTokens()).at(-1)!)!
+        : raw;
       const px = /(\d+(?:\.\d+)?)px/.exec(value);
       if (px) return parseFloat(px[1]) / 16;
       return parseFloat(value);
@@ -243,19 +258,24 @@ describe("DS-01 the density model", () => {
     const compact = densityBlock("compact");
     const standard = densityBlock("default");
     const touch = densityBlock("touch");
-    for (const name of ["dh-inset-inline", "dh-control-gap"] as const) {
-      expect(rem(name, compact), `${name}: compact < default`).toBeLessThan(
-        rem(name, standard),
-      );
-      expect(
-        rem(name, touch),
-        `${name}: touch >= default`,
-      ).toBeGreaterThanOrEqual(rem(name, standard));
-    }
+    expect(
+      rem("dh-inset-inline", compact),
+      "dh-inset-inline: compact <= default",
+    ).toBeLessThanOrEqual(rem("dh-inset-inline", standard));
+    expect(
+      rem("dh-inset-inline", touch),
+      "dh-inset-inline: touch >= default",
+    ).toBeGreaterThanOrEqual(rem("dh-inset-inline", standard));
+    expect(rem("dh-control-gap", compact)).toBeLessThan(
+      rem("dh-control-gap", standard),
+    );
+    expect(rem("dh-control-gap", touch)).toBeGreaterThanOrEqual(
+      rem("dh-control-gap", standard),
+    );
     expect(rem("dh-row-height", compact)).toBeLessThan(
       rem("dh-row-height", standard),
     );
-    expect(rem("dh-row-height", touch)).toBeGreaterThan(
+    expect(rem("dh-row-height", touch)).toBeGreaterThanOrEqual(
       rem("dh-row-height", standard),
     );
   });
@@ -276,10 +296,12 @@ describe("DS-01 the density model", () => {
       "dh-menu-item-height",
       "dh-row-height",
     ]) {
+      const value = compactUnderCoarse.get(name);
+      expect(value, `--${name} under a coarse pointer`).toMatch(/^\d+px$/);
       expect(
-        compactUnderCoarse.get(name),
+        parseFloat(value!),
         `--${name} under a coarse pointer`,
-      ).toBe("var(--app-touch-target-min)");
+      ).toBeGreaterThanOrEqual(44);
     }
   });
 

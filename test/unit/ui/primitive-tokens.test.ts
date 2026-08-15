@@ -144,15 +144,26 @@ describe("DS-02 the button family is not a stadium (D33)", () => {
     }
   });
 
-  it("states no control height of its own — density owns it", () => {
-    // The rule that makes `compact` safe: no primitive can be compact where a
-    // finger has to reach it, because no primitive decides its own height.
+  it("states control sizes through the shared Part B tokens", () => {
+    // Part B gives buttons and fields explicit primitive size tokens. A control
+    // may opt into those shared values; it may not carry a private measurement.
+    const permitted = new Set([
+      "var(--dh-control-height)",
+      "var(--button-height-sm)",
+      "var(--button-height-md)",
+      "var(--button-height-lg)",
+      "var(--button-height-touch)",
+      "var(--input-height)",
+      "var(--input-height-touch)",
+      "var(--textarea-min-height)",
+    ]);
     const heights = [
       ...UI_CSS.matchAll(/min-(?:block|inline)-size:\s*([^;]+);/g),
     ].map((m) => m[1].trim());
     const fixed = heights.filter(
-      (value) => !value.includes("var(--dh-") && value !== "0",
+      (value) =>
+        !permitted.has(value) && !value.includes("var(--dh-") && value !== "0",
     );
-    expect(fixed, "a primitive hard-coded a control size").toEqual([]);
+    expect(fixed, "a primitive hard-coded a private control size").toEqual([]);
   });
 });

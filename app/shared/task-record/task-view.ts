@@ -219,27 +219,27 @@ export function taskStatusLabel(status: TaskStatus): string {
  */
 
 /**
- * The full everyday priority label, e.g. "P1 · Urgent", "P4 · Low", or
- * "No priority" for null. Meaning is always carried by the label, never colour.
+ * The full everyday priority label. UI maps the legacy stored `null` value to
+ * Priority 4 until a deliberate data migration stores that value explicitly.
  */
 export function taskPriorityLabel(priority: TaskPriority | null): string {
   switch (priority) {
     case "p1":
-      return "P1 · Urgent";
+      return "Priority 1";
     case "p2":
-      return "P2 · High";
+      return "Priority 2";
     case "p3":
-      return "P3 · Normal";
+      return "Priority 3";
     case "p4":
-      return "P4 · Low";
+      return "Priority 4";
     default:
-      return "No priority";
+      return "Priority 4";
   }
 }
 
-/** The short priority tag, e.g. "P1". `null` → "—". */
+/** The short priority tag, e.g. "P1". Legacy `null` displays as normal P4. */
 export function taskPriorityTag(priority: TaskPriority | null): string {
-  return priority === null ? "—" : priority.toUpperCase();
+  return priority === null ? "P4" : priority.toUpperCase();
 }
 
 /**

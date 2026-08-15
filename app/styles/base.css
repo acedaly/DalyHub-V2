@@ -99,9 +99,7 @@ html {
 body {
   background: var(--dh-color-bg);
   color: var(--dh-color-text);
-  font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: 1.5;
+  font: var(--t-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -224,7 +222,7 @@ body {
   .dh-mobilebar__action,
   .dh-command__close
 )::after {
-  content: "";
+  content: none;
   position: absolute;
   inset: 0;
   border-radius: inherit;

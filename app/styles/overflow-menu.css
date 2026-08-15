@@ -152,13 +152,23 @@
   cursor: pointer;
 }
 
-/* An item's hover / focus / pressed fill is the shared state layer (M3-INT) —
- * `currentColor` at M3's own opacities, which is why the DESTRUCTIVE item needs
- * no hover rule of its own: its content colour is already `error`, so its layer
- * is already a red tint. It used to swap its container to `error-container`,
- * which was a second, louder language for the same state. */
+.dh-overflow-menu__item:hover,
+.dh-overflow-menu__item:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.dh-overflow-menu__item:active {
+  background: var(--surface-sunken);
+}
+
 .dh-overflow-menu__item[data-tone="danger"] {
   color: var(--dh-color-danger);
+}
+
+.dh-overflow-menu__item[data-tone="danger"]:hover,
+.dh-overflow-menu__item[data-tone="danger"]:focus-visible {
+  background: var(--danger-tint);
 }
 
 .dh-overflow-menu__item[aria-disabled="true"] {

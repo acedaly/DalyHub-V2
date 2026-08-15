@@ -550,9 +550,10 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       }),
     );
     const urgent = within(timelineSection()).getByText("Urgent").closest("li")!;
-    expect(within(urgent).getByText("P1")).toBeInTheDocument();
-    // Not colour alone: the indicator carries the priority in words for AT.
-    expect(urgent.textContent).toContain("priority");
+    expect(urgent.querySelector(".dh-priority")).toHaveAttribute(
+      "aria-label",
+      "Priority 1",
+    );
     const plain = within(timelineSection())
       .getByText("Untriaged")
       .closest("li")!;

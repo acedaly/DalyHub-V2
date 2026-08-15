@@ -43,14 +43,13 @@
 .dh-priority {
   display: inline-flex;
   align-items: center;
-  gap: var(--app-space-1);
+  gap: 6px;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font: var(--t-meta);
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
@@ -60,43 +59,39 @@
   display: inline-flex;
   flex: none;
   line-height: 0;
-  font-size: var(--app-space-4);
+  inline-size: 15px;
+  block-size: 15px;
 }
 
-.dh-priority__tag {
-  line-height: 1.2;
-  color: var(--dh-color-text-muted);
+.dh-priority[data-size="md"] .dh-priority__flag {
+  inline-size: 16px;
+  block-size: 16px;
 }
 
-/* P1 · Do — the most urgent-and-important. */
+.dh-priority__flag svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.dh-priority__label {
+  color: currentColor;
+  font: var(--t-meta);
+}
+
 .dh-priority[data-priority="p1"] {
-  color: var(--md-sys-color-priority-p1);
+  color: var(--priority-1);
 }
-/* P2 · Defer — important, not urgent. */
+
 .dh-priority[data-priority="p2"] {
-  color: var(--md-sys-color-priority-p2);
+  color: var(--priority-2);
 }
-/* P3 · Delegate — urgent, but not yours to do. */
+
 .dh-priority[data-priority="p3"] {
-  color: var(--md-sys-color-priority-p3);
+  color: var(--priority-3);
 }
-/* P4 · Delete / Review — neither; calm and muted. */
+
 .dh-priority[data-priority="p4"] {
-  color: var(--md-sys-color-priority-p4);
-}
-/*
- * Untriaged, rendered only when explicitly requested (e.g. the Drawer's
- * selector, where "no priority" is a choice the owner can see is current). It
- * keeps a dashed outline because here the point IS the empty slot.
- */
-.dh-priority--none {
-  padding: 0 var(--app-space-2);
-  min-height: var(--app-space-5);
-  border: var(--app-border-width-thin) dashed
-    var(--md-sys-color-outline-variant);
-  border-radius: var(--dh-radius-sm);
-  color: var(--dh-color-text-muted);
-  background: transparent;
+  color: var(--priority-4);
 }
 
 /* -- Urgency chip ---------------------------------------------------------- */

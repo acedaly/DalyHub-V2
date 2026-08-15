@@ -150,7 +150,7 @@ describe("TaskQuickEditPanel", () => {
 
   it("posts a priority change to the CANONICAL bulk route", async () => {
     const { bulkRoute, onChanged } = renderPanel();
-    await choose(/Priority/, "P1 · Urgent");
+    await choose(/Priority/, "Priority 1");
 
     await waitFor(() => expect(bulkRoute).toHaveBeenCalledTimes(1));
     const body = bulkRoute.mock.calls[0]![0];
@@ -387,7 +387,7 @@ describe("TaskQuickEditPanel", () => {
 
   it("announces only what the SERVER accepted, never the optimistic guess", async () => {
     const { onChanged } = renderPanel(TASK, { reject: true });
-    await choose(/Priority/, "P1 · Urgent");
+    await choose(/Priority/, "Priority 1");
 
     // The route rejected it, so the change is reported as a failure — not announced
     // as a success the user would have to discover was a lie.
