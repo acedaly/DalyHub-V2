@@ -628,14 +628,24 @@
   min-inline-size: 0;
 }
 
+/*
+ * REFINE §55 — the group heading, in the one language this pass settled on.
+ *
+ * "HOW DALYHUB WORKS" in letter-spaced small caps was louder than the section
+ * names under it and was the last M3 band label on a screen the brief calls one
+ * of the product's strongest. Tasks, Today, Meetings and Notes all read sentence
+ * case at the row size now; Settings joins them. It stays MUTED, because unlike
+ * those it is labelling a group of destinations rather than a bucket of records
+ * — the names beneath it are the thing being scanned.
+ */
 .dh-settings-page__nav-group-label {
   margin: 0 0 var(--app-space-1);
   padding-inline: var(--app-space-3);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
-  text-transform: uppercase;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--dh-color-text-muted);
 }
 
@@ -883,6 +893,14 @@
     border-radius: 0;
     color: var(--dh-color-text);
     font-size: var(--md-sys-typescale-body-medium-size);
+  }
+
+  /* The desktop rail insets the summary to sit under its own padded title; the
+   * phone row is already padded by the ITEM, so the inset here would indent the
+   * sentence 12px past the name it belongs to. MEASURED at 390 after FINAL-UI
+   * made the summary visible at both widths. */
+  .dh-settings-page__nav-summary {
+    padding: 0;
   }
 
   /* The whole row lights up on press, not just the label's own box. */

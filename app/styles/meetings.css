@@ -663,12 +663,24 @@
  * §25 — the day heading. It is the thing that turns a list of meetings into a
  * schedule, so it reads as a date rather than as a table caption.
  */
+/* REFINE — the same heading `task-list.css` draws: sentence case, the row's own
+ * size, weight 600, near-black, with a quiet middot before the count. */
 .dh-meetings-list__day {
   margin: 0 0 var(--app-space-2);
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-title-small-size);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
+}
+
+.dh-meetings-list__day-sep {
+  color: var(--dh-color-text-muted);
+  font-weight: 400;
+}
+
+.dh-meetings-list__day-count {
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
 .dh-meetings-list__rows {
@@ -684,8 +696,9 @@
   min-inline-size: 0;
 }
 
+/* A rule between two rows of one day is the quieter hairline (REFINE §7). */
 .dh-meetings-list__row + .dh-meetings-list__row {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
 }
 
 .dh-meetings-list__item {
@@ -735,12 +748,16 @@
   min-inline-size: 0;
 }
 
-/* §25 — the title dominates. */
+/* §25 — the title dominates. REFINE takes it from `title-medium` (16px/600) to
+ * the row role at 500: at 16/600 a three-meeting list read as three headings,
+ * and the day heading above it — which is the thing that groups them — was
+ * SMALLER than the rows it grouped. The title still dominates its own row; it no
+ * longer outranks the structure around it. */
 .dh-meetings-list__title {
   display: block;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-title-medium-size);
-  font-weight: 600;
+  font-size: var(--dh-text-row-size);
+  font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.005em;
   overflow-wrap: anywhere;

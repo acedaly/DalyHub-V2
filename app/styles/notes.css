@@ -238,12 +238,16 @@
   padding-block-end: var(--app-space-2);
 }
 
+/* REFINE §38 — "Pinned" and "Recent", in the one group-heading language this
+ * pass settled on (Tasks, Today, Meetings). Small caps is the last M3 band label
+ * and it makes a two-item group shout louder than the notes inside it. */
 .dh-notes-rail__heading {
-  color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .dh-notes-rail__list {

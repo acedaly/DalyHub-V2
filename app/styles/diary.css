@@ -381,7 +381,21 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  max-inline-size: var(--app-width-content);
+  /*
+   * REFINE §39 — a READING measure, not a record measure.
+   *
+   * `--app-width-content` is 72rem, which is "dense record content" and is wider
+   * than the pane at every laptop width — so on a 1440 screen the cap did
+   * nothing and a two-line reflection sat in a 1140px white card with its text
+   * in the left third. §39 asks for the opposite: let the entry occupy a
+   * meaningful width and stop the canvas being giant and unused.
+   *
+   * 56rem is the diary's measure. It is wider than `--app-width-narrow` (42rem,
+   * a single-column page) because an entry has a leading time column and a rule
+   * before its text begins, and narrow enough that a paragraph is read rather
+   * than scanned across.
+   */
+  max-inline-size: 56rem;
 }
 
 /*
@@ -562,14 +576,22 @@
   align-items: center;
 }
 
-/* Plain text, not a chip — see the row's own comment. It still NAMES the type
- * for assistive tech, which the decorative node glyph cannot. */
+/*
+ * Plain text, not a chip — see the row's own comment. It still NAMES the type
+ * for assistive tech, which the decorative node glyph cannot.
+ *
+ * REFINE — sentence case, at the metadata rung. The letter-spaced small caps
+ * were the last of the M3 band labels left in the product after this pass took
+ * them off Tasks, Today and Meetings, and a diary is the surface with the least
+ * reason to shout: "Reflection" under an entry is a quiet fact about it.
+ */
 .dh-diary-entry__type {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   font-weight: 500;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--dh-color-border-strong);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--dh-color-text-muted);
 }
 
 .dh-diary-entry__backdated {

@@ -2878,6 +2878,23 @@
 }
 
 /*
+ * REFINE §49 — two lines on a phone, not three.
+ *
+ * The comment above is right that a gallery ROW must not be set by one Goal's
+ * paragraph, and on a desktop grid three lines cost that row ~36px. On a phone
+ * there is no row to share: every card is full width, so the paragraph is three
+ * FULL lines and the card measured 230px — over a quarter of a 844px viewport,
+ * for a Goal that is not even measured. §49 asks that no single Goal occupy most
+ * of the screen unless it has to.
+ */
+@media (max-width: 47.99rem) {
+  .dh-gcard__note-detail {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
+/*
  * The pinned foot. `auto` top margin spends a taller-than-needed card's extra
  * height on AIR between the reading and the bar, so every card in a row lands
  * its bar and its state line on one baseline — which is what makes a gallery
