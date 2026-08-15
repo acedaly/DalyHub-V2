@@ -56,9 +56,28 @@
    * chip share `--app-shape-control` so the chip's corners land exactly on the
    * track's at the two ends.
    */
+  /*
+   * FINAL-UI — the TRACK is gone, and the selected segment is a solid chip.
+   *
+   * VIS-01 replaced M3's outlined capsule with a recessed track plus a raised
+   * chip, which was a real improvement on three pieces of chrome. The approved
+   * concepts spend none: concept 1 and concept 3 both draw a scope filter as a
+   * FILLED chip for the current scope and plain text for the others, with
+   * nothing behind either — "Active  All  Archived", one dark pill, no tray, no
+   * recess, no shadow. §71 of the brief names the alternative explicitly ("do
+   * not use giant segmented pills everywhere"), and this control appears in the
+   * header of seven collections, so it is worth the most it can be reduced by.
+   *
+   * The signals that carried selection are unchanged in number: `aria-current`/
+   * `aria-pressed` state it semantically, the leading check is a SHAPE that
+   * survives forced colours, the fill is now a genuine tone inversion rather
+   * than a lifted white chip, and the label steps to the fill's own foreground.
+   * What is removed is the container the UNSELECTED segments were sitting in.
+   */
   border: none;
   border-radius: var(--app-shape-control);
-  background: var(--dh-color-bg-sunken);
+  background: transparent;
+  gap: var(--app-space-1);
 }
 
 .dh-segmented::-webkit-scrollbar {
@@ -71,13 +90,22 @@
   align-items: center;
   justify-content: center;
   gap: var(--app-space-2);
-  /* The 44px practical touch target DalyHub holds everywhere, on every
-   * pointer — stricter than WCAG 2.2 AA's 24px, and the bar three of the four
-   * retired module presentations sat below. */
-  min-height: var(--app-touch-target-min);
+  /*
+   * FINAL-UI — `--dh-control-height`, which IS the 44px target wherever a
+   * finger can reach it.
+   *
+   * The hard 44 was chosen when the option sat inside a tray and had to fill it;
+   * with the tray gone, a scope filter that is taller than the primary button
+   * beside it is the "oversized control" §4 asks this pass to stop preserving.
+   * The density token is 36px on a fine pointer and floors to
+   * `--app-touch-target-min` under `(pointer: coarse)` unconditionally
+   * (tokens.css), so nothing a thumb touches got smaller — this is the same
+   * bargain every other control in the product already makes.
+   */
+  min-height: var(--dh-control-height);
   min-inline-size: 0;
   flex: none;
-  padding-inline: var(--app-space-4);
+  padding-inline: var(--app-space-3);
   border-radius: var(--app-shape-control);
   color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-large-size);
@@ -138,11 +166,23 @@
 
 /* Selected, whichever mode the switcher is in: a URL-backed segment marks
  * itself with `aria-current`, a client-state one with `aria-pressed`. */
+/*
+ * FINAL-UI — the selected scope is a FILLED chip, in the concepts' near-black.
+ *
+ * `--dh-color-text` as a surface and `--dh-color-surface` as its foreground: the
+ * inversion the concepts draw, and the pairing the contrast ladder already
+ * guarantees in both appearances (it is `on-surface` over `surface`, read the
+ * other way round). Deliberately NOT the accent — purple is spent on the primary
+ * action, the current tab, progress and the selected navigation row (§9), and a
+ * violet scope chip beside a violet "+ New project" is two primaries in one
+ * header. The shadow goes with the track: there is nothing left for the chip to
+ * be lifted out of.
+ */
 .dh-segmented__option[aria-current="true"],
 .dh-segmented__option[aria-pressed="true"] {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  box-shadow: var(--app-elevation-raised);
+  color: var(--dh-color-surface);
+  background: var(--dh-color-text);
+  box-shadow: none;
 }
 
 /*

@@ -85,18 +85,25 @@
 .dh-today__greeting {
   margin: 0;
   color: var(--dh-color-text);
-  /* `headline-medium`, matching every other page title in the product — Today
-   * is a page, and its greeting is its heading.
+  /*
+   * FINAL-UI — the PAGE TITLE role, which is what UIX-06 was reaching for.
    *
-   * UIX-06 dropped the EMPHASIZED weight it kept from the era when it had to
-   * compete with a hero. The hero is gone, and a bolder heading on exactly one
-   * of thirteen pages is the unexplained weight change §32 rules out; the
-   * justification that survived the hero ("what a personal greeting reads best
-   * at") is a preference, not a reason the other twelve pages do not share. */
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+   * UIX-06's reasoning was right and its token was not: "Today is a page, and
+   * its greeting is its heading", so it should be whatever a page title is —
+   * and it hard-coded `headline-medium` (28px) while every other page title in
+   * the product read `--dh-text-page-title-*`. When FINAL-UI took that role down
+   * to 22px, Today alone stayed at 28 and became the largest type in the
+   * application.
+   *
+   * It now reads the role. Concept 1 draws "Good afternoon, Aidan" at roughly
+   * the same size as "Projects" or "Tasks" on their own screens, with the date
+   * a quiet line under it — one page-title scale, thirteen pages, no exception.
+   * The emphasized weight comes back with the role, which is what the concept
+   * draws and what every other page title now has.
+   */
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
+  font-weight: var(--dh-text-page-title-weight);
   overflow-wrap: anywhere;
 }
 
@@ -280,23 +287,49 @@
 }
 
 /*
- * ONE surface per region, and DS-05's one card boundary.
+ * FINAL-UI — a region is a SECTION. One of them is a card.
  *
- * "No outline — the tone separates it from the page" was true when Today drew
- * three panels. It draws six, plus a row of glance tiles, and at that count a
- * tonal step alone stops being a boundary — which is the same argument DS-02
- * made for `.dh-dcard` and DS-05 made for the record cards. One hairline, one
- * 12px corner, no shadow, everywhere in the product.
+ * DS-05 gave every region on this screen the product's one card boundary, on the
+ * reasoning that at six panels a tonal step alone stops being a boundary. That
+ * was the right diagnosis of the wrong problem: the answer to six equal-weight
+ * rectangles is not to draw six confident edges around them, it is to stop
+ * having six. §31 of the refinement brief says so directly — "reduce
+ * equal-weight rectangles; some sections may not need outer cards" — and
+ * concept 1's Today is drawn exactly that way: ONE bordered card holding the
+ * day's tasks, and a right-hand column of sections (Schedule, then Goals) with
+ * nothing behind them but a hairline between one and the next.
+ *
+ * So the default is a plain section — a heading, its rows, and space. The DAY
+ * takes the card (`--card` below), because it is the page's subject and the
+ * concept cards it. Everything else is supporting context and reads as such
+ * without a rectangle to say so.
  */
 .dh-today__panel {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
   min-inline-size: 0;
+}
+
+/* The one card: the day's own work. */
+.dh-today__panel--card {
   padding: var(--dh-space-5);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
+}
+
+/*
+ * Two plain sections stacked in one column are separated by a rule, which is
+ * what the card boundary used to do and is a quieter way of doing it. It is the
+ * DIVIDER value rather than the boundary one: these are two parts of one column,
+ * not two objects.
+ */
+.dh-today__col
+  > .dh-today__panel:not(.dh-today__panel--card)
+  + .dh-today__panel:not(.dh-today__panel--card) {
+  padding-block-start: var(--dh-space-5);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
 .dh-today__panel-head {
@@ -335,24 +368,33 @@
 }
 
 /*
- * A quiet section label. It names a BAND — it does not compete with "My day"
- * above it, and it is never coloured.
+ * FINAL-UI — a band label is the TASKS group heading, said on Today.
  *
- * M3X-02 took it from `title-small` to an uppercase, letter-spaced
- * `label-medium`. A small-caps rule reads as a divider rather than as a heading,
- * which is exactly what it is; at title weight it was a third heading level on a
- * screen that already has two. It is also the treatment the approved direction
- * uses for every band label in the product, so Today, Tasks and the phone
- * sections now agree.
+ * M3X-02 made this an uppercase, letter-spaced `label-medium` and claimed it was
+ * "the treatment the approved direction uses for every band label in the
+ * product". The approved concepts use no small caps anywhere: concept 2 and
+ * concept 3 both draw "Overdue · 2" and "Today · 5" in sentence case at the
+ * list's own type size, semibold, with the overdue bucket in red — and Today's
+ * bands are the same buckets over the same tasks. Two vocabularies for one idea
+ * was the inconsistency §98 asks this pass to find; there is now one, and
+ * `task-list.css` owns it.
+ *
+ * Overdue takes the state colour here for the same reason it does there, and
+ * `--dh-color-overdue` rather than `--dh-color-danger`: a slipped task is a
+ * state of a record, not an application fault (D3).
  */
 .dh-day-section__label {
   margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.dh-day-section[data-tone="overdue"] .dh-day-section__label {
+  color: var(--dh-color-overdue);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -372,17 +414,36 @@
  * The hairline is BETWEEN rows only — a rule under the last row would draw a
  * boundary the panel's own edge already draws.
  */
+/*
+ * FINAL-UI — Today's row is the TASKS row, at the same density.
+ *
+ * DS-04 built the concept row for `/tasks` and Today kept a 45px + 8px-padding
+ * row of its own, so the same five tasks were 61px tall on the day screen and
+ * 37px on the list. Concept 1 draws them identically, and it should: it is the
+ * same object.
+ *
+ * The height is `--dh-row-height`, so it follows the density model rather than
+ * restating a number — and the fine-pointer floor on the shared completion
+ * target (task-signals.css) is what actually lets the row reach it. The block
+ * padding goes: the row's height IS its target.
+ */
 .dh-day-row {
   display: flex;
   align-items: center;
   gap: var(--app-space-3);
-  min-block-size: var(--app-touch-target-min);
-  padding-block: var(--app-space-2);
+  min-block-size: var(--dh-row-height);
+  padding-block: 0;
   min-inline-size: 0;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
 }
 
+/* FINAL-UI — a rule between two rows of one list is `--dh-color-divider`, the
+ * quieter of the two hairlines. `--dh-color-border` is the panel's own edge, one
+ * object out; drawing both with the same value put the panel's boundary and its
+ * internal rhythm at the same weight. */
 .dh-day-row + .dh-day-row {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
 }
 
 /*
@@ -401,12 +462,16 @@
  * already decided the same thing for the same reason. The whole title is still
  * on the record, in the row's `title` attribute and in the Drawer a tap away.
  */
+/* FINAL-UI — the same weight step the Tasks row takes (§14). Today's row IS the
+ * Tasks row; a title that dominates on one screen and not on the other is the
+ * inconsistency §55 asks this pass to find. */
 .dh-day-row__title {
   flex: 1 1 auto;
   min-inline-size: 0;
   color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: 500;
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
   text-decoration: none;
   overflow: hidden;
@@ -986,14 +1051,25 @@
  * still drawn twice per Goal, in both places, and the reading is now the
  * loudest thing on the tile — which is what the section is for.
  */
+/*
+ * FINAL-UI — and the tile loses its own boundary too, because the section around
+ * it lost one first.
+ *
+ * §34: "avoid huge Goal cards on Today; use compact horizontal progress rows".
+ * Four bordered tiles inside a bordered panel was a card inside a card — the
+ * panel-in-panel `visual-system.spec.ts` refuses everywhere else in this screen
+ * and the loudest remaining structure on the page. With the section plain, the
+ * tiles are what the concept draws: a mark, a reading, a bar and a figure,
+ * separated by space rather than by twelve more pixels of hairline each.
+ *
+ * The full Goal card, with its edge, is two clicks away on `/goals`, which is
+ * where a Goal is the subject rather than a glance.
+ */
 .dh-today__goal {
   display: grid;
   align-content: start;
   gap: var(--dh-space-2);
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  padding-inline-end: var(--dh-space-4);
   min-inline-size: 0;
 }
 

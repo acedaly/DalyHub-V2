@@ -579,58 +579,6 @@ export function TodayScreen({
       <DayNav active="today" />
 
       {/*
-       * The day's figures, as quiet cards on the canvas.
-       *
-       * Every card is conditional on its own count, exactly as the chip row and
-       * the hero before it were: a quiet day renders no row at all rather than a
-       * line of noughts, and the progress card appears only once something is
-       * done — a 0% ring first thing in the morning is a guilt meter rather than
-       * a measure (see `dayProgress`).
-       */}
-      {stats.length > 0 || progress ? (
-        <StatCardRow label="Today at a glance" data-testid="today-stats">
-          {stats.map((stat) => (
-            <StatCardItem key={stat.id}>
-              <StatCard
-                label={stat.label}
-                value={stat.value}
-                supporting={stat.supporting}
-                tone={stat.tone}
-                accent={STAT_ACCENTS[stat.id] ?? "violet"}
-                icon={statGlyph(stat.id)}
-                href={stat.href}
-                data-testid={`today-stat-${stat.id}`}
-              />
-            </StatCardItem>
-          ))}
-          {progress ? (
-            <StatCardItem>
-              <StatCard
-                label="Daily progress"
-                value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
-                supporting={`${progress.done} of ${progress.total} done today`}
-                accent="green"
-                icon={<TrendingUpIcon />}
-                data-testid="today-stat-progress"
-                ring={
-                  <ProgressRing
-                    value={progress.done / Math.max(1, progress.total)}
-                    label={`Today's progress: ${progress.done} of ${progress.total} done`}
-                    size={44}
-                    thickness={5}
-                    // The ring belongs to the card's own identity, not to the
-                    // brand: four figure cards each painting a violet ring is
-                    // how a glance row becomes monochrome.
-                    color="var(--md-sys-color-accent-green)"
-                  />
-                }
-              />
-            </StatCardItem>
-          ) : null}
-        </StatCardRow>
-      ) : null}
-
-      {/*
        * UIX-01 — THREE balanced regions, then progress across the full width.
        *
        *   ┌──────────────┐┌──────────┐┌──────────┐
@@ -661,7 +609,10 @@ export function TodayScreen({
       >
         <div className="dh-today__col dh-today__col--focus">
           <section
-            className="dh-today__panel dh-today__timeline"
+            /* FINAL-UI — the ONE card on Today. Concept 1 draws the day's own
+             * work inside a bordered surface and every supporting section
+             * beside it as a plain section; see `today.css`. */
+            className="dh-today__panel dh-today__panel--card dh-today__timeline"
             aria-labelledby="today-day-heading"
           >
             <div className="dh-today__panel-head">
@@ -686,7 +637,7 @@ export function TodayScreen({
                  * costs one small-caps line and makes it no louder.
                  */}
                 {overdue.shown.length > 0 ? (
-                  <div className="dh-day-section">
+                  <div className="dh-day-section" data-tone="overdue">
                     <h3 className="dh-day-section__label">Overdue</h3>
                     <ul className="dh-day-list dh-day-list--overdue">
                       {overdue.shown.map((task) => (
@@ -1006,6 +957,69 @@ export function TodayScreen({
        * the day, it is the last thing on the phone for the same reason, and it
        * wants the whole page rather than two thirds of it.
        */}
+      {/*
+       * The day's figures, as quiet cards on the canvas — BELOW the day's work.
+       *
+       * Every card is still conditional on its own count, exactly as the chip
+       * row and the hero before it were: a quiet day renders no row at all
+       * rather than a line of noughts, and the progress card appears only once
+       * something is done — a 0% ring first thing in the morning is a guilt
+       * meter rather than a measure (see `dayProgress`).
+       *
+       * FINAL-UI moved the whole row from ABOVE the body grid to below it, and
+       * §45 of the brief is the rule: "do not put decorative stats before
+       * actionable content". Concept 1's Today opens on the day's tasks and its
+       * schedule and keeps its two small measures — "This week", "Focus" — at
+       * the bottom of the page. Two 80px figure cards between the greeting and
+       * the first task were the difference between a command centre and a
+       * dashboard, and they cost the fold ~110px of the owner's actual work.
+       *
+       * Nothing is hidden and nothing is moved by CSS `order`: the DOM order is
+       * the phone order too, which is the same reordering §45 asks for there.
+       */}
+      {stats.length > 0 || progress ? (
+        <StatCardRow label="Today at a glance" data-testid="today-stats">
+          {stats.map((stat) => (
+            <StatCardItem key={stat.id}>
+              <StatCard
+                label={stat.label}
+                value={stat.value}
+                supporting={stat.supporting}
+                tone={stat.tone}
+                accent={STAT_ACCENTS[stat.id] ?? "violet"}
+                icon={statGlyph(stat.id)}
+                href={stat.href}
+                data-testid={`today-stat-${stat.id}`}
+              />
+            </StatCardItem>
+          ))}
+          {progress ? (
+            <StatCardItem>
+              <StatCard
+                label="Daily progress"
+                value={`${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%`}
+                supporting={`${progress.done} of ${progress.total} done today`}
+                accent="green"
+                icon={<TrendingUpIcon />}
+                data-testid="today-stat-progress"
+                ring={
+                  <ProgressRing
+                    value={progress.done / Math.max(1, progress.total)}
+                    label={`Today's progress: ${progress.done} of ${progress.total} done`}
+                    size={44}
+                    thickness={5}
+                    // The ring belongs to the card's own identity, not to the
+                    // brand: four figure cards each painting a violet ring is
+                    // how a glance row becomes monochrome.
+                    color="var(--md-sys-color-accent-green)"
+                  />
+                }
+              />
+            </StatCardItem>
+          ) : null}
+        </StatCardRow>
+      ) : null}
+
       <div className="dh-today__progress">
         <ActivityTrendSection trend={data.activityTrend} />
       </div>

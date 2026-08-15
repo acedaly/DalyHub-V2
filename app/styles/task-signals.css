@@ -19,15 +19,34 @@
 
 /* -- Priority indicator ---------------------------------------------------- */
 
+/*
+ * FINAL-UI — priority is a FLAG and a TAG. It is not a chip any more.
+ *
+ * Every approved concept draws it the same way, on the desktop list, in the
+ * detail panel, in the board card and on the phone: a small filled flag in the
+ * priority's own colour, then "P1" in ordinary metadata grey. DS-04 had already
+ * stripped the container inside the Tasks list and left the tinted capsule
+ * everywhere else — so Today, the Drawer, a Project's task list and a Board card
+ * each drew a coloured pill per task for a two-character fact, and the same
+ * priority looked like two different objects depending on which screen it was
+ * on. One object now, and it is the concepts'.
+ *
+ * The FOREGROUND is the priority's own role rather than its `on-*-container`
+ * pair, because there is no container left to be "on": `--md-sys-color-priority-
+ * p1` is generated as a text-legible tone and `contrast.test.ts` asserts it
+ * against the surface ladder.
+ *
+ * Colour stays reinforcement only (AGENTS.md §15): the tag carries the meaning
+ * as text, the flag is `aria-hidden`, and the visually-hidden suffix spells out
+ * the priority language.
+ */
 .dh-priority {
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
-  padding: 0 var(--app-space-2);
-  min-height: var(--app-space-5);
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  background: var(--dh-color-surface);
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
@@ -35,47 +54,49 @@
   white-space: nowrap;
 }
 
-.dh-priority__dot {
-  inline-size: var(--app-space-2);
-  block-size: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: currentColor;
+/* The flag takes the indicator's own colour; the tag is muted back below, so the
+ * one coloured object in the pair is the one that is scanned for. */
+.dh-priority__flag {
+  display: inline-flex;
   flex: none;
+  line-height: 0;
+  font-size: var(--app-space-4);
 }
 
 .dh-priority__tag {
   line-height: 1.2;
+  color: var(--dh-color-text-muted);
 }
 
 /* P1 · Do — the most urgent-and-important. */
 .dh-priority[data-priority="p1"] {
-  color: var(--md-sys-color-on-priority-p1-container);
-  background: var(--md-sys-color-priority-p1-container);
-  border-color: transparent;
+  color: var(--md-sys-color-priority-p1);
 }
 /* P2 · Defer — important, not urgent. */
 .dh-priority[data-priority="p2"] {
-  color: var(--md-sys-color-on-priority-p2-container);
-  background: var(--md-sys-color-priority-p2-container);
-  border-color: transparent;
+  color: var(--md-sys-color-priority-p2);
 }
 /* P3 · Delegate — urgent, but not yours to do. */
 .dh-priority[data-priority="p3"] {
-  color: var(--md-sys-color-on-priority-p3-container);
-  background: var(--md-sys-color-priority-p3-container);
-  border-color: transparent;
+  color: var(--md-sys-color-priority-p3);
 }
 /* P4 · Delete / Review — neither; calm and muted. */
 .dh-priority[data-priority="p4"] {
-  color: var(--md-sys-color-on-priority-p4-container);
-  background: var(--md-sys-color-priority-p4-container);
-  border-color: var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-priority-p4);
 }
-/* Untriaged, rendered only when explicitly requested (e.g. the Drawer). */
+/*
+ * Untriaged, rendered only when explicitly requested (e.g. the Drawer's
+ * selector, where "no priority" is a choice the owner can see is current). It
+ * keeps a dashed outline because here the point IS the empty slot.
+ */
 .dh-priority--none {
+  padding: 0 var(--app-space-2);
+  min-height: var(--app-space-5);
+  border: var(--app-border-width-thin) dashed
+    var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-sm);
   color: var(--dh-color-text-muted);
   background: transparent;
-  border-style: dashed;
 }
 
 /* -- Urgency chip ---------------------------------------------------------- */
@@ -263,6 +284,46 @@
   block-size: var(--app-touch-target-min);
   margin-inline: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
   cursor: pointer;
+}
+
+/*
+ * FINAL-UI — the BLOCK size of that target, on a fine pointer only.
+ *
+ * This is the rule that actually decides how tall a task row is, and it was
+ * doing so invisibly: `--dh-row-height` went to 36px and the list stayed at 46,
+ * because a 45px label inside the row was taller than the row asked to be. The
+ * approved concepts draw a ~32px row, and no amount of density token gets there
+ * while a mouse-driven screen pays the AAA touch target per row.
+ *
+ * 28px is the fine-pointer height, and it is chosen against the standard the
+ * product actually holds itself to rather than against the one a phone needs.
+ * WCAG 2.2 SC 2.5.8 (Target Size (Minimum), AA) asks for 24×24 CSS px; the
+ * target here is 45 wide × 28 tall, so a 24×24 square fits inside it with room
+ * on both axes. The 44px figure is SC 2.5.5 (AAA), which is a TOUCH guideline —
+ * and `(pointer: coarse)` keeps every pixel of it, unchanged, which is the same
+ * bargain AGENTS.md §15 already strikes for the compact density preset: density
+ * may take padding, type and glyph; it may never take hit area from a finger.
+ *
+ * `(pointer: fine)` rather than `(hover: hover)`: what makes the small target
+ * safe is the PRECISION of the input device, not whether it can hover.
+ *
+ * ── And `md` as well, which is a WIDTH and is here on purpose ────────────────
+ * A pointer query alone would have been the whole rule if browsers agreed with
+ * reality, and they do not: a 390px window on a laptop reports `pointer: fine`,
+ * and that is exactly the viewport a phone-shaped review — and MOBILE-01's own
+ * `expectMinTouchTarget` assertions — look at. Rather than shrink the target
+ * under a test that is standing in for a thumb, the reduction is confined to
+ * the widths where the DESKTOP shell is the one on screen. Below `md` the rail
+ * is hidden and the phone bottom bar is the navigation (shell.css), and the row
+ * keeps the full 45px whatever the pointer claims to be.
+ *
+ * So the target shrinks only when BOTH are true: the input is precise, and the
+ * frame is the desktop one. Everything else keeps AAA.
+ */
+@media (pointer: fine) and (min-width: 48rem) {
+  .dh-check-circle-target {
+    block-size: 1.75rem;
+  }
 }
 
 /* ========================================================================== */

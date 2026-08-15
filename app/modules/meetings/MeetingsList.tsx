@@ -30,6 +30,7 @@ import { Link } from "react-router";
 
 import {
   formatMeetingDayGroup,
+  formatMeetingDuration,
   formatMeetingTime,
   meetingDayKey,
   meetingModeLabel,
@@ -126,7 +127,19 @@ export function MeetingsList({
     <div className="dh-meetings-list" aria-label={ariaLabel}>
       {groups.map((group) => (
         <section key={`${group.key}-${group.meetings[0].id}`}>
-          <h2 className="dh-meetings-list__day">{group.heading}</h2>
+          {/* REFINE §16/§40 — the day heading takes the Tasks group-heading
+           * language: sentence case, the row's own size, weight 600, near-black,
+           * with the day's count beside it. One vocabulary for "a bucket of
+           * records", on every screen that has buckets. */}
+          <h2 className="dh-meetings-list__day">
+            {group.heading}{" "}
+            <span className="dh-meetings-list__day-sep" aria-hidden="true">
+              ·
+            </span>{" "}
+            <span className="dh-meetings-list__day-count">
+              {group.meetings.length}
+            </span>
+          </h2>
           <ul className="dh-meetings-list__rows">
             {group.meetings.map((meeting) => {
               const status = meeting.archivedAt
@@ -148,6 +161,10 @@ export function MeetingsList({
                 meeting.timezone === ownerTimezone
                   ? null
                   : meetingZoneLabel(meeting.timezone);
+              const duration = formatMeetingDuration(
+                meeting.startsAt,
+                meeting.endsAt,
+              );
               const joinable =
                 meeting.meetingUrl !== null &&
                 meeting.meetingUrl.length > 0 &&
@@ -178,8 +195,17 @@ export function MeetingsList({
                       <span className="dh-meetings-list__title">
                         {meeting.title}
                       </span>
-                      {where || status ? (
+                      {where || status || duration ? (
                         <span className="dh-meetings-list__meta">
+                          {/* REFINE §40 — duration leads the meta line, because
+                           * it is the fact a schedule is read for after the time
+                           * itself. It is derived from the meeting's own
+                           * `endsAt` and is absent when the record has none. */}
+                          {duration ? (
+                            <span className="dh-meetings-list__duration">
+                              {duration}
+                            </span>
+                          ) : null}
                           {where ? (
                             <span className="dh-meetings-list__where">
                               {where}

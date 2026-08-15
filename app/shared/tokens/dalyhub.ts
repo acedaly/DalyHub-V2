@@ -36,14 +36,16 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-surface-bar",
   "dh-color-surface-selected",
   /*
-   * DS-03 — the rail's own six. The rail is dark in BOTH appearances, so it is
-   * the one region whose foreground cannot be borrowed from the appearance
-   * around it: `dh-color-text` is near-black in light, which is correct
-   * everywhere else and invisible here.
+   * The rail's own seven. FINAL-UI made the rail near-white in light (the three
+   * approved concepts draw it that way) and it stays near-black in dark, so its
+   * foregrounds are chosen against ITS surface rather than borrowed from the
+   * appearance around it — which is what lets a component paint on the rail and
+   * be right in both without knowing which one it is in.
    */
   "dh-color-rail",
   "dh-color-rail-text",
   "dh-color-rail-text-muted",
+  "dh-color-rail-text-selected",
   "dh-color-rail-border",
   "dh-color-rail-selected",
   "dh-color-rail-focus",
@@ -54,6 +56,7 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-text-on-danger",
   "dh-color-border",
   "dh-color-border-strong",
+  "dh-color-divider",
   "dh-color-accent",
   "dh-color-accent-subtle",
   "dh-color-danger",

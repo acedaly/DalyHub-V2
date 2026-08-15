@@ -95,18 +95,37 @@ test.describe("visual system — Today reference layout", () => {
         return {
           background: computed.backgroundColor,
           borderStyle: computed.borderTopStyle,
+          borderWidth: computed.borderTopWidth,
           borderRadius: computed.borderTopLeftRadius,
           boxShadow: computed.boxShadow,
           page: root.getPropertyValue("--md-app-color-surface-page").trim(),
         };
       });
 
-    // Separation is carried by SURFACE VALUE, not by an outline and not by a
-    // shadow: nothing on this screen floats.
-    expect(style.borderStyle).toBe("none");
+    /*
+     * FINAL-UI — the claim is now "one boundary, no depth", and it had been
+     * stale since DS-05.
+     *
+     * "Separation is carried by SURFACE VALUE, not by an outline" described the
+     * M3X canvas, where the page sat at tone 97 and a white card was three tones
+     * above it. DS-05 reversed it deliberately (C1: every card in the product
+     * takes one hairline, a 12px corner and no shadow) because at the count a
+     * dense screen renders, a tonal step alone stops reading as a boundary — and
+     * FINAL-UI took the canvas to tone 98, which removes most of the step this
+     * assertion was relying on. Both `.dh-today__panel--card` and the record card
+     * families have drawn a hairline since DS-05, so this test has been failing
+     * on `main` and on every branch since; it is corrected here rather than left
+     * asserting a rule the design system abandoned.
+     *
+     * What it pins now is the rule `card-family.css` and `today.css` actually
+     * hold, and it is stricter in the direction that matters: a card may spend
+     * ONE device on its edge — the hairline — and no depth at all. A shadow on an
+     * in-flow surface is still refused.
+     */
+    expect(style.borderStyle).toBe("solid");
+    expect(parseFloat(style.borderWidth)).toBeLessThanOrEqual(1);
     expect(style.boxShadow).toBe("none");
-    expect(parseFloat(style.borderRadius)).toBeGreaterThanOrEqual(15);
-    expect(style.background).not.toBe(style.page);
+    expect(parseFloat(style.borderRadius)).toBeGreaterThanOrEqual(12);
     expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
   });
 
@@ -219,8 +238,25 @@ test.describe("visual system — surface hierarchy", () => {
      * ordinary in-flow card takes no border and no resting depth, and the
      * sibling test below pins that a surface which genuinely floats still does.
      */
-    expect(widgetStyle.borderStyle).toBe("none");
-    expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(15);
+    /*
+     * FINAL-UI — the hairline came BACK, and so does the assertion on it.
+     *
+     * The paragraph above records M3X's reasoning for removing it, and DS-05
+     * reversed that decision in the same words this file quotes: "every card in
+     * DalyHub draws the same edge — a thin hairline, a small corner, and no
+     * shadow". The approved product concepts draw a card edge at ~1.36:1 against
+     * its canvas, which FINAL-UI matched by taking the hairline to tone 87. So
+     * the family spends exactly one device on its boundary and none on depth,
+     * and that is what is pinned in both directions: a hairline is required, a
+     * resting shadow is still refused, and the sibling test below pins that a
+     * surface which genuinely floats still gets one.
+     *
+     * The corner floor drops 15 → 12 with `--dh-radius-md`, which is the corner
+     * DS-05 standardised the whole card family onto.
+     */
+    expect(widgetStyle.borderStyle).toBe("solid");
+    expect(parseFloat(widgetStyle.borderWidth)).toBeLessThanOrEqual(1);
+    expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(12);
     expect(widgetStyle.boxShadow).toBe("none");
 
     // The tokens resolve at all (a renamed token silently returns "").
@@ -235,9 +271,22 @@ test.describe("visual system — surface hierarchy", () => {
     // shadow, which is exactly what M3 prescribes.
     expect(widgetStyle.card).not.toBe(widgetStyle.page);
 
+    /*
+     * FINAL-UI — the row this pins is `.dh-taskrow`, and the generic `.dh-card`
+     * it used to name has no consumer left anywhere in the product.
+     *
+     * MEASURED across `/goals`, `/notes`, `/meetings`, `/people`, `/assets`,
+     * `/reviews`, `/projects`, `/areas` and `/tasks`: zero `.dh-card` elements on
+     * every one of them. DS-04 replaced the Tasks row, UIX-02/03 gave Projects
+     * and Goals their own families and UIX-05 turned Areas into rows, so this
+     * locator has been matching nothing — and spending the test's whole 30s
+     * timeout doing it — since DS-04. That is why this test has been failing on
+     * `main`; the assertion is re-pointed rather than deleted, because the RULE
+     * it states is still exactly right and now has a real subject.
+     */
     await gotoFixture(page, "/tasks");
     const rowShadow = await page
-      .locator(".dh-card-collection--list .dh-card")
+      .locator(".dh-taskrow")
       .first()
       .evaluate((element) => getComputedStyle(element).boxShadow);
     // A row inside a collection is not a card in its own right: it must stay

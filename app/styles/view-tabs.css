@@ -128,12 +128,12 @@
    * only, rather than by the link's own background. `background-clip:
    * content-box` was the obvious first answer and is wrong: it clips both axes,
    * so the capsule lost its 16px of inline padding too and came out as a 30px
-   * ellipse with the word spilling out of both ends. `isolation` keeps the
-   * `z-index: -1` inside the rail rather than letting it fall behind the page.
+   * ellipse with the word spilling out of both ends.
+   *
+   * REFINE removed the capsule entirely (see below), and `isolation: isolate`
+   * went with it — it existed only to keep that pseudo-element's `z-index: -1`
+   * inside the rail.
    */
-  .dh-viewtabs {
-    isolation: isolate;
-  }
 
   .dh-viewtabs__tab {
     position: relative;
@@ -145,37 +145,23 @@
   }
 
   /*
-   * DS-04 — the capsule is a WASH, and the unselected tabs have none.
+   * REFINE — the capsule is GONE. The phone rail is the desktop rail.
    *
-   * It was a filled `primary` pill for the current tab and a filled card surface
-   * for every other one, which made a scrolling row of five solid objects the
-   * loudest band on a phone screen — and spent the brand on "which filter is
-   * applied". Both concept phone screens draw this the other way round: the
-   * unselected tabs are bare text, and the current one is a PALE accent capsule
-   * with accent text and an accent underline beneath it.
+   * DS-04 replaced a solid pill with a pale accent capsule, and justified it
+   * against "both concept phone screens" — the two EXPLORATORY references. The
+   * three approved concepts draw it differently and draw it consistently:
+   * concept 3's phone Tasks rail is `List  Board  Calendar` as plain text, the
+   * current one near-black with a purple underline beneath it, and no container
+   * anywhere on the row. That is exactly the desktop treatment, which is the
+   * point — a control that is one object on a laptop and a different object on a
+   * phone is the inconsistency §55 asks this pass to find, and §71 rules out the
+   * capsule by name.
    *
-   * That is still three signals plus `aria-current` — colour, weight and the
-   * indicator — so nothing is carried by colour alone, and the accent now means
-   * "this one" instead of meaning "tabs".
+   * Selection is still never colour alone: `aria-current`, a weight step, and a
+   * 2px indicator that survives the row scrolling under a thumb.
    */
-  .dh-viewtabs__tab::before {
-    content: "";
-    position: absolute;
-    inset-block: var(--app-space-1);
-    inset-inline: 0;
-    z-index: -1;
-    border-radius: var(--md-sys-shape-corner-full);
-    background: transparent;
-  }
-
   .dh-viewtabs__tab[aria-current="page"] {
-    color: var(--dh-color-accent);
-    /* The underline the desktop rail uses, kept — an indicator that survives the
-     * row scrolling under the reader's thumb. */
+    color: var(--dh-color-text);
     border-block-end: var(--dh-border-width-strong) solid var(--dh-color-accent);
-  }
-
-  .dh-viewtabs__tab[aria-current="page"]::before {
-    background: var(--dh-color-accent-subtle);
   }
 }

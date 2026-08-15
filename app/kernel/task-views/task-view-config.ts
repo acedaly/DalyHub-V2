@@ -138,7 +138,18 @@ export const DEFAULT_TASK_VIEW_CONFIG: TaskViewConfig = {
   sort: "smart",
   direction: "natural",
   groupBy: "none",
-  density: "comfortable",
+  /*
+   * FINAL-UI — `compact` is the default, and `comfortable` remains the choice.
+   *
+   * The approved concepts draw the Tasks list dense: a 36px row carrying a 14px
+   * title, roughly 2.5× the type. `comfortable` resolves to DS-01's `default`
+   * preset — a 56px row at 3.5× — which is what the whole product shipped and
+   * what made the list read as spacious where the concepts read as fast.
+   * Nothing is removed: the density control still offers both, and the coarse-
+   * pointer floor in `tokens.css` hands a finger the full target back either
+   * way. Only which one an owner starts on has changed.
+   */
+  density: "compact",
   filters: {},
 };
 

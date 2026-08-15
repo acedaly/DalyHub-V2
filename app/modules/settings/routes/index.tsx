@@ -1009,7 +1009,12 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
             >
               {SECTIONS.filter((section) => section.group === group.id).map(
                 (section) => (
-                  <li key={section.id} className="dh-settings-page__nav-item">
+                  <li
+                    key={section.id}
+                    /* FINAL-UI — the ROW is the state-layer host, because the
+                     * row is what the link's `::after` makes clickable. */
+                    className="dh-settings-page__nav-item md-state-layer"
+                  >
                     <Link
                       to={sectionHref(section.id)}
                       className={

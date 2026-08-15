@@ -16,6 +16,8 @@
  * at 320px because it degrades to just the tag + accessible text.
  */
 
+import { FlagIcon } from "~/shared/icons";
+
 import type { TaskPriority } from "~/kernel/tasks";
 
 import { taskPriorityLabel, taskPriorityTag } from "./task-view";
@@ -64,7 +66,23 @@ export function PriorityIndicator({
       data-priority={priority}
       data-testid={testId}
     >
-      <span className="dh-priority__dot" aria-hidden="true" />
+      {/*
+       * FINAL-UI — a FLAG, where DS-04 drew a dot.
+       *
+       * All three approved concepts draw priority the same way and draw it a
+       * lot: a small filled flag in the priority's own colour, then the tag in
+       * ordinary metadata grey. A dot is a generic "there is a value here"; a
+       * flag is the shape the productivity vocabulary already uses for
+       * "flagged", which is what lets a scanning eye pick the P1s out of thirty
+       * rows without reading a single tag.
+       *
+       * The accessibility contract is untouched: the glyph is `aria-hidden`, the
+       * visible tag carries the meaning as TEXT, and the visually-hidden suffix
+       * still spells out the priority language. Colour remains reinforcement.
+       */}
+      <span className="dh-priority__flag" aria-hidden="true">
+        <FlagIcon />
+      </span>
       <span className="dh-priority__tag">{taskPriorityTag(priority)}</span>
       <span className="dh-visually-hidden"> priority — {action}</span>
     </span>

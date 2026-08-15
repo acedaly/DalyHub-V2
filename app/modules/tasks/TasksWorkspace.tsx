@@ -61,11 +61,7 @@ import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
-import {
-  TaskGroup,
-  TaskList,
-  TaskListColumns,
-} from "~/shared/task-record/TaskList";
+import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
@@ -1436,25 +1432,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   );
 
   /**
-   * DS-04 — the list, with its column header.
+   * The list.
    *
-   * `columnHeader` is drawn on the UNGROUPED list only. In a grouped view the
-   * heading above each bucket is already the reader's anchor, and repeating
-   * `Task · Project · Due · Priority · Status` above every group turns a page of
-   * five buckets into five tables.
+   * FINAL-UI removed the column KEY that DS-04 drew above an ungrouped list.
+   * Neither approved Tasks concept has one, and the reason they do not is
+   * legible once the row is dense: `Task · Project · Date · Priority · Status`
+   * in small caps above thirty rows is a table header, and a table header is
+   * what makes a list read as a data grid rather than as the owner's work. Every
+   * cell inside a row still carries its own accessible name, which is what the
+   * key was decorative FOR (it was `aria-hidden`), so nothing is lost to a
+   * screen reader — and the columns still line up, because the grid template
+   * lives on the list rather than on the header that used to demonstrate it.
    */
   const renderCollection = useCallback(
-    (
-      list: readonly TaskCardData[],
-      ariaLabel: string,
-      headingLevel: 2 | 3,
-      columnHeader = false,
-    ) => (
-      <TaskList
-        ariaLabel={ariaLabel}
-        columnHeader={columnHeader}
-        density={density}
-      >
+    (list: readonly TaskCardData[], ariaLabel: string, headingLevel: 2 | 3) => (
+      <TaskList ariaLabel={ariaLabel} density={density}>
         {list.map((card) => (
           <TaskRow key={card.id} {...toRowProps(card, headingLevel)} />
         ))}
@@ -1700,12 +1692,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
       {isGrouped ? (
         <>
-          {/* DS-04 — the column key, ONCE, above a grouped list. A board and the
-              Time Sectors are columns of narrow cards where the desktop grid
-              does not apply, so they get none. */}
-          {config.presentation === "list" ? (
-            <TaskListColumns density={density} />
-          ) : null}
           <GroupedView
             presentation={config.presentation}
             sections={groupedSections}
@@ -1714,7 +1700,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           />
         </>
       ) : (
-        renderCollection(cards, "Tasks", 2, true)
+        renderCollection(cards, "Tasks", 2)
       )}
 
       {!data.failed && !isGrouped && hasMore ? (
@@ -1742,7 +1728,6 @@ type RenderCollection = (
   list: readonly TaskCardData[],
   ariaLabel: string,
   headingLevel: 2 | 3,
-  columnHeader?: boolean,
 ) => ReactNode;
 
 /**
@@ -1779,6 +1764,13 @@ function GroupedBucket({
       count={section.count}
       headingLevel={2}
       moreHref={href}
+      /*
+       * FINAL-UI — the overdue bucket's heading is red, and the bucket KEY is
+       * what says so rather than its title. The label is translated copy
+       * ("Overdue", "Was due earlier" in the deliberately gentler grouping);
+       * the key is the server's own bucket name and does not move.
+       */
+      tone={section.key === "overdue" ? "overdue" : "default"}
       className={className}
     >
       {section.cards.length > 0 ? (

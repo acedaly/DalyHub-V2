@@ -18,15 +18,15 @@
   gap: var(--app-space-5);
 }
 
-/* UIX-06 — the page-title rung, like every other page in the product. This drew
- * `headline-small` (24px) with a hand-written weight where the shared title is
- * `headline-medium` (28px). */
+/* UIX-06 — the page-title rung, like every other page in the product; FINAL-UI
+ * made it read the ROLE rather than the rung that role happened to point at, for
+ * the reason `settings.css` records: copying a value keeps two titles in step
+ * only until one of them moves. */
 .dh-ask__title {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
+  font-weight: var(--dh-text-page-title-weight);
   color: var(--dh-color-text);
 }
 

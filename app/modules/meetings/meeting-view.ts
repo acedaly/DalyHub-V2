@@ -194,6 +194,38 @@ export function serializeMeeting(m: Meeting) {
 export type SerializedMeeting = ReturnType<typeof serializeMeeting>;
 
 /**
+ * REFINE — a meeting's DURATION, in words, from the two instants it already has.
+ *
+ * §40 of the refinement brief asks a sparse Meetings list to carry more real
+ * information rather than more space, and names duration first. Nothing is added
+ * to the record to supply it: `startsAt` and `endsAt` are both stored and both
+ * already serialized, and a meeting without an end simply has no duration to
+ * state — which returns `null` and prints nothing, rather than a guessed hour.
+ *
+ * The wording is the shortest true one: "30m", "1h", "1h 30m". A schedule is
+ * scanned, and "1 hour 30 minutes" beside a title is a sentence in a column of
+ * facts.
+ */
+export function formatMeetingDuration(
+  startsAt: string,
+  endsAt: string | null,
+): string | null {
+  if (endsAt === null) return null;
+  const minutes = Math.round(
+    (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60000,
+  );
+  // A non-positive or absurd span is a data problem, not a fact worth printing.
+  if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 60 * 24) {
+    return null;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  if (rest === 0) return `${hours}h`;
+  return `${hours}h ${rest}m`;
+}
+
+/**
  * UIX-04 §27 — the human name for a meeting's MODE.
  *
  * The stored values are `in_person` / `phone` / `online` (migration 0014). They

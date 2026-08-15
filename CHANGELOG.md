@@ -17,6 +17,93 @@ no version number to group them under.
 
 ---
 
+## The refinement pass (FINAL-UI, part two)
+
+The redesign landed the structure. This pass made it confident.
+
+**Card edges you can actually see.** Every card in DalyHub was outlined with a
+grey so pale it read as a smudge, while every list of rows carried a line under
+each one — so the boxes disappeared and the lists looked like a grid. There are
+two greys now: a firmer one for the edge of a card, and a fainter one for the
+rule between two rows. Cards look deliberate; lists look calm.
+
+**Today is one screen, not five boxes.** The day's tasks sit in a card, and
+everything beside it — what needs attention, what to continue, your goal progress
+— sits on the page as plain sections. Goal progress in particular used to be four
+outlined tiles inside an outlined panel; it is now just the goals.
+
+**Meetings says more.** Each meeting shows how long it runs, taken from the end
+time already on the record, and each day heading carries its count in the same
+style Tasks uses.
+
+**The diary reads like a diary.** An entry used to stretch across a 1100-pixel
+card with the words in the left third. It now has a reading width.
+
+**Task titles lead.** A task's title is a shade heavier than the date, project
+and priority beside it, so your eye lands on the work rather than on the columns.
+
+**Settings' heading is the same size as every other page's.** It was the biggest
+and the lightest title in the app.
+
+**On a phone**, the List / Board / Calendar tabs are plain text with an underline
+— the same control you see on a laptop, instead of a lozenge that only appeared
+on small screens. A goal's description trims to two lines so one goal cannot fill
+the screen, and Settings' descriptions line up with their headings again.
+
+Nothing moved, nothing was removed, and there is still no horizontal scrolling at
+any phone width from 320 pixels up.
+
+---
+
+## DalyHub looks like DalyHub (FINAL-UI)
+
+Three approved design concepts settled what DalyHub should look like, and this
+release makes the running application match them.
+
+**The sidebar is light now.** It used to be a near-black column down the left of
+every screen. The approved design draws it near-white, one shade under the page,
+with a hairline between them — so the darkest thing on screen is your own text
+rather than the furniture around it. The page you are on is a soft violet row
+with a violet label instead of a solid violet block.
+
+**Tasks got a lot faster to scan.** A task row was 56 pixels tall; it is now 36 —
+about nine more tasks on a laptop screen without scrolling. The column header
+above the list is gone, the date now comes before the project (you ask "when"
+before "where"), priority is a small coloured flag instead of a filled capsule,
+and "Overdue · 20" is written in red at the top of its group rather than in grey
+small capitals. On a phone the project name now trims with an ellipsis instead of
+running into the priority flag, and a 320px screen no longer starts every row
+with a stray dot.
+
+**Today opens on your day.** Two large figure cards used to sit between the
+greeting and your first task. They have moved to the bottom of the page, where
+the concept puts them — so the first thing on screen is what is overdue and what
+is due today, then your schedule, then your goals, and only then the numbers.
+The greeting is also the same size as every other page title in the app; it used
+to be the largest text anywhere in DalyHub.
+
+**Goals cards are shorter.** A goal's reading — "8.1 km", "$25,600", "83 kg" —
+was set at headline size and forced a 235-pixel card for six facts. It is now
+about 145 pixels, and the chart and the progress bar carry the visual weight,
+which is what makes a page of goals read as progress rather than as numbers.
+
+**Settings reads like a list of places to go.** Each section already had a line
+saying what is inside it — "Appearance, where DalyHub opens, and how new work
+starts" — and it was only shown on the phone. It is visible everywhere now.
+
+**Smaller things.** The Active / Archived / Deleted control lost its grey tray:
+the current one is a filled chip and the rest are plain text. The "+ New" button
+in the top bar is quieter, so each page has exactly one bold button — its own.
+Assets' search and tag boxes share one line again instead of stacking, with
+"Filter & sort" at the right where it belongs. And the whole thing works the same
+way in dark mode, which was designed rather than inverted.
+
+**Nothing about how DalyHub works changed.** Same records, same routes, same
+data, same keyboard shortcuts. On a touchscreen every button and checkbox keeps
+its full comfortable size — the tighter rows are for a mouse.
+
+---
+
 ## The whole app, brought onto one design (DS-05 – DS-08)
 
 DS-04 rebuilt Tasks. This finishes the job everywhere else: Projects, Areas,
