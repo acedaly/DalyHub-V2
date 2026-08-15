@@ -287,23 +287,49 @@
 }
 
 /*
- * ONE surface per region, and DS-05's one card boundary.
+ * FINAL-UI — a region is a SECTION. One of them is a card.
  *
- * "No outline — the tone separates it from the page" was true when Today drew
- * three panels. It draws six, plus a row of glance tiles, and at that count a
- * tonal step alone stops being a boundary — which is the same argument DS-02
- * made for `.dh-dcard` and DS-05 made for the record cards. One hairline, one
- * 12px corner, no shadow, everywhere in the product.
+ * DS-05 gave every region on this screen the product's one card boundary, on the
+ * reasoning that at six panels a tonal step alone stops being a boundary. That
+ * was the right diagnosis of the wrong problem: the answer to six equal-weight
+ * rectangles is not to draw six confident edges around them, it is to stop
+ * having six. §31 of the refinement brief says so directly — "reduce
+ * equal-weight rectangles; some sections may not need outer cards" — and
+ * concept 1's Today is drawn exactly that way: ONE bordered card holding the
+ * day's tasks, and a right-hand column of sections (Schedule, then Goals) with
+ * nothing behind them but a hairline between one and the next.
+ *
+ * So the default is a plain section — a heading, its rows, and space. The DAY
+ * takes the card (`--card` below), because it is the page's subject and the
+ * concept cards it. Everything else is supporting context and reads as such
+ * without a rectangle to say so.
  */
 .dh-today__panel {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
   min-inline-size: 0;
+}
+
+/* The one card: the day's own work. */
+.dh-today__panel--card {
   padding: var(--dh-space-5);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
+}
+
+/*
+ * Two plain sections stacked in one column are separated by a rule, which is
+ * what the card boundary used to do and is a quieter way of doing it. It is the
+ * DIVIDER value rather than the boundary one: these are two parts of one column,
+ * not two objects.
+ */
+.dh-today__col
+  > .dh-today__panel:not(.dh-today__panel--card)
+  + .dh-today__panel:not(.dh-today__panel--card) {
+  padding-block-start: var(--dh-space-5);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
 .dh-today__panel-head {
@@ -412,8 +438,12 @@
   line-height: var(--dh-text-row-line-height);
 }
 
+/* FINAL-UI — a rule between two rows of one list is `--dh-color-divider`, the
+ * quieter of the two hairlines. `--dh-color-border` is the panel's own edge, one
+ * object out; drawing both with the same value put the panel's boundary and its
+ * internal rhythm at the same weight. */
 .dh-day-row + .dh-day-row {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
 }
 
 /*
@@ -432,12 +462,16 @@
  * already decided the same thing for the same reason. The whole title is still
  * on the record, in the row's `title` attribute and in the Drawer a tap away.
  */
+/* FINAL-UI — the same weight step the Tasks row takes (§14). Today's row IS the
+ * Tasks row; a title that dominates on one screen and not on the other is the
+ * inconsistency §55 asks this pass to find. */
 .dh-day-row__title {
   flex: 1 1 auto;
   min-inline-size: 0;
   color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: 500;
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
   text-decoration: none;
   overflow: hidden;
@@ -1017,14 +1051,25 @@
  * still drawn twice per Goal, in both places, and the reading is now the
  * loudest thing on the tile — which is what the section is for.
  */
+/*
+ * FINAL-UI — and the tile loses its own boundary too, because the section around
+ * it lost one first.
+ *
+ * §34: "avoid huge Goal cards on Today; use compact horizontal progress rows".
+ * Four bordered tiles inside a bordered panel was a card inside a card — the
+ * panel-in-panel `visual-system.spec.ts` refuses everywhere else in this screen
+ * and the loudest remaining structure on the page. With the section plain, the
+ * tiles are what the concept draws: a mark, a reading, a bar and a figure,
+ * separated by space rather than by twelve more pixels of hairline each.
+ *
+ * The full Goal card, with its edge, is two clicks away on `/goals`, which is
+ * where a Goal is the subject rather than a glance.
+ */
 .dh-today__goal {
   display: grid;
   align-content: start;
   gap: var(--dh-space-2);
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  padding-inline-end: var(--dh-space-4);
   min-inline-size: 0;
 }
 

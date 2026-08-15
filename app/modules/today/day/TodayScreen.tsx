@@ -609,7 +609,10 @@ export function TodayScreen({
       >
         <div className="dh-today__col dh-today__col--focus">
           <section
-            className="dh-today__panel dh-today__timeline"
+            /* FINAL-UI — the ONE card on Today. Concept 1 draws the day's own
+             * work inside a bordered surface and every supporting section
+             * beside it as a plain section; see `today.css`. */
+            className="dh-today__panel dh-today__panel--card dh-today__timeline"
             aria-labelledby="today-day-heading"
           >
             <div className="dh-today__panel-head">

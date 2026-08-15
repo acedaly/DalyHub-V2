@@ -316,7 +316,8 @@
   --md-app-color-surface-card-subtle: #f4f3f7;
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #eeedf1;
-  --md-app-color-outline-hairline: #e6e5e9;
+  --md-app-color-outline-hairline: #dad9dd;
+  --md-app-color-outline-divider: #eeedf1;
   --md-app-color-surface-rail: #f4f3f7;
   --md-app-color-on-rail: #2b2c2f;
   --md-app-color-on-rail-muted: #626366;
@@ -574,7 +575,8 @@
   --md-app-color-surface-card-subtle: #f3f3f8;
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #ededf3;
-  --md-app-color-outline-hairline: #e5e5ea;
+  --md-app-color-outline-hairline: #d9dadf;
+  --md-app-color-outline-divider: #ededf3;
   --md-app-color-surface-rail: #f3f3f8;
   --md-app-color-on-rail: #2a2c30;
   --md-app-color-on-rail-muted: #626368;
@@ -832,7 +834,8 @@
   --md-app-color-surface-card-subtle: #f6f2f6;
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #f0edf1;
-  --md-app-color-outline-hairline: #e8e4e8;
+  --md-app-color-outline-hairline: #dcd9dd;
+  --md-app-color-outline-divider: #f0edf1;
   --md-app-color-surface-rail: #f6f2f6;
   --md-app-color-on-rail: #2c2c2f;
   --md-app-color-on-rail-muted: #646266;
@@ -1090,7 +1093,8 @@
   --md-app-color-surface-card-subtle: #f3f3f6;
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #edeef1;
-  --md-app-color-outline-hairline: #e5e5e8;
+  --md-app-color-outline-hairline: #d9dadd;
+  --md-app-color-outline-divider: #edeef1;
   --md-app-color-surface-rail: #f3f3f6;
   --md-app-color-on-rail: #2a2c2f;
   --md-app-color-on-rail-muted: #626366;
@@ -1348,7 +1352,8 @@
   --md-app-color-surface-card-subtle: #f5f3f5;
   --md-app-color-surface-raised: #ffffff;
   --md-app-color-surface-sunken: #efedf0;
-  --md-app-color-outline-hairline: #e6e5e7;
+  --md-app-color-outline-hairline: #dbd9dc;
+  --md-app-color-outline-divider: #efedf0;
   --md-app-color-surface-rail: #f5f3f5;
   --md-app-color-on-rail: #2b2c2e;
   --md-app-color-on-rail-muted: #636365;
@@ -1608,7 +1613,8 @@
     --md-app-color-surface-card-subtle: #202225;
     --md-app-color-surface-raised: #313236;
     --md-app-color-surface-sunken: #141618;
-    --md-app-color-outline-hairline: #3a3b3e;
+    --md-app-color-outline-hairline: #414245;
+    --md-app-color-outline-divider: #313236;
     --md-app-color-surface-rail: #16181a;
     --md-app-color-on-rail: #eeedf1;
     --md-app-color-on-rail-muted: #ababae;
@@ -1867,6 +1873,7 @@
     --md-app-color-surface-raised: #2e353f;
     --md-app-color-surface-sunken: #0d141d;
     --md-app-color-outline-hairline: #373e48;
+    --md-app-color-outline-divider: #2c333d;
     --md-app-color-surface-rail: #111821;
     --md-app-color-on-rail: #e8eefb;
     --md-app-color-on-rail-muted: #a5acb8;
@@ -2125,6 +2132,7 @@
     --md-app-color-surface-raised: #313036;
     --md-app-color-surface-sunken: #131318;
     --md-app-color-outline-hairline: #3a383e;
+    --md-app-color-outline-divider: #333238;
     --md-app-color-surface-rail: #18171c;
     --md-app-color-on-rail: #f1ecf4;
     --md-app-color-on-rail-muted: #adaab1;
@@ -2383,6 +2391,7 @@
     --md-app-color-surface-raised: #2f363b;
     --md-app-color-surface-sunken: #12181d;
     --md-app-color-outline-hairline: #383e44;
+    --md-app-color-outline-divider: #2d3339;
     --md-app-color-surface-rail: #12181d;
     --md-app-color-on-rail: #e9eef5;
     --md-app-color-on-rail-muted: #a6acb2;
@@ -2641,6 +2650,7 @@
     --md-app-color-surface-raised: #363739;
     --md-app-color-surface-sunken: #191a1c;
     --md-app-color-outline-hairline: #3f4042;
+    --md-app-color-outline-divider: #323235;
     --md-app-color-surface-rail: #17181a;
     --md-app-color-on-rail: #efedf0;
     --md-app-color-on-rail-muted: #ababad;
@@ -2907,7 +2917,8 @@
   --md-app-color-surface-card-subtle: #202225;
   --md-app-color-surface-raised: #313236;
   --md-app-color-surface-sunken: #141618;
-  --md-app-color-outline-hairline: #3a3b3e;
+  --md-app-color-outline-hairline: #414245;
+  --md-app-color-outline-divider: #313236;
   --md-app-color-surface-rail: #16181a;
   --md-app-color-on-rail: #eeedf1;
   --md-app-color-on-rail-muted: #ababae;
@@ -3168,6 +3179,7 @@
   --md-app-color-surface-raised: #2e353f;
   --md-app-color-surface-sunken: #0d141d;
   --md-app-color-outline-hairline: #373e48;
+  --md-app-color-outline-divider: #2c333d;
   --md-app-color-surface-rail: #111821;
   --md-app-color-on-rail: #e8eefb;
   --md-app-color-on-rail-muted: #a5acb8;
@@ -3428,6 +3440,7 @@
   --md-app-color-surface-raised: #313036;
   --md-app-color-surface-sunken: #131318;
   --md-app-color-outline-hairline: #3a383e;
+  --md-app-color-outline-divider: #333238;
   --md-app-color-surface-rail: #18171c;
   --md-app-color-on-rail: #f1ecf4;
   --md-app-color-on-rail-muted: #adaab1;
@@ -3688,6 +3701,7 @@
   --md-app-color-surface-raised: #2f363b;
   --md-app-color-surface-sunken: #12181d;
   --md-app-color-outline-hairline: #383e44;
+  --md-app-color-outline-divider: #2d3339;
   --md-app-color-surface-rail: #12181d;
   --md-app-color-on-rail: #e9eef5;
   --md-app-color-on-rail-muted: #a6acb2;
@@ -3948,6 +3962,7 @@
   --md-app-color-surface-raised: #363739;
   --md-app-color-surface-sunken: #191a1c;
   --md-app-color-outline-hairline: #3f4042;
+  --md-app-color-outline-divider: #323235;
   --md-app-color-surface-rail: #17181a;
   --md-app-color-on-rail: #efedf0;
   --md-app-color-on-rail-muted: #ababad;
@@ -5115,6 +5130,22 @@
    */
   --dh-color-border: var(--md-app-color-outline-hairline);
   --dh-color-border-strong: var(--md-sys-color-outline);
+  /*
+   * FINAL-UI — the THIRD border, and the split is the one the concepts draw.
+   *
+   * `--dh-color-border` is a BOUNDARY: the edge of a card, a panel, a popover —
+   * the line that says "this is one object". `--dh-color-divider` is a RULE
+   * INSIDE one: between two rows of the same list, between two fields of the
+   * same form. MEASURED off the approved concepts, a card's edge is ~1.36:1
+   * against its canvas and a row divider inside it is ~1.03:1, and DalyHub was
+   * drawing both with one value — so the card edge was a suggestion and every
+   * list had a visible grid through it at the same time.
+   *
+   * Neither carries a contrast requirement (that is `--dh-color-border-strong`,
+   * which IDENTIFIES a control and owes 3:1 under WCAG 1.4.11). The question
+   * this pair answers is which of two quiet lines a surface is drawing.
+   */
+  --dh-color-divider: var(--md-app-color-outline-divider);
 
   /** The brand, spent on ACTION: the one primary control, a progress fill. */
   --dh-color-accent: var(--md-sys-color-primary);

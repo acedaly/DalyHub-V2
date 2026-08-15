@@ -504,12 +504,32 @@ const DEFAULT_SURFACE_TONES = {
     "surface-raised": 100,
     "surface-sunken": 94,
     /*
-     * And the hairline steps DOWN a rung with it. A near-white page asks more of
-     * the boundary than a tone-97 one did: at 92 over a 98 canvas a card edge is
-     * a suggestion. 91 is still a hairline — nothing near `outline`'s 3:1 — and
-     * is what makes the concepts' "borders, not shadows" hierarchy legible.
+     * And the hairline steps DOWN with it — twice, because the concepts draw TWO
+     * hairlines and DalyHub had one.
+     *
+     * MEASURED off `concept 1.png` and `concept 3.png`: a card's EDGE is
+     * #d3d3dd against a #fefefe canvas (~1.36:1), and a row DIVIDER inside that
+     * card is #f8f9fa (~1.03:1). One value cannot be both — at 91 the card edge
+     * was a suggestion (1.13:1 over the tone-98 canvas) and every list still had
+     * a visible grid of lines through it, which is §7's "too many of them" and
+     * §8's "cards must not disappear into the page" at the same time.
+     *
+     * 87 is the card boundary. It is still a hairline and still nowhere near
+     * `outline`'s 3:1, and it is what makes "borders, not shadows" a hierarchy
+     * rather than a hint.
      */
-    "outline-hairline": 91,
+    "outline-hairline": 87,
+    /*
+     * And the DIVIDER — a rule drawn INSIDE a surface, between two rows of the
+     * same list.
+     *
+     * It is a separate role rather than an opacity because the two are answering
+     * different questions. A boundary says "this is one object"; a divider says
+     * "these are two rows of it", and the second is the quieter statement in
+     * every concept. At 94 over a white card it is the ~1.04 the concepts draw:
+     * present when the eye looks for it, invisible when it is scanning.
+     */
+    "outline-divider": 94,
     /*
      * FINAL-UI — THE RAIL IS LIGHT, and this reverses DS-03.
      *
@@ -581,7 +601,14 @@ const DEFAULT_SURFACE_TONES = {
     "surface-card-subtle": 13,
     "surface-raised": 21,
     "surface-sunken": 7,
-    "outline-hairline": 25,
+    /*
+     * Dark takes the same split and takes it in the same DIRECTION — the
+     * boundary steps away from the surface it bounds, the divider stays close to
+     * it. 28 over a tone-15 card is the same "confident hairline" 87-over-98 is
+     * in light; 21 is the same near-invisible rule.
+     */
+    "outline-hairline": 28,
+    "outline-divider": 21,
     /*
      * The rail in dark, BELOW the canvas rather than above it — unchanged by the
      * FINAL-UI re-tone, and for a reason that outlives DS-03's inversion.

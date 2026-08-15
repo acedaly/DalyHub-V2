@@ -241,7 +241,7 @@
    * rather than as a table with ruled sides. The last row in a group drops it —
    * a group is separated from the next by space.
    */
-  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
   background: transparent;
   border-radius: 0;
   box-shadow: none;
@@ -357,6 +357,16 @@
   color: var(--dh-color-text);
 }
 
+/*
+ * FINAL-UI — the title steps up a WEIGHT, and the metadata does not.
+ *
+ * §14: the title should dominate more clearly, and the trailing metadata should
+ * be visually subordinate. At 400 the title and the date beside it were the same
+ * weight in two different colours, which makes a row read as five equal facts.
+ * The concepts draw the title at a medium weight against regular metadata — the
+ * cheapest way to make one thing the row's subject without making it bigger,
+ * which is what §5 means by "do not rely solely on font size".
+ */
 .dh-taskrow__title {
   min-inline-size: 0;
   overflow: hidden;
@@ -365,6 +375,7 @@
 
   color: inherit;
   font: inherit;
+  font-weight: 500;
   text-decoration: none;
   border-radius: var(--dh-radius-sm);
 }

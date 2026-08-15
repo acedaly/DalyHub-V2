@@ -56,6 +56,7 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-text-on-danger",
   "dh-color-border",
   "dh-color-border-strong",
+  "dh-color-divider",
   "dh-color-accent",
   "dh-color-accent-subtle",
   "dh-color-danger",

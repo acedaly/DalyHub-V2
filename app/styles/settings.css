@@ -776,18 +776,23 @@
 /*
  * UIX-06 — the page-title rung, not a rung of its own.
  *
- * Settings drew its title at `title-large` (22px) with a hand-written weight
- * and line height, while every other page title in the product is
- * `headline-medium` (28px) through `.dh-pane-header__title`. Two page titles
- * six points apart is the "inconsistent font sizes" §10 opens with, and it made
+ * Settings drew its title with a hand-written size, weight and line height while
+ * every other page title in the product came from one place. Two page titles six
+ * points apart is the "inconsistent font sizes" §10 opens with, and it made
  * Settings read as a sub-page of something rather than as a destination.
+ *
+ * FINAL-UI — and it now reads the ROLE rather than a rung. UIX-06 matched the
+ * value `.dh-pane-header__title` happened to have (`headline-medium`, 28px) by
+ * copying it; when FINAL-UI took the page-title role to `title-large` emphasized
+ * the copy did not follow, and MEASURED at 1440 Settings was 28px/400 while every
+ * other page was 22px/600 — the largest and the lightest title in the product, on
+ * the same screen position. Naming the role is what stops that recurring.
  */
 .dh-settings-page__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
+  font-weight: var(--dh-text-page-title-weight);
   color: var(--dh-color-text);
 }
 
