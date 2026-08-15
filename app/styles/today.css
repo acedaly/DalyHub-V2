@@ -72,6 +72,73 @@
   min-inline-size: 0;
 }
 
+/* -------------------------------------------------------------------------- */
+/* The summary strip                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Three low-profile measures across the top of the day.
+ *
+ * `auto-fit` with a floor rather than a fixed three columns: with two measures
+ * they share the width, with one it does not stretch to the full page, and a
+ * narrow window wraps them instead of crushing three figures into 90px each. The
+ * strip disappears entirely when there is nothing real to put in it — the
+ * component returns null — so there is no empty-track case to style.
+ */
+.dh-today__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--dh-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A card by BORDER, not by elevation.
+ *
+ * These are ordinary surfaces in the brief's sense — white, hairline, modest
+ * radius, no shadow. Shadow is reserved for things that genuinely float, and a
+ * figure that sits on the page is not one of them.
+ */
+.dh-today__measure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-4);
+  min-inline-size: 0;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.dh-today__measure-label {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.4;
+}
+
+/*
+ * The FIGURE is the only loud thing in the card, and it is a figure: tabular
+ * numerals so three cards side by side align on the digit rather than shimmering
+ * against each other, and so a count that ticks up does not shift its own label.
+ */
+.dh-today__measure-value {
+  color: var(--dh-color-text);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-today__measure-note {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.4;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
 /*
  * M3X — `headline-small` EMPHASIZED, down from `headline-large`.
  *

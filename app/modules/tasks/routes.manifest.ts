@@ -10,12 +10,43 @@
 import type { RouteContribution } from "~/kernel/modules";
 
 const routes: readonly RouteContribution[] = [
+  /*
+   * The DAILY group: Inbox and Upcoming sit beside Today and Tasks at the top of
+   * the sidebar, above the ORGANISE eyebrow.
+   *
+   * Both are the `/tasks` surface under a system view (see `system-view.ts`) —
+   * one loader, one query path — but they are declared as their own destinations
+   * because that is what the visual references make them, and because a place
+   * keeps the sidebar row lit and the address bar honest in a way a `?saved=`
+   * parameter does not.
+   *
+   * Declared BEFORE `tasks/:taskId` is irrelevant here (different top-level
+   * segments), but they are kept beside the index so the module's navigable
+   * surfaces read as one block.
+   */
+  {
+    id: "tasks.inbox",
+    path: "inbox",
+    file: "routes/inbox.tsx",
+    meta: { navLabel: "Inbox", navGroup: "daily", navOrder: 10 },
+  },
+  {
+    id: "tasks.upcoming",
+    path: "upcoming",
+    file: "routes/upcoming.tsx",
+    meta: { navLabel: "Upcoming", navGroup: "daily", navOrder: 20 },
+  },
   {
     id: "tasks.index",
     path: "tasks",
     file: "routes/index.tsx",
     // MOBILE-01: Tasks is the second phone bottom-navigation destination.
-    meta: { navLabel: "Tasks", navOrder: 40, mobilePrimaryOrder: 20 },
+    meta: {
+      navLabel: "Tasks",
+      navGroup: "daily",
+      navOrder: 30,
+      mobilePrimaryOrder: 20,
+    },
   },
   // TASKS-01: workspace-level resource routes. Static segments are declared BEFORE
   // the dynamic `tasks/:taskId` so they never shadow a real task id. `bulk` runs

@@ -48,6 +48,7 @@ export {
   goalTargetLabel,
   goalDaysToTarget,
   goalLastUpdatedText,
+  goalIsOnTrack,
   goalNeedsAttention,
   goalPaceLabel,
   goalProgressStatusLabel,

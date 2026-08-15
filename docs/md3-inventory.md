@@ -11,6 +11,37 @@ Generated from `rg -l "md-sys|md-app|material|tonal|state-layer|elevation-[0-9]|
 - Non-UI app files: 12
 - Total matches: 170
 
+## Progress — visual-references pass (2026-08)
+
+The count above is unchanged, and that is the honest reading: this pass removed
+MD3 *appearance* from the surfaces it touched without yet retiring the token
+NAMES underneath them. The two are separate jobs and the second is only safe
+once the first is finished everywhere.
+
+Retired in this pass, by behaviour rather than by rename:
+
+- **Priority** no longer aliases the feedback triple. `--priority-1…4` are
+  DalyHub-owned values chosen against the references and held to 3:1.
+- **The rail's selected row** was a near-black slab and is now an accent tint.
+  The rail-specific override that restated it is gone, so one rule owns the
+  state.
+- **Bucket headings** lost their tonal colouring; the state lives on the row's
+  own date.
+- **The completion control** is a rounded square rather than an M3 circle.
+- **The detail panel** has its own width token instead of a page-width one.
+
+Still carrying MD3 vocabulary in ACTIVE UI, and therefore still the target:
+
+- `app/styles/tokens.css` remains the compatibility layer: the `--dh-*` tokens
+  this pass uses resolve through `--md-sys-*` / `--app-*` definitions. Deleting
+  the shim is the last step, not an early one.
+- `task-signals.css`, `drawer.css` and `tasks.css` still reference
+  `--md-sys-motion-*`, `--md-sys-color-primary` and `--md-sys-shape-*` in rules
+  this pass did not rewrite.
+- The surfaces listed below that this pass did not reach — Notes, Diary,
+  Meetings, People, Analytics, Settings and the Assets/Reviews/AI group — are
+  unchanged and still inventoried.
+
 ## Inventory
 
 | File | Note |

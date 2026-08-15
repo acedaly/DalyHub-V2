@@ -4,8 +4,14 @@
  *
  * Mirrors TODAY-01's `today-navigation.test.ts`: proves the manifest → registry →
  * navigation flow for each new module without editing any central list, and proves
- * the "capture" / "insight" / "system" grouping the recommended sidebar structure
- * asks for is actually carried through to the navigation model.
+ * the grouping the sidebar structure asks for is actually carried through to the
+ * navigation model.
+ *
+ * The groups themselves were re-cut against the current visual references: a
+ * DAILY block (Today, Inbox, Upcoming, Tasks), an ORGANISE block of the record
+ * modules, a MORE block for the secondary surfaces, and SYSTEM last. The earlier
+ * "capture" / "insight" cut split Notes from Projects and Analytics from Goals,
+ * which is a reasonable taxonomy and not the one the references navigate by.
  */
 
 import { describe, expect, it } from "vitest";
@@ -58,10 +64,12 @@ describe("PX-03 navigation shells", () => {
     const ids = nav.map((item) => item.id);
     expect(ids).toEqual([
       "today.index",
-      "areas.index",
-      "goals.index",
-      "projects.index",
+      "tasks.inbox",
+      "tasks.upcoming",
       "tasks.index",
+      "projects.index",
+      "goals.index",
+      "areas.index",
       "notes.index",
       "diary.index",
       "meetings.index",
@@ -74,26 +82,40 @@ describe("PX-03 navigation shells", () => {
     ]);
   });
 
-  it("groups Notes/Diary/Meetings/People/Assets under 'capture'", () => {
+  it("opens with the DAILY destinations, in the references' order", () => {
     const nav = navigation();
-    const captureLabels = nav
-      .filter((item) => item.group === "capture")
+    const daily = nav
+      .filter((item) => item.group === "daily")
       .map((item) => item.label);
-    expect(captureLabels).toEqual([
+    expect(daily).toEqual(["Today", "Inbox", "Upcoming", "Tasks"]);
+    // And it is genuinely the opening block, not merely present.
+    expect(nav.slice(0, 4).map((item) => item.label)).toEqual(daily);
+  });
+
+  it("groups the record modules under 'organise'", () => {
+    const nav = navigation();
+    const organise = nav
+      .filter((item) => item.group === "organise")
+      .map((item) => item.label);
+    expect(organise).toEqual([
+      "Projects",
+      "Goals",
+      "Areas",
       "Notes",
       "Diary",
       "Meetings",
       "People",
-      "Assets",
     ]);
   });
 
-  it("groups Reviews/AI under 'insight'", () => {
+  it("groups the secondary surfaces under 'more', below Organise", () => {
+    // Preserved rather than promoted: these modules stay reachable without
+    // contaminating the primary hierarchy the references establish.
     const nav = navigation();
-    const insightLabels = nav
-      .filter((item) => item.group === "insight")
+    const more = nav
+      .filter((item) => item.group === "more")
       .map((item) => item.label);
-    expect(insightLabels).toEqual(["Reviews", "AI"]);
+    expect(more).toEqual(["Assets", "Reviews", "AI"]);
   });
 
   it("groups Settings/Help under 'system', last", () => {
@@ -106,11 +128,12 @@ describe("PX-03 navigation shells", () => {
     expect(nav[nav.length - 1]?.label).toBe("Help");
   });
 
-  it("the existing spine + Today rows remain ungrouped (no visual change to them)", () => {
+  it("leaves no destination ungrouped", () => {
+    // Every row belongs to a block now. An ungrouped row would render between
+    // two dividers with no eyebrow, which reads as a rendering fault.
     const nav = navigation();
-    for (const label of ["Today", "Areas", "Goals", "Projects", "Tasks"]) {
-      const item = nav.find((entry) => entry.label === label);
-      expect(item?.group).toBeUndefined();
+    for (const item of nav) {
+      expect(item.group, item.label).toBeDefined();
     }
   });
 

@@ -48,102 +48,24 @@ import { NavIcon } from "./NavIcon";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
 
-type NavigationGroup = {
-  readonly id: string;
-  readonly label?: string;
-  readonly items: readonly NavigationItem[];
+/**
+ * The display name for a navigation group, when it has one.
+ *
+ * A group that is absent from this map still gets its rhythm — the divider below
+ * is unconditional — but no heading. That is deliberate and matches the visual
+ * references: the DAILY block at the top of the rail is unlabelled (Today, Inbox,
+ * Upcoming and Tasks need no heading to explain them), ORGANISE names the long
+ * middle block that does, and the system block at the bottom is separated by
+ * position alone.
+ *
+ * The map lives in the shell rather than in module manifests because a group
+ * HEADING is a property of the frame's information architecture, not of any one
+ * module — Projects does not get to name the group it happens to sit in.
+ */
+const GROUP_HEADINGS: Readonly<Record<string, string>> = {
+  organise: "Organise",
+  more: "More",
 };
-
-const PRIMARY_ORDER = ["Today", "Inbox", "Upcoming", "Tasks"] as const;
-const ORGANISE_ORDER = [
-  "Projects",
-  "Goals",
-  "Areas",
-  "Notes",
-  "Diary",
-  "Meetings",
-  "People",
-  "Analytics",
-] as const;
-
-const SYSTEM_ORDER = [
-  "Views",
-  "Assets",
-  "Reviews",
-  "AI",
-  "Settings",
-  "Help",
-  "About",
-] as const;
-
-function syntheticTaskView(
-  id: string,
-  label: string,
-  href: string,
-  order: number,
-  taskItem: NavigationItem,
-): NavigationItem {
-  return {
-    id,
-    moduleId: taskItem.moduleId,
-    label,
-    href,
-    order,
-    entityType: "task",
-  };
-}
-
-function sortByLabelOrder(
-  items: readonly NavigationItem[],
-  order: readonly string[],
-): readonly NavigationItem[] {
-  const byLabel = new Map(items.map((item) => [item.label, item]));
-  return order
-    .map((label) => byLabel.get(label))
-    .filter((item): item is NavigationItem => item !== undefined);
-}
-
-function buildShellNavigationGroups(
-  items: readonly NavigationItem[],
-): readonly NavigationGroup[] {
-  const taskItem = items.find((item) => item.label === "Tasks");
-  const augmented = [
-    ...items,
-    ...(taskItem
-      ? [
-          syntheticTaskView(
-            "tasks.inbox.nav",
-            "Inbox",
-            "/tasks?view=list&system=inbox",
-            15,
-            taskItem,
-          ),
-          syntheticTaskView(
-            "tasks.upcoming.nav",
-            "Upcoming",
-            "/tasks?view=list&system=upcoming",
-            25,
-            taskItem,
-          ),
-        ]
-      : []),
-  ];
-
-  const primary = sortByLabelOrder(augmented, PRIMARY_ORDER);
-  const organise = sortByLabelOrder(augmented, ORGANISE_ORDER);
-  const system = sortByLabelOrder(augmented, SYSTEM_ORDER);
-
-  return [
-    { id: "primary", items: primary },
-    { id: "organise", label: "Organise", items: organise },
-    { id: "system", items: system },
-  ].filter((group) => group.items.length > 0);
-}
-
-function taskSystemViewFromSearch(search: string): string | null {
-  const params = new URLSearchParams(search);
-  return params.get("system");
-}
 
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
@@ -166,14 +88,10 @@ export function PrimaryNavigation({
   onNavigate,
   collapsible = false,
 }: PrimaryNavigationProps) {
-  const { pathname, search } = useLocation();
-  const groups = buildShellNavigationGroups(items);
-  const visibleItems = groups.flatMap((group) => group.items);
-  const activeTaskSystem =
-    pathname === "/tasks" ? taskSystemViewFromSearch(search) : null;
+  const { pathname } = useLocation();
   // Exactly one row is current for any route — the longest matching destination.
   const currentHref = activeNavigationHref(
-    visibleItems.map((item) => item.href.split("?")[0] ?? item.href),
+    items.map((item) => item.href),
     pathname,
   );
 
@@ -199,62 +117,68 @@ export function PrimaryNavigation({
 
   return (
     <div id={id} className="dh-nav">
-      {groups.map((group, groupIndex) => (
-        <Fragment key={group.id}>
-          {groupIndex > 0 ? (
-            <div className="dh-nav__group-heading">
-              {group.label ? <span>{group.label}</span> : null}
-            </div>
-          ) : null}
-          <ul className="dh-nav__list">
-            {group.items.map((item) => {
-              const hrefPath = item.href.split("?")[0] ?? item.href;
-              const current =
-                item.label === "Inbox"
-                  ? activeTaskSystem === "inbox"
-                  : item.label === "Upcoming"
-                    ? activeTaskSystem === "upcoming"
-                    : item.label === "Tasks"
-                      ? pathname === "/tasks" &&
-                        activeTaskSystem !== "inbox" &&
-                        activeTaskSystem !== "upcoming"
-                      : hrefPath === currentHref;
-              return (
-                <li key={item.id} className="dh-nav__item">
-                  <Tooltip
-                    label={item.label}
-                    placement="bottom"
-                    disabled={!collapsed}
-                  >
-                    {(tip) => (
-                      <Link
-                        to={item.href}
-                        ref={tip.ref}
-                        className={
-                          current
-                            ? "dh-nav__link dh-nav__link--active"
-                            : "dh-nav__link"
-                        }
-                        aria-current={current ? "page" : undefined}
-                        aria-describedby={tip.describedBy}
-                        onClick={onNavigate}
-                      >
-                        <span className="dh-nav__icon">
-                          <NavIcon
-                            entityType={item.entityType}
-                            navIcon={item.navIcon}
-                          />
-                        </span>
-                        <span className="dh-nav__label">{item.label}</span>
-                      </Link>
-                    )}
-                  </Tooltip>
+      <ul className="dh-nav__list">
+        {items.map((item, index) => {
+          const previous = items[index - 1];
+          const startsNewGroup = index > 0 && previous?.group !== item.group;
+          const heading =
+            item.group === undefined ? undefined : GROUP_HEADINGS[item.group];
+          const current = item.href === currentHref;
+          return (
+            <Fragment key={item.id}>
+              {startsNewGroup ? (
+                <li className="dh-nav__divider" aria-hidden="true">
+                  <hr />
                 </li>
-              );
-            })}
-          </ul>
-        </Fragment>
-      ))}
+              ) : null}
+              {/*
+               * The heading is decorative, not a landmark or a list item with
+               * meaning: the rail is already the "Primary" navigation region and
+               * every destination inside it is a link with its own name. An
+               * `aria-hidden` caption keeps the visual grouping the references
+               * ask for without inventing a second structure for a screen reader
+               * to walk past — and the collapsed rail hides it in CSS, where the
+               * label text is hidden too.
+               */}
+              {startsNewGroup && heading !== undefined ? (
+                <li className="dh-nav__heading" aria-hidden="true">
+                  {heading}
+                </li>
+              ) : null}
+              <li className="dh-nav__item">
+                <Tooltip
+                  label={item.label}
+                  placement="bottom"
+                  disabled={!collapsed}
+                >
+                  {(tip) => (
+                    <Link
+                      to={item.href}
+                      ref={tip.ref}
+                      className={
+                        current
+                          ? "dh-nav__link dh-nav__link--active"
+                          : "dh-nav__link"
+                      }
+                      aria-current={current ? "page" : undefined}
+                      aria-describedby={tip.describedBy}
+                      onClick={onNavigate}
+                    >
+                      <span className="dh-nav__icon">
+                        <NavIcon
+                          entityType={item.entityType}
+                          navIcon={item.navIcon}
+                        />
+                      </span>
+                      <span className="dh-nav__label">{item.label}</span>
+                    </Link>
+                  )}
+                </Tooltip>
+              </li>
+            </Fragment>
+          );
+        })}
+      </ul>
     </div>
   );
 }

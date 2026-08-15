@@ -298,6 +298,16 @@ describe("module discovery", () => {
           moduleId: "projects",
           file: "routes/parent-options.tsx",
         },
+        // The named destinations. Both are the `/tasks` surface under a system
+        // view — they own no loader or component of their own — but they are
+        // registered routes so the sidebar can point at a place rather than a
+        // query parameter.
+        { id: "tasks.inbox", moduleId: "tasks", file: "routes/inbox.tsx" },
+        {
+          id: "tasks.upcoming",
+          moduleId: "tasks",
+          file: "routes/upcoming.tsx",
+        },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
         // TASKS-01 workspace resource routes (static segments before the dynamic id).
         { id: "tasks.new", moduleId: "tasks", file: "routes/new.tsx" },

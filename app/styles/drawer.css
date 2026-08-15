@@ -69,7 +69,22 @@
   inset-inline-end: 0;
   display: flex;
   flex-direction: column;
-  width: min(26rem, 100vw);
+  /*
+   * A CONTEXTUAL panel, not half the screen.
+   *
+   * This was `--app-width-narrow` (42rem / 672px), which is the token for a
+   * single-column PAGE — a reasonable default when the drawer was the only
+   * record surface, and the wrong one now. At 1440px it covered 47% of the
+   * viewport, so opening a task hid the list the task was being judged against,
+   * which is the one thing a contextual panel exists not to do. The references
+   * draw it at roughly 420px against a list that stays readable beside it.
+   *
+   * Its own token rather than a borrowed one: a detail panel's width is a
+   * distinct design decision from a prose column's, and the two drifted apart
+   * the moment this was measured. `data-size="wide"` still opts a genuinely
+   * dense record (a full Project or Meeting screen) up to the content width.
+   */
+  width: min(var(--dh-detail-panel-width), 100vw);
   max-width: 100vw;
   height: 100dvh;
   /*

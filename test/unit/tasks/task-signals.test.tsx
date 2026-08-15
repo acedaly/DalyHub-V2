@@ -38,8 +38,32 @@ describe("PriorityIndicator", () => {
     }
   });
 
-  it("renders nothing for legacy null priority in row mode by default", () => {
-    const { container } = render(<PriorityIndicator priority={null} />);
+  it("shows the short tag rather than the full label in row mode", () => {
+    // A row has no room to spell "Priority 1" beside the date and the project,
+    // and the references print "P1" there. The accessible name stays the full
+    // label, which is what the assertion above measures.
+    render(<PriorityIndicator priority="p2" data-testid="pi" />);
+    const el = screen.getByTestId("pi");
+    expect(el).toHaveTextContent("P2");
+    expect(el).not.toHaveTextContent("Priority 2");
+    expect(el).toHaveAttribute("aria-label", "Priority 2");
+  });
+
+  it("draws legacy null priority as a grey Priority 4 in row mode", () => {
+    // P4 occupies its column rather than leaving a hole in it: a blank cell is
+    // ambiguous between "normal" and "not triaged", and the ragged column breaks
+    // the list's vertical rhythm. Grey on grey keeps it from competing.
+    render(<PriorityIndicator priority={null} data-testid="pi" />);
+    const el = screen.getByTestId("pi");
+    expect(el).toHaveAttribute("data-priority", "p4");
+    expect(el).toHaveTextContent("P4");
+    expect(el).toHaveAttribute("aria-label", "Priority 4");
+  });
+
+  it("renders nothing when a surface explicitly opts out of normal priority", () => {
+    const { container } = render(
+      <PriorityIndicator priority={null} hideNormal />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 

@@ -314,6 +314,25 @@ export function goalNeedsAttention(status: GoalProgressStatus): boolean {
   return status === "needs_attention" || status === "overdue";
 }
 
+/**
+ * Statuses that genuinely mean "on track", for counting.
+ *
+ * NOT the inverse of {@link goalNeedsAttention}. The evaluator has nine states
+ * and only two of them need attention, so `!goalNeedsAttention(…)` also sweeps
+ * in `not_measured` (never told how to measure), `not_started` (nothing recorded
+ * yet), `in_progress` (moving, but with no target date to be on track AGAINST)
+ * and `stale` (nothing recorded for a month). Counting those as on track is how
+ * a figure reads "4 of 4" for a set of Goals that are mostly not being measured
+ * at all — the most flattering possible reading of the data and the least true.
+ *
+ * The three here are the ones with a real, positive answer: level with the line,
+ * ahead of it, or already there. `achieved` counts because Today excludes
+ * completed Goals, so an achieved-but-still-open Goal is a Goal going well.
+ */
+export function goalIsOnTrack(status: GoalProgressStatus): boolean {
+  return status === "on_track" || status === "ahead" || status === "achieved";
+}
+
 /* -------------------------------------------------------------------------- */
 /* Sentences                                                                   */
 /* -------------------------------------------------------------------------- */

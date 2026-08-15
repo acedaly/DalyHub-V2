@@ -73,9 +73,24 @@
   block-size: 100%;
 }
 
+/*
+ * The TAG carries the priority's own colour, at the weight the references use.
+ *
+ * An earlier pass muted the tag back to metadata grey on the reasoning that one
+ * coloured object per pair is enough. The references disagree: "P1" is red text
+ * beside a red flag, "P2" orange beside orange, and the pair reads as a single
+ * mark rather than a mark plus a caption. It also matters for the one case the
+ * grey version got wrong — at a glance, a muted tag made P1 and P2 rows look
+ * alike everywhere except a 15px glyph.
+ *
+ * P4 is the deliberate exception below: it stays grey on grey so normal work
+ * recedes.
+ */
 .dh-priority__label {
   color: currentColor;
   font: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .dh-priority[data-priority="p1"] {
@@ -186,9 +201,27 @@
  * drawing is ours, and it is handed back to the native control under forced
  * colours, where an authored shape would vanish.
  *
- * The visual circle is 20px and the TARGET is not: `.dh-check-circle--target`
+ * The visual box is 20px and the TARGET is not: `.dh-check-circle--target`
  * wraps it in a 44px hit area for the surfaces that need one (WCAG 2.2 §2.5.8),
- * so matching the reference's small circle never costs a thumb its target.
+ * so matching the reference's small control never costs a thumb its target.
+ *
+ * ── It is a rounded SQUARE, not a circle ─────────────────────────────────────
+ * The note above argues for a circle on the grounds that completing a thing and
+ * selecting a row are different acts and should look different. The distinction
+ * is right; the shape assignment was the earlier references'. The current ones
+ * draw completion as a 20px rounded square on every task-bearing surface — the
+ * most repeated object in the entire product — and a circle is the single
+ * clearest way the list still read as the old design.
+ *
+ * The two controls stay separable, because the thing that separated them was
+ * never only the shape: selection is a 16px control that appears at the row's
+ * leading edge ONLY in selection mode, at a different size, with its own
+ * accessible name; completion is always present and is what the row is for. A
+ * row shows one of them at rest.
+ *
+ * The class name is unchanged. It is referenced from six stylesheets and a dozen
+ * components, and renaming a stable hook to match a border-radius is churn that
+ * would make this diff unreadable for no behavioural gain.
  */
 .dh-check-circle {
   flex: none;
@@ -199,8 +232,10 @@
   margin: 0;
   display: grid;
   place-content: center;
+  /* Sampled from the references at ~#9a9da8 — the muted ink, not the hairline
+   * border token, which at 9% alpha is invisible as a control edge. */
   border: var(--app-border-width-thick) solid var(--dh-color-text-muted);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
   transition:

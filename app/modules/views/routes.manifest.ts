@@ -13,7 +13,7 @@ const routes: readonly RouteContribution[] = [
     id: "views.index",
     path: "views",
     file: "routes/index.tsx",
-    meta: { navLabel: "Views", navOrder: 45 },
+    meta: { navLabel: "Views", navGroup: "more", navOrder: 210 },
   },
   // The saved-view mutations (create / update / rename / duplicate / delete). A
   // resource route, so the switcher's fetchers receive the action's JSON directly.

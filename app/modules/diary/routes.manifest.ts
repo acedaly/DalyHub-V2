@@ -17,8 +17,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: {
       navLabel: "Diary",
-      navGroup: "capture",
-      navOrder: 110,
+      navGroup: "organise",
+      navOrder: 150,
     },
   },
   {
