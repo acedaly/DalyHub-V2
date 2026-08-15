@@ -19,8 +19,17 @@
 > [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (the mechanics); it records what the
 > concepts changed and what was deliberately not changed.
 
-**Screenshots:** [`assets/final-product-ui/`](assets/final-product-ui/) —
-`baseline/`, `final/`, `mobile/`, `dark/`, `convergence/`.
+**Screenshots:** [`assets/final-product-ui/`](assets/final-product-ui/)
+
+| Folder | What it holds |
+|---|---|
+| `baseline/` (23) | Every module at 1440 light, **before** any FINAL-UI commit — the dark rail, the 56px task row, Today's figure cards |
+| `refine-baseline/` (5) | The core five at 1440 light, **before** the refinement pass — the faint card edge, Today's five panels |
+| `final/` (23) | Every module and every record screen at 1440 light |
+| `mobile/` (9) | Today, Tasks, Projects, Goals, Notes, Settings, Meetings, Diary at 390 |
+| `mobile-narrow/` (6) | Today, Tasks, Goals at 320 and 430 |
+| `dark/` (6) | Today, Tasks, Projects, Goals, Notes, Settings at 1440 dark |
+| `convergence/` (6) | Tasks, Today, Projects at 1366 and 1920 — the laptop and wide-desktop checks |
 
 Capture is one command against a running dev server, unchanged from DS-05:
 
