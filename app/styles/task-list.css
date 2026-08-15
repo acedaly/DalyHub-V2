@@ -952,8 +952,8 @@
   inline-size: 16px;
   block-size: 16px;
   color: var(--dh-color-text-muted);
-  /* Reduced motion is honoured globally; this is a 120ms hover-class change. */
-  transition: transform var(--dh-duration-fast, 120ms) ease;
+  /* Reduced motion is honoured globally; this is a hover-length change. */
+  transition: transform var(--dh-motion-fast) ease;
 }
 
 .dh-taskgroup__disclosure[aria-expanded="false"] .dh-taskgroup__chevron {

@@ -10,9 +10,9 @@
  *     — which is what a screen reader needs to say "list, 24 items" instead of
  *     reading a wall of divs.
  *   - **`TaskGroup`** draws a server-authoritative bucket. The heading is a
- *     word, a middot and a count, and NOT a card: wrapping each group in a
+ *     chevron, a word and a count, and NOT a card: wrapping each group in a
  *     bounded surface is most of what made the old screen read as a stack of
- *     panels rather than as one list (DS-04 §24).
+ *     panels rather than as one list (DS-04 §24). The chevron folds the bucket.
  *
  * FINAL-UI removed the column KEY. Neither approved Tasks concept draws one, and
  * it was `aria-hidden` decoration in the first place — every cell inside a row
@@ -97,12 +97,13 @@ export interface TaskGroupProps {
   /** "View all N", when the bucket holds more than the slice. */
   readonly moreHref?: string | null;
   /**
-   * FINAL-UI — the bucket's STATE, which the heading carries as colour.
+   * The bucket's STATE, as a data attribute on the section.
    *
-   * `overdue` is the only non-default tone, and it is a bucket-level fact rather
-   * than a row-level one: every task under an "Overdue" heading has slipped, so
-   * the heading can say it once instead of every row saying it again. Anything
-   * else — Today, Upcoming, a project bucket, a priority bucket — is `default`.
+   * `overdue` is the only non-default tone. It no longer colours the heading —
+   * the references keep every heading the same near-black and put the red on
+   * each row's own date — but it stays declared, because it is a true fact about
+   * the bucket that forced-colours rules and tests read. Anything else — Today,
+   * Upcoming, a project bucket, a priority bucket — is `default`.
    */
   readonly tone?: "default" | "overdue";
   /**
@@ -166,36 +167,36 @@ export function TaskGroup({
           aria-controls={bodyId}
           onClick={() => setCollapsed((open) => !open)}
         >
-        {/*
-         * The count is INSIDE the heading, and it is a FIGURE rather than a
-         * badge: "OVERDUE 15", not "Overdue (15)". Brackets around a number
-         * read as a debugger printing a length, and a coloured pill here was
-         * one of the loudest objects on the pre-DS-04 screen — on a page whose
-         * job is to be calm.
-         *
-         * Inside, because a heading a screen reader announces as "Overdue"
-         * while the eye reads "Overdue 15" is two different headings. The
-         * explicit space matters for the same reason: the gap to the figure is
-         * CSS margin, and a screen reader cannot see margin, so without it the
-         * accessible name is "Overdue15".
-         */}
-        {/*
-         * The heading is INK, the count is muted, and there is no separator.
-         *
-         * An earlier pass drew "Overdue · 2" in red on the reading that a
-         * bucket's state should be legible while scanning. The current visual
-         * references draw every heading the same near-black — "Overdue 2",
-         * "Today 6", "Upcoming 8" — and put the red on the ROW's date instead,
-         * where it belongs: the state is a property of each task's deadline, and
-         * a whole heading in red is the "do not colour an entire section red"
-         * the brief rules out. Sampling the references confirms it: the word is
-         * #000, the figure is grey.
-         *
-         * The middot went with it. The count is a FIGURE beside the word, not a
-         * list length, and the explicit space is still real text rather than CSS
-         * margin — a screen reader cannot see margin, so without it the
-         * accessible name would be "Overdue2".
-         */}
+          {/*
+           * The count is INSIDE the heading, and it is a FIGURE rather than a
+           * badge: "OVERDUE 15", not "Overdue (15)". Brackets around a number
+           * read as a debugger printing a length, and a coloured pill here was
+           * one of the loudest objects on the pre-DS-04 screen — on a page whose
+           * job is to be calm.
+           *
+           * Inside, because a heading a screen reader announces as "Overdue"
+           * while the eye reads "Overdue 15" is two different headings. The
+           * explicit space matters for the same reason: the gap to the figure is
+           * CSS margin, and a screen reader cannot see margin, so without it the
+           * accessible name is "Overdue15".
+           */}
+          {/*
+           * The heading is INK, the count is muted, and there is no separator.
+           *
+           * An earlier pass drew "Overdue · 2" in red on the reading that a
+           * bucket's state should be legible while scanning. The current visual
+           * references draw every heading the same near-black — "Overdue 2",
+           * "Today 6", "Upcoming 8" — and put the red on the ROW's date instead,
+           * where it belongs: the state is a property of each task's deadline, and
+           * a whole heading in red is the "do not colour an entire section red"
+           * the brief rules out. Sampling the references confirms it: the word is
+           * #000, the figure is grey.
+           *
+           * The middot went with it. The count is a FIGURE beside the word, not a
+           * list length, and the explicit space is still real text rather than CSS
+           * margin — a screen reader cannot see margin, so without it the
+           * accessible name would be "Overdue2".
+           */}
           <span className="dh-taskgroup__chevron" aria-hidden="true">
             <ChevronDownIcon />
           </span>

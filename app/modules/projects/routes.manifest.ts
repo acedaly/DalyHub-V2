@@ -21,7 +21,15 @@ const routes: readonly RouteContribution[] = [
     id: "projects.index",
     path: "projects",
     file: "routes/index.tsx",
-    meta: { navLabel: "Projects", navGroup: "organise", navOrder: 110 },
+    meta: {
+      navLabel: "Projects",
+      navGroup: "organise",
+      navOrder: 110,
+      // The third phone bottom-navigation destination. The references put
+      // Projects beside Today and Tasks there; Diary held the slot and is a
+      // writing surface reached deliberately rather than thumbed between.
+      mobilePrimaryOrder: 30,
+    },
   },
   {
     id: "projects.new",

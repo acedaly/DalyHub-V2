@@ -129,6 +129,8 @@ import {
   type ContinueProject,
 } from "./attention-view";
 import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
+import { goalNeedsAttention } from "~/shared/goal-progress";
+
 import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
 import { activityTrendSummary, weekdayLabel } from "./trend-view";
 import type { TodayDayData } from "./load";
@@ -372,6 +374,98 @@ function FocusBand({
 /* The screen                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The day's three MEASURES, above the working columns.
+ *
+ * The reference opens Today with a strip of three low-profile figures, and it
+ * is right about why: the greeting says who and when, and then the owner wants
+ * one glance that says whether the week is going well before they look at any
+ * individual row.
+ *
+ * ── Focus time is deliberately absent ────────────────────────────────────────
+ * The reference's middle card reads "Focus time · 6h 45m". DalyHub does not
+ * capture focus time — there is no timer, no session record and no field it
+ * could be derived from — and the brief is explicit that an unavailable metric
+ * is left out rather than faked to match a screenshot. Its slot goes to the
+ * honest sibling of the first figure, from the same bounded query: what was
+ * CAPTURED this week beside what was completed. Read together they say whether
+ * the week is clearing or filling, which is the question the strip is for.
+ *
+ * Every figure here is a real reading. A card whose data is missing renders no
+ * card, so the strip can be three, two, one or none.
+ */
+function TodaySummary({
+  trend,
+  goals,
+}: {
+  readonly trend: TodayActivityTrend | null;
+  readonly goals: readonly TodayGoal[];
+}) {
+  const measures: {
+    id: string;
+    label: string;
+    value: string;
+    note: string;
+  }[] = [];
+
+  if (trend !== null) {
+    // "+8 from last week" only when there IS a last week to compare with.
+    const delta =
+      trend.previousCompleted === null
+        ? null
+        : trend.totalCompleted - trend.previousCompleted;
+    measures.push({
+      id: "completed",
+      label: "Tasks completed this week",
+      value: String(trend.totalCompleted),
+      note:
+        delta === null
+          ? "This week"
+          : delta === 0
+            ? "Same as last week"
+            : `${delta > 0 ? "+" : "−"}${Math.abs(delta)} from last week`,
+    });
+    measures.push({
+      id: "captured",
+      label: "Tasks captured this week",
+      value: String(trend.totalCreated),
+      note: "This week",
+    });
+  }
+
+  if (goals.length > 0) {
+    const onTrack = goals.filter(
+      (goal) => !goalNeedsAttention(goal.progress.status),
+    ).length;
+    measures.push({
+      id: "goals",
+      label: "Goals on track",
+      value: String(onTrack),
+      note: `of ${goals.length} goal${goals.length === 1 ? "" : "s"}`,
+    });
+  }
+
+  if (measures.length === 0) return null;
+
+  return (
+    <ul className="dh-today__summary" data-testid="today-summary">
+      {measures.map((measure) => (
+        <li className="dh-today__measure" key={measure.id}>
+          {/*
+           * The LABEL leads and the figure follows, because that is the reading
+           * order the reference sets and the only one that works when three
+           * cards sit side by side: the eye lands on the number, and the words
+           * above it are what the number is OF.
+           */}
+          <span className="dh-today__measure-label">{measure.label}</span>
+          <span className="dh-today__measure-value">{measure.value}</span>
+          <span className="dh-today__measure-note">{measure.note}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function TodayScreen({
   data,
   onCompleteTask,
@@ -577,6 +671,8 @@ export function TodayScreen({
           under the page's own heading block, exactly where every other
           collection in DalyHub puts its principal-mode rail. */}
       <DayNav active="today" />
+
+      <TodaySummary trend={data.activityTrend} goals={data.goals} />
 
       {/*
        * UIX-01 — THREE balanced regions, then progress across the full width.

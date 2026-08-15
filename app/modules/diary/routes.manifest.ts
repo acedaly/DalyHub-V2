@@ -21,7 +21,6 @@ const routes: readonly RouteContribution[] = [
       navLabel: "Diary",
       navGroup: "organise",
       navOrder: 150,
-      mobilePrimaryOrder: 30,
     },
   },
   {
