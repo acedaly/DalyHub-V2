@@ -82,11 +82,22 @@ describe("MeetingsList", () => {
       }), // 09:00 Sydney on the 11th
     ]);
 
+    /*
+     * REFINE — the count is INSIDE the heading, so it is inside the heading's
+     * NAME.
+     *
+     * The day heading took the Tasks group-heading language ("Tomorrow · 1"),
+     * and the count is a real part of it rather than an annotation beside it —
+     * a heading a screen reader announces as "Tomorrow" while the eye reads
+     * "Tomorrow · 1" is two different headings. The middot is `aria-hidden`, so
+     * the accessible name is the words and the figure with one space between
+     * them.
+     */
     expect(
-      screen.getByRole("heading", { level: 2, name: "Today" }),
+      screen.getByRole("heading", { level: 2, name: "Today 1" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Tomorrow" }),
+      screen.getByRole("heading", { level: 2, name: "Tomorrow 1" }),
     ).toBeInTheDocument();
   });
 
@@ -97,7 +108,7 @@ describe("MeetingsList", () => {
     expect(
       screen.getByRole("heading", {
         level: 2,
-        name: "Thursday, 13 August 2026",
+        name: "Thursday, 13 August 2026 1",
       }),
     ).toBeInTheDocument();
   });
@@ -135,7 +146,7 @@ describe("MeetingsList", () => {
       "2026-08-11",
     );
     expect(
-      screen.getByRole("heading", { level: 2, name: "Today" }),
+      screen.getByRole("heading", { level: 2, name: "Today 1" }),
     ).toBeInTheDocument();
   });
 

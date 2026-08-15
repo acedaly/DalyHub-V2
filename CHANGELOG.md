@@ -17,6 +17,44 @@ no version number to group them under.
 
 ---
 
+## The refinement pass (FINAL-UI, part two)
+
+The redesign landed the structure. This pass made it confident.
+
+**Card edges you can actually see.** Every card in DalyHub was outlined with a
+grey so pale it read as a smudge, while every list of rows carried a line under
+each one — so the boxes disappeared and the lists looked like a grid. There are
+two greys now: a firmer one for the edge of a card, and a fainter one for the
+rule between two rows. Cards look deliberate; lists look calm.
+
+**Today is one screen, not five boxes.** The day's tasks sit in a card, and
+everything beside it — what needs attention, what to continue, your goal progress
+— sits on the page as plain sections. Goal progress in particular used to be four
+outlined tiles inside an outlined panel; it is now just the goals.
+
+**Meetings says more.** Each meeting shows how long it runs, taken from the end
+time already on the record, and each day heading carries its count in the same
+style Tasks uses.
+
+**The diary reads like a diary.** An entry used to stretch across a 1100-pixel
+card with the words in the left third. It now has a reading width.
+
+**Task titles lead.** A task's title is a shade heavier than the date, project
+and priority beside it, so your eye lands on the work rather than on the columns.
+
+**Settings' heading is the same size as every other page's.** It was the biggest
+and the lightest title in the app.
+
+**On a phone**, the List / Board / Calendar tabs are plain text with an underline
+— the same control you see on a laptop, instead of a lozenge that only appeared
+on small screens. A goal's description trims to two lines so one goal cannot fill
+the screen, and Settings' descriptions line up with their headings again.
+
+Nothing moved, nothing was removed, and there is still no horizontal scrolling at
+any phone width from 320 pixels up.
+
+---
+
 ## DalyHub looks like DalyHub (FINAL-UI)
 
 Three approved design concepts settled what DalyHub should look like, and this

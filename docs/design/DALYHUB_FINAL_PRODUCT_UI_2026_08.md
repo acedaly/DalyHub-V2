@@ -457,6 +457,41 @@ pointer claims to be. Measured: 45×45 at 390, 45×28 at 768 and above.
 
 ---
 
+## 8b. The refinement pass (REFINE, 2026-08-15)
+
+The convergence above put DalyHub on the concepts' foundation. This second pass
+is §116's mandatory convergence pass, and its subject is confidence rather than
+structure: the implementation had become quiet in places where the concepts are
+quiet but *crisp*, and a few surfaces were still each other's exceptions.
+
+### The audit, measured on `assets/final-product-ui/refine-baseline/`
+
+| # | Measured | Fix |
+|---|---|---|
+| 1 | **One hairline was doing two jobs.** The concepts draw a card EDGE at ~1.36:1 against its canvas (`#d3d3dd` on `#fefefe`, read off concept 1) and a row DIVIDER inside it at ~1.03. DalyHub drew both with `outline-hairline`, so at tone 91 over the tone-98 canvas the card edge measured 1.13 — a suggestion — while every list still carried a visible grid of lines. §7 and §8 at once. | `outline-hairline` 91 → **87**; new **`outline-divider`** role at 94, published as `--dh-color-divider`; task rows, Today's rows and Meetings' rows take it |
+| 2 | **Today was five equal-weight rectangles.** Focus, Needs attention, Continue working, Goal progress and a panel of four bordered goal tiles — a card inside a card on the one screen that refuses panel-in-panel everywhere else. Concept 1 draws ONE bordered card (the day) and an uncarded right column. | `.dh-today__panel` is a plain section; `--card` is the day's own. Goal progress loses its panel and its tiles lose their edges |
+| 3 | **Settings' page title was 28px/400** where every other page was 22px/600 — the largest and the lightest title in the product, in the same screen position. UIX-06 had matched the value `.dh-pane-header__title` happened to have by copying it, and the copy did not follow when the role moved. | Settings and Ask read `--dh-text-page-title-*` |
+| 4 | **The task title was the same weight as its metadata** (§14). Five facts in a row at one weight in two colours. | Task and Today row titles step to **500**; the metadata does not |
+| 5 | **Meetings was too sparse** (§40): three rows of two facts in a 900px pane, with a day heading (14px) *smaller* than the titles it grouped (16px/600). | Duration — derived from the `endsAt` already stored — leads the meta line; the day heading takes the Tasks group-heading language with its count; the title takes the row role at 500 |
+| 6 | **Diary wasted its canvas** (§39). `--app-width-content` is 72rem, wider than the pane at every laptop width, so the cap did nothing and a two-line reflection sat in a 1140px card with its text in the left third. | A 56rem reading measure |
+| 7 | **The phone tab rail was a different control from the desktop one.** DS-04 gave it a pale accent capsule, justified against the two *exploratory* references. Concept 3's phone Tasks rail is `List Board Calendar` as plain text with a purple underline — the desktop treatment exactly. | The capsule is gone at every width |
+| 8 | **Small caps survived in four places** after this pass removed them from Tasks and Today — Notes' `PINNED`/`RECENT`, Settings' section groups, the Diary entry kind. | All four take the settled group-heading language |
+| 9 | **A Goal's definition of done clamped at three lines on a phone**, where every card is full width — a 230px card in an 844px viewport for a Goal that is not even measured (§49). | Two lines below `md` |
+| 10 | **Settings' phone summary was indented 12px** past the name it belongs to, because the desktop rail's inset was not reset in the phone block. | Reset |
+
+### What §6 was worried about, checked rather than assumed
+
+Muted text is **not** washed out. `--dh-color-text-muted` measures **8.90:1**
+against the canvas — comfortably past AA, and past AAA. The pass that was needed
+was the opposite one: the *boundaries* were too faint, not the text.
+
+### Responsive
+
+Verified at 320 / 375 / 390 / 430 across eleven routes: **zero horizontal
+document overflow anywhere**. Laptop widths re-checked at 1366 and 1920.
+
+---
+
 ## 9. Intentional deviations from the concepts
 
 Recorded so a future pass does not re-open them.
