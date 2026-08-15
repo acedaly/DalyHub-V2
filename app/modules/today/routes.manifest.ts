@@ -23,6 +23,7 @@ const routes: readonly RouteContribution[] = [
     // shell derives the bar from this capability — it holds no module list.
     meta: {
       navLabel: "Today",
+      navGroup: "daily",
       navOrder: 5,
       mobilePrimaryOrder: 10,
       // Today owns no entity type, so it declares its shell glyph (THEME-01).

@@ -19,7 +19,7 @@ const routes: readonly RouteContribution[] = [
     id: "assets.index",
     path: "assets",
     file: "routes/index.tsx",
-    meta: { navLabel: "Assets", navGroup: "capture", navOrder: 140 },
+    meta: { navLabel: "Assets", navGroup: "more", navOrder: 220 },
   },
   { id: "assets.recent", path: "assets/recent", file: "routes/recent.tsx" },
   {

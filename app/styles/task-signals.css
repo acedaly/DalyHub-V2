@@ -73,9 +73,24 @@
   block-size: 100%;
 }
 
+/*
+ * The TAG carries the priority's own colour, at the weight the references use.
+ *
+ * An earlier pass muted the tag back to metadata grey on the reasoning that one
+ * coloured object per pair is enough. The references disagree: "P1" is red text
+ * beside a red flag, "P2" orange beside orange, and the pair reads as a single
+ * mark rather than a mark plus a caption. It also matters for the one case the
+ * grey version got wrong — at a glance, a muted tag made P1 and P2 rows look
+ * alike everywhere except a 15px glyph.
+ *
+ * P4 is the deliberate exception below: it stays grey on grey so normal work
+ * recedes.
+ */
 .dh-priority__label {
   color: currentColor;
   font: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .dh-priority[data-priority="p1"] {

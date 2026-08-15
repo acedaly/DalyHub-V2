@@ -48,6 +48,25 @@ import { NavIcon } from "./NavIcon";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
 
+/**
+ * The display name for a navigation group, when it has one.
+ *
+ * A group that is absent from this map still gets its rhythm — the divider below
+ * is unconditional — but no heading. That is deliberate and matches the visual
+ * references: the DAILY block at the top of the rail is unlabelled (Today, Inbox,
+ * Upcoming and Tasks need no heading to explain them), ORGANISE names the long
+ * middle block that does, and the system block at the bottom is separated by
+ * position alone.
+ *
+ * The map lives in the shell rather than in module manifests because a group
+ * HEADING is a property of the frame's information architecture, not of any one
+ * module — Projects does not get to name the group it happens to sit in.
+ */
+const GROUP_HEADINGS: Readonly<Record<string, string>> = {
+  organise: "Organise",
+  more: "More",
+};
+
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
   readonly id: string;
@@ -102,12 +121,28 @@ export function PrimaryNavigation({
         {items.map((item, index) => {
           const previous = items[index - 1];
           const startsNewGroup = index > 0 && previous?.group !== item.group;
+          const heading =
+            item.group === undefined ? undefined : GROUP_HEADINGS[item.group];
           const current = item.href === currentHref;
           return (
             <Fragment key={item.id}>
               {startsNewGroup ? (
                 <li className="dh-nav__divider" aria-hidden="true">
                   <hr />
+                </li>
+              ) : null}
+              {/*
+               * The heading is decorative, not a landmark or a list item with
+               * meaning: the rail is already the "Primary" navigation region and
+               * every destination inside it is a link with its own name. An
+               * `aria-hidden` caption keeps the visual grouping the references
+               * ask for without inventing a second structure for a screen reader
+               * to walk past — and the collapsed rail hides it in CSS, where the
+               * label text is hidden too.
+               */}
+              {startsNewGroup && heading !== undefined ? (
+                <li className="dh-nav__heading" aria-hidden="true">
+                  {heading}
                 </li>
               ) : null}
               <li className="dh-nav__item">
