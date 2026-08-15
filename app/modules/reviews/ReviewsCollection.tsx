@@ -41,8 +41,9 @@ import {
 } from "~/kernel/reviews";
 import { EntityCardGrid, ReviewCard, type ReviewCardTone } from "~/shared/card";
 import {
-  CollectionLayout,
   collectionCountLabel,
+  CollectionLayout,
+  CreateActionLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -321,7 +322,7 @@ export function ReviewsCollectionView({
       viewSwitcher={viewSwitcher}
       primaryAction={
         <Link className="dh-btn dh-btn--primary" to="/reviews/new">
-          New Review
+          <CreateActionLabel>New review</CreateActionLabel>
         </Link>
       }
       filterBar={filterBar}
@@ -342,7 +343,7 @@ export function ReviewsCollectionView({
           description="Start a weekly, monthly, quarterly, annual or custom review."
           primaryAction={
             <Link className="dh-btn dh-btn--primary" to="/reviews/new">
-              New Review
+              <CreateActionLabel>New review</CreateActionLabel>
             </Link>
           }
           // HELP-01 — "what is a Review actually for?" is the question standing

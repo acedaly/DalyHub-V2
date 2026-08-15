@@ -21,11 +21,11 @@
 .dh-capture-parent {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-capture-parent strong {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
@@ -37,8 +37,8 @@
   padding: var(--app-space-2) var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -50,12 +50,12 @@
   min-inline-size: 0;
   flex: 1;
   overflow-wrap: anywhere;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-capture-context__fixed {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-capture-context__remove {
@@ -103,7 +103,7 @@
 .dh-capture-chips__label {
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Chips WRAP rather than scroll: a hidden option the thumb has to discover by
@@ -120,10 +120,10 @@
   gap: var(--app-space-1);
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   cursor: pointer;
@@ -132,17 +132,13 @@
 }
 
 .dh-capture-chip:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 /* Selected: aria-pressed (semantic) + accent border + weight — never colour alone. */
 .dh-capture-chip[aria-pressed="true"] {
   border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   font-weight: 500;
   box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
 }
@@ -171,7 +167,7 @@
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 .dh-capture-actions > * {
@@ -191,7 +187,7 @@
 .dh-capture-result__message {
   margin: 0;
   font-size: var(--md-sys-typescale-body-large-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
@@ -282,7 +278,7 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--app-shape-supporting);
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
   overflow: hidden;
 }
 
@@ -306,8 +302,7 @@
 }
 
 .dh-capture-rows .dh-capture-row + .dh-capture-row {
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 /* The label is the row's trailing NAME. `SelectField` renders a label ROW and
@@ -318,7 +313,7 @@
   order: 2;
   margin: 0;
   flex: none;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 400;
 }
@@ -359,11 +354,11 @@
  * a row states a fact, and touching it opens the way to change it. Focus is
  * unmistakable regardless — the shared focus ring is untouched. */
 .dh-capture-rows .dh-capture-row .dh-input {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-capture-rows .dh-capture-row--fixed {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-capture-row__value {
@@ -376,7 +371,7 @@
 
 .dh-capture-row__name {
   flex: none;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 

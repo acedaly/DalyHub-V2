@@ -14,12 +14,12 @@
 
 .dh-area-overview__progress {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-area-overview__progress-label {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
@@ -27,7 +27,7 @@
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   padding: var(--app-space-4);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-area-momentum__header {
@@ -41,7 +41,7 @@
 .dh-area-momentum__header p {
   flex: 1 1 18rem;
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -50,7 +50,7 @@
   gap: var(--app-space-2);
   margin: 0;
   padding-inline-start: var(--app-space-5);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-area-momentum__reasons li {
@@ -59,7 +59,7 @@
 
 .dh-area-bounded-note {
   margin: var(--app-space-4) 0 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
@@ -78,8 +78,8 @@
   padding: var(--app-space-3) var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
@@ -92,7 +92,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
@@ -140,5 +140,5 @@
   font-size: var(--md-sys-typescale-title-small-size);
   line-height: var(--md-sys-typescale-title-small-line-height);
   font-weight: var(--md-sys-typescale-title-small-weight);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }

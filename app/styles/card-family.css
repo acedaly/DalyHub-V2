@@ -182,8 +182,7 @@
   display: flex;
   align-items: center;
   gap: var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-dcard--standard .dh-dcard__footer {
@@ -208,7 +207,7 @@
    * The previous empty state took a full viewport band for one line of text. */
   min-block-size: var(--app-chart-height-standard);
   text-align: center;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
 }
@@ -246,8 +245,7 @@
  */
 .dh-metric-row__item {
   min-inline-size: 0;
-  border-inline-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-inline-start: var(--app-border-width-thin) solid var(--dh-color-border);
   margin-inline-start: calc(var(--app-border-width-thin) * -1);
   padding-inline: var(--app-space-5);
 }
@@ -279,12 +277,12 @@
   font-size: var(--app-entity-icon-size);
   line-height: 0;
   background: var(--md-sys-color-surface-container-high);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-metric--accent .dh-metric__icon {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
 }
 .dh-metric--success .dh-metric__icon {
   background: var(--md-sys-color-success-container);
@@ -306,7 +304,7 @@
   line-height: var(--md-sys-typescale-headline-small-line-height);
   font-weight: 500;
   letter-spacing: var(--md-sys-typescale-headline-small-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -314,7 +312,7 @@
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-metric__supporting {
@@ -341,9 +339,8 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--md-app-color-surface-card);
-  border: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  background: var(--dh-color-surface);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--md-sys-shape-corner-large);
   overflow: hidden;
 }
@@ -356,8 +353,7 @@
 }
 
 .dh-row-list > .dh-row + .dh-row {
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 /*
@@ -403,7 +399,7 @@
   line-height: var(--md-sys-typescale-body-medium-line-height);
   font-weight: 500;
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   min-inline-size: 0;
 }
 
@@ -422,12 +418,12 @@
  */
 .dh-row .dh-row__open,
 .dh-row .dh-row__open:visited {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   text-decoration: none;
 }
 
 .dh-row--completed .dh-row__open {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-row__open::after {
@@ -446,7 +442,7 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -464,7 +460,7 @@
 .dh-row__meta {
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -474,7 +470,7 @@
  */
 .dh-row--completed .dh-row__title {
   text-decoration: line-through;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-row--selected {
@@ -609,33 +605,26 @@
  * reason they left `.dh-dcard`; what a Project or an Area has instead is its
  * identity mark, which is a far stronger signal than an edge.
  */
+/* DS-05 — the same one card boundary `.dh-pcard` documents. */
 .dh-ecard {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-3);
+  gap: var(--dh-space-3);
   min-inline-size: 0;
-  padding: var(--app-card-padding);
-  background: var(--md-app-color-surface-card);
-  border: none;
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: none;
   transition:
-    box-shadow var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-emphasized-decelerate);
+    background var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-/*
- * Hover elevation ONLY when the card is actually interactive — plus one pixel of
- * lift, which is the whole of M3X's motion budget for a gallery. It is the
- * smallest movement that reads as "this responds", and it is zeroed under
- * `prefers-reduced-motion` by the global rule in `base.css`.
- */
+/* The edge darkens ONLY when the card is actually interactive. */
 .dh-ecard--interactive:hover {
-  box-shadow: var(--app-elevation-raised);
-  transform: translateY(-1px);
+  border-color: var(--dh-color-border-strong);
 }
 
 .dh-ecard--muted {
@@ -740,7 +729,7 @@
   block-size: var(--app-entity-icon-container-size);
   flex: none;
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
   font-size: var(--app-entity-icon-size);
   line-height: 0;
 }
@@ -799,7 +788,7 @@
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
   letter-spacing: var(--md-sys-typescale-title-medium-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -813,7 +802,7 @@
 
 .dh-ecard .dh-ecard__open,
 .dh-ecard .dh-ecard__open:visited {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   text-decoration: none;
 }
 
@@ -859,7 +848,7 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -904,13 +893,13 @@
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: var(--md-sys-typescale-headline-small-line-height);
   font-weight: var(--md-sys-typescale-headline-small-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
 .dh-ecard__metric-label {
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -961,7 +950,7 @@
   /* The TRACK is neutral. `secondary-container` is a lavender in this scheme, so
    * an empty bar read as a full one in a different colour — which is exactly
    * what a progress track must never do. */
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   overflow: hidden;
 }
 
@@ -1027,7 +1016,7 @@
   font-size: var(--md-sys-typescale-title-large-size);
   line-height: var(--md-sys-typescale-title-large-line-height);
   font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1040,7 +1029,7 @@
   gap: var(--app-space-1) var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* DS-16 — one compact metadata fact: glyph, number, noun. The glyph is
@@ -1055,11 +1044,11 @@
 .dh-ecard__fact-icon {
   inline-size: var(--app-space-4);
   block-size: var(--app-space-4);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-ecard__fact-value {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -1073,7 +1062,7 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   overflow-wrap: anywhere;
@@ -1096,15 +1085,14 @@
   gap: var(--app-space-2);
   margin-block-start: auto;
   padding-block-start: var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-ecard__footer-content {
   flex: 1;
   min-inline-size: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-ecard__overflow {
@@ -1148,13 +1136,13 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-timeline__time-end {
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The marker and the connector are one decorative column, drawn by the item so
@@ -1177,23 +1165,23 @@
   margin-block-start: var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
   font-size: var(--app-space-3);
   line-height: 0;
   z-index: var(--app-z-raised);
 }
 
 .dh-timeline__item--neutral .dh-timeline__marker {
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
 }
 .dh-timeline__item--success .dh-timeline__marker {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 .dh-timeline__item--warning .dh-timeline__marker {
-  background: var(--md-sys-color-warning);
+  background: var(--dh-color-warning);
 }
 .dh-timeline__item--danger .dh-timeline__marker {
-  background: var(--md-sys-color-error);
+  background: var(--dh-color-danger);
 }
 .dh-timeline__item--muted .dh-timeline__marker {
   background: var(--md-sys-color-outline-variant);
@@ -1204,7 +1192,7 @@
   position: absolute;
   inset-block: var(--app-space-4) calc(var(--app-space-3) * -1);
   inline-size: var(--app-border-width-thin);
-  background: var(--md-app-color-outline-hairline);
+  background: var(--dh-color-border);
 }
 
 .dh-timeline__body {
@@ -1219,12 +1207,12 @@
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-timeline .dh-timeline__open,
 .dh-timeline .dh-timeline__open:visited {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   text-decoration: none;
 }
 
@@ -1247,14 +1235,14 @@
   gap: var(--app-space-1) var(--app-space-3);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Past and cancelled stay distinct through WEIGHT and text as well as tone, so
  * the distinction survives monochrome and forced colours. */
 .dh-timeline__item--muted .dh-timeline__title {
   font-weight: 400;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The development-only fixture that demonstrates the family (design route). */
@@ -1414,7 +1402,7 @@
  * never the signal on its own.
  */
 .dh-summary__stat-value[data-tone="attention"] {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
 }
 
 .dh-summary__stat-label {
@@ -1513,7 +1501,7 @@
   padding: var(--app-card-padding);
   border: none;
   border-radius: var(--app-shape-entity-card);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   box-shadow: var(--app-elevation-resting);
   transition:
     box-shadow var(--md-sys-motion-duration-short3)
@@ -1542,14 +1530,14 @@
  * beside it.)
  */
 .dh-scard--identity {
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
 }
 
 /* The quiet tone: Level 2 by SHAPE and scale alone, no tint at all. For a
  * supporting surface sitting next to a tinted one, so a rail of three does not
  * become three tinted blocks. */
 .dh-scard--quiet {
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-scard--interactive:hover {
@@ -1584,7 +1572,7 @@
  * one place a supporting surface is allowed to shout, and it shouts quietly. */
 .dh-scard__eyebrow {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
@@ -1598,7 +1586,7 @@
 .dh-scard__title {
   margin: 0;
   min-inline-size: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
@@ -1630,7 +1618,7 @@
 
 .dh-scard__supporting {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -1649,7 +1637,7 @@
 }
 
 .dh-scard__metric-value {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-large-size);
   line-height: var(--md-sys-typescale-title-large-line-height);
   font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
@@ -1658,7 +1646,7 @@
 }
 
 .dh-scard__metric-label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   line-height: var(--md-sys-typescale-label-small-line-height);
   letter-spacing: var(--md-sys-typescale-label-small-tracking);
@@ -1696,7 +1684,7 @@
 
 .dh-scard__progress-text {
   flex: none;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
@@ -1710,7 +1698,7 @@
   align-items: center;
   gap: var(--app-space-1) var(--app-space-3);
   min-inline-size: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -1914,6 +1902,26 @@
 }
 
 /*
+ * DS-07 — an ODD last tile spans, so the phone never shows a ragged row.
+ *
+ * `auto-fill` at the phone track resolves to exactly two columns at 390px, and
+ * Today renders three figures on an ordinary day (four when the day has
+ * progress). Three into two is a full row and one orphan sitting beside a
+ * tile-shaped hole — MEASURED on `final/today-390-*`, and the one thing on the
+ * phone dashboard that read as a layout accident rather than a decision.
+ *
+ * `:last-child:nth-child(odd)` is "the last of an odd number", so it fires for
+ * three tiles and not for four, and it needs no count in the markup. Bounded to
+ * the width where the grid is two columns: above it the row has three to five,
+ * and a spanning last tile there would be the accident instead.
+ */
+@media (max-width: 47.99rem) {
+  .dh-stat-row__item:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/*
  * UIX-01 — a two-column grid, so the RING costs no height.
  *
  * It used to be a column with the ring inline beside the figure, which made the
@@ -1940,21 +1948,21 @@
   align-content: start;
   gap: var(--app-space-1) var(--app-space-3);
   min-inline-size: 0;
-  padding: var(--app-space-3) var(--app-space-4);
-  border: none;
-  /* VIS-01 — the FIGURE rung of the shape ladder. A stat card is one rung under
-   * an ordinary card, because at a card's own radius a small tile is more
-   * corner than face. */
-  border-radius: var(--app-shape-metric);
-  background: var(--md-app-color-surface-card);
-  box-shadow: var(--app-elevation-resting);
-  color: var(--md-sys-color-on-surface);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  /* DS-05 — the one card boundary (`.dh-pcard`). A glance tile sits on the grey
+   * canvas beside white panels, and a surface step alone is not an edge at the
+   * count a dashboard renders. VIS-01's shape decision stands: the FIGURE rung,
+   * one under an ordinary card, because at a card's own radius a small tile is
+   * more corner than face. */
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  box-shadow: none;
+  color: var(--dh-color-text);
   text-decoration: none;
   transition:
-    box-shadow var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-emphasized-decelerate);
+    background var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /*
@@ -1980,8 +1988,8 @@
  * card is the same surface every other card in the product is.
  */
 .dh-stat--washed {
-  background: var(--md-app-color-surface-card);
-  box-shadow: var(--app-elevation-resting);
+  background: var(--dh-color-surface);
+  box-shadow: none;
 }
 
 .dh-stat__head {
@@ -2038,7 +2046,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
@@ -2090,7 +2098,7 @@
  * the line beneath it both say what it is. */
 .dh-stat__value[data-tone="attention"],
 .dh-stat__supporting[data-tone="attention"] {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
 }
 
 .dh-stat__ring {
@@ -2099,7 +2107,7 @@
 }
 
 .dh-stat__supporting {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -2172,31 +2180,60 @@
  * found a row holding a 220px, a 180px and a 230px card with nothing for the
  * eye to track along.
  */
+/*
+ * DS-05 — THE ONE CARD BOUNDARY, and it is the DS-02 one.
+ *
+ * `.dh-dcard` moved to a hairline on a 12px corner in DS-02, for a reason that
+ * applies with more force here than it did there: at the count a gallery renders
+ * — twelve to twenty cards, not seven — a tonal step alone stops being a
+ * boundary and the eye reads a field of slightly-different-white rectangles. The
+ * six RECORD families were deliberately left behind at the time ("§5b's shape
+ * distinctions are the product's strongest recognition device"), and the
+ * baseline capture is what settles the argument: they read as a DIFFERENT
+ * product from the panels beside them, and both concepts draw one card — white,
+ * a hairline, a small corner, no shadow.
+ *
+ * So the record cards take it too. What is NOT flattened is the anatomy: a
+ * Project card still pins its bar to its floor, a Goal card still leads with its
+ * reading, an Area card is still content-height. The shape distinctions §5b
+ * defends are compositional, and losing 4px of corner radius costs none of them.
+ *
+ * DENSITY moves with the boundary, because the two produced the height together.
+ * `--app-card-padding` (20) and a 56px mark made a 215px Project card and a
+ * 305px Goal card for six facts; the concept draws ~150px. The phone block below
+ * already knew all of this — `--app-card-padding-compact`, the mark a rung down,
+ * the figure on the bar's row — and DS-05's move is simply to stop treating that
+ * as a small-screen concession and make it the card.
+ */
 .dh-pcard {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--app-space-5);
+  gap: var(--dh-space-4);
   min-inline-size: 0;
   block-size: 100%;
-  padding: var(--app-card-padding);
-  background: var(--md-app-color-surface-card);
-  border: none;
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: none;
   transition:
-    box-shadow var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-emphasized-decelerate);
+    background var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-/* One pixel of lift — the whole of the gallery's motion budget, zeroed under
- * `prefers-reduced-motion` by the global rule in `base.css`. */
+/*
+ * Hover is a BORDER change, not a lift.
+ *
+ * The 1px translate plus a shadow was the gallery's whole motion budget, and it
+ * was spent on the wrong thing: a card that rises is a card that floats, and
+ * these no longer do. Darkening the edge says "this one" without moving the
+ * grid, and it survives the `prefers-reduced-motion` rule unchanged because
+ * there is nothing left to reduce.
+ */
 .dh-pcard:hover {
-  box-shadow: var(--app-elevation-raised);
-  transform: translateY(-1px);
+  border-color: var(--dh-color-border-strong);
 }
 
 .dh-pcard--muted {
@@ -2210,9 +2247,31 @@
   min-inline-size: 0;
 }
 
+/*
+ * DS-05 — the mark is the 40px rung at EVERY width.
+ *
+ * The gallery asked for `size="lg"` (56px), which on a ~285px card is a fifth of
+ * the card's width spent on a decorative glyph, and the loudest object in a grid
+ * whose job is to be read. The concept draws a small rounded tile. 40px is the
+ * product's standard identity mark — the same one a rail row and a record header
+ * use — so this is the card joining the rest of the product rather than a new
+ * size for it.
+ */
 .dh-pcard__mark {
   flex: none;
   display: inline-flex;
+}
+
+.dh-pcard__mark > .dh-accent-icon {
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  border-radius: var(--dh-radius-control);
+  font-size: var(--app-entity-icon-size);
+}
+
+.dh-pcard__mark > .dh-accent-icon .dh-icon {
+  inline-size: var(--app-entity-icon-size);
+  block-size: var(--app-entity-icon-size);
 }
 
 .dh-pcard__titles {
@@ -2241,7 +2300,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -2285,7 +2344,7 @@
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 1;
   line-clamp: 1;
@@ -2329,13 +2388,21 @@
 .dh-pcard__attention {
   display: flex;
   align-items: center;
-  gap: var(--app-space-2);
+  gap: var(--dh-space-2);
   margin: 0;
   min-inline-size: 0;
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+}
+
+/* The count sits at the trailing edge of the status line — one row for the two
+ * facts about the WORK, the row below it for the proportion. */
+.dh-pcard__attention .dh-pcard__fact {
+  margin-inline-start: auto;
+  padding-inline-start: var(--dh-space-3);
+  font-weight: var(--dh-text-meta-weight);
 }
 
 .dh-pcard__attention-text {
@@ -2350,7 +2417,7 @@
   inline-size: var(--app-space-2);
   block-size: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
 }
 
 /*
@@ -2359,10 +2426,10 @@
  * state rather than the feedback role.
  */
 .dh-pcard__attention[data-tone="danger"] {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
 }
 .dh-pcard__attention[data-tone="danger"] .dh-pcard__dot {
-  background: var(--md-sys-color-state-overdue);
+  background: var(--dh-color-overdue);
 }
 .dh-pcard__attention[data-tone="warning"] {
   color: var(--md-sys-color-state-due-soon);
@@ -2371,64 +2438,60 @@
   background: var(--md-sys-color-state-due-soon);
 }
 .dh-pcard__attention[data-tone="success"] .dh-pcard__dot {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 .dh-pcard__attention[data-tone="info"] .dh-pcard__dot {
   background: var(--md-sys-color-info);
 }
 
+/*
+ * DS-05 — the bar and its percentage are ONE row, and the percentage is small.
+ *
+ * The baseline drew "38%" at `title-large` emphasised (24px), which made a
+ * derived number the loudest thing on a card whose title was 16px — the exact
+ * inversion of the concept, where the title leads and the percentage is quiet
+ * text at the bar's trailing end. It also cost a whole 32px line, on every card,
+ * for four characters.
+ *
+ * The grid is `1fr auto`: the track takes the room, the figure sits after it and
+ * never wraps. The supporting fact ("3 open") moves up beside the attention line
+ * where it belongs — it is a COUNT, not part of the proportion.
+ */
 .dh-pcard__progress {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--dh-space-3);
   min-inline-size: 0;
-}
-
-/* The figure leads and the one supporting fact sits opposite it, so the
- * percentage and the bar below share a left edge down the whole gallery. */
-.dh-pcard__figures {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--app-space-3);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-.dh-pcard__figures--factonly {
-  /* A Project with no tasks keeps the foot's height without drawing a track at
-   * zero, so its row still shares a baseline with the cards beside it. */
-  min-block-size: calc(
-    var(--md-sys-typescale-title-large-line-height) +
-      var(--app-progress-bar-height-entity) + var(--app-space-2)
-  );
-  align-items: flex-start;
 }
 
 .dh-pcard__percent {
-  font-size: var(--md-sys-typescale-title-large-size);
-  line-height: var(--md-sys-typescale-title-large-line-height);
-  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
-  font-variant-numeric: tabular-nums;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text);
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
 .dh-pcard__fact {
   flex: none;
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
-  font-variant-numeric: tabular-nums;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
-/* D5 — 8px, not the product's 6px. This is the one surface whose entire job is
- * a proportion; at gallery width a 6px rule reads as a divider. */
+/*
+ * D5 said 8px because the card was 215px tall and a 6px rule read as a divider
+ * on it. At the DS-05 height the bar sits directly beside its own percentage on
+ * one row, so it is unambiguously a measure, and 6px is enough of one.
+ */
 .dh-pcard__track {
   display: block;
   inline-size: 100%;
-  block-size: var(--app-progress-bar-height-entity);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-sunken);
+  block-size: var(--app-progress-bar-height);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-bg-sunken);
   overflow: hidden;
 }
 
@@ -2495,30 +2558,40 @@
  * A Project is measured in work done; a Goal is measured in the unit the owner
  * actually cares about, and the composition says so before a word is read.
  */
+/* DS-05 — the same one card boundary `.dh-pcard` documents above. */
 .dh-gcard {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: var(--dh-space-3);
   min-inline-size: 0;
   block-size: 100%;
-  padding: var(--app-card-padding);
-  background: var(--md-app-color-surface-card);
-  border: none;
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: none;
   transition:
-    box-shadow var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-emphasized-decelerate);
+    background var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-/* One pixel of lift — the gallery's whole motion budget, zeroed under
- * `prefers-reduced-motion` by the global rule in `base.css`. */
 .dh-gcard:hover {
-  box-shadow: var(--app-elevation-raised);
-  transform: translateY(-1px);
+  border-color: var(--dh-color-border-strong);
+}
+
+/* The mark takes the product's 40px identity rung, for the reason
+ * `.dh-pcard__mark` documents. */
+.dh-gcard__mark > .dh-accent-icon {
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  border-radius: var(--dh-radius-control);
+  font-size: var(--app-entity-icon-size);
+}
+
+.dh-gcard__mark > .dh-accent-icon .dh-icon {
+  inline-size: var(--app-entity-icon-size);
+  block-size: var(--app-entity-icon-size);
 }
 
 .dh-gcard--muted {
@@ -2549,7 +2622,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -2587,7 +2660,7 @@
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 1;
   line-clamp: 1;
@@ -2642,17 +2715,32 @@
  * alone on the next line. Giving the metric a real flex basis makes the visual
  * the thing that yields.
  */
+/*
+ * DS-05 — the reading is TEXT ON THE CARD, and the tinted slab is gone.
+ *
+ * This block was the Goal card's "signature": a wash of the Area's accent behind
+ * the outcome, so a grid grouped by part of life before a word was read. The
+ * baseline capture is what retires it. At ~110px tall, filled in a saturated
+ * mint / peach / pale blue, it was the largest and loudest object on the card,
+ * on every card, and a grid of ten of them read as a colour swatch page rather
+ * than as a set of outcomes. It is the most Material-looking object left in the
+ * product — a tonal container doing a job the concept does with type — and
+ * `DALYHUB_DESIGN_SYSTEM.md` §35 already forbids exactly this shape of thing.
+ *
+ * Identity does not go with it. The mark above still carries the Area's accent,
+ * and so does the progress fill below — two placements, at a size where the
+ * colour is a signal rather than a field. What is lost is only the field.
+ */
 .dh-gcard__reading {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--app-space-2) var(--app-space-3);
+  gap: var(--dh-space-2) var(--dh-space-3);
   inline-size: 100%;
   min-inline-size: 0;
-  padding: var(--app-space-3);
-  border-radius: var(--app-shape-metric);
-  background: var(--md-app-color-surface-sunken);
+  padding: 0;
+  background: none;
 }
 
 .dh-gcard__metric {
@@ -2675,7 +2763,7 @@
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: var(--md-sys-typescale-headline-small-line-height);
   font-weight: var(--md-sys-typescale-headline-small-weight);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -2684,7 +2772,7 @@
 .dh-gcard__journey {
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
   /* `break-word`, not `anywhere`: a long custom unit still breaks rather than
    * overflowing the card, but an ordinary "70 kg" is never split across lines
@@ -2715,12 +2803,12 @@
  * measurement is still a Goal in Health & Fitness, and greying its one block
  * made the card read as disabled beside its measured neighbours.
  */
+/* DS-05 — de-tinted with `.dh-gcard__reading`, and for the same reason. */
 .dh-gcard__note {
   inline-size: 100%;
   min-inline-size: 0;
-  padding: var(--app-space-3);
-  border-radius: var(--app-shape-metric);
-  background: var(--md-app-color-surface-sunken);
+  padding: 0;
+  background: none;
 }
 
 /*
@@ -2751,13 +2839,13 @@
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
 .dh-gcard__note[data-detail="false"] .dh-gcard__note-label {
   font-weight: var(--md-sys-typescale-body-medium-weight);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -2769,7 +2857,7 @@
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -2813,7 +2901,7 @@
   min-inline-size: 0;
   block-size: var(--app-progress-bar-height-entity);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   overflow: hidden;
 }
 
@@ -2831,7 +2919,7 @@
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2850,19 +2938,19 @@
   min-inline-size: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-gcard__state {
   font-weight: var(--md-sys-typescale-label-large-weight);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Only the two states that are FACTS the owner can act on take a tone — a
  * passed date, a slipped schedule. Everything in flight is the normal state of
  * a Goal and stays neutral. The tone always agrees with the word beside it. */
 .dh-gcard__state[data-tone="success"] {
-  color: var(--md-sys-color-success);
+  color: var(--dh-color-success);
 }
 .dh-gcard__state[data-tone="warning"] {
   color: var(--md-sys-color-state-due-soon);
@@ -2873,7 +2961,7 @@
 /* D3 — a slipped Goal is `state-overdue`, never `error`: being behind on
  * something you set yourself is a state of a record, not an application fault. */
 .dh-gcard__state[data-tone="danger"] {
-  color: var(--md-sys-color-state-overdue);
+  color: var(--dh-color-overdue);
 }
 
 /* Separators between the trailing facts, so the line reads as one sentence
@@ -2886,7 +2974,7 @@
 .dh-gcard__fact::before {
   content: "·";
   margin-inline-end: var(--app-space-2);
-  color: var(--md-sys-color-outline);
+  color: var(--dh-color-border-strong);
 }
 
 .dh-gcard__state-line > .dh-gcard__fact:first-child::before {
@@ -2894,75 +2982,32 @@
 }
 
 /*
- * The Area's accent, applied to exactly two things: the wash behind the reading
- * and the progress fill. The same six-slot ramp the mark is painted from and
- * the same stable rank — one identity decision, used twice, never two.
+ * The Area's accent, applied to exactly ONE thing: the progress fill.
+ *
+ * It used to paint the wash behind the reading as well. DS-05 removed that wash
+ * (see `.dh-gcard__reading`) because a filled tonal block ~110px tall was the
+ * largest object on the card and made a gallery read as a colour swatch page.
+ * The mark at the top of the card still carries the same rank from the same
+ * ramp, so identity is still drawn twice — once as a 40px tile, once as a 6px
+ * bar — which is the size at which a hue is a signal rather than a field.
  *
  * The percentage beside the bar and the Area's name on the card state
  * everything the colour hints at, so nothing here is carried by hue alone.
  */
-.dh-gcard[data-accent="1"] .dh-gcard__reading,
-.dh-gcard[data-accent="1"] .dh-gcard__note {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-area-accent-1-container) 55%,
-    var(--md-app-color-surface-card)
-  );
-}
 .dh-gcard[data-accent="1"] .dh-gcard__fill {
   background: var(--md-sys-color-area-accent-1);
-}
-.dh-gcard[data-accent="2"] .dh-gcard__reading,
-.dh-gcard[data-accent="2"] .dh-gcard__note {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-area-accent-2-container) 55%,
-    var(--md-app-color-surface-card)
-  );
 }
 .dh-gcard[data-accent="2"] .dh-gcard__fill {
   background: var(--md-sys-color-area-accent-2);
 }
-.dh-gcard[data-accent="3"] .dh-gcard__reading,
-.dh-gcard[data-accent="3"] .dh-gcard__note {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-area-accent-3-container) 55%,
-    var(--md-app-color-surface-card)
-  );
-}
 .dh-gcard[data-accent="3"] .dh-gcard__fill {
   background: var(--md-sys-color-area-accent-3);
-}
-.dh-gcard[data-accent="4"] .dh-gcard__reading,
-.dh-gcard[data-accent="4"] .dh-gcard__note {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-area-accent-4-container) 55%,
-    var(--md-app-color-surface-card)
-  );
 }
 .dh-gcard[data-accent="4"] .dh-gcard__fill {
   background: var(--md-sys-color-area-accent-4);
 }
-.dh-gcard[data-accent="5"] .dh-gcard__reading,
-.dh-gcard[data-accent="5"] .dh-gcard__note {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-area-accent-5-container) 55%,
-    var(--md-app-color-surface-card)
-  );
-}
 .dh-gcard[data-accent="5"] .dh-gcard__fill {
   background: var(--md-sys-color-area-accent-5);
-}
-.dh-gcard[data-accent="6"] .dh-gcard__reading,
-.dh-gcard[data-accent="6"] .dh-gcard__note {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-area-accent-6-container) 55%,
-    var(--md-app-color-surface-card)
-  );
 }
 .dh-gcard[data-accent="6"] .dh-gcard__fill {
   background: var(--md-sys-color-area-accent-6);
@@ -3044,12 +3089,25 @@
  * reference's Areas composition, and it is the denser layout the design system
  * asks for when a record does not have enough to fill a gallery card.
  */
+/*
+ * DS-05 — a flat LIST is rows on the page, not a panel on the canvas.
+ *
+ * This is DS-04 §4's decision ("the workspace is white, and that is a real
+ * decision") reaching its second consumer. Both concepts distinguish a card grid
+ * — grey ground, white cards — from a flat list, which gets a white page and
+ * hairlines and nothing else. Areas is the product's other flat list, and it was
+ * drawn as a bordered, 16px-radius white panel floating on the grey canvas: it
+ * had neither the cards' separation nor the white page's calm, and it made the
+ * one module that is a list look like a module that had forgotten to be a grid.
+ *
+ * The ground moves with it, on `.dh-collection--areas` in `areas.css`, exactly
+ * as `.dh-collection--tasks` does.
+ */
 .dh-erow-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  background: var(--md-app-color-surface-card);
-  border-radius: var(--app-shape-entity-card);
+  background: none;
   overflow: hidden;
   /*
    * A MEASURE, and a tighter one than the collection's own.
@@ -3070,22 +3128,30 @@
     var(--md-sys-color-outline-variant);
 }
 
+/*
+ * DS-05 — the row takes the product's two-line row height.
+ *
+ * 4.5rem (72px) was justified as "an Area is a permanent thing and its row is
+ * allowed to breathe", and at eleven Areas that is 792px of viewport for eleven
+ * names and twenty-two counts. Breathing is not a property an Area has that a
+ * Meeting does not; `--app-list-row-height-two-line` is the height the product
+ * gives a row that carries a title and a supporting line, which is exactly what
+ * this row carries. The inset drops from the card padding to the row inset for
+ * the same reason: these are rows now, and rows have a row's inset.
+ */
 .dh-erow {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--app-space-4);
+  gap: var(--dh-space-3);
   min-inline-size: 0;
-  /* Comfortably above the 44px touch floor without becoming a card: an Area is
-   * a permanent thing and its row is allowed to breathe. */
-  min-block-size: 4.5rem;
-  padding: var(--app-space-3) var(--app-card-padding);
-  transition: background var(--md-sys-motion-duration-short3)
-    var(--md-sys-motion-easing-standard);
+  min-block-size: var(--app-list-row-height-two-line);
+  padding: var(--dh-inset-block) var(--dh-inset-inline);
+  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-erow:hover {
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-quiet);
 }
 
 .dh-erow--muted {
@@ -3107,7 +3173,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3143,7 +3209,7 @@
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3154,7 +3220,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -3191,79 +3257,27 @@
  * a rung, and the padding comes in. Same DOM, same reading order, same
  * accessible names.
  */
-@media (max-width: 48rem) {
-  .dh-pcard {
-    gap: var(--app-space-3);
-    padding: var(--app-card-padding-compact);
-    border-radius: var(--app-shape-card);
-  }
-
-  /* The mark steps down: at row density a 56px square is the loudest thing on
-   * the screen, and identity only has to be recognisable, not dominant. */
-  .dh-pcard__mark > .dh-accent-icon {
-    inline-size: var(--app-entity-icon-container-size);
-    block-size: var(--app-entity-icon-container-size);
-    border-radius: var(--md-sys-shape-corner-medium);
-    font-size: var(--app-entity-icon-size);
-  }
-
-  .dh-pcard__mark > .dh-accent-icon .dh-icon {
-    inline-size: var(--app-entity-icon-size);
-    block-size: var(--app-entity-icon-size);
-  }
-
-  /*
-   * The figure joins the BAR's row rather than sitting on one of its own. On a
-   * phone the percentage and the bar are one statement, and giving them two
-   * lines spent ~40px per card saying it twice over.
-   */
-  .dh-pcard__progress {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--app-space-3);
-  }
-
-  .dh-pcard__figures {
-    flex: none;
-    order: 2;
-    gap: var(--app-space-2);
-  }
-
-  .dh-pcard__track {
-    /* `flex: 1` is safe here and not in the column layout: the axis is now the
-     * inline one, so a flex factor resolves against width rather than
-     * collapsing the bar's height to nothing. */
-    flex: 1;
-    order: 1;
-    min-inline-size: 0;
-  }
-
-  /* The percentage steps down with everything else — it is still the largest
-   * figure on the row, but the row is 36px rather than 60px. */
-  .dh-pcard__percent {
-    font-size: var(--md-sys-typescale-title-medium-size);
-    line-height: var(--md-sys-typescale-title-medium-line-height);
-  }
-
-  /*
-   * The trailing fact joins the ATTENTION line, opposite it — the row that
-   * already exists and has spare width, rather than a third line of its own.
-   */
-  .dh-pcard__foot {
-    gap: var(--app-space-2);
-  }
-
-  .dh-pcard__attention {
-    font-size: var(--md-sys-typescale-body-small-size);
-    line-height: var(--md-sys-typescale-body-small-line-height);
-  }
-
-  /* A card with no progress keeps no reserved height on a phone: there is no
-   * row of neighbours to share a baseline with when the grid is one column. */
-  .dh-pcard__figures--factonly {
-    min-block-size: 0;
-  }
-}
+/*
+ * DS-05 — the phone block is GONE, because the desktop card became it.
+ *
+ * Everything this block did — `--app-card-padding-compact`, the mark a rung
+ * down, the percentage on the bar's row rather than above it, the attention line
+ * at meta size — is what `.dh-pcard` now does at every width. Keeping a phone
+ * override that restates the default would be harmless; keeping THIS one was
+ * not, and it is worth recording why.
+ *
+ * The rules were written against a FLEX column. `.dh-pcard__progress` is now a
+ * two-track grid, and on a grid container `flex-direction: row` is inert, `flex:
+ * 1` on a child is inert, and `order` reorders items that are already placed. So
+ * the bar lost the only declaration that gave it width and collapsed to nothing:
+ * MEASURED on `final/projects-390-light.png` as a card with a large "38%" on a
+ * line of its own and no track at all — the exact composition this block existed
+ * to prevent, produced by the block itself.
+ *
+ * The lesson is narrow and worth keeping: a responsive override inherits the
+ * LAYOUT MODEL of the rule it overrides, and changing that model silently turns
+ * the override into dead declarations that are not inert but wrong.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* EntityRow — the phone composition                                          */
@@ -3341,7 +3355,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border-radius: var(--app-shape-entity-card);
   box-shadow: var(--app-elevation-resting);
   overflow: hidden;
@@ -3354,8 +3368,7 @@
 }
 
 .dh-prow-list__item + .dh-prow-list__item {
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 /*
@@ -3398,7 +3411,7 @@
 }
 
 .dh-prow:hover {
-  background: var(--md-app-color-surface-card-subtle);
+  background: var(--dh-color-surface-subtle);
 }
 
 .dh-prow--muted {
@@ -3422,7 +3435,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3457,7 +3470,7 @@
   margin: var(--app-space-px) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3514,7 +3527,7 @@
   align-items: center;
   min-block-size: var(--app-space-6);
   max-inline-size: 100%;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   text-decoration: none;
@@ -3580,7 +3593,7 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3590,7 +3603,7 @@
   grid-column: 2;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3603,7 +3616,7 @@
   inline-size: var(--app-space-2);
   block-size: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
 }
 
 /*
@@ -3612,13 +3625,13 @@
  * of a record, not an application fault, and this surface never shouts.
  */
 .dh-prow__rhythm[data-tone="success"] .dh-prow__dot {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 .dh-prow__rhythm[data-tone="info"] .dh-prow__dot {
   background: var(--md-sys-color-primary);
 }
 .dh-prow__rhythm[data-tone="warning"] .dh-prow__dot {
-  background: var(--md-sys-color-state-overdue);
+  background: var(--dh-color-overdue);
 }
 
 .dh-prow__overflow {
@@ -3736,31 +3749,41 @@
  * a gallery row shares a height, and the measure has to land on one baseline
  * across the row or the eye has nothing to track along.
  */
+/* DS-05 — the same one card boundary `.dh-pcard` documents above. */
 .dh-acard {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--app-space-5);
+  gap: var(--dh-space-3);
   min-inline-size: 0;
   block-size: 100%;
-  padding: var(--app-card-padding);
-  background: var(--md-app-color-surface-card);
-  border: none;
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: none;
   transition:
-    box-shadow var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-emphasized-decelerate);
+    background var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-/* One pixel of lift — the gallery's whole motion budget, zeroed under
- * `prefers-reduced-motion` by the global rule in `base.css`. */
 .dh-acard:hover {
-  box-shadow: var(--app-elevation-raised);
-  transform: translateY(-1px);
+  border-color: var(--dh-color-border-strong);
+}
+
+/* The mark takes the product's 40px identity rung, for the reason
+ * `.dh-pcard__mark` documents. */
+.dh-acard__mark > .dh-accent-icon {
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  border-radius: var(--dh-radius-control);
+  font-size: var(--app-entity-icon-size);
+}
+
+.dh-acard__mark > .dh-accent-icon .dh-icon {
+  inline-size: var(--app-entity-icon-size);
+  block-size: var(--app-entity-icon-size);
 }
 
 .dh-acard--muted {
@@ -3791,8 +3814,8 @@
   inline-size: var(--app-entity-icon-container-size-lg);
   block-size: var(--app-entity-icon-container-size-lg);
   border-radius: var(--app-shape-supporting);
-  background: var(--md-app-color-surface-card-subtle);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
   font-size: var(--app-entity-icon-size-lg);
   line-height: 0;
 }
@@ -3814,7 +3837,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: var(--md-sys-typescale-title-medium-line-height);
   font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -3850,7 +3873,7 @@
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -3879,11 +3902,18 @@
 /*
  * The commitment — the card's ANSWER, and the one region that carries tone.
  *
- * A tinted block rather than a coloured line, for the same reason the Goal
- * card's reading sits in one: at gallery width a single toned sentence reads as
- * an error message, and a block reads as a state. The tint is the state role at
- * container strength, so it stays a wash in light and a calm slab in dark; the
- * words are always the statement, and the dot only agrees with them.
+ * DS-08 — a coloured LINE, not a tinted block. The fill is gone.
+ *
+ * It was a block "for the same reason the Goal card's reading sits in one", and
+ * DS-05 removed that one too — for the reason that applies here with less force
+ * but the same direction: at the two-to-six cards an Assets gallery renders, a
+ * filled peach panel was the largest object on the card and the last tonal slab
+ * left in the card family after Settings, Notes, Diary and Goals had all lost
+ * theirs.
+ *
+ * Nothing is carried by colour alone, and nothing was: the DOT keeps the state's
+ * full-strength tone, and the WORDS ("2 obligations due soon", "Nothing
+ * scheduled") are the statement they always were.
  */
 .dh-acard__due {
   display: flex;
@@ -3891,10 +3921,9 @@
   gap: var(--app-space-px);
   margin: 0;
   min-inline-size: 0;
-  padding: var(--app-space-3);
-  border-radius: var(--app-shape-metric);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface);
+  padding: 0;
+  background: none;
+  color: var(--dh-color-text);
 }
 
 .dh-acard__due-text {
@@ -3913,14 +3942,14 @@
   padding-inline-start: calc(var(--app-space-2) + var(--app-space-2));
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 /* An Asset with nothing scheduled says so once, quietly, in the space the date
  * would have taken. It is not a warning and not a gap. */
 .dh-acard__due--none {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
 }
@@ -3930,7 +3959,7 @@
   inline-size: var(--app-space-2);
   block-size: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
 }
 
 /*
@@ -3941,27 +3970,12 @@
  * carries a word — "Service overdue", "Renewal due in 12 days" — so nothing on
  * this card is signalled by colour alone.
  */
-.dh-acard__due[data-tone="danger"] {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-state-overdue-container)
-      var(--app-tint-strength-identity),
-    var(--md-app-color-surface-card)
-  );
-}
 .dh-acard__due[data-tone="danger"] .dh-acard__dot {
-  background: var(--md-sys-color-state-overdue);
+  background: var(--dh-color-overdue);
 }
 
-.dh-acard__due[data-tone="warning"] {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-warning-container) var(--app-tint-strength-identity),
-    var(--md-app-color-surface-card)
-  );
-}
 .dh-acard__due[data-tone="warning"] .dh-acard__dot {
-  background: var(--md-sys-color-warning);
+  background: var(--dh-color-warning);
 }
 
 .dh-acard__due[data-tone="info"] .dh-acard__dot {
@@ -3973,7 +3987,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4038,7 +4052,7 @@
   min-inline-size: 0;
   block-size: 100%;
   padding: var(--app-card-padding);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: none;
   border-radius: var(--app-shape-entity-card);
   box-shadow: var(--app-elevation-resting);
@@ -4081,7 +4095,7 @@
   font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   text-transform: uppercase;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -4097,7 +4111,7 @@
   line-height: var(--md-sys-typescale-title-large-line-height);
   font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
   letter-spacing: var(--md-sys-typescale-title-large-tracking);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
   overflow-wrap: break-word;
 }
@@ -4131,7 +4145,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4172,7 +4186,7 @@
   inline-size: 100%;
   block-size: var(--app-progress-bar-height-entity);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   overflow: hidden;
 }
 
@@ -4189,7 +4203,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -4204,7 +4218,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -4213,17 +4227,17 @@
   inline-size: var(--app-space-2);
   block-size: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-outline);
+  background: var(--dh-color-border-strong);
 }
 
 .dh-rcard__state[data-tone="success"] .dh-rcard__dot {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 .dh-rcard__state[data-tone="info"] .dh-rcard__dot {
   background: var(--md-sys-color-primary);
 }
 .dh-rcard__state[data-tone="warning"] .dh-rcard__dot {
-  background: var(--md-sys-color-state-overdue);
+  background: var(--dh-color-overdue);
 }
 
 /* The one action a Review card offers, above the card's own link overlay so it

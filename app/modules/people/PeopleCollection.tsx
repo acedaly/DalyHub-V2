@@ -50,10 +50,11 @@ import { useNavigate, useSearchParams } from "react-router";
 import { PersonRow, PersonRowList, type PersonRowTone } from "~/shared/card";
 import {
   CollectionControls,
-  CollectionLayout,
   collectionCountLabel,
-  useCollectionLoading,
+  CollectionLayout,
+  CreateActionLabel,
   type CollectionControlGroup,
+  useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -554,7 +555,7 @@ function PeopleCollection({
       drawerKey={NEW_PERSON_KEY}
       className="dh-btn dh-btn--primary"
     >
-      New Person
+      <CreateActionLabel>New person</CreateActionLabel>
     </DrawerTrigger>
   ) : undefined;
 
@@ -695,7 +696,7 @@ function PeopleCollection({
               drawerKey={NEW_PERSON_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New Person
+              <CreateActionLabel>New person</CreateActionLabel>
             </DrawerTrigger>
           }
         />

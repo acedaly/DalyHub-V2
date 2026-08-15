@@ -16,7 +16,7 @@
   gap: var(--app-space-5);
   min-width: 0;
   max-width: var(--app-width-content);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   /* Full-page records mount directly into the unpadded pane, so without this the
    * record sits flush against the sidebar border and the top of the canvas. This
    * gives the record deliberate breathing room from the global left navigation and
@@ -61,7 +61,7 @@
   margin: 0;
   padding: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -80,11 +80,11 @@
 .record-breadcrumb li + li::before {
   content: "/";
   margin-inline-end: var(--app-space-2);
-  color: var(--md-sys-color-outline);
+  color: var(--dh-color-border-strong);
 }
 
 .record-breadcrumb a {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   text-decoration: none;
 }
 
@@ -94,7 +94,7 @@
 }
 
 .record-breadcrumb [aria-current="page"] {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
@@ -202,8 +202,8 @@
   padding: var(--app-space-px) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   white-space: nowrap;
@@ -213,14 +213,14 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-text-muted);
   flex: none;
 }
 
 .record-status[data-tone="accent"] {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   color: var(--md-sys-color-primary);
-  border-color: var(--md-sys-color-primary-container);
+  border-color: var(--dh-color-accent-subtle);
 }
 .record-status[data-tone="accent"] .record-status__dot {
   background: var(--md-sys-color-primary);
@@ -232,7 +232,7 @@
   border-color: var(--md-sys-color-success-container);
 }
 .record-status[data-tone="success"] .record-status__dot {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 
 .record-status[data-tone="warning"] {
@@ -241,7 +241,7 @@
   border-color: var(--md-sys-color-warning-container);
 }
 .record-status[data-tone="warning"] .record-status__dot {
-  background: var(--md-sys-color-warning);
+  background: var(--dh-color-warning);
 }
 
 .record-status[data-tone="danger"] {
@@ -250,7 +250,7 @@
   border-color: var(--md-sys-color-error-container);
 }
 .record-status[data-tone="danger"] .record-status__dot {
-  background: var(--md-sys-color-error);
+  background: var(--dh-color-danger);
 }
 
 .record-status[data-tone="info"] {
@@ -335,7 +335,7 @@
  */
 .record-action--primary {
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -344,25 +344,29 @@
   }
 }
 
+/*
+ * DS-08 — a record's secondary action is the SECONDARY BUTTON, not a tonal slab.
+ *
+ * DS-02 already made this decision for `.dh-btn--secondary` and stated it as
+ * "the single largest visual change in DS-02": M3's tonal button is a filled
+ * `secondary-container`, and beside a primary action two violet containers of
+ * different saturations make a hierarchy that has to be read rather than seen.
+ * The record header's own action button kept the old paint, so "Complete
+ * project" — the most prominent control on every Project, Goal and Area — was
+ * still the lavender slab on a page whose buttons had all converged. Same
+ * treatment, same token, one control.
+ */
 .record-action--secondary {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-surface);
-  border-color: var(--md-sys-color-outline-variant);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border-strong);
 }
 
 .record-action:disabled,
 .record-action[aria-disabled="true"] {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
+  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
   cursor: not-allowed;
 }
 
@@ -402,16 +406,16 @@
 .record-context-item + .record-context-item::before {
   content: "·";
   margin-inline-end: var(--app-space-2);
-  color: var(--md-sys-color-outline);
+  color: var(--dh-color-border-strong);
 }
 
 .record-context-item__label,
 .record-type__label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .record-context-item__value {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -419,7 +423,7 @@
 /* A subtype ("Vehicle") is context, not a field: it needs no label beside it. */
 .record-context-item--type .record-type__label {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -439,7 +443,7 @@
   flex-direction: column;
   gap: var(--app-space-4);
   padding: var(--app-space-5);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   min-width: 0;
@@ -464,7 +468,7 @@
 }
 
 .record-summary__description {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   line-height: 1.65;
   max-width: var(--app-width-prose);
   overflow-wrap: anywhere;
@@ -497,13 +501,13 @@
 .record-summary__meta-item dt {
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 400;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .record-summary__meta-item dd {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
@@ -571,7 +575,7 @@
   border-bottom: var(--app-border-width-thick) solid transparent;
   margin-bottom: calc(-1 * var(--app-border-width-thin));
   background: none;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -582,18 +586,18 @@
 }
 
 .record-tab:hover {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* Active tab: weight change + underline bar carry the state without colour. */
 .record-tab[data-active="true"] {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
   border-bottom-color: var(--md-sys-color-primary);
 }
 
 .record-tab[data-disabled="true"] {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -604,8 +608,8 @@
   min-width: 1.25rem;
   padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
 }
@@ -626,7 +630,7 @@
 .record-layout__content {
   min-width: 0;
   padding: var(--app-space-5);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
@@ -712,7 +716,7 @@
 .record-content__error {
   padding: var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--md-sys-color-error-container);
-  border-left: var(--app-border-width-thick) solid var(--md-sys-color-error);
+  border-left: var(--app-border-width-thick) solid var(--dh-color-danger);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-sys-color-error-container);
   color: var(--md-sys-color-on-error-container);
@@ -747,9 +751,9 @@
   border-radius: var(--md-sys-shape-corner-small);
   background: linear-gradient(
     90deg,
-    var(--md-app-color-surface-sunken) 0%,
-    color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent) 50%,
-    var(--md-app-color-surface-sunken) 100%
+    var(--dh-color-bg-sunken) 0%,
+    color-mix(in srgb, var(--dh-color-text) 8%, transparent) 50%,
+    var(--dh-color-bg-sunken) 100%
   );
   background-size: 200% 100%;
   animation: record-skeleton-shimmer var(--md-sys-motion-duration-long2) linear
@@ -947,13 +951,13 @@
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* Calm supporting/absent-state prose inside a record section. */
 .dh-record-muted {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -977,7 +981,7 @@
 /* A single calm line: an archived banner, or "nothing active here" stated once. */
 .dh-record-summary-bar__note {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
 }
@@ -1015,11 +1019,11 @@
   line-height: var(--md-sys-typescale-body-small-line-height);
   font-weight: 500;
   letter-spacing: normal;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-record-summary-bar__progress .dh-progress__summary {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
@@ -1036,7 +1040,7 @@
   min-inline-size: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.4;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-record-summary-bar__signal {
@@ -1046,19 +1050,19 @@
 .dh-record-summary-bar__signal + .dh-record-summary-bar__signal::before {
   content: "·";
   margin-inline-end: var(--app-space-2);
-  color: var(--md-sys-color-outline);
+  color: var(--dh-color-border-strong);
 }
 
 .dh-record-summary-bar__signal[data-tone="danger"] {
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
 }
 
 .dh-record-summary-bar__signal[data-tone="warning"] {
-  color: var(--md-sys-color-warning);
+  color: var(--dh-color-warning);
 }
 
 .dh-record-summary-bar__signal[data-tone="success"] {
-  color: var(--md-sys-color-success);
+  color: var(--dh-color-success);
 }
 
 /* Quiet secondary context, same visual weight as the header's context line so a
@@ -1084,16 +1088,16 @@
 .dh-record-summary-bar__fact + .dh-record-summary-bar__fact::before {
   content: "·";
   margin-inline-end: var(--app-space-2);
-  color: var(--md-sys-color-outline);
+  color: var(--dh-color-border-strong);
 }
 
 .dh-record-summary-bar__fact dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-record-summary-bar__fact dd {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -1123,13 +1127,13 @@
 }
 
 .dh-record-details__item dt {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-record-details__item dd {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   overflow-wrap: anywhere;
 }
@@ -1202,7 +1206,7 @@
 .dh-record-summary-bar[data-density="full"] {
   gap: var(--app-space-4);
   padding: var(--app-space-5);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }

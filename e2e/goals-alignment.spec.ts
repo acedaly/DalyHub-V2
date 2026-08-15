@@ -45,7 +45,7 @@ test.describe("AREA-03 — Alignment view", () => {
     const goalUrl = page.url();
 
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New Project" }).first().click();
+    await page.getByRole("link", { name: "New project" }).first().click();
     const newProjectDialog = page.getByRole("dialog", { name: "New Project" });
     const combo = newProjectDialog.getByRole("combobox", {
       name: /Area or Goal/,

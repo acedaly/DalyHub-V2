@@ -34,7 +34,7 @@
   position: sticky;
   top: var(--dh-shell-bar-height);
   z-index: var(--app-z-sticky);
-  background: var(--md-app-color-surface-page);
+  background: var(--dh-color-bg);
 }
 
 @media (max-width: 47.99rem) {
@@ -55,12 +55,50 @@
  * because a flex row with one child lays out identically to a block with one
  * child.
  */
+/* -------------------------------------------------------------------------- */
+/* The ground a collection is drawn ON (DS-04 §29, generalised by DS-08)       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A flat LIST needs a white ground; a grid of CARDS needs a grey one.
+ *
+ * Both concept images make the distinction explicitly and consistently: the
+ * Today dashboard's content area is `#eff0f4` with white cards on it, and the
+ * Tasks screen's is `#fefefe` with rows drawn straight onto it. A
+ * hairline-separated list on a tinted ground has neither the cards' separation
+ * nor the white page's calm, which is why a de-carded list can still read as
+ * "cards, without the cards".
+ *
+ * DS-04 established this and scoped it to `.dh-collection--tasks`, because Tasks
+ * was the module being redesigned. It is a property of the PRESENTATION rather
+ * than of the module, so DS-08 gives it the presentation's name and Areas — the
+ * product's other flat list — opts in by wearing it. `.dh-collection--tasks`
+ * still exists and still scopes the task-row density rules; it no longer owns
+ * the ground.
+ *
+ * The sticky band takes the same surface, so the workspace is one continuous
+ * plane rather than a white list under a grey toolbar.
+ */
+.dh-collection--flat,
+.dh-collection--flat .dh-collection__sticky {
+  background: var(--dh-color-surface);
+}
+
+/*
+ * DS-08 — the control band sits directly under a tightened header.
+ *
+ * DS-04 pulled the top padding off this band for Tasks alone, because the header
+ * above it had lost its stacked count line and the 8px was clearing something
+ * that was no longer there. `shell.css` now tightens every collection's header
+ * the same way, so the band's own padding follows for every collection rather
+ * than for one.
+ */
 .dh-collection__filters {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--app-space-3);
-  padding: var(--app-space-2) var(--app-page-padding) var(--app-space-3);
+  padding: 0 var(--app-page-padding) var(--dh-space-2);
 }
 
 /*
@@ -109,7 +147,7 @@
 .dh-collection__filters :where(label),
 .dh-collection-toolbar :where(.dh-field__label-text) {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -210,7 +248,7 @@
   z-index: var(--app-z-sticky);
   padding: var(--app-space-3) var(--app-page-padding);
   padding-block-end: max(var(--app-space-3), var(--app-safe-area-bottom));
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
@@ -319,14 +357,14 @@
     var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.2;
 }
 
 .dh-filter-chips__label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-filter-chips__value {
@@ -341,13 +379,13 @@
   min-height: var(--app-touch-target-min);
   margin-inline-start: var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   text-decoration: none;
 }
 
 .dh-filter-chips__remove:hover {
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-sunken);
+  color: var(--dh-color-text);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-filter-chips__reset {
@@ -355,7 +393,7 @@
   display: inline-flex;
   align-items: center;
   padding-inline: var(--app-space-2);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -408,7 +446,7 @@
   padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -430,7 +468,7 @@
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 @media (max-width: 48rem) {

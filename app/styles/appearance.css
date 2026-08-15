@@ -42,7 +42,7 @@
 
 .dh-appearance__legend {
   padding: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
   font-weight: var(--md-sys-typescale-label-medium-weight);
@@ -67,7 +67,7 @@
   padding-inline: var(--app-space-3);
   padding-block: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   cursor: pointer;
 }
 
@@ -75,9 +75,25 @@
  * (base.css), applied by the component's class list — never from a second
  * hand-rolled colour-mix here. */
 
+/*
+ * DS-08 — a selected row is a TINT, not a tonal slab.
+ *
+ * `secondary-container` filled the whole 70px row in saturated lavender, on the
+ * one screen the whole-app baseline picked out as "looks like a different
+ * application": four of them stacked in Settings, plus one more on the colour
+ * scheme list below, plus a filled pill in the section nav beside them. Nothing
+ * else in DalyHub paints a selection that way — `--dh-color-surface-selected`
+ * exists precisely because the product decided a selection is "a tint, not a
+ * slab" (tokens.css), and the rail, the menus and the segmented chip all use it.
+ *
+ * No signal is lost, and this is the test that matters for 1.4.1: the row still
+ * carries a REAL radio filled in the accent, and a check glyph at its trailing
+ * edge. Two non-colour signals before the tint is counted at all — which is why
+ * the two `color: inherit` overrides below go with it, and the description stays
+ * the muted role it is on every unselected row.
+ */
 .dh-appearance__option[data-selected="true"] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-surface-selected);
 }
 
 /* The native radio, kept REAL and visible. It is the control's semantics, its
@@ -105,11 +121,11 @@
   display: inline-flex;
   font-size: 1.25rem;
   line-height: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-appearance__option[data-selected="true"] .dh-appearance__glyph {
-  color: inherit;
+  color: var(--dh-color-text);
 }
 
 .dh-appearance__text {
@@ -127,15 +143,11 @@
 }
 
 .dh-appearance__description {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
   text-wrap: pretty;
-}
-
-.dh-appearance__option[data-selected="true"] .dh-appearance__description {
-  color: inherit;
 }
 
 /* Reserved whether or not it is filled, so choosing an option never shifts the
@@ -240,8 +252,7 @@
   border-radius: var(--md-sys-shape-corner-full);
   /* A hairline, so a swatch whose colour is close to the surface it sits on is
    * still a legible shape rather than an invisible circle. */
-  border: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-scheme__swatch--primary {

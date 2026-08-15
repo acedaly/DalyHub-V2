@@ -304,6 +304,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * DS-08 — the document's FALLBACK title.
+ *
+ * Every route that renders normally exports its own `meta`, so until now the
+ * root did not need one. The `ErrorBoundary` below is the case that proves it
+ * did: a mistyped URL matches no route, no route `meta` runs, `<Meta />` emits
+ * nothing, and the document ships with **no `<title>` at all** — which axe
+ * reports as `document-title` and WCAG 2.4.2 counts as a failure. Measured on
+ * `/calendar` (a route DalyHub does not have) during the DS-07 audit.
+ *
+ * A root `meta` is the framework's own answer: a leaf that exports its own
+ * replaces this, so no page title changes, and anything with no match — the 404,
+ * the error boundary — inherits a real one.
+ */
+export function meta(): Route.MetaDescriptors {
+  return [{ title: "DalyHub" }];
+}
+
 export default function App() {
   return <Outlet />;
 }

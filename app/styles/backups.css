@@ -33,14 +33,14 @@
   flex-wrap: wrap;
   gap: var(--app-space-1);
   align-items: baseline;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   /* Never truncated: a half-shown timestamp is worse than a wrapped one. */
   overflow-wrap: anywhere;
 }
 
 .dh-backup-fact__note {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -65,7 +65,7 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 /* The two things a person scans for: when, and whether it worked. */
@@ -78,7 +78,7 @@
 }
 
 .dh-backup-history__when {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-medium-size);
   font-weight: 500;
 }
@@ -99,20 +99,20 @@
 
 .dh-backup-history__fact dt {
   min-inline-size: 4.5rem;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 .dh-backup-history__fact dd {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* The canned failure sentence. Tone is carried by the pill above; this is text. */
 .dh-backup-history__message {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -124,7 +124,7 @@
   min-block-size: var(--app-touch-target-min);
   display: flex;
   align-items: center;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   cursor: pointer;
 }
 
@@ -134,7 +134,7 @@
   outline: none;
   border-radius: var(--md-sys-shape-corner-extra-small);
   box-shadow:
-    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 2px var(--dh-color-surface),
     0 0 0 4px var(--md-sys-color-primary);
 }
 

@@ -97,8 +97,8 @@ html {
 }
 
 body {
-  background: var(--md-app-color-surface-page);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-bg);
+  color: var(--dh-color-text);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.5;
@@ -489,21 +489,13 @@ body {
 }
 
 :where(input, select, textarea)::placeholder {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 :where(input, select, textarea):disabled {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
+  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
   cursor: not-allowed;
 }
 
@@ -604,11 +596,11 @@ body {
   align-items: center;
   gap: var(--app-space-2);
   text-align: center;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-route-error h1 {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-headline-medium-size);
   line-height: var(--md-sys-typescale-headline-medium-line-height);
   font-weight: var(--md-sys-typescale-headline-medium-weight);
@@ -633,12 +625,12 @@ body {
 
 .lead {
   font-size: var(--md-sys-typescale-body-large-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   margin: 0 0 var(--app-space-4);
 }
 
 .muted {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -698,7 +690,7 @@ body {
   margin-top: var(--app-space-6);
   padding: var(--app-space-6);
   max-width: var(--app-width-narrow);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
@@ -709,7 +701,7 @@ body {
   gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   margin: 0 0 var(--app-space-3);
 }
 
@@ -723,7 +715,7 @@ pre {
   padding: var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   font-family: var(--md-ref-typeface-mono);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -797,7 +789,7 @@ pre {
 }
 .markdown-content :is(h4, h5, h6) {
   font-size: var(--app-writing-h4-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -823,7 +815,7 @@ pre {
   padding-inline-start: var(--app-space-4);
   border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -921,15 +913,15 @@ pre {
 .markdown-content :not(pre) > code {
   padding: 0.1em 0.32em;
   border-radius: var(--md-sys-shape-corner-extra-small);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text);
 }
 
 .markdown-content pre {
   margin-block: var(--app-space-4);
   padding: var(--app-space-3) var(--app-space-4);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   overflow-x: auto;
   line-height: 1.55;
   -webkit-overflow-scrolling: touch;
@@ -964,5 +956,5 @@ pre {
 
 .markdown-content th {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }

@@ -114,7 +114,7 @@ test.describe("AREA-01 — Areas", () => {
     await expect(page).toHaveURL(/\/areas\/a-dh\?tab=projects/);
 
     await page.getByRole("link", { name: "Areas" }).click();
-    await page.getByRole("link", { name: "New Area" }).first().click();
+    await page.getByRole("link", { name: "New area" }).first().click();
     const newDialog = page.getByRole("dialog", { name: "New Area" });
     await expect(newDialog).toBeVisible();
     await expectNoAxeViolations(page);
@@ -233,7 +233,7 @@ test.describe("AREA-01 — Areas", () => {
     await gotoFixture(page, "/design/collection-states?state=areas-empty");
     await expect(page.getByText("No Areas yet")).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "New Area" }).first(),
+      page.getByRole("link", { name: "New area" }).first(),
     ).toBeVisible();
     await expectNoAxeViolations(page);
   });

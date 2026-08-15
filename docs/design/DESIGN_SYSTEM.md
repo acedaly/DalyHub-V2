@@ -230,6 +230,49 @@ to tone 97 to pay for it), and depth is reserved for the hero, for a hovered
 interactive card, and for things that genuinely float. A hairline inside a card,
 separating two kinds of content, is still correct — that is what a rule is for.
 
+**DS-05 amended the middle of that** ([D44](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material)).
+The "one device, not three" rule stands and this still spends only one; what
+failed is the premise that the surface step alone is enough. It is, at the seven
+surfaces a record screen draws — it is not at the twelve to twenty a GALLERY does,
+where the eye stops seeing edges and starts seeing a field of
+slightly-different-white rectangles. DS-02 had already conceded this for
+`.dh-dcard`, which left the product with two card boundaries. There is now one,
+everywhere:
+
+```
+a card:   1px --dh-color-border · --dh-radius-md (12) · no shadow
+hover:    the border darkens to --dh-color-border-strong. Nothing moves.
+```
+
+It covers `.dh-pcard`, `.dh-gcard`, `.dh-acard`, `.dh-ecard`, `.dh-dcard`,
+`.dh-stat`, `.dh-today__panel`, `.dh-settings-group` and `.dh-empty-state`. What it
+does NOT flatten is ANATOMY: a Project card still pins its bar to its floor, a
+Goal card still leads with its reading, an Area row is still content-height.
+[§5b](DALYHUB_DESIGN_SYSTEM.md)'s shape distinctions are compositional, and they
+survive losing 4px of corner radius.
+
+**Hover is a border change, not a lift.** The 1px translate plus a shadow was the
+gallery's whole motion budget and it was spent on the wrong thing: a card that
+rises is a card that floats, and these no longer do.
+
+### The collection header, and the create action
+
+Two rules, both established by DS-04 for Tasks alone and generalised by DS-08
+([D47](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material)) once
+the whole-app baseline found one collection header in the product and seven of
+another:
+
+- **The count sits BESIDE the title**, not on a band of its own. One fact, six
+  characters, given a whole row of the calmest band on the page, pushed the first
+  row 154px down a 950px viewport. Lives on `.dh-pane-header--compact`; the RECORD
+  band (`--identity`) is deliberately untouched, because a record's supporting line
+  is a sentence and a sentence belongs under the title.
+- **The create action is `+ New <thing>`** — a leading plus, sentence case, via the
+  shared `CreateActionLabel`. It is a label rather than a button, because the call
+  sites are variously a `DrawerTrigger`, a router `Link` and a plain `button`, and
+  a component that wrapped all three would have to know about drawers, routing and
+  click handlers at once.
+
 Never card-inside-card. `.dh-card-collection--list` already stands its container
 down when it is nested, and Today's panels forbid it outright.
 

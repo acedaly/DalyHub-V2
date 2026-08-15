@@ -53,56 +53,33 @@
  * the same surface so the workspace is one continuous plane rather than a white
  * list under a grey toolbar.
  */
-.dh-collection--tasks,
-/* The sticky band paints its own page colour so content scrolling under it is
- * covered. On this surface that colour is the workspace's. */
-.dh-collection--tasks .dh-collection__sticky {
-  background: var(--dh-color-surface);
-}
+/*
+ * DS-08 — this paint is now `.dh-collection--flat`, in `collection-layout.css`.
+ *
+ * DS-04 scoped it to Tasks because Tasks was the module being redesigned, and
+ * DS-05 needed the identical rule for Areas. A ground is a property of the
+ * PRESENTATION ("this collection is rows, not cards"), not of the module, so the
+ * modifier says that instead. `.dh-collection--tasks` still exists and still
+ * scopes the task-row density rules below; it simply no longer owns the ground.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* The header band (DS-04 §7, §37)                                             */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The count sits BESIDE the title, not under it.
+ * DS-08 — the inline count and the tightened band are no longer Tasks' own.
  *
- * The concept's Tasks screen spends two bands above the first row — a title row
- * and a tab row — and nothing else. DalyHub spent three: a title, a "93 Tasks"
- * line beneath it, then the tabs. That third line is one fact, six characters
- * long, given a whole row of the calmest band on the page, and it pushed the
- * first task 154px down a 950px viewport.
+ * DS-04 introduced both here, scoped to `.dh-collection--tasks`, because Tasks
+ * was the module being redesigned. The whole-app baseline is what settles where
+ * they belong: Tasks read "Tasks  96 Tasks" on one line while Projects, Goals,
+ * Areas, Notes, Meetings, People and Assets each spent a second band on the same
+ * six-character fact — one collection header in the product, seven of another.
  *
- * Setting the title block as a baseline-aligned row recovers the line without
- * removing the count: "Tasks   93 Tasks", which is how the count reads in every
- * reference and is where a reader looks for it anyway. The subtitle keeps its
- * own element, its own `p`, and its own muted role.
+ * The rules now live on `.dh-pane-header--compact` in `shell.css`, which is the
+ * collection band itself, so every collection gets them and none of them has to
+ * know that Tasks went first. Nothing is left here.
  */
-.dh-collection--tasks .dh-pane-header__titles {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-}
-
-.dh-collection--tasks .dh-pane-header__subtitle {
-  margin: 0;
-  white-space: nowrap;
-}
-
-.dh-collection--tasks .dh-pane-header--compact {
-  padding-block: var(--dh-space-4) var(--dh-space-2);
-}
-
-/*
- * The control row's own band, tightened to match. The tabs already carry their
- * own height from `--dh-control-height`; the padding around them was sized for
- * a band that also had to clear a title above it.
- */
-.dh-collection--tasks .dh-collection__filters {
-  padding-block: 0 var(--dh-space-2);
-}
 
 /*
  * "Filter & sort" is a GHOST control, not an outlined box.

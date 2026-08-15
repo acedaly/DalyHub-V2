@@ -35,12 +35,12 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .demo-prose {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -55,10 +55,10 @@
 .demo-toggle {
   min-height: var(--app-control-height-sm);
   padding: 0 var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-raised);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   cursor: pointer;

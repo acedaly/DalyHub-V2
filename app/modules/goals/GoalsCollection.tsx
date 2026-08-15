@@ -49,8 +49,11 @@ import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
-import { SegmentedFilter } from "~/shared/segmented-filter";
-import { ViewSwitcher, type ViewSwitcherOption } from "~/shared/view-switcher";
+import {
+  ViewSwitcher,
+  type ViewSwitcherOption,
+  ViewTabs,
+} from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import {
   alignmentReasonText,
@@ -752,22 +755,40 @@ function GoalsCollection({
        * so they are filters, and the filter band is where Notes' search, People's
        * circles and Assets' tags already are.
        */
+      /*
+       * DS-05 — the status rail is the shared TAB RAIL, not a second capsule.
+       *
+       * UIX-06 settled which SLOT it belongs in (above), and it was right. What
+       * it did not settle is the drawing, and the whole-app baseline is where
+       * that showed: Active/Deleted rendered as a sunken segmented track in the
+       * header's view slot, and All/On track/Needs attention/Completed rendered
+       * as a second sunken segmented track directly beneath it — two controls of
+       * the same shape, stacked, on the calmest band of the page. Tasks and
+       * Projects draw exactly this control as quiet text with a 2px indicator,
+       * which is what both concepts draw, and which is the whole point of having
+       * two presentations: the MODE is a capsule, the FILTER is a rail, and a
+       * reader can tell them apart.
+       *
+       * `ViewTabs` writes the same `?view=` parameter to the same values, so the
+       * URL contract and every count are untouched.
+       */
       filterBar={
         counts.total > 0 ? (
-          <div className="dh-goals-views" data-testid="goals-views">
-            <SegmentedFilter
-              param="view"
-              options={GOAL_COLLECTION_VIEWS.map((option) => ({
-                value: option,
-                label:
-                  option === "all"
-                    ? GOAL_COLLECTION_VIEW_LABELS[option]
-                    : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
-              }))}
-              value={view}
-              label="Filter Goals by status"
-            />
-          </div>
+          <ViewTabs
+            className="dh-goals-views"
+            data-testid="goals-views"
+            param="view"
+            options={GOAL_COLLECTION_VIEWS.map((option) => ({
+              value: option,
+              label:
+                option === "all"
+                  ? GOAL_COLLECTION_VIEW_LABELS[option]
+                  : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
+            }))}
+            value={view}
+            label="Filter Goals by status"
+            defaultValue="all"
+          />
         ) : undefined
       }
       error={

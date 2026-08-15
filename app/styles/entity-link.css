@@ -69,7 +69,7 @@
 
 .dh-entity-relationship__kind {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-entity-relationship__title {

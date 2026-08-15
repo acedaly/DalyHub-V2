@@ -153,7 +153,7 @@ test.describe("MOBILE-01 Diary on a phone", () => {
   /** The pane header's create action (the empty state offers its own copy). */
   const headerCreate = (page: Page) =>
     page.locator(".dh-pane-header").getByRole("button", {
-      name: "New Diary entry",
+      name: "New diary entry",
     });
 
   test("shows exactly one in-page primary create action — no competing FAB", async ({

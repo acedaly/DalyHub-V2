@@ -13,8 +13,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import {
-  CollectionLayout,
   collectionCountLabel,
+  CollectionLayout,
+  CreateActionLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -221,7 +222,7 @@ export function MeetingsCollection({
           // left without one.
           primaryAction={
             <Link className="dh-btn dh-btn--primary" to="/new/meeting">
-              New meeting
+              <CreateActionLabel>New meeting</CreateActionLabel>
             </Link>
           }
         />

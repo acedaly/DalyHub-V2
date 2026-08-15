@@ -22,6 +22,7 @@ import { useNavigate } from "react-router";
 import {
   CollectionLayout,
   collectionCountLabel,
+  CreateActionLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import {
@@ -281,6 +282,9 @@ function NotesCollection({
   const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      // DS-08 — Notes is a flat LIST of hairline-separated rows, so it takes the
+      // white ground D41 gives one. It was drawn on the card grid's grey.
+      className="dh-collection--flat"
       isLoading={isReloading}
       title="Notes"
       subtitle={subtitle}
@@ -332,7 +336,7 @@ function NotesCollection({
               drawerKey={NEW_NOTE_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New Note
+              <CreateActionLabel>New note</CreateActionLabel>
             </DrawerTrigger>
           }
         />

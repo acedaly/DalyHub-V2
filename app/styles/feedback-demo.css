@@ -17,7 +17,7 @@
 
 .fb-demo__header p {
   margin: 0 0 var(--app-space-6);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   max-width: 46rem;
 }
 
@@ -31,7 +31,7 @@
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   padding: var(--app-space-4);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 .fb-demo__panel h2 {
@@ -43,7 +43,7 @@
 .fb-demo__note {
   margin: 0 0 var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .fb-demo__actions {
@@ -55,9 +55,9 @@
 .fb-demo__actions button,
 .fb-demo__row button {
   appearance: none;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-body-small-size);
   min-height: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
@@ -66,11 +66,7 @@
 }
 .fb-demo__actions button:hover,
 .fb-demo__row button:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   border-color: var(--md-sys-color-primary);
 }
 
@@ -95,7 +91,7 @@
 
 .fb-demo__empty,
 .fb-demo__hint {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 

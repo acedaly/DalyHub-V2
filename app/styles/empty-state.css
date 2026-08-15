@@ -19,20 +19,33 @@
  * The card is drawn HERE rather than by each surface, so a module gets it by
  * rendering the shared component and cannot get a different one.
  */
+/*
+ * DS-08 — the card STAYS, and it stops being 260px tall.
+ *
+ * The reasoning above is right and is why this is a proportion fix rather than a
+ * removal: centred in an unbounded region an empty state reads as a hole, and
+ * the card is what says "this is the list, and it is empty". What the whole-app
+ * baseline measured is the SIZE — 260px of full-width surface for a glyph, a
+ * heading, a sentence and a button, on Diary, Meetings, Analytics and Reviews at
+ * once. That is the "large decorative card for an everyday state" the brief
+ * rules out, and 40px of block padding is where it came from.
+ *
+ * UIX-06 removed the border on D1's grounds ("a card is separated by its surface
+ * step"). DS-05 revisited D1 for the whole product and landed the other way: one
+ * card boundary, a hairline and a 12px corner, because a surface step alone
+ * stops being an edge at the count the product actually renders. So the border
+ * comes back — not as this card's own decision, but as every card's.
+ */
 .dh-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: var(--app-space-3);
-  padding: var(--app-space-10) var(--app-page-padding);
-  background: var(--md-app-color-surface-card);
-  /* UIX-06 — D1: a card is separated by its surface step, not by a hairline.
-   * The empty state is the one card in the product that still drew a border, so
-   * on Diary, Meetings, Analytics and Reviews the emptiest screens were also the
-   * only ones with an outlined box on them. */
-  border: none;
-  border-radius: var(--app-shape-card);
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-8) var(--app-page-padding);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
 }
 
 /* The measure applies to the TEXT, not to the card: a 42rem-wide card centred in
@@ -48,8 +61,8 @@
   inline-size: 2.5rem;
   block-size: 2.5rem;
   font-size: var(--md-sys-typescale-title-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-app-color-surface-sunken);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-bg-sunken);
   border-radius: var(--md-sys-shape-corner-full);
 }
 
@@ -92,13 +105,13 @@
   margin: 0;
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: 1.35;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-empty-state__body {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   max-width: 42ch;
 }
 
@@ -134,7 +147,7 @@
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   font-weight: 400;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-empty-state[data-size="inline"] .dh-empty-state__actions {

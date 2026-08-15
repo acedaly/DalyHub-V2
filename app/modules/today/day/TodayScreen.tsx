@@ -812,7 +812,7 @@ export function TodayScreen({
          * track with it: a "Schedule" heading over nothing is chrome.
          */}
         {data.schedule.count > 0 ? (
-          <div className="dh-today__col">
+          <div className="dh-today__col dh-today__col--schedule">
             <section
               className="dh-today__panel"
               aria-labelledby="today-schedule-heading"
@@ -854,7 +854,7 @@ export function TodayScreen({
           </div>
         ) : null}
 
-        <div className="dh-today__col">
+        <div className="dh-today__col dh-today__col--attention">
           <section
             className="dh-today__panel"
             aria-labelledby="today-attention-heading"
@@ -971,25 +971,42 @@ export function TodayScreen({
             </section>
           ) : null}
         </div>
+
+        {/*
+         * DS-06 — Goal progress, as the body grid's last child.
+         *
+         * "Am I making progress?" is the question Today's second half exists to
+         * answer, and both concepts give it a band of its own directly under the
+         * day's work. It is placed by the grid (see `today.css`) into the row
+         * beneath Focus and Schedule, with the attention column spanning past
+         * it — so it fills the hole those two unequal columns leave rather than
+         * starting a new band below everything.
+         *
+         * Last in the DOM, which keeps the phone's hierarchy unchanged:
+         * immediate actions, then what needs a look, then progress. Nothing here
+         * is moved by CSS `order`.
+         */}
+        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
       </div>
 
       {/*
-       * GOAL-02 / UIX-01 — "am I making progress?" and "is my workload moving
-       * in the right direction?", across the full width beneath the day.
+       * DS-06 — the week's trend, across the full width beneath the day.
        *
-       * These used to live inside the day's own column, because the two-column
-       * body would otherwise have started them under the TALLER column and left
-       * dead space. With three regions of comparable height that argument is
-       * gone, and the reference's own composition is the better one: Goal
-       * progress is a ROW of compact measures, and a row wants the page's width,
-       * not a third of it.
+       * Goal progress USED to sit here beside it. It has moved INTO the body
+       * grid above (as its last child, so the reading and tab order are
+       * unchanged) because the three regions were not the "comparable height"
+       * UIX-01 assumed: measured on a real workspace, Focus ran to ~400px,
+       * Schedule to ~130px and the attention column to ~680px, which left a
+       * 500×300px hole in the bottom-left of the fold with Goal progress
+       * stranded below it. The body's grid now spans the attention column across
+       * both rows and lands Goal progress in that hole — the same full-width-ish
+       * row of compact measures, in the space the page already had.
        *
-       * DOM position still keeps the phone's hierarchy — immediate actions, then
-       * what needs a look, then progress. Both sections disappear entirely when
-       * they have nothing to say.
+       * The trend stays here: it is a wide, thin band about the WEEK rather than
+       * the day, it is the last thing on the phone for the same reason, and it
+       * wants the whole page rather than two thirds of it.
        */}
       <div className="dh-today__progress">
-        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
         <ActivityTrendSection trend={data.activityTrend} />
       </div>
     </div>
@@ -1019,7 +1036,7 @@ function GoalProgressSection({
 }) {
   return (
     <section
-      className="dh-today__panel"
+      className="dh-today__panel dh-today__goals"
       aria-labelledby="today-goals-heading"
       data-testid="today-goal-progress"
     >

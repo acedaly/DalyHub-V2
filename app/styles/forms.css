@@ -30,13 +30,13 @@
 .dh-form-section__title {
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   padding: 0 var(--app-space-2);
 }
 
 .dh-form-section__description {
   margin: 0 0 var(--app-space-3);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -94,7 +94,7 @@
   );
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  background: var(--md-app-color-surface-page);
+  background: var(--dh-color-bg);
 }
 
 /*
@@ -182,7 +182,7 @@
   line-height: var(--md-sys-typescale-body-small-line-height);
   font-weight: var(--md-sys-typescale-body-small-weight);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-field__required {
@@ -191,7 +191,7 @@
 }
 
 .dh-field__optional {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 400;
 }
@@ -219,14 +219,14 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-field__length {
   margin: 0;
   align-self: flex-end;
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* The same supporting-text slot, in the error role. It keeps its icon, so an
@@ -240,7 +240,7 @@
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
 }
 
 .dh-field__error-icon {
@@ -251,8 +251,8 @@
   inline-size: 1rem;
   block-size: 1rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-error);
-  color: var(--md-sys-color-on-error);
+  background: var(--dh-color-danger);
+  color: var(--dh-color-text-on-danger);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
 }
@@ -310,15 +310,15 @@
   min-block-size: var(--app-touch-target-min);
   cursor: pointer;
   font-size: var(--md-sys-typescale-body-large-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-boolean__control {
   flex: 0 0 auto;
   display: inline-block;
   position: relative;
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thick) solid var(--md-sys-color-outline);
+  background: var(--dh-color-surface-raised);
+  border: var(--app-border-width-thick) solid var(--dh-color-border-strong);
   transition:
     background var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard),
@@ -351,7 +351,7 @@
   inset-inline-start: 5px;
   inline-size: 5px;
   block-size: 10px;
-  border: solid var(--md-sys-color-on-primary);
+  border: solid var(--dh-color-text-on-accent);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -370,7 +370,7 @@
   inset-inline-start: 2px;
   inline-size: 1rem;
   block-size: 1rem;
-  background: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-text-muted);
   border-radius: var(--md-sys-shape-corner-full);
   transition: transform var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -380,7 +380,7 @@
   .dh-boolean__input:checked
   + .dh-boolean__label
   .dh-boolean__control {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   border-color: var(--md-sys-color-primary);
 }
 
@@ -398,21 +398,13 @@
 }
 
 .dh-boolean__input:disabled + .dh-boolean__label {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-boolean__input:disabled + .dh-boolean__label .dh-boolean__control {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
 }
 
 /* ------------------------------------------------------------------ Tags */
@@ -421,8 +413,8 @@
   inline-size: 100%;
   box-sizing: border-box;
   padding: var(--app-space-1);
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  background: var(--dh-color-surface-raised);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
@@ -446,7 +438,7 @@
   gap: var(--app-space-1);
   padding: var(--app-space-1) var(--app-space-1) var(--app-space-1)
     var(--app-space-2);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   color: var(--md-sys-color-primary);
   border-radius: var(--md-sys-shape-corner-small);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -476,11 +468,7 @@
 
 .dh-tags__chip-remove:hover,
 .dh-select__chip-remove:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-tags__input-item {
@@ -493,7 +481,7 @@
   min-block-size: 2rem;
   border: 0;
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font: inherit;
   font-size: var(--app-field-font-size);
   padding: var(--app-space-1);
@@ -530,18 +518,14 @@
   border: 0;
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   cursor: pointer;
   font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .dh-combobox__clear:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-  color: var(--md-sys-color-on-surface);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+  color: var(--dh-color-text);
 }
 
 .dh-listbox {
@@ -554,15 +538,15 @@
   z-index: var(--app-z-dropdown, 50);
   max-block-size: 16rem;
   overflow-y: auto;
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  background: var(--dh-color-surface-raised);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
   box-shadow: var(--md-sys-elevation-2);
 }
 
 .dh-listbox__status {
   padding: var(--app-space-2) var(--app-space-3);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -574,15 +558,15 @@
   min-block-size: var(--app-touch-target-min);
   border-radius: var(--md-sys-shape-corner-extra-small);
   cursor: pointer;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-listbox__option[data-active="true"] {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 .dh-listbox__option[data-disabled="true"] {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -605,7 +589,7 @@
 
 .dh-listbox__option-desc {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-listbox__option-icon,
@@ -635,9 +619,9 @@
   font: inherit;
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   background: transparent;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   /* UIX-06 — matches `.dh-input`, which is the control it stands in for. */
   border-radius: var(--app-shape-control);
   text-align: start;
@@ -645,12 +629,12 @@
 }
 
 .dh-select-trigger[data-placeholder] .dh-select-trigger__value {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-select-trigger:disabled {
   cursor: not-allowed;
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
 }
 
 /* A long type label wraps inside the trigger rather than widening the page. */
@@ -664,11 +648,11 @@
   flex: none;
   display: inline-flex;
   line-height: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-field--select-sheet[data-invalid] .dh-select-trigger {
-  border-color: var(--md-sys-color-error);
+  border-color: var(--dh-color-danger);
 }
 
 /* Groups are PRESENTATION: a heading over the shared option rows, never data. */
@@ -681,12 +665,12 @@
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-select-sheet__empty {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-select-sheet__clear {
@@ -695,9 +679,9 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
   font: inherit;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   background: transparent;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
 }
@@ -718,7 +702,7 @@
   align-items: center;
   gap: var(--app-space-1);
   padding-inline-start: var(--app-space-2);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -743,7 +727,7 @@
   gap: var(--app-space-2);
   inline-size: 100%;
   padding: var(--app-space-2) var(--app-space-3);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
 }
@@ -757,12 +741,12 @@
 
 .dh-link-picker__link-title {
   overflow-wrap: anywhere;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-link-picker__link-type {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-link-picker__unlink {
@@ -770,24 +754,20 @@
   min-block-size: var(--app-control-height-md);
   padding: var(--app-space-1) var(--app-space-3);
   background: transparent;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   cursor: pointer;
 }
 
 .dh-link-picker__unlink:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-link-picker__unlink:disabled {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -837,7 +817,7 @@
 .dh-link-picker__single-note {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* ------------------------------------------------------------------ Save status */
@@ -854,7 +834,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-save-status[data-status="saved"] .dh-save-status__text {
@@ -884,7 +864,7 @@
   min-block-size: var(--app-control-height-sm);
   padding: var(--app-space-px) var(--app-space-2);
   background: transparent;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
+  border: var(--app-border-width-thin) solid var(--dh-color-danger);
   border-radius: var(--md-sys-shape-corner-extra-small);
   color: var(--md-sys-color-on-error-container);
   cursor: pointer;
@@ -903,7 +883,7 @@
 .dh-form-error-summary {
   padding: var(--app-space-3) var(--app-space-4);
   background: var(--md-sys-color-error-container);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
+  border: var(--app-border-width-thin) solid var(--dh-color-danger);
   border-radius: var(--md-sys-shape-corner-medium);
   color: var(--md-sys-color-on-error-container);
 }
@@ -924,8 +904,8 @@
   inline-size: 1.25rem;
   block-size: 1.25rem;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-error);
-  color: var(--md-sys-color-on-primary);
+  background: var(--dh-color-danger);
+  color: var(--dh-color-text-on-accent);
   font-weight: 500;
 }
 
@@ -981,7 +961,7 @@
 .dh-unsaved-guard__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
 }
 
 .dh-unsaved-guard__dialog {
@@ -989,8 +969,8 @@
   max-inline-size: 26rem;
   inline-size: 100%;
   padding: var(--app-space-5);
-  background: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  background: var(--dh-color-surface-raised);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: var(--md-sys-elevation-3);
 }
@@ -1002,7 +982,7 @@
 
 .dh-unsaved-guard__body {
   margin: 0 0 var(--app-space-4);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-unsaved-guard__actions {

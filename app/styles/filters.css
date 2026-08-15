@@ -48,7 +48,7 @@
 .dh-filter-bar__count {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
 
@@ -72,7 +72,7 @@
 
 .dh-filter-btn--secondary {
   background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   border-color: var(--md-sys-color-outline-variant);
 }
 .dh-filter-btn--secondary:hover {
@@ -81,32 +81,24 @@
 
 .dh-filter-btn--primary {
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  color: var(--dh-color-text-on-accent);
 }
 .dh-filter-btn--primary:hover {
   background: var(--md-sys-color-primary);
 }
 .dh-filter-btn--primary[aria-disabled="true"] {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-filter-btn--ghost {
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 .dh-filter-btn--ghost:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-  color: var(--md-sys-color-on-surface);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+  color: var(--dh-color-text);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -127,7 +119,7 @@
   align-items: center;
   gap: var(--app-space-1);
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   padding: 0 var(--app-space-1);
 }
 
@@ -141,7 +133,7 @@
   max-width: 100%;
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   overflow: hidden;
 }
 
@@ -155,22 +147,18 @@
   border: none;
   cursor: pointer;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   min-width: 0;
 }
 .dh-filter-chip__edit:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-filter-chip__field {
   font-weight: 500;
 }
 .dh-filter-chip__op {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 .dh-filter-chip__value {
   color: var(--md-sys-color-primary);
@@ -191,7 +179,7 @@
   border: none;
   border-inline-start: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   cursor: pointer;
 }
 .dh-filter-chip__remove:hover {
@@ -210,7 +198,7 @@
   inset-inline-start: 0;
   inline-size: min(22rem, calc(100vw - var(--app-space-6)));
   padding: var(--app-space-3);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   box-shadow: var(--md-sys-elevation-3);
@@ -240,7 +228,7 @@
 .dh-filter-editor__label,
 .dh-filter-value__label {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 500;
 }
 
@@ -250,9 +238,9 @@
 .dh-filter-editor__select,
 .dh-filter-value__input {
   font-size: var(--md-sys-typescale-body-medium-size);
-  color: var(--md-sys-color-on-surface);
-  background-color: var(--md-app-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  color: var(--dh-color-text);
+  background-color: var(--dh-color-surface-raised);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--app-shape-control);
   max-width: 100%;
 }
@@ -319,8 +307,8 @@
   min-height: var(--app-control-height-md);
   padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-raised);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   max-width: 12rem;
@@ -349,7 +337,7 @@
   min-height: var(--app-control-height-md);
   padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
   max-width: 10rem;
 }
@@ -367,19 +355,19 @@
   border: var(--app-border-width-thin) dashed
     var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-filter-empty__title {
   margin: 0;
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-filter-empty__description {
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */

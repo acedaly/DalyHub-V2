@@ -143,7 +143,7 @@
  * target — and states it quietly, because an empty optional field is not a
  * problem to be solved. */
 .dh-inline-edit__empty {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-style: italic;
 }
 
@@ -171,7 +171,7 @@
 }
 
 .dh-inline-edit__empty-static {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -260,7 +260,7 @@
 }
 
 .dh-inline-edit__render-error {
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -271,10 +271,10 @@
   inline-size: 100%;
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-small);
-  background: var(--md-app-color-surface-page);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-bg);
+  color: var(--dh-color-text);
   font: inherit;
 }
 
@@ -313,7 +313,7 @@
 }
 
 .dh-inline-edit__hint {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -357,13 +357,13 @@
 }
 
 .dh-inline-edit__pending {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-inline-edit__error {
   margin: var(--app-space-1) 0 0;
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -399,7 +399,7 @@
   flex: 0 0 auto;
   inline-size: var(--app-space-4);
   block-size: var(--app-space-4);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /*
@@ -412,10 +412,9 @@
 .dh-inline-date__popover {
   min-inline-size: var(--app-space-16);
   padding: var(--app-space-1);
-  border: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
 }
 
@@ -430,7 +429,7 @@
   border: none;
   border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font: inherit;
   text-align: start;
   cursor: pointer;
@@ -452,15 +451,14 @@
  * the menu. */
 .dh-inline-select__option[data-clear="true"] {
   margin-block-start: var(--app-space-1);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
   border-start-start-radius: 0;
   border-start-end-radius: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-inline-select__option-description {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 400;
 }
@@ -474,10 +472,9 @@
   margin-block-start: var(--app-space-2);
   padding: var(--app-space-2) var(--app-space-3);
   border: none;
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font: inherit;
   text-align: start;
   cursor: pointer;
@@ -499,7 +496,7 @@
 }
 
 .dh-inline-date__label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
 }

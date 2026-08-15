@@ -33,7 +33,7 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   text-decoration: none;
   color: inherit;
 }
@@ -41,12 +41,12 @@
 .dh-summary-card__icon {
   display: inline-flex;
   align-items: center;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-summary-card__label {
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -54,7 +54,7 @@
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
   line-height: 1.2;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
@@ -69,7 +69,7 @@
 
 .dh-summary-card__detail {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -79,12 +79,8 @@
 }
 
 .dh-summary-card--link:hover {
-  border-color: var(--md-sys-color-outline);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  border-color: var(--dh-color-border-strong);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

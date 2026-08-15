@@ -57,7 +57,7 @@
 
 .dh-brand-lockup__name {
   margin: 0;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -72,7 +72,7 @@
 }
 
 .dh-brand-lockup__tagline {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.2;
 }

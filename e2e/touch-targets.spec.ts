@@ -127,7 +127,7 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
   }) => {
     await gotoFixture(page, "/areas");
     await expectMinTouchTarget(
-      page.getByRole("link", { name: "New Area" }).first(),
+      page.getByRole("link", { name: "New area" }).first(),
     );
 
     await gotoFixture(page, "/areas/a-dh");

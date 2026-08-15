@@ -55,7 +55,7 @@
   padding: var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-raised);
+  background: var(--dh-color-surface-raised);
 }
 
 .dh-card-skeleton--compact {

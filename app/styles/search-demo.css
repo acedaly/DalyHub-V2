@@ -18,17 +18,17 @@
 .dh-design-search h1 {
   margin: 0;
   font-size: var(--md-sys-typescale-headline-small-size);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-design-search p {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   line-height: 1.65;
 }
 
 .dh-design-search__hint {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -41,8 +41,8 @@
 .dh-design-search__actions button {
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-4);
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-app-color-surface-raised);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   font-weight: 500;
@@ -50,12 +50,8 @@
 }
 
 .dh-design-search__actions button:hover {
-  border-color: var(--md-sys-color-outline);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  border-color: var(--dh-color-border-strong);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-design-search code,
@@ -63,6 +59,6 @@
   font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
   padding: 0 var(--app-space-1);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   border-radius: var(--md-sys-shape-corner-extra-small);
 }

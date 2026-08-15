@@ -26,7 +26,7 @@
 }
 
 .dh-progress__label {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-small-size);
   line-height: var(--md-sys-typescale-title-small-line-height);
   font-weight: var(--md-sys-typescale-title-small-weight);
@@ -36,7 +36,7 @@
 /* The authoritative statement of progress. Secondary, never faint: it carries the
  * meaning for anyone who cannot see the bar. */
 .dh-progress__summary {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -67,7 +67,7 @@
 /* Complete is signalled by colour AND by the summary text ("8 of 8 complete"),
  * never by the bar reaching the end alone. */
 .dh-progress__track[data-complete="true"] .dh-progress__fill {
-  background: var(--md-sys-color-success);
+  background: var(--dh-color-success);
 }
 
 @media (prefers-reduced-motion: reduce) {

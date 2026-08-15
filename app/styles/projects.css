@@ -18,12 +18,12 @@ a.dh-btn {
 /* The roll-up progress line in the record Summary. */
 .dh-project-overview__progress {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-project-overview__progress-label {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /* The calm not-found / error panel for an unknown project. */
@@ -38,22 +38,22 @@ a.dh-btn {
   padding: var(--app-space-3) var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
 /* PROJ-05 — a Settings tab read-only value (Area/Goal, workflow status) shown
  * beside its label while a project is archived. */
 .dh-settings-readonly-value {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* PROJ-05 — the calm read-only notice shown in the Drawer in place of a form
  * (Rename / Add task) that would only fail against an archived project. */
 .dh-project-archived-notice {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* PROJ-05 §8 — the "no eligible Area/Goal" guidance in the New Project form. */
@@ -101,7 +101,7 @@ a.dh-btn {
  */
 .dh-project-tasks__error {
   margin: 0 0 var(--app-space-3);
-  color: var(--md-sys-color-error);
+  color: var(--dh-color-danger);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
 }

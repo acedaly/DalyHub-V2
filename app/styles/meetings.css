@@ -22,7 +22,7 @@
   padding: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
 }
 
 .dh-meeting-item__body {
@@ -44,7 +44,7 @@
   gap: var(--app-space-2);
   align-items: center;
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-meeting-item__tag {
@@ -53,7 +53,7 @@
   padding: 0 var(--app-space-2);
   min-block-size: 1.5rem;
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
 }
@@ -78,13 +78,13 @@
 }
 
 .dh-follow-up-group__count {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 400;
 }
 
 .dh-follow-up-empty {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   margin: 0;
 }
 
@@ -115,7 +115,7 @@
 
 .dh-follow-up-row__state {
   font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
 
@@ -163,7 +163,7 @@
   padding-inline-start: max(var(--app-page-padding), var(--app-safe-area-left));
   padding-inline-end: max(var(--app-page-padding), var(--app-safe-area-right));
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   box-shadow: var(--md-sys-elevation-2);
@@ -195,10 +195,10 @@
   justify-content: center;
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-card);
-  color: var(--md-sys-color-on-surface);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -206,11 +206,7 @@
 }
 
 .dh-meeting-capturebar__type:hover {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 /*
@@ -226,13 +222,13 @@
  */
 .dh-meeting-capturebar__type {
   border-color: var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-meeting-capturebar__type[aria-pressed="true"] {
-  border-color: var(--md-sys-color-outline);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface);
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text);
   font-weight: 500;
 }
 
@@ -257,7 +253,7 @@
 .dh-meeting-capturebar__status {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-meeting-capturebar__status:empty {
@@ -394,11 +390,11 @@
 
 .dh-meeting-context__when {
   font-weight: 500;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 .dh-meeting-context__sep {
-  color: var(--md-sys-color-outline);
+  color: var(--dh-color-border-strong);
 }
 
 .dh-meeting-context__people {
@@ -435,8 +431,8 @@
   block-size: var(--app-space-5);
   flex: 0 0 auto;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-app-color-surface-sunken);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 600;
   line-height: 1;
@@ -444,7 +440,7 @@
 }
 
 .dh-meeting-context__more {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-weight: 500;
 }
 
@@ -486,9 +482,8 @@
 .dh-meeting-notebook__heading {
   margin: 0;
   padding-block-end: var(--app-space-1);
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
-  color: var(--md-sys-color-on-surface-variant);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -544,14 +539,13 @@
 }
 
 .dh-meeting-items .dh-meeting-item + .dh-meeting-item {
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-meeting-items .dh-meeting-item__text {
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
 }
 
 /*
@@ -671,7 +665,7 @@
  */
 .dh-meetings-list__day {
   margin: 0 0 var(--app-space-2);
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-small-size);
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -691,8 +685,7 @@
 }
 
 .dh-meetings-list__row + .dh-meetings-list__row {
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-app-color-outline-hairline);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-meetings-list__item {
@@ -709,7 +702,7 @@
 }
 
 .dh-meetings-list__item:hover {
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
 }
 
 /* A fixed leading column, so a day's meetings read DOWN the page as a schedule
@@ -718,7 +711,7 @@
 .dh-meetings-list__time {
   flex: 0 0 auto;
   inline-size: 5rem;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-medium-size);
   font-variant-numeric: tabular-nums;
 }
@@ -745,7 +738,7 @@
 /* §25 — the title dominates. */
 .dh-meetings-list__title {
   display: block;
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 600;
   line-height: 1.35;
@@ -759,7 +752,7 @@
   align-items: baseline;
   gap: var(--app-space-1) var(--app-space-3);
   margin-block-start: var(--app-space-px);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -768,7 +761,7 @@
  * alone (AGENTS.md §15). */
 .dh-meetings-list__status {
   font-weight: 600;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-meetings-list__join {

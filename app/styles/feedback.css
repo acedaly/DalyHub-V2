@@ -68,7 +68,7 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-medium-size);
   padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
@@ -76,12 +76,8 @@
 }
 
 .dh-feedback__dismiss-all:hover {
-  color: var(--md-sys-color-on-surface);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  color: var(--dh-color-text);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-feedback__list {
@@ -248,7 +244,7 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -258,12 +254,8 @@
   cursor: pointer;
 }
 .dh-toast__close:hover {
-  color: var(--md-sys-color-on-surface);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
+  color: var(--dh-color-text);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-toast__spinner {

@@ -20,11 +20,11 @@ import { FeedbackProvider } from "~/shared/feedback";
 /**
  * NOTES-01B/NOTES-01C — the Notes collection as behaviour: cards render as
  * canonical links, the honest subtitle/count, the empty vs error states are
- * calm and distinct, the "New Note" affordance is present, the keyset "Load
+ * calm and distinct, the "New note" affordance is present, the keyset "Load
  * more" affordance appends the next page without duplicating cards or
  * claiming a false total (mirrors `test/unit/projects/ProjectsCollection.test.tsx`),
  * and NOTES-01C's Active/Deleted lifecycle filter: the Deleted view has no
- * "New Note" action, a distinct empty state, and each row offers a one-click
+ * "New note" action, a distinct empty state, and each row offers a one-click
  * Restore instead of an open link (its canonical route 404s once deleted).
  */
 
@@ -158,10 +158,10 @@ describe("Notes collection", () => {
     expect(link).toHaveAttribute("href", "/notes/n1");
     expect(screen.getByText("1 Note")).toBeInTheDocument();
     // Shell cleanup: a POPULATED Notes collection carries no create action of its
-    // own. "New Note" duplicated the global capture control, which is on every
+    // own. "New note" duplicated the global capture control, which is on every
     // page at every width and posts to the same `POST /notes/new` route, so the
     // header stopped spending its most valuable space on a second door.
-    expect(screen.queryByText("New Note")).not.toBeInTheDocument();
+    expect(screen.queryByText("New note")).not.toBeInTheDocument();
   });
 
   it("shows a genuinely-empty state when there are no notes at all", () => {
@@ -170,7 +170,7 @@ describe("Notes collection", () => {
     // The empty state KEEPS its create action. It is the one place a page-level
     // create still earns its keep: there is nothing else on the screen to act on,
     // and an empty state must teach the next action (AGENTS.md §6).
-    expect(screen.getByText("New Note")).toBeInTheDocument();
+    expect(screen.getByText("New note")).toBeInTheDocument();
   });
 
   it("shows a calm, retryable error state distinct from empty", () => {
@@ -234,7 +234,7 @@ describe("Notes collection", () => {
   });
 
   describe("Deleted Notes view (NOTES-01C)", () => {
-    it("shows no 'New Note' action and a distinct filtered-empty state", () => {
+    it("shows no 'New note' action and a distinct filtered-empty state", () => {
       renderCollection({
         notes: [],
         nextCursor: null,
@@ -242,7 +242,7 @@ describe("Notes collection", () => {
         failed: false,
       });
       expect(screen.getByText("No deleted Notes")).toBeInTheDocument();
-      expect(screen.queryByText("New Note")).not.toBeInTheDocument();
+      expect(screen.queryByText("New note")).not.toBeInTheDocument();
       // The generic "No Notes yet" empty state must never leak into this view.
       expect(screen.queryByText("No Notes yet")).not.toBeInTheDocument();
     });

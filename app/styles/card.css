@@ -59,13 +59,13 @@
 .dh-card {
   position: relative;
   /* MOBILE-01 — the surface a sticky child inside this card paints over. */
-  --app-surface-current: var(--md-app-color-surface-card);
+  --app-surface-current: var(--dh-color-surface);
   display: flex;
   align-items: flex-start;
   gap: var(--app-space-3);
   min-width: 0;
   padding: var(--app-space-4) var(--app-space-6);
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
   /*
@@ -105,8 +105,8 @@
 /* Selected state: the primary container fill AND the native checked checkbox —
  * never colour alone. */
 .dh-card[data-selected="true"] {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
 }
 
 /* Optional entity accent: a restrained left rule keyed to the tone. */
@@ -116,15 +116,15 @@
 }
 .dh-card[data-accent="success"] {
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-success);
+    var(--dh-color-success);
 }
 .dh-card[data-accent="warning"] {
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-warning);
+    var(--dh-color-warning);
 }
 .dh-card[data-accent="danger"] {
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-error);
+    var(--dh-color-danger);
 }
 .dh-card[data-accent="info"] {
   border-inline-start: var(--app-border-width-thick) solid
@@ -150,7 +150,7 @@
   min-width: var(--app-space-6);
   min-height: var(--app-space-6);
   padding: var(--app-space-1);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   background: transparent;
   border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
@@ -159,23 +159,19 @@
 }
 
 .dh-card__reorder-handle:hover:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-  color: var(--md-sys-color-on-surface);
+  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+  color: var(--dh-color-text);
 }
 
 .dh-card__reorder-handle[data-grabbed="true"] {
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   border-color: var(--md-sys-color-primary);
   color: var(--md-sys-color-primary);
   cursor: grabbing;
 }
 
 .dh-card__reorder-handle:disabled {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -210,14 +206,14 @@
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
 }
 
 .dh-card__icon {
   display: inline-flex;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-card__status {
@@ -229,15 +225,15 @@
   font-weight: 500;
   border-radius: var(--md-sys-shape-corner-full);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   background: var(--md-sys-color-surface-container-high);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
 
 .dh-card__status[data-tone="accent"] {
   color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   border-color: transparent;
 }
 .dh-card__status[data-tone="success"] {
@@ -298,7 +294,7 @@
 }
 
 .dh-card__open {
-  color: var(--md-sys-color-on-surface);
+  color: var(--dh-color-text);
   text-decoration: none;
   background: none;
   border: none;
@@ -327,12 +323,12 @@
  */
 .dh-card--completed .dh-card__title-text {
   text-decoration: line-through;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-card__subtitle {
   margin: 0;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -341,7 +337,7 @@
 .dh-card__context {
   margin: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -367,7 +363,7 @@
   flex: 1 1 auto;
   min-width: 0;
   height: var(--app-space-2);
-  background: var(--md-app-color-surface-sunken);
+  background: var(--dh-color-bg-sunken);
   border-radius: var(--md-sys-shape-corner-full);
   overflow: hidden;
 }
@@ -383,7 +379,7 @@
 .dh-card__progress-text {
   flex: 0 0 auto;
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -415,19 +411,19 @@
 
 .dh-card__meta {
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .dh-card__meta-label {
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-card__date {
   margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-label-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 .dh-card__date[data-tone="warning"] {
   color: var(--md-sys-color-on-warning-container);
@@ -559,8 +555,8 @@
   min-height: var(--app-control-height-sm);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-surface-variant);
-  background: var(--md-app-color-surface-card);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   text-decoration: none;
@@ -573,23 +569,15 @@
  * state layer cannot express: the content colour lift and the boundary firming
  * from `outline-variant` to `outline`. */
 .dh-card__action:hover:not(:disabled) {
-  color: var(--md-sys-color-on-surface);
-  border-color: var(--md-sys-color-outline);
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border-strong);
 }
 
 .dh-card__action:disabled,
 .dh-card__action[aria-busy="true"] {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
+  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
   cursor: not-allowed;
 }
 
@@ -607,7 +595,7 @@
 .dh-card__action-shortcut {
   font-family: var(--md-ref-typeface-mono);
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -753,7 +741,7 @@
 .dh-card__meta[data-priority="low"] {
   order: 1;
   font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
   opacity: 0.86;
 }
 
@@ -785,7 +773,7 @@
 /* The group: one card, no border, no resting shadow (M3X — separation is the
  * surface step, and the page canvas moved down a tone to pay for it). */
 .dh-card-collection--list {
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: none;
   border-radius: var(--app-shape-card);
   box-shadow: var(--app-elevation-resting);
@@ -848,7 +836,7 @@
   padding-block: var(--app-space-2);
   padding-inline: var(--app-space-4);
   min-block-size: 3.5rem;
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -867,31 +855,23 @@
   border-color: transparent;
   background: color-mix(
     in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    var(--md-app-color-surface-card)
+    var(--dh-color-text) 8%,
+    var(--dh-color-surface)
   );
   box-shadow:
     calc(-1 * var(--app-space-4)) 0 0
-      color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) 8%,
-        var(--md-app-color-surface-card)
-      ),
+      color-mix(in srgb, var(--dh-color-text) 8%, var(--dh-color-surface)),
     var(--app-space-4) 0 0
-      color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) 8%,
-        var(--md-app-color-surface-card)
-      );
+      color-mix(in srgb, var(--dh-color-text) 8%, var(--dh-color-surface));
 }
 
 /* Selection stays a surface + the native checked control, never colour alone. */
 .dh-card-collection--list .dh-card[data-selected="true"] {
   border-color: transparent;
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
   box-shadow:
-    calc(-1 * var(--app-space-6)) 0 0 var(--md-sys-color-primary-container),
-    var(--app-space-6) 0 0 var(--md-sys-color-primary-container);
+    calc(-1 * var(--app-space-6)) 0 0 var(--dh-color-accent-subtle),
+    var(--app-space-6) 0 0 var(--dh-color-accent-subtle);
 }
 
 /* The swipe wrapper owns elevation and shape on a standalone card; inside a row
@@ -1087,7 +1067,7 @@
 .dh-card__meta {
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: 1.35;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--dh-color-text-muted);
 }
 
 .dh-card__metadata {
@@ -1130,7 +1110,7 @@
  */
 .dh-card-collection--grid .dh-card,
 .dh-card-collection--board .dh-card {
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: none;
 }
@@ -1138,7 +1118,7 @@
 .dh-card-collection--grid .dh-card:hover,
 .dh-card-collection--board .dh-card:hover {
   box-shadow: none;
-  border-color: var(--md-sys-color-outline);
+  border-color: var(--dh-color-border-strong);
 }
 
 /*
@@ -1273,7 +1253,7 @@
   z-index: 0;
   display: flex;
   align-items: stretch;
-  background: var(--md-sys-color-primary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 /* UIQ-001 — the tray exists for the swipe gesture, and the gesture only fires
@@ -1319,7 +1299,7 @@
 }
 
 .dh-card__swipe-action:disabled {
-  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
   cursor: not-allowed;
 }
 
@@ -1348,7 +1328,7 @@
  * its ends.
  */
 .dh-region-card {
-  background: var(--md-app-color-surface-card);
+  background: var(--dh-color-surface);
   border: none;
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: var(--app-elevation-resting);
