@@ -78,13 +78,22 @@ const STAMP = iso(now);
 
 /* -- Clear ----------------------------------------------------------------- */
 
+/*
+ * The clear runs in DEPENDENCY ORDER, and every table the seed writes has to be
+ * in it.
+ *
+ * Each detail slice, the spine and the activity join all hold a foreign key onto
+ * `entities` with `ON DELETE RESTRICT`, so a single missing table does not
+ * produce a partial clear — it refuses the `entities` delete outright, and D1
+ * reports the failure against the FIRST statement of the batch rather than the
+ * one that caused it. `area_details` was missing, which is why the first fix to
+ * this block appeared not to work at all.
+ */
 if (clearing) {
   sql([
     `DELETE FROM goal_measurements WHERE workspace_id = ${q(WORKSPACE)} AND id LIKE '${PREFIX}%';`,
     `DELETE FROM goal_milestones WHERE workspace_id = ${q(WORKSPACE)} AND id LIKE '${PREFIX}%';`,
-    `UPDATE goal_details SET measurement_type = NULL, measurement_unit = NULL,
-       measurement_direction = NULL, baseline_value = NULL, target_value = NULL
-     WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
+    `DELETE FROM area_details WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
     `DELETE FROM meeting_details WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
     `DELETE FROM diary_entry_details WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
     `DELETE FROM task_details WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
@@ -93,7 +102,20 @@ if (clearing) {
     `DELETE FROM goal_details WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
     `DELETE FROM entity_links WHERE workspace_id = ${q(WORKSPACE)}
        AND (id LIKE '${PREFIX}%' OR source_entity_id LIKE '${PREFIX}%' OR target_entity_id LIKE '${PREFIX}%');`,
-    `DELETE FROM activities WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
+    /*
+     * Activity, and the ORDER matters. `activity_subjects` holds a composite
+     * foreign key onto `activities` with `ON DELETE RESTRICT`, so the subjects go
+     * first or the parent delete is refused.
+     *
+     * Matched on `activities.id`, not on an `entity_id` column: `activities` has
+     * none (`migrations/0004` — id, workspace_id, type, actor_type, actor_id,
+     * occurred_at, payload_json), and the subject is a row in the join table.
+     * The first version of this line addressed `activities.entity_id` and was
+     * simply invalid SQL, which nothing caught because `--clear` was documented
+     * and never run.
+     */
+    `DELETE FROM activity_subjects WHERE workspace_id = ${q(WORKSPACE)} AND activity_id LIKE '${PREFIX}%';`,
+    `DELETE FROM activities WHERE workspace_id = ${q(WORKSPACE)} AND id LIKE '${PREFIX}%';`,
     `DELETE FROM spine_records WHERE workspace_id = ${q(WORKSPACE)} AND entity_id LIKE '${PREFIX}%';`,
     `DELETE FROM entities WHERE workspace_id = ${q(WORKSPACE)} AND id LIKE '${PREFIX}%';`,
   ]);

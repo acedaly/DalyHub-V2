@@ -201,6 +201,28 @@
   .dh-today__body[data-columns="3"] .dh-today__col--focus {
     grid-column: 1 / -1;
   }
+
+  /*
+   * DS-06 — Goal progress spans the row at EVERY multi-column width.
+   *
+   * The explicit placement below is scoped to `[data-columns="3"]` at 58rem,
+   * which leaves two common cases auto-placed into a single track with a hole
+   * beside them:
+   *
+   *   - a day with NO SCHEDULE (`data-columns="2"`) at any width from 44rem, and
+   *     a schedule-free morning is the ordinary case rather than the exception;
+   *   - a THREE-region day between 44rem and 58rem, where Focus already spans
+   *     and Schedule/attention fill row 2, so Goal progress lands alone in
+   *     row 3 column 1.
+   *
+   * A row of compact measures squeezed into 55% of the body, beside empty
+   * canvas, is the same defect this section was moved to fix. `1 / -1` here is
+   * the default for both; the 58rem block narrows it to `1 / 3` for the
+   * three-column case, where the attention column occupies the third track.
+   */
+  .dh-today__body .dh-today__goals {
+    grid-column: 1 / -1;
+  }
 }
 
 @container today (min-width: 58rem) {

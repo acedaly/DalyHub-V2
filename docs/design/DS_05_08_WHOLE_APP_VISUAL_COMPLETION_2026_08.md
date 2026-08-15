@@ -283,3 +283,52 @@ create-action copy ("New Project"), which D47 deliberately changed. Twenty-four
 E2E spec files had their create-action LOCATORS repointed for the same reason —
 and only the link/button locators, never the `dialog`/`form` titles, which name
 the record type and are a different string.
+
+---
+
+## 11. Review round 1 — four findings, all confirmed
+
+An automated review of PR #178 raised four, and **all four reproduced**. Recorded
+because each is a class of mistake the pass invited.
+
+**P1 — a locator my search-and-replace could not see.** D47's copy change was
+propagated across 24 spec files by matching
+`getByRole("link"|"button", { name: "New X" })` on ONE line.
+`mobile-capture-journeys.spec.ts` wraps the same call across three lines, so its
+`headerCreate` helper — used by three journeys — kept searching for
+`New Diary entry`. The same sweep also missed
+`creation-controls.spec.ts`'s `{ name: /New Note/ }`, which is worse than a
+failure: it is a NEGATIVE assertion ("Notes has no header create"), so a regex
+that no longer matches makes the test pass vacuously. Both fixed; the second now
+matches case-insensitively so it cannot silently stop asserting again.
+
+**P2 — a documented path that was never run.** `--clear` is advertised in the
+script's own header and `DELETE FROM activities … WHERE entity_id LIKE …`
+addressed a column `activities` does not have. Running it exposed two more:
+`activity_subjects` holds an `ON DELETE RESTRICT` key onto `activities` and had
+to go first, and `area_details` was missing from the list entirely — which does
+not partially clear, it refuses the `entities` delete, and D1 attributes the
+failure to the FIRST statement of the batch rather than the cause. Fixed and
+exercised: seed → clear → seed round-trips, and every `dsf-` row is gone.
+
+**P2 — an audit looser than the contract it printed.** The target check compared
+against 40×24 under a comment stating DalyHub's floor is 44px, so a 43×43 control
+passed the audit that exists to check 44. The threshold is now 44 in both
+dimensions — and because raising it alone produces a page of false positives, the
+audit now measures the EFFECTIVE target: the two mechanisms DalyHub actually uses
+for an oversized hit area (a stretched `::after` over a positioned ancestor, and
+a wrapping `<label>`). Findings fell from 23 to 7 at 390px, and the 7 are the
+DS-04-documented ones (D43's 24×24 inline triggers, and row titles whose target
+is the grid cell).
+
+That tightening immediately found something real: **the skip link was 40px tall
+on every page** — clearing WCAG 2.2 AA's 24px, missing DalyHub's own 44px by
+four, on the first control a keyboard or switch user reaches. Fixed.
+
+**P2 — a placement scoped too narrowly.** The Goal-progress grid rules were all
+scoped to `[data-columns="3"]`, so a day with **no schedule** — the ordinary
+morning, not the exception — auto-placed the panel into a single track with an
+empty column beside it, and a three-region day between 44rem and 58rem did the
+same. `1 / -1` is now the default from 44rem, narrowed to `1 / 3` at 58rem where
+the attention column occupies the third track. Verified by moving the fixture's
+only meeting off today and re-capturing.

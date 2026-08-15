@@ -206,7 +206,7 @@ test.describe("removed duplicates — the page header no longer repeats capture"
   test("Notes has no header New Note", async ({ page }) => {
     await gotoFixture(page, "/notes");
     await expect(
-      paneHeader(page).getByRole("button", { name: /New Note/ }),
+      paneHeader(page).getByRole("button", { name: /New note/i }),
     ).toHaveCount(0);
     await expect(
       paneHeader(page).getByRole("heading", { name: "Notes" }),

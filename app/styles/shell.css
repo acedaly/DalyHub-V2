@@ -88,11 +88,24 @@
   }
 }
 
-/* Skip link: off-screen until focused, then visible and in normal flow. */
+/*
+ * Skip link: off-screen until focused, then visible and in normal flow.
+ *
+ * DS-07 — it takes the product's touch floor, like every other control.
+ *
+ * It was 40px tall, from padding alone, on every page. That clears WCAG 2.2 AA's
+ * 24px and misses DalyHub's own 44px promise by four — found once the whole-app
+ * audit was tightened to check the floor it claims to check rather than a looser
+ * pair of numbers. It is the FIRST control a keyboard or switch user reaches, so
+ * it is a poor one to have as the product's only sub-floor target.
+ */
 .skip-link {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
   left: var(--dh-space-2);
-  top: -3rem;
+  top: -4rem;
   z-index: var(--app-z-modal);
   padding: var(--dh-space-2) var(--dh-space-3);
   background: var(--dh-color-accent);
