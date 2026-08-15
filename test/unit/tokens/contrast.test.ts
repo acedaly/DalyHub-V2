@@ -275,14 +275,17 @@ describe.each(SCHEMES)(
     });
 
     /*
-     * DS-03 — THE RAIL, which is the one region whose value does not follow the
-     * appearance.
+     * THE RAIL, whose foregrounds are chosen against ITS surface rather than
+     * against the appearance's.
      *
-     * It is dark in light and dark alike, so nothing about it can be inferred
-     * from "this is the light scheme, so text is dark". Every pair it paints is
-     * therefore asserted explicitly, in both appearances, for all five schemes —
-     * this is precisely the surface where an untested assumption ships as white
-     * text on a white rail, or a violet block nobody can read a label on.
+     * FINAL-UI reversed DS-03: the three approved product concepts draw a
+     * near-WHITE rail beside a white canvas, so the rail follows the appearance
+     * again. What does not change is that nothing about it may be INFERRED from
+     * the appearance — the rail sits two tones under its own canvas in both, and
+     * an assumption about which way its text runs is exactly how this surface
+     * ships as white text on a white rail, or as a violet block nobody can read
+     * a label on. Every pair it paints is asserted explicitly, in both
+     * appearances, for all five schemes.
      */
     it("meets AA for the rail's own foregrounds", () => {
       const rail = scheme["app-surface-rail"];
@@ -303,16 +306,46 @@ describe.each(SCHEMES)(
       ).toBeGreaterThanOrEqual(4.5);
     });
 
-    it("keeps the rail DARK in both appearances", () => {
-      // The claim the whole design rests on, stated as a number so a future
-      // re-tone cannot quietly make the light rail light again. 0.15 relative
-      // luminance is comfortably above any near-black and far below any surface
-      // that would need dark text on it.
+    it("keeps the rail on the SAME side of the ladder as its appearance", () => {
+      /*
+       * FINAL-UI replaces DS-03's "dark in both appearances" with the rule the
+       * approved concepts actually draw, stated as a number for the same reason
+       * the old one was: so a future re-tone cannot quietly flip it back.
+       *
+       * In LIGHT the rail is a near-white frame (the concepts measure it at
+       * roughly #fcfcfc beside a #fefefe canvas); in DARK it is the deepest
+       * surface on the screen. The two thresholds are far apart on purpose —
+       * there is no rail value that satisfies both, which is what makes this a
+       * decision the test records rather than a range it tolerates.
+       */
       const luminance = relativeLuminance(scheme["app-surface-rail"]);
+      if (appearance === "light") {
+        expect(
+          luminance,
+          `${label} — the light rail (${scheme["app-surface-rail"]}) must be near-white`,
+        ).toBeGreaterThan(0.75);
+      } else {
+        expect(
+          luminance,
+          `${label} — the dark rail (${scheme["app-surface-rail"]}) must be near-black`,
+        ).toBeLessThan(0.15);
+      }
+    });
+
+    it("keeps the rail one clear step under its own canvas", () => {
+      /*
+       * The property that survived the re-tone, and the one that makes the rail
+       * the same OBJECT in both appearances now that it is no longer the same
+       * hex: it is recessed relative to the page it frames. Asserted as a
+       * direction plus a floor rather than as a tone, because the five schemes
+       * put the app-neutral palette at five different hues.
+       */
+      const rail = relativeLuminance(scheme["app-surface-rail"]);
+      const page = relativeLuminance(scheme["app-surface-page"]);
       expect(
-        luminance,
-        `${label} — the rail (${scheme["app-surface-rail"]}) must be dark in EVERY appearance`,
-      ).toBeLessThan(0.15);
+        rail,
+        `${label} — the rail (${scheme["app-surface-rail"]}) must recede under the page (${scheme["app-surface-page"]})`,
+      ).toBeLessThan(page);
     });
 
     it("meets AA for the rail's selected destination", () => {
@@ -331,33 +364,44 @@ describe.each(SCHEMES)(
         strength,
       );
 
-      const text = contrastRatio(scheme["app-on-rail"], selected);
+      /*
+       * FINAL-UI — the selected row's foreground is its own generated role, and
+       * this is the pair that has to hold: `on-rail-selected` is the product's
+       * violet in light (readable on a 12% lavender tint) and the rail's light
+       * foreground in dark (readable on an 80% violet block).
+       */
+      const text = contrastRatio(scheme["app-on-rail-selected"], selected);
       expect(
         text,
-        `${label} — on-rail on the selected destination (${selected}) = ${text.toFixed(2)}:1`,
+        `${label} — on-rail-selected on the selected destination (${selected}) = ${text.toFixed(2)}:1`,
       ).toBeGreaterThanOrEqual(4.5);
 
       /*
-       * And it has to read as a BLOCK against the rail it sits in.
+       * And it has to read as a SHAPE against the rail it sits in — with a floor
+       * that depends on which appearance's rail it is sitting in.
        *
-       * The floor is 1.5:1 rather than WCAG 1.4.11's 3:1, for the same reason
-       * the drawer's selected pill above is floored at 1.04 rather than 3: the
-       * fill is not "required to understand the content", because selection is
-       * carried FOUR ways and this is one of them — `aria-current` states it
-       * semantically, the label steps up a weight, the foreground steps from
-       * `on-rail-muted` to `on-rail`, and forced-colours mode replaces the block
-       * with the system `Highlight` outright (asserted in `shell.css`).
+       * Neither floor is WCAG 1.4.11's 3:1, for the same reason the drawer's
+       * selected pill above is floored at 1.04: the fill is not "required to
+       * understand the content", because selection is carried four ways and this
+       * is one of them — `aria-current` states it semantically, the label steps
+       * up a weight, the foreground steps to `on-rail-selected`, and
+       * forced-colours mode replaces the fill with the system `Highlight`
+       * outright (asserted in `shell.css`).
        *
-       * Demanding 3:1 of the fill would demand a selected row roughly as bright
-       * as the label on it, which is the saturated slab DH-DS spent a milestone
-       * removing from the drawer. 1.5 is well above the drawer's floor and is
-       * what the shipped values (1.56–1.71) clear with margin.
+       * DARK keeps DS-03's 1.5: a saturated block on a near-black rail, and the
+       * shipped values clear it with margin. LIGHT takes the DRAWER's 1.04,
+       * because a pale tint on a near-white rail cannot reach 1.5 and must not
+       * try — the approved concepts draw that row at roughly 1.02:1, and a
+       * selected row as loud as 1.5 on a white rail IS the violet slab this pass
+       * removed. What replaces the missing fill contrast is the violet
+       * foreground, which is asserted at 4.5 immediately above.
        */
       const block = contrastRatio(selected, scheme["app-surface-rail"]);
+      const floor = appearance === "light" ? 1.04 : 1.5;
       expect(
         block,
-        `${label} — the selected block (${selected}) against the rail = ${block.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(1.5);
+        `${label} — the selected row (${selected}) against the rail = ${block.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(floor);
     });
 
     it("meets 3:1 for the focus ring on the rail, in the rail's own colour", () => {

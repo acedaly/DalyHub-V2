@@ -228,6 +228,7 @@ export const SCHEME_ROLE_NAMES = [
   "app-on-rail-muted",
   "app-rail-hairline",
   "app-rail-accent",
+  "app-on-rail-selected",
 ] as const;
 
 /** A colour role name. */
@@ -285,7 +286,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
-      "rail-selected": 62,
+      "rail-selected": 12,
     },
     dark: {
       expressive: 28,
@@ -305,7 +306,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
-      "rail-selected": 62,
+      "rail-selected": 12,
     },
     dark: {
       expressive: 28,
@@ -325,7 +326,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
-      "rail-selected": 62,
+      "rail-selected": 12,
     },
     dark: {
       expressive: 22,
@@ -345,7 +346,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
-      "rail-selected": 62,
+      "rail-selected": 12,
     },
     dark: {
       expressive: 28,
@@ -365,7 +366,7 @@ export const COLOR_SCHEME_TINT_STRENGTHS: Record<
       state: 45,
       identity: 100,
       wash: 40,
-      "rail-selected": 62,
+      "rail-selected": 12,
     },
     dark: {
       expressive: 28,
@@ -578,19 +579,20 @@ const VIOLET_LIGHT: SchemeColorMap = {
   "on-accent-cyan": "#ffffff",
   "accent-cyan-container": "#bbe9ff",
   "on-accent-cyan-container": "#001f29",
-  "app-surface-page": "#f7f6fa",
-  "app-surface-navigation": "#fdfbff",
+  "app-surface-page": "#faf9fd",
+  "app-surface-navigation": "#ffffff",
   "app-surface-app-bar": "#ffffff",
   "app-surface-card": "#ffffff",
   "app-surface-card-subtle": "#f4f3f7",
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#eeedf1",
-  "app-outline-hairline": "#e9e7eb",
-  "app-surface-rail": "#222427",
-  "app-on-rail": "#f7f6fa",
-  "app-on-rail-muted": "#b6b5b9",
-  "app-rail-hairline": "#46474a",
+  "app-outline-hairline": "#e6e5e9",
+  "app-surface-rail": "#f4f3f7",
+  "app-on-rail": "#2b2c2f",
+  "app-on-rail-muted": "#626366",
+  "app-rail-hairline": "#e3e2e6",
   "app-rail-accent": "#6326ff",
+  "app-on-rail-selected": "#6326ff",
 };
 
 /** Daly Violet — dark. */
@@ -805,6 +807,7 @@ const VIOLET_DARK: SchemeColorMap = {
   "app-on-rail-muted": "#ababae",
   "app-rail-hairline": "#343538",
   "app-rail-accent": "#4b00d4",
+  "app-on-rail-selected": "#eeedf1",
 };
 
 /** Electric — light. */
@@ -1006,19 +1009,20 @@ const ELECTRIC_LIGHT: SchemeColorMap = {
   "on-accent-cyan": "#ffffff",
   "accent-cyan-container": "#bbe9ff",
   "on-accent-cyan-container": "#001f29",
-  "app-surface-page": "#f6f6fb",
-  "app-surface-navigation": "#fdfcff",
+  "app-surface-page": "#f9f9fe",
+  "app-surface-navigation": "#ffffff",
   "app-surface-app-bar": "#ffffff",
   "app-surface-card": "#ffffff",
   "app-surface-card-subtle": "#f3f3f8",
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#ededf3",
-  "app-outline-hairline": "#e8e8ed",
-  "app-surface-rail": "#222428",
-  "app-on-rail": "#f6f6fb",
-  "app-on-rail-muted": "#b5b6bb",
-  "app-rail-hairline": "#45474b",
+  "app-outline-hairline": "#e5e5ea",
+  "app-surface-rail": "#f3f3f8",
+  "app-on-rail": "#2a2c30",
+  "app-on-rail-muted": "#626368",
+  "app-rail-hairline": "#e2e2e7",
   "app-rail-accent": "#004fe4",
+  "app-on-rail-selected": "#004fe4",
 };
 
 /** Electric — dark. */
@@ -1233,6 +1237,7 @@ const ELECTRIC_DARK: SchemeColorMap = {
   "app-on-rail-muted": "#a5acb8",
   "app-rail-hairline": "#2e353f",
   "app-rail-accent": "#003baf",
+  "app-on-rail-selected": "#e8eefb",
 };
 
 /** Pulse — light. */
@@ -1434,19 +1439,20 @@ const PULSE_LIGHT: SchemeColorMap = {
   "on-accent-cyan": "#ffffff",
   "accent-cyan-container": "#bbe9ff",
   "on-accent-cyan-container": "#001f29",
-  "app-surface-page": "#f9f5f9",
-  "app-surface-navigation": "#fffbff",
+  "app-surface-page": "#fcf8fc",
+  "app-surface-navigation": "#ffffff",
   "app-surface-app-bar": "#ffffff",
   "app-surface-card": "#ffffff",
   "app-surface-card-subtle": "#f6f2f6",
   "app-surface-raised": "#ffffff",
-  "app-surface-sunken": "#f0edf0",
-  "app-outline-hairline": "#ebe7ea",
-  "app-surface-rail": "#242326",
-  "app-on-rail": "#f9f5f9",
-  "app-on-rail-muted": "#b8b5b8",
-  "app-rail-hairline": "#474649",
+  "app-surface-sunken": "#f0edf1",
+  "app-outline-hairline": "#e8e4e8",
+  "app-surface-rail": "#f6f2f6",
+  "app-on-rail": "#2c2c2f",
+  "app-on-rail-muted": "#646266",
+  "app-rail-hairline": "#e5e1e5",
   "app-rail-accent": "#ad009a",
+  "app-on-rail-selected": "#ad009a",
 };
 
 /** Pulse — dark. */
@@ -1661,6 +1667,7 @@ const PULSE_DARK: SchemeColorMap = {
   "app-on-rail-muted": "#adaab1",
   "app-rail-hairline": "#35343a",
   "app-rail-accent": "#840075",
+  "app-on-rail-selected": "#f1ecf4",
 };
 
 /** Ocean — light. */
@@ -1862,19 +1869,20 @@ const OCEAN_LIGHT: SchemeColorMap = {
   "on-accent-cyan": "#ffffff",
   "accent-cyan-container": "#bbe9ff",
   "on-accent-cyan-container": "#001f29",
-  "app-surface-page": "#f6f6f9",
-  "app-surface-navigation": "#fcfcff",
+  "app-surface-page": "#f9f9fc",
+  "app-surface-navigation": "#ffffff",
   "app-surface-app-bar": "#ffffff",
   "app-surface-card": "#ffffff",
   "app-surface-card-subtle": "#f3f3f6",
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#edeef1",
-  "app-outline-hairline": "#e8e8eb",
-  "app-surface-rail": "#222426",
-  "app-on-rail": "#f6f6f9",
-  "app-on-rail-muted": "#b5b6b9",
-  "app-rail-hairline": "#45474a",
+  "app-outline-hairline": "#e5e5e8",
+  "app-surface-rail": "#f3f3f6",
+  "app-on-rail": "#2a2c2f",
+  "app-on-rail-muted": "#626366",
+  "app-rail-hairline": "#e2e2e5",
   "app-rail-accent": "#0062a1",
+  "app-on-rail-selected": "#0062a1",
 };
 
 /** Ocean — dark. */
@@ -2089,6 +2097,7 @@ const OCEAN_DARK: SchemeColorMap = {
   "app-on-rail-muted": "#a6acb2",
   "app-rail-hairline": "#2f363b",
   "app-rail-accent": "#00497a",
+  "app-on-rail-selected": "#e9eef5",
 };
 
 /** Graphite — light. */
@@ -2290,19 +2299,20 @@ const GRAPHITE_LIGHT: SchemeColorMap = {
   "on-accent-cyan": "#ffffff",
   "accent-cyan-container": "#bbe9ff",
   "on-accent-cyan-container": "#001f29",
-  "app-surface-page": "#f8f6f8",
-  "app-surface-navigation": "#fdfcfe",
+  "app-surface-page": "#faf9fb",
+  "app-surface-navigation": "#ffffff",
   "app-surface-app-bar": "#ffffff",
   "app-surface-card": "#ffffff",
   "app-surface-card-subtle": "#f5f3f5",
   "app-surface-raised": "#ffffff",
   "app-surface-sunken": "#efedf0",
-  "app-outline-hairline": "#e9e7ea",
-  "app-surface-rail": "#232426",
-  "app-on-rail": "#f8f6f8",
-  "app-on-rail-muted": "#b6b6b8",
-  "app-rail-hairline": "#464749",
+  "app-outline-hairline": "#e6e5e7",
+  "app-surface-rail": "#f5f3f5",
+  "app-on-rail": "#2b2c2e",
+  "app-on-rail-muted": "#636365",
+  "app-rail-hairline": "#e3e2e4",
   "app-rail-accent": "#595f67",
+  "app-on-rail-selected": "#595f67",
 };
 
 /** Graphite — dark. */
@@ -2517,6 +2527,7 @@ const GRAPHITE_DARK: SchemeColorMap = {
   "app-on-rail-muted": "#ababad",
   "app-rail-hairline": "#343537",
   "app-rail-accent": "#41474f",
+  "app-on-rail-selected": "#efedf0",
 };
 
 /** Every scheme, keyed by scheme then appearance. */

@@ -47,8 +47,9 @@
  *
  * ── The create action is the shared Button ──────────────────────────────────
  * It was a hand-rolled `.dh-topbar__create`: a violet stadium, written before
- * DS-02 existed to write it against. It is now `<Button variant="primary">`,
- * which is the same colour, the same label and the same `openCapture` contract
+ * DS-02 existed to write it against. It is now the shared `<Button>` (at
+ * `secondary` emphasis since FINAL-UI — see the component), with the same label
+ * and the same `openCapture` contract
  * on the one generic path — so it takes D33's control corner, the compact
  * density the application declares, and the shared state layer, and the shell
  * stops being a place where a button is drawn differently from every other
@@ -98,7 +99,21 @@ function TopBarCreate() {
   const ref = useRef<HTMLButtonElement>(null);
   return (
     <Button
-      variant="primary"
+      /*
+       * FINAL-UI — SECONDARY, not primary, and the reason is §73 rather than a
+       * demotion of global capture.
+       *
+       * Two filled violet buttons were on screen at once on every collection in
+       * the product: this one in the frame, and the page's own "+ New task" /
+       * "+ New project" twenty pixels below it. The brief asks for one primary
+       * action per major surface, and the approved concepts are unambiguous
+       * about which one it is — every concept page draws its create action in
+       * the PAGE header and none of them fills the bar's control. The action,
+       * its label, its shortcut, its accessible name and its unconditional touch
+       * target are all unchanged; only the emphasis moved to the surface that
+       * owns the record being created.
+       */
+      variant="secondary"
       ref={ref}
       className="dh-topbar__create"
       data-testid="topbar-create"

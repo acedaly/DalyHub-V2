@@ -145,9 +145,19 @@
    * date column off the right edge (§10: metadata yields before the title, and
    * neither is allowed to break the row).
    */
+  /*
+   * FINAL-UI — the order is DATE, then project, then priority.
+   *
+   * Concepts 2 and 3 both run `title · date · project · priority`, and §22 of
+   * the brief states the emphasis order behind it: after the title, WHEN comes
+   * before WHERE. DS-04 shipped `project · date`, which put the slower-changing
+   * fact first. The DOM order is unchanged (the cells keep their source
+   * positions and are placed by `grid-column`, with `order` handling the phone's
+   * flex composition), so nothing about the accessible reading order moves.
+   */
   --taskrow-lead: auto;
-  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 11rem 6.5rem 4rem 6.5rem
-    1.75rem;
+  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 7rem 10.5rem 4.5rem
+    6.5rem 1.75rem;
 
   display: flex;
   flex-direction: column;
@@ -186,45 +196,6 @@
   list-style: none;
 }
 
-/* -- The column header ----------------------------------------------------- */
-
-.dh-tasklist__columns {
-  display: grid;
-  grid-template-columns: var(--taskrow-columns);
-  align-items: center;
-  gap: var(--dh-control-gap);
-  padding-block: var(--dh-space-2);
-  padding-inline: var(--dh-inset-inline);
-  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
-
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text-muted);
-}
-
-/* The header has no lead cell of its own — the first label sits over the title
- * column, and the completion control's track stays empty. */
-.dh-tasklist__column--task {
-  grid-column: 2;
-}
-
-.dh-tasklist__column--project {
-  grid-column: 3;
-}
-
-.dh-tasklist__column--date {
-  grid-column: 4;
-}
-
-.dh-tasklist__column--priority {
-  grid-column: 5;
-}
-
-.dh-tasklist__column--status {
-  grid-column: 6;
-}
-
 /* -------------------------------------------------------------------------- */
 /* The row                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -249,7 +220,27 @@
   padding-block: 0;
   padding-inline: var(--dh-inset-inline);
 
-  /* A hairline, and nothing else. Not a border box — one edge. */
+  /*
+   * FINAL-UI — the row takes the LIST type role, not the page's body size.
+   *
+   * The row inherited 16px body text, which is the size a paragraph is READ at.
+   * `--dh-text-row-size` is 14px and is defined as "a list row's own line — the
+   * densest text the product asks to be SCANNED"; the approved concepts draw the
+   * task title at exactly that relationship to the row around it. This is what
+   * makes a 36px row hold a title comfortably instead of cramping a 16px one.
+   */
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+
+  /*
+   * A hairline, and nothing else. Not a border box — one edge.
+   *
+   * FINAL-UI kept the hairline and made it QUIETER by moving it inside the
+   * inset, which is what concept 2 draws: the rule runs under the title and the
+   * metadata, not out to the list's own edges, so a group reads as a set of rows
+   * rather than as a table with ruled sides. The last row in a group drops it —
+   * a group is separated from the next by space.
+   */
   border-block-end: var(--dh-border-width) solid var(--dh-color-border);
   background: transparent;
   border-radius: 0;
@@ -438,71 +429,93 @@
   min-inline-size: 0;
 }
 
-.dh-taskrow__cell--project {
+/*
+ * Explicit COLUMN and explicit ROW, both.
+ *
+ * `grid-row: 1` looks redundant beside `grid-column` and is not: the phone
+ * composition below re-orders these cells with `order`, and `order` participates
+ * in grid AUTO-PLACEMENT. A cell placed by column alone is auto-placed in the
+ * block axis, so re-ordering them pushed the date onto a second implicit row and
+ * split every desktop row in two. Pinning the row is what lets one set of cells
+ * be a desktop grid and a phone flex line without a second DOM.
+ */
+.dh-taskrow__cell--due {
   grid-column: 3;
+  grid-row: 1;
 }
 
-.dh-taskrow__cell--due {
+.dh-taskrow__cell--project {
   grid-column: 4;
+  grid-row: 1;
 }
 
 .dh-taskrow__cell--priority {
   grid-column: 5;
+  grid-row: 1;
 }
 
 .dh-taskrow__cell--status {
   grid-column: 6;
+  grid-row: 1;
 }
 
-/* -- The one surviving pill ------------------------------------------------ */
+/* -- The display state, which is no longer a pill -------------------------- */
 
 /*
- * The display state, for the six states nothing else on the row expresses.
+ * FINAL-UI — the last bounded coloured container on the row loses its fill.
  *
- * It is the concept's status chip: a soft tonal wash, the tone's own text
- * colour, a small radius rather than a stadium, and no border. It is the ONLY
- * bounded coloured container left on an ordinary row.
+ * DS-04 kept one pill here and called it "the concept's status chip". Neither
+ * approved Tasks concept draws a status chip at all — concept 2 and concept 3
+ * both run title · date · project · priority and stop. Deleting the state
+ * outright would be the "simpler by being less capable" failure the brief rules
+ * out in §86: "Waiting", "Blocked" and "On hold" are facts about a task that
+ * nothing else on the row expresses, and an owner scanning for what is stuck
+ * needs them.
+ *
+ * So the INFORMATION stays and the CONTAINER goes. The state is now the tone's
+ * own colour set in the row's metadata size, which is how every other piece of
+ * semantic colour on the row already behaves (an overdue date is red text, not a
+ * red box). Fourteen rows on screen lose fourteen filled rectangles, and the two
+ * or three rows that are genuinely waiting still say so.
  */
 .dh-taskrow__state {
   display: inline-flex;
   align-items: center;
   max-inline-size: 100%;
-  padding-inline: var(--dh-space-2);
-  padding-block: var(--dh-space-px);
-  border-radius: var(--dh-radius-sm);
 
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 
   color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface-quiet);
+  background: transparent;
 }
 
-.dh-taskrow__state[data-tone="accent"],
-.dh-taskrow__state[data-tone="primary"],
-.dh-taskrow__state[data-tone="info"] {
-  color: var(--dh-color-accent);
-  background: var(--dh-color-accent-subtle);
-}
+/*
+ * "In progress" is the COMMON case and takes no colour at all.
+ *
+ * `accent`/`primary`/`info` is the tone a task in flight carries, which is most
+ * of the states an open list is full of — and violet is the product's action
+ * colour (§9: primary actions, selected state, progress). Fourteen violet words
+ * down the trailing edge of a list is exactly the "purple tinting the whole
+ * interface" the brief rules out, and it competes with the one violet control
+ * the page is meant to have. The state still says what it says; it says it in
+ * the metadata tone, like the date and the project beside it.
+ */
 
 .dh-taskrow__state[data-tone="success"] {
   color: var(--dh-color-success);
-  background: color-mix(in srgb, var(--dh-color-success) 12%, transparent);
 }
 
 .dh-taskrow__state[data-tone="warning"] {
   color: var(--dh-color-warning);
-  background: color-mix(in srgb, var(--dh-color-warning) 14%, transparent);
 }
 
 .dh-taskrow__state[data-tone="danger"],
 .dh-taskrow__state[data-tone="error"] {
   color: var(--dh-color-danger);
-  background: color-mix(in srgb, var(--dh-color-danger) 12%, transparent);
 }
 
 /* -- The trailing actions -------------------------------------------------- */
@@ -755,49 +768,19 @@
   font-style: italic;
 }
 
-/* -- Priority: a dot and a tag --------------------------------------------- */
+/* -- Priority: the row's own size ------------------------------------------ */
 
 /*
- * The shared `PriorityIndicator` paints a tinted, bounded chip everywhere it is
- * used, and on a row that is a coloured container per task for a two-character
- * fact. The dot already carries the colour and the tag already carries the word,
- * so the container has nothing left to do.
- *
- * The selector is deliberately over-specified against `.dh-priority[data-
- * priority="p1"]` in `task-signals.css`, which is the same weight and later in
- * the cascade. Specificity is the honest fix here rather than reordering the
- * imports: `task-signals.css` owns what a priority IS product-wide, this file
- * owns what it looks like in this one list, and the second should not be able to
- * change the first by moving in the file.
+ * FINAL-UI moved the flag-and-tag anatomy into `task-signals.css`, where it is
+ * now what a priority IS everywhere in the product rather than what it looked
+ * like inside this one list. All that is left here is the SIZE: a row's
+ * metadata size, so the tag sits on the same line as the date and the project
+ * beside it rather than a rung above them.
  */
-.dh-tasklist .dh-priority[data-priority],
 .dh-tasklist .dh-priority {
   gap: var(--dh-space-1);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
   font-size: var(--dh-text-meta-size);
   font-weight: var(--dh-text-label-weight);
-}
-
-/*
- * The `color` is deliberately NOT reset above.
- *
- * `.dh-priority[data-priority="p1"]` sets both the container and its foreground,
- * and the dot is `background: currentColor` — so muting the whole indicator
- * turned four differently-coloured priorities into four identical grey dots, and
- * the row lost the one signal a triaged list is actually scanned by. The
- * container goes; the FOREGROUND stays, the dot keeps it, and only the two-
- * character tag is muted back to the metadata tone.
- */
-.dh-tasklist .dh-priority__tag {
-  color: var(--dh-color-text-muted);
-}
-
-.dh-tasklist .dh-priority__dot {
-  inline-size: var(--dh-space-2);
-  block-size: var(--dh-space-2);
 }
 
 /* -- Inline title editing -------------------------------------------------- */
@@ -906,10 +889,19 @@
 }
 
 /*
- * A heading, a count and a rule. Not a card, not a coloured band, and not the
- * crimson `OVERDUE` the pre-DS-04 screen shouted above every bucket: the row's
- * own date already says a task has slipped, and a heading that repeats it in
- * red is the same fact twice, louder.
+ * FINAL-UI — a heading, a middot and a count. No rule, no band, no small caps.
+ *
+ * Concepts 2 and 3 draw this identically: "Overdue · 2" in red and "Today · 5"
+ * in near-black, both sentence case, both a clear step ABOVE the rows they
+ * label. DS-04 drew a muted uppercase band with a hairline under it and argued
+ * a red heading repeats what the row's date already says; the approved concepts
+ * are the authority for this pass and they say the bucket's state belongs where
+ * the eye lands while scanning.
+ *
+ * The rule under the heading goes with it. A bucket is separated from the one
+ * above by SPACE (`.dh-taskgroup + .dh-taskgroup`), and the rows below the
+ * heading carry their own hairlines — a third line four pixels above the first
+ * of those is a double rule, which is what the baseline measured.
  */
 .dh-taskgroup__header {
   display: flex;
@@ -917,24 +909,42 @@
   gap: var(--dh-space-2);
   padding-block-end: var(--dh-space-2);
   padding-inline: var(--dh-inset-inline);
-  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
 }
 
 .dh-taskgroup__title {
   margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--dh-color-text);
 }
 
+/* The count is the same weight and the same colour as the word it belongs to —
+ * it is part of the heading, not an annotation on it. The middot between them
+ * is the one quiet mark. */
 .dh-taskgroup__count {
-  font-size: var(--dh-text-meta-size);
   font-variant-numeric: var(--dh-font-numeric);
+  color: inherit;
+}
+
+.dh-taskgroup__sep {
   color: var(--dh-color-text-muted);
-  opacity: 0.75;
+  font-weight: 400;
+}
+
+/*
+ * The overdue bucket, which is the only tone.
+ *
+ * `--dh-color-overdue` and not `--dh-color-danger`: a slipped task is a state of
+ * a record, not an application fault, and D3 keeps the two separable so a red
+ * list is never mistaken for a broken one. The middot follows the heading so the
+ * whole line reads as one object.
+ */
+.dh-taskgroup[data-tone="overdue"] .dh-taskgroup__title,
+.dh-taskgroup[data-tone="overdue"] .dh-taskgroup__sep {
+  color: var(--dh-color-overdue);
 }
 
 .dh-taskgroup__more {
@@ -972,13 +982,11 @@
    * to sit in. The header row and the task rows are both descendants, so both
    * are named here.
    */
-  .dh-tasklist__columns,
   .dh-taskrow {
-    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 10rem 6rem 3.5rem
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6.5rem 9.5rem 4rem
       1.75rem;
   }
 
-  .dh-tasklist__column--status,
   .dh-taskrow__cell--status {
     display: none;
   }
@@ -989,9 +997,8 @@
 }
 
 @container tasklist (max-width: 44rem) {
-  .dh-tasklist__columns,
   .dh-taskrow {
-    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 8rem 5.5rem 3.5rem
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 5.5rem 7.5rem 4rem
       1.75rem;
   }
 }
@@ -1012,14 +1019,8 @@
  * width beside them — the exact inversion of §10.
  */
 @container tasklist (max-width: 34rem) {
-  .dh-tasklist__columns,
   .dh-taskrow {
     --taskrow-columns: auto minmax(0, 1fr) auto;
-  }
-
-  /* The header names desktop columns that no longer exist here. */
-  .dh-tasklist__columns {
-    display: none;
   }
 
   .dh-taskrow {
@@ -1073,6 +1074,22 @@
 
   .dh-taskrow__cell {
     grid-column: auto;
+    grid-row: auto;
+  }
+
+  /* FINAL-UI — the phone line is `2:00 pm · Work … P1`, so the date leads here
+   * exactly as it does on the desktop grid. The cells keep their source order
+   * (and so their reading order); only the visual order is swapped. */
+  .dh-taskrow__cell--due {
+    order: 1;
+  }
+
+  .dh-taskrow__cell--project {
+    order: 2;
+  }
+
+  .dh-taskrow__cell--priority {
+    order: 3;
   }
 
   .dh-taskrow__cell--project {
@@ -1084,9 +1101,15 @@
     flex: none;
   }
 
-  /* The separator between the two facts, drawn rather than typed, so it is not
-   * read aloud and disappears when there is only one of them. */
-  .dh-taskrow__cell--due::before {
+  /*
+   * FINAL-UI — the separator moved with the order.
+   *
+   * The phone line is `2:00 pm · Work` in both approved concepts, so the DATE
+   * leads here as it does on the desktop grid and the dot belongs BEFORE the
+   * project rather than before the date. Drawn rather than typed, so it is not
+   * read aloud, and suppressed whenever one side of it is missing.
+   */
+  .dh-taskrow__cell--project::before {
     content: "·";
     margin-inline-end: var(--dh-space-2);
     color: var(--dh-color-border-strong);
@@ -1095,17 +1118,25 @@
   /*
    * The separator disappears when there is nothing on one side of it.
    *
-   * `:empty` was the wrong test: an unset due date is not an empty cell, it is a
-   * cell holding an editor whose label is invisible until the row is engaged
-   * with — so a task with a project and no date printed "Personal ·" with
-   * nothing after the dot. `:has()` asks the question that is actually being
+   * `:empty` alone is the wrong test: an unset date is not an empty cell, it is
+   * a cell holding an editor whose label is invisible until the row is engaged
+   * with — so a task with a project and no date printed "· Personal" with
+   * nothing before the dot. `:has()` asks the question that is actually being
    * asked: does this cell currently show a value?
+   *
+   * The dot now sits on the PROJECT cell while the fact it depends on lives in
+   * the DATE cell — and the date is LATER in the DOM (only the flex `order` was
+   * swapped, not the source). A sibling combinator cannot look backwards, so the
+   * test is hung on the shared parent instead, which can.
    */
-  .dh-taskrow__cell--project:empty + .dh-taskrow__cell--due::before,
-  .dh-taskrow__cell--project:has(.dh-inline-edit__empty)
-    + .dh-taskrow__cell--due::before,
-  .dh-taskrow__cell--due:has(.dh-inline-edit__empty)::before,
-  .dh-taskrow__cell--due:first-child::before {
+  .dh-taskrow__meta:has(.dh-taskrow__cell--due:empty)
+    .dh-taskrow__cell--project::before,
+  .dh-taskrow__meta:has(
+      .dh-taskrow__cell--due:has(.dh-inline-edit__empty)
+    )
+    .dh-taskrow__cell--project::before,
+  .dh-taskrow__cell--project:empty::before,
+  .dh-taskrow__cell--project:has(.dh-inline-edit__empty)::before {
     content: none;
   }
 
@@ -1143,7 +1174,6 @@
  */
 @media (max-width: 47.99rem) {
   .dh-taskgroup__header,
-  .dh-tasklist__columns,
   .dh-taskrow,
   .dh-collection--tasks .dh-tasks-quickadd {
     padding-inline: 0;

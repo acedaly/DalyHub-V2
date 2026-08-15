@@ -1,36 +1,36 @@
 /*
- * DS-03 — the application frame, in DalyHub's own language.
+ * The application frame, in DalyHub's own language.
  *
  * The silhouette is unchanged and deliberately so — a persistent left rail
  * owning identity and navigation, a full-height content pane, and a phone shell
- * that swaps the rail for a bottom bar (PRODUCT_EXPERIENCE #1, #2, #11). What
- * changed is what the frame LOOKS like:
+ * that swaps the rail for a bottom bar (PRODUCT_EXPERIENCE #1, #2, #11):
  *
- *   .dh-sidebar      the rail            — DARK in both appearances, 216px
- *   .dh-nav__link    a destination       — 36px on a cursor, 45 on a finger
+ *   .dh-sidebar      the rail            — NEAR-WHITE in light, 224px
+ *   .dh-nav__link    a destination       — 34px on a cursor, 45 on a finger
  *   .dh-topbar       the desktop bar     — 56px, search LEADING
  *   .dh-topbar__search  the search field — control corner, gutter-aligned
  *   .dh-mobilebar    the phone bar       — 52px, title + one action
  *   .dh-bottomnav    the phone nav bar   — 66px, labelled, unchanged (D15)
  *
- * ── The one idea the rest follows from ───────────────────────────────────────
- * The rail is DARK, in the light appearance as well as the dark one. Both
- * concept references draw DalyHub as a near-black navigation column beside a
- * bright working canvas, and that single inversion is what the product is
- * recognised by before a word of it is read.
+ * ── FINAL-UI reversed the one idea the rest followed from ───────────────────
+ * DS-03 built this file around a rail that is near-BLACK in both appearances,
+ * reading two exploratory references as drawing DalyHub that way. The three
+ * APPROVED product concepts (`concept 1/2/3.png`) draw the opposite, in every
+ * image and at every width: a near-white rail one tone under a white canvas,
+ * one hairline between them, dark labels, and the current destination as a pale
+ * lavender row with a violet label rather than a saturated block. This pass's
+ * governing rule is that the concepts win, so the rail follows the appearance.
  *
- * Everything else in this file is what a dark rail then requires. It cannot
- * borrow `on-surface` for its labels (near-black on near-black), so it has its
- * own foreground pair. It cannot use the drawer's `secondary-container` tint for
- * the selected row (a pale container mixed into near-black is a grey smudge), so
- * the current destination is a violet block. And once the rail carries that much
- * weight, the bar beside it has to get quieter rather than louder — which is why
- * the bar lost 12px, lost its account cluster to the rail, and gained the search
- * field at its leading edge where the page's own content starts.
+ * What survived is the ARCHITECTURE, and that is the point: the rail names its
+ * own surface and its own foregrounds, so the reversal was four numbers in the
+ * generator plus the selection rules below — not a rewrite. The rail still
+ * cannot borrow `on-surface`, because the reason was never "it is dark" but "its
+ * value is chosen against its own surface rather than the appearance's".
  *
  * ── The measurements, and which departures they are ─────────────────────────
- *   - the rail is 216px, not M3's 232–248 (D12, VIS-01, unchanged);
- *   - a destination is 36px of painted row on a fine pointer and the full 45px
+ *   - the rail is 224px, not M3's 232–248 (D12, VIS-01; DS-03's 216 plus the 8px
+ *     the concepts' wider gutter needs now that a row is a quieter object);
+ *   - a destination is 34px of painted row on a fine pointer and the full 45px
  *     target on a coarse one (D12, amended by DS-03 — the rail is the one
  *     navigation surface a finger never touches);
  *   - the phone navigation bar keeps its 66px and its 40×26 indicator (D15);
@@ -38,10 +38,10 @@
  *     media query rather than a preference — nothing persists it.
  *
  * Active navigation is conveyed SEMANTICALLY (`aria-current`) and reinforced by
- * shape, by a weight step and by a foreground that steps to the rail's full
- * text colour — never by colour alone (AGENTS.md §15). Interactive rows grow the
- * one shared `.md-state-layer` (base.css), which paints `currentColor` and is
- * therefore already correct on an inverted surface.
+ * shape, by a weight step and by a foreground that steps to
+ * `--dh-color-rail-text-selected` — never by colour alone (AGENTS.md §15).
+ * Interactive rows grow the one shared `.md-state-layer` (base.css), which
+ * paints `currentColor` and is therefore correct on either rail.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -144,21 +144,23 @@
 }
 
 /*
- * DS-03 — THE RAIL. The one surface in DalyHub that does not follow the
- * appearance.
+ * THE RAIL — near-white in light, near-black in dark, two tones under its own
+ * canvas in both.
  *
- * It is near-black in light and near-black in dark, because both concept
- * references draw it that way and because a frame that is the same object in
- * both appearances is what stops dark mode reading as an inversion of light
- * mode. See `surface-rail` in the generator for the tones and the reasoning.
+ * See `surface-rail` in the generator for the tones and for why FINAL-UI
+ * reversed DS-03's inversion.
  *
  * `color: var(--dh-color-rail-text)` is load-bearing beyond the labels: the
  * shared state layer paints `currentColor`, so declaring the rail's foreground
  * once here is what makes hover, focus and press correct on every control
  * inside it without a single rail-specific state rule.
  *
- * It draws NO edge hairline. Against a bright canvas the tonal step is ~80
- * tones; a 1px rule on top of that separates nothing and reads as a seam.
+ * It DOES draw an edge hairline now, and that is a consequence of the re-tone
+ * rather than a change of mind. DS-03 refused one because the step from a
+ * near-black rail to a bright canvas is ~80 tones and a rule on top of that
+ * separates nothing. The step is now two tones, which is the quiet division the
+ * concepts draw — and at two tones the hairline is the boundary rather than a
+ * seam. The concepts draw it too.
  */
 /*
  * ── The rail does NOT scroll; its destination LIST does ──────────────────────
@@ -195,6 +197,7 @@
   overflow: visible;
   background: var(--dh-color-rail);
   color: var(--dh-color-rail-text);
+  border-inline-end: var(--dh-border-width) solid var(--dh-color-rail-border);
   /* The sticky-surface declaration MOBILE-01 introduced: anything sticky inside
    * the rail needs to know what it is painted on, and cannot ask. */
   --app-surface-current: var(--dh-color-rail);
@@ -442,10 +445,26 @@
   transition: color var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
-/* On the rail, the rail's own foregrounds. The OVERLAY sheet keeps the ordinary
- * ones, because it is painted on the ordinary navigation surface. */
+/*
+ * On the rail, the rail's own foregrounds. The OVERLAY sheet keeps the ordinary
+ * ones, because it is painted on the ordinary navigation surface.
+ *
+ * FINAL-UI — an unselected destination takes the rail's FULL text colour, not
+ * the muted one, and steps up a weight.
+ *
+ * DS-03 muted thirteen rows so the fourteenth could be the one legible thing on
+ * a near-black column. On the near-white rail the approved concepts do the
+ * opposite: every destination is near-black and confident, and what marks the
+ * current one is a violet label on a pale tint. A column of grey labels beside a
+ * white canvas reads as disabled rather than as quiet — which is the failure
+ * mode a light rail has and a dark one does not.
+ *
+ * `--dh-color-rail-text-muted` keeps its job on the account line beneath, where
+ * "quieter than the thing above it" is the actual intent.
+ */
 .dh-sidebar--rail .dh-nav__link {
-  color: var(--dh-color-rail-text-muted);
+  color: var(--dh-color-rail-text);
+  font-weight: 500;
 }
 
 /*
@@ -530,34 +549,33 @@
 }
 
 /*
- * DS-03 — the RAIL's current destination is a violet BLOCK.
+ * The RAIL's current destination — a pale lavender ROW with a violet label.
  *
- * The drawer's answer above cannot transfer, and it is worth being exact about
- * why rather than simply overriding it. `secondary-container` is a pale lilac in
- * light; mixed a third of the way into a near-black rail it resolves to a
- * slightly-warm charcoal — a row that is different from its neighbours and does
- * not read as *chosen*. The concepts draw this row as the one confident piece of
- * colour in the frame, and on a dark surface that means the accent itself.
+ * DS-03 painted a saturated violet block here, which was the right answer for a
+ * near-black rail and is the wrong one for a near-white rail: the same block on
+ * a light frame is the "strong tonal block around every destination" §17 of the
+ * FINAL-UI brief rules out, and the approved concepts draw the row at roughly
+ * 1.02:1 against the rail beside it — a tint you notice only once you are
+ * looking for it, carrying a label you cannot miss.
  *
- * `--dh-color-rail-selected` is `primary` mixed toward the rail at the rail's
- * own strength, so it is the product's colour rather than raw accent, and a
- * louder scheme than Daly Violet does not become louder here.
+ * Both halves come from generated roles rather than from an appearance rule
+ * here, which is what keeps this ONE declaration correct on either rail:
+ * `--dh-color-rail-selected` is the accent mixed toward the rail at the rail's
+ * own per-appearance strength (12% into near-white, 80% into near-black), and
+ * `--dh-color-rail-text-selected` is `primary` in light and the rail's own light
+ * foreground in dark — because violet-on-violet is the least legible pairing on
+ * a dark rail, and grey-on-lavender is not a selection on a light one.
  *
- * It is still never colour alone, and the four signals are the same four:
+ * Never colour alone, and the four signals are unchanged:
  *   - `aria-current="page"` carries it semantically;
- *   - the block is a SHAPE, restored under forced colours below;
+ *   - the row is a SHAPE, restored under forced colours below;
  *   - the label steps up a weight;
- *   - the foreground steps from `rail-text-muted` to `rail-text`.
- *
- * The GLYPH does not take `primary` here, and that is the one signal that had to
- * change: a violet glyph on a violet block is the least legible thing on the
- * rail. It takes the full text colour with the label, which is the same "step
- * up" said in the way this surface can say it.
+ *   - the foreground steps from `rail-text-muted` to `rail-text-selected`.
  */
 .dh-sidebar--rail .dh-nav__link--active,
 .dh-sidebar--rail .dh-nav__link[aria-current="page"] {
   background: var(--dh-color-rail-selected);
-  color: var(--dh-color-rail-text);
+  color: var(--dh-color-rail-text-selected);
 }
 
 .dh-sidebar--rail .dh-nav__link--active .dh-nav__icon,
@@ -680,18 +698,22 @@
  * rules put four hard rules down the side of every screen. The group gap does
  * most of the work; the line only confirms it. */
 /*
- * VIS-01 — the grouping is SPACE, and the rule is gone.
+ * FINAL-UI — the group divider comes back, on the RAIL only.
  *
- * The comment above already said "the group gap does most of the work; the line
- * only confirms it". Having compared the drawer with the reference, the line
- * does not confirm it — it competes with it: three full-width rules down a
- * 216px column read as structure the owner has to parse, on a region that
- * should be scanned. The gap that replaces each one is larger than the gap it
- * had, so the grouping is if anything more legible.
+ * VIS-01 deleted it against a dark rail, where "three full-width rules down a
+ * 216px column read as structure the owner has to parse". That was true of a
+ * near-black column: a light rule on near-black is a high-contrast line and it
+ * competed with the destinations either side of it.
  *
- * The element stays (it is a real `<hr>` a screen reader announces as a
- * separator between groups the registry genuinely defines) — it simply draws
- * nothing.
+ * On the near-white rail the same element is a hairline two tones from its
+ * surface, and both concept 1 and concept 3 draw it — between Tasks and
+ * Projects, and between Areas and Notes. At this contrast it does what the
+ * VIS-01 note wanted it to do and could not: it CONFIRMS the gap instead of
+ * replacing it. The gap stays exactly as large as it was.
+ *
+ * The OVERLAY sheet keeps space alone. It is a full-width phone surface where
+ * the rhythm is unambiguous, and a phone sheet with rules in it is a settings
+ * screen.
  */
 .dh-nav__divider {
   margin-block: var(--dh-space-3);
@@ -701,6 +723,10 @@
 .dh-nav__divider hr {
   border: none;
   margin: 0;
+}
+
+.dh-sidebar--rail .dh-nav__divider hr {
+  border-block-start: var(--dh-border-width) solid var(--dh-color-rail-border);
 }
 
 .dh-sidebar__spacer {
