@@ -129,7 +129,7 @@ import {
   type ContinueProject,
 } from "./attention-view";
 import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
-import { goalNeedsAttention } from "~/shared/goal-progress";
+import { goalIsOnTrack } from "~/shared/goal-progress";
 
 import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
 import { activityTrendSummary, weekdayLabel } from "./trend-view";
@@ -409,33 +409,54 @@ function TodaySummary({
   }[] = [];
 
   if (trend !== null) {
-    // "+8 from last week" only when there IS a last week to compare with.
+    /*
+     * The window is a ROLLING seven days ending today, not the calendar week,
+     * so it is named that way.
+     *
+     * The reference's card reads "this week", and copying that wording would
+     * have been a small lie with a real cost: read on a Wednesday, "this week"
+     * means three days to the owner and seven to the query, and the comparison
+     * underneath it would be measuring a full week against a partial one. The
+     * chart beside it has always been a rolling seven days for good reasons —
+     * a calendar week would give it one bar on a Monday — so the honest fix is
+     * the label rather than the window.
+     */
     const delta =
       trend.previousCompleted === null
         ? null
         : trend.totalCompleted - trend.previousCompleted;
     measures.push({
       id: "completed",
-      label: "Tasks completed this week",
+      label: "Tasks completed",
       value: String(trend.totalCompleted),
       note:
         delta === null
-          ? "This week"
+          ? "Last 7 days"
           : delta === 0
-            ? "Same as last week"
-            : `${delta > 0 ? "+" : "−"}${Math.abs(delta)} from last week`,
+            ? "Last 7 days · level with the previous 7"
+            : `Last 7 days · ${delta > 0 ? "+" : "−"}${Math.abs(delta)} on the previous 7`,
     });
     measures.push({
       id: "captured",
-      label: "Tasks captured this week",
+      label: "Tasks captured",
       value: String(trend.totalCreated),
-      note: "This week",
+      note: "Last 7 days",
     });
   }
 
   if (goals.length > 0) {
-    const onTrack = goals.filter(
-      (goal) => !goalNeedsAttention(goal.progress.status),
+    /*
+     * `goalIsOnTrack`, NOT `!goalNeedsAttention`.
+     *
+     * The evaluator has nine statuses and only two of them need attention, so
+     * the negation counted "no measurement configured", "nothing recorded yet"
+     * and "stale" as on track — which is how this card read "4 of 4" against a
+     * set of Goals that were mostly not being measured. The predicate lives
+     * beside `goalNeedsAttention` in `~/shared/goal-progress` so the definition
+     * of "on track" is one definition rather than this screen's opinion.
+     */
+    const onTrack = goals.filter((goal) =>
+      goalIsOnTrack(goal.progress.status),
     ).length;
     measures.push({
       id: "goals",

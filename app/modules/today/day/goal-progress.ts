@@ -207,7 +207,11 @@ export interface TodayActivityTrend {
   readonly totalCompleted: number;
   /**
    * Completions in the seven days BEFORE the window above, so the summary can
-   * say "+8 from last week" from a real reading rather than a flourish.
+   * say "+8 on the previous 7" from a real reading rather than a flourish.
+   *
+   * Both windows are ROLLING seven-day spans ending today, not calendar weeks —
+   * which is why every surface that states them says "7 days" rather than "this
+   * week". A calendar week would leave the chart with a single bar on a Monday.
    *
    * `null` when the earlier week could not be read at all (a DST-collapsed
    * boundary skipped every day of it) — never a fabricated zero, because zero
@@ -236,10 +240,12 @@ export async function loadActivityTrend(
   /*
    * FOURTEEN days are read, and only the last seven are charted.
    *
-   * The summary strip states the week's completions AND how that compares with
-   * the week before, which is the shape the reference draws and the only version
-   * of the number that means anything on its own — "24 completed" is not a
-   * signal until you know last week was 16. The extra week costs the same single
+   * The summary strip states the last seven days' completions AND how that
+   * compares with the seven before, which is the shape the reference draws and
+   * the only version of the number that means anything on its own — "24
+   * completed" is not a signal until you know the week before was 16. Both
+   * spans are rolling rather than calendar weeks, and every label that states
+   * them says so. The extra week costs the same single
    * bounded query (`countTaskActivityByDay` takes the day list), so there is no
    * second round trip and no new repository method.
    */
