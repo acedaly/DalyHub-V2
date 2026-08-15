@@ -61,10 +61,7 @@ import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
-import {
-  TaskGroup,
-  TaskList,
-} from "~/shared/task-record/TaskList";
+import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";

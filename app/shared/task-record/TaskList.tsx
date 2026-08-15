@@ -170,7 +170,10 @@ export function TaskGroup({
          * "Overdue 2" — which is what a screen reader should hear.
          */}
         <Heading className="dh-taskgroup__title">
-          {title} <span className="dh-taskgroup__sep" aria-hidden="true">·</span>{" "}
+          {title}{" "}
+          <span className="dh-taskgroup__sep" aria-hidden="true">
+            ·
+          </span>{" "}
           <span className="dh-taskgroup__count">{count}</span>
         </Heading>
         {moreHref !== null ? (

@@ -74,11 +74,24 @@
  * replaced, and forcing one line would mean fixing widths that a longer
  * placeholder or a wider font would break again.
  */
+/*
+ * FINAL-UI — the group GROWS inside the shared filter band.
+ *
+ * It is a flex item of `.dh-collection__filters` and declared no `flex`, so it
+ * was sized shrink-to-fit — about 17rem, the width of the search field alone.
+ * Its two children then had 27rem of `flex-basis` to place in it and did the
+ * only thing they could: they wrapped. MEASURED at 1440 on `/assets`, where the
+ * comment below ("Search and tag share ONE line") described an intention the
+ * layout could not carry out, and "Filter & sort" sat marooned in the gap
+ * beside a two-line stack.
+ */
 .dh-assets-filters {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: var(--app-space-3);
   align-items: center;
+  min-inline-size: 0;
   max-inline-size: 100%;
 }
 

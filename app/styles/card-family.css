@@ -2755,14 +2755,25 @@
 }
 
 /*
- * The outcome, at display size. It is the largest thing on the card because it
- * is the thing the owner set out to change — the percentage is a derivation of
- * it and is drawn small, which is the exact inversion of the Project card.
+ * The outcome — the largest thing on the card, and FINAL-UI made it smaller.
+ *
+ * The principle is unchanged and it is the right one: the reading is the thing
+ * the owner set out to change, and the percentage is a derivation of it, so the
+ * two are drawn in the opposite proportion to the Project card. What changed is
+ * the size. At `headline-small` (24px) the reading was the largest type in the
+ * entire application on a screen that shows ten of them, and it forced the card
+ * to ~235px for six facts.
+ *
+ * Concept 1's Goal card draws the reading at roughly its title's size and lets
+ * the CHART and the BAR carry the visual weight — "79.0 kg → 70 kg", a
+ * sparkline, a bar with 61% at its end, then "Lost 6.0 kg" and the target date,
+ * in ~150px. `title-large` emphasized is that relationship: still the biggest
+ * thing on the card, still a figure you read first, no longer a headline.
  */
 .dh-gcard__value {
-  font-size: var(--md-sys-typescale-headline-small-size);
-  line-height: var(--md-sys-typescale-headline-small-line-height);
-  font-weight: var(--md-sys-typescale-headline-small-weight);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight-emphasized);
   color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;

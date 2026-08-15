@@ -93,12 +93,31 @@
  * the same way, so the band's own padding follows for every collection rather
  * than for one.
  */
+/*
+ * FINAL-UI — the band is CENTRED, and its trailing control is pushed right.
+ *
+ * `flex-end` aligned a 36px button to the baseline of a 36px field, which is
+ * the same thing while both are one line and visibly wrong the moment one of
+ * them wraps. Centring is what a row of controls of unequal height wants, and
+ * the auto margin puts "Filter & sort" at the trailing edge where every concept
+ * clusters the controls that SHAPE a list — rather than immediately after
+ * whatever happens to precede it.
+ */
 .dh-collection__filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--app-space-3);
   padding: 0 var(--app-page-padding) var(--dh-space-2);
+}
+
+/*
+ * The controls that SHAPE the list go to the trailing edge, which is where all
+ * three concepts cluster them (Filter · Sort · View, right of the search field).
+ */
+.dh-collection__filters > .dh-collection-controls,
+.dh-collection__mobile-controls > .dh-collection-controls {
+  margin-inline-start: auto;
 }
 
 /*
@@ -304,8 +323,21 @@
     flex: 1 0 100%;
   }
 
+  /*
+   * FINAL-UI — the module's filter band GROWS into the row it shares.
+   *
+   * `flex: 0 1 auto` sized it shrink-to-fit, which is right for Tasks (one
+   * saved-view trigger) and wrong for any module that puts two controls in it.
+   * MEASURED at 1440 on `/assets`: the band was 405px inside a 1224px pane, so
+   * its 17rem search field and 10rem tag field — which `assets.css` explicitly
+   * intends to share ONE line — wrapped onto two, and "Filter & sort" sat
+   * marooned in the gap beside them. Growing costs Tasks nothing (a single
+   * trigger in a wider box is in the same place) and gives every other module
+   * the row its controls were written for.
+   */
   .dh-collection--persistent-controls .dh-collection__filters {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
+    min-inline-size: 0;
     padding-block: var(--app-space-3);
     padding-inline-end: var(--app-space-3);
   }

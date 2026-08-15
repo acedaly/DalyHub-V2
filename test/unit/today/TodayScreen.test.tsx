@@ -446,9 +446,16 @@ describe("the day timeline", () => {
   it("carries the day's first actionable row above the laptop fold", () => {
     /*
      * A position guard, not a pixel test. The reading order is the greeting, the
-     * day's figures, then the day — at every width, because nothing on this
-     * screen is moved by CSS `order`. If a band is ever added between them the
-     * sequence changes and this fails.
+     * DAY, and only then the day's figures — at every width, because nothing on
+     * this screen is moved by CSS `order`. If a band is ever added between the
+     * greeting and the first task the sequence changes and this fails.
+     *
+     * FINAL-UI swapped the last two. §45 of the brief is the rule the concepts
+     * state ("do not put decorative stats before actionable content") and
+     * concept 1's Today is drawn that way: the day's tasks and its schedule
+     * open the page, and the two small measures sit at the bottom. The figures
+     * cost the fold ~110px of the owner's actual work, which is the opposite of
+     * what a test named for the laptop fold should be protecting.
      */
     const { container } = renderScreen(
       day({
@@ -457,7 +464,7 @@ describe("the day timeline", () => {
       }),
     );
     const surface = container.querySelector(".dh-today")!;
-    const roles = ["dh-today__head", "dh-stat-row", "dh-today__timeline"];
+    const roles = ["dh-today__head", "dh-today__timeline", "dh-stat-row"];
     const blocks = [...surface.querySelectorAll("*")]
       .map((node) => roles.find((role) => node.classList.contains(role)))
       .filter((role): role is string => role !== undefined);

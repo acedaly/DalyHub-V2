@@ -1131,9 +1131,7 @@
    */
   .dh-taskrow__meta:has(.dh-taskrow__cell--due:empty)
     .dh-taskrow__cell--project::before,
-  .dh-taskrow__meta:has(
-      .dh-taskrow__cell--due:has(.dh-inline-edit__empty)
-    )
+  .dh-taskrow__meta:has(.dh-taskrow__cell--due:has(.dh-inline-edit__empty))
     .dh-taskrow__cell--project::before,
   .dh-taskrow__cell--project:empty::before,
   .dh-taskrow__cell--project:has(.dh-inline-edit__empty)::before {
