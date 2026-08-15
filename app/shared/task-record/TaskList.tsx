@@ -10,9 +10,9 @@
  *     — which is what a screen reader needs to say "list, 24 items" instead of
  *     reading a wall of divs.
  *   - **`TaskGroup`** draws a server-authoritative bucket. The heading is a
- *     word, a middot and a count, and NOT a card: wrapping each group in a
+ *     chevron, a word and a count, and NOT a card: wrapping each group in a
  *     bounded surface is most of what made the old screen read as a stack of
- *     panels rather than as one list (DS-04 §24).
+ *     panels rather than as one list (DS-04 §24). The chevron folds the bucket.
  *
  * FINAL-UI removed the column KEY. Neither approved Tasks concept draws one, and
  * it was `aria-hidden` decoration in the first place — every cell inside a row
@@ -22,9 +22,10 @@
  * the list read as a data grid rather than as the owner's work.
  */
 
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
+import { ChevronDownIcon } from "~/shared/icons";
 import type { TaskDensity } from "~/kernel/task-views";
 
 /**
@@ -96,12 +97,13 @@ export interface TaskGroupProps {
   /** "View all N", when the bucket holds more than the slice. */
   readonly moreHref?: string | null;
   /**
-   * FINAL-UI — the bucket's STATE, which the heading carries as colour.
+   * The bucket's STATE, as a data attribute on the section.
    *
-   * `overdue` is the only non-default tone, and it is a bucket-level fact rather
-   * than a row-level one: every task under an "Overdue" heading has slipped, so
-   * the heading can say it once instead of every row saying it again. Anything
-   * else — Today, Upcoming, a project bucket, a priority bucket — is `default`.
+   * `overdue` is the only non-default tone. It no longer colours the heading —
+   * the references keep every heading the same near-black and put the red on
+   * each row's own date — but it stays declared, because it is a true fact about
+   * the bucket that forced-colours rules and tests read. Anything else — Today,
+   * Upcoming, a project bucket, a priority bucket — is `default`.
    */
   readonly tone?: "default" | "overdue";
   /**
@@ -124,6 +126,8 @@ export function TaskGroup({
   children,
 }: TaskGroupProps) {
   const Heading = `h${headingLevel}` as const;
+  const [collapsed, setCollapsed] = useState(false);
+  const bodyId = `${useId()}-taskgroup-body`;
   return (
     /*
      * A NAMED region, so the bucket is a navigable landmark.
@@ -140,42 +144,66 @@ export function TaskGroup({
     >
       <div className="dh-taskgroup__header">
         {/*
-         * The count is INSIDE the heading, and it is a FIGURE rather than a
-         * badge: "OVERDUE 15", not "Overdue (15)". Brackets around a number
-         * read as a debugger printing a length, and a coloured pill here was
-         * one of the loudest objects on the pre-DS-04 screen — on a page whose
-         * job is to be calm.
+         * The DISCLOSURE — a real button wrapping the chevron and the heading.
          *
-         * Inside, because a heading a screen reader announces as "Overdue"
-         * while the eye reads "Overdue 15" is two different headings. The
-         * explicit space matters for the same reason: the gap to the figure is
-         * CSS margin, and a screen reader cannot see margin, so without it the
-         * accessible name is "Overdue15".
+         * The references put a chevron at the head of every bucket, and a list
+         * that groups by due state is exactly the list someone wants to fold: an
+         * owner clearing Today does not want forty Upcoming rows under it.
+         *
+         * The whole "chevron + Overdue 2" run is the control, because a 16px
+         * chevron is a poor target and a heading that looks clickable but is not
+         * is worse. The heading element stays INSIDE the button so the document
+         * outline is unchanged and the accessible name is the bucket and its
+         * count — the button adds `aria-expanded`, not a second name.
+         *
+         * Collapse is view state, not a preference: it lives here and resets on
+         * navigation, which is what makes it safe to offer without persisting a
+         * per-bucket setting the owner never asked for.
          */}
-        {/*
-         * FINAL-UI — the separator is a MIDDOT, and the state is a colour.
-         *
-         * Concepts 2 and 3 draw this heading identically and draw it twice:
-         * "Overdue · 2" in red, "Today · 5" in near-black, both sentence case
-         * and both a step above the rows rather than a small-caps band under
-         * them. DS-04 chose the opposite on the argument that a red heading
-         * repeats what the row's own date already says — the approved concepts
-         * disagree, and they are this pass's authority. The heading is the one
-         * place a bucket's state is legible while SCANNING; the date is where it
-         * is legible while reading.
-         *
-         * The middot is inside the heading and separated by real spaces for the
-         * same reason the count is: an accessible name of "Overdue2" is what a
-         * CSS-only separator produces, and `aria-hidden` on the dot would leave
-         * "Overdue 2" — which is what a screen reader should hear.
-         */}
-        <Heading className="dh-taskgroup__title">
-          {title}{" "}
-          <span className="dh-taskgroup__sep" aria-hidden="true">
-            ·
-          </span>{" "}
-          <span className="dh-taskgroup__count">{count}</span>
-        </Heading>
+        <button
+          type="button"
+          className="dh-taskgroup__disclosure"
+          aria-expanded={!collapsed}
+          aria-controls={bodyId}
+          onClick={() => setCollapsed((open) => !open)}
+        >
+          {/*
+           * The count is INSIDE the heading, and it is a FIGURE rather than a
+           * badge: "OVERDUE 15", not "Overdue (15)". Brackets around a number
+           * read as a debugger printing a length, and a coloured pill here was
+           * one of the loudest objects on the pre-DS-04 screen — on a page whose
+           * job is to be calm.
+           *
+           * Inside, because a heading a screen reader announces as "Overdue"
+           * while the eye reads "Overdue 15" is two different headings. The
+           * explicit space matters for the same reason: the gap to the figure is
+           * CSS margin, and a screen reader cannot see margin, so without it the
+           * accessible name is "Overdue15".
+           */}
+          {/*
+           * The heading is INK, the count is muted, and there is no separator.
+           *
+           * An earlier pass drew "Overdue · 2" in red on the reading that a
+           * bucket's state should be legible while scanning. The current visual
+           * references draw every heading the same near-black — "Overdue 2",
+           * "Today 6", "Upcoming 8" — and put the red on the ROW's date instead,
+           * where it belongs: the state is a property of each task's deadline, and
+           * a whole heading in red is the "do not colour an entire section red"
+           * the brief rules out. Sampling the references confirms it: the word is
+           * #000, the figure is grey.
+           *
+           * The middot went with it. The count is a FIGURE beside the word, not a
+           * list length, and the explicit space is still real text rather than CSS
+           * margin — a screen reader cannot see margin, so without it the
+           * accessible name would be "Overdue2".
+           */}
+          <span className="dh-taskgroup__chevron" aria-hidden="true">
+            <ChevronDownIcon />
+          </span>
+          <Heading className="dh-taskgroup__title">
+            {title} <span className="dh-taskgroup__count">{count}</span>
+          </Heading>
+        </button>
         {moreHref !== null ? (
           /*
            * A ROUTER link, and `preventScrollReset`.
@@ -192,7 +220,19 @@ export function TaskGroup({
           </Link>
         ) : null}
       </div>
-      {children}
+      {/*
+       * The body is HIDDEN rather than unmounted.
+       *
+       * Unmounting would throw away anything the rows are holding — an open
+       * inline editor, a pending optimistic completion, the paginator's
+       * accumulated pages — and re-fetching them on expand would make a fold
+       * cost a round trip. `hidden` keeps `aria-controls` pointing at a real
+       * element and takes the subtree out of the accessibility tree at the same
+       * time.
+       */}
+      <div id={bodyId} className="dh-taskgroup__body" hidden={collapsed}>
+        {children}
+      </div>
     </section>
   );
 }

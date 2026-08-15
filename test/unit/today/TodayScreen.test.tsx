@@ -16,6 +16,12 @@ import { describe, expect, it, vi } from "vitest";
 import { DrawerProvider } from "~/shared/drawer";
 import { TodayScreen } from "~/modules/today/day/TodayScreen";
 import type { TodayDayData } from "~/modules/today/day/load";
+import {
+  evaluateGoalProgress,
+  normalizeGoalMeasurementConfig,
+  UNMEASURED_GOAL,
+  type GoalProgressEvaluation,
+} from "~/kernel/goals";
 
 const TODAY = "2026-08-08";
 
@@ -540,7 +546,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     expect(within(row).getByText("Kitchen renovation")).toBeInTheDocument();
   });
 
-  it("shows priority only where there IS one, using the shared indicator", () => {
+  it("shows every row's priority through the shared indicator", () => {
     const { container } = renderScreen(
       day({
         today: [
@@ -554,13 +560,25 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       "aria-label",
       "Priority 1",
     );
+    /*
+     * An untriaged task draws a grey Priority 4 rather than a blank.
+     *
+     * This used to assert the opposite. The visual references show all four
+     * levels in the list, and the reason holds up: an empty cell is ambiguous
+     * between "normal" and "not looked at yet", and the gaps left the priority
+     * column ragged down a panel whose whole value is that it scans in one
+     * pass. Grey on grey is quiet enough that P4 does not compete.
+     */
     const plain = within(timelineSection())
       .getByText("Untriaged")
       .closest("li")!;
-    expect(plain.querySelector(".dh-priority")).toBeNull();
-    // And the whole panel draws exactly one, so nothing gained a placeholder.
+    expect(plain.querySelector(".dh-priority")).toHaveAttribute(
+      "aria-label",
+      "Priority 4",
+    );
+    // Still exactly one indicator per row — nothing gained a second marker.
     expect(container.querySelectorAll(".dh-day-row .dh-priority")).toHaveLength(
-      1,
+      2,
     );
   });
 
@@ -872,5 +890,119 @@ describe("what is NOT on this screen any more", () => {
     renderScreen(day());
     expect(screen.queryByRole("search")).not.toBeInTheDocument();
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Goal fixtures for the summary strip                                         */
+/* -------------------------------------------------------------------------- */
+
+function todayGoal(
+  id: string,
+  title: string,
+  progress: GoalProgressEvaluation,
+) {
+  return {
+    id,
+    title,
+    areaTitle: "Health",
+    areaColourRank: 0,
+    areaIconKey: null,
+    progress,
+    changeInWindow: null,
+    windowDays: 30,
+  };
+}
+
+/** A Goal with a real configuration and real readings — measurable, moving. */
+function measuredGoal() {
+  return todayGoal(
+    "g1",
+    "Reach 70 kg",
+    evaluateGoalProgress(
+      {
+        config: normalizeGoalMeasurementConfig({
+          type: "target_value",
+          unit: "kg",
+          baselineValue: 85,
+          targetValue: 70,
+        }),
+        targetDate: "2026-12-31",
+        measurements: [{ value: 72, measuredOn: TODAY }],
+        startedOn: "2026-06-10",
+      },
+      { todayIso: TODAY },
+    ),
+  );
+}
+
+/** A Goal that was never told how to measure itself. Status: not_measured. */
+function unmeasuredGoal() {
+  return todayGoal(
+    "g2",
+    "Never measured",
+    evaluateGoalProgress(
+      { config: UNMEASURED_GOAL, targetDate: null, measurements: [] },
+      { todayIso: TODAY },
+    ),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The summary strip                                                           */
+/* -------------------------------------------------------------------------- */
+
+describe("Today's summary strip states only what was actually measured", () => {
+  const trend = {
+    days: [{ dateIso: TODAY, created: 3, completed: 4 }],
+    totalCreated: 12,
+    totalCompleted: 24,
+    previousCompleted: 16,
+  };
+
+  it("names a rolling seven-day window rather than calling it 'this week'", () => {
+    /*
+     * The window ends today and runs back seven days; it is not the calendar
+     * week. Read on a Wednesday, "this week" would mean three days to the owner
+     * and seven to the query — and the comparison beneath it would be measuring
+     * a full week against a partial one.
+     */
+    renderScreen(day({ activityTrend: trend }));
+    const strip = screen.getByTestId("today-summary");
+    expect(within(strip).getByText("24")).toBeInTheDocument();
+    expect(
+      within(strip).getByText("Last 7 days · +8 on the previous 7"),
+    ).toBeInTheDocument();
+    expect(within(strip).queryByText(/this week/i)).toBeNull();
+    expect(within(strip).queryByText(/last week/i)).toBeNull();
+  });
+
+  it("omits the comparison entirely when there is no earlier window", () => {
+    // Never a fabricated "+24": no reading and a zero reading are different
+    // facts, and only one of them is a change.
+    renderScreen(day({ activityTrend: { ...trend, previousCompleted: null } }));
+    const strip = screen.getByTestId("today-summary");
+    expect(within(strip).getAllByText("Last 7 days").length).toBeGreaterThan(0);
+    expect(within(strip).queryByText(/on the previous/)).toBeNull();
+  });
+
+  it("does not count an unmeasured Goal as on track", () => {
+    /*
+     * The bug this replaces: the count was `!goalNeedsAttention(status)`, and
+     * only two of the evaluator's nine statuses need attention — so a Goal that
+     * was never told how to measure itself, or has gone a month without a
+     * reading, was reported as healthy. With one measured Goal and one
+     * unmeasured one the answer cannot be two, whatever the measured one
+     * evaluates to.
+     */
+    renderScreen(day({ goals: [measuredGoal(), unmeasuredGoal()] }));
+    const strip = screen.getByTestId("today-summary");
+    expect(within(strip).getByText("of 2 goals")).toBeInTheDocument();
+    expect(within(strip).queryByText("2")).toBeNull();
+  });
+
+  it("renders nothing at all on a day with no real readings", () => {
+    renderScreen(day());
+    expect(screen.queryByTestId("today-summary")).toBeNull();
   });
 });

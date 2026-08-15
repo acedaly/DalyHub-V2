@@ -25,6 +25,7 @@ import {
   formatPacePerWeek,
   goalCheckInDue,
   goalCheckInLabel,
+  goalIsOnTrack,
   goalNeedsAttention,
   goalPaceLabel,
   goalProgressStatusLabel,
@@ -150,6 +151,31 @@ describe("status words", () => {
     expect(goalNeedsAttention("overdue")).toBe(true);
     expect(goalNeedsAttention("stale")).toBe(false);
     expect(goalNeedsAttention("on_track")).toBe(false);
+  });
+
+  it("counts exactly the three statuses that mean on track", () => {
+    expect(goalIsOnTrack("on_track")).toBe(true);
+    expect(goalIsOnTrack("ahead")).toBe(true);
+    // Today excludes completed Goals, so an achieved-but-open Goal is going well.
+    expect(goalIsOnTrack("achieved")).toBe(true);
+  });
+
+  it("is NOT the inverse of needing attention", () => {
+    /*
+     * The whole point of the predicate. Seven of the nine statuses do not need
+     * attention, and only three of those mean the Goal is going well — a
+     * summary built on the negation reported "4 of 4 on track" for a set of
+     * Goals that were mostly never measured.
+     */
+    for (const status of [
+      "not_measured",
+      "not_started",
+      "in_progress",
+      "stale",
+    ] as const) {
+      expect(goalNeedsAttention(status), status).toBe(false);
+      expect(goalIsOnTrack(status), status).toBe(false);
+    }
   });
 });
 

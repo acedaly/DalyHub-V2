@@ -19,9 +19,8 @@ const routes: readonly RouteContribution[] = [
     // capture is a phone-first workflow.
     meta: {
       navLabel: "Diary",
-      navGroup: "capture",
-      navOrder: 110,
-      mobilePrimaryOrder: 30,
+      navGroup: "organise",
+      navOrder: 150,
     },
   },
   {

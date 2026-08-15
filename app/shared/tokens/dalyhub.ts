@@ -93,6 +93,16 @@ export const DALYHUB_RADIUS_TOKEN_NAMES = [
   "dh-radius-pill",
 ] as const;
 
+/**
+ * Overlay geometry — the sizes of the layers that float above a page.
+ *
+ * One member so far: the width of a contextual detail panel. It is a design
+ * value in its own right rather than a reuse of a page-width token, because the
+ * two answer different questions and drifted apart the moment either was
+ * measured against the references.
+ */
+export const DALYHUB_OVERLAY_TOKEN_NAMES = ["dh-detail-panel-width"] as const;
+
 /** Borders, depth and the focus indicator. */
 export const DALYHUB_SURFACE_TOKEN_NAMES = [
   "dh-border-width",
@@ -222,6 +232,7 @@ export const DALYHUB_TOKEN_NAMES: readonly string[] = [
   ...DALYHUB_COLOR_TOKEN_NAMES,
   ...DALYHUB_SPACE_TOKEN_NAMES,
   ...DALYHUB_RADIUS_TOKEN_NAMES,
+  ...DALYHUB_OVERLAY_TOKEN_NAMES,
   ...DALYHUB_SURFACE_TOKEN_NAMES,
   ...DALYHUB_TYPOGRAPHY_TOKEN_NAMES,
   ...DALYHUB_MOTION_TOKEN_NAMES,

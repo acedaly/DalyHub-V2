@@ -33,6 +33,7 @@ import type { ReactNode } from "react";
 import {
   Link,
   useFetcher,
+  useLocation,
   useRevalidator,
   useSearchParams,
 } from "react-router";
@@ -133,6 +134,31 @@ import {
 /** The drawer key that opens the "New task" capture form. */
 const NEW_TASK_KEY = "new-task";
 
+/**
+ * The path this workspace should navigate back to when it changes its own
+ * configuration — a filter, a sort, a grouping, a presentation, a page.
+ *
+ * It is the CURRENT path, not the literal `/tasks`. The same workspace renders
+ * at three destinations — `/tasks`, `/inbox` and `/upcoming` — and hard-coding
+ * the first meant that applying any filter from Inbox silently moved the owner
+ * to Tasks: the list stayed correct, but the destination was discarded and the
+ * sidebar's current row jumped. "Never lose the user's place" (AGENTS.md §6)
+ * covers which PLACE they are in, not only the scroll position.
+ *
+ * Only the collection routes render this component, so the pathname is always
+ * one of those three; a record route opens in a drawer through `?drawer=` and
+ * never mounts the workspace at `/tasks/:taskId`. The trailing slash is trimmed
+ * so `/inbox/` cannot produce `/inbox/?filter=…`.
+ *
+ * The view SWITCHER is deliberately not routed through this. Choosing a
+ * different saved view is a move to the general workspace rather than a
+ * refinement of the current destination, so it keeps its own `/tasks` base.
+ */
+function useWorkspaceBasePath(): string {
+  const { pathname } = useLocation();
+  return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+}
+
 /*
  * DS-04 — the completion toggle and the routine-state set moved INTO `TaskRow`.
  *
@@ -207,12 +233,13 @@ function TasksOverflow({
   readonly presentation: string;
 }) {
   const [searchParams] = useSearchParams();
+  const basePath = useWorkspaceBasePath();
   const layoutHref = (value: string) => {
     const next = new URLSearchParams(searchParams);
     next.delete("drawer");
     next.delete(TASKS_PARAMS.cursor);
     next.set(TASKS_PARAMS.presentation, value);
-    return `/tasks?${next.toString()}`;
+    return `${basePath}?${next.toString()}`;
   };
   return (
     <OverflowMenu
@@ -938,6 +965,9 @@ function InlineTaskTitleEditor({
 
 function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const [searchParams] = useSearchParams();
+  // `/tasks`, `/inbox` or `/upcoming` — every configuration change navigates
+  // back to whichever of them the owner is actually on.
+  const basePath = useWorkspaceBasePath();
   const { openDrawer } = useDrawer();
   const config = data.config;
   const quick = useTaskQuickMutation(config, data);
@@ -979,9 +1009,11 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       const next = new URLSearchParams(searchParams);
       next.delete("drawer");
       next.set(TASKS_PARAMS.cursor, cursor);
-      return `/tasks?${next.toString()}`;
+      // The named routes delegate to this same loader, so a cursored request
+      // against the current path reads the identical page.
+      return `${basePath}?${next.toString()}`;
     },
-    [searchParams],
+    [searchParams, basePath],
   );
 
   const { items, hasMore, loading, loadFailed, loadMore } = useTaskPagination(
@@ -1064,9 +1096,9 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       next.set(section.filterParam, section.filterKey);
       next.delete(TASKS_PARAMS.cursor);
       next.delete("drawer");
-      return `/tasks?${next.toString()}`;
+      return `${basePath}?${next.toString()}`;
     },
-    [searchParams],
+    [searchParams, basePath],
   );
 
   /**
@@ -1472,10 +1504,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     next.delete(TASKS_PARAMS.cursor);
     return next.toString();
   }, [searchParams]);
+  // A shared link reproduces the place the sender was looking at, destination
+  // included — not the general workspace with their filters pasted onto it.
   const shareUrl =
     typeof window === "undefined"
-      ? `/tasks?${currentQuery}`
-      : `${window.location.origin}/tasks${currentQuery.length > 0 ? `?${currentQuery}` : ""}`;
+      ? `${basePath}?${currentQuery}`
+      : `${window.location.origin}${basePath}${currentQuery.length > 0 ? `?${currentQuery}` : ""}`;
 
   // Classification carried for the session by the quick-add row: a task added while
   // looking at a filtered view lands in that view rather than somewhere the user
@@ -1569,7 +1603,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         <CollectionControls
           groups={controlGroups}
           triggerLabel="Filter & sort"
-          basePath="/tasks"
+          basePath={basePath}
           params={canonicalParams}
         />
       }

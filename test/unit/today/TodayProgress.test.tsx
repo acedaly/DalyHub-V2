@@ -200,6 +200,9 @@ describe("the 7-day workload trend", () => {
     ],
     totalCreated: 23,
     totalCompleted: 31,
+    // The prior week's completions, which the summary strip compares against.
+    // These assertions are about the chart, so the value only has to be real.
+    previousCompleted: 23,
   };
 
   it("draws the comparison and states the week in words beneath it", () => {

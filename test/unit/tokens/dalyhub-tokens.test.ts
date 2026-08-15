@@ -148,12 +148,27 @@ describe("DS-01 the layer is semantic over the Part B primitives", () => {
     }
   });
 
-  it("aliases priority colours to one canonical primitive map", () => {
+  it("gives priority its own four colours rather than borrowing feedback", () => {
+    // Priority used to alias danger/warning/info. They are different CONCEPTS —
+    // a P1 task is not an error — and the alias capped how separable the ramp
+    // could be: at flag size, the danger red and the warning amber were one warm
+    // smudge, so P1 and P2 were the hardest pair in the list to tell apart.
     const root = parseDeclarations(blockBody(dalyhubSection(), /:root\s*\{/));
-    expect(root.get("priority-1")).toBe("var(--danger)");
-    expect(root.get("priority-2")).toBe("var(--warning)");
-    expect(root.get("priority-3")).toBe("var(--info)");
-    expect(root.get("priority-4")).toBe("var(--ink-icon)");
+    const levels = ["priority-1", "priority-2", "priority-3", "priority-4"];
+    const values = levels.map((name) => root.get(name));
+
+    for (const [index, value] of values.entries()) {
+      expect(value, `--${levels[index]}`).toMatch(/^#[0-9a-f]{6}$/);
+    }
+    // Four levels, four distinct values — the whole point of the ramp.
+    expect(new Set(values).size).toBe(levels.length);
+    // And specifically not the feedback triple again under a new name.
+    const feedback = new Set(
+      ["danger", "warning", "info"].map((name) => root.get(name)),
+    );
+    for (const [index, value] of values.entries()) {
+      expect(feedback.has(value), `--${levels[index]}`).toBe(false);
+    }
   });
 
   it("resolves every token onto tokens that exist", () => {

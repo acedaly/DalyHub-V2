@@ -13,7 +13,7 @@ const routes: readonly RouteContribution[] = [
     id: "reviews.index",
     path: "reviews",
     file: "routes/index.tsx",
-    meta: { navLabel: "Reviews", navGroup: "insight", navOrder: 200 },
+    meta: { navLabel: "Reviews", navGroup: "more", navOrder: 230 },
   },
   {
     id: "reviews.new",

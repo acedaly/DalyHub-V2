@@ -527,66 +527,43 @@
  * never colour alone regardless: the filled pill is a SHAPE, the label steps up
  * a weight, and `aria-current` carries it semantically.
  */
+/*
+ * The current destination — a pale accent ROW with an accent label and glyph.
+ *
+ * The prose below this block has described a soft tint since DS-03, but the
+ * declaration underneath it said `background: var(--ink)`: a near-black slab
+ * across a 224px row, which is the single loudest object in the frame and the
+ * "strong tonal block around every destination" the brief rules out. The
+ * references draw it as a tint you notice once you are looking for it, carrying
+ * a label you cannot miss. This is that, and it is now what the code does.
+ *
+ * Never colour alone — the four signals are unchanged:
+ *   - `aria-current="page"` carries it semantically;
+ *   - the row is a SHAPE, restored under forced colours below;
+ *   - the label steps up a weight;
+ *   - the foreground steps from muted to accent.
+ */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  /*
-   * DH-DS — the ROLE is unchanged and the AMOUNT is not. `secondary-container`
-   * mixed toward the navigation surface: a soft tint rather than a slab across
-   * a 240px row. See the token for the full argument. This is what the phone's
-   * navigation SHEET still draws.
-   */
-  background: var(--ink);
-  color: var(--ink-inverse);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-accent);
   font-weight: 500;
 }
 
-/*
- * …and the glyph takes `primary`, which is the signal the softened fill gave up.
- *
- * This is not the ten-colour entity rainbow the note below retired: it is ONE
- * colour, on ONE row, meaning "you are here" — which is the same thing the pill,
- * the weight and `aria-current` say. Restraint on the other nine rows is exactly
- * what lets this one mean something.
- */
+/* The glyph takes the row's accent, so the pair reads as one selected object. */
 .dh-nav__link--active .dh-nav__icon,
 .dh-nav__link[aria-current="page"] .dh-nav__icon {
   color: currentColor;
 }
 
 /*
- * The RAIL's current destination — a pale lavender ROW with a violet label.
+ * The rail draws the SAME selected row as the sheet.
  *
- * DS-03 painted a saturated violet block here, which was the right answer for a
- * near-black rail and is the wrong one for a near-white rail: the same block on
- * a light frame is the "strong tonal block around every destination" §17 of the
- * FINAL-UI brief rules out, and the approved concepts draw the row at roughly
- * 1.02:1 against the rail beside it — a tint you notice only once you are
- * looking for it, carrying a label you cannot miss.
- *
- * Both halves come from generated roles rather than from an appearance rule
- * here, which is what keeps this ONE declaration correct on either rail:
- * `--dh-color-rail-selected` is the accent mixed toward the rail at the rail's
- * own per-appearance strength (12% into near-white, 80% into near-black), and
- * `--dh-color-rail-text-selected` is `primary` in light and the rail's own light
- * foreground in dark — because violet-on-violet is the least legible pairing on
- * a dark rail, and grey-on-lavender is not a selection on a light one.
- *
- * Never colour alone, and the four signals are unchanged:
- *   - `aria-current="page"` carries it semantically;
- *   - the row is a SHAPE, restored under forced colours below;
- *   - the label steps up a weight;
- *   - the foreground steps from `rail-text-muted` to `rail-text-selected`.
+ * There used to be a rail-specific override here repainting the row near-black.
+ * Two declarations for one state is how the tint above was lost in the first
+ * place, so the override is gone rather than restated: the rule above is the
+ * one rule, and the rail and the phone sheet agree by construction.
  */
-.dh-sidebar--rail .dh-nav__link--active,
-.dh-sidebar--rail .dh-nav__link[aria-current="page"] {
-  background: var(--ink);
-  color: var(--ink-inverse);
-}
-
-.dh-sidebar--rail .dh-nav__link--active .dh-nav__icon,
-.dh-sidebar--rail .dh-nav__link[aria-current="page"] .dh-nav__icon {
-  color: inherit;
-}
 
 /*
  * Navigation glyphs are MONOCHROME and inherit the row's colour.
@@ -732,6 +709,47 @@
 
 .dh-sidebar--rail .dh-nav__divider hr {
   border-block-start: var(--dh-border-width) solid var(--dh-color-rail-border);
+}
+
+/*
+ * The group EYEBROW — "Organise", "More".
+ *
+ * Small, wide-tracked, muted and uppercase: it is a caption for the block under
+ * it, and it earns its line only by being quieter than every destination it
+ * introduces. The references set it well below the row labels in both size and
+ * weight, which is what stops a heading reading as a disabled nav item.
+ *
+ * It sits between a divider and the first row of its group, so the two together
+ * cost one gap rather than two — hence the asymmetric block margin.
+ */
+.dh-nav__heading {
+  padding-inline: var(--dh-space-3);
+  margin-block: 0 var(--dh-space-1);
+  color: var(--dh-color-rail-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+
+/* A heading directly follows its divider, so the divider's trailing gap is the
+ * pair's only leading space. */
+.dh-nav__divider:has(+ .dh-nav__heading) {
+  margin-block-end: var(--dh-space-2);
+}
+
+/*
+ * Collapsed rail: the eyebrow goes with the labels.
+ *
+ * At 68px there is no room for a word, and a truncated "ORGA…" is worse than
+ * the divider that already separates the group. The divider stays and carries
+ * the grouping alone — which is exactly how the unlabelled groups read.
+ */
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-sidebar--rail .dh-nav__heading {
+    display: none;
+  }
 }
 
 .dh-sidebar__spacer {

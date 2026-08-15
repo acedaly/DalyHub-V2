@@ -5044,10 +5044,27 @@
   --info: #3b82c4;
   --info-tint: #eaf1f9;
 
-  --priority-1: var(--danger);
-  --priority-2: var(--warning);
-  --priority-3: var(--info);
-  --priority-4: var(--ink-icon);
+  /*
+   * Priority owns its FOUR colours outright; it no longer borrows the feedback
+   * triple.
+   *
+   * They looked alike, but they are different concepts — a P1 task is not an
+   * error — and aliasing them meant the priority ramp could only ever be as
+   * separable as danger/warning happened to be. That is the failure the
+   * references single out: at 15px, a #d9483b red flag and a #d98324 amber one
+   * are the same warm smudge, so the most important distinction in the list was
+   * the one hardest to make.
+   *
+   * The ramp reads as a temperature — red, orange, blue, grey — and each value is
+   * the reference colour pulled just far enough to clear 3:1 against the card,
+   * page and subtle surfaces (`contrast.test.ts`). The references' own P2
+   * (#f57c11) and P4 (#afadb0) sit at 2.5:1 and 2.1:1, so those two are deepened;
+   * P1 and P3 are the reference values unchanged.
+   */
+  --priority-1: #dd302a;
+  --priority-2: #e2680a;
+  --priority-3: #2e56e3;
+  --priority-4: #8a8a94;
 
   --category-purple: #5b4bd6;
   --category-purple-tint: #efedfc;
@@ -5323,6 +5340,22 @@
   --dh-radius-lg: var(--radius-card);
   --dh-radius-xl: var(--radius-card);
   --dh-radius-pill: var(--radius-pill);
+
+  /* ---------------------------------------------------------------------- */
+  /* Overlay geometry                                                       */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * The width of a contextual DETAIL PANEL — the right-hand pane a record opens
+   * into beside the list it came from.
+   *
+   * 26rem (416px) sits in the middle of the 380–420px the brief specifies and is
+   * what the references draw: wide enough for a property column and a note,
+   * narrow enough that the list it explains is still readable next to it. It is
+   * a design value of its own rather than a reuse of `--app-width-narrow`, which
+   * means "a single-column page" and is 42rem for good reasons that are not
+   * these ones.
+   */
+  --dh-detail-panel-width: 26rem;
 
   /* ---------------------------------------------------------------------- */
   /* Borders and elevation                                                  */
