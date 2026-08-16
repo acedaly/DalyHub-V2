@@ -1151,11 +1151,21 @@
   text-decoration: underline;
 }
 
-/* The Goal's one action. Left-aligned and 44px, so it is a comfortable phone
+/*
+ * The Goal's one action. Left-aligned and 44px, so it is a comfortable phone
  * target without becoming the tile's visual centre — and pulled back into the
  * tile's own padding, because a text button's inline padding is chrome the tile
- * has already paid for. */
+ * has already paid for.
+ *
+ * REDESIGN-03 made the 44px true. The comment above has claimed it since the
+ * tile was written and the rule never set a height, so the control inherited
+ * `.dh-btn--sm`'s 32px `min-block-size` and measured 32×n on the surface a
+ * phone opens first — `goal-measurement.spec.ts` has been failing on it. The
+ * VISUAL size is unchanged: the extra height is hit area on a text button that
+ * draws no box, which is exactly the case `--button-height-touch` exists for.
+ */
 .dh-today__goal .dh-btn {
   justify-self: start;
   margin-inline-start: calc(-1 * var(--app-space-3));
+  min-block-size: var(--button-height-touch);
 }

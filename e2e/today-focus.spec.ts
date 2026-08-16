@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   ownerToday,
   postSameOrigin,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -106,13 +107,28 @@ async function focusBands(
   }, STAMP);
 }
 
-/** Every title `/tasks?system=today` currently lists, stamp-scoped. */
+/**
+ * Every title `/tasks?system=today` currently lists, stamp-scoped.
+ *
+ * Reads the product-level `TaskRow`, which is what the Tasks workspace has
+ * drawn since DS-04 replaced the generic `Card` there. This helper still asked
+ * for `.dh-card` / `.dh-card__title-text`, so it timed out waiting for a
+ * component the page no longer renders and took both agreement tests down with
+ * it — red on `main` before REDESIGN-03 touched anything, and re-pointed here
+ * rather than left red because these two tests are the ONLY coverage of the
+ * claim that Today's Focus panel and the canonical Tasks view describe the same
+ * day.
+ *
+ * The assertion is unchanged: the same titles, from the same view, filtered by
+ * the same stamp. `taskRows` is the shared locator `helpers.ts` publishes for
+ * exactly this, so the query cannot drift again on its own.
+ */
 async function canonicalTodayTitles(page: Page): Promise<readonly string[]> {
   await page.goto("/tasks?system=today");
   await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
   // The collection streams behind a skeleton; wait for the list, not a timer.
-  await expect(page.locator(".dh-card").first()).toBeVisible();
-  return (await page.locator(".dh-card__title-text").allInnerTexts())
+  await expect(taskRows(page).first()).toBeVisible();
+  return (await page.locator(".dh-taskrow__title").allInnerTexts())
     .map((text) => text.trim())
     .filter((title) => title.startsWith(STAMP));
 }

@@ -359,8 +359,75 @@ every rule those tests protected — the canonical-count claim, the zero-never-
 paints claim, the links-to-its-records claim — plus new guards asserting the
 *absence* of the daily-progress percentage, the stat row and the chart.
 
+### E2E
+
+Targeted coverage for Today, Today's task interactions, Projects, Project
+detail/tasks, Goals, measurable Goal detail, Areas, Area detail, navigation,
+390px mobile, tablet, dark mode, horizontal overflow and axe:
+
+```
+e2e/today.spec.ts  today-focus  goal-measurement  projects
+goals-outcomes     areas        areas-goals-mobile
+```
+
+**Zero regressions.** Every failure on this branch was reproduced on the exact
+base commit by running the same specs in a worktree at `a2e0c8c2`, and the
+branch is strictly ahead of it:
+
+| Spec | At base `a2e0c8c2` | On this branch |
+| --- | --- | --- |
+| `today.spec.ts` | 7 passed, 3 failed | **8 passed, 2 failed** |
+| `today-focus.spec.ts` | 3 failed | **7 passed, 0 failed** |
+| `areas.spec.ts` | 1 failed | **7 passed, 0 failed** |
+| `goal-measurement.spec.ts` | 5 failed | **1 failed** |
+| `projects` · `goals-outcomes` · `areas-goals-mobile` | pass | pass |
+
+Fixed by this pass, having been red at the base commit:
+
+- **`today-focus` / `goal-measurement` axe** — `aria-prohibited-attr` (serious):
+  `PriorityIndicator` put `aria-label` on a bare `<span>`, which ARIA does not
+  permit and a browser may drop — leaving priority carried by colour alone. The
+  component is byte-identical to base, so this predates the pass. Fixed with
+  `role="img"`, which is the right role for a single graphical unit conveying one
+  fact. Nothing rendered changes.
+- **`goal-measurement` touch target (32px)** — Today's Goal check-in control. Its
+  CSS comment has claimed "44px, so it is a comfortable phone target" since the
+  tile was written, and the rule never set a height, so it inherited
+  `.dh-btn--sm`'s 32px. Now `--button-height-touch`. Hit area only; the drawn
+  control is unchanged.
+- **`today-focus` agreement tests** — `canonicalTodayTitles` waited for
+  `.dh-card` on `/tasks`, which DS-04 replaced with `TaskRow`. Re-pointed at the
+  shared `taskRows` locator; the assertion is unchanged.
+- **`today.spec` narrow-width overflow** — passes now; the two-column body
+  replaced the three-region grid.
+- **`areas.spec`** — the two failures were the `ds-final` design fixture (seeded
+  for screenshot capture) colliding with the E2E seed: `getByRole('article',
+  {name: 'Health'})` matches both "Health" and "Health & Fitness" in strict mode.
+  With the fixture cleared, `areas.spec.ts` is **7/7**, including axe in dark.
+
+Still red, pre-existing, and diagnosed rather than hidden:
+
+- **`goal-measurement.spec.ts:218` — 36px controls.** The Goal record's "Log
+  weight" and the check-in sheet's "Save" are default `.dh-btn`
+  (`--button-height-md: 36px`) against a 44px assertion. The mechanism to fix it
+  already exists and is deliberate — `@media (pointer: coarse)` sets
+  `--dh-control-height: 44px` as a floor that "cannot be opted out of" — but
+  `.dh-btn` sizes from `--button-height-md` rather than from the density model,
+  so the floor never reaches it. **The fix is to re-point the shared button at
+  `--dh-control-height`**, which changes every button in the product at every
+  touch viewport; that is a control-density decision, not a visual-convergence
+  one, and §4 of this brief asks for the current compact control density to be
+  preserved. Logged as debt with the diagnosis.
+- **`today.spec.ts:207`** — times out on the New-task dialog's "P1 · Urgent"
+  option. Capture dialog, untouched by this pass.
+- **`today.spec.ts:287`** — the attention rail's Assets row links to `/assets`
+  while the assertion expects `/asset/…`. `attention-view.ts` is untouched by
+  this pass.
+
 No `.skip`, no `.fixme`, no added retries, no widened timeouts, no weakened
-assertions.
+assertions. Two assertions were re-pointed at the components that replaced the
+ones they named (`.dh-card` → `TaskRow`, the stat row → the measure row), and
+both kept their original claim.
 
 ---
 
@@ -449,6 +516,12 @@ Honest, and deliberately not fixed here:
    ever return in another form.
 5. **`--dh-color-bg-sunken`** is still consumed elsewhere and can read as a tonal
    well on white-surface records. Only the Goal pace band was converted here.
+6. **The shared button ignores the touch floor.** `.dh-btn` sizes from
+   `--button-height-md` (36px) rather than from `--dh-control-height`, which
+   `@media (pointer: coarse)` raises to 44px precisely so the floor "cannot be
+   opted out of". Every default button in the product is therefore 36px on a
+   phone. Diagnosed here, fixed nowhere: re-pointing the shared button is a
+   product-wide control-density change needing its own verification pass.
 
 ---
 
