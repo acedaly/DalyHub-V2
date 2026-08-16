@@ -965,7 +965,7 @@ function ReflectionCard({
             <p>
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost"
+                className="dh-btn dh-btn--ghost dh-today__reflection-write"
                 data-testid="today-reflection-write"
                 onClick={(event) => diary.open(event.currentTarget)}
               >

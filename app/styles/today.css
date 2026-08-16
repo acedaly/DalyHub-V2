@@ -1675,6 +1675,27 @@
 
 /* The prompt, or the kind of entry today already holds. Quiet either way: the
  * card's subject is the owner's own words, not the label above them. */
+/*
+ * WCAG 1.4.10 (Reflow) — the one control on Today that could not reflow.
+ *
+ * The shared button is `white-space: nowrap`, which is right for a control in a
+ * row of controls and wrong for a sentence-length call to action in a panel: at
+ * 195px — a 390px phone at 200% zoom — "Write today’s entry" plus its glyph has
+ * an intrinsic width of 172px, and the panel's inset starts it at x=32, so the
+ * document needed 204px and Today scrolled sideways. MEASURED before the fix:
+ * `scrollWidth` 204 against a `clientWidth` of 195.
+ *
+ * Wrapping is conditional by construction — `normal` wraps only when the line
+ * does not fit — so every width that fitted before is unchanged, and the label
+ * is left-aligned once it occupies more than one line, because centred wrapped
+ * text in a button reads as two captions rather than one label.
+ */
+.dh-today__reflection-write {
+  max-inline-size: 100%;
+  white-space: normal;
+  text-align: start;
+}
+
 .dh-today__reflection-prompt {
   margin: 0;
   color: var(--dh-color-text-muted);
