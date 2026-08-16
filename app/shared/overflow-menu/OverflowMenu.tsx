@@ -402,6 +402,15 @@ export function OverflowMenu({
                 </span>
               ) : null}
             </span>
+            {/* CONTROL-01 §5 — the shortcut this item duplicates, at the
+                trailing edge. Decorative: the item's name is the action, and
+                appending a key to it would make the name unmatchable by the
+                words a screen-reader user hears. */}
+            {item.shortcut ? (
+              <span className="dh-overflow-menu__shortcut" aria-hidden="true">
+                {item.shortcut}
+              </span>
+            ) : null}
           </>
         );
         const shared = {

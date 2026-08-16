@@ -22,7 +22,7 @@ import { useEffect, useState } from "react";
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { MarkdownContent } from "~/shared/markdown";
 import {
-  DateField,
+  CalendarDateField,
   Form,
   FormActions,
   FormButton,
@@ -45,8 +45,6 @@ import {
 export type TaskDetailsValues = {
   readonly description: string;
   readonly status: string;
-  readonly timeSector: string;
-  readonly commitmentState: string;
   readonly delegateTo: string;
   readonly delegatedOn: string;
   readonly followUpOn: string;
@@ -73,26 +71,20 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const SECTOR_OPTIONS = [
-  { value: "", label: "No sector" },
-  { value: "this_week", label: "This Week" },
-  { value: "next_week", label: "Next Week" },
-  { value: "this_month", label: "This Month" },
-  { value: "next_month", label: "Next Month" },
-  { value: "long_term", label: "Long Term" },
-  { value: "routines", label: "Routines" },
-];
-
-const COMMITMENT_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "someday", label: "Someday / Maybe" },
-];
+/*
+ * CONTROL-01 §4 — `SECTOR_OPTIONS` and `COMMITMENT_OPTIONS` are gone.
+ *
+ * Both belonged to fields this form no longer holds; they are the summary's
+ * pressable controls now, and the summary derives its options from the KERNEL's
+ * own `TIME_SECTORS` and `COMMITMENT_STATES` rather than from a second
+ * hand-maintained copy of them. Removed rather than left unreferenced: an option
+ * list with no field is sediment, and a stale copy of a domain enum is the kind
+ * of sediment that silently disagrees with the kernel.
+ */
 
 const FIELD_LABELS: Record<string, string> = {
   description: "Description",
   status: "Status",
-  timeSector: "Time Sector",
-  commitmentState: "Commitment",
   delegateTo: "Delegated to",
   delegatedOn: "Delegated on",
   followUpOn: "Follow up",
@@ -189,8 +181,6 @@ function TaskDetailsForm({
     initialValues: {
       description: task.description ?? "",
       status: task.status,
-      timeSector: task.timeSector ?? "",
-      commitmentState: task.commitmentState,
       delegateTo: task.delegation?.to ?? "",
       delegatedOn: task.delegation?.delegatedOn ?? "",
       followUpOn: task.delegation?.followUpOn ?? "",
@@ -198,8 +188,6 @@ function TaskDetailsForm({
     },
     fieldOrder: [
       "status",
-      "timeSector",
-      "commitmentState",
       "delegateTo",
       "delegatedOn",
       "followUpOn",
@@ -217,8 +205,6 @@ function TaskDetailsForm({
 
   const descriptionField = form.field("description");
   const statusField = form.field("status");
-  const sectorField = form.field("timeSector");
-  const commitmentField = form.field("commitmentState");
   const delegateToField = form.field("delegateTo");
   const delegatedOnField = form.field("delegatedOn");
   const followUpOnField = form.field("followUpOn");
@@ -238,26 +224,37 @@ function TaskDetailsForm({
         onFocusField={form.focusField}
       />
       <SelectField label="Status" options={STATUS_OPTIONS} {...statusField} />
-      <SelectField
-        label="Time Sector"
-        help="When you intend to work on this — separate from the due date."
-        options={SECTOR_OPTIONS}
-        {...sectorField}
-      />
-      <SelectField
-        label="Commitment"
-        help="Someday / Maybe is parked — kept out of active views."
-        options={COMMITMENT_OPTIONS}
-        {...commitmentField}
-      />
+      {/*
+       * CONTROL-01 §4 — the Horizon and the Someday/Maybe state are NOT here.
+       *
+       * They are pressable controls in the record's summary, beside the priority
+       * and the dates, which is the same treatment EDIT-02 gave those three and
+       * for the same reason: a value shown on the record should be changed on the
+       * record. Leaving a second copy in this form would be worse than a
+       * duplicate — the form submits every field it holds, so opening it, editing
+       * the horizon in the summary and then pressing "Save changes" would revert
+       * the summary edit with a value the form read before it happened. That is
+       * exactly the hazard EDIT-02 wrote down when it stopped submitting the
+       * title, the priority and the dates from here.
+       *
+       * What stays is what genuinely interacts: status, the delegation set and
+       * the description.
+       */}
       <TextField
         label="Delegated to"
         help="A person or party — leave blank if not delegated."
         maxLength={200}
         {...delegateToField}
       />
-      <DateField label="Delegated on" {...delegatedOnField} />
-      <DateField label="Follow up" {...followUpOnField} />
+      {/*
+       * CONTROL-01 §2 — the last two date-ONLY Task fields to leave the native
+       * control. Both are ordinary calendar days, so both get the product's own
+       * grid and presets. `kind="datetime"` fields elsewhere deliberately stay
+       * on `DateField`: editing a wall clock is the one thing the native control
+       * genuinely does better.
+       */}
+      <CalendarDateField label="Delegated on" {...delegatedOnField} />
+      <CalendarDateField label="Follow up" {...followUpOnField} />
       <TextField
         label="Delegation note"
         maxLength={500}

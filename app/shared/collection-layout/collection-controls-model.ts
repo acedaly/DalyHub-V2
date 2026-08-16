@@ -50,6 +50,19 @@ export type CollectionControlOption = {
   readonly description?: string;
   /** An optional decorative mark rendered before the label. */
   readonly mark?: CollectionControlMark;
+  /**
+   * CONTROL-01 — a shorter label for the APPLIED CHIP, where the group heading
+   * has already named the dimension.
+   *
+   * A chip prints "<group>: <value>", so an option whose own label repeats the
+   * group's word reads twice: the priority filter drew "Priority: Priority 1".
+   * The menu keeps the full label, because there the option stands alone and
+   * "P1" beside "P2" is a code rather than a name; the chip takes the short tag,
+   * because "Priority: P1" says the same thing once.
+   *
+   * Optional, and unset means "the label is already the right length".
+   */
+  readonly chipLabel?: string;
 };
 
 /**
@@ -200,7 +213,7 @@ export function activeSummary(
       continue;
     }
     const option = group.options.find((entry) => entry.value === value);
-    out.push(`${group.label}: ${option?.label ?? value}`);
+    out.push(`${group.label}: ${option?.chipLabel ?? option?.label ?? value}`);
   }
   return out;
 }
@@ -250,7 +263,7 @@ export function activeControls(
       param: group.param,
       label: group.label,
       value,
-      valueLabel: option?.label ?? value,
+      valueLabel: option?.chipLabel ?? option?.label ?? value,
       kind,
     });
   }

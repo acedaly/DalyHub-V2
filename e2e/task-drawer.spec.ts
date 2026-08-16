@@ -69,13 +69,23 @@ test.describe("TODAY-02 — desktop", () => {
     ).toBeVisible();
     // The open stack lives in the URL (DS-03).
     await expect(page).toHaveURL(/drawer=task%3At-drawer/);
-    // Real fields render (TASKS-02: priority is the shared coloured
-    // PriorityIndicator — the "P1" tag is visible and the everyday priority label
-    // is carried for assistive tech).
+    /*
+     * Real fields render, and the priority carries the flag, the colour and the
+     * label the locked contract requires.
+     *
+     * ── Short tag vs full label ──────────────────────────────────────────────
+     * This asserted the short "P1" tag and the everyday word "Urgent". Both
+     * belong to the ROW's rendering: the contract is a flag plus a short
+     * P1/P2/P3/P4 tag in rows, and the FULL label ("Priority 1") in menus and on
+     * the record, where there is room for the unambiguous word and no column of
+     * fifty of them. The drawer draws the record form, so it says "Priority 1",
+     * and forcing the row's tag back onto it to satisfy this line would break
+     * the contract rather than test it.
+     */
     const priority = dialog.locator('.dh-priority[data-priority="p1"]');
     await expect(priority).toBeVisible();
-    await expect(priority).toContainText("P1");
-    await expect(priority).toContainText("Urgent");
+    await expect(priority).toContainText("Priority 1");
+    await expect(priority).toHaveAttribute("aria-label", /Priority 1/);
     // The due date renders — now in both the Planning section and, since TASKS-02,
     // the shared UrgencyChip; assert the chip's ABSOLUTE form explicitly.
     //
@@ -167,20 +177,31 @@ test.describe("TODAY-02 — desktop", () => {
     await expect(
       dialog.getByRole("heading", { level: 3, name: "Draft the proposal" }),
     ).toBeVisible();
-    const complete = dialog.getByRole("checkbox");
-    // The control disables briefly while a toggle persists + revalidates, so drive
-    // it via click() and wait for each state to settle (checked + re-enabled). This
-    // is also robust to another journey having left the shared task complete.
-    const setChecked = async (target: boolean) => {
-      await expect(complete).toBeEnabled();
-      if ((await complete.isChecked()) === target) return;
-      await complete.click();
-      await expect(complete).toBeChecked({ checked: target });
-      await expect(complete).toBeEnabled();
+    /*
+     * CONTROL-01 §4 — completion is the record HEADER's action now, not a
+     * checkbox in the summary column. It is two named commands rather than one
+     * toggle ("Complete task" / "Reopen task"), in the same slot and the same
+     * words a Project's lifecycle act uses, so the record's one purpose is no
+     * longer ranked alongside its properties.
+     *
+     * The control disables briefly while the act persists and revalidates, so
+     * each step waits for the OTHER command to appear — which is the server's
+     * answer, not an optimistic guess — before driving the next. Written as
+     * "make it so" rather than "click twice" because this task is shared with
+     * other journeys and may arrive in either state.
+     */
+    const setCompleted = async (target: boolean) => {
+      const wanted = target ? "Complete task" : "Reopen task";
+      const settled = target ? "Reopen task" : "Complete task";
+      const action = dialog.getByRole("button", { name: wanted });
+      if ((await action.count()) === 0) return;
+      await expect(action).toBeEnabled();
+      await action.click();
+      await expect(dialog.getByRole("button", { name: settled })).toBeEnabled();
     };
-    await setChecked(false); // normalise to open
-    await setChecked(true); // complete
-    await setChecked(false); // reopen — reconciled with the persisted server result
+    await setCompleted(false); // normalise to open
+    await setCompleted(true); // complete
+    await setCompleted(false); // reopen — reconciled with the persisted result
   });
 
   test("records activity after a mutation", async ({ page }) => {
@@ -249,11 +270,15 @@ test.describe("TODAY-02 — desktop", () => {
     page,
   }) => {
     await gotoFixture(page, DRAWER_URL);
-    // The completion control's touch target is its label (checkbox + text),
-    // sized to the 44px token — not the bare native checkbox glyph.
+    /*
+     * The completion control is the record header's action button (CONTROL-01
+     * §4). It takes its 44px floor from the shared control layer rather than
+     * from a task-specific rule, which is the point of moving it there — one
+     * lifecycle act, one control, one measured target.
+     */
     const control = page
       .getByRole("dialog")
-      .locator("label.dh-task-drawer__completion");
+      .getByRole("button", { name: /^(Complete|Reopen) task$/ });
     await expectMinTouchTarget(control);
   });
 });

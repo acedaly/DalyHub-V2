@@ -129,7 +129,7 @@ test.describe("PROJ-02 — Project health", () => {
       .click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("checkbox", { name: /Mark complete/ }).check();
+    await dialog.getByRole("button", { name: "Complete task" }).click();
     await expect(
       dialog.getByText("Completed", { exact: true }).first(),
     ).toBeVisible();

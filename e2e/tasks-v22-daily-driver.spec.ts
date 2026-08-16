@@ -482,7 +482,7 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow`);
     await openQuickEdit(page, title);
-    const drawer = page.getByRole("dialog", { name: "Quick edit" });
+    const drawer = page.getByRole("dialog", { name: "Task" });
 
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
@@ -504,8 +504,19 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     );
     await drawer.getByRole("button", { name: "Save repeat" }).click();
     await expect(
-      page.locator("[role='status']").filter({ hasText: /repeats/i }),
-    ).toBeAttached();
+      /*
+       * The product's own announcement channel.
+       *
+       * This waited on `[role="status"]`, which was the live region the retired
+       * quick-edit DRAWER HOST rendered around the panel. The record announces
+       * through the shared feedback system instead, and that system deliberately
+       * uses `aria-live` rather than an implicit `role="status"` — the reason is
+       * recorded in `NotificationCenter`: two elements resolving to the same
+       * implicit role made `getByRole` ambiguous. The toast is a labelled group,
+       * so it is asked for by the name it publishes.
+       */
+      page.getByRole("group", { name: /repeats/i }),
+    ).toBeVisible();
 
     // The SAME wording on the row: one formatter, every surface.
     await page.keyboard.press("Escape");
@@ -520,7 +531,7 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow`);
     await openQuickEdit(page, title);
-    const drawer = page.getByRole("dialog", { name: "Quick edit" });
+    const drawer = page.getByRole("dialog", { name: "Task" });
 
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
@@ -534,8 +545,19 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     );
     await drawer.getByRole("button", { name: "Save repeat" }).click();
     await expect(
-      page.locator("[role='status']").filter({ hasText: /repeats/i }),
-    ).toBeAttached();
+      /*
+       * The product's own announcement channel.
+       *
+       * This waited on `[role="status"]`, which was the live region the retired
+       * quick-edit DRAWER HOST rendered around the panel. The record announces
+       * through the shared feedback system instead, and that system deliberately
+       * uses `aria-live` rather than an implicit `role="status"` — the reason is
+       * recorded in `NotificationCenter`: two elements resolving to the same
+       * implicit role made `getByRole` ambiguous. The toast is a labelled group,
+       * so it is asked for by the name it publishes.
+       */
+      page.getByRole("group", { name: /repeats/i }),
+    ).toBeVisible();
 
     await page.keyboard.press("Escape");
     await gotoFixture(page, LIST);
@@ -574,17 +596,21 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
 });
 
 /**
- * Open a row's shared quick-edit panel — the surface that hosts priority, the
- * dates, the sector and the recurrence editor. It is reached from the row's own
- * overflow, which is the path a touch device has always used (there is no hover
- * to reveal anything on a phone).
+ * Open a row's Task record — the ONE surface that hosts the priority, the dates,
+ * the horizon, the Someday/Maybe state and the recurrence editor. It is reached
+ * from the row's own overflow, which is the path a touch device has always used
+ * (there is no hover to reveal anything on a phone).
+ *
+ * CONTROL-01 §4 — this used to open `TaskQuickEditPanel` behind a menu item
+ * reading "Priority, dates and repeat…", a SECOND drawer over the same task that
+ * carried a different subset of its properties from the record beside it. The
+ * two are merged; the menu offers one door, and the editor this helper's callers
+ * drive came with it.
  */
 async function openQuickEdit(page: Page, title: string) {
   await openRowMenu(page, title);
-  await page
-    .getByRole("menuitem", { name: "Priority, dates and repeat…" })
-    .click();
-  await expect(page.getByRole("dialog", { name: "Quick edit" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Open task" }).click();
+  await expect(page.getByRole("dialog", { name: "Task" })).toBeVisible();
 }
 
 /* ========================================================================== */
@@ -610,16 +636,15 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
      * priority was not drawn on it: at 390px a "No priority" control took ~70px
      * out of a ~334px row, directly out of the title, to say that a dimension
      * the owner has not used is not used. The capability did not move off the
-     * row — it
-     * moved into the row's own overflow → "Priority, dates and repeat…", which
-     * is the shared quick-edit panel and is already the phone's path for the
-     * sector and the recurrence (a phone has no hover to reveal anything).
+     * row — it moved into the row's own overflow → "Open task", which is the ONE
+     * Task record and is already the phone's path for the horizon and the
+     * recurrence (a phone has no hover to reveal anything).
      *
      * Once a task HAS a priority the row shows it at every width, which is what
      * the assertion at the end of this block proves.
      */
     await openQuickEdit(page, `E2E phone ${stamp} 0`);
-    const quickEdit = page.getByRole("dialog", { name: "Quick edit" });
+    const quickEdit = page.getByRole("dialog", { name: "Task" });
     const priority = quickEdit.getByRole("combobox", { name: /^Priority/ });
     await priority.click();
     await quickEdit.getByRole("option", { name: "Priority 2" }).click();
@@ -654,10 +679,8 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     await row.scrollIntoViewIfNeeded();
     await page.mouse.wheel(0, -160);
     await openRowMenu(page, title);
-    await page
-      .getByRole("menuitem", { name: "Priority, dates and repeat…" })
-      .click();
-    const drawer = page.getByRole("dialog", { name: "Quick edit" });
+    await page.getByRole("menuitem", { name: "Open task" }).click();
+    const drawer = page.getByRole("dialog", { name: "Task" });
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");

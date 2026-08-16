@@ -97,7 +97,7 @@ test.describe("PROJ-01 — Projects", () => {
     await expect(page).toHaveURL(/drawer=task%3A/);
 
     // Complete the task through the shared Drawer.
-    await taskDialog.getByRole("checkbox", { name: /Mark complete/ }).check();
+    await taskDialog.getByRole("button", { name: "Complete task" }).click();
     await expect(
       taskDialog.getByText("Completed", { exact: true }).first(),
     ).toBeVisible();
@@ -212,8 +212,20 @@ test.describe("PROJ-01 — Projects", () => {
      * ("50 Projects loaded"). The assertion had been failing ever since and
      * nobody could see it: this spec sat inside the tests shards 4 and 8 never
      * started before `globalTimeout`.
+     *
+     * CONVERGE-01 — and it is now the SHARED state breakdown ("20 active · 62
+     * completed · 1 archived") rather than a bare total, which is the whole
+     * point of the convergence: a collection header answers "what is in here?"
+     * with the states the owner acts on.
+     *
+     * The whitespace class is load-bearing. `collectionStateSegment` joins a
+     * count to its word with a NO-BREAK SPACE, deliberately, so a segment can
+     * never wrap between the number and what it counts — and a literal " " in
+     * this pattern therefore matched nothing at all. `\s` matches U+00A0 in
+     * JavaScript, so this asserts the copy without asserting which kind of space
+     * the product chose to hold it together.
      */
-    await expect(page.getByText(/\d+ active/)).toBeVisible();
+    await expect(page.getByText(/\d+\s+active/)).toBeVisible();
     // Task roll-ups stay authoritative across pagination: the cards state each
     // Project's OWN totals, never a figure derived from the loaded page.
     const websiteBar = page

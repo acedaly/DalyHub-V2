@@ -201,6 +201,29 @@
   flex-direction: column;
   gap: var(--app-space-px);
   min-width: 0;
+  /*
+   * CONTROL-01 §5 — the labels take the free width so the shortcut hint sits at
+   * the item's TRAILING edge and every hint in a menu lines up on the same x.
+   * Ragged hints read as decoration; a column reads as a key.
+   */
+  flex: 1 1 auto;
+}
+
+/*
+ * The keyboard shortcut this item duplicates.
+ *
+ * Quiet, tabular and never wrapping: it is a reference the eye checks once, not
+ * a second label competing with the action. `flex: none` so a long action name
+ * ellipsises before the key does — a truncated shortcut is a wrong shortcut.
+ */
+.dh-overflow-menu__shortcut {
+  flex: none;
+  margin-inline-start: var(--dh-space-3);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--dh-color-text-muted);
 }
 
 .dh-overflow-menu__label {

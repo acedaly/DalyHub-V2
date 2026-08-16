@@ -466,10 +466,20 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     await page.getByRole("link", { name: title }).first().click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    // The canonical record agrees: its own completion checkbox is now checked.
+    /*
+     * The canonical record agrees — it says "Completed" in words, and the only
+     * completion act it now offers is the reverse one.
+     *
+     * CONTROL-01 §4 made completion the record header's ACTION rather than a
+     * checkbox in the summary column, so there is no checked state to read: the
+     * state is the header's status chip and the act is a named button. Both are
+     * asserted, because "the record agrees" is a claim about the state, and
+     * "the record is reversible from here" is a claim about the control.
+     */
+    await expect(dialog.getByText("Completed").first()).toBeVisible();
     await expect(
-      dialog.getByRole("checkbox", { name: "Completed" }),
-    ).toBeChecked();
+      dialog.getByRole("button", { name: "Reopen task" }),
+    ).toBeVisible();
   });
 
   test("sets a due date from the row without touching the planned date", async ({
@@ -585,27 +595,35 @@ test.describe("TASKS-03 — Today integration", () => {
      * (`tasks.css`). The control is still IN the DOM, so the old locator
      * resolved and then waited out its timeout on an element no user can see.
      *
-     * The path the product kept is the one `tasks.css` names in the same breath
-     * — the row's overflow → "Priority, dates and repeat…" — which is also the
-     * path a touch device has always used, so this now drives what a phone
-     * drives.
+     * The path the product kept is the row's overflow → the Task record, which
+     * is also the path a touch device has always used, so this now drives what a
+     * phone drives.
+     *
+     * CONTROL-01 §4 — the menu item is "Open task", and it opens the ONE Task
+     * drawer. It used to read "Priority, dates and repeat…" and open a SECOND
+     * drawer (`TaskQuickEditPanel`) that edited a different subset of the same
+     * task from the record beside it; that split is what §4 closed. The plan is
+     * cleared here through the record's own Planning section — the same "Clear"
+     * quick action the drawer has always carried.
      */
     await again.getByRole("button", { name: /^More actions for / }).click();
     await page
       .getByRole("menu")
       .last()
-      .getByRole("menuitem", { name: "Priority, dates and repeat…" })
+      .getByRole("menuitem", { name: "Open task" })
       .click();
-    const quickEdit = page.getByTestId("task-quick-edit");
-    await expect(quickEdit).toBeVisible();
-    await quickEdit.getByLabel("Scheduled date").fill("");
-    // The panel announces the SERVER's answer, not the optimistic guess, through
-    // the drawer's own live region — so this is also the wait: navigating on the
-    // keystroke would abandon the mutation in flight and then assert against a
-    // plan that was never cleared.
+    const record = page.getByRole("dialog");
+    await expect(record.getByRole("group", { name: "Planning" })).toBeVisible();
+    await record.getByRole("button", { name: "Clear plan" }).click();
+    /*
+     * Wait for the SERVER's answer, not the optimistic guess: the Scheduled
+     * value returns to its unset state only once `/tasks/:id` has accepted the
+     * clear. Navigating before that would abandon the mutation in flight and
+     * then assert against a plan that was never cleared.
+     */
     await expect(
-      page.getByRole("status").filter({ hasText: /Cleared the planned date/ }),
-    ).toHaveCount(1);
+      record.getByRole("button", { name: /^Scheduled date: (Not planned|—)/ }),
+    ).toBeVisible();
 
     /*
      * And the OUTCOME is asserted where the plan actually lives: the canonical

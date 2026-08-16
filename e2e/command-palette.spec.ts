@@ -277,12 +277,18 @@ test.describe("DS-09 Command Palette — desktop", () => {
      * record's own control is the one place the answer is unconditional.
      */
     await gotoFixture(page, "/today?drawer=task%3At-complete");
-    // The control is named for the STATE once it is finished ("Completed"), not
-    // for the action that would undo it, so the name and the checked state say
-    // the same thing and both are asserted.
+    /*
+     * The record states the finished STATE in words and offers only the act that
+     * would undo it. CONTROL-01 §4 replaced the summary's completion checkbox
+     * with the record header's action — two named commands rather than one
+     * toggle — so the state and the control are two assertions rather than one
+     * checked box, and both are made.
+     */
+    const record = page.getByRole("dialog");
+    await expect(record.getByText("Completed").first()).toBeVisible();
     await expect(
-      page.getByRole("dialog").getByRole("checkbox", { name: "Completed" }),
-    ).toBeChecked();
+      record.getByRole("button", { name: "Reopen task" }),
+    ).toBeVisible();
   });
 
   test("closes on Escape and restores focus to the trigger", async ({

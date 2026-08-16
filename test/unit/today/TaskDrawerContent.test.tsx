@@ -152,13 +152,29 @@ describe("task record rendering", () => {
     // contexts and exposed as the accessible name.
     expect(screen.getByText("Priority 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Priority 1")).toBeInTheDocument();
-    expect(screen.getByText("Ship V2")).toBeInTheDocument();
+    /*
+     * CONTROL-01 §4 — the parent is a searchable PICKER on the record now, not a
+     * printed value, so the assertion moves from "the words Ship V2 appear" to
+     * "the parent control holds this task's parent". That is the stronger claim:
+     * the option is synthesised from the record itself when the bounded
+     * `/tasks/parent-options` page has not returned it, so a task whose Project
+     * is deep in a large workspace still shows its Project rather than a blank.
+     */
+    expect(await screen.findByDisplayValue("Ship V2")).toBe(
+      screen.getByRole("combobox", { name: /Project or Area/ }),
+    );
   });
 
   it("shows the completion control", async () => {
+    /*
+     * CONTROL-01 §4 — completion is the record HEADER's action, not a checkbox
+     * in the summary column. It is two named commands rather than one toggle,
+     * in the same slot and the same words a Project's lifecycle act uses, so an
+     * open task offers "Complete task" and a finished one offers "Reopen task".
+     */
     renderDrawer(<TaskDrawerContent taskId="t1" />);
     expect(
-      await screen.findByRole("checkbox", { name: /mark complete/i }),
+      await screen.findByRole("button", { name: "Complete task" }),
     ).toBeInTheDocument();
   });
 });
@@ -366,10 +382,10 @@ describe("completion", () => {
     const posts: string[] = [];
     stubFetch({ onPost: (intent) => posts.push(intent) });
     renderDrawer(<TaskDrawerContent taskId="t1" />);
-    const checkbox = await screen.findByRole("checkbox", {
-      name: /mark complete/i,
+    const action = await screen.findByRole("button", {
+      name: "Complete task",
     });
-    fireEvent.click(checkbox);
+    fireEvent.click(action);
     await waitFor(() => expect(posts).toContain("complete"));
   });
 });

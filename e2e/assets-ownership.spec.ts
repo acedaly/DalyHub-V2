@@ -464,7 +464,7 @@ test("completing the linked Task does not assert the work happened", async ({
     .getAttribute("href");
   await page.goto(taskHref!);
   // The Task's own canonical control, in the shared Task drawer.
-  await page.getByRole("checkbox", { name: "Mark complete" }).first().check();
+  await page.getByRole("button", { name: "Complete task" }).first().click();
   await expect(page.getByText("Completed").first()).toBeVisible();
 
   // 4. The obligation is STILL OPEN, and says so in the owner's words.

@@ -186,10 +186,25 @@ describe("TaskQuickEditPanel", () => {
   });
 
   it("plans and clears the scheduled date through the task route", async () => {
+    /*
+     * CONTROL-01 §2 — this field is DalyHub's own calendar, not the browser's.
+     *
+     * It drove a native `<input type="date">` with `fireEvent.change`, which is
+     * the exact assumption the audit retired: the native control is a different
+     * control on every platform, and on a phone it hands the owner an OS wheel
+     * instead of the month grid every other Task date in the product opens. The
+     * behaviour under test is unchanged and is what matters — choosing a day
+     * posts `intent=plan` with that day's ISO date, and commits on selection
+     * rather than needing a separate Save.
+     *
+     * The day is asked for by its SPOKEN name, because that is the contract
+     * `CalendarGrid` publishes ("17" alone is never the whole announcement).
+     */
     const { taskRoute } = renderPanel();
-    fireEvent.change(screen.getByLabelText(/Scheduled date/), {
-      target: { value: "2026-08-04" },
-    });
+    fireEvent.click(screen.getByLabelText(/Scheduled date/));
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Tuesday 4 August 2026/ }),
+    );
     await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
     const planned = taskRoute.mock.calls[0]![0];
     expect(planned.get("intent")).toBe("plan");

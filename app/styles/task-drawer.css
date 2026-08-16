@@ -6,30 +6,38 @@
  * spaces the task-specific summary/relationship pieces those shared components host.
  */
 
-.dh-task-drawer__completion {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  min-height: var(--app-touch-target-min);
-  padding: var(--app-space-1) 0;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.dh-task-drawer__completion input {
-  inline-size: 1.15rem;
-  block-size: 1.15rem;
-}
-
-.dh-task-drawer__completion input:disabled {
-  cursor: progress;
-}
-
 /* PX-06: the section rhythm, the eyebrow label and the muted prose are now the
  * SHARED `.dh-record-stack` / `.dh-record-section` / `.dh-record-section__label`
  * / `.dh-record-muted` primitives in record-layout.css — the Task Drawer no
  * longer owns a private copy that the Project Links tab had to borrow by class
  * name. Only the genuinely task-specific description fallback stays here. */
+/*
+ * CONTROL-01 §4 — the Task drawer's completion CONTROL moved to the header.
+ *
+ * It was a checkbox in the summary column with its own label, sized and spaced
+ * by this file. Completion is now the record header's action, in the same slot
+ * and the same words every other record's lifecycle act uses, so the shared
+ * Record Header styles it and the state it used to announce is the header's
+ * status chip.
+ *
+ * ── The one thing that did NOT come for free ────────────────────────────────
+ * The retired label carried an explicit `min-height: var(--app-touch-target-min)`
+ * — 44px — because completing a task is the highest-frequency act on this
+ * surface and DalyHub holds it to the 44px floor rather than to WCAG 2.5.8's
+ * 24px minimum. A shared button is `--button-height-md`, which is 36px, so
+ * moving the control without this rule would have SHRUNK the product's most-used
+ * target by eight pixels. Measured by `task-drawer.spec.ts`'s
+ * `expectMinTouchTarget`.
+ *
+ * Scoped to the Task record rather than raised on every record header: this is a
+ * claim about THIS control's frequency, not a redesign of the shared button, and
+ * a global change would silently resize every record in the product.
+ */
+.dh-task-record .record-header__actions .dh-btn,
+.dh-task-record .record-header__actions .dh-button {
+  min-block-size: var(--app-touch-target-min);
+}
+
 .dh-task-drawer__description-fallback {
   margin: 0;
   color: var(--dh-color-text-muted);
