@@ -374,14 +374,16 @@ test.describe("Today — the unified schedule", () => {
     expect(await panel.innerText()).not.toContain("calendar.example.com");
   });
 
-  test("keeps TODAY-10's Focus contract untouched", async ({ page }) => {
+  test("keeps TODAY-10's plan contract untouched", async ({ page }) => {
     await page.goto("/today");
-    // Focus is still the Task panel, and the schedule has not moved into it.
-    const focus = page
-      .getByRole("heading", { name: "Focus", exact: true })
+    // The day's own panel is still the TASK panel, and the schedule has not
+    // moved into it. TODAY-11 renamed it from "Focus" to "Today's plan"; the
+    // claim is unchanged, only the heading it is located by.
+    const plan = page
+      .getByRole("heading", { name: "Today’s plan", exact: true })
       .locator("xpath=ancestor::section[1]");
-    await expect(focus).toBeVisible();
-    await expect(focus.getByText(WORK_MEETING_TITLE)).toHaveCount(0);
+    await expect(plan).toBeVisible();
+    await expect(plan.getByText(WORK_MEETING_TITLE)).toHaveCount(0);
   });
 
   test("stays within the viewport at every phone width", async ({ page }) => {

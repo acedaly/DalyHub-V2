@@ -17,6 +17,54 @@ no version number to group them under.
 
 ---
 
+## Today becomes the command centre
+
+Today has been rebuilt around the picture you approved. It is the same screen in
+the sense that matters — it still opens on the day, and the day is still the
+first thing you can act on — but there is a good deal more of your life on it
+now, and none of it is invented.
+
+**The week's figures are back at the top.** Tasks completed, tasks captured, and
+how many of your measurable Goals are on track, each with a small chart beside
+it. They are about the _week_, not about the list underneath them: a number that
+counts what you can already see two inches lower is a caption, not a measure.
+Both figures cover the last seven days, and they say so — not "this week", which
+would mean three days on a Wednesday to you and seven to the arithmetic.
+
+**Your day and your schedule sit side by side.** Today's plan keeps its three
+bands — overdue, due today, planned today — and now ends each row with the
+Project, Goal or Area it belongs to. Beside it, the Schedule panel has gained a
+**week strip**: the seven days of this week, with a dot under any day that has
+something on it. Tap a day and the timeline below shows that day. It is instant,
+because the whole week was already loaded — and it never calls a day you have
+selected "Today" when it isn't.
+
+**Capture without leaving the screen.** A Quick capture card, with a place to
+start typing and four buttons — Task, Note, Diary, Meeting. They open the same
+capture panels the `+` in the top bar opens; there is no second way to create
+anything, just a second door to the one that exists.
+
+**A daily reflection.** If you have written a Diary entry today, its opening
+shows here. If you have not, it asks what went well and opens the Diary. It does
+not read what you wrote, score it, or congratulate you on a streak.
+
+**What is deliberately not here, and why.** The picture shows a "Focus time" card
+reading 6h 45m, and a "Productivity score" of 78. DalyHub does not time you — no
+timer, no sessions, no field one could be worked out from — and it does not grade
+you, anywhere, on purpose. Rather than fill those two spaces with something
+plausible, they are empty and this is the note that says so. For the same
+reason, tasks on the plan carry no clock time: a task in DalyHub is a _date_, and
+a time beside one would be a number nobody entered. The times you see in the
+Schedule are real, because a meeting genuinely happens at one. The picture's
+"Reminder" and "Upload" buttons are absent too — DalyHub cannot yet remind you of
+anything outside the app, and cannot attach a file, and a button for neither is
+worse than no button.
+
+Everything still works at a phone's width, in both light and dark, and a quiet
+day is still a short page.
+
+---
+
 ## Areas open as a grid, like Projects
 
 The Areas page opened as a list of rows while Projects opened as a gallery of

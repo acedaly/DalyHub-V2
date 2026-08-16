@@ -49,15 +49,32 @@ test.describe("Today — the day surface", () => {
   }) => {
     await page.goto("/today");
 
+    /*
+     * TODAY-11 renamed the day's own panel from "Focus" to "Today's plan", which
+     * is what MOCKUP 5 calls it and what the owner calls it. The Schedule panel
+     * is now permanent — the week strip is a real control over real data — so it
+     * is asserted unconditionally rather than only on a day with events.
+     */
     await expect(
-      page.getByRole("heading", { level: 2, name: "Focus" }),
+      page.getByRole("heading", { level: 2, name: "Today’s plan" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 2, name: "Needs attention" }),
+      page.getByRole("heading", { level: 2, name: "Schedule" }),
     ).toBeVisible();
-    const taskStat = page.getByRole("heading", { name: "Tasks for today" });
-    if ((await taskStat.count()) > 0) {
-      await expect(taskStat).toBeVisible();
+    /*
+     * "Needs attention" is drawn only when it HOLDS something (TODAY-11): a
+     * panel that exists for what it carries has no business drawing a heading
+     * and a green tick when it carries nothing. On a clear day the page ends on
+     * one quiet line instead, so exactly one of the two is true.
+     */
+    const attention = page.getByRole("heading", {
+      level: 2,
+      name: "Needs attention",
+    });
+    if ((await attention.count()) > 0) {
+      await expect(attention).toBeVisible();
+    } else {
+      await expect(page.getByText("All clear.")).toBeVisible();
     }
     /*
      * TODAY-09 renamed the day's one band from "Due today" to "For today",
@@ -81,12 +98,15 @@ test.describe("Today — the day surface", () => {
       );
     }
 
-    // "Plan day" is a navigation to the canonical Tasks view of today's work —
-    // Today does not own a planning flow.
-    await expect(page.getByRole("link", { name: "Plan day" })).toHaveAttribute(
-      "href",
-      "/tasks?system=today",
-    );
+    /*
+     * TODAY-11 — the header's one action is "+ Add task", as MOCKUP 5 draws it,
+     * and it opens the SHARED capture sheet on the Task panel. It replaced
+     * "Plan day", whose destination (`/tasks?system=today`) is still one click
+     * away from the plan's own "View all N tasks for today" whenever the day
+     * exceeds its bound.
+     */
+    await expect(page.getByTestId("today-add-task")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Plan day" })).toHaveCount(0);
 
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
@@ -306,24 +326,96 @@ test.describe("Today — the day surface", () => {
     }
   });
 
-  test("the surface offers no search, no customisation and no second capture", async ({
+  test("the surface offers no search and no customisation", async ({
     page,
   }) => {
     await page.goto("/today");
     const surface = page.locator(".dh-today");
 
+    /*
+     * Search still belongs to the SHELL. TODAY-11 did not add one here — the top
+     * bar's control sits on the same gutter line one rank above the greeting,
+     * and a second implementation to keep in step with the first is what DS-03
+     * refused when it settled this control's home.
+     */
     await expect(surface.getByRole("searchbox")).toHaveCount(0);
+    await expect(surface.getByRole("search")).toHaveCount(0);
     await expect(
       surface.getByRole("button", { name: /customise/i }),
     ).toHaveCount(0);
     await expect(surface.locator("details")).toHaveCount(0);
-    await expect(surface.getByTestId("today-capture-task")).toHaveCount(0);
 
-    // Search moved to the top app bar as an icon, keeping its name and `/`.
     const topBar = page.getByRole("banner");
     await expect(
       topBar.getByRole("button", { name: /^Search DalyHub/ }),
     ).toBeVisible();
+  });
+
+  /*
+   * TODAY-11 — the capture card, and the two chips that are NOT on it.
+   *
+   * Today gained capture affordances of its own, reversing the rule the test
+   * above used to carry. What the removal was protecting is still true and is
+   * what this asserts: every control opens the SHARED sheet, the "field" is a
+   * button rather than a second form, and no chip offers a capability the
+   * product does not have.
+   */
+  test("captures through the shared sheet, and offers no capability it lacks", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    const card = page.getByTestId("today-capture");
+    await expect(card).toBeVisible();
+
+    // A control that LOOKS like a field, not a second capture form.
+    const field = page.getByTestId("today-capture-field");
+    await expect(field).toHaveJSProperty("tagName", "BUTTON");
+    await expect(page.locator(".dh-today").getByRole("textbox")).toHaveCount(0);
+
+    // "Reminder" has no delivery channel (DEBT-57) and "Upload" no attachments
+    // (DEBT-35). Neither is drawn, and neither may arrive before the capability.
+    await expect(card.getByRole("button", { name: /reminder/i })).toHaveCount(
+      0,
+    );
+    await expect(card.getByRole("button", { name: /upload/i })).toHaveCount(0);
+
+    // The chip opens the SAME sheet the global "+" does, on the Task panel.
+    await card.getByRole("button", { name: "Task", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+  });
+
+  /*
+   * TODAY-11 — the week strip navigates the schedule's day, and says which day.
+   */
+  test("the week strip selects a day without leaving the page", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    const strip = page.getByTestId("today-week-strip");
+    await expect(strip.getByRole("tab")).toHaveCount(7);
+
+    const selected = strip.getByRole("tab", { selected: true });
+    await expect(selected).toHaveCount(1);
+    const before = await selected.getAttribute("data-date");
+
+    // Arrow-navigable, and only the selected day is in the tab order.
+    await selected.focus();
+    await page.keyboard.press("ArrowLeft");
+    const after = await strip
+      .getByRole("tab", { selected: true })
+      .getAttribute("data-date");
+    expect(after).not.toBe(before);
+    // The URL is untouched: this selects a panel, it does not navigate.
+    await expect(page).toHaveURL(/\/today$/);
+
+    // ONE schedule link, and it goes to the forward agenda that actually exists.
+    const schedule = page.getByTestId("today-schedule");
+    await expect(
+      schedule.getByRole("link", { name: "View full schedule" }),
+    ).toHaveAttribute("href", "/today/upcoming");
+    await expect(schedule.getByRole("link", { name: /calendar/i })).toHaveCount(
+      0,
+    );
   });
 });
 
@@ -336,14 +428,12 @@ test.describe("Today — narrow widths", () => {
     await expect(greeting(page)).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
 
-    // UIX-01 — "Needs attention" comes before "Continue working" in the day's
-    // supporting regions. They were one `__rail` column and are now sibling
-    // regions, so the order is read off the body.
-    const headings = (
-      await page
-        .locator(".dh-today__body .dh-today__panel-title")
-        .allInnerTexts()
-    ).filter((text) => text !== "Focus" && text !== "Schedule");
+    // TODAY-11 — "Needs attention" still comes before "Continue working", and
+    // the order is now read off the SUPPORT rank that holds both. Nothing on
+    // this screen is moved by CSS `order`, so the DOM order is the phone order.
+    const headings = await page
+      .locator(".dh-today__rank--support .dh-today__panel-title")
+      .allInnerTexts();
     if (headings.length > 1) {
       expect(headings[0]).toBe("Needs attention");
     }

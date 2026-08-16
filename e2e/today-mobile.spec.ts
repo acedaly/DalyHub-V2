@@ -105,7 +105,7 @@ test.describe("the Today screen on a phone", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 2, name: "Focus" }),
+      page.getByRole("heading", { level: 2, name: "Today’s plan" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
@@ -113,11 +113,9 @@ test.describe("the Today screen on a phone", () => {
     // order, "Needs attention" first: the same reading order the wide layout
     // has, unwrapped. The two-column rail became three sibling regions, so the
     // panels are read off the body rather than off a `__rail` wrapper.
-    const headings = (
-      await page
-        .locator(".dh-today__body .dh-today__panel-title")
-        .allInnerTexts()
-    ).filter((text) => text !== "Focus" && text !== "Schedule");
+    const headings = await page
+      .locator(".dh-today__rank--support .dh-today__panel-title")
+      .allInnerTexts();
     if (headings.length > 1) {
       expect(headings[0]).toBe("Needs attention");
     }
@@ -154,7 +152,7 @@ test.describe("the Today screen on a phone", () => {
     await page.goBack();
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect(
-      page.getByRole("heading", { level: 2, name: "Focus" }),
+      page.getByRole("heading", { level: 2, name: "Today’s plan" }),
     ).toBeVisible();
   });
 
@@ -172,7 +170,7 @@ test.describe("the Today screen on a phone", () => {
     await page.goBack();
     await expect(page).toHaveURL(/\/today$/);
     await expect(
-      page.getByRole("heading", { level: 2, name: "Focus" }),
+      page.getByRole("heading", { level: 2, name: "Today’s plan" }),
     ).toBeVisible();
   });
 

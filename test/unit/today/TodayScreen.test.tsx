@@ -13,9 +13,10 @@ import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { CaptureProvider } from "~/shared/capture";
 import { DrawerProvider } from "~/shared/drawer";
 import { TodayScreen } from "~/modules/today/day/TodayScreen";
-import type { TodayDayData } from "~/modules/today/day/load";
+import { emptyDay, type TodayDayData } from "~/modules/today/day/load";
 import {
   evaluateGoalProgress,
   normalizeGoalMeasurementConfig,
@@ -126,38 +127,79 @@ function project(
   };
 }
 
-/** A quiet day, so each test opts INTO the thing it is asserting about. */
+/**
+ * A quiet day, so each test opts INTO the thing it is asserting about.
+ *
+ * Built from the LOADER's own `emptyDay` rather than a hand-written literal:
+ * that is the degradation path the route takes when a workspace read fails, so
+ * basing the fixture on it means a field added to the payload cannot be
+ * remembered in one place and forgotten in the other. A quiet day has no
+ * schedule, no measurable Goals, no workload trend and no reflection.
+ */
 function day(overrides: Partial<TodayDayData> = {}): TodayDayData {
   return {
-    todayIso: TODAY,
-    dateLong: "Saturday 8 August 2026",
-    hour: 9,
-    ownerName: "Aidan",
-    overdue: [],
-    today: [],
-    completedToday: [],
-    meetings: [],
-    // CAL-01 — a quiet day has no external calendar schedule either.
-    schedule: { dateIso: TODAY, allDay: [], timed: [], count: 0 },
-    scheduleHasSources: false,
-    scheduleStale: false,
-    attention: [],
-    // GOAL-02 — a quiet day has no measurable Goals and no workload trend.
-    goals: [],
-    activityTrend: null,
-    continueProjects: [],
+    ...emptyDay({
+      todayIso: TODAY,
+      dateLong: "Saturday 8 August 2026",
+      hour: 9,
+      ownerName: "Aidan",
+    }),
     ...overrides,
   };
 }
 
+/**
+ * TODAY-11 — the week the Schedule panel draws, with `timed` on ONE of its days.
+ *
+ * The strip is always seven days; what varies is which of them holds anything.
+ * The helper keeps every test that only cares about today's rows from having to
+ * describe a week.
+ */
+function weekWith(
+  dateIso: string,
+  timed: readonly TodayDayData["schedule"]["timed"][number][],
+): TodayDayData["week"] {
+  return emptyDay({
+    todayIso: TODAY,
+    dateLong: "Saturday 8 August 2026",
+    hour: 9,
+    ownerName: "Aidan",
+  }).week.map((day_) =>
+    day_.dateIso === dateIso
+      ? {
+          ...day_,
+          itemCount: timed.length,
+          schedule: {
+            dateIso,
+            allDay: [],
+            timed,
+            count: timed.length,
+          },
+        }
+      : day_,
+  );
+}
+
+/**
+ * The frame the route provides.
+ *
+ * TODAY-11 added the `CaptureProvider`, because the screen now has capture
+ * controls of its own (the header's "+ Add task", the Quick capture card, the
+ * reflection invitation) and every one of them opens the SHARED sheet. Without
+ * the provider `useCapture()` returns null and those controls deliberately
+ * render nothing — which would make every assertion about them pass for the
+ * wrong reason.
+ */
 function renderScreen(
   data: TodayDayData,
   onCompleteTask?: (id: string, complete: boolean) => void,
 ) {
   const element: ReactElement = (
-    <DrawerProvider renderDrawer={() => null}>
-      <TodayScreen data={data} onCompleteTask={onCompleteTask} />
-    </DrawerProvider>
+    <CaptureProvider>
+      <DrawerProvider renderDrawer={() => null}>
+        <TodayScreen data={data} onCompleteTask={onCompleteTask} />
+      </DrawerProvider>
+    </CaptureProvider>
   );
   const router = createMemoryRouter(
     [
@@ -169,9 +211,11 @@ function renderScreen(
   return render(<RouterProvider router={router} />);
 }
 
-/** The day column ("Focus"), located by its heading. */
+/** The day's own panel ("Today’s plan"), located by its heading. */
 function timelineSection() {
-  return screen.getByRole("heading", { name: "Focus" }).closest("section")!;
+  return screen
+    .getByRole("heading", { name: "Today’s plan" })
+    .closest("section")!;
 }
 
 /** The rail panel that holds the day's timed events. */
@@ -359,7 +403,13 @@ describe("the day timeline", () => {
         ],
         // CAL-01 — the Schedule panel draws the schedule read model. The
         // `meetings` array is now the "Meetings today" FIGURE's input alone.
+        // TODAY-11 — and the panel reads it out of the WEEK, so the day's slice
+        // and the week's entry for that day are seeded from the same rows.
         schedule: scheduleOf([
+          scheduleEntry("m1", "Design review", "09:30", { location: "Studio" }),
+          scheduleEntry("m2", "1:1", "11:00"),
+        ]),
+        week: weekWith(TODAY, [
           scheduleEntry("m1", "Design review", "09:30", { location: "Studio" }),
           scheduleEntry("m2", "1:1", "11:00"),
         ]),
@@ -439,22 +489,21 @@ describe("the day timeline", () => {
      * A position guard, not a pixel test. If a band is ever added between the
      * page heading and the first task, the sequence changes and this fails.
      *
-     * ── What this test caught, and what REDESIGN-03 did about it ─────────────
-     * FINAL-UI put the day's figures BELOW the day, citing §45 of the brief
-     * ("do not put decorative stats before actionable content"), and wrote the
-     * order down here. The convergence merge then put a stat-card row back above
-     * the day and left this assertion red on `main` — which is where REDESIGN-03
-     * found it, still failing, still correct about the problem.
+     * ── The order this asserts, and who decided it ──────────────────────────
+     * FINAL-UI put the day's figures BELOW the day, citing its own §45 ("do not
+     * put decorative stats before actionable content"). REDESIGN-03 removed the
+     * stat row outright and put ONE row of week measures above the day instead.
+     * TODAY-11 keeps that position, because MOCKUP 5 draws four stat cards
+     * directly under the greeting and the mockup is the owner's newer intent —
+     * recorded as an explicit amendment in
+     * `docs/design/TODAY_11_COMMAND_CENTRE_2026_08.md` §3.1 rather than swapped
+     * in silence.
      *
-     * The resolution is not the swap it was asking for. The stat row is gone
-     * outright: every figure on it counted something rendered in full lower down
-     * the same page, so moving it merely relocated the duplication. What is
-     * above the day now is ONE row of three measures about the WEEK, which is
-     * the composition the approved reference draws and the only kind of figure
-     * that earns the position — it says something the day itself does not.
-     *
-     * Measured at 390×844 on the seeded fixture: the base commit put ZERO task
-     * rows in the first viewport, and this composition puts three.
+     * §45's SPIRIT is what this test still protects: exactly THREE blocks may
+     * precede the work rank (the header, the day rail and the measures), and the
+     * day's own plan is the first panel of that rank. A fourth block above the
+     * work — a second figure row, a banner, a hero — fails here whatever it is
+     * called.
      */
     const { container } = renderScreen(
       day({
@@ -477,27 +526,17 @@ describe("the day timeline", () => {
       .filter((role): role is string => role !== undefined);
     expect(blocks).toEqual(roles);
 
-    /*
-     * Exactly ONE block sits between the heading and the day's work. This is the
-     * assertion that would have caught the merge: it fails on a second figure
-     * row whatever that row is called, rather than naming the one component that
-     * happened to be there.
-     */
-    const body = surface.querySelector(".dh-today__body")!;
-    const beforeBody = [...surface.children].slice(
+    const work = surface.querySelector(".dh-today__rank--work")!;
+    const beforeWork = [...surface.children].slice(
       0,
-      [...surface.children].indexOf(body),
+      [...surface.children].indexOf(work),
     );
-    expect(beforeBody).toHaveLength(3); // head, day rail, measures
-    expect(beforeBody.at(-1)?.className).toContain("dh-today__summary");
+    expect(beforeWork).toHaveLength(3); // head, day rail, measures
+    expect(beforeWork.at(-1)?.className).toContain("dh-today__summary");
 
-    const focusColumn = surface.querySelector(".dh-today__col--focus")!;
-    expect(focusColumn.firstElementChild?.className).toContain(
-      "dh-today__timeline",
-    );
-    // The day's own work is the FIRST column of the body, ahead of the rail.
-    expect(body.firstElementChild?.className).toContain("dh-today__col--focus");
-    // The first row inside the day column is the overdue one.
+    // The day's own work is the FIRST panel of the work rank, ahead of Schedule.
+    expect(work.firstElementChild?.className).toContain("dh-today__timeline");
+    // The first row inside it is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");
   });
@@ -637,12 +676,14 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     expect(
       screen.getByRole("checkbox", { name: "Reopen Task 02" }),
     ).toBeChecked();
-    expect(screen.queryByText(/View all/)).not.toBeInTheDocument();
+    // Scoped to the PLAN's own remainder link. "View all" is also the Goal
+    // progress panel's trailing action, and a bare /View all/ would match it.
+    expect(screen.queryByTestId("today-focus-view-all")).toBeNull();
   });
 
   it("says nothing about a remainder when the whole day fits", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
-    expect(screen.queryByText(/View all/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("today-focus-view-all")).toBeNull();
   });
 
   it("distinguishes 'overdue but nothing on today' from an empty day", () => {
@@ -651,7 +692,9 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     );
     expect(screen.getByText("Nothing else planned today.")).toBeInTheDocument();
     // Not the empty-day line, which would deny the overdue row above it.
-    expect(screen.queryByText(/Capture anything new/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Nothing planned today."),
+    ).not.toBeInTheDocument();
   });
 
   it("counts the canonical today set on the bound, not the rows drawn", () => {
@@ -708,11 +751,35 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
  * The day's timed events, in their own rail panel.
  */
 describe("the Schedule panel", () => {
-  it("is absent when the day holds no meetings", () => {
-    renderScreen(day({ today: [task("a", "Alpha")] }));
+  /*
+   * TODAY-11 — the panel is now PERMANENT, and this reverses a rule.
+   *
+   * It used to disappear on a day with nothing on it, because "a Schedule
+   * heading over nothing is chrome". MOCKUP 5 draws the panel as one of the two
+   * halves of the day's working rank, and it is no longer over nothing: the week
+   * strip is a real control over real data (which days of this week hold
+   * anything), and it is exactly as useful on a quiet Saturday as on a full
+   * Tuesday. What must not come back is a SILENT empty panel — the day says
+   * "Nothing scheduled" in words, and says something different when no calendar
+   * is connected at all, because those are two different facts.
+   */
+  it("keeps its strip on a day with nothing on it, and says so", () => {
+    renderScreen(
+      day({ today: [task("a", "Alpha")], scheduleHasSources: true }),
+    );
     expect(
-      screen.queryByRole("heading", { name: "Schedule" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("heading", { name: "Schedule" }),
+    ).toBeInTheDocument();
+    expect(
+      within(scheduleSection()).getByText("Nothing scheduled."),
+    ).toBeInTheDocument();
+  });
+
+  it("distinguishes an empty day from a workspace with no calendar", () => {
+    renderScreen(day({ scheduleHasSources: false }));
+    expect(
+      within(scheduleSection()).getByText(/Connect a calendar in Settings/),
+    ).toBeInTheDocument();
   });
 
   it("renders meetings in time order, with a time and no checkbox", () => {
@@ -723,6 +790,12 @@ describe("the Schedule panel", () => {
           meeting("m2", "1:1", "11:00"),
         ],
         schedule: scheduleOf([
+          scheduleEntry("m1", "Design review", "09:30", {
+            location: "Studio",
+          }),
+          scheduleEntry("m2", "1:1", "11:00"),
+        ]),
+        week: weekWith(TODAY, [
           scheduleEntry("m1", "Design review", "09:30", {
             location: "Studio",
           }),
@@ -781,13 +854,25 @@ describe("completing a task from the timeline", () => {
   });
 });
 
-describe("the rail", () => {
-  it("renders one quiet 'All clear' row when nothing qualifies", () => {
+describe("the support rank", () => {
+  /*
+   * TODAY-11 — "All clear" moved OFF the attention panel and became the page's
+   * own last line.
+   *
+   * MOCKUP 5 has no attention panel at all, and the reason this screen keeps one
+   * is capability, not composition: it is the only surface where an Asset
+   * obligation with no open Task reaches the owner. A panel that exists for what
+   * it CARRIES has no business drawing a heading and a green tick when it
+   * carries nothing — so on a clear day the whole rank is absent, and the page
+   * ends on one quiet line instead. Still one line, still never a green card,
+   * and still never beside real items.
+   */
+  it("draws no attention panel at all when nothing qualifies", () => {
     renderScreen(day());
-    expect(within(attentionSection()).getByText("All clear")).toBeVisible();
-    expect(within(attentionSection()).queryAllByRole("listitem")).toHaveLength(
-      0,
-    );
+    expect(
+      screen.queryByRole("heading", { name: "Needs attention" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("All clear.")).toBeVisible();
   });
 
   it("never shows 'All clear' beside a real item", () => {
@@ -804,7 +889,7 @@ describe("the rail", () => {
         ],
       }),
     );
-    expect(within(attentionSection()).queryByText("All clear")).toBeNull();
+    expect(screen.queryByText("All clear.")).toBeNull();
     expect(
       within(attentionSection()).getByRole("link", { name: "Inbox" }),
     ).toHaveAttribute("href", "/tasks?system=inbox");
@@ -885,17 +970,15 @@ describe("the rail", () => {
   });
 });
 
-describe("what is NOT on this screen any more", () => {
-  it("offers no capture control of its own — the global + is the only one", () => {
-    const { container } = renderScreen(day());
-    expect(
-      screen.queryByRole("button", { name: /capture/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      container.querySelector("[data-testid^='today-capture-']"),
-    ).toBeNull();
-  });
-
+describe("what is NOT on this screen", () => {
+  /*
+   * TODAY-11 reversed the rule this used to assert ("Today offers no capture
+   * control of its own — the global + is the only one"). MOCKUP 5 draws a Quick
+   * capture card and a "+ Add task" in the page header, and both are real: every
+   * control on them opens the SHARED sheet, so what the removal was protecting —
+   * one capture implementation — is still true. The assertion that replaces it is
+   * in "the Quick capture card" below.
+   */
   it("offers no Customise affordance and no collapsible section", () => {
     const { container } = renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(
@@ -1018,12 +1101,292 @@ describe("Today's summary strip states only what was actually measured", () => {
      */
     renderScreen(day({ goals: [measuredGoal(), unmeasuredGoal()] }));
     const strip = screen.getByTestId("today-summary");
-    expect(within(strip).getByText("of 2 goals")).toBeInTheDocument();
+    expect(
+      within(strip).getByText("of 2 measurable goals"),
+    ).toBeInTheDocument();
     expect(within(strip).queryByText("2")).toBeNull();
   });
 
   it("renders nothing at all on a day with no real readings", () => {
     renderScreen(day());
     expect(screen.queryByTestId("today-summary")).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* TODAY-11 — the command centre                                              */
+/* -------------------------------------------------------------------------- */
+
+describe("TODAY-11: the week strip", () => {
+  it("draws the owner's whole week, marking only the days that hold something", () => {
+    renderScreen(
+      day({
+        week: weekWith(TODAY, [scheduleEntry("m1", "Standup", "09:30")]),
+      }),
+    );
+    const strip = screen.getByTestId("today-week-strip");
+    const days = within(strip).getAllByRole("tab");
+    expect(days).toHaveLength(7);
+    // The dot is a MARK; the count is in the control's own accessible name, so
+    // nothing about which days are busy depends on seeing a colour.
+    expect(
+      days.filter((node) => node.textContent?.includes("1 scheduled")),
+    ).toHaveLength(1);
+    expect(
+      days.filter((node) => node.textContent?.includes("nothing scheduled")),
+    ).toHaveLength(6);
+  });
+
+  it("opens on today, and says which day it is showing", () => {
+    renderScreen(day({ week: weekWith(TODAY, []) }));
+    const selected = within(screen.getByTestId("today-week-strip")).getByRole(
+      "tab",
+      { selected: true },
+    );
+    expect(selected).toHaveAttribute("data-date", TODAY);
+    expect(
+      within(scheduleSection()).getByText("Today · Saturday 8 August"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the SELECTED day's items, and never calls that day today", () => {
+    const other = "2026-08-06";
+    renderScreen(
+      day({
+        week: weekWith(other, [scheduleEntry("e1", "Dentist", "14:00")]),
+      }),
+    );
+    const panel = scheduleSection();
+    // Today is selected first, and today holds nothing.
+    expect(within(panel).queryByText("Dentist")).toBeNull();
+
+    fireEvent.click(
+      within(screen.getByTestId("today-week-strip")).getByRole("tab", {
+        name: /Thursday 6 August/,
+      }),
+    );
+    expect(within(panel).getByText("Dentist")).toBeInTheDocument();
+    // The heading names the selected day WITHOUT borrowing the word "Today".
+    const heading = panel.querySelector(".dh-today__schedule-date")!;
+    expect(heading).toHaveTextContent("Thursday 6 August");
+    expect(heading).not.toHaveTextContent(/Today/);
+    // Saturday's own button in the strip still says "Today", because Saturday
+    // still IS today — the word belongs to the calendar, not to the selection.
+    expect(
+      within(screen.getByTestId("today-week-strip")).getByRole("tab", {
+        name: /^Today · Saturday 8 August/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("is arrow-navigable, with one tab stop for the whole strip", () => {
+    renderScreen(day({ week: weekWith(TODAY, []) }));
+    const strip = screen.getByTestId("today-week-strip");
+    const tabs = within(strip).getAllByRole("tab");
+    // Exactly one day is in the tab order: tabbing past the strip costs one
+    // stop rather than seven.
+    expect(
+      tabs.filter((node) => node.getAttribute("tabindex") === "0"),
+    ).toHaveLength(1);
+
+    const selected = within(strip).getByRole("tab", { selected: true });
+    fireEvent.keyDown(selected, { key: "ArrowLeft" });
+    expect(within(strip).getByRole("tab", { selected: true })).toHaveAttribute(
+      "data-date",
+      "2026-08-07",
+    );
+
+    fireEvent.keyDown(within(strip).getByRole("tab", { selected: true }), {
+      key: "Home",
+    });
+    expect(within(strip).getByRole("tab", { selected: true })).toHaveAttribute(
+      "data-date",
+      "2026-08-03",
+    );
+  });
+
+  it("offers ONE schedule link, and it goes to the forward agenda", () => {
+    renderScreen(day());
+    const panel = scheduleSection();
+    expect(
+      within(panel).getByRole("link", { name: "View full schedule" }),
+    ).toHaveAttribute("href", "/today/upcoming");
+    /*
+     * MOCKUP 5 draws a second link, "View full calendar". There is no calendar
+     * view distinct from this one and none is being built (CAL-01 §21, §45), and
+     * `/today/schedule` is CAL-03's POST-only resource route with no GET at all —
+     * so a second link would either 405 or point at the same place under another
+     * name.
+     */
+    expect(within(panel).queryByRole("link", { name: /calendar/i })).toBeNull();
+  });
+});
+
+describe("TODAY-11: the Insights panel", () => {
+  const trend = {
+    days: [
+      { dateIso: "2026-08-07", created: 5, completed: 4 },
+      { dateIso: TODAY, created: 3, completed: 6 },
+    ],
+    totalCreated: 30,
+    totalCompleted: 24,
+    previousCompleted: 16,
+  };
+
+  it("states the ring's figures as text as well as an arc", () => {
+    renderScreen(day({ activityTrend: trend }));
+    const panel = screen.getByTestId("today-insights");
+    expect(within(panel).getByText("80%")).toBeInTheDocument();
+    expect(within(panel).getByText("24 of 30 captured")).toBeInTheDocument();
+    expect(within(panel).getByText("Last 7 days")).toBeInTheDocument();
+    // The ring carries the whole sentence for assistive technology.
+    expect(
+      within(panel).getByRole("img", { name: /24 tasks completed against 30/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("link", { name: "View analytics" }),
+    ).toHaveAttribute("href", "/analytics");
+  });
+
+  it("draws no focus time and no productivity score", () => {
+    renderScreen(day({ activityTrend: trend }));
+    // Two of the mockup's four figures do not exist in this product, and this
+    // is the line: neither may return under any label.
+    expect(screen.queryByText(/Focus time/i)).toBeNull();
+    expect(screen.queryByText(/Productivity/i)).toBeNull();
+    expect(screen.queryByText(/6h 45m/)).toBeNull();
+  });
+
+  it("is absent entirely on a week with nothing to divide", () => {
+    renderScreen(day());
+    expect(screen.queryByTestId("today-insights")).toBeNull();
+  });
+});
+
+describe("TODAY-11: the Quick capture card", () => {
+  it("offers the REAL capture kinds, and no invented ones", () => {
+    renderScreen(day());
+    const panel = screen.getByTestId("today-capture");
+    for (const label of ["Task", "Note", "Diary", "Meeting"]) {
+      expect(within(panel).getByRole("button", { name: label })).toBeVisible();
+    }
+    /*
+     * The mockup's other two chips are not capture types at all. "Reminder" has
+     * no field and no delivery channel (DEBT-57); "Upload" has no attachments
+     * (DEBT-35). Neither is drawn, and neither may appear later without the
+     * capability arriving first.
+     */
+    expect(
+      within(panel).queryByRole("button", { name: /reminder/i }),
+    ).toBeNull();
+    expect(within(panel).queryByRole("button", { name: /upload/i })).toBeNull();
+  });
+
+  it("is a control that LOOKS like a field, not a second capture form", () => {
+    renderScreen(day());
+    // A real input here would be a second capture implementation beside the
+    // shared sheet that already owns parsing, validation and error recovery.
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByTestId("today-capture-field").tagName).toBe("BUTTON");
+    // Its label is real text and is its accessible name.
+    expect(
+      screen.getByRole("button", { name: "Capture a task, note or idea" }),
+    ).toBeVisible();
+  });
+
+  it("still has no search field of its own — the shell carries search", () => {
+    renderScreen(day());
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
+  it("puts '+ Add task' in the page header and at the foot of the plan", () => {
+    renderScreen(day({ today: [task("a", "Alpha")] }));
+    expect(screen.getByTestId("today-add-task")).toBeVisible();
+    expect(screen.getByTestId("today-plan-add")).toBeVisible();
+  });
+});
+
+describe("TODAY-11: the Daily reflection card", () => {
+  it("asks the question when the day holds no entry", () => {
+    renderScreen(day());
+    const panel = screen.getByTestId("today-reflection");
+    expect(within(panel).getByText("What went well today?")).toBeVisible();
+    expect(within(panel).getByTestId("today-reflection-write")).toBeVisible();
+    expect(
+      within(panel).getByRole("link", { name: "View all reflections" }),
+    ).toHaveAttribute("href", "/diary");
+  });
+
+  it("shows the opening of today's entry, and judges nothing about it", () => {
+    renderScreen(
+      day({
+        reflection: {
+          id: "d1",
+          title: "A good Saturday",
+          excerpt: "Shipped the Q3 plan and walked the long way home.",
+          entryTypeLabel: "Reflection",
+        },
+      }),
+    );
+    const panel = screen.getByTestId("today-reflection");
+    expect(
+      within(panel).getByRole("link", { name: "A good Saturday" }),
+    ).toHaveAttribute("href", "/diary/d1");
+    expect(within(panel).getByText(/Shipped the Q3 plan/)).toBeInTheDocument();
+    // A doorway, never a judge: no score, no sentiment, no streak.
+    expect(within(panel).queryByText(/great|positive|streak/i)).toBeNull();
+    expect(within(panel).queryByText("What went well today?")).toBeNull();
+  });
+});
+
+describe("TODAY-11: the plan's rows", () => {
+  it("never prints a time on a task — a task is a date", () => {
+    /*
+     * MOCKUP 5 draws "9:00 AM" on every plan row. Verified at the schema:
+     * `task_details.due_date` and `scheduled_date` are
+     * `CHECK (… GLOB '????-??-??')`. There is no time to print, and printing one
+     * would be the plainest possible fabrication on this screen.
+     */
+    const { container } = renderScreen(
+      day({
+        today: [task("a", "Alpha")],
+        week: weekWith(TODAY, [scheduleEntry("m1", "Standup", "09:30")]),
+      }),
+    );
+    const row = within(timelineSection()).getByText("Alpha").closest("li")!;
+    expect(row.querySelector(".dh-day-row__time")).toBeNull();
+    expect(row.textContent).not.toMatch(/\d{1,2}:\d{2}/);
+    // The time that IS real — a meeting's — is in the Schedule panel beside it.
+    expect(container.textContent).toContain("09:30");
+  });
+
+  it("ends a row with the parent as a linked pill, naming its kind", () => {
+    renderScreen(
+      day({
+        today: [
+          task("d", "Deadline", {
+            parent: { kind: "project", id: "p1", title: "Kitchen renovation" },
+          }),
+        ],
+      }),
+    );
+    const row = within(timelineSection()).getByText("Deadline").closest("li")!;
+    const pill = within(row).getByRole("link", {
+      name: "Project: Kitchen renovation",
+    });
+    expect(pill).toHaveAttribute("href", "/projects/p1");
+    expect(pill).toHaveTextContent("Kitchen renovation");
+  });
+
+  it("states the day's canonical count beside the plan's heading", () => {
+    renderScreen(
+      day({
+        today: Array.from({ length: 3 }, (_, index) =>
+          task(`t${index}`, `Task ${index}`),
+        ),
+      }),
+    );
+    expect(within(timelineSection()).getByText("3 tasks")).toBeInTheDocument();
   });
 });

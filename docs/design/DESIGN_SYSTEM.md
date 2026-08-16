@@ -730,37 +730,53 @@ out of sight.
 
 ### Layout contract
 
-Top to bottom, on the page canvas (`surface-page`):
+Top to bottom, on the page canvas (`surface-page`). Rebuilt to `MOCKUP 5.png` by
+[TODAY-11](TODAY_11_COMMAND_CENTRE_2026_08.md), which is the fuller record:
 
 ```
-Good morning, Aidan                                    3 of 8 done today
-Saturday 8 August 2026                                 ▓▓▓▓▓▓░░░░░░░░░░
+Good morning, Aidan                                          [ + Add task ]
+Saturday 8 August 2026
+Today   Tomorrow   Next 7 days
 
-[ 8 tasks ] [ 3 meetings ] [ 1 overdue ]
+┌ Tasks completed ┐┌ Tasks captured ┐┌ Goals on track ┐
+│ 24   ╱‾╲╱‾      ││ 30   ╱╲__╱‾    ││ 3    ▓▓▓░░     │
+└─────────────────┘└────────────────┘└────────────────┘
 
-┌─ My day ──────────────────── Plan day ─┐  ┌─ Needs attention ─────────┐
-│ ▓ Send the quarterly summary   Due 2d  │  │ Inbox    2 unfiled tasks  │
-│ Meetings                               │  │ Waiting  oldest 9 days    │
-│ 09:30  ▣  Design review        Studio  │  │ Data migration  At risk   │
-│ For today                              │  └───────────────────────────┘
-│ ☐ Draft the release notes    Project   │  ┌─ Continue working ────────┐
-│ ☑ Clear the inbox            Project   │  │ (T) Today screen redesign │
-└────────────────────────────────────────┘  │     3 open · At risk  ▓▓░ │
-                                            │ All projects              │
-                                            └───────────────────────────┘
+┌─ Today's plan            8 tasks ─┐  ┌─ Schedule   View full schedule ─┐
+│ Overdue                           │  │ August 2026                     │
+│ ☐ Send the quarterly summary Due2d│  │ MON TUE WED THU FRI SAT SUN     │
+│ Due today                         │  │  10  11  12  13  14  15 (16)    │
+│ ☐ Draft the release notes  Proj P1│  │              ·          ·       │
+│ + Add task                        │  │ 09:30 ● Design review    Studio │
+└───────────────────────────────────┘  └─────────────────────────────────┘
+
+┌─ Goal progress ──┐ ┌─ Insights ─────┐ ┌─ Quick capture ────────────────┐
+│ (G) Read 24 books│ │  ◜80%◝  24 / 30│ │ [ Capture a task, note or idea]│
+│     Personal  12 │ │  View analytics│ │ [Task][Note][Diary][Meeting]   │
+└──────────────────┘ └────────────────┘ ├─ Daily reflection ─────────────┤
+                                        │ What went well today?          │
+                                        └────────────────────────────────┘
+
+┌─ Needs attention ─────────────────┐  ┌─ Continue working ──────────────┐
 ```
 
-1. **Header block** — page content, no card. Greeting (`headline-large`, and the
-   screen's `h1`) · date line (`body-medium` on `on-surface-variant`) ·
-   right-aligned daily progress. Morning until 12:00, afternoon until 17:00,
-   evening after, resolved from the OWNER's local hour server-side.
-2. **Chip row** — assist chips, each conditional. Absent entirely when none
-   qualifies, leaving no gap behind it. Chips are informational or navigate to
-   the obvious filtered view; they are never toggles.
-3. **Two columns** — the day (~62%) and the attention rail (~360px at 1440).
-   Each is ONE tonal surface with plain rows and hairlines inside it. Below the
-   ~56rem container width the rail stacks under the day, "Needs attention"
-   first, in DOM order.
+1. **Header block** — page content, no card. Greeting (`--dh-text-page-title-*`,
+   and the screen's `h1`) · date line · one primary action, `+ Add task`, opening
+   the shared capture sheet on the Task panel. Morning until 12:00, afternoon
+   until 17:00, evening after, resolved from the OWNER's local hour server-side.
+   **No search control**: the shell carries search one rank above, on the same
+   gutter line.
+2. **Day rail** — Today · Tomorrow · Next 7 days, the shared `ViewTabs`.
+3. **Stat rank** — at most three cards, each omitted when its source is silent.
+   Shallow by contract: a label, a figure and a ≤32px chart. **Exactly three
+   blocks may precede the day's work** (header, rail, measures); a fourth is the
+   dashboard creep FINAL-UI §45 was protecting against, and
+   `TodayScreen.test.tsx` fails on one.
+4. **Four ranks** — measures, work (plan ~⅗ beside schedule), context (goals ·
+   insights · the capture/reflection stack) and support (attention · continue).
+   Each collapses to one column below `34rem` of the pane. Nothing is moved by
+   CSS `order`: the DOM order is the phone order, the reading order and the tab
+   order.
 
 ### Conditional rendering — zeros never paint
 
@@ -769,21 +785,26 @@ on, so it is a table rather than prose.
 
 | Element | Renders when |
 |---|---|
-| Progress indicator | at least ONE task on today is complete (`N ≥ 1`). `M` = tasks on today, completions included, recomputed as rows are ticked |
-| `{n} tasks` chip | tasks on today > 0 |
-| `{n} meetings` chip | meetings today > 0 (singular/plural handled) |
-| `{n} overdue` chip | overdue > 0. The ONLY coloured chip: `error-container` / `on-error-container` |
-| Chip row | any chip qualifies |
+| Stat rank | at least one measure has a real reading |
+| Tasks completed · Tasks captured | the 14-day activity trend is not `null` |
+| Their sparklines | the series has **two or more** points — one reading has no direction |
+| Goals on track | at least one MEASURABLE Goal (never "0 of 0") |
+| Plan heading count | the canonical today count > 0 |
 | Overdue band | any overdue task. **Named** since TODAY-10 — see below |
 | `+{n} more overdue` | more than 3 overdue |
-| Schedule region | the day's unified schedule holds anything (CAL-01) |
 | Due today band | any task whose DUE date is today |
 | Planned today band | any task planned for today that is not also due today |
 | `View all {N} tasks for today` | the day's own rows exceed the 8-row bound |
-| Timeline empty line | no meetings, no tasks on today, nothing overdue |
-| Needs attention rows | per the rail rules below |
-| "All clear" | the rail has NO rows — never alongside one |
+| Plan empty line | nothing overdue and nothing on today |
+| Schedule panel | **always** (TODAY-11) — the week strip is a real control over real data; the *timeline* says "Nothing scheduled", and says something different again when no calendar source is connected |
+| Week-strip dot | that day holds at least one schedule item |
+| Insights panel | the activity trend is not `null` |
+| Insights percentage | something was captured in the window (no division by zero) |
+| Quick capture · `+ Add task` · reflection invitation | a `CaptureProvider` is mounted — the control renders NOTHING rather than one that cannot complete |
+| Reflection excerpt | today holds a Diary entry with a body |
+| Needs attention | the attention read produced rows — the whole panel, not a placeholder |
 | Continue working | at least one active project has open work |
+| "All clear." | the page's LAST line, when the day is empty and nothing needs attention — never beside a real item |
 
 ### What "on today" and "overdue" mean
 

@@ -12,6 +12,7 @@
  * aggregation table, no Today-only status vocabulary.
  */
 
+import { addDaysToIsoDate } from "~/kernel/alignment";
 import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import {
@@ -51,6 +52,10 @@ import {
   type TodayGoal,
 } from "./goal-progress";
 import { loadScheduleWindow, scheduleForDate } from "./schedule-load";
+import { reflectionExcerpt, type TodayReflection } from "./reflection";
+import { buildWeekStrip, weekDatesFor, type WeekStripDay } from "./week-strip";
+import { ownerLocalToUtc } from "~/shared/datetime";
+import { createDiaryEntryTypeRegistry } from "~/kernel/diary";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
@@ -139,6 +144,18 @@ export interface TodayDayData {
    */
   readonly schedule: DaySchedule;
   /**
+   * TODAY-11 — the whole calendar WEEK the day sits in, as the strip and its
+   * timeline draw it.
+   *
+   * Seven days from ONE schedule read (`loadScheduleWindow` takes a range and
+   * costs the same number of queries for seven days as for one — CAL-01 §34), so
+   * selecting a different day on the strip costs no request and reaches no date
+   * the loader did not fetch. `schedule` above is still TODAY's, because
+   * everything else on the page that asks about the schedule is asking about
+   * today.
+   */
+  readonly week: readonly TodayWeekDay[];
+  /**
    * Whether ANY calendar source is configured and enabled. "Nothing is on today"
    * and "no calendar is connected" are different states and get different
    * sentences.
@@ -156,6 +173,19 @@ export interface TodayDayData {
    * chart says less than no chart.
    */
   readonly activityTrend: TodayActivityTrend | null;
+  /**
+   * TODAY-11 — today's Diary entry, when there is one, for the reflection card.
+   *
+   * `null` is the ordinary morning state, not a failure: the card then draws the
+   * invitation instead of an excerpt. Never a judgement about the entry, and
+   * never an AI summary of it — see `reflection.ts`.
+   */
+  readonly reflection: TodayReflection | null;
+}
+
+/** One day of the Schedule panel's week: the strip's facts and that day's items. */
+export interface TodayWeekDay extends WeekStripDay {
+  readonly schedule: DaySchedule;
 }
 
 /** The empty day used when a workspace read fails — never a 500, never a blank. */
@@ -172,13 +202,32 @@ export function emptyDay(input: {
     completedToday: [],
     meetings: [],
     schedule: { dateIso: input.todayIso, allDay: [], timed: [], count: 0 },
+    // The strip still draws: a week with nothing in it is a real week, and a
+    // Schedule panel that loses its own navigation because a read failed is a
+    // worse degradation than an empty timeline.
+    week: emptyWeek(input.todayIso),
     scheduleHasSources: false,
     scheduleStale: false,
     attention: [],
     continueProjects: [],
     goals: [],
     activityTrend: null,
+    reflection: null,
   };
+}
+
+/** The week's seven days with no items on any of them. */
+function emptyWeek(todayIso: string): readonly TodayWeekDay[] {
+  const schedules = new Map<string, DaySchedule>(
+    weekDatesFor(todayIso).map((dateIso) => [
+      dateIso,
+      { dateIso, allDay: [], timed: [], count: 0 },
+    ]),
+  );
+  return buildWeekStrip({ todayIso, itemCountFor: () => 0 }).map((day) => ({
+    ...day,
+    schedule: schedules.get(day.dateIso)!,
+  }));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -284,21 +333,46 @@ async function loadSchedule(
   timezone: string,
 ): Promise<{
   readonly schedule: DaySchedule;
+  readonly week: readonly TodayWeekDay[];
   readonly meetings: readonly DayMeeting[];
   readonly hasSources: boolean;
   readonly stale: boolean;
 }> {
+  /*
+   * TODAY-11 — the window is the owner's calendar WEEK, not the single day.
+   *
+   * The Schedule panel now carries a seven-day strip, and a strip whose dots and
+   * whose selected-day timeline came from seven separate reads would be exactly
+   * the per-row read this pass is told not to write. `loadScheduleWindow` takes a
+   * range and issues the same four bounded statements whatever its size (one
+   * occurrence projection read, one source list, two Meeting reads), so the week
+   * costs what the day cost — the rows returned grow, the queries do not.
+   */
+  const dates = weekDatesFor(todayIso);
   const data = await loadScheduleWindow(scope, {
-    fromDateIso: todayIso,
-    toDateIso: todayIso,
+    fromDateIso: dates[0]!,
+    toDateIso: dates[dates.length - 1]!,
     timeZone: timezone,
   });
-  const schedule = scheduleForDate(data, {
-    dateIso: todayIso,
-    timeZone: timezone,
-    now,
-    isToday: true,
-  });
+  const schedules = new Map<string, DaySchedule>(
+    dates.map((dateIso) => [
+      dateIso,
+      scheduleForDate(data, {
+        dateIso,
+        timeZone: timezone,
+        now,
+        // "Now" and "Next" are only true of the owner's actual today; every
+        // other day of the strip is drawn without them.
+        isToday: dateIso === todayIso,
+      }),
+    ]),
+  );
+  const week: readonly TodayWeekDay[] = buildWeekStrip({
+    todayIso,
+    itemCountFor: (dateIso) => schedules.get(dateIso)?.count ?? 0,
+  }).map((day) => ({ ...day, schedule: schedules.get(day.dateIso)! }));
+
+  const schedule = schedules.get(todayIso)!;
   const meetings: DayMeeting[] = [...schedule.allDay, ...schedule.timed]
     .filter((entry) => entry.meetingId !== null)
     .map((entry) => ({
@@ -310,9 +384,53 @@ async function loadSchedule(
     }));
   return {
     schedule,
+    week,
     meetings,
     hasSources: data.hasSources,
     stale: data.anySourceFailing,
+  };
+}
+
+/**
+ * TODAY-11 — today's Diary entry, for the reflection card.
+ *
+ * ONE bounded read: the newest entry whose `occurredAt` falls inside the owner's
+ * calendar day, limit one. It uses the Diary module's own canonical Timeline
+ * read with its existing occurred-at range filter — no new repository method, no
+ * Today-only Diary query, and no second definition of "today" (the bounds are
+ * the owner's midnights, resolved through the same `ownerLocalToUtc` the trend's
+ * day boundaries use).
+ *
+ * A spring-forward midnight that does not exist yields `null` from the
+ * conversion; the card then draws its invitation rather than a guess.
+ */
+async function loadReflection(
+  scope: WorkspaceScope,
+  todayIso: string,
+  timezone: string,
+): Promise<TodayReflection | null> {
+  const from = ownerLocalToUtc(`${todayIso}T00:00`, timezone);
+  const to = ownerLocalToUtc(
+    `${addDaysToIsoDate(todayIso, 1)}T00:00`,
+    timezone,
+  );
+  if (from === null || to === null) return null;
+  const page = await scope.diary.list({
+    limit: 1,
+    order: "newest",
+    occurredFrom: from,
+    // The upper bound is INCLUSIVE, so it is pulled back off the next day's
+    // midnight — an entry recorded at exactly tomorrow's 00:00 is tomorrow's.
+    occurredTo: new Date(to.getTime() - 1),
+  });
+  const entry = page.items[0];
+  if (entry === undefined) return null;
+  const descriptor = createDiaryEntryTypeRegistry().get(entry.entryType);
+  return {
+    id: entry.id,
+    title: entry.title,
+    excerpt: reflectionExcerpt(entry.body),
+    entryTypeLabel: descriptor?.label ?? null,
   };
 }
 
@@ -484,6 +602,7 @@ export async function loadTodayDay(
     goals,
     measurableGoals,
     activityTrend,
+    reflection,
   ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
       overdue: [],
@@ -500,6 +619,7 @@ export async function loadTodayDay(
     }),
     safely(() => loadSchedule(scope, now, todayIso, timezone), {
       schedule: { dateIso: todayIso, allDay: [], timed: [], count: 0 },
+      week: emptyWeek(todayIso),
       meetings: [] as readonly DayMeeting[],
       hasSources: false,
       stale: false,
@@ -521,6 +641,7 @@ export async function loadTodayDay(
       [],
     ),
     safely(() => loadActivityTrend(scope, { timezone, todayIso }), null),
+    safely(() => loadReflection(scope, todayIso, timezone), null),
   ]);
 
   return {
@@ -533,6 +654,7 @@ export async function loadTodayDay(
     completedToday: tasks.completedToday,
     meetings: scheduleResult.meetings,
     schedule: scheduleResult.schedule,
+    week: scheduleResult.week,
     scheduleHasSources: scheduleResult.hasSources,
     scheduleStale: scheduleResult.stale,
     attention: buildAttention({
@@ -566,5 +688,6 @@ export async function loadTodayDay(
     ),
     goals: measurableGoals,
     activityTrend,
+    reflection,
   };
 }

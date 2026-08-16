@@ -19,28 +19,25 @@ import {
 import { DrawerProvider } from "~/shared/drawer";
 import { TodayScreen } from "~/modules/today/day/TodayScreen";
 import type { TodayGoal } from "~/modules/today/day/goal-progress";
-import type { TodayDayData } from "~/modules/today/day/load";
+import { emptyDay, type TodayDayData } from "~/modules/today/day/load";
 
 const TODAY = "2026-08-09";
 
+/**
+ * A quiet day, built from the LOADER's own empty day.
+ *
+ * Not a hand-written literal: `emptyDay` is the degradation path the route takes
+ * when a workspace read fails, so basing the fixture on it means a field added to
+ * the payload cannot be forgotten in one place and remembered in the other.
+ */
 function day(overrides: Partial<TodayDayData> = {}): TodayDayData {
   return {
-    todayIso: TODAY,
-    dateLong: "Sunday 9 August 2026",
-    hour: 9,
-    ownerName: "Aidan",
-    overdue: [],
-    today: [],
-    completedToday: [],
-    meetings: [],
-    // CAL-01 — a quiet day has no external calendar schedule either.
-    schedule: { dateIso: TODAY, allDay: [], timed: [], count: 0 },
-    scheduleHasSources: false,
-    scheduleStale: false,
-    attention: [],
-    continueProjects: [],
-    goals: [],
-    activityTrend: null,
+    ...emptyDay({
+      todayIso: TODAY,
+      dateLong: "Sunday 9 August 2026",
+      hour: 9,
+      ownerName: "Aidan",
+    }),
     ...overrides,
   };
 }
@@ -125,8 +122,19 @@ describe("Goal progress on Today", () => {
     expect(
       within(section).getByText(/On track|Ahead|In progress/),
     ).toBeVisible();
-    // …and the facts a glance deliberately does NOT repeat.
-    expect(within(section).queryByText("Health & Fitness")).toBeNull();
+    /*
+     * TODAY-11 — the Area is BACK, and this reverses VIS-01.
+     *
+     * VIS-01 removed it on the ground that it "competed with the title for the
+     * one line a compact card has". MOCKUP 5 stacks them — title on its own
+     * line, Area quietly beneath — so the competition VIS-01 was resolving no
+     * longer exists, and what the Area buys is real: a Goal on this rail is
+     * identified by the part of life it serves as well as by its own name, which
+     * is exactly what the identity mark beside it is a shorthand for.
+     */
+    expect(within(section).getByText("Health & Fitness")).toBeInTheDocument();
+    // The remaining-to-target figure stays out: it is the value against the
+    // target on the line above, said a second way.
     expect(within(section).queryByText(/9 kg remaining/)).toBeNull();
   });
 

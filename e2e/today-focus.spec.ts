@@ -182,7 +182,9 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     });
 
     await page.goto("/today");
-    await expect(page.getByRole("region", { name: "Focus" })).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Today’s plan" }),
+    ).toBeVisible();
     const bands = await focusBands(page);
 
     expect(bands["Overdue"]).toContain(slipped.title);
@@ -391,7 +393,9 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     for (const width of [320, 375, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto("/today");
-      await expect(page.getByRole("region", { name: "Focus" })).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Today’s plan" }),
+      ).toBeVisible();
       await expectNoHorizontalOverflow(page);
 
       // Every Focus row is one line of uniform height, and its TITLE is the
@@ -459,7 +463,9 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       await page.goto("/today");
-      await expect(page.getByRole("region", { name: "Focus" })).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Today’s plan" }),
+      ).toBeVisible();
       await expectNoAxeViolations(page);
     }
   });
@@ -478,8 +484,10 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     });
 
     await page.goto("/today");
-    const panel = page.getByRole("region", { name: "Focus" });
-    await expect(panel.getByRole("heading", { level: 2 })).toHaveText("Focus");
+    const panel = page.getByRole("region", { name: "Today’s plan" });
+    await expect(panel.getByRole("heading", { level: 2 })).toHaveText(
+      "Today’s plan",
+    );
     // The band labels are real headings one level below it, so the panel reads
     // as an outline rather than as styled text a screen reader walks past.
     // `allInnerTexts` returns the RENDERED text, which the band label's
