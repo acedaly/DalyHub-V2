@@ -41,7 +41,7 @@ test.describe("PROJ-01 — Projects", () => {
      * and the health sentence beneath it were one fact drawn as two objects.
      */
     await expect(article.locator(".dh-pill")).toHaveCount(0);
-    await expect(article.locator(".dh-pcard__attention")).toHaveCount(1);
+    await expect(article.locator(".dh-pcard__meta")).toHaveCount(1);
     await expect(article.getByRole("progressbar")).toHaveAttribute(
       "aria-valuetext",
       /^\d+% — \d+ of \d+ tasks? complete$/,
@@ -213,7 +213,7 @@ test.describe("PROJ-01 — Projects", () => {
      * nobody could see it: this spec sat inside the tests shards 4 and 8 never
      * started before `globalTimeout`.
      */
-    await expect(page.getByText(/\d+ Projects loaded/)).toBeVisible();
+    await expect(page.getByText(/\d+ active/)).toBeVisible();
     // Task roll-ups stay authoritative across pagination: the cards state each
     // Project's OWN totals, never a figure derived from the loaded page.
     const websiteBar = page
@@ -381,7 +381,12 @@ test.describe("PROJ-01 — Projects", () => {
     // "nothing done yet" when the truth is "nothing planned yet".
     const zero = page.getByRole("article", { name: "Nothing planned yet" });
     await expect(zero.getByRole("progressbar")).toHaveCount(0);
-    await expect(zero.getByText("No tasks yet")).toBeVisible();
+    /*
+     * REDESIGN-04 — "No tasks yet" is the meta line's whole content for a
+     * Project with none, and the same words also ride in the line's accessible
+     * detail. `exact` picks the VISIBLE fragment rather than matching both.
+     */
+    await expect(zero.getByText("No tasks yet", { exact: true })).toBeVisible();
 
     // Partial: exact, and the visible percentage agrees with the value.
     const partial = page.getByRole("article", { name: "Website relaunch" });
@@ -407,7 +412,19 @@ test.describe("PROJ-01 — Projects", () => {
       "100% — 6 of 6 tasks complete",
     );
     await expect(full.getByText("open tasks")).toHaveCount(0);
-    await expect(full.getByText("done")).toBeVisible();
+    /*
+     * REDESIGN-04 §5.6 — the trailing "All done" / "N open" fact is gone with
+     * the attention sentence it shared a row with. The bar above already
+     * announces "100% — 6 of 6 tasks complete" (asserted directly above), and
+     * the meta line states the volume; "100% · 6 tasks · All done" would be
+     * three ways of saying one thing on a card the reference draws with two.
+     *
+     * What is asserted instead is the same fact from the meta line — the
+     * evaluator's own count — and the absence of a zero, which is the rule this
+     * test exists to hold.
+     */
+    await expect(full.getByText("6 tasks", { exact: true })).toBeVisible();
+    await expect(full.getByText(/0 due this week/)).toHaveCount(0);
 
     await expectNoAxeViolations(page);
   });

@@ -230,6 +230,12 @@ describe("module discovery", () => {
         // activity resource routes.
         { id: "goals.new", moduleId: "goals", file: "routes/new.tsx" },
         { id: "goals.detail", moduleId: "goals", file: "routes/detail.tsx" },
+        // REDESIGN-04 — the `+ Link project` picker's bounded option search.
+        {
+          id: "goals.link_projects",
+          moduleId: "goals",
+          file: "routes/link-projects.tsx",
+        },
         // DEBT-22 adds the Goal contributing-Projects pagination resource route.
         {
           id: "goals.projects",

@@ -468,6 +468,71 @@ export function projectAttention(project: {
   };
 }
 
+/**
+ * REDESIGN-04 — the gallery card's META LINE: "14 tasks · 4 due this week".
+ *
+ * `mockup3.png` draws exactly these two facts under a Project's progress bar,
+ * and §5.5 allows them only if they are cheap. They are free:
+ *
+ *   - `14 tasks` is `taskTotal`, the rollup the bar above it is already drawn
+ *     from — the same number, stated in words rather than as a proportion.
+ *   - `4 due this week` is `health.summary.upcomingDueOpen`, which the
+ *     collection loader already gathers for the WHOLE page in one facts read
+ *     (`listProjectHealthFacts`) in order to evaluate health at all. The window
+ *     is the evaluator's own `UPCOMING_WITHIN_DAYS` (7, today inclusive), which
+ *     is what makes "this week" a true description rather than a rounded one.
+ *
+ * Neither costs a query, and neither is invented:
+ *
+ *   - a Project with no tasks has no proportion and no due count, so its line
+ *     is the one honest thing left to say — "No tasks yet";
+ *   - a Project with tasks but nothing due says "14 tasks" and stops, rather
+ *     than printing "0 due this week", which reads as a warning about zero;
+ *   - the due fragment is TINTED when the same evaluator reports overdue work,
+ *     which is §5.6's "attention survives as signal". The tint is decorative —
+ *     the fragment states its own count, and the state dot at the head of the
+ *     line carries the evaluator's full sentence for assistive tech.
+ */
+export interface ProjectCardMetaFact {
+  readonly key: string;
+  readonly text: string;
+  readonly tone?: HealthTone;
+}
+
+export function projectCardMeta(project: {
+  readonly taskTotal: number;
+  readonly health: ProjectHealth;
+  readonly healthVisible: boolean;
+}): readonly ProjectCardMetaFact[] {
+  if (project.taskTotal <= 0) {
+    return [{ key: "tasks", text: "No tasks yet" }];
+  }
+  const facts: ProjectCardMetaFact[] = [
+    {
+      key: "tasks",
+      text: `${project.taskTotal} ${project.taskTotal === 1 ? "task" : "tasks"}`,
+    },
+  ];
+  // Read defensively for the same reason the collection loader falls back to a
+  // list item's own counts: health is derived, and a caller holding a partial
+  // evaluation must get an honest "nothing to add" rather than a crash.
+  const due = project.health.summary?.upcomingDueOpen ?? 0;
+  if (due > 0) {
+    facts.push({
+      key: "due",
+      text: `${due} due this week`,
+      // Only where health is genuinely speaking: a Planned or On-hold Project
+      // is deliberately not being worked, so tinting its due count would be the
+      // product inventing a problem (the shared `healthVisible` rule).
+      tone:
+        project.healthVisible && (project.health.summary?.overdueOpen ?? 0) > 0
+          ? "danger"
+          : undefined,
+    });
+  }
+  return facts;
+}
+
 /** The display data for one project Card (pure derivation, unit-tested). */
 export interface ProjectCardData {
   readonly id: string;
@@ -510,8 +575,10 @@ export interface ProjectCardData {
    * something the label does not. Never a second copy of the state.
    */
   readonly statusDetail: string | null;
-  /** UIX-02 — the ONE attention line the gallery card draws. */
+  /** UIX-02 — the attention SIGNAL the gallery card's meta line carries. */
   readonly attention: ProjectAttention;
+  /** REDESIGN-04 — the card's meta line, already worded. */
+  readonly meta: readonly ProjectCardMetaFact[];
   readonly progress: ProjectProgress;
   /** e.g. "Updated 21 Jul 2026", or null when it doesn't genuinely help. */
   readonly updatedLabel: string | null;
@@ -609,6 +676,7 @@ export function toProjectCardData(
         ? reasonText
         : null,
     attention: projectAttention(item),
+    meta: projectCardMeta(item),
     progress: projectProgress(item.taskCompleted, item.taskTotal),
     updatedLabel: updated ? `Updated ${updated}` : null,
     health: item.health,

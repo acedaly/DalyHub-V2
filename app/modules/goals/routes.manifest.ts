@@ -27,6 +27,16 @@ const routes: readonly RouteContribution[] = [
     file: "routes/detail.tsx",
   },
   {
+    /*
+     * REDESIGN-04 — the `+ Link project` picker's bounded option search. A
+     * selection convenience only; the link itself is created through the
+     * Project's own trusted `move` intent (see the route's doc comment).
+     */
+    id: "goals.link_projects",
+    path: "goals/:goalId/link-projects",
+    file: "routes/link-projects.tsx",
+  },
+  {
     id: "goals.projects",
     path: "goals/:goalId/projects",
     file: "routes/projects.tsx",

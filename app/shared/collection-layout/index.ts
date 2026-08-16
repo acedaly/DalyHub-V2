@@ -65,3 +65,33 @@ export {
   CollectionFilterChips,
   type CollectionFilterChipsProps,
 } from "./CollectionFilterChips";
+
+/**
+ * REDESIGN-04 — the ONE collection search field, and the ONE control row that
+ * holds a lifecycle rail at the leading edge and a presentation toggle at the
+ * trailing one (`mockup3.png`). Both replace per-module copies of the same
+ * markup; neither owns query state or entity knowledge.
+ */
+export {
+  CollectionSearchField,
+  type CollectionSearchFieldProps,
+} from "./CollectionSearchField";
+export {
+  CollectionControlRow,
+  type CollectionControlRowProps,
+} from "./CollectionControlRow";
+export {
+  COLLECTION_SEARCH_DEBOUNCE_MS,
+  useCollectionSearch,
+  type CollectionSearchController,
+} from "./use-collection-search";
+
+/**
+ * REDESIGN-04 — the gallery/table presentation model (`?present=`). A view, not
+ * a filter: both draw the same records from the same loader.
+ */
+export {
+  COLLECTION_PRESENTATIONS,
+  parseCollectionPresentation,
+  type CollectionPresentation,
+} from "./presentation";

@@ -123,7 +123,7 @@ export const DALYHUB_SURFACE_TOKEN_NAMES = [
  * the card families were still reading Material's typescale directly: a card
  * TITLE and a METRIC are both real jobs in this product, neither had a DalyHub
  * role, and `--md-sys-typescale-title-medium-*` / `-headline-small-*` were
- * filling the gap on `.dh-pcard`, `.dh-gcard`, `.dh-acard` and every stat tile.
+ * filling the gap on `.dh-pcard`, `.dh-acard` and every stat tile.
  *
  *   card-title  a record card's name — 15px/600, one rung under a section
  *               heading. Material's `title-medium` is 16px, and that extra

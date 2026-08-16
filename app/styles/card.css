@@ -73,7 +73,7 @@
    *
    * "A card draws no border and no resting shadow; separation is the surface
    * step alone" (DALYHUB_DESIGN_SYSTEM.md D1). Every record family built since —
-   * `.dh-pcard`, `.dh-gcard`, `.dh-acard`, `.dh-rcard`, `.dh-erow` — follows it,
+   * `.dh-pcard`, `.dh-mrow`, `.dh-acard`, `.dh-rcard`, `.dh-erow` — follows it,
    * and this generic card did not, so a Today panel sat on a soft drop shadow
    * two inches from a Project card that did not. The canvas already moved to
    * tone 97 to pay for the separation this shadow was drawing.

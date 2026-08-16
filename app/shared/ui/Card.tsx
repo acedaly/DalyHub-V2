@@ -6,7 +6,7 @@
  * It does, and none of them is this. `~/shared/card`'s `Card` is a RECORD card:
  * it has a title that opens something, a status, metadata, selection and an
  * overflow of actions on that record. `DashboardCard` is a titled PANEL with a
- * header action and a footer. `ProjectCard`, `GoalCard`, `AssetCard`,
+ * header action and a footer. `ProjectCard`, `AssetCard`,
  * `ReviewCard` and `PersonRow` are the six product families (§5b), and DS-02
  * does not touch them — that is DS-05.
  *

@@ -105,3 +105,241 @@ a.dh-btn {
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
 }
+
+/* ==========================================================================
+   REDESIGN-04 — the Projects TABLE (§5.4) and the compact Goals section (§5.3).
+   ========================================================================== */
+
+/*
+ * The table scrolls INSIDE its own container, never the document.
+ *
+ * §7's rule is that no page in this scope may overflow horizontally at 320px,
+ * and a six-column table cannot honour that by shrinking. So the table keeps
+ * its readable column widths and the container takes the scroll — the same
+ * treatment the design system gives every other wide object.
+ */
+.dh-ptable__scroll {
+  inline-size: 100%;
+  max-inline-size: var(--app-width-wide);
+  overflow-x: auto;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.dh-ptable {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+}
+
+.dh-ptable th,
+.dh-ptable td {
+  padding: var(--dh-space-3) var(--dh-space-4);
+  text-align: start;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.dh-ptable thead th {
+  font: var(--t-eyebrow);
+  letter-spacing: var(--t-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-ptable tbody tr + tr {
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-ptable__row {
+  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-ptable__row:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+/* Archived rows are quieter, and the overflow menu still says the word. */
+.dh-ptable__row[data-muted="true"] {
+  opacity: 0.72;
+}
+
+/*
+ * The identity column is the widest and the only one allowed to be: it carries
+ * the mark and the name. It is CAPPED and its title ellipsises, because one
+ * Project with a sentence for a title must not set the width of every other
+ * row's columns — which is exactly what an uncapped table cell does.
+ */
+.dh-ptable__identity {
+  inline-size: 40%;
+  max-inline-size: 28rem;
+  font-weight: var(--dh-text-card-title-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-ptable__identity-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+.dh-ptable__open {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-ptable__mark {
+  flex: none;
+  display: inline-flex;
+}
+
+.dh-ptable__open,
+.dh-ptable__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-ptable__open:hover {
+  text-decoration: underline;
+}
+
+.dh-ptable__open:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-ptable__progress-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-inline-size: 8rem;
+}
+
+/* The hairline neutral, not `--dh-color-bg-sunken` — see `.dh-prow__track`. */
+.dh-ptable__track {
+  display: block;
+  flex: 1;
+  min-inline-size: 5rem;
+  block-size: var(--app-progress-bar-height);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-border);
+  overflow: hidden;
+}
+
+.dh-ptable__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--dh-color-accent);
+}
+
+.dh-ptable__percent,
+.dh-ptable__numeric {
+  font-variant-numeric: var(--dh-font-numeric);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-ptable__percent {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-ptable__absent {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-ptable__actions {
+  inline-size: 1%;
+}
+
+/* The SAME six-slot identity ramp the gallery card uses. */
+.dh-ptable__row[data-accent="1"] .dh-ptable__fill {
+  background: var(--md-sys-color-area-accent-1);
+}
+.dh-ptable__row[data-accent="2"] .dh-ptable__fill {
+  background: var(--md-sys-color-area-accent-2);
+}
+.dh-ptable__row[data-accent="3"] .dh-ptable__fill {
+  background: var(--md-sys-color-area-accent-3);
+}
+.dh-ptable__row[data-accent="4"] .dh-ptable__fill {
+  background: var(--md-sys-color-area-accent-4);
+}
+.dh-ptable__row[data-accent="5"] .dh-ptable__fill {
+  background: var(--md-sys-color-area-accent-5);
+}
+.dh-ptable__row[data-accent="6"] .dh-ptable__fill {
+  background: var(--md-sys-color-area-accent-6);
+}
+
+@media (forced-colors: active) {
+  .dh-ptable__fill {
+    background: CanvasText;
+  }
+}
+
+/* -- The compact Goals section (§5.3) -------------------------------------- */
+
+.dh-goal-summary {
+  margin-block-start: var(--dh-space-8);
+  max-inline-size: var(--app-width-wide);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  overflow: hidden;
+}
+
+.dh-goal-summary__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-4) var(--dh-inset-inline) var(--dh-space-3);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-goal-summary__title {
+  margin: 0;
+  font-size: var(--dh-text-section-title-size, var(--dh-text-card-title-size));
+  line-height: var(--dh-text-card-title-line-height);
+  font-weight: var(--dh-text-card-title-weight);
+  color: var(--dh-color-text);
+}
+
+/*
+ * "View all" is a LINK, quiet and text-only — the reference draws it that way,
+ * and it is a destination rather than an action. Sized to the touch floor on a
+ * coarse pointer without becoming a button on a mouse.
+ */
+.dh-goal-summary__all {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-accent);
+  text-decoration: none;
+}
+
+.dh-goal-summary__all:hover {
+  text-decoration: underline;
+}
+
+.dh-goal-summary__all:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+  border-radius: var(--dh-radius-sm);
+}
+
+@media (pointer: coarse) {
+  .dh-goal-summary__all {
+    min-block-size: var(--dh-control-height);
+  }
+}

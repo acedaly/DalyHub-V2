@@ -96,30 +96,35 @@ describe("a measurable Goal", () => {
     measurement("m3", "2026-08-09", 79.0),
   ];
 
-  it("states START, NOW, TARGET and what remains as four labelled figures", () => {
+  it("states CURRENT, TARGET and TARGET DATE as three equal labelled figures", () => {
     renderPanel({ measurements: series });
-    const strip = screen.getByTestId("goal-metrics");
+    const trio = screen.getByTestId("goal-metrics");
     /*
-     * UIX-03 — the record answers "where did I start, where am I, where am I
-     * going" as a labelled strip rather than as one run-on sentence in which the
-     * baseline was the last clause. Each figure is asserted with its own TERM,
-     * because the pairing is the point: a "79 kg" with no "Now" above it is the
-     * layout this replaced.
+     * REDESIGN-04 — `mockup3.png` draws three equal figures where UIX-03 drew a
+     * quartet with an enlarged lead value. Each figure is still asserted with
+     * its own TERM, because the pairing is the point: a "79 kg" with no
+     * "Current" above it is the layout both designs exist to avoid.
      */
     const figureFor = (term: string) =>
-      within(strip)
+      within(trio)
         .getByText(term)
-        .closest(".dh-goal-measure__metric")
+        .closest(".dh-goal-trio__stat")
         ?.querySelector("dd")?.textContent;
 
-    expect(figureFor("Start")).toBe("85 kg");
-    expect(figureFor("Now")).toBe("79 kg");
+    expect(figureFor("Current")).toBe("79 kg");
     expect(figureFor("Target")).toBe("70 kg");
-    expect(figureFor("Remaining")).toBe("9 kg to go");
 
+    /*
+     * Nothing was deleted with the fourth column. START is the chart's baseline
+     * reference, labelled where it is drawn; REMAINING moved to the state line
+     * beside the status word, where it reads as progress rather than as a
+     * fourth measurement.
+     */
+    expect(trio.textContent).not.toContain("Start");
     const panel = screen.getByTestId("goal-progress");
+    expect(within(panel).getByText("9 kg to go")).toBeInTheDocument();
     expect(within(panel).getByText("40%")).toBeInTheDocument();
-    // The journey, in the SAME words the gallery card uses for this Goal.
+    // The journey, in the SAME words the collection row uses for this Goal.
     expect(within(panel).getByText("from 85 kg → 70 kg")).toBeInTheDocument();
   });
 
@@ -225,17 +230,23 @@ describe("the other measurement strategies", () => {
     const strip = screen.getByTestId("goal-metrics");
     expect(
       within(strip)
-        .getByText("Now")
-        .closest(".dh-goal-measure__metric")
+        .getByText("Current")
+        .closest(".dh-goal-trio__stat")
         ?.querySelector("dd")?.textContent,
     ).toBe("65%");
     /*
      * A manual Goal stores a target of 100 because that is the SCALE, not
      * because anyone chose it. Printing "Target 100%" beside the reading told
      * the owner a fact about the arithmetic and nothing about their Goal, so
-     * neither the strip nor the journey line states one.
+     * neither the trio nor the journey line states one.
+     *
+     * REDESIGN-04 keeps that exactly: a column whose CONCEPT does not apply to
+     * this kind of Goal is omitted, not drawn with a dash — a dash reports an
+     * unmade decision, and nobody was ever asked to make this one.
      */
-    expect(strip.textContent).not.toContain("Target");
+    expect(
+      within(strip).queryByText("Target", { exact: true }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("goal-progress").textContent).not.toContain(
       "100%",
     );

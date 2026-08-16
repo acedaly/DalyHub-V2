@@ -65,6 +65,7 @@ export {
   goalMatchesCollectionView,
   goalOverTargetLabel,
   goalRemainingLabel,
+  goalRowValue,
   parseGoalCollectionView,
 } from "./goal-progress-view";
 export type {
@@ -78,6 +79,11 @@ export {
   GoalProgressReadout,
   type GoalProgressReadoutProps,
 } from "./GoalProgressReadout";
+/**
+ * REDESIGN-04 — the Goal stat TRIO (`mockup3.png`): three equal figures under
+ * quiet labels, replacing the UIX-03 quartet with its enlarged lead value.
+ */
+export { GoalStatTrio, type GoalStat } from "./GoalStatTrio";
 export {
   GoalCheckInSheet,
   type GoalCheckInSheetProps,
@@ -90,3 +96,15 @@ export {
   type GoalMeasurementSetupValues,
   type GoalMeasurementSetupOutcome,
 } from "./GoalMeasurementSetupSheet";
+
+/**
+ * REDESIGN-04 — the SHARED bounded Goal summary read, promoted out of Today so
+ * the Projects page's compact Goals section reuses it rather than adding a
+ * second read for the same figures (§5.3).
+ */
+export {
+  GOAL_SUMMARY_LIMIT,
+  goalSummaryRank,
+  loadGoalSummaries,
+  type GoalSummary,
+} from "./goal-summary-load";

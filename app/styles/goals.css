@@ -693,3 +693,477 @@
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
+
+/* ==========================================================================
+   REDESIGN-04 — the Goal stat TRIO (`mockup3.png`).
+
+   Three equal columns, each a figure over a quiet label. Equal because the
+   question is a comparison: drawing one of the terms larger makes it the
+   subject and the others its captions, which is the exact defect REDESIGN-03
+   started removing when it brought the lead figure down from 36px.
+   ========================================================================== */
+
+.dh-goal-trio {
+  display: grid;
+  /*
+   * Sized to CONTENT, not to equal thirds of the pane.
+   *
+   * Equal thirds gave the third column a fixed sliver and wrapped "14 Dec 2026"
+   * onto two lines beside two single-line figures — which un-equalises the trio
+   * far more than a difference in width does. `max-content` with a generous
+   * gutter keeps the three on one line and keeps them a group, which is what
+   * the reference draws.
+   */
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  justify-content: start;
+  gap: var(--dh-space-8);
+  margin: 0;
+}
+
+.dh-goal-trio__stat {
+  min-inline-size: 0;
+}
+
+/*
+ * Visual order is figure-then-label; DOM order is label-then-figure, so a
+ * screen reader announces "Current, 60.0 kg" rather than "60.0 kg, Current".
+ * `flex-direction: column-reverse` on the pair is what separates the two.
+ */
+.dh-goal-trio__stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: var(--dh-space-1);
+}
+
+.dh-goal-trio__label {
+  margin: 0;
+  /*
+   * Sentence case, not the uppercase eyebrow role.
+   *
+   * `mockup3.png` writes "Current", "Target", "Target date" — and it is right
+   * to: an eyebrow's job is to label a REGION, and uppercase tracking is what
+   * makes it read as chrome. These three label FIGURES that sit directly above
+   * them, at the same size as every other supporting line in the product, so
+   * they should read as words rather than as headings.
+   */
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-meta-weight);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-goal-trio__value {
+  margin: 0;
+  font-size: var(--dh-text-metric-size);
+  line-height: var(--dh-text-metric-line-height);
+  font-weight: var(--dh-text-metric-weight);
+  color: var(--dh-color-text);
+  font-variant-numeric: var(--dh-font-numeric);
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-trio__note {
+  display: block;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-meta-weight);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * §7 — the trio STAYS a trio on a phone, and only gives up at 320.
+ *
+ * Three short figures fit a 390px row comfortably; stacking them there would
+ * cost three rows for what is one comparison. At 320 a long unit ("31 Dec
+ * 2025") no longer fits three-across, so the columns become one and the pairs
+ * keep their own order.
+ */
+/*
+ * At narrow widths the three figures no longer fit one line; the gutter closes
+ * first, and only below 22.5rem do they stack. Stacking earlier would cost
+ * three rows for what is one comparison.
+ */
+@media (max-width: 30rem) {
+  .dh-goal-trio {
+    gap: var(--dh-space-5);
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .dh-goal-trio {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dh-space-3);
+  }
+}
+
+/* ==========================================================================
+   REDESIGN-04 §2.2 — the Goals master–detail WORKSPACE.
+   ========================================================================== */
+
+/*
+ * Two panes at desktop widths; two SCREENS on a phone.
+ *
+ * `minmax(18rem, 22rem)` for the list, because a list of names and short values
+ * has a natural measure and stretching it to half a 1440 would put a title at
+ * one end of a 600px row and a figure at the other. The detail takes the rest.
+ */
+.dh-goalspace {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: var(--dh-space-4);
+  align-items: start;
+  max-inline-size: var(--app-width-wide);
+}
+
+.dh-goalspace__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.dh-goalspace__list,
+.dh-goalspace__detail {
+  min-inline-size: 0;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  overflow: hidden;
+}
+
+/*
+ * The list keeps `+ Add goal` reachable.
+ *
+ * A workspace with twelve Goals is taller than the viewport, and the action
+ * that closes the list is the one thing that must not scroll away with it. The
+ * list is capped to the viewport and STICKS, its rows scroll inside it, and the
+ * action is pinned to its foot — which is also what makes a master–detail feel
+ * like one: the detail scrolls, the master stays.
+ */
+@media (min-width: 60.0625rem) {
+  .dh-goalspace__list {
+    position: sticky;
+    inset-block-start: var(--dh-space-4);
+    display: flex;
+    flex-direction: column;
+    max-block-size: calc(100dvh - var(--dh-space-16));
+  }
+
+  .dh-goalspace__panel {
+    min-block-size: 0;
+  }
+
+  .dh-goalspace__panel > .dh-mrow-list {
+    overflow-y: auto;
+    min-block-size: 0;
+  }
+
+  .dh-goalspace__add {
+    flex: none;
+  }
+}
+
+.dh-goalspace__detail {
+  padding: var(--dh-space-4) var(--dh-inset-inline);
+}
+
+/*
+ * `+ Add goal` closes the list, exactly as the reference draws it — a quiet
+ * text action with a leading plus, not a filled button competing with the
+ * collection's own primary.
+ */
+.dh-goalspace__add {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  /* The touch floor from the token that `(pointer: coarse)` raises to 44px —
+   * never `--button-height-md`, which is REDESIGN-03 debt item 6. */
+  min-block-size: var(--dh-control-height);
+  padding: var(--dh-space-2) var(--dh-inset-inline);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-accent);
+  background: none;
+  border-inline: 0;
+  border-block-end: 0;
+  inline-size: 100%;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.dh-goalspace__add svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.dh-goalspace__add:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+.dh-goalspace__add:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+/* -- The detail pane ------------------------------------------------------- */
+
+.dh-goalpane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+  min-inline-size: 0;
+}
+
+.dh-goalpane__tabs {
+  margin-block-end: calc(-1 * var(--dh-space-2));
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-goalpane__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+.dh-goalpane__mark {
+  flex: none;
+  display: inline-flex;
+}
+
+.dh-goalpane__titles {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.dh-goalpane__title {
+  margin: 0;
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-card-title-line-height);
+  font-weight: var(--dh-text-card-title-weight);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-goalpane__open,
+.dh-goalpane__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-goalpane__open:hover {
+  text-decoration: underline;
+}
+
+.dh-goalpane__open:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-goalpane__context {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- Linked projects (§6.2) ------------------------------------------------ */
+
+.dh-goalchips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding-block-start: var(--dh-space-4);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-goalchips__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+}
+
+.dh-goalchips__title {
+  margin: 0;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-goalchips__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A chip is a compact LINK to a record, not a status pill — so it takes the
+ * card family's hairline boundary rather than a tonal container fill (§13: no
+ * new tonal-container badges in this scope).
+ */
+.dh-goalchips__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-block-size: var(--dh-control-height);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  text-decoration: none;
+  transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-goalchips__chip:hover {
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-goalchips__chip:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+.dh-goalchips__mark {
+  display: inline-flex;
+  flex: none;
+}
+
+.dh-goalchips__name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 14rem;
+}
+
+.dh-goalchips__empty,
+.dh-goalchips__more,
+.dh-goalchips__picker-note {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-goalchips__picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-goalchips__picker-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  overflow: hidden;
+}
+
+.dh-goalchips__picker-list > li + li {
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-goalchips__picker-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  inline-size: 100%;
+  min-block-size: var(--dh-control-height);
+  padding: var(--dh-space-3) var(--dh-inset-inline);
+  text-align: start;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.dh-goalchips__picker-option:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+.dh-goalchips__picker-option:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+.dh-goalchips__picker-name {
+  font-size: var(--dh-text-body-size);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-goalchips__picker-context {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * Desktop has both panes on screen at once, so a "back to the list" control
+ * would point at something already visible.
+ */
+.dh-goalpane__back {
+  display: none;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-block-size: var(--dh-control-height);
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-accent);
+  text-decoration: none;
+}
+
+.dh-goalpane__back:hover {
+  text-decoration: underline;
+}
+
+.dh-goalpane__back:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+  border-radius: var(--dh-radius-sm);
+}
+
+/*
+ * §7 — the phone composition: list → detail as two SCREENS.
+ *
+ * Both panes stay in the DOM and CSS decides which is on screen, so the first
+ * server byte is correct at every width. A phone showing the workspace with a
+ * Goal selected shows that Goal; with none selected it shows the list. The
+ * `:has()` test reads the pane's own empty state, so the rule follows the real
+ * selection rather than a duplicated flag.
+ */
+@media (max-width: 60rem) {
+  .dh-goalspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * The pane replaces the list only when a Goal was genuinely ASKED FOR. A
+   * DEFAULTED selection (the workspace opening on its first Goal, which is
+   * right on a desktop where both panes are visible) must not turn `/goals`
+   * into a record screen on a phone.
+   */
+  .dh-goalspace:not([data-selection="explicit"]) .dh-goalspace__detail {
+    display: none;
+  }
+
+  .dh-goalspace[data-selection="explicit"] .dh-goalspace__list {
+    display: none;
+  }
+
+  /* The way back to the list. A selected Goal on a phone is a SCREEN, and a
+   * screen with no exit is a dead end. */
+  .dh-goalpane__back {
+    display: inline-flex;
+  }
+}

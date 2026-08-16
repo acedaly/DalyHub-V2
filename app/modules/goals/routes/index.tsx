@@ -1,10 +1,25 @@
 /**
- * AREA-03 — the real Goals collection route (`/goals`): the Alignment view.
+ * AREA-03 / REDESIGN-04 — the Goals WORKSPACE (`/goals`).
  *
- * Replaces the FND-09 placeholder. Shows every open Goal across every Area
- * with its derived alignment state — whether recent Task activity has
- * contributed to it — so the owner can see at a glance which Goals have had
- * attention and which have not (ADR-040).
+ * Shows every open Goal across every Area with its derived alignment state —
+ * whether recent Task activity has contributed to it — so the owner can see at
+ * a glance which Goals have had attention and which have not (ADR-040).
+ *
+ * ── REDESIGN-04: the collection became a master–detail ──────────────────────
+ * `mockup3.png` draws Goals as a two-pane workspace: the list on the left, the
+ * selected Goal's Overview on the right. §5.3 makes `/goals` its primary home.
+ *
+ * The selection is URL state (`?goal=<id>`), so it is shareable, bookmarkable
+ * and Back/Forward-correct, and the detail is read SERVER-side in this loader
+ * rather than fetched after mount — the pane arrives with the first byte, like
+ * every other DalyHub surface.
+ *
+ * What that costs, exactly: ONE Goal's detail reads, the same set the canonical
+ * `/goals/:goalId` record already makes, and only for the selected Goal. It is
+ * not a per-row cost and it does not grow with the list — the collection's own
+ * reads are untouched. A workspace with no Goals, or a `?goal=` naming a Goal
+ * that is not in this workspace, simply resolves to no selection and pays
+ * nothing.
  */
 
 import { env } from "cloudflare:workers";
@@ -23,6 +38,7 @@ import {
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
+import type { SelectOption } from "~/shared/forms/types";
 import {
   evaluateGoalFromSummary,
   parseGoalCollectionView,
@@ -38,7 +54,14 @@ import {
  */
 const GOAL_CARD_SPARKLINE_POINTS = 12;
 
+/** Bounded page size for the Area options in the `+ Add goal` flow. */
+const AREA_OPTIONS_LIMIT = 100;
+
 import { GoalsCollectionView } from "../GoalsCollection";
+import {
+  loadGoalWorkspaceDetail,
+  type GoalWorkspaceDetail,
+} from "../goal-workspace-load";
 import type {
   GoalCollectionState,
   SerializedDeletedGoalItem,
@@ -66,6 +89,19 @@ function parseState(value: string | null): GoalCollectionState {
   return value === "deleted" ? "deleted" : "active";
 }
 
+/**
+ * The `?goal=` selection, as untrusted URL text.
+ *
+ * It is never used as an authority: the detail read resolves it through the
+ * workspace-scoped repository, which returns nothing for an id that is not a
+ * Goal in this workspace. A missing, misspelled or cross-workspace id therefore
+ * lands on "no selection", never on an error and never on another owner's data.
+ */
+function parseSelection(value: string | null): string | null {
+  const trimmed = (value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const url = new URL(request.url);
@@ -86,6 +122,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
    * that counts describe what is loaded.
    */
   const view = parseGoalCollectionView(url.searchParams.get("view"));
+  const selection = parseSelection(url.searchParams.get("goal"));
 
   // PX-04 — the honest "Deleted" view. A soft-deleted Goal is an ordinary
   // soft-deleted ENTITY (the spine stores identity, title and `deletedAt` on
@@ -107,6 +144,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           updatedAt: item.updatedAt.toISOString(),
         })) as readonly SerializedDeletedGoalItem[],
         nextCursor: page.nextCursor,
+        // The Deleted view is a list of removed records with one Restore each;
+        // there is nothing to select and nothing to show beside it.
+        selected: null as GoalWorkspaceDetail | null,
+        selectedId: null as string | null,
+        selectionExplicit: false,
+        areaOptions: [] as SelectOption[],
+        areaOptionsFailed: true,
+        todayIso: null as string | null,
+        timeZone: null as string | null,
         state,
         view,
         failed: false,
@@ -116,6 +162,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         goals: [] as SerializedGoalWithAlignment[],
         deletedGoals: [] as readonly SerializedDeletedGoalItem[],
         nextCursor: null as string | null,
+        selected: null as GoalWorkspaceDetail | null,
+        selectedId: null as string | null,
+        selectionExplicit: false,
+        areaOptions: [] as SelectOption[],
+        areaOptionsFailed: true,
+        todayIso: null as string | null,
+        timeZone: null as string | null,
         state,
         view,
         failed: true,
@@ -240,10 +293,80 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       };
     });
 
+    /*
+     * REDESIGN-04 — the selected Goal's detail, for the workspace's right pane.
+     *
+     * The mockup draws a Goal selected, so the workspace opens on one: the
+     * `?goal=` id when it is present, otherwise the FIRST Goal in the list —
+     * which is the workspace-wide alignment ranking's own leader, i.e. the Goal
+     * the collection already considers most worth a look.
+     *
+     * Its own failure domain. A detail read that fails leaves the list
+     * perfectly usable with an empty pane, rather than taking the whole
+     * workspace down for one record.
+     */
+    /*
+     * §5.1 — the Areas the `+ Add goal` flow chooses from.
+     *
+     * One bounded read of the workspace's Areas, the same one the Projects
+     * create form makes for its own parent picker. It is a separate failure
+     * domain: options that fail to load must never masquerade as "this
+     * workspace has no Areas", which is the state that would make creation
+     * genuinely impossible.
+     */
+    let areaOptions: SelectOption[] = [];
+    let areaOptionsFailed = false;
+    try {
+      const areas = await scope.entities.list({
+        type: "area",
+        limit: AREA_OPTIONS_LIMIT,
+      });
+      areaOptions = areas.items.map((area) => ({
+        value: area.id,
+        label: area.title,
+      }));
+    } catch {
+      areaOptionsFailed = true;
+    }
+
+    const selectedId = selection ?? goals[0]?.id ?? null;
+    let selected: GoalWorkspaceDetail | null = null;
+    if (selectedId !== null) {
+      try {
+        selected = await loadGoalWorkspaceDetail(scope, selectedId, {
+          timeZone,
+          evaluation,
+          recentWindowStartIso,
+        });
+      } catch {
+        selected = null;
+      }
+    }
+
     return {
       goals,
       deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: page.nextCursor,
+      selected,
+      // The RESOLVED selection, not the requested one: a `?goal=` naming a Goal
+      // that no longer exists highlights nothing rather than highlighting a row
+      // that is not there.
+      selectedId: selected ? selectedId : null,
+      /*
+       * REDESIGN-04 §7 — whether the selection was ASKED FOR or defaulted.
+       *
+       * On a desktop both panes are on screen, so opening the workspace on its
+       * first Goal is what the reference draws. On a PHONE the pane is the
+       * whole screen, so defaulting would mean `/goals` never shows the Goals
+       * — the collection URL would open on a record. The phone therefore shows
+       * the list unless the URL genuinely names a Goal, and this flag is how
+       * CSS can tell the two apart without the server knowing the viewport.
+       */
+      selectionExplicit: selection !== null && selected !== null,
+      areaOptions,
+      areaOptionsFailed,
+      todayIso: evaluation.todayIso,
+      timeZone,
       state,
       view,
       failed: false,
@@ -253,6 +376,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       goals: [] as SerializedGoalWithAlignment[],
       deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: null as string | null,
+      selected: null as GoalWorkspaceDetail | null,
+      selectedId: null as string | null,
+      selectionExplicit: false,
+      areaOptions: [] as SelectOption[],
+      areaOptionsFailed: true,
+      todayIso: null as string | null,
+      timeZone: null as string | null,
       state,
       view,
       failed: true,
@@ -266,6 +396,13 @@ export default function GoalsRoute({ loaderData }: Route.ComponentProps) {
       goals={loaderData.goals}
       deletedGoals={loaderData.deletedGoals}
       nextCursor={loaderData.nextCursor}
+      selected={loaderData.selected}
+      selectedId={loaderData.selectedId}
+      selectionExplicit={loaderData.selectionExplicit}
+      areaOptions={loaderData.areaOptions}
+      areaOptionsFailed={loaderData.areaOptionsFailed}
+      todayIso={loaderData.todayIso}
+      timeZone={loaderData.timeZone}
       state={loaderData.state}
       view={loaderData.view}
       failed={loaderData.failed}

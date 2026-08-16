@@ -2185,10 +2185,11 @@ It still has its own colour family (`--dh-color-rail`, `-text`, `-text-muted`, `
 **Anatomy.** Two bands, rendered by [`CollectionLayout`](#collection-layout-px-02) and pinned together:
 
 ```
-Collection title                   [ view switcher ]  [ secondary ]  [ PRIMARY ]
+Collection title      [ search ]   [ view switcher ]  [ secondary ]  [ PRIMARY ]
 count / supporting context
 ───────────────────────────────────────────────────────────────────────────────
-filters (search · selects · tags · chips)
+mode rail (lifecycle tabs)                            [ presentation toggle ]
+filters (selects · tags · chips)
 ```
 
 **The title LEADS — a collection header draws no glyph beside it** (UIX-06, D30). The band briefly resolved a generic entity badge from an `entityType` prop; that gave the product three different page origins, because Today, Analytics and Settings have no entity type to badge and started 40px to the left of every collection, and it repeated the glyph the sidebar was already showing, highlighted, for the same route. `PaneHeader` still accepts an `icon` — a RECORD header passes one, because a record's mark carries its Area's identity accent (D22, §6.2) rather than restating its type.
@@ -2203,7 +2204,12 @@ filters (search · selects · tags · chips)
 | `viewSwitcher` | the ONE [view switcher](#the-view-switcher-uiq-013) — presentation, or principal mode | anything that narrows the record set |
 | `secondaryActions` | one or two supporting actions (Tasks' Review Inbox) | a third and fourth — that is what the overflow is for |
 | `primaryAction` | exactly one create, at the trailing end, on every collection | a promoted secondary action when a module has no create |
-| `filterBar` | search, selects, tags, the DS-07 bar, the MOBILE-01 controls | the principal-mode switch |
+| `search` | the ONE [`CollectionSearchField`](../../app/shared/collection-layout/CollectionSearchField.tsx), and nothing else | any other narrowing control |
+| `filterBar` | the mode rail, selects, tags, the DS-07 bar, the MOBILE-01 controls | a second search field |
+
+**Search is the ONE narrowing control that lives in the header band, and this is why** (REDESIGN-04, `mockup3.png`). Every other filter belongs in the band beneath, and that rule is unchanged. Search is different in use rather than in kind: it is the control an owner reaches for *without having decided to filter* — how you find a known record, not how you narrow an unknown set — which puts it closer to the pane's title than to its filter row. Five modules had already reached that conclusion privately (Assets keeps its search "visible at every width" while everything else goes in the sheet), each with its own markup; that is the shape of a missing slot, not five local decisions. It takes [`CollectionSearchField`](../../app/shared/collection-layout/CollectionSearchField.tsx) and its controller [`useCollectionSearch`](../../app/shared/collection-layout/use-collection-search.ts), which own the draft, the debounce, the `replace`d URL write and the cursor reset — so a collection never hand-rolls that behaviour again. **On a phone it collapses to an icon beside the primary action and expands to its own row**, which is what the handset frame draws; both nodes are always in the DOM and the swap is pure CSS, so the first server byte is correct.
+
+**The control row is the band beneath, and it has two ends** (REDESIGN-04). [`CollectionControlRow`](../../app/shared/collection-layout/CollectionControlRow.tsx) puts the lifecycle/mode rail at the leading edge and a **presentation toggle** at the trailing one. The toggle is still the ONE view switcher and UIQ-013's semantics are untouched — it changes how records are drawn, never which are included. It sits a band lower than the `viewSwitcher` slot only where the title row is already carrying search and the primary action, which at 1280 is where three control clusters on one line break. A collection with a sparse header keeps the switcher in the header slot.
 
 **A module shows only what it needs.** Consistency here is placement and hierarchy, not content: Meetings and Tasks deliberately have no page-level create and pass nothing rather than filling the slot, and Areas has no view switcher because it has one view.
 
@@ -2222,7 +2228,7 @@ The primary action stays on the first line beside the title at 320px. It is neve
 
 **A VIEW is not a FILTER, and this is the distinction to apply:**
 
-- A **view** changes the PRESENTATION (`List | Board | Sectors`, `List | Gallery`) or the PRINCIPAL MODE — mutually-exclusive scopes of which exactly one is always active (`Active | Deleted`, `Open | Completed | Archived`, `Upcoming | Recent | Archived`). It belongs in the header's view slot.
+- A **view** changes the PRESENTATION (`List | Board | Sectors`, `List | Gallery`, `Grid | Table`) or the PRINCIPAL MODE — mutually-exclusive scopes of which exactly one is always active (`Active | Deleted`, `Open | Completed | Archived`, `Upcoming | Recent | Archived`). It belongs in the header's view slot.
 - A **filter** changes WHICH RECORDS are included, composes with its siblings, and can be off entirely (a search string, a Type select, a tag). It belongs in the filter row.
 
 The test is whether the control can be *unset*. "Which Area?" can be Any — a filter. "Which view?" cannot be none — a view. A bounded state toggle inside a record tab (a Project's Open/All tasks) stays a filter and keeps the thin [`SegmentedFilter`](../../app/shared/segmented-filter) wrapper, which renders the same control through the same implementation.

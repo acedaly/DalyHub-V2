@@ -11,7 +11,7 @@
  * of an eyebrow, a status chip or a metadata line here, which is how DalyHub
  * ended up with four header systems that agreed on nothing. The slots are:
  *
- *     [icon]  EYEBROW              [ status ]      [ views ][ secondary ][ PRIMARY ]
+ *     [icon]  EYEBROW      [ status ]  [ search ][ views ][ secondary ][ PRIMARY ]
  *             Title
  *             Supporting line
  *             metadata · metadata · metadata
@@ -33,11 +33,27 @@
  *     every collection: the trailing end of the control cluster. A module with
  *     no page-level create passes nothing rather than promoting something else
  *     into the slot.
+ *   - `search` — REDESIGN-04, and the ONE exception to the rule below.
  *
- * Filters — search, selects, tags — are NOT header slots. They live in the
- * band beneath, `CollectionLayout`'s `filterBar` (or `mobileControls`), so
- * "how is this shown" and "which records are included" stay legible as two
- * different questions.
+ * Filters — selects, tags, chips — are NOT header slots. They live in the band
+ * beneath, `CollectionLayout`'s `filterBar` (or `mobileControls`), so "how is
+ * this shown" and "which records are included" stay legible as two different
+ * questions.
+ *
+ * ── Why `search` is nonetheless a header slot ───────────────────────────────
+ * `mockup3.png` draws it there, on the title row beside the primary action, and
+ * the reference is right about it for a reason the rule did not anticipate:
+ * search is the one control an owner reaches for WITHOUT having decided to
+ * filter. It is how you find a known record, not how you narrow an unknown set
+ * — closer in use to the pane's title than to its filter row. Three modules had
+ * already reached the same conclusion privately (Assets keeps its search
+ * "visible at every width" while everything else goes in the sheet), which is
+ * the shape of a missing slot rather than three local decisions.
+ *
+ * It is a distinct slot rather than a licence to put filters here: it takes the
+ * shared `CollectionSearchField` and nothing else, and every OTHER narrowing
+ * control still belongs in the band beneath. The band's own semantics are
+ * unchanged.
  *
  * The switcher is a SIBLING of the action cluster rather than a child of it,
  * which is what lets the narrow composition put the title and the primary
@@ -89,6 +105,12 @@ export type PaneHeaderProps = {
   readonly status?: ReactNode;
   /** Key facts under the supporting line, laid out as one wrapping metadata row. */
   readonly meta?: ReactNode;
+  /**
+   * REDESIGN-04 — the collection's inline search field, on the title row.
+   * Takes the shared `CollectionSearchField`; see the note above for why this
+   * one narrowing control is a header slot and no other is.
+   */
+  readonly search?: ReactNode;
   /** Optional view-switcher slot (e.g. list / board / grid). */
   readonly viewSwitcher?: ReactNode;
   /** Secondary actions, before the primary one (overflow menus, Rename, Export). */
@@ -114,6 +136,7 @@ export function PaneHeader({
   subtitle,
   status,
   meta,
+  search,
   viewSwitcher,
   secondaryActions,
   primaryAction,
@@ -165,6 +188,8 @@ export function PaneHeader({
           {meta ? <div className="dh-pane-header__meta">{meta}</div> : null}
         </div>
       </div>
+
+      {search ? <div className="dh-pane-header__search">{search}</div> : null}
 
       {viewSwitcher ? (
         <div className="dh-pane-header__views">{viewSwitcher}</div>

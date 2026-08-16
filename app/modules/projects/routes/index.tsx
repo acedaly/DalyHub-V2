@@ -14,7 +14,15 @@ import { env } from "cloudflare:workers";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
+import type { ProjectLifecycleCounts } from "~/kernel/projects";
+import { InvalidSpineCursorError } from "~/kernel/spine";
+import { createOwnerAlignmentContext } from "~/shared/alignment";
+import {
+  parseCollectionPresentation,
+  type CollectionPresentation,
+} from "~/shared/collection-layout";
 import type { SelectOption } from "~/shared/forms/types";
+import { loadGoalSummaries, type GoalSummary } from "~/shared/goal-progress";
 import { createOwnerHealthContext } from "~/shared/project-health";
 
 import {
@@ -46,10 +54,24 @@ function parseState(value: string | null): ProjectState {
     : "all";
 }
 
+/**
+ * REDESIGN-04 — how many Goals the compact section on this page shows.
+ *
+ * Three, which is what `mockup3.png` draws in both the desktop panel and the
+ * phone frame. It is a SUMMARY beside the gallery, not a second collection; the
+ * `View all` beside its heading is the route to the real one.
+ */
+const PROJECTS_GOAL_SUMMARY_LIMIT = 3;
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const params = new URL(request.url).searchParams;
   const state = parseState(params.get("state"));
+  // REDESIGN-04 — the collection's free-text narrowing and its presentation.
+  // Both are ordinary URL state, so a narrowed or tabular collection is
+  // shareable, bookmarkable and Back/Forward-correct.
+  const query = params.get("q") ?? "";
+  const presentation = parseCollectionPresentation(params.get("present"));
   // An opaque keyset cursor for the NEXT page, echoed back from a prior page's
   // `nextCursor`. It is validated (and scope-checked) in the repository; an absent
   // or malformed value simply yields the first page or a calm error — never an
@@ -65,6 +87,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       nextCursor: null as string | null,
       parentOptions: [] as SelectOption[],
       parentOptionsFailed: true,
+      counts: null as ProjectLifecycleCounts | null,
+      goals: [] as readonly GoalSummary[],
+      goalsFailed: true,
+      query,
+      presentation,
       state,
       failed: true,
     };
@@ -76,7 +103,27 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   let nextCursor: string | null = null;
   let failed = false;
   try {
-    const page = await scope.projects.listProjects({ state, cursor });
+    /*
+     * A cursor is bound to the collection's whole scope, INCLUDING the search
+     * term (`PROJECT_CURSOR_VERSION` 4). Typing into the search field while a
+     * "Load more" cursor is in the URL therefore hands the repository a cursor
+     * from a different result set, which it correctly rejects. That is a reset,
+     * not an error: the narrowed collection simply starts at its first page.
+     */
+    let page;
+    try {
+      page = await scope.projects.listProjects({
+        state,
+        search: query,
+        cursor,
+      });
+    } catch (error) {
+      if (error instanceof InvalidSpineCursorError) {
+        page = await scope.projects.listProjects({ state, search: query });
+      } else {
+        throw error;
+      }
+    }
 
     // Derive health for the WHOLE bounded page in one facts gather (no N+1), then
     // evaluate each with the SAME owner-calendar clock the facts used.
@@ -147,11 +194,62 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     parentOptionsFailed = true;
   }
 
+  /*
+   * REDESIGN-04 §5.5 — the header's "8 active · 2 archived".
+   *
+   * ONE grouped statement over the same two lifecycle columns the list query
+   * filters on. It describes the WORKSPACE, which is why it cannot be counted
+   * from the loaded rows, and it is a separate failure domain: a count that
+   * fails degrades the line to the loaded-row wording rather than taking the
+   * gallery down with it.
+   */
+  let counts: ProjectLifecycleCounts | null;
+  try {
+    counts = await scope.projects.countProjectsByLifecycle();
+  } catch {
+    counts = null;
+  }
+
+  /*
+   * REDESIGN-04 §5.3 — the compact Goals section beneath the gallery.
+   *
+   * The SHARED summary read Today already makes for its own Goal rail
+   * (`loadGoalSummaries`): a bounded page of Goals, then three GROUPED reads
+   * over that page's ids (configuration, measurement summaries, milestone
+   * weights). No history, and no query per Goal — the brief's hard rule. It is
+   * its own failure domain for the same reason the counts are: a summary rail
+   * is never worth the gallery.
+   */
+  let goals: readonly GoalSummary[] = [];
+  let goalsFailed = false;
+  try {
+    const timeZone = await scope.ownerTimeZone();
+    const { evaluation, recentBoundaryStartIso } = createOwnerAlignmentContext(
+      new Date(),
+      timeZone,
+    );
+    goals = (
+      await loadGoalSummaries(scope, {
+        now: new Date(),
+        timezone: timeZone,
+        todayIso: evaluation.todayIso,
+        recentBoundaryStartIso,
+      })
+    ).slice(0, PROJECTS_GOAL_SUMMARY_LIMIT);
+  } catch {
+    goalsFailed = true;
+  }
+
   return {
     projects,
     nextCursor,
     parentOptions,
     parentOptionsFailed,
+    counts,
+    goals,
+    goalsFailed,
+    query,
+    presentation,
     state,
     failed,
   };
@@ -164,8 +262,15 @@ export default function ProjectsRoute({ loaderData }: Route.ComponentProps) {
       nextCursor={loaderData.nextCursor}
       parentOptions={loaderData.parentOptions}
       parentOptionsFailed={loaderData.parentOptionsFailed}
+      counts={loaderData.counts}
+      goals={loaderData.goals}
+      goalsFailed={loaderData.goalsFailed}
+      query={loaderData.query}
+      presentation={loaderData.presentation}
       state={loaderData.state}
       failed={loaderData.failed}
     />
   );
 }
+
+export type { CollectionPresentation };

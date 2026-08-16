@@ -48,6 +48,7 @@ import {
   type SerializedGoalMeasurement,
   type SerializedGoalMilestone,
 } from "~/shared/goal-progress";
+import { GoalStatTrio, type GoalStat } from "~/shared/goal-progress";
 import { StatusPill } from "~/shared/pill";
 import { ProgressTrack } from "~/shared/progress";
 import { ConfirmationDialog } from "~/shared/settings";
@@ -134,98 +135,105 @@ export function GoalMeasurementPanel(props: GoalMeasurementPanelProps) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * UIX-03 — the metric strip: START, NOW, TARGET and what remains, side by side.
+ * REDESIGN-04 — the metric strip becomes the reference's TRIO.
  *
- * This replaces a single run-on line ("38% · 9.3 kg remaining · ↓ 5.7 kg from
- * baseline") in which the current value was the only thing set at display size
- * and the baseline — the number the percentage is measured FROM — was the last
- * clause of a sentence. A Goal record has to answer "where did I start, where
- * am I, where am I going" in one look, and three labelled figures answer it in
- * the order the question is asked.
+ * `mockup3.png` draws three equal figures under quiet labels — Current, Target,
+ * Target date — where UIX-03 drew a quartet with the current value set larger
+ * than its neighbours. Two things change and one does not:
  *
- * NOW is deliberately larger than its neighbours. Start and Target are fixed
- * facts the owner chose; the current value is the one that moved, and it is why
- * they opened the page.
- *
- * Every figure is rendered only when the evaluator produced one. A Goal with no
- * baseline shows two columns rather than a column reading "—", because a dash
- * is a value and an absent start is an absence.
+ *   - **Nothing is deleted.** START is on the chart, drawn as the baseline
+ *     reference rule and labelled where it is drawn, which is what a reference
+ *     line is for. REMAINING is arithmetic over two figures that are both still
+ *     on screen, and it keeps its place in words on the status line beneath
+ *     ("1.9 km to go") — where it reads as progress rather than as a fourth
+ *     measurement. TARGET DATE takes the freed column, and it is the fact the
+ *     strip was missing: the chart's dotted path now runs to it, so the page
+ *     names the date it is drawing towards.
+ *   - **No figure leads.** REDESIGN-03 brought the current value down from
+ *     Material's 36px `display-small` to the 24px `--dh-text-metric` role so
+ *     that it stopped being a banner with captions beneath it; the reference
+ *     finishes that by drawing all three at one size. The question a measurable
+ *     Goal answers is a comparison, and a comparison needs its terms drawn the
+ *     same.
+ *   - **Absence is still absence.** A Goal with no reading, or no target date,
+ *     shows the label and a dash with a real word behind it for assistive tech
+ *     — never a zero, and never a silently missing column that would re-rank
+ *     the two figures beside it.
  */
 function MetricStrip({
+  goalTitle,
   progress,
 }: {
+  readonly goalTitle: string;
   readonly progress: GoalProgressEvaluation;
 }) {
   const milestone = progress.type === "milestone";
   /*
-   * A MANUAL Goal has no owner-chosen start or target.
+   * A MANUAL Goal has no owner-chosen target.
    *
    * The kernel normalises it to baseline 0 / target 100 because a manual
    * percentage IS a 0–100 increase — that is the SCALE, not a decision anybody
-   * made. Printing "Start 0%" and "Target 100%" beside the reading would dress
-   * two arithmetic constants up as the owner's own plan, which is the same
-   * reason `goalTargetLabel` refuses to name a manual Goal's target. Its strip
-   * is the reading and what is left of the hundred.
+   * made. Printing "Target 100%" beside the reading would dress an arithmetic
+   * constant up as the owner's own plan, which is the same reason
+   * `goalTargetLabel` refuses to name a manual Goal's target.
    */
-  const scaleOnly = milestone || progress.type === "manual";
-  const cells: {
-    key: string;
-    label: string;
-    value: string;
-    lead?: boolean;
-  }[] = [];
+  const scaleOnly = progress.type === "manual";
+  // A milestone Goal states both terms in ONE figure ("1 of 2"), so a separate
+  // Target column would print the same total twice.
 
-  if (!scaleOnly && progress.baseline !== null) {
-    cells.push({
-      key: "start",
-      label: "Start",
-      value: formatMeasurementValue(progress.baseline, progress.unit),
-    });
-  }
-  cells.push({
-    key: "now",
-    label: milestone ? "Stages complete" : "Now",
-    lead: true,
-    value:
-      progress.current === null
-        ? "—"
-        : milestone
-          ? `${progress.current} of ${progress.target ?? 0}`
-          : formatMeasurementValue(progress.current, progress.unit),
-  });
-  if (!scaleOnly && progress.target !== null) {
-    cells.push({
+  const stats: GoalStat[] = [
+    {
+      key: "current",
+      label: milestone ? "Stages complete" : "Current",
+      value:
+        progress.current === null
+          ? null
+          : milestone
+            ? // A milestone Goal's figure IS the fraction — "1 of 2" — which is
+              // both terms of the comparison in one reading, exactly as
+              // `mockup3.png` writes a counted Goal's row value.
+              `${progress.current} of ${progress.target ?? 0}`
+            : formatMeasurementValue(progress.current, progress.unit),
+      absentLabel: "No reading recorded yet",
+    },
+  ];
+
+  /*
+   * A column is OMITTED when the concept does not apply to this kind of Goal,
+   * and shows a dash when it applies but is unset. The distinction matters and
+   * UIX-03 got it right first: a manual Goal's stored target of 100 is the
+   * SCALE, so "Target —" would report the absence of a decision nobody was ever
+   * asked to make. A target-value Goal with no target date, by contrast, has a
+   * real empty slot, and the dash says so.
+   */
+  if (!scaleOnly && !milestone) {
+    stats.push({
       key: "target",
       label: "Target",
-      value: formatMeasurementValue(progress.target, progress.unit),
+      value:
+        progress.target === null
+          ? null
+          : formatMeasurementValue(progress.target, progress.unit),
+      absentLabel: "No target set",
     });
   }
-  /*
-   * The fourth column is REMAINING while there is a distance to cover, and the
-   * over-target reading once there is not — "113% of target" is the news at
-   * that point, and "0 kg remaining" is not.
-   */
-  const over = goalOverTargetLabel(progress);
-  const remaining = goalRemainingLabel(progress);
-  if (over) {
-    cells.push({ key: "over", label: "Achieved", value: over });
-  } else if (remaining) {
-    cells.push({ key: "remaining", label: "Remaining", value: remaining });
-  }
+
+  stats.push({
+    key: "target-date",
+    label: "Target date",
+    value:
+      progress.targetDate === null
+        ? null
+        : (formatCalendarDate(progress.targetDate) ?? progress.targetDate),
+    absentLabel: "No target date set",
+  });
 
   return (
-    <dl className="dh-goal-measure__metrics" data-testid="goal-metrics">
-      {cells.map((cell) => (
-        <div
-          key={cell.key}
-          className="dh-goal-measure__metric"
-          data-lead={cell.lead ? "true" : undefined}
-        >
-          <dt>{cell.label}</dt>
-          <dd>{cell.value}</dd>
-        </div>
-      ))}
-    </dl>
+    <GoalStatTrio
+      stats={stats}
+      label={`${goalTitle} progress`}
+      data-testid="goal-metrics"
+    />
   );
 }
 
@@ -238,11 +246,13 @@ function ProgressHeader({
   const label = goalCheckInLabel(progress.type, progress.unit);
   const summary = goalProgressSummaryText(progress);
   const journey = goalJourneyLabel(progress);
+  const distance =
+    goalOverTargetLabel(progress) ?? goalRemainingLabel(progress);
 
   return (
     <header className="dh-goal-measure__head">
       <div className="dh-goal-measure__headline">
-        <MetricStrip progress={progress} />
+        <MetricStrip goalTitle={goalTitle} progress={progress} />
         {/*
           The bar and the state, on one line beneath the figures.
 
@@ -268,6 +278,19 @@ function ProgressHeader({
           <StatusPill tone={goalProgressStatusTone(progress.status)}>
             {goalProgressStatusLabel(progress.status)}
           </StatusPill>
+          {/*
+           * REDESIGN-04 — what is LEFT, in words, on the state line.
+           *
+           * It moved off the metric strip when that became the reference's
+           * trio: "1.9 km to go" is a statement about progress, not a fourth
+           * measurement, and beside the status word is where it reads as one.
+           * Over-target replaces it once there is no distance to cover, because
+           * "113% of target" is the news at that point and "0 kg remaining" is
+           * not.
+           */}
+          {distance ? (
+            <span className="dh-goal-measure__distance">{distance}</span>
+          ) : null}
           {journey ? (
             <span className="dh-goal-measure__journey">{journey}</span>
           ) : null}
@@ -438,6 +461,32 @@ function TrendSection({
   if (progress.target !== null) domain.push(progress.target);
   if (progress.baseline !== null) domain.push(progress.baseline);
 
+  /*
+   * REDESIGN-04 §6.2 — the dotted path to the target, drawn ONLY when it is
+   * true.
+   *
+   * Three facts have to exist for it: a target VALUE, a target DATE, and a
+   * target date still ahead of the last reading. All three come from the
+   * evaluator; none is inferred. When any is missing the chart draws no dotted
+   * line at all, which is the brief's rule — an absent projection, never an
+   * invented one. What the line shows is the REQUIRED path (the same fact the
+   * pace band prints as "required pace"), not an extrapolation of recent pace:
+   * a forecast would put a confident line through a future the product cannot
+   * know.
+   */
+  const projection =
+    progress.target !== null &&
+    progress.targetDate !== null &&
+    progress.targetDate > last.measuredOn
+      ? {
+          date: progress.targetDate,
+          value: progress.target,
+          label: `Target ${formatMeasurementValue(progress.target, progress.unit)} by ${
+            formatCalendarDate(progress.targetDate) ?? progress.targetDate
+          }.`,
+        }
+      : null;
+
   return (
     <div className="dh-goal-measure__chart">
       <TrendLine
@@ -485,8 +534,19 @@ function TrendSection({
             formatCalendarDate(point.date) ?? point.date
           }`
         }
+        projection={projection}
         startLabel={formatCalendarDate(first.measuredOn) ?? first.measuredOn}
-        endLabel={formatCalendarDate(last.measuredOn) ?? last.measuredOn}
+        /*
+         * The axis's end is where the PLOT ends. With a projection drawn, that
+         * is the target date rather than the last reading — labelling it
+         * otherwise would make the one piece of text on the axis contradict the
+         * line above it.
+         */
+        endLabel={
+          projection
+            ? (formatCalendarDate(projection.date) ?? projection.date)
+            : (formatCalendarDate(last.measuredOn) ?? last.measuredOn)
+        }
         lowLabel={formatMeasurementValue(Math.min(...domain), progress.unit)}
         highLabel={formatMeasurementValue(Math.max(...domain), progress.unit)}
       />

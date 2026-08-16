@@ -17,6 +17,68 @@ no version number to group them under.
 
 ---
 
+## Projects and Goals became workspaces (REDESIGN-04)
+
+The last pass reconciled the spine's competing designs and fixed dark mode; it
+deliberately stopped short of rebuilding Projects, Areas and Goals. This one
+finishes that.
+
+**Projects is a gallery you can actually work from.** The page now opens with
+what the workspace holds — "8 active · 2 archived" — rather than how many rows
+happen to have loaded, and there is a **search box** in the header: type, and
+the gallery narrows. The address bar remembers, so a narrowed list is something
+you can bookmark or send to yourself, and Back returns you to it rather than to
+the unfiltered page.
+
+Every card was rebuilt to the design. The coloured tile sits alone at the top
+with the ⋯ opposite it, which gives the name the full width of the card — long
+Project names stopped being truncated. Beneath the progress bar there is now a
+plain line of facts: **"14 tasks · 4 due this week"**. If something is overdue,
+the due count is tinted and the state dot beside it says so — but the words are
+always there, so nothing depends on seeing a colour.
+
+**There is a table view.** The toggle at the right of the tab row switches the
+same Projects between the gallery and a table with Area, progress, task counts
+and the last update in columns. It is the same records in the same order — just
+drawn for scanning instead of for browsing.
+
+**Goals is now a workspace rather than a wall of cards.** The list is on the
+left — each Goal with its bar and its own honest figure at the end of the line
+("60.0 / 70 kg", "12 / 24", "75% complete") — and the Goal you select fills the
+panel beside it: its name and Area, then **Current / Target / Target date** as
+three equal figures, then the chart. Selecting a Goal changes the address, so
+you can link straight to one, and Back behaves. On a phone the two are two
+screens, with a way back to the list from either.
+
+**The chart now shows where you are heading.** The solid line is still only what
+you have recorded. A **dotted line** continues from your last reading to a
+marked point at your target date — the path that would get you there on time.
+It appears only when you have set both a target and a date; DalyHub will not
+guess a future it cannot know.
+
+**You can add a Goal from Goals.** Until now a Goal could only be created from
+inside an Area, which meant leaving the page you were on to find the button.
+There is an **Add goal** action at the foot of the list — and because a Goal
+always lives in an Area, choosing one is the first thing it asks.
+
+**The Projects page shows your Goals.** A compact three-Goal section sits under
+the gallery, with **View all** through to the workspace — so the work and what
+it is for are on one screen.
+
+**Linked projects are on the Goal itself.** The Projects advancing a Goal are
+now small chips on its overview, each opening the Project, with **Link project**
+beside them to attach another.
+
+Areas were left alone, deliberately. They already read the way they should: a
+quiet list of the permanent parts of your life, with no progress bars and no
+invented scores, because an Area is never finished.
+
+Everything above is the same in dark mode, and every figure on screen is a real
+one — where DalyHub does not have a number, it says so rather than showing a
+zero.
+
+---
+
 ## Today, Projects, Goals and Areas, converged (REDESIGN-03)
 
 DalyHub had been through several redesigns, and the last merge brought two of

@@ -363,7 +363,7 @@
  * parses as "forty" before they parse it as "four completed, none created" —
  * and the axis is the only place the chart states a value at all, so an
  * ambiguous one is the whole reading lost. The middot is the same separator
- * `.dh-gcard__fact` already uses for a run of trailing facts, and it is drawn
+ * `.dh-pcard__meta` already uses for a run of trailing facts, and it is drawn
  * by CSS so no screen reader announces a bullet between two numbers that the
  * chart's `summary` already states in words.
  */
@@ -394,4 +394,64 @@
   font-size: var(--md-sys-typescale-label-small-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   REDESIGN-04 — the dotted path to the target (`mockup3.png`).
+
+   Dotted rather than dashed, so it is distinguishable from the target
+   REFERENCE line (dashed) and the baseline (finely dotted, horizontal) by
+   pattern as well as by position — the chart's rule that nothing is carried by
+   colour alone applies to the projection too. The sentence beneath the plot
+   states it in words regardless.
+   ========================================================================== */
+
+.dh-linechart__projection {
+  stroke: var(--dh-color-accent);
+  stroke-width: 2;
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+/*
+ * The target point: a RING, not a filled dot. A filled dot is what a recorded
+ * reading looks like on this chart, and the destination has not been reached —
+ * drawing it the same way would assert that it had.
+ */
+.dh-linechart__projection-point {
+  stroke: var(--dh-color-accent);
+  stroke-width: 9;
+  fill: none;
+  opacity: 0.28;
+}
+
+.dh-linechart__projection-note {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin: var(--dh-space-2) 0 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+/* The key repeats the dotted pattern beside the words, so the sentence and the
+ * line on the plot are recognisably the same object. */
+.dh-linechart__projection-key {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 0;
+  border-block-start: 2px dotted var(--dh-color-accent);
+}
+
+@media (forced-colors: active) {
+  .dh-linechart__projection,
+  .dh-linechart__projection-point {
+    stroke: CanvasText;
+    opacity: 1;
+  }
+  .dh-linechart__projection-key {
+    border-block-start-color: CanvasText;
+  }
 }

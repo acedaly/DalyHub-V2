@@ -55,18 +55,51 @@ export type ListProjectsInput = {
    * work. Omit for no workflow-status restriction.
    */
   readonly workflowStatus?: ProjectWorkflowStatus;
+  /**
+   * REDESIGN-04 — free-text narrowing by title, for the collection's search
+   * field (`mockup3.png`).
+   *
+   * It is a PREDICATE on the existing list query, not a second query and not a
+   * second ordering: the collection keeps its deterministic `(createdAt, id)`
+   * sequence, its keyset cursor and its state filter, and simply returns fewer
+   * rows. Normalise with `normaliseProjectSearch` before passing it — the same
+   * function the cursor scope uses, so the two can never disagree.
+   *
+   * Distinct from `searchProjects`, which is the command-palette ranking read
+   * (relevance-ordered, unpaginated, non-archived only).
+   */
+  readonly search?: string | null;
   /** Ordering. Defaults to `created` (deterministic `(createdAt, id)` ascending). */
   readonly orderBy?: ProjectOrder;
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
   readonly limit?: number;
   /**
    * An opaque cursor from a previous page's `nextCursor`, to fetch the following
-   * page. It is bound to the workspace, `state` filter, `workflowStatus` and
-   * ordering it was issued for; a cursor that does not match the current query
-   * scope is rejected (`InvalidSpineCursorError`), never silently reinterpreted.
-   * Omit for the first page.
+   * page. It is bound to the workspace, `state` filter, `workflowStatus`,
+   * `search` narrowing and ordering it was issued for; a cursor that does not
+   * match the current query scope is rejected (`InvalidSpineCursorError`), never
+   * silently reinterpreted. Omit for the first page.
    */
   readonly cursor?: string;
+};
+
+/**
+ * REDESIGN-04 — the workspace's project counts by lifecycle bucket.
+ *
+ * `mockup3.png` opens the Projects page with "8 active · 2 archived", which is a
+ * statement about the WHOLE workspace rather than about the loaded page — so it
+ * cannot be counted from the rows on screen, and §5.5 forbids paying for it per
+ * card. It is one grouped statement (`GROUP BY` over the same two lifecycle
+ * columns the list query already filters on), read once per collection load.
+ *
+ * `active` here means the same thing the "Active" tab means: open (not
+ * completed) and not archived. `completed` and `archived` are the other two
+ * mutually-exclusive buckets, so the three sum to every non-deleted Project.
+ */
+export type ProjectLifecycleCounts = {
+  readonly active: number;
+  readonly completed: number;
+  readonly archived: number;
 };
 
 export type ProjectSearchInput = {

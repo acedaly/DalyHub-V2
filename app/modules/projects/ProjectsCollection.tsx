@@ -44,11 +44,16 @@ import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
 import { EntityCardGrid, ProjectCard } from "~/shared/card";
+import type { ProjectLifecycleCounts } from "~/kernel/projects";
 import {
+  CollectionControlRow,
   CollectionLayout,
+  CollectionSearchField,
   collectionCountLabel,
   CreateActionLabel,
   useCollectionLoading,
+  useCollectionSearch,
+  type CollectionPresentation,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -63,8 +68,12 @@ import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
-import { ViewTabs } from "~/shared/view-switcher";
+import type { GoalSummary } from "~/shared/goal-progress";
+import { GridIcon, TableIcon } from "~/shared/icons";
+import { ViewSwitcher, ViewTabs } from "~/shared/view-switcher";
 
+import { GoalSummarySection } from "./GoalSummarySection";
+import { ProjectsTable } from "./ProjectsTable";
 import { NewProjectForm } from "./NewProjectForm";
 import {
   toProjectCardData,
@@ -73,12 +82,6 @@ import {
 } from "./project-view";
 
 export type ProjectState = "open" | "completed" | "archived" | "all";
-
-/**
- * The one wording for "this Project has no tasks", so the attention line and
- * the card's trailing fact can be compared rather than both spelling it.
- */
-const NO_TASKS_TEXT = "No tasks yet";
 
 /** The drawer key hosting the create form. */
 const NEW_PROJECT_KEY = "new-project";
@@ -90,11 +93,32 @@ const NEW_PROJECT_KEY = "new-project";
  * repository's documented `ProjectStateFilter` semantics exactly
  * (`d1-project-repository.ts`) — the UI never redefines them.
  */
+/*
+ * REDESIGN-04 — the mockup's ORDER and the mockup's WORD, with the product's
+ * fourth real bucket kept.
+ *
+ * `mockup3.png` draws three tabs — Active / All / Archived — and "Active" is the
+ * word it uses for what this repository calls `open`. The label follows the
+ * reference; the VALUE does not change, so every `?state=open` link, bookmark
+ * and test in the product still resolves and the documented
+ * `ProjectStateFilter` semantics are untouched.
+ *
+ * "Completed" survives as a fourth tab even though the reference has no room to
+ * draw it. It is a real, separately-reachable collection of Projects, and §12 is
+ * explicit that simplicity must not be bought by deleting capability — a
+ * completed Project would otherwise be reachable only by scanning "All".
+ */
 const STATE_OPTIONS = [
+  { value: "open", label: "Active" },
   { value: "all", label: "All" },
-  { value: "open", label: "Open" },
   { value: "completed", label: "Completed" },
   { value: "archived", label: "Archived" },
+] as const;
+
+/** The presentation toggle's two options — a gallery, or the same rows as a table. */
+const PRESENTATION_OPTIONS = [
+  { value: "grid", label: "Grid", icon: <GridIcon /> },
+  { value: "table", label: "Table", icon: <TableIcon /> },
 ] as const;
 
 export interface ProjectsCollectionViewProps {
@@ -108,6 +132,20 @@ export interface ProjectsCollectionViewProps {
    * workspace (an empty `parentOptions` array with this false).
    */
   readonly parentOptionsFailed?: boolean;
+  /**
+   * REDESIGN-04 — the workspace's lifecycle counts, for the header's
+   * "8 active · 2 archived". `null` when the one grouped count read failed, in
+   * which case the line falls back to the loaded-row wording rather than
+   * printing a number it cannot stand behind.
+   */
+  readonly counts?: ProjectLifecycleCounts | null;
+  /** §5.3 — the compact Goals section's summaries, from the shared bounded read. */
+  readonly goals?: readonly GoalSummary[];
+  readonly goalsFailed?: boolean;
+  /** The committed search text, from the URL. */
+  readonly query?: string;
+  /** Gallery or table. A presentation, never a filter — both show the same rows. */
+  readonly presentation?: CollectionPresentation;
   readonly state: ProjectState;
   readonly failed: boolean;
 }
@@ -127,6 +165,18 @@ export function ProjectsCollectionView({
   nextCursor,
   parentOptions,
   parentOptionsFailed = false,
+  /*
+   * REDESIGN-04 — the reference's additions default to their honest ABSENT
+   * state, so a caller that renders this view without them (the design-states
+   * route, a unit test) gets the collection the product had before this pass:
+   * no count line beyond the loaded rows, no Goals section, an un-narrowed
+   * gallery. Absence is never rendered as zero.
+   */
+  counts = null,
+  goals = [],
+  goalsFailed = false,
+  query = "",
+  presentation = "grid",
   state,
   failed,
 }: ProjectsCollectionViewProps) {
@@ -156,6 +206,11 @@ export function ProjectsCollectionView({
       <ProjectsCollection
         projects={projects}
         nextCursor={nextCursor}
+        counts={counts}
+        goals={goals}
+        goalsFailed={goalsFailed}
+        query={query}
+        presentation={presentation}
         state={state}
         failed={failed}
       />
@@ -241,8 +296,6 @@ function ProjectEntityCard({
     onRestore: () => post("restore"),
   });
 
-  const open = card.progress.total - card.progress.completed;
-
   return (
     <>
       <ProjectCard
@@ -268,21 +321,32 @@ function ProjectEntityCard({
         // are one identity rather than two colour decisions.
         accent={card.colourRank}
         /*
-         * UIX-02 — ONE attention line, replacing the filled status chip AND the
-         * supporting health sentence beneath it.
+         * REDESIGN-04 §5.6 — attention survives as SIGNAL, not as a sentence.
          *
-         * The chip said "At risk" and the line three rows below said "2 tasks
-         * past their due date": one fact, two objects, and the chip was the
-         * loudest thing on a card whose job is to be recognised by its mark. The
-         * line now carries both — the compact wording is built from the
-         * evaluator's own structured count, and the full sentence rides along
-         * for assistive tech.
+         * UIX-02 replaced a status chip plus a health sentence with one line of
+         * words. `mockup3.png` gives that line to volume and urgency instead, so
+         * the sentence goes and the state dot stays: the dot takes the
+         * evaluator's tone, its full wording rides along for assistive tech, and
+         * the due-this-week fragment below is tinted when the same evaluator
+         * says work is overdue. `projectAttention` is untouched — it is
+         * re-expressed, not deleted.
          */
         attention={{
           text: card.attention.text,
           tone: card.attention.tone,
           detail: card.attention.detail,
         }}
+        /*
+         * The reference's meta line — "14 tasks · 4 due this week".
+         *
+         * Both figures are FREE. `taskTotal` is the rollup the card already
+         * drew a bar from, and `dueThisWeek` is `upcomingDueOpen` out of the
+         * health summary the collection loader already gathers for the whole
+         * page in one read (§5.5: cheap aggregates only, never a per-card
+         * query). A Project with no tasks has nothing true to say here and says
+         * nothing.
+         */
+        meta={card.meta}
         /*
          * Progress is deliberately ABSENT for a Project with no tasks: an empty
          * bar at 0% reads as "nothing done yet" when the truth is "nothing
@@ -297,25 +361,16 @@ function ProjectEntityCard({
             : undefined
         }
         /*
-         * The one trailing fact: what is still to do. It complements the
-         * percentage rather than restating it — "63%" answers how far along,
-         * "3 open" answers how much is left — and a Project with everything
-         * done says so instead of printing "0 open".
+         * REDESIGN-04 — the trailing "N open" fact is GONE from the gallery
+         * card, and its absence is deliberate rather than an omission.
+         *
+         * The meta line beside it now states the total and the due count, and
+         * "63% · 14 tasks · 4 due this week · 3 open" is four numbers about the
+         * same eight tasks. The reference draws two. Nothing is lost: open work
+         * is `taskTotal` minus the percentage, it is stated exactly on the
+         * record, and a Project with no tasks still says so — that IS its meta
+         * line (see `projectCardMeta`).
          */
-        fact={
-          card.progress.has
-            ? open > 0
-              ? `${open} open`
-              : "All done"
-            : // A Project with no tasks says so ONCE. When health is speaking it
-              // has already said it on the attention line above ("No tasks
-              // yet"), and repeating it in the foot is the same absence stated
-              // twice on one card — which is the exact defect this pass removed
-              // from the status chip.
-              card.attention.text === NO_TASKS_TEXT
-              ? null
-              : NO_TASKS_TEXT
-        }
         overflow={
           <OverflowMenu
             items={lifecycle.overflowActions}
@@ -352,13 +407,19 @@ function useProjectPagination(
   firstPage: readonly SerializedProjectListItem[],
   initialCursor: string | null,
   state: ProjectState,
+  query: string,
 ) {
   return useKeysetPagination<SerializedProjectListItem, ProjectsPageData>({
     firstPage,
     initialCursor,
-    // The state filter is part of the cursor's scope, so it must be part of the
-    // path a later page is requested from.
-    path: `/projects?state=${encodeURIComponent(state)}`,
+    // The state filter AND the search term are part of the cursor's scope
+    // (`PROJECT_CURSOR_VERSION` 4), so both must be part of the path a later
+    // page is requested from — otherwise the next page would be fetched from a
+    // different result set than the cursor was issued against.
+    path:
+      query.length > 0
+        ? `/projects?state=${encodeURIComponent(state)}&q=${encodeURIComponent(query)}`
+        : `/projects?state=${encodeURIComponent(state)}`,
     select: selectProjectsPage,
     getId: projectId,
   });
@@ -388,19 +449,57 @@ export function projectsCountLabel(count: number, hasMore: boolean): string {
   return collectionCountLabel(count, "Project", "Projects", { hasMore });
 }
 
+/**
+ * REDESIGN-04 — the reference's count line: "8 active · 2 archived".
+ *
+ * A workspace-wide statement from one grouped count read, so it is a real
+ * total rather than a page's length. Every fragment is dropped when it is zero:
+ * a workspace with nothing archived says "8 active", not "8 active · 0
+ * archived" — a zero on a count line reads as a warning about the zero.
+ * Completed is folded in only when there is some, because the reference's line
+ * is two facts and a third is worth adding only when it exists.
+ *
+ * Returns `null` when the count read failed or the workspace is genuinely
+ * empty, so the caller falls back to the wording it has always used rather than
+ * printing "0 active".
+ */
+export function projectLifecycleCountLabel(
+  counts: ProjectLifecycleCounts | null,
+): string | null {
+  if (!counts) return null;
+  const parts: string[] = [];
+  if (counts.active > 0) parts.push(`${counts.active} active`);
+  if (counts.completed > 0) parts.push(`${counts.completed} completed`);
+  if (counts.archived > 0) parts.push(`${counts.archived} archived`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function ProjectsCollection({
   projects,
   nextCursor,
+  counts,
+  goals,
+  goalsFailed,
+  query,
+  presentation,
   state,
   failed,
 }: {
   readonly projects: readonly SerializedProjectListItem[];
   readonly nextCursor: string | null;
+  readonly counts: ProjectLifecycleCounts | null;
+  readonly goals: readonly GoalSummary[];
+  readonly goalsFailed: boolean;
+  readonly query: string;
+  readonly presentation: CollectionPresentation;
   readonly state: ProjectState;
   readonly failed: boolean;
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } =
-    useProjectPagination(projects, nextCursor, state);
+    useProjectPagination(projects, nextCursor, state, query);
+  // The ONE shared search controller — a local draft, a debounce, a `replace`d
+  // URL write and a cursor reset. See `useCollectionSearch`.
+  const { draft, setDraft } = useCollectionSearch();
   // Archiving moves a Project between state filters, so the list is re-read
   // rather than patched: the server decides which segment it now belongs to.
   const revalidator = useRevalidator();
@@ -411,11 +510,27 @@ function ProjectsCollection({
   );
 
   const count = items.length;
-  // Never present the loaded-row count as the TOTAL while more pages remain — say
-  // how many are "loaded" so far, not how many exist.
+  /*
+   * REDESIGN-04 — the reference's count line, "8 active · 2 archived".
+   *
+   * It describes the WORKSPACE, from the one grouped count read, which is why
+   * it can state a total the loaded page does not contain. Three fallbacks, in
+   * order, and each one is honest about what it knows:
+   *
+   *   - a NARROWED collection counts what the search matched, because "8
+   *     active" beside three search results would be answering a question
+   *     nobody asked;
+   *   - a failed count read drops to the loaded-row wording — the same line the
+   *     collection has always shown — rather than printing a number it cannot
+   *     stand behind;
+   *   - a failed LIST read says so in a sentence.
+   */
   const subtitle = failed
     ? "We couldn’t load your projects."
-    : projectsCountLabel(count, hasMore);
+    : query.length > 0
+      ? projectsCountLabel(count, hasMore)
+      : (projectLifecycleCountLabel(counts) ??
+        projectsCountLabel(count, hasMore));
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // (a filter, a view, a page) shows the shared skeleton instead of leaving the
@@ -436,6 +551,20 @@ function ProjectsCollection({
         </DrawerTrigger>
       }
       /*
+       * REDESIGN-04 — search is on the TITLE row, per `mockup3.png`, through the
+       * one shared field. See `PaneHeader` for why this single narrowing control
+       * is a header slot when no other is.
+       */
+      search={
+        <CollectionSearchField
+          value={draft}
+          onChange={setDraft}
+          label="Search projects"
+          placeholder="Search projects…"
+          data-testid="projects-search"
+        />
+      }
+      /*
        * UIX-02 — the lifecycle mode is a TAB RAIL under the title, not a
        * segmented capsule beside it.
        *
@@ -453,13 +582,36 @@ function ProjectsCollection({
        * both the reference's phone treatment and a better thumb target than an
        * underline. Neither is a second control to keep in step.
        */
+      /*
+       * REDESIGN-04 — the reference's CONTROL ROW: the lifecycle rail at the
+       * leading edge, the presentation toggle at the trailing one.
+       *
+       * The toggle is deliberately NOT in the header's `viewSwitcher` slot even
+       * though it is a view switcher: at 1280 the title row is already carrying
+       * a search field and the primary action, and a third cluster is where it
+       * breaks. UIQ-013's semantics are untouched — this is still the ONE
+       * switcher control, changing presentation and never which records are
+       * included. It has simply been given the row the reference draws it on.
+       */
       filterBar={
-        <ViewTabs
-          param="state"
-          options={STATE_OPTIONS}
-          value={state}
-          label="Project views"
-          defaultValue="all"
+        <CollectionControlRow
+          leading={
+            <ViewTabs
+              param="state"
+              options={STATE_OPTIONS}
+              value={state}
+              label="Project views"
+              defaultValue="all"
+            />
+          }
+          trailing={
+            <ViewSwitcher
+              param="present"
+              options={PRESENTATION_OPTIONS}
+              value={presentation}
+              label="Project layout"
+            />
+          }
         />
       }
       error={
@@ -470,35 +622,59 @@ function ProjectsCollection({
           />
         ) : undefined
       }
-      isFilteredEmpty={!failed && count === 0 && state !== "all"}
-      filteredEmptySlot={
-        <EmptyState
-          icon={<EntityIcon type="project" />}
-          title={
-            state === "completed"
-              ? "No completed projects"
-              : state === "archived"
-                ? "No archived projects"
-                : "No open projects"
-          }
-          description={
-            state === "archived"
-              ? "Projects you archive appear here, and can be restored at any time."
-              : "Try a different state, or create a project."
-          }
-          primaryAction={
-            state === "archived" ? undefined : (
-              <DrawerTrigger
-                drawerKey={NEW_PROJECT_KEY}
-                className="dh-btn dh-btn--primary"
-              >
-                <CreateActionLabel>New project</CreateActionLabel>
-              </DrawerTrigger>
-            )
-          }
-        />
+      /*
+       * A narrowed collection is FILTERED-empty at every state, including "All"
+       * — "No Projects yet" would be a lie about a workspace that simply has
+       * none matching "kitchn".
+       */
+      isFilteredEmpty={
+        !failed && count === 0 && (state !== "all" || query.length > 0)
       }
-      isEmpty={!failed && count === 0 && state === "all"}
+      filteredEmptySlot={
+        query.length > 0 ? (
+          <EmptyState
+            icon={<EntityIcon type="project" />}
+            title={`No projects match “${query}”`}
+            description="Try a shorter search, or a different lifecycle tab."
+            primaryAction={
+              <button
+                type="button"
+                className="dh-btn"
+                onClick={() => setDraft("")}
+              >
+                Clear search
+              </button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={<EntityIcon type="project" />}
+            title={
+              state === "completed"
+                ? "No completed projects"
+                : state === "archived"
+                  ? "No archived projects"
+                  : "No active projects"
+            }
+            description={
+              state === "archived"
+                ? "Projects you archive appear here, and can be restored at any time."
+                : "Try a different state, or create a project."
+            }
+            primaryAction={
+              state === "archived" ? undefined : (
+                <DrawerTrigger
+                  drawerKey={NEW_PROJECT_KEY}
+                  className="dh-btn dh-btn--primary"
+                >
+                  <CreateActionLabel>New project</CreateActionLabel>
+                </DrawerTrigger>
+              )
+            }
+          />
+        )
+      }
+      isEmpty={!failed && count === 0 && state === "all" && query.length === 0}
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="project" />}
@@ -515,15 +691,30 @@ function ProjectsCollection({
         />
       }
     >
-      <EntityCardGrid label="Projects">
-        {cards.map((card) => (
-          <ProjectEntityCard
-            key={card.id}
-            card={card}
-            onLifecycleChange={() => revalidator.revalidate()}
-          />
-        ))}
-      </EntityCardGrid>
+      {/*
+       * REDESIGN-04 §5.4 — the SAME records, in the other representation.
+       *
+       * One loader, one order, one set of rows; the toggle chooses only how
+       * they are drawn. The table is not a second collection with its own
+       * reads, which is why it can sit behind a URL param rather than behind a
+       * route.
+       */}
+      {presentation === "table" ? (
+        <ProjectsTable
+          cards={cards}
+          onLifecycleChange={() => revalidator.revalidate()}
+        />
+      ) : (
+        <EntityCardGrid label="Projects">
+          {cards.map((card) => (
+            <ProjectEntityCard
+              key={card.id}
+              card={card}
+              onLifecycleChange={() => revalidator.revalidate()}
+            />
+          ))}
+        </EntityCardGrid>
+      )}
       {!failed && hasMore ? (
         <LoadMore
           loading={loading}
@@ -531,6 +722,25 @@ function ProjectsCollection({
           onLoadMore={loadMore}
           label="Load more projects"
         />
+      ) : null}
+
+      {/*
+       * REDESIGN-04 §5.3 — the compact Goals section the reference draws
+       * beneath the gallery, on the desktop page and in the handset frame
+       * alike.
+       *
+       * It is a SUMMARY, not a second collection: three rows from the shared
+       * bounded read Today already makes, with `View all` leading to the real
+       * workspace. It is hidden while the collection is narrowed or showing a
+       * non-default lifecycle — an owner searching for a Project is not asking
+       * about Goals, and a rail that ignores the tab above it reads as broken.
+       */}
+      {!failed &&
+      !goalsFailed &&
+      goals.length > 0 &&
+      query.length === 0 &&
+      (state === "all" || state === "open") ? (
+        <GoalSummarySection goals={goals} />
       ) : null}
     </CollectionLayout>
   );
