@@ -120,10 +120,11 @@ test.describe("UX-01 — Today answers what is on today", () => {
      * balanced regions and named this one **Focus** (`today-day-heading`); the
      * claim the test makes is unchanged, only the region's name moved. It had
      * been failing since, unseen, inside the tests shards 4 and 8 never started
-     * before `globalTimeout`.
+     * before `globalTimeout`. TODAY-11 moved the name once more, to the one
+     * `MOCKUP 5.png` and the owner both use.
      */
     await expect(
-      page.getByRole("heading", { level: 2, name: "Focus" }),
+      page.getByRole("heading", { level: 2, name: "Today’s plan" }),
     ).toBeVisible();
 
     // The Meetings SECTION is conditional now — a day with no meetings renders

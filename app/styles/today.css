@@ -86,8 +86,22 @@
  * component returns null — so there is no empty-track case to style.
  */
 .dh-today__summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  /*
+   * TODAY-11 — flex with a CEILING, not `auto-fit` with a floor.
+   *
+   * `repeat(auto-fit, minmax(13rem, 1fr))` is the right tool for a list of
+   * unknown length and the wrong one for a rank capped at three: measured at
+   * 1440 on the seeded fixture with two truthful cards (the workspace had no
+   * measurable Goals), each card stretched to ~560px to hold a two-word label
+   * and a single digit — a stat card wider than the Schedule panel beside it,
+   * which is exactly the dashboard reading §45 warns about.
+   *
+   * A `flex` basis with a `max-inline-size` gives the mockup's proportions at
+   * every count: three cards share the width, two sit side by side at a
+   * card's width rather than half a page each, and one is a card.
+   */
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--dh-space-3);
   margin: 0;
   padding: 0;
@@ -104,6 +118,8 @@
 .dh-today__measure {
   display: flex;
   flex-direction: column;
+  flex: 1 1 13rem;
+  max-inline-size: 24rem;
   min-inline-size: 0;
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
@@ -317,23 +333,36 @@
 /* The two columns                                                             */
 /* -------------------------------------------------------------------------- */
 
-.dh-today__body {
+/*
+ * TODAY-11 — the page is a stack of RANKS, and each rank is its own grid.
+ *
+ * MOCKUP 5 draws four horizontal bands: the measures, the work (plan beside
+ * schedule), the context (goals · insights · the two doorways) and — this
+ * screen's own addition — support. A rank is a grid; the page is a column of
+ * ranks; nothing spans two of them.
+ *
+ * Why ranks rather than the two-column body REDESIGN-03 built: with SEVEN
+ * panels, two tall columns end at wildly different heights and leave the hole
+ * under the shorter one that every previous Today layout has been chasing. A
+ * rank cannot produce that hole, because it ends when its own row ends and the
+ * next rank starts at the full width of the page.
+ *
+ * Every rank collapses to one column below its own breakpoint, and the DOM
+ * order IS the phone order — nothing on this screen is moved by CSS `order`,
+ * because `order` moves pixels and leaves the reading order and the tab order
+ * behind.
+ */
+.dh-today__rank {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--app-space-5);
   align-items: start;
+  min-inline-size: 0;
 }
 
-/*
- * M3X-02 — the PHONE composition, which is the DOM order and nothing else.
- *
- * The phone's priority is: how much is on (the summary), what is next (the
- * supporting surface), the day itself, and only then the surfaces that are about
- * the week rather than the hour. That is exactly the order the markup is written
- * in, at both widths — nothing on this screen is moved by CSS `order`, because
- * `order` moves pixels and leaves the reading order and the tab order behind.
- */
-.dh-today__col {
+/* Two panels stacked inside ONE cell of the context rank (capture, then
+ * reflection), which is how the mockup draws its right-hand column. */
+.dh-today__stack {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--app-space-5);
@@ -379,9 +408,47 @@
  * narrower. Nothing here is moved by `order`.
  */
 @container today (min-width: 52rem) {
-  .dh-today__body {
-    grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 1fr);
-    align-items: start;
+  /*
+   * The WORK rank: the plan takes the wider track because it is the actionable
+   * one and it is a list of titles; the schedule is a strip and short runs of
+   * time-and-name rows, which read comfortably narrower. Roughly the mockup's
+   * three-fifths / two-fifths.
+   */
+  .dh-today__rank--work {
+    grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 1fr);
+  }
+
+  /*
+   * The CONTEXT rank: three cells, with the doorway stack last, exactly as the
+   * mockup arranges them. Goal progress takes a little more because it holds a
+   * grid of tiles; the other two are single objects.
+   */
+  .dh-today__rank--context {
+    grid-template-columns:
+      minmax(0, 1.2fr) minmax(0, 1fr)
+      minmax(17rem, 1fr);
+  }
+
+  /* The SUPPORT rank: two equal lists of label-and-fact rows. */
+  .dh-today__rank--support {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/*
+ * A middle rung, so the context rank is not three 200px columns on a tablet.
+ * Between 34rem and 52rem it is two cells with the stack spanning both, which
+ * keeps the capture field wide enough to read as a field.
+ */
+@container today (min-width: 34rem) and (max-width: 51.999rem) {
+  .dh-today__rank--context,
+  .dh-today__rank--support {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dh-today__rank--context > .dh-today__stack {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -424,7 +491,7 @@
  * DIVIDER value rather than the boundary one: these are two parts of one column,
  * not two objects.
  */
-.dh-today__col
+.dh-today__stack
   > .dh-today__panel:not(.dh-today__panel--card)
   + .dh-today__panel:not(.dh-today__panel--card) {
   padding-block-start: var(--dh-space-5);
@@ -439,6 +506,55 @@
   gap: var(--app-space-3);
 }
 
+/*
+ * TODAY-11 — a panel's ONE optional trailing action.
+ *
+ * "View all", "View full schedule", "View analytics", "View all reflections" —
+ * the mockup gives most panels exactly one, in the accent, at meta size, at the
+ * end of the header line. It is a text link rather than a `dh-btn--ghost`
+ * because a button's inline padding pushes it off the header's right edge and
+ * because these are navigations, not actions.
+ *
+ * It keeps the touch floor: a link is a control, and a control on a coarse
+ * pointer is 44px whatever else it is (WCAG 2.2 SC 2.5.8).
+ */
+.dh-today__panel-action {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dh-today__panel-action:hover {
+  text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .dh-today__panel-action {
+    min-block-size: var(--app-touch-target-min);
+  }
+}
+
+/*
+ * A panel's quiet trailing FACT — "8 tasks", "Last 7 days". Not a control, so
+ * it takes the muted ramp and no target: the mockup draws the plan's count and
+ * the Insights window this way, and drawing them like the action beside them
+ * would invite a click that does nothing.
+ */
+.dh-today__panel-note {
+  flex: none;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-variant-numeric: var(--dh-font-numeric);
+  white-space: nowrap;
+}
+
 .dh-today__panel-title {
   margin: 0;
   color: var(--dh-color-text);
@@ -447,9 +563,16 @@
   font-weight: var(--dh-text-section-title-weight);
 }
 
+/*
+ * A panel's foot. TODAY-11 gave the plan's foot TWO controls — "+ Add task" and,
+ * when the day exceeds its bound, "View all N tasks for today" — so the row
+ * needs a gap and a wrap. Both are `dh-btn--ghost`, so they read as one set.
+ */
 .dh-today__panel-foot {
   margin: 0;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
 }
 
 /* The day's three sections, separated by space rather than by another surface. */
@@ -1168,4 +1291,524 @@
   justify-self: start;
   margin-inline-start: calc(-1 * var(--app-space-3));
   min-block-size: var(--button-height-touch);
+}
+
+/* -------------------------------------------------------------------------- */
+/* TODAY-11 — the command centre                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Everything MOCKUP 5 added to this screen, in one place: the header's action,
+ * the stat cards' charts, the Schedule panel's week strip, the Insights ring,
+ * the Quick capture card and the Daily reflection card.
+ *
+ * Layout and rhythm only. Every value is a DalyHub token, every control is a
+ * shared component or the product's own `.dh-btn` family, and every chart is a
+ * `~/shared/charts` primitive painting with the generated scheme — so all of it
+ * is correct in both appearances and all five schemes by construction rather
+ * than by a dark-mode override.
+ */
+
+.dh-today__head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The stat cards' charts                                                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The chart sits UNDER the figure and its note, inside the card's own padding,
+ * exactly as the mockup draws it — a sparkline on each daily series, a meter on
+ * goals.
+ *
+ * It is deliberately short. A 32px plot beside a 24px figure is evidence for the
+ * number above it; a taller one turns a measure into a chart, and Analytics is
+ * where a chart is the subject.
+ */
+.dh-today__measure-chart {
+  margin-block-start: var(--dh-space-2);
+  margin-inline: var(--dh-space-4);
+  margin-block-end: var(--dh-space-4);
+  min-inline-size: 0;
+}
+
+/*
+ * A card WITH a chart does not pay for its note's bottom padding as well.
+ *
+ * The note's padding is what closes the card when the note is the last thing in
+ * it. When a plot follows, that padding plus the column gap plus the plot's own
+ * top margin stacked to ~28px of nothing between a one-line note and a 32px
+ * line — measured at 1440, a 160px stat card, which is a dashboard tile rather
+ * than the shallow rank §3.1 promised. Collapsing the note's half brings the
+ * card back to ~120px without touching the chartless case.
+ */
+.dh-today__measure:has(.dh-today__measure-chart)
+  > :where(.dh-today__measure-note, .dh-today__measure-link) {
+  padding-block-end: 0;
+}
+
+/*
+ * On a phone a measure is a two-column ROW (label and note left, figure right),
+ * and a chart under it would put a third band in a 52px row. The figures and
+ * their notes carry every fact; the plots are supporting evidence, and evidence
+ * is what a narrow screen drops first.
+ */
+/*
+ * At the narrowest widths the four chips are 2 x 2, not 3 + 1.
+ *
+ * `auto-fit` fits three 64px chips into a 232px card at 320 and drops the fourth
+ * onto a line of its own, which reads as a wrapping accident rather than as a
+ * set. Two even rows are the same four controls, larger, and obviously one
+ * group. Above this the row of four fits and stays a row of four.
+ */
+@container today (max-width: 22rem) {
+  .dh-today__capture-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container today (max-width: 34rem) {
+  /* TWO class selectors, for the reason the `.dh-priority` rule above records:
+   * the shared `.dh-spark` sets its own `display` and `charts.css` is loaded
+   * after this file, so a single class ties on specificity and loses on source
+   * order. Measured before this fix: the sparkline was still painting a third
+   * band inside a 52px phone row. */
+  .dh-today__measure .dh-today__measure-chart {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The week strip                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-weekstrip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+/* "August 2026" — the strip's own heading, quiet, above the days. */
+.dh-weekstrip__month {
+  margin: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 600;
+}
+
+/*
+ * Seven equal columns, always. `1fr` each rather than `auto-fit`, because a week
+ * has seven days at every width and a strip whose columns changed count would
+ * stop being a week.
+ */
+.dh-weekstrip__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
+}
+
+/*
+ * One day: the weekday, the date, and a mark for "something is on".
+ *
+ * No border and no fill in the resting state — a row of seven bordered boxes is
+ * a control panel, and this is a set of dates. Selection is a filled circle
+ * behind the DATE alone, which is what the mockup draws and what keeps the
+ * selected day legible without the strip growing.
+ */
+.dh-weekstrip__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
+  /* The whole column is the target, and it clears the WCAG 2.2 minimum at every
+   * width the strip is drawn at — including 320, where a seventh of the panel is
+   * ~34px wide and the height carries the rest. */
+  min-block-size: var(--app-touch-target-min);
+  padding-block: var(--dh-space-1);
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  background: none;
+  color: var(--dh-color-text-muted);
+  cursor: pointer;
+}
+
+.dh-weekstrip__weekday {
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.2;
+  /* The mockup sets the weekday in caps. It is a two- or three-letter
+   * abbreviation of a word the date beneath it repeats in full to a screen
+   * reader, so the transform costs nothing and is not carrying meaning. */
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dh-weekstrip__date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--dh-radius-pill);
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: 1;
+  font-weight: 500;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+/*
+ * TODAY, when it is not the selected day: an outline, never a fill. The filled
+ * disc is reserved for SELECTION, so the two states are never confused — and on
+ * the ordinary visit, when today is selected, only one mark is drawn.
+ */
+.dh-weekstrip__day[data-today="true"] .dh-weekstrip__date {
+  box-shadow: inset 0 0 0 var(--app-border-width-thin)
+    var(--dh-color-border-strong);
+}
+
+.dh-weekstrip__day[aria-selected="true"] {
+  color: var(--dh-color-text);
+}
+
+.dh-weekstrip__day[aria-selected="true"] .dh-weekstrip__date {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
+  box-shadow: none;
+}
+
+/*
+ * The "something is on" mark. A 4px dot, reserved in EVERY column so a day with
+ * items and a day without are the same height and the strip does not jitter as
+ * the selection moves. It is decorative: the button's accessible name states the
+ * count in words.
+ */
+.dh-weekstrip__mark {
+  inline-size: 0.25rem;
+  block-size: 0.25rem;
+  border-radius: var(--dh-radius-pill);
+  background: none;
+}
+
+.dh-weekstrip__mark[data-has-items="true"] {
+  background: var(--dh-color-accent);
+}
+
+@media (forced-colors: active) {
+  .dh-weekstrip__mark[data-has-items="true"] {
+    background: CanvasText;
+  }
+
+  .dh-weekstrip__day[aria-selected="true"] .dh-weekstrip__date {
+    box-shadow: inset 0 0 0 var(--app-border-width-thick) CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The Schedule panel                                                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__schedule-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+/* The panel's tabpanel takes focus programmatically when the strip is driven
+ * from the keyboard, so it needs a visible ring like anything else that can be
+ * focused — and none of the default outline suppression that hides one. */
+.dh-today__schedule-day:focus-visible {
+  outline: var(--app-border-width-thick) solid var(--dh-color-focus);
+  outline-offset: var(--app-space-1);
+  border-radius: var(--dh-radius-sm);
+}
+
+/*
+ * Which day is being shown, in words, above its rows. "Today · Saturday 16
+ * August" on the owner's own day and the date alone on any other — the strip's
+ * filled disc says the same thing visually, and a visual-only answer to "which
+ * day am I looking at?" is not an answer.
+ */
+.dh-today__schedule-date {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Insights                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__insight {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+
+.dh-today__insight-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  align-items: start;
+  min-inline-size: 0;
+}
+
+.dh-today__insight-percent {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-record-title-size);
+  line-height: 1;
+  font-weight: 600;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-today__insight-label {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-today__insight-value {
+  margin: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 500;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quick capture                                                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A control that LOOKS like a field, and is a button.
+ *
+ * The same object `DesktopTopBar` draws for search, for the same recorded
+ * reason: a real input here would be a second capture implementation beside the
+ * shared sheet that already owns parsing, validation and error recovery. Its
+ * label is real text and is its accessible name — never a placeholder, and never
+ * a visually-hidden name on a glyph.
+ */
+.dh-today__capture-field {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-today__capture-field-icon {
+  display: inline-flex;
+  flex: none;
+  line-height: 0;
+  font-size: 1.125rem;
+  color: var(--dh-color-accent);
+}
+
+/*
+ * The four capture kinds. `auto-fit` with a floor, so they are one row of four
+ * in the mockup's cell, two by two in a narrow one, and never four 40px stubs.
+ */
+.dh-today__capture-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+.dh-today__capture-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-1);
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--dh-space-2);
+  border: var(--dh-border-width) solid var(--dh-color-divider);
+  border-radius: var(--dh-radius-md);
+  background: none;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  cursor: pointer;
+}
+
+.dh-today__capture-chip svg {
+  font-size: 1.125rem;
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Daily reflection                                                            */
+/* -------------------------------------------------------------------------- */
+
+/* The prompt, or the kind of entry today already holds. Quiet either way: the
+ * card's subject is the owner's own words, not the label above them. */
+.dh-today__reflection-prompt {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-today__reflection-title {
+  margin: 0;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 500;
+}
+
+.dh-today__reflection-title a {
+  color: var(--dh-color-text);
+  text-decoration: none;
+}
+
+.dh-today__reflection-title a:hover {
+  text-decoration: underline;
+}
+
+/*
+ * Two lines of the entry, and then it stops.
+ *
+ * The clamp is a SECOND bound over the excerpt's own 180 characters, because
+ * character count is not line count: 180 short words in a narrow cell is four
+ * lines. Nothing is hidden that is not one tap away on the entry itself.
+ */
+.dh-today__reflection-excerpt {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The plan row's context pill                                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * MOCKUP 5 ends each plan row with a small rounded label naming the part of life
+ * the task belongs to. It is the task's structural PARENT — a Project, a Goal or
+ * an Area — and it is a real link to that record.
+ *
+ * Neutral rather than identity-coloured, deliberately: the planning read carries
+ * a parent as `{ kind, id, title }` with no icon and no colour, and resolving
+ * identity per row would be the N+1 this pass forbids. See `TodayScreen.tsx`.
+ *
+ * Capped at a third of the row, like every other trailing fact on this screen,
+ * so the title stays the widest thing on every row at every measured width.
+ */
+.dh-day-row__parent {
+  flex: none;
+  max-inline-size: 33%;
+  padding-inline: var(--dh-space-2);
+  padding-block: 0.0625rem;
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.6;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-day-row__parent:hover {
+  color: var(--dh-color-text);
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Goal progress — the mockup's additions                                      */
+/* -------------------------------------------------------------------------- */
+
+/* "3 of 5 on track" — the set's own one-line statement, from the SAME predicate
+ * the stat card counts with. The separator is not decoration: "3 5" reads as
+ * thirty-five, which is the defect DS-06 paid for once with "4 0". */
+.dh-today__goals-note {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+/* The Goal's Area, under its title, as the mockup's tile draws it. */
+.dh-today__goal-area {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phone                                                                       */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /*
+   * The header's action is full width on a phone, under the greeting rather
+   * than beside it. At 320 a "+ Add task" button beside "Good afternoon, Aidan"
+   * leaves the greeting ~150px and wraps it to three lines.
+   */
+  .dh-today__head-actions {
+    inline-size: 100%;
+  }
+
+  .dh-today__head-actions .dh-btn {
+    inline-size: 100%;
+  }
+
+  /* The strip keeps its seven columns — a week is a week — and gives up the
+   * date disc's diameter instead, which is the only value in it that can go. */
+  .dh-weekstrip__date {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+  }
+
+  .dh-weekstrip__weekday {
+    letter-spacing: 0;
+  }
+
+  /*
+   * The context pill goes, exactly as the priority tag does and for the same
+   * measured reason: at 320px a title, a pill and a flag on one 200px line make
+   * the row readable by its metadata rather than by its work. The parent is on
+   * the Task record a tap away and on every `/tasks` row.
+   */
+  .dh-day-row .dh-day-row__parent {
+    display: none;
+  }
 }

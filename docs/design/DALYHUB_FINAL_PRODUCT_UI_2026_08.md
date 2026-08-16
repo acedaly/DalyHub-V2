@@ -227,6 +227,18 @@ build of this split every desktop row in two.
 
 ### 4.3 Today — the product showcase
 
+> **Amended 2026-08-16 by [TODAY-11](TODAY_11_COMMAND_CENTRE_2026_08.md).** This
+> section is kept as the historical record of what FINAL-UI decided and why; it
+> is no longer what `/today` looks like. `MOCKUP 5.png` recomposed the screen as
+> four ranks and put a stat rank back **directly under the greeting**, reversing
+> the §45 placement recorded below. The mockup is the owner's newer intent and
+> wins on composition; §45's *spirit* is kept by making the rank shallow and by
+> holding the "exactly three blocks before the day's work" guard in
+> `TodayScreen.test.tsx`. Everything else this section records about Today — the
+> page-title greeting, the Tasks row density, the sentence-case band labels, the
+> one bordered card — survives unchanged. Do not read the ASCII sketch below as
+> current; read [TODAY-11 §4](TODAY_11_COMMAND_CENTRE_2026_08.md#4-composition).
+
 Concept 1's Today opens on the day. So does this one.
 
 ```
@@ -445,6 +457,11 @@ Three tests were updated rather than weakened, and each records why:
 - **`TodayScreen.test.tsx`** — the block-order guard now expects
   `head · timeline · stat-row`. It is the same claim about the same order; §45
   changed which order is correct.
+  *(Historical. REDESIGN-03 removed the stat row outright and put one row of week
+  measures above the day; [TODAY-11](TODAY_11_COMMAND_CENTRE_2026_08.md) keeps
+  that position because `MOCKUP 5.png` draws it. The guard survives in a
+  different form — it now asserts that exactly THREE blocks may precede the day's
+  work, so a second figure row still fails it whatever it is called.)*
 - **`collection-header.spec.ts`** — the switcher's height floor drops from 44 to
   24. The 44 was `--app-touch-target-min` spent on a control inside a tray that
   no longer exists; the height is now `--dh-control-height`, which IS 45px under
