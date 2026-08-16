@@ -1028,7 +1028,20 @@ export function TaskRecordDrawer({
                */}
               <SelectField
                 label="Project or Area"
-                help="Leave blank to keep this task in Inbox."
+                /*
+                 * TASKS-04 — an Inbox task has NO structural parent, and the
+                 * record STATES that rather than leaving an empty control the
+                 * reader has to interpret. Silence here reads as "we lost it";
+                 * an instruction ("leave blank to…") tells the owner what to do
+                 * without telling them where the task currently is. So the help
+                 * line is the FACT when there is no parent, and the instruction
+                 * only once there is one to clear.
+                 */
+                help={
+                  parentValue === ""
+                    ? "Unassigned — this task is in Inbox."
+                    : "Clear it to move this task back to Inbox."
+                }
                 showOptionalCue={false}
                 placeholder="Search Projects and Areas"
                 value={parentValue}
