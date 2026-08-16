@@ -340,6 +340,9 @@ function ProjectEntityCard({
           text: card.attention.text,
           tone: card.attention.tone,
           detail: card.attention.detail,
+          // CONVERGE-01 §C — the card DRAWS a health diagnostic ("6 overdue")
+          // and not a lifecycle word ("Completed"), which its pill already says.
+          fromHealth: card.attention.fromHealth,
         }}
         /*
          * The reference's meta line — "14 tasks · 4 due this week".

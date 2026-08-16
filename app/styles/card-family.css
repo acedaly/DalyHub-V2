@@ -2389,6 +2389,18 @@
   font-variant-numeric: var(--dh-font-numeric);
 }
 
+/*
+ * CONVERGE-01 §C — the health diagnostic leads the meta line.
+ *
+ * It is the one fact on the card the owner can act on ("6 overdue"), so it goes
+ * first and takes a weight step. The tone is the LINE's — `.dh-pcard__meta`
+ * already carries `data-tone` from the same signal — so this adds emphasis
+ * rather than a second colour decision.
+ */
+.dh-pcard__meta-fact--attention {
+  font-weight: var(--dh-text-label-weight);
+}
+
 .dh-pcard__meta-sep {
   margin-inline-end: var(--dh-space-1);
   color: var(--dh-color-text-muted);
@@ -3012,8 +3024,24 @@
   text-decoration: underline;
 }
 
+/*
+ * POLISH-01 — the secondary reach link is not quieter, because it cannot be.
+ *
+ * It carried `opacity: 0.86`, which took `--dh-color-text-muted` (#6b6b75, held
+ * at exactly the AA floor by the token tests) down to #808088 over white:
+ * 3.91:1 on a 12.5px phone number, and the only colour-contrast failure left in
+ * the product's light appearance after the token fix. Opacity is how a value
+ * that IS contrast-tested stops being contrast-tested.
+ *
+ * There is no rung between `muted` and `faint` that clears 4.5:1 — muted is the
+ * quietest readable tone by construction — so the distinction cannot be tone.
+ * It does not need to be: the PRIMARY reach link is the accent and this one is
+ * the text ramp, which is already two different things. The modifier stays as a
+ * hook the markup and the tests name, and it now asserts that this link takes
+ * the base treatment deliberately rather than by omission.
+ */
 .dh-prow__reach-link--secondary {
-  opacity: 0.86;
+  opacity: 1;
 }
 
 /*
