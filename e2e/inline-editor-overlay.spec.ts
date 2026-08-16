@@ -120,23 +120,52 @@ function firstRow(page: Page): Locator {
  */
 async function captureProbe(page: Page, suffix: string): Promise<string> {
   const title = `EDIT-03 overlay probe ${suffix}`;
+  // A run that fails mid-journey never reaches its `completeProbe`, so it leaves
+  // an EDITED task of this exact title behind — and the next run then captures a
+  // second one and operates on "whichever sorts first". That is how a single
+  // failure becomes a permanently red spec on a reused local database: the probe
+  // for the priority journey survived with `p3` already set, and every later run
+  // asserted the freshly-captured `null`-is-P4 contract against it. Clearing
+  // first makes each journey start from the state it actually describes.
+  await clearProbes(page, title);
   const quickAdd = page.getByRole("textbox", { name: "Task title" });
   await quickAdd.fill(title);
   await quickAdd.press("Enter");
   const row = taskRow(page, title).first();
   await expect(row).toBeVisible();
+  // One probe, so `.first()` below is the task this test captured.
+  await expect(taskRow(page, title)).toHaveCount(1);
   return title;
 }
 
 /** Take the probe out of every active view. */
 async function completeProbe(page: Page, title: string) {
-  await page
-    .getByRole("checkbox", { name: `Complete ${title}` })
-    .first()
-    .click();
-  await expect(
-    page.getByRole("checkbox", { name: `Complete ${title}` }),
-  ).toHaveCount(0);
+  await clearProbes(page, title);
+}
+
+/**
+ * Complete every active task of this title — however many there are.
+ *
+ * Completing one and asserting none remain is only correct when exactly one
+ * exists, which is precisely the assumption a crashed run breaks.
+ */
+async function clearProbes(page: Page, title: string) {
+  const checkbox = page.getByRole("checkbox", { name: `Complete ${title}` });
+  await expect
+    .poll(
+      async () => {
+        const remaining = await checkbox.count();
+        if (remaining === 0) return 0;
+        await checkbox.first().click();
+        await page.waitForLoadState("networkidle");
+        return await checkbox.count();
+      },
+      {
+        message: `no "${title}" probe should survive into this test`,
+        timeout: 30_000,
+      },
+    )
+    .toBe(0);
 }
 
 /**
