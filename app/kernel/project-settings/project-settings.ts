@@ -1,4 +1,5 @@
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import type { WorkspaceId } from "~/kernel/workspaces";
 export const PROJECT_STATUS_CHANGED = "project.status_changed";
 export const PROJECT_ARCHIVED = "project.archived";
@@ -14,6 +15,7 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   status: "planned",
   archivedAt: null,
   iconKey: null,
+  colourSlot: null,
 };
 export type ProjectSettings = {
   readonly status: ProjectWorkflowStatus;
@@ -24,6 +26,12 @@ export type ProjectSettings = {
    * format serialisable and lets the drawing change without the data changing.
    */
   readonly iconKey: EntityIconKey | null;
+  /**
+   * IDENTITY-01 — the identity colour its owner chose, or `null` for "no choice
+   * — derive it from the Project's own stable rank". A controlled SLOT NAME,
+   * never a hex, for the same reasons the icon is a key rather than a glyph.
+   */
+  readonly colourSlot: IdentityColourSlot | null;
 };
 export type ProjectSettingsRecord = ProjectSettings & {
   readonly id: string;

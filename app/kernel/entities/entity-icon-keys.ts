@@ -1,5 +1,5 @@
 /**
- * The controlled vocabulary of icon keys an Area or a Project may carry.
+ * The controlled vocabulary of icon keys an Area, a Project or a Goal may carry.
  *
  * This lives in the KERNEL, not in the UI, because it is the thing the write
  * boundary validates: a key arrives from an untrusted form, is checked against
@@ -27,7 +27,15 @@
  * tidy-up.
  */
 
-/** Every icon key an Area or Project may carry, in catalogue order. */
+/**
+ * Every icon key an Area, Project or Goal may carry.
+ *
+ * ORDER IS APPEND-ONLY, not catalogue order. The first thirty-four are the keys
+ * PX-02/0032 shipped, in the order they shipped in; IDENTITY-01's sixty-seven
+ * follow. The picker groups by CATEGORY and reads its order from the catalogue,
+ * so this list never has to be re-sorted — and a list that is never re-sorted is
+ * a list a stored value can never fall out of.
+ */
 export const ENTITY_ICON_KEYS = [
   // General
   "folder",
@@ -71,9 +79,115 @@ export const ENTITY_ICON_KEYS = [
   "trailer",
   // Safety
   "shield",
+
+  /* ---------------------------------------------------------------------- */
+  /* IDENTITY-01 — the vocabulary grows to cover a whole life                */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * Thirty-four keys covered the parts of a life this product happened to have
+   * built modules for, which is not the same as the parts of a life an owner
+   * actually runs. There was no heart, no book, no plane, no coffee — nothing
+   * for health, money, learning, leisure or the outdoors, which between them are
+   * most of what Areas are FOR.
+   *
+   * Every key below resolves to a glyph in `entity-glyphs.tsx`, drawn in one
+   * stroke idiom at one weight, because a vocabulary is only as useful as its
+   * consistency: ninety glyphs that do not look like one another are a worse
+   * picker than thirty that do.
+   *
+   * Nothing above is renamed or removed. A key an owner already chose still
+   * means exactly what it meant.
+   */
+
+  // Things and containers
+  "box",
+
+  // Work and money
+  "briefcase",
+  "presentation",
+  "chart",
+  "handshake",
+  "award",
+  "finance",
+  "savings",
+  "receipt",
+  "bank",
+
+  // Home and garden
+  "furniture",
+  "cleaning",
+  "key",
+  "garden",
+  "plant",
+
+  // Health and fitness
+  "heart",
+  "fitness",
+  "running",
+  "cycling",
+  "swimming",
+  "yoga",
+  "sleep",
+  "nutrition",
+  "medical",
+
+  // Technology and making
+  "monitor",
+  "server",
+  "camera",
+  "robot",
+  "rocket",
+
+  // People
+  "baby",
+  "ring",
+
+  // Learning
+  "book",
+  "graduation",
+  "language",
+  "science",
+  "puzzle",
+
+  // Life and leisure
+  "music",
+  "guitar",
+  "film",
+  "game",
+  "art",
+  "gift",
+  "celebration",
+  "coffee",
+  "food",
+  "wine",
+  "paw",
+
+  // Travel and outdoors
+  "plane",
+  "map",
+  "compass",
+  "camping",
+  "hiking",
+  "beach",
+  "mountain",
+
+  // Time and nature
+  "clock",
+  "sun",
+  "moon",
+  "star",
+  "leaf",
+  "fire",
+  "water",
+  "lightning",
+  "globe",
+  "flag",
+  "anchor",
+  "lock",
+  "bell",
 ] as const;
 
-/** An icon key an Area or Project may carry. */
+/** An icon key an Area, Project or Goal may carry. */
 export type EntityIconKey = (typeof ENTITY_ICON_KEYS)[number];
 
 const ENTITY_ICON_KEY_SET: ReadonlySet<string> = new Set(ENTITY_ICON_KEYS);

@@ -39,6 +39,8 @@ export type SerializedGoalArea = {
   readonly title: string;
   readonly colourRank: number | null;
   readonly iconKey: string | null;
+  /** IDENTITY-01 — the Area's own CHOSEN colour, which beats its rank. */
+  readonly colourSlot: string | null;
 };
 
 export type SerializedGoalOverview = {
@@ -56,18 +58,28 @@ function serializeGoalArea(area: {
   readonly title: string;
   readonly colourRank?: number | null;
   readonly iconKey?: string | null;
+  readonly colourSlot?: string | null;
 }): SerializedGoalArea {
   return {
     id: area.id,
     title: area.title,
     colourRank: area.colourRank ?? null,
     iconKey: area.iconKey ?? null,
+    colourSlot: area.colourSlot ?? null,
   };
 }
 
 export type SerializedGoalDetails = {
   readonly targetDate: string | null;
   readonly definitionOfDone: string | null;
+  /**
+   * IDENTITY-01 — the Goal's OWN chosen identity, `null` on either half meaning
+   * "inherit the Area's". Carried on the details slice because that is where it
+   * is stored and where it is written; the RESOLUTION of it against the Area
+   * belongs to `resolveIdentity`, not to this serialiser.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
   /** GOAL-02 — how this Goal is measured. Already JSON-safe (primitives only),
    * so it travels to the client unchanged. `type: null` means "not measured". */
   readonly measurement: GoalMeasurementConfig;
@@ -102,11 +114,25 @@ export type SerializedGoalListItem = {
   readonly updatedAt: string;
   readonly completedAt: string | null;
   readonly area: SerializedGoalArea;
+  /**
+   * IDENTITY-01 — the Goal's OWN identity, when it has chosen one.
+   *
+   * A Goal used to have none: it inherited its Area's glyph and colour, so
+   * every Goal in an Area was drawn identically. The reference draws Goals with
+   * individually meaningful icons, so both halves travel and the shared
+   * resolver decides — own choice first, the Area's otherwise.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
 };
 
 /** AREA-03: one Goal on the workspace-wide Alignment collection. */
 export function serializeGoalListItem(
   item: GoalListItem,
+  own?: {
+    readonly iconKey?: string | null;
+    readonly colourSlot?: string | null;
+  } | null,
 ): SerializedGoalListItem {
   return {
     id: item.id,
@@ -115,6 +141,11 @@ export function serializeGoalListItem(
     updatedAt: item.updatedAt.toISOString(),
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
     area: serializeGoalArea(item.area),
+    // Passed in rather than read from the projection: a Goal's chosen identity
+    // lives on its own detail row, which the loader already has in hand for the
+    // measurement configuration — so this costs no extra read.
+    iconKey: own?.iconKey ?? null,
+    colourSlot: own?.colourSlot ?? null,
   };
 }
 
@@ -139,6 +170,8 @@ export function serializeGoalDetails(
   return {
     targetDate: details?.targetDate ?? null,
     definitionOfDone: details?.definitionOfDone ?? null,
+    iconKey: details?.iconKey ?? null,
+    colourSlot: details?.colourSlot ?? null,
     measurement: details?.measurement ?? UNMEASURED_GOAL,
   };
 }

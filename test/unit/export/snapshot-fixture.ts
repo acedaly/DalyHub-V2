@@ -165,18 +165,22 @@ export function makeSnapshot(
       { entityId: IDS.taskRecurring, kind: "task", completedAt: null },
     ],
     areaDetails: [
-      // One Area has chosen an icon and one has not, so both halves of the
-      // nullable column are exercised by every consumer of this fixture.
+      // One Area has chosen an icon and a colour and one has neither, so both
+      // halves of every nullable identity column are exercised by every
+      // consumer of this fixture — including the export/restore round trip,
+      // which is where a dropped column silently resets an owner's choice.
       {
         entityId: IDS.area,
         archivedAt: null,
         iconKey: "shield",
+        colourSlot: "teal",
         updatedAt: T(2),
       },
       {
         entityId: IDS.areaArchived,
         archivedAt: T(20),
         iconKey: null,
+        colourSlot: null,
         updatedAt: T(20),
       },
     ],
@@ -192,6 +196,10 @@ export function makeSnapshot(
         measurementDirection: "decrease",
         baselineValue: 85,
         targetValue: 70,
+        // IDENTITY-01 — a Goal with an identity of its OWN, so the round trip
+        // covers the two fields a Goal did not have before this release.
+        iconKey: "running",
+        colourSlot: "pink",
         updatedAt: T(2),
       },
     ],
@@ -224,6 +232,7 @@ export function makeSnapshot(
         status: "active",
         archivedAt: null,
         iconKey: "travel",
+        colourSlot: "amber",
         updatedAt: T(2),
       },
       {
@@ -231,6 +240,7 @@ export function makeSnapshot(
         status: "on_hold",
         archivedAt: null,
         iconKey: null,
+        colourSlot: null,
         updatedAt: T(2),
       },
     ],

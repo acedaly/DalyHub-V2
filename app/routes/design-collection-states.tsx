@@ -89,6 +89,7 @@ function area(over: Partial<SerializedAreaListItem>): SerializedAreaListItem {
     updatedAt: "2026-07-29T10:00:00.000Z",
     colourRank: 0,
     iconKey: null,
+    colourSlot: null,
     activeProjectCount: 0,
     completedProjectCount: 0,
     rollup: {
@@ -117,6 +118,7 @@ function project(
     areaColourRank: 0,
     colourRank: 0,
     iconKey: null,
+    colourSlot: null,
     taskTotal: 0,
     taskCompleted: 0,
     health: health(0, 0),

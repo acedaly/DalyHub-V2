@@ -22,6 +22,7 @@ import {
 } from "~/kernel/spine";
 import { GOAL_ALIGNMENT_DISPLAY_RANK } from "~/kernel/alignment";
 import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { normaliseIdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import {
   decodeGoalAlignmentCursorForScope,
   decodeGoalCursorForScope,
@@ -85,18 +86,20 @@ const AREA_RANKS_CTE = `area_ranks AS (
            WHERE workspace_id = ? AND type = '${AREA}'
          )`;
 
-/** The Area's rank and chosen glyph, joined off the Area the Goal resolved to. */
+/** The Area's rank and chosen identity, joined off the Area the Goal resolved to. */
 const AREA_IDENTITY_JOINS = `
   LEFT JOIN area_ranks arank ON arank.id = ae.id
   LEFT JOIN area_details adet
     ON adet.workspace_id = ae.workspace_id AND adet.entity_id = ae.id`;
 
 const AREA_IDENTITY_COLUMNS = `arank.colour_rank AS area_colour_rank,
-                  adet.icon_key AS area_icon_key`;
+                  adet.icon_key AS area_icon_key,
+                  adet.colour_slot AS area_colour_slot`;
 
 interface GoalAreaIdentityRow {
   readonly area_colour_rank: number | null;
   readonly area_icon_key: string | null;
+  readonly area_colour_slot: string | null;
 }
 
 interface GoalOverviewRow extends GoalAreaIdentityRow {
@@ -540,7 +543,7 @@ export class D1GoalRepository implements GoalRepository {
            )
            SELECT id, title, created_at, updated_at, completed_at,
                   area_id, area_title, area_colour_rank, area_icon_key,
-                  display_rank
+                  area_colour_slot, display_rank
            FROM ranked
            WHERE 1 = 1${cursorClause}
            ORDER BY display_rank ASC, created_at ASC, id ASC
@@ -780,6 +783,7 @@ export class D1GoalRepository implements GoalRepository {
     readonly area_title: string;
     readonly area_colour_rank: number | null;
     readonly area_icon_key: string | null;
+    readonly area_colour_slot: string | null;
   }) {
     return {
       id: row.area_id,
@@ -787,6 +791,16 @@ export class D1GoalRepository implements GoalRepository {
       colourRank:
         row.area_colour_rank === null ? null : Number(row.area_colour_rank),
       iconKey: normaliseEntityIconKey(row.area_icon_key),
+      /*
+       * IDENTITY-01 — the Area's CHOSEN colour, which beats its rank.
+       *
+       * Without this a Goal inherited the Area's DERIVED colour even when the
+       * Area had chosen a different one, so the same Area was one colour on the
+       * Areas collection and another on every Goal that belongs to it. The
+       * resolver has always preferred the chosen slot; the read simply was not
+       * supplying it.
+       */
+      colourSlot: normaliseIdentityColourSlot(row.area_colour_slot),
     };
   }
 

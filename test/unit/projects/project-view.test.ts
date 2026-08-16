@@ -43,6 +43,7 @@ function listItem(over: Partial<ProjectListItem> = {}): ProjectListItem {
     areaColourRank: 0,
     colourRank: 0,
     iconKey: null,
+    colourSlot: null,
     taskTotal: 0,
     taskCompleted: 0,
     ...over,

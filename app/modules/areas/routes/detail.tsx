@@ -3,6 +3,7 @@
  */
 
 import { env } from "cloudflare:workers";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import { useCallback, useMemo } from "react";
 import {
   isRouteErrorResponse,
@@ -231,7 +232,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     // The KEY only. The settings repository has already normalised it, so a
     // key this build no longer recognises arrives as `null` and the Area
     // renders its entity default rather than an empty box.
-    overview: serializeAreaOverview(overview, settings?.iconKey ?? null),
+    overview: serializeAreaOverview(
+      overview,
+      settings?.iconKey ?? null,
+      settings?.colourSlot ?? null,
+    ),
     rollup: serializeAreaRollup(rollup),
     momentum,
     activeProjectTotal,
@@ -400,13 +405,17 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     revalidator.revalidate();
   }, [areaId, revalidator]);
 
-  const onSetIcon = useCallback(
-    async (iconKey: EntityIconKey | null) => {
+  const onSetIdentity = useCallback(
+    async (identity: {
+      readonly iconKey: EntityIconKey | null;
+      readonly colourSlot: IdentityColourSlot | null;
+    }) => {
       const result = await postAreaMutation(areaId, {
-        intent: "setIcon",
-        // Empty means reset-to-default, which is a real choice the server
-        // honours — not an omission.
-        iconKey: iconKey ?? "",
+        intent: "setIdentity",
+        // Empty means reset-to-default / Automatic, which is a real choice the
+        // server honours — not an omission.
+        iconKey: identity.iconKey ?? "",
+        colourSlot: identity.colourSlot ?? "",
       });
       if (!result.ok) {
         throw new Error(
@@ -488,7 +497,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
           onArchive={onArchive}
           onRestore={onRestore}
           onDelete={onDelete}
-          onSetIcon={onSetIcon}
+          onSetIdentity={onSetIdentity}
         />
       }
     />

@@ -211,3 +211,80 @@ describe("Activity atomicity — the details write and its event are all-or-noth
     expect(result.changed).toBe(false);
   });
 });
+
+/**
+ * IDENTITY-01 — a Goal's OWN identity, and what it inherits when it has none.
+ *
+ * A Goal had no identity of its own before this release: it wore its Area's
+ * glyph and its Area's colour, and there was nothing to store. Both halves are
+ * now Goal-owned detail state on the same patch contract as the target date, so
+ * these assertions cover the two things that break silently — a write that does
+ * not persist, and a READ that never learned to select the column.
+ */
+describe("a Goal's own identity", () => {
+  it("persists a chosen icon and colour, and reads them back", async () => {
+    const goal = await seedGoal(spine());
+    const repo = details();
+    const result = await repo.update(goal.id, {
+      iconKey: "running",
+      colourSlot: "pink",
+    });
+    expect(result.changed).toBe(true);
+    expect(result.details.iconKey).toBe("running");
+    expect(result.details.colourSlot).toBe("pink");
+
+    // The READ path is the half that was missing: the single-goal query has to
+    // select the columns, not merely have them in the table.
+    const read = await repo.get(goal.id);
+    expect(read?.iconKey).toBe("running");
+    expect(read?.colourSlot).toBe("pink");
+  });
+
+  it("keeps identity out of an unrelated patch, and vice versa", async () => {
+    // The whole point of the patch contract: an omitted key leaves the field
+    // alone, so editing a target date can never clear a chosen colour.
+    const goal = await seedGoal(spine());
+    const repo = details();
+    await repo.update(goal.id, { iconKey: "heart", colourSlot: "teal" });
+    await repo.update(goal.id, { targetDate: "2026-12-01" });
+
+    const read = await repo.get(goal.id);
+    expect(read?.iconKey).toBe("heart");
+    expect(read?.colourSlot).toBe("teal");
+    expect(read?.targetDate).toBe("2026-12-01");
+  });
+
+  it("clears back to inheriting the Area's when set to null", async () => {
+    // `null` is a legitimate value, not a failure — it is what "use the
+    // default" and "Automatic" store, and it returns the Goal to exactly what
+    // every Goal did before this release.
+    const goal = await seedGoal(spine());
+    const repo = details();
+    await repo.update(goal.id, { iconKey: "heart", colourSlot: "teal" });
+    const cleared = await repo.update(goal.id, {
+      iconKey: null,
+      colourSlot: null,
+    });
+    expect(cleared.changed).toBe(true);
+    expect(cleared.details.iconKey).toBeNull();
+    expect(cleared.details.colourSlot).toBeNull();
+  });
+
+  it("treats an unchanged identity as an idempotent no-op", async () => {
+    const goal = await seedGoal(spine());
+    const repo = details();
+    await repo.update(goal.id, { iconKey: "heart", colourSlot: "teal" });
+    const again = await repo.update(goal.id, {
+      iconKey: "heart",
+      colourSlot: "teal",
+    });
+    expect(again.changed).toBe(false);
+  });
+
+  it("defaults to null on a Goal that has never chosen", async () => {
+    const goal = await seedGoal(spine());
+    const read = await details().get(goal.id);
+    expect(read?.iconKey).toBeNull();
+    expect(read?.colourSlot).toBeNull();
+  });
+});

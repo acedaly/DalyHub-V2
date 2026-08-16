@@ -77,7 +77,10 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-import { areaAccentForRank } from "~/shared/pill";
+import {
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity/identity-resolution";
 
 /** The tone vocabulary the attention dot understands. Meaning is in the words. */
 export type ProjectCardTone =
@@ -137,6 +140,14 @@ export type ProjectCardProps = {
    * caller painted the mark with — never a second colour decision.
    */
   readonly accent?: number | null;
+  /**
+   * IDENTITY-01 — the record's OWN chosen colour slot, when it has one.
+   *
+   * A chosen slot beats the derived rank, and the two are folded together by the
+   * one resolver rather than by this component. Passing neither is the NEUTRAL
+   * identity, which is a designed outcome for a record that genuinely has none.
+   */
+  readonly colourSlot?: string | null;
   readonly overflow?: ReactNode;
   readonly href: string;
   readonly openAriaLabel?: string;
@@ -157,6 +168,7 @@ export function ProjectCard({
   progress,
   fact,
   accent,
+  colourSlot = null,
   overflow,
   href,
   openAriaLabel,
@@ -169,6 +181,10 @@ export function ProjectCard({
     .filter(Boolean)
     .join(" ");
 
+  // The ONE resolver. This component never maps a rank to a colour itself — a
+  // card and the tile inside it agreeing depends on there being one mapping.
+  const identity = resolveIdentity({ colourSlot, colourRank: accent ?? null });
+
   return (
     // Named by the record, not by the link inside it: the heading's only child
     // is the whole-card link, whose accessible name is "Open <title>", so
@@ -176,11 +192,7 @@ export function ProjectCard({
     <article
       className={classes}
       aria-label={title}
-      data-accent={
-        accent === undefined || accent === null
-          ? undefined
-          : String(areaAccentForRank(accent))
-      }
+      {...identityAttribute(identity.slot)}
       data-testid={testId}
     >
       <div className="dh-pcard__head">

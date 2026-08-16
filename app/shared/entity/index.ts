@@ -53,6 +53,17 @@ export {
  */
 export { RecordIcon, type RecordIconProps } from "./RecordIcon";
 export { AccentIcon, type AccentIconProps } from "./AccentIcon";
+
+/**
+ * IDENTITY-01 — the ONE identity resolver every identity surface shares. A
+ * surface that computes its own slot mapping is the defect this replaced.
+ */
+export {
+  identityAttribute,
+  resolveIdentity,
+  type IdentitySource,
+  type ResolvedIdentity,
+} from "./identity-resolution";
 export {
   ENTITY_ICON_CATEGORIES,
   ENTITY_ICON_OPTIONS,
@@ -64,6 +75,7 @@ export {
 } from "./entity-icon-catalogue";
 
 export {
-  EntityIconPicker,
-  type EntityIconPickerProps,
-} from "./EntityIconPicker";
+  EntityIdentityPicker,
+  type EntityIdentityPickerProps,
+  type EntityIdentityValue,
+} from "./EntityIdentityPicker";

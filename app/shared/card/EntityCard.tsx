@@ -41,14 +41,12 @@
 import { Children, type ReactNode } from "react";
 import { Link } from "react-router";
 
-import { areaAccentForRank } from "~/shared/pill";
+import {
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity/identity-resolution";
 
 import { normaliseProgress, type CardProgress } from "./types";
-
-/** The identity ramp slot for a stable rank — the SAME mapping `AccentIcon` uses. */
-function accentSlot(rank: number): number {
-  return areaAccentForRank(rank);
-}
 
 export type EntityCardProps = {
   /** The identity mark — a rendered icon in its container. Decorative. */
@@ -78,6 +76,14 @@ export type EntityCardProps = {
    * colour (a Goal, whose list projection carries no rank) should have.
    */
   readonly accent?: number | null;
+  /**
+   * IDENTITY-01 — the record's OWN chosen colour slot, when it has one.
+   *
+   * A chosen slot beats the derived rank, and the two are folded together by the
+   * one resolver rather than by this component. Passing neither is the NEUTRAL
+   * identity, which is a designed outcome for a record that genuinely has none.
+   */
+  readonly colourSlot?: string | null;
   /** Supporting facts, laid out as one wrapping row rather than a run-on line. */
   readonly meta?: ReactNode;
   /** A footer action or note, separated from the body. */
@@ -103,6 +109,7 @@ export function EntityCard({
   metric,
   progress,
   accent,
+  colourSlot = null,
   meta,
   footer,
   overflow,
@@ -125,6 +132,10 @@ export function EntityCard({
     .filter(Boolean)
     .join(" ");
 
+  // The ONE resolver. This component never maps a rank to a colour itself — a
+  // card and the tile inside it agreeing depends on there being one mapping.
+  const identity = resolveIdentity({ colourSlot, colourRank: accent ?? null });
+
   return (
     // Named by the record's title. An `article` with no accessible name is a
     // region a screen-reader user can land in without being told which record
@@ -140,11 +151,7 @@ export function EntityCard({
       aria-label={title}
       // Decorative: the accent repeats the identity mark's colour, and every
       // fact it decorates is stated in words beside it.
-      data-accent={
-        accent === undefined || accent === null
-          ? undefined
-          : String(accentSlot(accent))
-      }
+      {...identityAttribute(identity.slot)}
       data-testid={testId}
     >
       <div className="dh-ecard__header">

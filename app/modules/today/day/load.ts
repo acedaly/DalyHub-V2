@@ -383,6 +383,7 @@ async function loadProjects(
         lastActivityIso: health?.summary.lastActivityIso ?? null,
         iconKey: item.iconKey,
         colourRank: item.colourRank,
+        colourSlot: item.colourSlot,
       },
     };
   });

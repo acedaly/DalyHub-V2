@@ -37,6 +37,7 @@ function project(overrides: Partial<ContinueProject> = {}): ContinueProject {
     needsAttention: false,
     lastActivityIso: "2026-08-01T00:00:00.000Z",
     iconKey: null,
+    colourSlot: null,
     colourRank: 0,
     ...overrides,
   };

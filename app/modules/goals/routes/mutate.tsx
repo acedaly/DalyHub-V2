@@ -23,7 +23,11 @@ import {
   GoalMeasurementValidationError,
   validateGoalMeasurementPatch,
 } from "~/kernel/goals";
-import { requireAuthenticatedSession } from "~/platform/request";
+import {
+  readEntityIconField,
+  readIdentityColourField,
+  requireAuthenticatedSession,
+} from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/mutate";
@@ -78,6 +82,22 @@ export type GoalMutationResult =
    * exist. That is the case DESIGN_SYSTEM.md's "prefer a focused intent" rule
    * explicitly excludes.
    */
+  /*
+   * IDENTITY-01 — the Goal's own icon and colour. Both come back so an
+   * optimistic caller can reconcile against what was actually stored rather
+   * than against what it sent.
+   */
+  | {
+      readonly kind: "set_identity";
+      readonly ok: true;
+      readonly iconKey: string | null;
+      readonly colourSlot: string | null;
+    }
+  | {
+      readonly kind: "set_identity";
+      readonly ok: false;
+      readonly formError: string;
+    }
   | { readonly kind: "set_measurement"; readonly ok: true }
   | {
       readonly kind: "set_measurement";
@@ -224,6 +244,55 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       return json({
         kind: intent,
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
+  /*
+   * IDENTITY-01 — the Goal's own icon and colour, chosen together.
+   *
+   * A focused intent like the two above, and for the same reason: it writes two
+   * keys of the patch and can never overwrite the target date or the definition
+   * of done beside them. Both halves are read through the SAME trusted boundary
+   * readers the Area and Project routes use, so an unrecognised key or slot is
+   * REFUSED and named rather than quietly stored as "no choice" — an owner whose
+   * choice cannot be honoured is told, instead of being shown a success message
+   * and then the Area's colour.
+   *
+   * `null` on either field is a legitimate value, not a failure: it is what
+   * "use the default" and "Automatic" store, and it returns the Goal to
+   * inheriting its Area's identity — which is what every Goal did before this
+   * release.
+   */
+  if (intent === "set_identity") {
+    const icon = readEntityIconField(form);
+    if (!icon.ok) {
+      return json({ kind: "set_identity", ok: false, formError: icon.message });
+    }
+    const colour = readIdentityColourField(form);
+    if (!colour.ok) {
+      return json({
+        kind: "set_identity",
+        ok: false,
+        formError: colour.message,
+      });
+    }
+    try {
+      await scope.goalDetails.update(goalId, {
+        iconKey: icon.iconKey,
+        colourSlot: colour.colourSlot,
+      });
+      return json({
+        kind: "set_identity",
+        ok: true,
+        iconKey: icon.iconKey,
+        colourSlot: colour.colourSlot,
+      });
+    } catch {
+      return json({
+        kind: "set_identity",
         ok: false,
         formError: "That couldn’t be saved. Please try again.",
       });

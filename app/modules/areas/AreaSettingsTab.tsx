@@ -29,7 +29,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AreaDependencySummary } from "~/kernel/areas";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
-import { EntityIconPicker } from "~/shared/entity";
+import {
+  identityForRank,
+  type IdentityColourSlot,
+} from "~/kernel/entities/identity-colour-slots";
+import { EntityIdentityPicker } from "~/shared/entity";
 import { RecordDetails, recordTimestampItems } from "~/shared/record-layout";
 import {
   ConfirmationDialog,
@@ -55,12 +59,18 @@ export interface AreaSettingsTabProps {
   /** Permanently delete the empty Area (`delete`). Reject (typed message) to fail
    * and keep the dialog open with an inline error + retry. */
   readonly onDelete: () => Promise<void>;
-  /** Choose or clear the Area's icon (`setIcon`). Reject to fail. */
-  readonly onSetIcon?: (iconKey: EntityIconKey | null) => Promise<void>;
+  /**
+   * Choose or clear the Area's IDENTITY — icon and colour together
+   * (`setIdentity`). Reject to fail.
+   */
+  readonly onSetIdentity?: (identity: {
+    readonly iconKey: EntityIconKey | null;
+    readonly colourSlot: IdentityColourSlot | null;
+  }) => Promise<void>;
 }
 
 /**
- * The icon group.
+ * The identity group.
  *
  * Hidden entirely while the Area is archived rather than shown disabled: an
  * archived Area is read-only, the server refuses the mutation, and a control
@@ -69,30 +79,38 @@ export interface AreaSettingsTabProps {
  *
  * It commits on Apply rather than staging a second time behind a Save button —
  * the picker has already staged the choice, and a second confirmation for one
- * value would be ceremony. A failure is reported inline and the previous icon
- * stays, because the loader value is the truth and it has not changed.
+ * value would be ceremony. A failure is reported inline and the previous
+ * identity stays, because the loader value is the truth and it has not changed.
  */
 function AppearanceGroup({
   iconKey,
-  onSetIcon,
+  colourSlot,
+  derivedSlot,
+  onSetIdentity,
 }: {
   readonly iconKey: string | null;
-  readonly onSetIcon: (key: EntityIconKey | null) => Promise<void>;
+  readonly colourSlot: string | null;
+  readonly derivedSlot: IdentityColourSlot | null;
+  readonly onSetIdentity: (identity: {
+    readonly iconKey: EntityIconKey | null;
+    readonly colourSlot: IdentityColourSlot | null;
+  }) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <SettingsGroup
       title="Appearance"
-      description="The icon this Area wears in collections, records and search."
+      description="The colour and icon this Area wears in collections, records and search."
     >
-      <EntityIconPicker
+      <EntityIdentityPicker
         entityType="area"
-        value={iconKey}
+        value={{ iconKey, colourSlot }}
+        derivedSlot={derivedSlot}
         error={error}
-        help="Optional. Areas without one use the standard Area icon."
+        help="Optional. Areas that choose neither use the standard Area icon and the colour their position gives them."
         onChange={(next) => {
           setError(null);
-          void onSetIcon(next).catch((cause: unknown) => {
+          void onSetIdentity(next).catch((cause: unknown) => {
             setError(
               cause instanceof Error
                 ? cause.message
@@ -308,7 +326,7 @@ export function AreaSettingsTab({
   onArchive,
   onRestore,
   onDelete,
-  onSetIcon,
+  onSetIdentity,
 }: AreaSettingsTabProps) {
   const archived = overview.archivedAt !== null;
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -335,8 +353,17 @@ export function AreaSettingsTab({
     <div className="dh-area-settings" ref={rootRef}>
       <h2 className="dh-visually-hidden">Settings</h2>
       <SettingsLayout aria-label="Area settings">
-        {onSetIcon && !archived ? (
-          <AppearanceGroup iconKey={overview.iconKey} onSetIcon={onSetIcon} />
+        {onSetIdentity && !archived ? (
+          <AppearanceGroup
+            iconKey={overview.iconKey}
+            colourSlot={overview.colourSlot}
+            derivedSlot={
+              overview.colourRank === null
+                ? null
+                : identityForRank(overview.colourRank)
+            }
+            onSetIdentity={onSetIdentity}
+          />
         ) : null}
         <SettingsGroup
           title="Lifecycle"

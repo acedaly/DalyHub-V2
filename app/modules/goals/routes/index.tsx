@@ -264,7 +264,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       });
       const details = detailsById.get(item.id);
       return {
-        ...serializeGoalListItem(item),
+        ...serializeGoalListItem(item, details),
         alignment: evaluateGoalAlignment(facts, evaluation),
         contribution: serializeGoalProjectContribution(contribution),
         /*

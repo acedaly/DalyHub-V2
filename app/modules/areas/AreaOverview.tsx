@@ -488,6 +488,7 @@ export function AreaOverviewView({
           <AccentIcon
             entityType="area"
             iconKey={overview.iconKey}
+            colourSlot={overview.colourSlot}
             colourRank={overview.colourRank}
             size="md"
           />

@@ -33,7 +33,8 @@ import {
 import type { SelectOption } from "~/shared/forms/types";
 
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
-import { EntityIconPicker } from "~/shared/entity";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
+import { EntityIdentityPicker } from "~/shared/entity";
 
 import type { CreateProjectResult } from "./routes/new";
 import { useParentOptionsSearch } from "./use-parent-options-search";
@@ -133,6 +134,7 @@ export function NewProjectForm({
   // Held outside `useForm` for the same reason as the Area form: the picker's
   // value is a key chosen through a modal, not a typed field.
   const [iconKey, setIconKey] = useState<EntityIconKey | null>(null);
+  const [colourSlot, setColourSlot] = useState<IdentityColourSlot | null>(null);
 
   const form = useForm<Values>({
     initialValues: { title: "", parentId: "" },
@@ -147,6 +149,10 @@ export function NewProjectForm({
       body.set("parentId", values.parentId);
       // Always sent, empty when unchosen — see the Area form.
       body.set("iconKey", iconKey ?? "");
+      // The COLOUR travels the same way and for the same reason. Omitting it
+      // was a silent data loss: the picker staged the choice, the form reported
+      // success, and the record was created on its derived colour.
+      body.set("colourSlot", colourSlot ?? "");
       let data: CreateProjectResult;
       try {
         const response = await fetch("/projects/new", {
@@ -223,11 +229,14 @@ export function NewProjectForm({
         {...parentField}
       />
       {/* With the identity fields, not after them. */}
-      <EntityIconPicker
+      <EntityIdentityPicker
         entityType="project"
-        value={iconKey}
-        onChange={setIconKey}
-        help="Optional. Projects without one use the standard Project icon."
+        value={{ iconKey, colourSlot }}
+        onChange={(next) => {
+          setIconKey(next.iconKey);
+          setColourSlot(next.colourSlot);
+        }}
+        help="Optional. A new Project takes the next colour in the ramp unless you choose one."
         error={form.fieldErrors.iconKey ?? null}
       />
       <FormActions>

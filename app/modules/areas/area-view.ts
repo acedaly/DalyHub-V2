@@ -16,6 +16,7 @@ import {
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import type {
   AreaGoalItem,
   AreaListItem,
@@ -56,6 +57,8 @@ export type SerializedAreaListItem = {
   readonly colourRank: number;
   /** The owner's chosen icon KEY, or `null` for the Area default. */
   readonly iconKey: EntityIconKey | null;
+  /** IDENTITY-01 — the owner's chosen colour SLOT, or `null` for the derived one. */
+  readonly colourSlot: IdentityColourSlot | null;
   readonly rollup: SerializedAreaRollup;
   readonly activeProjectCount: number;
   readonly completedProjectCount: number;
@@ -79,6 +82,12 @@ export type SerializedAreaOverview = {
    * entity default.
    */
   readonly iconKey: string | null;
+  /**
+   * IDENTITY-01 — the owner's chosen colour SLOT, or `null` for "no choice —
+   * derive it". A stable NAME for the same reasons the icon is a key: it
+   * survives a reorder of the ramp and cannot carry a colour into a page.
+   */
+  readonly colourSlot: string | null;
 };
 
 export type SerializedAreaGoalItem = {
@@ -139,6 +148,8 @@ export type AreaCardData = {
   readonly colourRank: number;
   /** The owner's chosen icon KEY, or `null` for the Area default. */
   readonly iconKey: EntityIconKey | null;
+  /** IDENTITY-01 — the owner's chosen colour SLOT, or `null` for the derived one. */
+  readonly colourSlot: IdentityColourSlot | null;
   /** EXACT count of Projects in this Area that are neither complete nor archived. */
   readonly activeProjects: number;
   /** EXACT count of Goals in this Area that are not complete. */
@@ -186,6 +197,7 @@ export function serializeAreaListItem(
     updatedAt: item.updatedAt.toISOString(),
     colourRank: item.colourRank,
     iconKey: item.iconKey,
+    colourSlot: item.colourSlot,
     rollup: serializeAreaRollup(item.rollup),
     activeProjectCount: item.activeProjectCount,
     completedProjectCount: item.completedProjectCount,
@@ -195,6 +207,7 @@ export function serializeAreaListItem(
 export function serializeAreaOverview(
   overview: AreaOverview,
   iconKey: string | null = null,
+  colourSlot: string | null = null,
 ): SerializedAreaOverview {
   return {
     id: overview.id,
@@ -203,10 +216,12 @@ export function serializeAreaOverview(
     createdAt: overview.createdAt.toISOString(),
     updatedAt: overview.updatedAt.toISOString(),
     archivedAt: overview.archivedAt ? overview.archivedAt.toISOString() : null,
-    // Passed in rather than read from `AreaOverview`: the icon lives in the
-    // Areas module's own detail row and is the settings repository's to serve
-    // (ADR-037/039), so the projection the collection reads stays unchanged.
+    // Passed in rather than read from `AreaOverview`: the chosen icon and
+    // colour live in the Areas module's own detail row and are the settings
+    // repository's to serve (ADR-037/039), so the projection the collection
+    // reads stays unchanged.
     iconKey,
+    colourSlot,
   };
 }
 
@@ -432,6 +447,7 @@ export function toAreaCardData(item: SerializedAreaListItem): AreaCardData {
     title: item.title,
     colourRank: item.colourRank,
     iconKey: item.iconKey,
+    colourSlot: item.colourSlot,
     activeProjects,
     openGoals,
     openTasks,

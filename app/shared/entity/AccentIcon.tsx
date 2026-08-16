@@ -1,43 +1,47 @@
 /**
- * The entity IDENTITY container — a record's icon on its Area's accent.
+ * The entity IDENTITY TILE — a record's glyph on its own colour.
  *
  * The audit found Area identity carried by an 8px coloured dot and Project
- * identity by a 16px monochrome glyph, which is why a page of either read as
- * one undifferentiated list. The reference answers this with a rounded, tinted
- * square holding the record's glyph, and that container is what makes a grid
+ * identity by a 16px monochrome glyph, which is why a page of either read as one
+ * undifferentiated list. The reference answers this with a rounded, tinted
+ * square holding the record's glyph, and that tile is what makes a grid
  * scannable before a word of it is read.
  *
- * Two rules keep it from becoming decoration:
+ * Three rules keep it from becoming decoration:
  *
- * 1. **The accent is inherited, never invented.** An Area supplies its own
- *    stable `colourRank` (ADR-068 decision 5); a Project supplies the rank of
- *    the Area it belongs to. A record with no Area gets the neutral container,
- *    not a random colour — a colour that means nothing is worse than none.
- * 2. **The glyph is resolved from the KEY.** `RecordIcon` decides which drawing
+ * 1. **Nothing here decides what colour a record is.** The slot and the glyph
+ *    key both come out of `resolveIdentity`, the one resolver every identity
+ *    surface shares. Before IDENTITY-01 this component folded a rank itself and
+ *    its docstring described Area inheritance while the Project card's bar used
+ *    the Project's OWN rank — so a red flame could sit above a violet bar. That
+ *    disagreement is not fixed here; it is fixed in the resolver, which is the
+ *    only place it cannot come back.
+ * 2. **The tile publishes the record's slot to the cascade.** `data-identity`
+ *    resolves the four colour roles for everything inside it, and the same
+ *    attribute on an owning card resolves them for that card's progress bar. A
+ *    tile rendered on its own is therefore correct on its own, and a tile
+ *    rendered inside a card agrees with the card by construction.
+ * 3. **The glyph is resolved from the KEY.** `RecordIcon` decides which drawing
  *    the owner's chosen key names, and falls back to the entity default for a
  *    key this build cannot resolve. Nothing here knows what an icon looks like.
  *
- * It is deliberately not a status: the accent says WHICH Area, never how the
- * work is going, so it never competes with the one status chip beside it.
- * Meaning is never carried by the tint alone — the Area's name is always
- * present as text on the same card.
+ * It is deliberately not a status: the hue says WHICH record, never how the work
+ * is going, so it never competes with the one status chip beside it. Meaning is
+ * never carried by the tint alone — the record's name is always present as text
+ * on the same card.
  */
 
-import { areaAccentForRank } from "~/shared/pill";
-
 import type { EntityType } from "./identity";
+import {
+  identityAttribute,
+  resolveIdentity,
+  type IdentitySource,
+} from "./identity-resolution";
 import { RecordIcon } from "./RecordIcon";
 
-export type AccentIconProps = {
+export type AccentIconProps = IdentitySource & {
   /** The record's entity type — supplies the fallback glyph. */
   readonly entityType: EntityType;
-  /** The record's chosen key, straight from the loader. */
-  readonly iconKey?: string | null;
-  /**
-   * The Area's stable 0-based rank, or `null` for the neutral container. For
-   * an Area this is its own rank; for a Project it is its Area's.
-   */
-  readonly colourRank?: number | null;
   /**
    * M3X-02 — the identity mark's SIZE HIERARCHY.
    *
@@ -56,23 +60,33 @@ export type AccentIconProps = {
 
 export function AccentIcon({
   entityType,
-  iconKey,
+  colourSlot = null,
+  iconKey = null,
   colourRank = null,
+  inherited = null,
   size = "md",
   className,
 }: AccentIconProps) {
-  const accent =
-    colourRank === null ? undefined : String(areaAccentForRank(colourRank));
+  const identity = resolveIdentity({
+    colourSlot,
+    iconKey,
+    colourRank,
+    inherited,
+  });
   return (
     <span
       className={["dh-accent-icon", className].filter(Boolean).join(" ")}
-      data-accent={accent}
+      {...identityAttribute(identity.slot)}
       data-size={size}
       aria-hidden="true"
     >
-      {/* `tone="inherit"` so the glyph takes the container's on-accent colour
+      {/* `tone="inherit"` so the glyph takes the tile's resolved identity hue
        * rather than painting a second, competing entity accent inside it. */}
-      <RecordIcon entityType={entityType} iconKey={iconKey} tone="inherit" />
+      <RecordIcon
+        entityType={entityType}
+        iconKey={identity.iconKey}
+        tone="inherit"
+      />
     </span>
   );
 }

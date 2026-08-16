@@ -737,6 +737,20 @@
   display: none;
 }
 
+/*
+ * The trailing cluster is pinned to the trailing edge even when the row has NO
+ * leading cluster.
+ *
+ * `space-between` only separates two children; given one it aligns it to the
+ * start, which put Areas' Grid/List toggle at the left of an otherwise empty
+ * band while Projects' identical toggle sat at the right. A collection with no
+ * lifecycle tabs is a normal case, not a missing one, so the alignment is
+ * stated rather than left to the child count.
+ */
+.dh-controlrow__trail {
+  margin-inline-start: auto;
+}
+
 .dh-controlrow__trail {
   flex: none;
   display: flex;

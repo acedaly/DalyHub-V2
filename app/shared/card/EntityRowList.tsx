@@ -37,7 +37,10 @@ import type { ReactNode } from "react";
 import { Children } from "react";
 import { Link } from "react-router";
 
-import { areaAccentForRank } from "~/shared/pill";
+import {
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity/identity-resolution";
 
 export type EntityRowProps = {
   /** The record's identity mark — a rendered node. Decorative. */
@@ -64,6 +67,14 @@ export type EntityRowProps = {
   readonly figure?: string | null;
   /** The record's stable identity rank, for the mark's own accent rail. */
   readonly accent?: number | null;
+  /**
+   * IDENTITY-01 — the record's OWN chosen colour slot, when it has one.
+   *
+   * A chosen slot beats the derived rank, and the two are folded together by the
+   * one resolver rather than by this component. Passing neither is the NEUTRAL
+   * identity, which is a designed outcome for a record that genuinely has none.
+   */
+  readonly colourSlot?: string | null;
   readonly overflow?: ReactNode;
   readonly href: string;
   readonly openAriaLabel?: string;
@@ -78,6 +89,7 @@ export function EntityRow({
   facts,
   figure,
   accent,
+  colourSlot = null,
   overflow,
   href,
   openAriaLabel,
@@ -86,17 +98,17 @@ export function EntityRow({
 }: EntityRowProps) {
   const Heading = `h${headingLevel}` as const;
 
+  // The ONE resolver. This component never maps a rank to a colour itself — a
+  // card and the tile inside it agreeing depends on there being one mapping.
+  const identity = resolveIdentity({ colourSlot, colourRank: accent ?? null });
+
   return (
     <article
       className={["dh-erow", muted ? "dh-erow--muted" : null]
         .filter(Boolean)
         .join(" ")}
       aria-label={title}
-      data-accent={
-        accent === undefined || accent === null
-          ? undefined
-          : String(areaAccentForRank(accent))
-      }
+      {...identityAttribute(identity.slot)}
       data-testid={testId}
     >
       {icon ? (

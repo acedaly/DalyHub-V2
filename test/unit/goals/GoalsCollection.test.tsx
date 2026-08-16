@@ -49,7 +49,15 @@ function goal(
     createdAt: "2026-07-01T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
     completedAt: null,
-    area: { id: "a1", title: "Health", colourRank: 0, iconKey: null },
+    area: {
+      id: "a1",
+      title: "Health",
+      colourRank: 0,
+      iconKey: null,
+      colourSlot: null,
+    },
+    iconKey: null,
+    colourSlot: null,
     alignment: alignment(),
     // No contributing Projects by default, so a test that cares about the card's
     // MEASURE has to say so — the same "opt into what you are asserting" rule

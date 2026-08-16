@@ -9,6 +9,8 @@
  * never be chosen. These tests make either one a build failure.
  */
 
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -55,6 +57,63 @@ describe("the entity icon catalogue", () => {
     for (const option of ENTITY_ICON_OPTIONS) {
       expect(ENTITY_ICON_CATEGORIES).toContain(option.category);
     }
+  });
+
+  /*
+   * IDENTITY-01 — ONE IDIOM.
+   *
+   * The catalogue used to point at the application frame's Material Symbols,
+   * which are FILLED shapes. Inside the rebuilt identity tile — a whisper of the
+   * record's hue as the fill, a fine edge, and the saturated hue as the glyph —
+   * a filled symbol reads as a solid blob of colour, which is exactly the look
+   * the tile was rebuilt to leave behind.
+   *
+   * So this asserts what the eye would otherwise have to catch: every glyph an
+   * owner can pick is a STROKE glyph at the set's one weight. Adding a hundredth
+   * icon by reaching for the nearest Material Symbol fails here rather than in a
+   * screenshot six weeks later.
+   */
+  it("draws every glyph in the one STROKE idiom, at the one weight", () => {
+    for (const option of ENTITY_ICON_OPTIONS) {
+      const markup = renderToStaticMarkup(createElement(option.Icon));
+      expect(markup, `${option.key} must not be a filled glyph`).toContain(
+        'fill="none"',
+      );
+      expect(markup, `${option.key} must be stroked`).toContain(
+        'stroke="currentColor"',
+      );
+      expect(markup, `${option.key} must use the set's weight`).toContain(
+        'stroke-width="1.75"',
+      );
+      // A Material Symbol arrives through `createIcon`, which wraps its geometry
+      // in the 960-unit transform. Nothing in this set may carry one.
+      expect(
+        markup,
+        `${option.key} must not be Material Symbols geometry`,
+      ).not.toContain("scale(0.025)");
+    }
+  });
+
+  /*
+   * Two keys sharing one drawing is catalogue rot: the picker offers the owner a
+   * choice that is not a choice, and whichever they pick the record looks the
+   * same. It is the specific failure a vocabulary invites as it grows — `pet`
+   * beside `paw`, `career` beside `briefcase` — so it is checked rather than
+   * remembered.
+   */
+  it("gives every key its own drawing", () => {
+    const byComponent = new Map<unknown, string[]>();
+    for (const option of ENTITY_ICON_OPTIONS) {
+      byComponent.set(option.Icon, [
+        ...(byComponent.get(option.Icon) ?? []),
+        option.key,
+      ]);
+    }
+    const shared = [...byComponent.values()].filter((keys) => keys.length > 1);
+    expect(
+      shared,
+      `these keys share one glyph: ${shared.map((k) => k.join("/")).join(", ")}`,
+    ).toEqual([]);
   });
 
   it("leaves no category empty", () => {

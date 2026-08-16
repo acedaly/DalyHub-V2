@@ -9,7 +9,8 @@
 import { useState } from "react";
 
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
-import { EntityIconPicker } from "~/shared/entity";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
+import { EntityIdentityPicker } from "~/shared/entity";
 import {
   Form,
   FormActions,
@@ -40,6 +41,7 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
   // modal, not a typed field: it has no text input to validate on blur and no
   // per-keystroke state. `useForm` still owns everything it submits alongside.
   const [iconKey, setIconKey] = useState<EntityIconKey | null>(null);
+  const [colourSlot, setColourSlot] = useState<IdentityColourSlot | null>(null);
 
   const form = useForm<Values>({
     initialValues: { title: "" },
@@ -53,6 +55,10 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
       // control" — sending it unconditionally keeps this form in the first
       // category, which is what it is.
       body.set("iconKey", iconKey ?? "");
+      // The COLOUR travels the same way and for the same reason. Omitting it
+      // was a silent data loss: the picker staged the choice, the form reported
+      // success, and the record was created on its derived colour.
+      body.set("colourSlot", colourSlot ?? "");
       let data: CreateAreaResult;
       try {
         const response = await fetch("/areas/new", { method: "POST", body });
@@ -94,11 +100,14 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
       <TextField label="Title" required maxLength={512} {...titleField} />
       {/* Beside the identity fields, not after the operational settings: an
           icon is part of what this Area IS. */}
-      <EntityIconPicker
+      <EntityIdentityPicker
         entityType="area"
-        value={iconKey}
-        onChange={setIconKey}
-        help="Optional. Areas without one use the standard Area icon."
+        value={{ iconKey, colourSlot }}
+        onChange={(next) => {
+          setIconKey(next.iconKey);
+          setColourSlot(next.colourSlot);
+        }}
+        help="Optional. A new Area takes the next colour in the ramp unless you choose one."
         error={form.fieldErrors.iconKey ?? null}
       />
       <FormActions>

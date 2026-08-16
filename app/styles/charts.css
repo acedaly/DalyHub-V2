@@ -73,6 +73,25 @@
   stroke-width: 3;
 }
 
+/*
+ * IDENTITY-01 — a chart drawn inside a RECORD is drawn in that record's hue.
+ *
+ * `mockup3.png` draws the goal chart's line in the same green as that goal's
+ * icon and its progress bar, and that agreement is the whole reason a reader
+ * can look at one card and know everything on it belongs to one thing. The
+ * series colour is therefore inherited from the element the resolver stamped,
+ * exactly as the tile and the meter are.
+ *
+ * A chart on a page that is NOT about one record — the analytics surfaces —
+ * matches nothing here and keeps `primary`. The latest-reading dot keeps the
+ * text colour either way: it is an emphasis within the series, and painting it
+ * in the series colour would erase the distinction.
+ */
+[data-identity] .dh-linechart__line,
+[data-identity] .dh-linechart__point {
+  stroke: var(--dh-identity);
+}
+
 /* The most recent reading is the one the page's headline states, so it carries
  * a heavier dot — an emphasis, never the only way to find it. */
 .dh-linechart__point[data-latest="true"] {
@@ -258,6 +277,14 @@
  * an already-quiet mark: the card states the status in words, and the sparkline
  * is `aria-hidden`, so nothing depends on reading this.
  */
+/* The sparkline follows the same rule, and for the same reason — except when
+ * the series has a DIRECTION, where the regressing tone below still wins: that
+ * is a statement about the data, not about which record it belongs to. */
+[data-identity] .dh-spark__line,
+[data-identity] .dh-spark__end {
+  stroke: var(--dh-identity);
+}
+
 .dh-spark[data-tone="regressing"] .dh-spark__line,
 .dh-spark[data-tone="regressing"] .dh-spark__end {
   stroke: var(--dh-color-text-muted);

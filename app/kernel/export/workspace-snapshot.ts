@@ -303,6 +303,18 @@ export interface SnapshotAreaDetail {
   readonly entityId: string;
   readonly archivedAt: IsoInstant | null;
   readonly iconKey: string | null;
+  /**
+   * IDENTITY-01 — the owner's chosen colour SLOT, verbatim, on exactly the same
+   * terms as `iconKey`: a stable NAME (`"teal"`), never a hex, `null` for "no
+   * choice — derive it", exported UNNORMALISED, additive and
+   * optional-by-`null`.
+   *
+   * An archive that omitted it would restore a workspace in which every chosen
+   * identity had reverted to its derived default — a silent loss of something
+   * the owner deliberately set, and exactly the portability failure the export
+   * exists to prevent.
+   */
+  readonly colourSlot: string | null;
   readonly updatedAt: IsoInstant;
 }
 
@@ -323,6 +335,14 @@ export interface SnapshotGoalDetail {
   readonly measurementDirection: string | null;
   readonly baselineValue: number | null;
   readonly targetValue: number | null;
+  /**
+   * IDENTITY-01 — a Goal's OWN identity, which it did not have before this
+   * release. `null` on both means "inherit the Area's", which is what every
+   * Goal in an archive written before IDENTITY-01 restores as. See
+   * {@link SnapshotAreaDetail.colourSlot}.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
   readonly updatedAt: IsoInstant;
 }
 
@@ -367,6 +387,8 @@ export interface SnapshotProjectDetail {
   readonly status: string;
   readonly archivedAt: IsoInstant | null;
   readonly iconKey: string | null;
+  /** IDENTITY-01 — see {@link SnapshotAreaDetail.colourSlot}. */
+  readonly colourSlot: string | null;
   readonly updatedAt: IsoInstant;
 }
 

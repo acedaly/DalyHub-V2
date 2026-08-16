@@ -26,6 +26,22 @@
   min-inline-size: 0;
 }
 
+/*
+ * IDENTITY-01 — the Goal's own appearance control.
+ *
+ * A Goal has no Settings tab, so its one appearance field sits in the summary
+ * beside the definition of done. It is separated by the shared hairline rather
+ * than by a heading of its own: the picker already carries its label, and a
+ * second heading over one control would be chrome describing a field that
+ * describes itself.
+ */
+.dh-goal-overview__appearance {
+  margin-block-start: var(--dh-space-4);
+  padding-block-start: var(--dh-space-4);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+  min-inline-size: 0;
+}
+
 /* The target date sits inline in the Summary metadata; "overdue" stays a WORD
  * beside it, never a colour alone. */
 .dh-goal-overview__target {

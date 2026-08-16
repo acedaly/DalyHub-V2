@@ -125,7 +125,13 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
   },
   areaDetails: {
     table: "area_details",
-    columns: ["entity_id", "archived_at", "icon_key", "updated_at"],
+    columns: [
+      "entity_id",
+      "archived_at",
+      "icon_key",
+      "colour_slot",
+      "updated_at",
+    ],
   },
   goalDetails: {
     table: "goal_details",
@@ -138,6 +144,8 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "measurement_direction",
       "baseline_value",
       "target_value",
+      "icon_key",
+      "colour_slot",
       "updated_at",
     ],
   },
@@ -168,7 +176,14 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
   },
   projectDetails: {
     table: "project_details",
-    columns: ["entity_id", "status", "archived_at", "icon_key", "updated_at"],
+    columns: [
+      "entity_id",
+      "status",
+      "archived_at",
+      "icon_key",
+      "colour_slot",
+      "updated_at",
+    ],
   },
   taskDetails: {
     table: "task_details",
@@ -608,6 +623,11 @@ function stageRows(
           entity_id: row.entityId,
           archived_at: row.archivedAt,
           icon_key: row.iconKey,
+          // `?? null` for the same reason the measurement fields carry it: an
+          // archive written BEFORE IDENTITY-01 has no such key, and `undefined`
+          // is not a bindable D1 value. The result is the state those Areas
+          // were already in — no chosen colour, derive it.
+          colour_slot: row.colourSlot ?? null,
           updated_at: row.updatedAt,
         }),
       );
@@ -625,6 +645,11 @@ function stageRows(
           measurement_direction: row.measurementDirection ?? null,
           baseline_value: row.baselineValue ?? null,
           target_value: row.targetValue ?? null,
+          // IDENTITY-01 — a Goal's OWN identity. Absent in every archive
+          // written before this release, which restores as "inherit the
+          // Area's" — exactly what those Goals did.
+          icon_key: row.iconKey ?? null,
+          colour_slot: row.colourSlot ?? null,
           updated_at: row.updatedAt,
         }),
       );
@@ -661,6 +686,7 @@ function stageRows(
         status: row.status,
         archived_at: row.archivedAt,
         icon_key: row.iconKey,
+        colour_slot: row.colourSlot ?? null,
         updated_at: row.updatedAt,
       }));
     case "taskDetails":

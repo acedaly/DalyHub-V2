@@ -50,7 +50,11 @@ import {
   useImmediateSetting,
 } from "~/shared/settings";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
-import { EntityIconPicker } from "~/shared/entity";
+import {
+  identityForRank,
+  type IdentityColourSlot,
+} from "~/kernel/entities/identity-colour-slots";
+import { EntityIdentityPicker } from "~/shared/entity";
 import type { ProjectHealth } from "~/shared/project-health";
 import { RecordDetails, type RecordMetaItem } from "~/shared/record-layout";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -90,7 +94,14 @@ export interface ProjectSettingsTabProps {
   /** Restore an archived project (`restore`). Reject to fail. */
   readonly onRestore: () => Promise<void>;
   /** Choose or clear the project's icon (`set_icon`). Reject to fail. */
-  readonly onSetIcon?: (iconKey: EntityIconKey | null) => Promise<void>;
+  /**
+   * Choose or clear the Project's IDENTITY — icon and colour together
+   * (`setIdentity`). Reject to fail.
+   */
+  readonly onSetIdentity?: (identity: {
+    readonly iconKey: EntityIconKey | null;
+    readonly colourSlot: IdentityColourSlot | null;
+  }) => Promise<void>;
 }
 
 /** The current structural parent (goal takes precedence — a project advancing a
@@ -332,25 +343,33 @@ function RestoreGroup({
  */
 function ProjectAppearanceGroup({
   iconKey,
-  onSetIcon,
+  colourSlot,
+  derivedSlot,
+  onSetIdentity,
 }: {
   readonly iconKey: string | null;
-  readonly onSetIcon: (key: EntityIconKey | null) => Promise<void>;
+  readonly colourSlot: string | null;
+  readonly derivedSlot: IdentityColourSlot | null;
+  readonly onSetIdentity: (identity: {
+    readonly iconKey: EntityIconKey | null;
+    readonly colourSlot: IdentityColourSlot | null;
+  }) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <SettingsGroup
       title="Appearance"
-      description="The icon this project wears in collections, records and search."
+      description="The colour and icon this project wears in collections, records and search."
     >
-      <EntityIconPicker
+      <EntityIdentityPicker
         entityType="project"
-        value={iconKey}
+        value={{ iconKey, colourSlot }}
+        derivedSlot={derivedSlot}
         error={error}
-        help="Optional. Projects without one use the standard Project icon."
+        help="Optional. Projects that choose neither use the standard Project icon and the colour their position gives them."
         onChange={(next) => {
           setError(null);
-          void onSetIcon(next).catch((cause: unknown) => {
+          void onSetIdentity(next).catch((cause: unknown) => {
             setError(
               cause instanceof Error
                 ? cause.message
@@ -423,7 +442,7 @@ export function ProjectSettingsTab({
   onMove,
   onArchive,
   onRestore,
-  onSetIcon,
+  onSetIdentity,
 }: ProjectSettingsTabProps) {
   const archived = isProjectArchived(overview);
   const parent = currentParent(overview);
@@ -451,10 +470,16 @@ export function ProjectSettingsTab({
         {/* Hidden while archived rather than shown disabled: the route refuses
             every non-restore intent on an archived Project, so an operable-
             looking control here would be a lie. */}
-        {onSetIcon && !archived ? (
+        {onSetIdentity && !archived ? (
           <ProjectAppearanceGroup
             iconKey={overview.iconKey}
-            onSetIcon={onSetIcon}
+            colourSlot={overview.colourSlot}
+            derivedSlot={
+              overview.colourRank === null
+                ? null
+                : identityForRank(overview.colourRank)
+            }
+            onSetIdentity={onSetIdentity}
           />
         ) : null}
         {archived ? (

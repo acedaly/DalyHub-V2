@@ -958,35 +958,25 @@
 }
 
 /*
- * M3X-02 — the bar takes the RECORD's own accent.
+ * IDENTITY-01 — the bar takes the RECORD's own identity hue.
  *
  * A gallery of twelve identical violet bars gives the eye nothing to track down
  * the grid; a gallery of bars in each record's own colour is scannable by the
- * same signal the identity mark one line above already taught. The ramp is the
- * existing `area-accent-*` identity ramp resolved from the record's stable rank
- * — the same input, the same mapping, no second colour decision — and the
- * percentage beside the bar states the value in words, so nothing here is
- * carried by colour alone.
+ * same signal the identity tile one line above already taught.
  *
- * A record with NO identity colour keeps the primary fill above.
+ * It reads the hue INHERITED from the card's `data-identity`, which is the same
+ * property the tile reads. Six selectors naming six generated accents became no
+ * selectors at all: a card and its bar cannot disagree about the record's colour
+ * because there is only one place the colour is decided, and this rule does not
+ * know how many slots exist.
+ *
+ * The percentage beside the bar states the value in words, so nothing here is
+ * carried by colour alone. A record with NO identity keeps the primary fill
+ * above, because `--dh-identity` is not set and the declaration below is scoped
+ * to a card that has one.
  */
-.dh-ecard[data-accent="1"] .dh-ecard__progress-fill {
-  background: var(--md-sys-color-area-accent-1);
-}
-.dh-ecard[data-accent="2"] .dh-ecard__progress-fill {
-  background: var(--md-sys-color-area-accent-2);
-}
-.dh-ecard[data-accent="3"] .dh-ecard__progress-fill {
-  background: var(--md-sys-color-area-accent-3);
-}
-.dh-ecard[data-accent="4"] .dh-ecard__progress-fill {
-  background: var(--md-sys-color-area-accent-4);
-}
-.dh-ecard[data-accent="5"] .dh-ecard__progress-fill {
-  background: var(--md-sys-color-area-accent-5);
-}
-.dh-ecard[data-accent="6"] .dh-ecard__progress-fill {
-  background: var(--md-sys-color-area-accent-6);
+.dh-ecard[data-identity] .dh-ecard__progress-fill {
+  background: var(--dh-identity);
 }
 
 /* Forced colours discard the ramp; the bar keeps its own text colour so the
@@ -2532,30 +2522,15 @@
 }
 
 /*
- * D6 — the bar takes the RECORD's identity accent, not `primary`.
+ * D6 / IDENTITY-01 — the bar takes the RECORD's identity hue, not `primary`.
  *
- * The same six-slot ramp the mark above it is painted from (UIX-02 moved that
- * ramp off the chart hues and onto the widget accents), resolved from the same
- * stable rank — one identity, not two colour decisions. The percentage beside
- * the bar states the value in words, so the colour carries nothing on its own.
+ * The same hue the tile above it is painted in, inherited from the card's
+ * `data-identity` rather than resolved again here — one identity, not two colour
+ * decisions, and no way for the two to drift. The percentage beside the bar
+ * states the value in words, so the colour carries nothing on its own.
  */
-.dh-pcard[data-accent="1"] .dh-pcard__fill {
-  background: var(--md-sys-color-area-accent-1);
-}
-.dh-pcard[data-accent="2"] .dh-pcard__fill {
-  background: var(--md-sys-color-area-accent-2);
-}
-.dh-pcard[data-accent="3"] .dh-pcard__fill {
-  background: var(--md-sys-color-area-accent-3);
-}
-.dh-pcard[data-accent="4"] .dh-pcard__fill {
-  background: var(--md-sys-color-area-accent-4);
-}
-.dh-pcard[data-accent="5"] .dh-pcard__fill {
-  background: var(--md-sys-color-area-accent-5);
-}
-.dh-pcard[data-accent="6"] .dh-pcard__fill {
-  background: var(--md-sys-color-area-accent-6);
+.dh-pcard[data-identity] .dh-pcard__fill {
+  background: var(--dh-identity);
 }
 
 @media (forced-colors: active) {
@@ -3946,25 +3921,10 @@
   transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
 }
 
-/* The SAME six-slot identity ramp the mark is painted from — one identity, not
- * two colour decisions (the rule `.dh-pcard` already follows). */
-.dh-mrow[data-accent="1"] .dh-mrow__fill {
-  background: var(--md-sys-color-area-accent-1);
-}
-.dh-mrow[data-accent="2"] .dh-mrow__fill {
-  background: var(--md-sys-color-area-accent-2);
-}
-.dh-mrow[data-accent="3"] .dh-mrow__fill {
-  background: var(--md-sys-color-area-accent-3);
-}
-.dh-mrow[data-accent="4"] .dh-mrow__fill {
-  background: var(--md-sys-color-area-accent-4);
-}
-.dh-mrow[data-accent="5"] .dh-mrow__fill {
-  background: var(--md-sys-color-area-accent-5);
-}
-.dh-mrow[data-accent="6"] .dh-mrow__fill {
-  background: var(--md-sys-color-area-accent-6);
+/* The SAME identity hue the mark is painted in, inherited from the row — one
+ * identity, not two colour decisions (the rule `.dh-pcard` already follows). */
+.dh-mrow[data-identity] .dh-mrow__fill {
+  background: var(--dh-identity);
 }
 
 @media (forced-colors: active) {

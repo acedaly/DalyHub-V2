@@ -6,7 +6,7 @@
  * type is recognisable at a glance everywhere it appears.
  */
 
-export { createIcon } from "./Icon";
+export { createIcon, createStrokeIcon } from "./Icon";
 export type { IconProps } from "./Icon";
 
 /* UIX-01 — the widget accent tone and the tonal icon tile it paints. */

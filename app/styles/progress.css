@@ -64,8 +64,32 @@
     var(--md-sys-motion-easing-standard);
 }
 
+/*
+ * IDENTITY-01 — a meter inside a record takes that RECORD's identity hue.
+ *
+ * The Goal rail on Today, a Goal's own card, a Project's summary bar: all of
+ * them draw this meter inside an element the resolver has already stamped with
+ * `data-identity`, and until now all of them drew it in the application's
+ * action colour. Four Goal tiles side by side were four violet bars under four
+ * differently-coloured marks — the tile said one thing about which record this
+ * was and the bar said another.
+ *
+ * The track takes the same hue's `soft` role rather than the neutral container,
+ * so the bar reads as one object in one colour instead of a coloured fill in a
+ * grey slot. Outside an identity context nothing matches and the neutral pair
+ * above still applies, which is what keeps a task-count bar neutral.
+ */
+[data-identity] .dh-progress__track {
+  background: var(--dh-identity-soft);
+}
+
+[data-identity] .dh-progress__fill {
+  background: var(--dh-identity);
+}
+
 /* Complete is signalled by colour AND by the summary text ("8 of 8 complete"),
- * never by the bar reaching the end alone. */
+ * never by the bar reaching the end alone. It outranks identity deliberately:
+ * a finished measure is the one thing a Goal's bar is allowed to announce. */
 .dh-progress__track[data-complete="true"] .dh-progress__fill {
   background: var(--dh-color-success);
 }

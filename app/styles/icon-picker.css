@@ -203,9 +203,17 @@
   cursor: pointer;
 }
 
+/*
+ * IDENTITY-01 — the glyph is drawn in the hue currently being chosen.
+ *
+ * The grid inherits `data-identity` from the staged draft, so an owner picking a
+ * flame for a red Area sees a RED flame while they pick. That is the whole
+ * reason colour and icon share one surface: they are choosing a combination, and
+ * a grey grid would make them choose two abstractions and hope.
+ */
 .dh-icon-picker__option-icon {
   display: inline-flex;
-  color: var(--dh-color-text-muted);
+  color: var(--dh-identity);
 }
 
 .dh-icon-picker__option-label {
@@ -227,7 +235,10 @@
 }
 
 .dh-icon-picker__option[data-selected="true"] .dh-icon-picker__option-icon {
-  color: var(--dh-color-text-on-accent-subtle);
+  /* Selected keeps the hue: the option is showing what the record will look
+   * like, and repainting it on selection would hide the answer at the moment the
+   * owner commits to it. The border, the plane and the check carry the state. */
+  color: var(--dh-identity);
 }
 
 .dh-icon-picker__option-check {
@@ -267,6 +278,123 @@
  * background. */
 @media (forced-colors: active) {
   .dh-icon-picker__option[data-selected="true"] {
+    border-color: Highlight;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* IDENTITY-01 — the colour swatches                                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Seventeen targets — sixteen slots and Automatic — laid out on the same
+ * auto-fill grid the icon options use, so the two halves of the sheet read as
+ * one surface rather than two controls stacked.
+ *
+ * Every swatch carries a visible NAME. Sixteen colours are not self-describing
+ * to everyone who can see them, a `title` attribute is invisible to touch, and
+ * "the blue one" is not a thing an owner can say to a screen reader.
+ */
+.dh-icon-picker__swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+  gap: var(--app-space-2);
+  list-style: none;
+  margin: 0 0 var(--app-space-2);
+  padding: 0;
+}
+
+.dh-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-1);
+  inline-size: 100%;
+  /* WCAG 2.2 2.5.8 — the whole cell is the target, name included. */
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-1);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-control);
+  background: none;
+  color: var(--dh-color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+ * The chip is the identity tile's CONSTRUCTION — a tint fill inside a tinted
+ * ring — with the hue itself shown as a filled disc in the middle.
+ *
+ * The tile alone was tried first and was wrong for this one surface: at 28px a
+ * 4% tint behind a 24% edge is a near-white box, and sixteen near-white boxes
+ * are not a colour picker. The disc restores what the swatch is FOR — naming the
+ * hue — while the ring around it still previews what the tile will look like, so
+ * the owner is not picking a colour the product never paints.
+ */
+.dh-swatch__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  flex: none;
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-identity-tint);
+  border: var(--app-border-width-thick) solid var(--dh-identity-edge);
+  color: var(--dh-identity);
+  line-height: 0;
+}
+
+/* The hue, as a disc. Hidden once the check takes its place, so the two never
+ * fight for the same 16px. */
+.dh-swatch__chip::before {
+  content: "";
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-identity);
+}
+
+.dh-swatch[data-selected="true"] .dh-swatch__chip::before {
+  display: none;
+}
+
+.dh-swatch__chip .dh-icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.dh-swatch__label {
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Selection is carried THREE ways — the check glyph inside the chip, a heavier
+ * cell border, and the label turning to full-strength ink. Any one of them is
+ * enough to perceive it, which is the point: a swatch grid whose only selection
+ * signal was colour would be unusable for exactly the people this rule protects.
+ */
+.dh-swatch[data-selected="true"] {
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text);
+}
+
+.dh-swatch[data-selected="true"] .dh-swatch__chip {
+  border-color: var(--dh-identity);
+}
+
+@media (forced-colors: active) {
+  /* The tints are dropped, so the chip survives as a bordered shape and the
+   * selected cell is distinguished by its own border rather than by a fill. */
+  .dh-swatch__chip {
+    border-color: CanvasText;
+  }
+  .dh-swatch[data-selected="true"] {
     border-color: Highlight;
   }
 }

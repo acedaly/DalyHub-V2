@@ -77,6 +77,7 @@ describe("Area view model", () => {
       updatedAt: "2026-07-20T00:00:00.000Z",
       colourRank: 0,
       iconKey: null,
+      colourSlot: null,
       rollup: serializeAreaRollup(rollup),
       activeProjectCount: 2,
       completedProjectCount: 1,

@@ -14,11 +14,25 @@
  * broken SSR. That case is real rather than theoretical — an icon removed in a
  * later release, a record restored from an older export, a hand-edited row — and
  * a record that will not render is far worse than one wearing its default.
+ *
+ * IDENTITY-01 — THE DEFAULT IS IN THE SAME VOCABULARY AS THE CHOICE.
+ *
+ * It used to be `EntityIcon`, which draws the application frame's Material
+ * Symbol for the type. On a gallery where some records had chosen an icon and
+ * some had not, that put two idioms side by side in one grid — a stroked heart
+ * beside a filled layers glyph — and it was the most visible tell left after the
+ * tile itself was rebuilt. So a record's default now comes from
+ * `ENTITY_DEFAULT_GLYPHS`, the identity set's own drawing for each type.
+ *
+ * `EntityIcon` is unchanged and still right where a TYPE is the whole story: the
+ * navigation rail, an empty state, a menu. A record inside its own identity tile
+ * is a different question, and this is the component that answers it.
  */
+
+import { ENTITY_DEFAULT_GLYPHS } from "~/shared/icons/entity-glyphs";
 
 import type { EntityType } from "./identity";
 import { entityAccent } from "./identity";
-import { EntityIcon } from "./EntityIcon";
 import { entityIconOption } from "./entity-icon-catalogue";
 
 export type RecordIconProps = {
@@ -47,25 +61,15 @@ export function RecordIcon({
 }: RecordIconProps) {
   const chosen = entityIconOption(iconKey);
 
-  // No choice, or a choice this build cannot resolve: the entity's own icon.
-  if (!chosen) {
-    return (
-      <EntityIcon
-        type={entityType}
-        variant={variant}
-        tone={tone}
-        size={size}
-        title={title}
-        className={className}
-      />
-    );
-  }
+  // No choice, or a choice this build cannot resolve: the entity's own default
+  // glyph — from the SAME set the choices come from, so a grid of chosen and
+  // unchosen records is one vocabulary.
+  const Icon = chosen?.Icon ?? ENTITY_DEFAULT_GLYPHS[entityType];
 
   // A chosen icon still wears its ENTITY's colours. The key says which glyph,
   // not which palette — an Area that picks "travel" is still an Area, and
   // letting the glyph carry its own colour would put a second, competing
   // identity system beside the generated accents.
-  const { Icon } = chosen;
   const classes = ["dh-entity-icon", `dh-entity-icon--${variant}`, className]
     .filter(Boolean)
     .join(" ");
@@ -74,7 +78,7 @@ export function RecordIcon({
     <span
       className={classes}
       data-entity={entityType}
-      data-icon-key={chosen.key}
+      data-icon-key={chosen?.key}
       style={
         tone === "accent" ? { color: entityAccent(entityType) } : undefined
       }

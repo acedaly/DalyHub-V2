@@ -111,7 +111,10 @@ describe("Area icon settings", () => {
     const area = await spine().createArea({ title: "Health" });
     const settings = areaSettings();
 
-    const result = await settings.setIcon(area.id, "travel");
+    const result = await settings.setIdentity(area.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
     expect(result.iconKey).toBe("travel");
     expect(await countAreaDetailRows(WS)).toBe(1);
     expect((await settings.get(area.id))?.iconKey).toBe("travel");
@@ -121,12 +124,21 @@ describe("Area icon settings", () => {
     const area = await spine().createArea({ title: "Health" });
     const settings = areaSettings();
 
-    await settings.setIcon(area.id, "travel");
-    await settings.setIcon(area.id, "property");
+    await settings.setIdentity(area.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
+    await settings.setIdentity(area.id, {
+      iconKey: "property",
+      colourSlot: null,
+    });
     expect((await settings.get(area.id))?.iconKey).toBe("property");
 
     // `null` is "reset to default" — a legitimate value, not a failure.
-    const cleared = await settings.setIcon(area.id, null);
+    const cleared = await settings.setIdentity(area.id, {
+      iconKey: null,
+      colourSlot: null,
+    });
     expect(cleared.iconKey).toBeNull();
     expect((await settings.get(area.id))?.iconKey).toBeNull();
     // The row is NOT removed: clearing a choice is not un-writing history.
@@ -136,7 +148,10 @@ describe("Area icon settings", () => {
   it("degrades an unrecognised stored key to the entity default on read", async () => {
     const area = await spine().createArea({ title: "Health" });
     const settings = areaSettings();
-    await settings.setIcon(area.id, "travel");
+    await settings.setIdentity(area.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
 
     // A key that outlived its catalogue entry, or a hand-edited row.
     await forceStoredIcon("area_details", WS, area.id, "no-such-icon");
@@ -156,7 +171,10 @@ describe("Area icon settings", () => {
     const archivedAt = (await settings.get(area.id))?.archivedAt;
     expect(archivedAt).not.toBeNull();
 
-    await settings.setIcon(area.id, "shield");
+    await settings.setIdentity(area.id, {
+      iconKey: "shield",
+      colourSlot: null,
+    });
 
     const after = await settings.get(area.id);
     expect(after?.iconKey).toBe("shield");
@@ -166,7 +184,10 @@ describe("Area icon settings", () => {
   it("preserves the icon across archive and restore", async () => {
     const area = await spine().createArea({ title: "Health" });
     const settings = areaSettings();
-    await settings.setIcon(area.id, "shield");
+    await settings.setIdentity(area.id, {
+      iconKey: "shield",
+      colourSlot: null,
+    });
 
     const archived = await settings.archive(area.id);
     expect(archived.settings.iconKey).toBe("shield");
@@ -181,8 +202,11 @@ describe("Area icon settings", () => {
     const settings = areaSettings();
     const before = await countActivitiesOfType("area.archived");
 
-    await settings.setIcon(area.id, "travel");
-    await settings.setIcon(area.id, null);
+    await settings.setIdentity(area.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
+    await settings.setIdentity(area.id, { iconKey: null, colourSlot: null });
 
     expect(await countActivitiesOfType("area.archived")).toBe(before);
     expect(await countActivitiesOfType("area.restored")).toBe(0);
@@ -196,13 +220,24 @@ describe("Area icon settings", () => {
       parent: { kind: "area", id: area.id },
     });
 
-    await expect(areaSettings().setIcon("nope", "travel")).rejects.toThrow();
     await expect(
-      areaSettings().setIcon(project.id, "travel"),
+      areaSettings().setIdentity("nope", {
+        iconKey: "travel",
+        colourSlot: null,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      areaSettings().setIdentity(project.id, {
+        iconKey: "travel",
+        colourSlot: null,
+      }),
     ).rejects.toThrow();
     // Another workspace's Area is not visible here, and is not written to.
     await expect(
-      areaSettings(OTHER_WS).setIcon(area.id, "travel"),
+      areaSettings(OTHER_WS).setIdentity(area.id, {
+        iconKey: "travel",
+        colourSlot: null,
+      }),
     ).rejects.toThrow();
     expect(await readStoredIcon("area_details", WS, area.id)).toBeUndefined();
   });
@@ -231,22 +266,33 @@ describe("Project icon settings", () => {
     const project = await seedProject();
     const settings = projectSettings();
 
-    expect((await settings.setIcon(project.id, "travel")).iconKey).toBe(
-      "travel",
-    );
+    expect(
+      (
+        await settings.setIdentity(project.id, {
+          iconKey: "travel",
+          colourSlot: null,
+        })
+      ).iconKey,
+    ).toBe("travel");
     expect((await settings.get(project.id))?.iconKey).toBe("travel");
 
-    await settings.setIcon(project.id, "equipment");
+    await settings.setIdentity(project.id, {
+      iconKey: "equipment",
+      colourSlot: null,
+    });
     expect((await settings.get(project.id))?.iconKey).toBe("equipment");
 
-    await settings.setIcon(project.id, null);
+    await settings.setIdentity(project.id, { iconKey: null, colourSlot: null });
     expect((await settings.get(project.id))?.iconKey).toBeNull();
   });
 
   it("degrades an unrecognised stored key to the entity default on read", async () => {
     const project = await seedProject();
     const settings = projectSettings();
-    await settings.setIcon(project.id, "travel");
+    await settings.setIdentity(project.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
 
     await forceStoredIcon("project_details", WS, project.id, "<svg>");
     expect((await settings.get(project.id))?.iconKey).toBeNull();
@@ -260,7 +306,10 @@ describe("Project icon settings", () => {
     const settings = projectSettings();
     await settings.setStatus(project.id, "on_hold");
 
-    await settings.setIcon(project.id, "equipment");
+    await settings.setIdentity(project.id, {
+      iconKey: "equipment",
+      colourSlot: null,
+    });
 
     const after = await settings.get(project.id);
     expect(after?.status).toBe("on_hold");
@@ -271,7 +320,10 @@ describe("Project icon settings", () => {
   it("preserves the icon across a status transition", async () => {
     const project = await seedProject();
     const settings = projectSettings();
-    await settings.setIcon(project.id, "equipment");
+    await settings.setIdentity(project.id, {
+      iconKey: "equipment",
+      colourSlot: null,
+    });
 
     // The transition returns `icon_key` from the statement itself, so this is
     // the persisted value rather than one spliced back in from the pre-read.
@@ -284,7 +336,10 @@ describe("Project icon settings", () => {
   it("preserves the icon across archive and restore", async () => {
     const project = await seedProject();
     const settings = projectSettings();
-    await settings.setIcon(project.id, "equipment");
+    await settings.setIdentity(project.id, {
+      iconKey: "equipment",
+      colourSlot: null,
+    });
 
     const archived = await settings.archive(project.id);
     expect(archived.settings.iconKey).toBe("equipment");
@@ -297,8 +352,11 @@ describe("Project icon settings", () => {
     const project = await seedProject();
     const settings = projectSettings();
 
-    await settings.setIcon(project.id, "travel");
-    await settings.setIcon(project.id, null);
+    await settings.setIdentity(project.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
+    await settings.setIdentity(project.id, { iconKey: null, colourSlot: null });
 
     expect(await countActivitiesOfType("project.status_changed")).toBe(0);
     expect(await countActivitiesOfType("project.archived")).toBe(0);
@@ -312,12 +370,23 @@ describe("Project icon settings", () => {
       parent: { kind: "area", id: area.id },
     });
 
-    await expect(projectSettings().setIcon("nope", "travel")).rejects.toThrow();
     await expect(
-      projectSettings().setIcon(area.id, "travel"),
+      projectSettings().setIdentity("nope", {
+        iconKey: "travel",
+        colourSlot: null,
+      }),
     ).rejects.toThrow();
     await expect(
-      projectSettings(OTHER_WS).setIcon(project.id, "travel"),
+      projectSettings().setIdentity(area.id, {
+        iconKey: "travel",
+        colourSlot: null,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      projectSettings(OTHER_WS).setIdentity(project.id, {
+        iconKey: "travel",
+        colourSlot: null,
+      }),
     ).rejects.toThrow();
     // No row at all, rather than a row with a null icon: nothing was written.
     expect(
@@ -336,7 +405,10 @@ describe("Project icon settings", () => {
       await readStoredIcon("project_details", WS, project.id),
     ).toBeUndefined();
 
-    await projectSettings().setIcon(project.id, "travel");
+    await projectSettings().setIdentity(project.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
 
     expect(await readStoredIcon("project_details", WS, project.id)).toBe(
       "travel",
@@ -370,7 +442,10 @@ describe("the stored icon reaches the export reader", () => {
     const chosen = await sp.createArea({ title: "Chosen" });
     const plain = await sp.createArea({ title: "Plain" });
     const settings = areaSettings();
-    await settings.setIcon(chosen.id, "travel");
+    await settings.setIdentity(chosen.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
     // Give the second Area a row WITHOUT an icon, so the null is a real stored
     // null rather than a missing row the reader never sees.
     await settings.archive(plain.id);
@@ -393,7 +468,10 @@ describe("the stored icon reaches the export reader", () => {
       title: "P",
       parent: { kind: "area", id: area.id },
     });
-    await projectSettings().setIcon(project.id, "equipment");
+    await projectSettings().setIdentity(project.id, {
+      iconKey: "equipment",
+      colourSlot: null,
+    });
 
     const rows = await readDetails("projectDetails");
     expect(rows.find((row) => row.entityId === project.id)?.iconKey).toBe(
@@ -408,7 +486,10 @@ describe("the stored icon reaches the export reader", () => {
     // from every archive taken in between.
     const area = await spine().createArea({ title: "Chosen" });
     const settings = areaSettings();
-    await settings.setIcon(area.id, "travel");
+    await settings.setIdentity(area.id, {
+      iconKey: "travel",
+      colourSlot: null,
+    });
     await forceStoredIcon("area_details", WS, area.id, "retired-glyph");
 
     expect((await settings.get(area.id))?.iconKey).toBeNull();

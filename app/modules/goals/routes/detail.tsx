@@ -11,6 +11,8 @@ import {
   useSearchParams,
 } from "react-router";
 
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -433,6 +435,37 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
     [inlineSave],
   );
 
+  /*
+   * IDENTITY-01 — the Goal's own icon and colour, applied together.
+   *
+   * Both are sent every time, empty when unchosen: the server reads "" as
+   * "reset to the Area's" and an ABSENT field as "this form has no such
+   * control", and this form has both. `revalidate` rather than an optimistic
+   * patch, because a Goal's identity is read by the header, the collection and
+   * Today, and the loader is the one thing that knows all three.
+   */
+  const onSetIdentity = useCallback(
+    async (identity: {
+      readonly iconKey: EntityIconKey | null;
+      readonly colourSlot: IdentityColourSlot | null;
+    }) => {
+      const body = new FormData();
+      body.set("intent", "set_identity");
+      body.set("iconKey", identity.iconKey ?? "");
+      body.set("colourSlot", identity.colourSlot ?? "");
+      const result = await postMutation(body);
+      if (result.kind !== "set_identity" || !result.ok) {
+        throw new Error(
+          result.kind === "set_identity" && !result.ok
+            ? result.formError
+            : "That couldn’t be saved. Please try again.",
+        );
+      }
+      revalidator.revalidate();
+    },
+    [postMutation, revalidator],
+  );
+
   const onSetDefinitionOfDone = useCallback(
     (definitionOfDone: string) =>
       inlineSave("set_definition_of_done", { definitionOfDone }),
@@ -567,6 +600,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
         onToggleComplete={(complete) => void onToggleComplete(complete)}
         onRename={onRename}
         onSetTargetDate={onSetTargetDate}
+        onSetIdentity={onSetIdentity}
         onSetDefinitionOfDone={onSetDefinitionOfDone}
         onDelete={onDelete}
         deletePending={deletePending}

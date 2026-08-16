@@ -123,8 +123,11 @@ import { Link, useSearchParams } from "react-router";
 // so the Today route chunk does not eagerly pull the palette controller.
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 import type { AppAction } from "~/shared/commands/action";
-import { AccentIcon } from "~/shared/entity";
-import { areaAccentForRank } from "~/shared/pill";
+import {
+  AccentIcon,
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
   AssetIcon,
@@ -1023,6 +1026,7 @@ export function TodayScreen({
                      */}
                     <AccentIcon
                       entityType="project"
+                      colourSlot={project.colourSlot}
                       iconKey={project.iconKey}
                       colourRank={project.colourRank}
                       size="sm"
@@ -1113,17 +1117,26 @@ function GoalProgressSection({
               <li
                 className="dh-today__goal"
                 /*
-                 * UIX-03 — the tile's wash is the AREA's accent, the same one
-                 * the mark above it and the Goal's gallery card carry. UIX-01
-                 * tinted it from a hash of the Goal's id, which spent colour
-                 * without meaning anything; the tile is just as colourful now
-                 * and the colour says which part of life the Goal serves.
+                 * UIX-03 / IDENTITY-01 — the tile carries the Goal's resolved
+                 * IDENTITY, stamped once here so everything inside it agrees.
+                 *
+                 * UIX-01 tinted it from a hash of the Goal's id, which spent
+                 * colour without meaning anything. It is the Goal's own chosen
+                 * colour where it has one and its Area's otherwise — and
+                 * because the attribute sits on the tile, the mark, the meter
+                 * and the change figure inside it all resolve from it rather
+                 * than each deciding for itself.
                  */
-                data-accent={
-                  goal.areaColourRank === null
-                    ? undefined
-                    : String(areaAccentForRank(goal.areaColourRank))
-                }
+                {...identityAttribute(
+                  resolveIdentity({
+                    colourSlot: goal.colourSlot,
+                    colourRank: null,
+                    inherited: {
+                      colourSlot: goal.areaColourSlot,
+                      colourRank: goal.areaColourRank,
+                    },
+                  }).slot,
+                )}
                 key={goal.id}
               >
                 {/*
@@ -1141,8 +1154,14 @@ function GoalProgressSection({
                  */}
                 <AccentIcon
                   entityType="goal"
-                  iconKey={goal.areaIconKey}
-                  colourRank={goal.areaColourRank}
+                  colourSlot={goal.colourSlot}
+                  iconKey={goal.iconKey}
+                  colourRank={null}
+                  inherited={{
+                    colourSlot: goal.areaColourSlot,
+                    colourRank: goal.areaColourRank,
+                    iconKey: goal.areaIconKey,
+                  }}
                   size="sm"
                 />
                 {/*

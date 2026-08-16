@@ -32,9 +32,12 @@
 
 import { Link } from "react-router";
 
-import { AccentIcon } from "~/shared/entity";
+import {
+  AccentIcon,
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity";
 import { OverflowMenu } from "~/shared/overflow-menu";
-import { areaAccentForRank } from "~/shared/pill";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import type { ProjectCardData } from "./project-view";
@@ -96,10 +99,15 @@ function ProjectTableRow({
   return (
     <tr
       className="dh-ptable__row"
-      // The SAME six-slot identity ramp the gallery card paints its mark and
-      // bar from, resolved from the same stable rank — one identity across both
+      // The SAME identity the gallery card paints its mark and bar from,
+      // resolved once by the shared resolver — one identity across both
       // presentations, never a second colour decision for the table.
-      data-accent={String(areaAccentForRank(card.colourRank))}
+      {...identityAttribute(
+        resolveIdentity({
+          colourSlot: card.colourSlot,
+          colourRank: card.colourRank,
+        }).slot,
+      )}
       data-muted={card.isArchived ? "true" : undefined}
       data-testid="project-table-row"
     >
@@ -115,6 +123,7 @@ function ProjectTableRow({
             <AccentIcon
               entityType="project"
               iconKey={card.iconKey}
+              colourSlot={card.colourSlot}
               colourRank={card.colourRank}
               size="sm"
             />

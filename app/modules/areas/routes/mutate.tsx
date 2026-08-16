@@ -18,6 +18,7 @@ import { SpineHasDependentsError, SpineValidationError } from "~/kernel/spine";
 import { AreaArchivedError } from "~/kernel/area-settings";
 import {
   readEntityIconField,
+  readIdentityColourField,
   requireAuthenticatedSession,
 } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -44,13 +45,15 @@ export type AreaMutationResult =
       readonly formError: string;
     }
   | {
-      readonly kind: "setIcon";
+      readonly kind: "setIdentity";
       readonly ok: true;
       /** The key that now applies — `null` when reset to the entity default. */
       readonly iconKey: string | null;
+      /** The slot that now applies — `null` when reset to Automatic. */
+      readonly colourSlot: string | null;
     }
   | {
-      readonly kind: "setIcon";
+      readonly kind: "setIdentity";
       readonly ok: false;
       readonly formError: string;
     };
@@ -89,8 +92,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return handleRestore(scope, areaId);
     case "delete":
       return handleDelete(scope, areaId);
-    case "setIcon":
-      return handleSetIcon(scope, areaId, form);
+    case "setIdentity":
+      return handleSetIdentity(scope, areaId, form);
     default:
       return json(
         { kind: "rename", ok: false, formError: "Unknown action." },
@@ -169,12 +172,17 @@ async function handleRestore(scope: Scope, areaId: string): Promise<Response> {
  * mutation, so an archived Area refuses it server-side and not merely by hiding
  * the control (AGENTS.md §17 — never trust the client).
  *
- * A key this build does not recognise is REFUSED, never quietly stored as
- * "no icon". `readEntityIconField` draws that line; the point is that an owner
- * whose choice cannot be honoured is told so, instead of being shown a success
- * message and then a default glyph.
+ * A key or a slot this build does not recognise is REFUSED, never quietly stored
+ * as "no choice". `readEntityIconField` and `readIdentityColourField` draw that
+ * line; the point is that an owner whose choice cannot be honoured is told so,
+ * instead of being shown a success message and then a default glyph.
+ *
+ * IDENTITY-01 — icon and colour are read, refused and written TOGETHER, because
+ * the owner picks them together in one surface and applies them once. Two
+ * intents would let a half-applied identity exist between them, and would give
+ * the client two failures to reconcile against one optimistic update.
  */
-async function handleSetIcon(
+async function handleSetIdentity(
   scope: Scope,
   areaId: string,
   form: FormData,
@@ -182,7 +190,7 @@ async function handleSetIcon(
   const settings = await scope.areaSettings.get(areaId);
   if (settings?.archivedAt) {
     return json({
-      kind: "setIcon",
+      kind: "setIdentity",
       ok: false,
       formError:
         "This Area is archived and read-only. Restore it to change its icon.",
@@ -191,15 +199,27 @@ async function handleSetIcon(
 
   const icon = readEntityIconField(form);
   if (!icon.ok) {
-    return json({ kind: "setIcon", ok: false, formError: icon.message });
+    return json({ kind: "setIdentity", ok: false, formError: icon.message });
+  }
+  const colour = readIdentityColourField(form);
+  if (!colour.ok) {
+    return json({ kind: "setIdentity", ok: false, formError: colour.message });
   }
 
   try {
-    const updated = await scope.areaSettings.setIcon(areaId, icon.iconKey);
-    return json({ kind: "setIcon", ok: true, iconKey: updated.iconKey });
+    const updated = await scope.areaSettings.setIdentity(areaId, {
+      iconKey: icon.iconKey,
+      colourSlot: colour.colourSlot,
+    });
+    return json({
+      kind: "setIdentity",
+      ok: true,
+      iconKey: updated.iconKey,
+      colourSlot: updated.colourSlot,
+    });
   } catch {
     return json({
-      kind: "setIcon",
+      kind: "setIdentity",
       ok: false,
       formError: "That couldn’t be saved. Please try again.",
     });

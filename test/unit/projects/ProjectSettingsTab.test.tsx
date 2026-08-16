@@ -29,6 +29,7 @@ function overview(
     archivedAt: null,
     healthVisible: false,
     iconKey: null,
+    colourSlot: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
     ...over,

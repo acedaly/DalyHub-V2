@@ -62,6 +62,10 @@ import {
   normaliseEntityIconKey,
   type EntityIconKey,
 } from "~/kernel/entities/entity-icon-keys";
+import {
+  normaliseIdentityColourSlot,
+  type IdentityColourSlot,
+} from "~/kernel/entities/identity-colour-slots";
 
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
@@ -78,6 +82,7 @@ interface ProjectDetailsRow {
   readonly status: string;
   readonly archived_at: string | null;
   readonly icon_key: string | null;
+  readonly colour_slot: string | null;
 }
 
 export type D1ProjectSettingsRepositoryOptions = {
@@ -115,7 +120,13 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
   async get(id: string): Promise<ProjectSettingsRecord | null> {
     const row = await this.#row(id);
     if (!row) return null;
-    return this.#record(id, row.status, row.archived_at, row.icon_key);
+    return this.#record(
+      id,
+      row.status,
+      row.archived_at,
+      row.icon_key,
+      row.colour_slot,
+    );
   }
 
   /**
@@ -158,7 +169,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
            ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
              status = excluded.status, updated_at = excluded.updated_at
            WHERE project_details.status = ? AND project_details.archived_at IS NULL
-           RETURNING status, archived_at, icon_key`,
+           RETURNING status, archived_at, icon_key, colour_slot`,
         )
         .bind(
           this.#workspaceId,
@@ -191,6 +202,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
             result.row.status,
             result.row.archived_at,
             result.row.icon_key,
+            result.row.colour_slot,
           ),
           changed: true,
         };
@@ -244,7 +256,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
            archived_at = excluded.archived_at, updated_at = excluded.updated_at
          WHERE project_details.archived_at IS NULL
-         RETURNING status, archived_at, icon_key`,
+         RETURNING status, archived_at, icon_key, colour_slot`,
       )
       .bind(
         this.#workspaceId,
@@ -278,6 +290,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
           result.row.status,
           result.row.archived_at,
           result.row.icon_key,
+          result.row.colour_slot,
         ),
         changed: true,
       };
@@ -311,7 +324,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
         `UPDATE project_details SET archived_at = NULL, updated_at = ?
          WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
            AND EXISTS (${this.#activeProjectExistsSql})
-         RETURNING status, archived_at, icon_key`,
+         RETURNING status, archived_at, icon_key, colour_slot`,
       )
       .bind(nowTs, this.#workspaceId, id, this.#workspaceId, id);
 
@@ -333,6 +346,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
           result.row.status,
           result.row.archived_at,
           result.row.icon_key,
+          result.row.colour_slot,
         ),
         changed: true,
       };
@@ -388,7 +402,8 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
       const row = await this.#db
         .prepare(
           `SELECT COALESCE(d.status, 'planned') AS status, d.archived_at AS archived_at,
-                  d.icon_key AS icon_key
+                  d.icon_key AS icon_key,
+                  d.colour_slot AS colour_slot
            FROM entities e
            LEFT JOIN project_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -414,6 +429,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
     status: string,
     archived: string | null,
     iconKey: string | null,
+    colourSlot: string | null,
   ): ProjectSettingsRecord {
     let parsed: ProjectWorkflowStatus;
     try {
@@ -435,6 +451,10 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
       // CHECK, so an unparseable one means genuinely broken storage, and there
       // is no safe default to fall back to.
       iconKey: normaliseEntityIconKey(iconKey),
+      // Same posture, same reason (migration 0042): a slot retired in a later
+      // release becomes `null` here and the Project falls back to its DERIVED
+      // colour, which is what it looked like before anyone chose anything.
+      colourSlot: normaliseIdentityColourSlot(colourSlot),
     };
   }
 
@@ -465,26 +485,32 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
    * events that matter, and blocking it on an archived Project would prevent
    * tidying a record the owner can still read.
    */
-  async setIcon(
+  async setIdentity(
     id: string,
-    iconKey: EntityIconKey | null,
+    identity: {
+      readonly iconKey: EntityIconKey | null;
+      readonly colourSlot: IdentityColourSlot | null;
+    },
   ): Promise<ProjectSettingsRecord> {
     const current = await this.#require(id);
     const nowTs = toStorageTimestamp(this.#clock());
     try {
       await this.#db
         .prepare(
-          `INSERT INTO project_details (workspace_id, entity_id, status, icon_key, updated_at)
-           SELECT ?, ?, ?, ?, ?
+          `INSERT INTO project_details (workspace_id, entity_id, status, icon_key, colour_slot, updated_at)
+           SELECT ?, ?, ?, ?, ?, ?
            WHERE EXISTS (${this.#activeProjectExistsSql})
            ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
-             icon_key = excluded.icon_key, updated_at = excluded.updated_at`,
+             icon_key = excluded.icon_key,
+             colour_slot = excluded.colour_slot,
+             updated_at = excluded.updated_at`,
         )
         .bind(
           this.#workspaceId,
           id,
           current.status,
-          iconKey,
+          identity.iconKey,
+          identity.colourSlot,
           nowTs,
           this.#workspaceId,
           id,
@@ -493,7 +519,10 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
     } catch (cause) {
       throw new ProjectSettingsStorageError({ cause });
     }
-    return { ...current, iconKey };
+    // ONE statement for both fields: the owner picks them together and applies
+    // them once, so writing them separately would let a half-applied identity
+    // exist between two round trips.
+    return { ...current, ...identity };
   }
 
   /**

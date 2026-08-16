@@ -71,7 +71,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Both are ordinary URL state, so a narrowed or tabular collection is
   // shareable, bookmarkable and Back/Forward-correct.
   const query = params.get("q") ?? "";
-  const presentation = parseCollectionPresentation(params.get("present"));
+  const presentation = parseCollectionPresentation(params.get("present"), [
+    "grid",
+    "table",
+  ]);
   // An opaque keyset cursor for the NEXT page, echoed back from a prior page's
   // `nextCursor`. It is validated (and scope-checked) in the repository; an absent
   // or malformed value simply yields the first page or a calm error — never an

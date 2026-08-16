@@ -29,7 +29,17 @@ test.describe("AREA-01 — Areas", () => {
      */
     const dhCard = page.getByRole("article", { name: "DalyHub V2" });
     await expect(dhCard.getByText(/\d+ Projects?/)).toBeVisible();
-    await expect(dhCard.getByText(/\d+ open tasks?/)).toBeVisible();
+    /*
+     * The open-task figure and its NOUN.
+     *
+     * They are separate elements in the gallery card (the metric's value is set
+     * larger than its label) and one string in the row, so the assertion is that
+     * both parts are present rather than that they are one node. That is the fact
+     * that matters — the count is never a bare number — and it is the only form of
+     * it true of both presentations.
+     */
+    await expect(dhCard.getByText(/open tasks?/)).toBeVisible();
+    await expect(dhCard).toContainText(/\d+\s*open tasks?/);
     // The chip that said nothing about any particular Area is gone.
     await expect(page.getByText("Permanent")).toHaveCount(0);
 
@@ -194,18 +204,30 @@ test.describe("AREA-01 — Areas", () => {
       fallback.locator('.dh-accent-icon [data-entity="area"]'),
     ).toBeVisible();
 
-    // Each Area wears its OWN accent, so a grid is scannable by colour.
-    const accents = await page
+    // IDENTITY-01 — each Area wears its OWN identity slot, so a grid is
+    // scannable by colour. The slot is carried by NAME, so this survives a
+    // reorder of the ramp in a way a numeric accent would not.
+    const identities = await page
       .locator(".dh-accent-icon")
       .evaluateAll((nodes) =>
-        nodes.map((node) => node.getAttribute("data-accent")),
+        nodes.map((node) => node.getAttribute("data-identity")),
       );
-    expect(new Set(accents).size).toBeGreaterThan(1);
+    expect(new Set(identities).size).toBeGreaterThan(1);
 
     // The seeded `a-dh` Area holds Projects, Goals and Tasks; the counts come
     // from workspace-wide aggregates, so they are integers, never blanks.
     await expect(fallback.getByText(/\d+ Projects?/)).toBeVisible();
-    await expect(fallback.getByText(/\d+ open tasks?/)).toBeVisible();
+    /*
+     * The open-task figure and its NOUN.
+     *
+     * They are separate elements in the gallery card (the metric's value is set
+     * larger than its label) and one string in the row, so the assertion is that
+     * both parts are present rather than that they are one node. That is the fact
+     * that matters — the count is never a bare number — and it is the only form of
+     * it true of both presentations.
+     */
+    await expect(fallback.getByText(/open tasks?/)).toBeVisible();
+    await expect(fallback).toContainText(/\d+\s*open tasks?/);
 
     // Areas never complete, so no Area row carries a completion bar — the
     // source of the audit's ragged-alignment finding, and the fabricated
@@ -259,7 +281,17 @@ test.describe("AREA-01 — Areas", () => {
     const loose = page.getByRole("article", { name: "Home" });
     await expect(loose.getByText("No active work")).toHaveCount(0);
     await expect(loose.getByText("Ready for its first Project")).toHaveCount(0);
-    await expect(loose.getByText(/\d+ open tasks?/)).toBeVisible();
+    /*
+     * The open-task figure and its NOUN.
+     *
+     * They are separate elements in the gallery card (the metric's value is set
+     * larger than its label) and one string in the row, so the assertion is that
+     * both parts are present rather than that they are one node. That is the fact
+     * that matters — the count is never a bare number — and it is the only form of
+     * it true of both presentations.
+     */
+    await expect(loose.getByText(/open tasks?/)).toBeVisible();
+    await expect(loose).toContainText(/\d+\s*open tasks?/);
   });
 
   test("collection: meets touch targets and stays overflow-free at 320px", async ({

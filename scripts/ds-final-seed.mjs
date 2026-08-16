@@ -193,20 +193,37 @@ function link(id, source, target, type) {
 
 /* -- Areas ----------------------------------------------------------------- */
 
+/*
+ * IDENTITY-01 — the fixture exists to be JUDGED AS A GRID.
+ *
+ * A ramp cannot be assessed one card at a time: the questions it has to answer
+ * are "are these sixteen distinguishable?", "does amber survive on a near-white
+ * tile?", "does dark read as identity or as a rainbow?". So the Areas and
+ * Projects below carry CHOSEN slots across the ramp — including the three §5
+ * flagged as contrast edge cases (amber, lime, sky) — and several deliberately
+ * carry none, so the derived fallback is visible in the same screenshot as the
+ * chosen ones and a reviewer can see that an unchosen record looks exactly as it
+ * did before.
+ *
+ * `[id, title, iconKey, colourSlot]`. A `null` slot means "chose nothing".
+ */
 const AREAS = [
-  ["area-health", "Health & Fitness", "shield"],
-  ["area-work", "Work", "folder"],
-  ["area-home", "Home", "property"],
-  ["area-growth", "Learning", "idea"],
+  ["area-health", "Health & Fitness", "heart", "green"],
+  ["area-work", "Work", "briefcase", "violet"],
+  ["area-home", "Home", "property", "amber"],
+  ["area-growth", "Learning", "book", null],
 ];
-for (const [suffix, title, iconKey] of AREAS) {
+for (const [suffix, title, iconKey, colourSlot] of AREAS) {
   const id = PREFIX + suffix;
   entity(id, "area", title);
   spine(id, "area");
   statements.push(
-    `INSERT INTO area_details (workspace_id, entity_id, entity_type, archived_at, icon_key, updated_at)
-     VALUES (${q(WORKSPACE)}, ${q(id)}, 'area', NULL, ${q(iconKey)}, ${q(STAMP)})
-     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET icon_key = excluded.icon_key, updated_at = excluded.updated_at;`,
+    `INSERT INTO area_details (workspace_id, entity_id, entity_type, archived_at, icon_key, colour_slot, updated_at)
+     VALUES (${q(WORKSPACE)}, ${q(id)}, 'area', NULL, ${q(iconKey)}, ${q(colourSlot)}, ${q(STAMP)})
+     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+       icon_key = excluded.icon_key,
+       colour_slot = excluded.colour_slot,
+       updated_at = excluded.updated_at;`,
   );
 }
 
@@ -220,6 +237,8 @@ for (const [suffix, title, iconKey] of AREAS) {
 const GOALS = [
   {
     suffix: "goal-weight",
+    iconKey: "heart",
+    // No colour of its own: it must inherit its Area's resolved identity.
     title: "Reach 78 kg",
     area: "area-health",
     unit: "kg",
@@ -240,6 +259,8 @@ const GOALS = [
   },
   {
     suffix: "goal-run",
+    iconKey: "running",
+    colour: "pink",
     title: "Run 10 km without stopping",
     area: "area-health",
     unit: "km",
@@ -259,6 +280,8 @@ const GOALS = [
   },
   {
     suffix: "goal-savings",
+    iconKey: "savings",
+    colour: "teal",
     title: "Build a $40k safety net",
     area: "area-work",
     unit: "$",
@@ -284,6 +307,8 @@ const GOALS = [
    */
   {
     suffix: "goal-sleep",
+    iconKey: "sleep",
+    // No colour of its own: it must inherit its Area's resolved identity.
     title: "Sleep seven hours a night",
     area: "area-health",
     unit: "h",
@@ -300,6 +325,7 @@ const GOALS = [
    */
   {
     suffix: "goal-mentor",
+    colour: "purple",
     title: "Mentor two junior engineers",
     area: "area-work",
     unmeasured: true,
@@ -308,6 +334,8 @@ const GOALS = [
   },
   {
     suffix: "goal-spanish",
+    iconKey: "language",
+    // No colour of its own: it must inherit its Area's resolved identity.
     title: "Hold a conversation in Spanish",
     area: "area-growth",
     milestones: [
@@ -338,11 +366,14 @@ for (const goal of GOALS) {
   statements.push(
     `INSERT INTO goal_details
        (workspace_id, entity_id, entity_type, target_date, definition_of_done,
-        measurement_type, measurement_unit, measurement_direction, baseline_value, target_value, updated_at)
+        measurement_type, measurement_unit, measurement_direction, baseline_value, target_value,
+        icon_key, colour_slot, updated_at)
      VALUES (${q(WORKSPACE)}, ${q(id)}, 'goal', ${q(goal.targetDate)}, ${q(goal.dod)},
        ${q(measured)}, ${q(goal.unit ?? null)}, ${q(goal.direction ?? null)},
-       ${goal.baseline ?? "NULL"}, ${goal.target ?? "NULL"}, ${q(STAMP)})
-     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET target_date = excluded.target_date,
+       ${goal.baseline ?? "NULL"}, ${goal.target ?? "NULL"},
+       ${q(goal.iconKey ?? null)}, ${q(goal.colour ?? null)}, ${q(STAMP)})
+     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET icon_key = excluded.icon_key,
+       colour_slot = excluded.colour_slot, target_date = excluded.target_date,
        definition_of_done = excluded.definition_of_done, measurement_type = excluded.measurement_type,
        measurement_unit = excluded.measurement_unit, measurement_direction = excluded.measurement_direction,
        baseline_value = excluded.baseline_value, target_value = excluded.target_value, updated_at = excluded.updated_at;`,
@@ -374,6 +405,7 @@ for (const goal of GOALS) {
 const PROJECTS = [
   {
     suffix: "proj-halfmarathon",
+    colour: "lime",
     title: "Half-marathon training block",
     area: "area-health",
     goal: "goal-run",
@@ -385,6 +417,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-kitchen",
+    colour: "orange",
     title: "Kitchen fit-out",
     area: "area-home",
     status: "active",
@@ -395,6 +428,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-dalyhub",
+    colour: "blue",
     title: "Ship DalyHub V2",
     area: "area-work",
     status: "active",
@@ -405,6 +439,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-offset",
+    colour: "emerald",
     title: "Refinance and offset setup",
     area: "area-work",
     goal: "goal-savings",
@@ -416,6 +451,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-spanish",
+    colour: "sky",
     title: "Spanish A2 course",
     area: "area-growth",
     goal: "goal-spanish",
@@ -427,6 +463,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-garden",
+    colour: "brown",
     title: "Back garden rebuild",
     area: "area-home",
     status: "planned",
@@ -437,6 +474,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-website",
+    colour: "fuchsia",
     title: "Consultancy site relaunch",
     area: "area-work",
     status: "active",
@@ -447,6 +485,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-move",
+    colour: "cyan",
     title: "Studio move",
     area: "area-home",
     status: "on_hold",
@@ -463,6 +502,9 @@ const PROJECTS = [
    */
   {
     suffix: "proj-archive-crm",
+    // Deliberately unchosen: the derived fallback must be visible in the
+    // SAME screenshot as the chosen ones.
+    colour: null,
     title: "CRM migration",
     area: "area-work",
     status: "on_hold",
@@ -474,6 +516,7 @@ const PROJECTS = [
   },
   {
     suffix: "proj-archive-loft",
+    colour: "rose",
     title: "Loft insulation",
     area: "area-home",
     status: "planned",
@@ -546,9 +589,14 @@ for (const project of PROJECTS) {
     );
   }
   statements.push(
-    `INSERT INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, icon_key, updated_at)
-     VALUES (${q(WORKSPACE)}, ${q(id)}, 'project', ${q(project.status)}, ${q(project.archived ? at(-30, 10) : null)}, ${q(project.icon)}, ${q(STAMP)})
-     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET status = excluded.status, archived_at = excluded.archived_at, icon_key = excluded.icon_key, updated_at = excluded.updated_at;`,
+    `INSERT INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, icon_key, colour_slot, updated_at)
+     VALUES (${q(WORKSPACE)}, ${q(id)}, 'project', ${q(project.status)}, ${q(project.archived ? at(-30, 10) : null)}, ${q(project.icon)}, ${q(project.colour ?? null)}, ${q(STAMP)})
+     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+       status = excluded.status,
+       archived_at = excluded.archived_at,
+       icon_key = excluded.icon_key,
+       colour_slot = excluded.colour_slot,
+       updated_at = excluded.updated_at;`,
   );
 
   /* Completed tasks, spread across the last fortnight so a trend has a shape. */

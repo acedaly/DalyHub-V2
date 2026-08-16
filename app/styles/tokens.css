@@ -382,6 +382,72 @@
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
   --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
   --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #5646e0;
+  --identity-violet-tint: #f8f8fe;
+  --identity-violet-edge: #d6d3f8;
+  --identity-violet-soft: #ebe9fb;
+  --identity-green: #149e35;
+  --identity-green-tint: #f6fbf7;
+  --identity-green-edge: #c7e8cf;
+  --identity-green-soft: #e3f3e7;
+  --identity-red: #e93a3c;
+  --identity-red-tint: #fef7f7;
+  --identity-red-edge: #fad0d0;
+  --identity-red-soft: #fce7e8;
+  --identity-orange: #ce7100;
+  --identity-orange-tint: #fdf9f5;
+  --identity-orange-edge: #f3ddc2;
+  --identity-orange-soft: #f9eee0;
+  --identity-blue: #1d5bee;
+  --identity-blue-tint: #f6f8fe;
+  --identity-blue-edge: #c9d8fb;
+  --identity-blue-soft: #e4ebfd;
+  --identity-teal: #0d9488;
+  --identity-teal-tint: #f5fbfa;
+  --identity-teal-edge: #c5e5e2;
+  --identity-teal-soft: #e2f2f1;
+  --identity-purple: #8b3de8;
+  --identity-purple-tint: #faf7fe;
+  --identity-purple-edge: #e3d0f9;
+  --identity-purple-soft: #f1e8fc;
+  --identity-fuchsia: #c026d3;
+  --identity-fuchsia-tint: #fcf6fd;
+  --identity-fuchsia-edge: #f0cbf4;
+  --identity-fuchsia-soft: #f7e5fa;
+  --identity-pink: #ec4899;
+  --identity-pink-tint: #fef8fb;
+  --identity-pink-edge: #fad3e7;
+  --identity-pink-soft: #fde9f3;
+  --identity-rose: #e11d48;
+  --identity-rose-tint: #fef6f8;
+  --identity-rose-edge: #f8c9d3;
+  --identity-rose-soft: #fbe4e9;
+  --identity-amber: #ac8300;
+  --identity-amber-tint: #fcfaf5;
+  --identity-amber-edge: #ebe1c2;
+  --identity-amber-soft: #f5f0e0;
+  --identity-lime: #5d9900;
+  --identity-lime-tint: #f9fbf5;
+  --identity-lime-edge: #d8e7c2;
+  --identity-lime-soft: #ecf3e0;
+  --identity-emerald: #059669;
+  --identity-emerald-tint: #f5fbf9;
+  --identity-emerald-edge: #c3e6db;
+  --identity-emerald-soft: #e1f2ed;
+  --identity-cyan: #0891b2;
+  --identity-cyan-tint: #f5fbfc;
+  --identity-cyan-edge: #c4e5ed;
+  --identity-cyan-soft: #e1f2f6;
+  --identity-sky: #0284c7;
+  --identity-sky-tint: #f5fafd;
+  --identity-sky-edge: #c2e1f2;
+  --identity-sky-soft: #e1f0f8;
+  --identity-brown: #92400e;
+  --identity-brown-tint: #fbf7f5;
+  --identity-brown-edge: #e5d1c5;
+  --identity-brown-soft: #f2e8e2;
 }
 
 /* Electric — light. */
@@ -691,6 +757,72 @@
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
   --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
   --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #5646e0;
+  --identity-violet-tint: #f8f8fe;
+  --identity-violet-edge: #d6d3f8;
+  --identity-violet-soft: #ebe9fb;
+  --identity-green: #149e35;
+  --identity-green-tint: #f6fbf7;
+  --identity-green-edge: #c7e8cf;
+  --identity-green-soft: #e3f3e7;
+  --identity-red: #e93a3c;
+  --identity-red-tint: #fef7f7;
+  --identity-red-edge: #fad0d0;
+  --identity-red-soft: #fce7e8;
+  --identity-orange: #ce7100;
+  --identity-orange-tint: #fdf9f5;
+  --identity-orange-edge: #f3ddc2;
+  --identity-orange-soft: #f9eee0;
+  --identity-blue: #1d5bee;
+  --identity-blue-tint: #f6f8fe;
+  --identity-blue-edge: #c9d8fb;
+  --identity-blue-soft: #e4ebfd;
+  --identity-teal: #0d9488;
+  --identity-teal-tint: #f5fbfa;
+  --identity-teal-edge: #c5e5e2;
+  --identity-teal-soft: #e2f2f1;
+  --identity-purple: #8b3de8;
+  --identity-purple-tint: #faf7fe;
+  --identity-purple-edge: #e3d0f9;
+  --identity-purple-soft: #f1e8fc;
+  --identity-fuchsia: #c026d3;
+  --identity-fuchsia-tint: #fcf6fd;
+  --identity-fuchsia-edge: #f0cbf4;
+  --identity-fuchsia-soft: #f7e5fa;
+  --identity-pink: #ec4899;
+  --identity-pink-tint: #fef8fb;
+  --identity-pink-edge: #fad3e7;
+  --identity-pink-soft: #fde9f3;
+  --identity-rose: #e11d48;
+  --identity-rose-tint: #fef6f8;
+  --identity-rose-edge: #f8c9d3;
+  --identity-rose-soft: #fbe4e9;
+  --identity-amber: #ac8300;
+  --identity-amber-tint: #fcfaf5;
+  --identity-amber-edge: #ebe1c2;
+  --identity-amber-soft: #f5f0e0;
+  --identity-lime: #5d9900;
+  --identity-lime-tint: #f9fbf5;
+  --identity-lime-edge: #d8e7c2;
+  --identity-lime-soft: #ecf3e0;
+  --identity-emerald: #059669;
+  --identity-emerald-tint: #f5fbf9;
+  --identity-emerald-edge: #c3e6db;
+  --identity-emerald-soft: #e1f2ed;
+  --identity-cyan: #0891b2;
+  --identity-cyan-tint: #f5fbfc;
+  --identity-cyan-edge: #c4e5ed;
+  --identity-cyan-soft: #e1f2f6;
+  --identity-sky: #0284c7;
+  --identity-sky-tint: #f5fafd;
+  --identity-sky-edge: #c2e1f2;
+  --identity-sky-soft: #e1f0f8;
+  --identity-brown: #92400e;
+  --identity-brown-tint: #fbf7f5;
+  --identity-brown-edge: #e5d1c5;
+  --identity-brown-soft: #f2e8e2;
 }
 
 /* Pulse — light. */
@@ -1000,6 +1132,72 @@
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
   --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
   --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #5646e0;
+  --identity-violet-tint: #f8f8fe;
+  --identity-violet-edge: #d6d3f8;
+  --identity-violet-soft: #ebe9fb;
+  --identity-green: #149e35;
+  --identity-green-tint: #f6fbf7;
+  --identity-green-edge: #c7e8cf;
+  --identity-green-soft: #e3f3e7;
+  --identity-red: #e93a3c;
+  --identity-red-tint: #fef7f7;
+  --identity-red-edge: #fad0d0;
+  --identity-red-soft: #fce7e8;
+  --identity-orange: #ce7100;
+  --identity-orange-tint: #fdf9f5;
+  --identity-orange-edge: #f3ddc2;
+  --identity-orange-soft: #f9eee0;
+  --identity-blue: #1d5bee;
+  --identity-blue-tint: #f6f8fe;
+  --identity-blue-edge: #c9d8fb;
+  --identity-blue-soft: #e4ebfd;
+  --identity-teal: #0d9488;
+  --identity-teal-tint: #f5fbfa;
+  --identity-teal-edge: #c5e5e2;
+  --identity-teal-soft: #e2f2f1;
+  --identity-purple: #8b3de8;
+  --identity-purple-tint: #faf7fe;
+  --identity-purple-edge: #e3d0f9;
+  --identity-purple-soft: #f1e8fc;
+  --identity-fuchsia: #c026d3;
+  --identity-fuchsia-tint: #fcf6fd;
+  --identity-fuchsia-edge: #f0cbf4;
+  --identity-fuchsia-soft: #f7e5fa;
+  --identity-pink: #ec4899;
+  --identity-pink-tint: #fef8fb;
+  --identity-pink-edge: #fad3e7;
+  --identity-pink-soft: #fde9f3;
+  --identity-rose: #e11d48;
+  --identity-rose-tint: #fef6f8;
+  --identity-rose-edge: #f8c9d3;
+  --identity-rose-soft: #fbe4e9;
+  --identity-amber: #ac8300;
+  --identity-amber-tint: #fcfaf5;
+  --identity-amber-edge: #ebe1c2;
+  --identity-amber-soft: #f5f0e0;
+  --identity-lime: #5d9900;
+  --identity-lime-tint: #f9fbf5;
+  --identity-lime-edge: #d8e7c2;
+  --identity-lime-soft: #ecf3e0;
+  --identity-emerald: #059669;
+  --identity-emerald-tint: #f5fbf9;
+  --identity-emerald-edge: #c3e6db;
+  --identity-emerald-soft: #e1f2ed;
+  --identity-cyan: #0891b2;
+  --identity-cyan-tint: #f5fbfc;
+  --identity-cyan-edge: #c4e5ed;
+  --identity-cyan-soft: #e1f2f6;
+  --identity-sky: #0284c7;
+  --identity-sky-tint: #f5fafd;
+  --identity-sky-edge: #c2e1f2;
+  --identity-sky-soft: #e1f0f8;
+  --identity-brown: #92400e;
+  --identity-brown-tint: #fbf7f5;
+  --identity-brown-edge: #e5d1c5;
+  --identity-brown-soft: #f2e8e2;
 }
 
 /* Ocean — light. */
@@ -1309,6 +1507,72 @@
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
   --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
   --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #5646e0;
+  --identity-violet-tint: #f8f8fe;
+  --identity-violet-edge: #d6d3f8;
+  --identity-violet-soft: #ebe9fb;
+  --identity-green: #149e35;
+  --identity-green-tint: #f6fbf7;
+  --identity-green-edge: #c7e8cf;
+  --identity-green-soft: #e3f3e7;
+  --identity-red: #e93a3c;
+  --identity-red-tint: #fef7f7;
+  --identity-red-edge: #fad0d0;
+  --identity-red-soft: #fce7e8;
+  --identity-orange: #ce7100;
+  --identity-orange-tint: #fdf9f5;
+  --identity-orange-edge: #f3ddc2;
+  --identity-orange-soft: #f9eee0;
+  --identity-blue: #1d5bee;
+  --identity-blue-tint: #f6f8fe;
+  --identity-blue-edge: #c9d8fb;
+  --identity-blue-soft: #e4ebfd;
+  --identity-teal: #0d9488;
+  --identity-teal-tint: #f5fbfa;
+  --identity-teal-edge: #c5e5e2;
+  --identity-teal-soft: #e2f2f1;
+  --identity-purple: #8b3de8;
+  --identity-purple-tint: #faf7fe;
+  --identity-purple-edge: #e3d0f9;
+  --identity-purple-soft: #f1e8fc;
+  --identity-fuchsia: #c026d3;
+  --identity-fuchsia-tint: #fcf6fd;
+  --identity-fuchsia-edge: #f0cbf4;
+  --identity-fuchsia-soft: #f7e5fa;
+  --identity-pink: #ec4899;
+  --identity-pink-tint: #fef8fb;
+  --identity-pink-edge: #fad3e7;
+  --identity-pink-soft: #fde9f3;
+  --identity-rose: #e11d48;
+  --identity-rose-tint: #fef6f8;
+  --identity-rose-edge: #f8c9d3;
+  --identity-rose-soft: #fbe4e9;
+  --identity-amber: #ac8300;
+  --identity-amber-tint: #fcfaf5;
+  --identity-amber-edge: #ebe1c2;
+  --identity-amber-soft: #f5f0e0;
+  --identity-lime: #5d9900;
+  --identity-lime-tint: #f9fbf5;
+  --identity-lime-edge: #d8e7c2;
+  --identity-lime-soft: #ecf3e0;
+  --identity-emerald: #059669;
+  --identity-emerald-tint: #f5fbf9;
+  --identity-emerald-edge: #c3e6db;
+  --identity-emerald-soft: #e1f2ed;
+  --identity-cyan: #0891b2;
+  --identity-cyan-tint: #f5fbfc;
+  --identity-cyan-edge: #c4e5ed;
+  --identity-cyan-soft: #e1f2f6;
+  --identity-sky: #0284c7;
+  --identity-sky-tint: #f5fafd;
+  --identity-sky-edge: #c2e1f2;
+  --identity-sky-soft: #e1f0f8;
+  --identity-brown: #92400e;
+  --identity-brown-tint: #fbf7f5;
+  --identity-brown-edge: #e5d1c5;
+  --identity-brown-soft: #f2e8e2;
 }
 
 /* Graphite — light. */
@@ -1618,6 +1882,72 @@
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
   --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
   --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #5646e0;
+  --identity-violet-tint: #f8f8fe;
+  --identity-violet-edge: #d6d3f8;
+  --identity-violet-soft: #ebe9fb;
+  --identity-green: #149e35;
+  --identity-green-tint: #f6fbf7;
+  --identity-green-edge: #c7e8cf;
+  --identity-green-soft: #e3f3e7;
+  --identity-red: #e93a3c;
+  --identity-red-tint: #fef7f7;
+  --identity-red-edge: #fad0d0;
+  --identity-red-soft: #fce7e8;
+  --identity-orange: #ce7100;
+  --identity-orange-tint: #fdf9f5;
+  --identity-orange-edge: #f3ddc2;
+  --identity-orange-soft: #f9eee0;
+  --identity-blue: #1d5bee;
+  --identity-blue-tint: #f6f8fe;
+  --identity-blue-edge: #c9d8fb;
+  --identity-blue-soft: #e4ebfd;
+  --identity-teal: #0d9488;
+  --identity-teal-tint: #f5fbfa;
+  --identity-teal-edge: #c5e5e2;
+  --identity-teal-soft: #e2f2f1;
+  --identity-purple: #8b3de8;
+  --identity-purple-tint: #faf7fe;
+  --identity-purple-edge: #e3d0f9;
+  --identity-purple-soft: #f1e8fc;
+  --identity-fuchsia: #c026d3;
+  --identity-fuchsia-tint: #fcf6fd;
+  --identity-fuchsia-edge: #f0cbf4;
+  --identity-fuchsia-soft: #f7e5fa;
+  --identity-pink: #ec4899;
+  --identity-pink-tint: #fef8fb;
+  --identity-pink-edge: #fad3e7;
+  --identity-pink-soft: #fde9f3;
+  --identity-rose: #e11d48;
+  --identity-rose-tint: #fef6f8;
+  --identity-rose-edge: #f8c9d3;
+  --identity-rose-soft: #fbe4e9;
+  --identity-amber: #ac8300;
+  --identity-amber-tint: #fcfaf5;
+  --identity-amber-edge: #ebe1c2;
+  --identity-amber-soft: #f5f0e0;
+  --identity-lime: #5d9900;
+  --identity-lime-tint: #f9fbf5;
+  --identity-lime-edge: #d8e7c2;
+  --identity-lime-soft: #ecf3e0;
+  --identity-emerald: #059669;
+  --identity-emerald-tint: #f5fbf9;
+  --identity-emerald-edge: #c3e6db;
+  --identity-emerald-soft: #e1f2ed;
+  --identity-cyan: #0891b2;
+  --identity-cyan-tint: #f5fbfc;
+  --identity-cyan-edge: #c4e5ed;
+  --identity-cyan-soft: #e1f2f6;
+  --identity-sky: #0284c7;
+  --identity-sky-tint: #f5fafd;
+  --identity-sky-edge: #c2e1f2;
+  --identity-sky-soft: #e1f0f8;
+  --identity-brown: #92400e;
+  --identity-brown-tint: #fbf7f5;
+  --identity-brown-edge: #e5d1c5;
+  --identity-brown-soft: #f2e8e2;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1929,6 +2259,72 @@
       0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
     --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+    /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+    --identity-violet: #a19aff;
+    --identity-violet-tint: #282735;
+    --identity-violet-edge: #454367;
+    --identity-violet-soft: #323147;
+    --identity-green: #40bd50;
+    --identity-green-tint: #1e2a24;
+    --identity-green-edge: #264e2f;
+    --identity-green-soft: #213728;
+    --identity-red: #ff8078;
+    --identity-red-tint: #312428;
+    --identity-red-edge: #633b3b;
+    --identity-red-soft: #432c2f;
+    --identity-orange: #f28d27;
+    --identity-orange-tint: #302620;
+    --identity-orange-edge: #5f3f22;
+    --identity-orange-soft: #412f20;
+    --identity-blue: #86a1ff;
+    --identity-blue-tint: #252835;
+    --identity-blue-edge: #3d4567;
+    --identity-blue-soft: #2d3247;
+    --identity-teal: #46b7aa;
+    --identity-teal-tint: #1e2a2d;
+    --identity-teal-edge: #284c4b;
+    --identity-teal-soft: #223638;
+    --identity-purple: #bf8fff;
+    --identity-purple-tint: #2b2635;
+    --identity-purple-edge: #4f3f67;
+    --identity-purple-soft: #382f47;
+    --identity-fuchsia: #f370ff;
+    --identity-fuchsia-tint: #302335;
+    --identity-fuchsia-edge: #5f3667;
+    --identity-fuchsia-soft: #412947;
+    --identity-pink: #ff78b3;
+    --identity-pink-tint: #31232e;
+    --identity-pink-edge: #63384e;
+    --identity-pink-soft: #432b3a;
+    --identity-rose: #ff7e88;
+    --identity-rose-tint: #31242a;
+    --identity-rose-edge: #633a41;
+    --identity-rose-soft: #432c32;
+    --identity-amber: #cca028;
+    --identity-amber-tint: #2c2720;
+    --identity-amber-edge: #534522;
+    --identity-amber-soft: #3a3221;
+    --identity-lime: #78b72a;
+    --identity-lime-tint: #232a20;
+    --identity-lime-edge: #384c23;
+    --identity-lime-soft: #2b3621;
+    --identity-emerald: #43ba8a;
+    --identity-emerald-tint: #1e2a2a;
+    --identity-emerald-edge: #274d41;
+    --identity-emerald-soft: #213732;
+    --identity-cyan: #46b2d4;
+    --identity-cyan-tint: #1e2931;
+    --identity-cyan-edge: #284b59;
+    --identity-cyan-soft: #223540;
+    --identity-sky: #4eadf3;
+    --identity-sky-tint: #1f2934;
+    --identity-sky-edge: #2b4963;
+    --identity-sky-soft: #233445;
+    --identity-brown: #f38a54;
+    --identity-brown-tint: #302524;
+    --identity-brown-edge: #5f3e30;
+    --identity-brown-soft: #412e29;
   }
 
   /* Electric — the device's dark. */
@@ -2238,6 +2634,72 @@
       0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
     --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+    /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+    --identity-violet: #a19aff;
+    --identity-violet-tint: #282735;
+    --identity-violet-edge: #454367;
+    --identity-violet-soft: #323147;
+    --identity-green: #40bd50;
+    --identity-green-tint: #1e2a24;
+    --identity-green-edge: #264e2f;
+    --identity-green-soft: #213728;
+    --identity-red: #ff8078;
+    --identity-red-tint: #312428;
+    --identity-red-edge: #633b3b;
+    --identity-red-soft: #432c2f;
+    --identity-orange: #f28d27;
+    --identity-orange-tint: #302620;
+    --identity-orange-edge: #5f3f22;
+    --identity-orange-soft: #412f20;
+    --identity-blue: #86a1ff;
+    --identity-blue-tint: #252835;
+    --identity-blue-edge: #3d4567;
+    --identity-blue-soft: #2d3247;
+    --identity-teal: #46b7aa;
+    --identity-teal-tint: #1e2a2d;
+    --identity-teal-edge: #284c4b;
+    --identity-teal-soft: #223638;
+    --identity-purple: #bf8fff;
+    --identity-purple-tint: #2b2635;
+    --identity-purple-edge: #4f3f67;
+    --identity-purple-soft: #382f47;
+    --identity-fuchsia: #f370ff;
+    --identity-fuchsia-tint: #302335;
+    --identity-fuchsia-edge: #5f3667;
+    --identity-fuchsia-soft: #412947;
+    --identity-pink: #ff78b3;
+    --identity-pink-tint: #31232e;
+    --identity-pink-edge: #63384e;
+    --identity-pink-soft: #432b3a;
+    --identity-rose: #ff7e88;
+    --identity-rose-tint: #31242a;
+    --identity-rose-edge: #633a41;
+    --identity-rose-soft: #432c32;
+    --identity-amber: #cca028;
+    --identity-amber-tint: #2c2720;
+    --identity-amber-edge: #534522;
+    --identity-amber-soft: #3a3221;
+    --identity-lime: #78b72a;
+    --identity-lime-tint: #232a20;
+    --identity-lime-edge: #384c23;
+    --identity-lime-soft: #2b3621;
+    --identity-emerald: #43ba8a;
+    --identity-emerald-tint: #1e2a2a;
+    --identity-emerald-edge: #274d41;
+    --identity-emerald-soft: #213732;
+    --identity-cyan: #46b2d4;
+    --identity-cyan-tint: #1e2931;
+    --identity-cyan-edge: #284b59;
+    --identity-cyan-soft: #223540;
+    --identity-sky: #4eadf3;
+    --identity-sky-tint: #1f2934;
+    --identity-sky-edge: #2b4963;
+    --identity-sky-soft: #233445;
+    --identity-brown: #f38a54;
+    --identity-brown-tint: #302524;
+    --identity-brown-edge: #5f3e30;
+    --identity-brown-soft: #412e29;
   }
 
   /* Pulse — the device's dark. */
@@ -2547,6 +3009,72 @@
       0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
     --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+    /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+    --identity-violet: #a19aff;
+    --identity-violet-tint: #282735;
+    --identity-violet-edge: #454367;
+    --identity-violet-soft: #323147;
+    --identity-green: #40bd50;
+    --identity-green-tint: #1e2a24;
+    --identity-green-edge: #264e2f;
+    --identity-green-soft: #213728;
+    --identity-red: #ff8078;
+    --identity-red-tint: #312428;
+    --identity-red-edge: #633b3b;
+    --identity-red-soft: #432c2f;
+    --identity-orange: #f28d27;
+    --identity-orange-tint: #302620;
+    --identity-orange-edge: #5f3f22;
+    --identity-orange-soft: #412f20;
+    --identity-blue: #86a1ff;
+    --identity-blue-tint: #252835;
+    --identity-blue-edge: #3d4567;
+    --identity-blue-soft: #2d3247;
+    --identity-teal: #46b7aa;
+    --identity-teal-tint: #1e2a2d;
+    --identity-teal-edge: #284c4b;
+    --identity-teal-soft: #223638;
+    --identity-purple: #bf8fff;
+    --identity-purple-tint: #2b2635;
+    --identity-purple-edge: #4f3f67;
+    --identity-purple-soft: #382f47;
+    --identity-fuchsia: #f370ff;
+    --identity-fuchsia-tint: #302335;
+    --identity-fuchsia-edge: #5f3667;
+    --identity-fuchsia-soft: #412947;
+    --identity-pink: #ff78b3;
+    --identity-pink-tint: #31232e;
+    --identity-pink-edge: #63384e;
+    --identity-pink-soft: #432b3a;
+    --identity-rose: #ff7e88;
+    --identity-rose-tint: #31242a;
+    --identity-rose-edge: #633a41;
+    --identity-rose-soft: #432c32;
+    --identity-amber: #cca028;
+    --identity-amber-tint: #2c2720;
+    --identity-amber-edge: #534522;
+    --identity-amber-soft: #3a3221;
+    --identity-lime: #78b72a;
+    --identity-lime-tint: #232a20;
+    --identity-lime-edge: #384c23;
+    --identity-lime-soft: #2b3621;
+    --identity-emerald: #43ba8a;
+    --identity-emerald-tint: #1e2a2a;
+    --identity-emerald-edge: #274d41;
+    --identity-emerald-soft: #213732;
+    --identity-cyan: #46b2d4;
+    --identity-cyan-tint: #1e2931;
+    --identity-cyan-edge: #284b59;
+    --identity-cyan-soft: #223540;
+    --identity-sky: #4eadf3;
+    --identity-sky-tint: #1f2934;
+    --identity-sky-edge: #2b4963;
+    --identity-sky-soft: #233445;
+    --identity-brown: #f38a54;
+    --identity-brown-tint: #302524;
+    --identity-brown-edge: #5f3e30;
+    --identity-brown-soft: #412e29;
   }
 
   /* Ocean — the device's dark. */
@@ -2856,6 +3384,72 @@
       0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
     --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+    /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+    --identity-violet: #a19aff;
+    --identity-violet-tint: #282735;
+    --identity-violet-edge: #454367;
+    --identity-violet-soft: #323147;
+    --identity-green: #40bd50;
+    --identity-green-tint: #1e2a24;
+    --identity-green-edge: #264e2f;
+    --identity-green-soft: #213728;
+    --identity-red: #ff8078;
+    --identity-red-tint: #312428;
+    --identity-red-edge: #633b3b;
+    --identity-red-soft: #432c2f;
+    --identity-orange: #f28d27;
+    --identity-orange-tint: #302620;
+    --identity-orange-edge: #5f3f22;
+    --identity-orange-soft: #412f20;
+    --identity-blue: #86a1ff;
+    --identity-blue-tint: #252835;
+    --identity-blue-edge: #3d4567;
+    --identity-blue-soft: #2d3247;
+    --identity-teal: #46b7aa;
+    --identity-teal-tint: #1e2a2d;
+    --identity-teal-edge: #284c4b;
+    --identity-teal-soft: #223638;
+    --identity-purple: #bf8fff;
+    --identity-purple-tint: #2b2635;
+    --identity-purple-edge: #4f3f67;
+    --identity-purple-soft: #382f47;
+    --identity-fuchsia: #f370ff;
+    --identity-fuchsia-tint: #302335;
+    --identity-fuchsia-edge: #5f3667;
+    --identity-fuchsia-soft: #412947;
+    --identity-pink: #ff78b3;
+    --identity-pink-tint: #31232e;
+    --identity-pink-edge: #63384e;
+    --identity-pink-soft: #432b3a;
+    --identity-rose: #ff7e88;
+    --identity-rose-tint: #31242a;
+    --identity-rose-edge: #633a41;
+    --identity-rose-soft: #432c32;
+    --identity-amber: #cca028;
+    --identity-amber-tint: #2c2720;
+    --identity-amber-edge: #534522;
+    --identity-amber-soft: #3a3221;
+    --identity-lime: #78b72a;
+    --identity-lime-tint: #232a20;
+    --identity-lime-edge: #384c23;
+    --identity-lime-soft: #2b3621;
+    --identity-emerald: #43ba8a;
+    --identity-emerald-tint: #1e2a2a;
+    --identity-emerald-edge: #274d41;
+    --identity-emerald-soft: #213732;
+    --identity-cyan: #46b2d4;
+    --identity-cyan-tint: #1e2931;
+    --identity-cyan-edge: #284b59;
+    --identity-cyan-soft: #223540;
+    --identity-sky: #4eadf3;
+    --identity-sky-tint: #1f2934;
+    --identity-sky-edge: #2b4963;
+    --identity-sky-soft: #233445;
+    --identity-brown: #f38a54;
+    --identity-brown-tint: #302524;
+    --identity-brown-edge: #5f3e30;
+    --identity-brown-soft: #412e29;
   }
 
   /* Graphite — the device's dark. */
@@ -3165,6 +3759,72 @@
       0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
     --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+    /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+    --identity-violet: #a19aff;
+    --identity-violet-tint: #282735;
+    --identity-violet-edge: #454367;
+    --identity-violet-soft: #323147;
+    --identity-green: #40bd50;
+    --identity-green-tint: #1e2a24;
+    --identity-green-edge: #264e2f;
+    --identity-green-soft: #213728;
+    --identity-red: #ff8078;
+    --identity-red-tint: #312428;
+    --identity-red-edge: #633b3b;
+    --identity-red-soft: #432c2f;
+    --identity-orange: #f28d27;
+    --identity-orange-tint: #302620;
+    --identity-orange-edge: #5f3f22;
+    --identity-orange-soft: #412f20;
+    --identity-blue: #86a1ff;
+    --identity-blue-tint: #252835;
+    --identity-blue-edge: #3d4567;
+    --identity-blue-soft: #2d3247;
+    --identity-teal: #46b7aa;
+    --identity-teal-tint: #1e2a2d;
+    --identity-teal-edge: #284c4b;
+    --identity-teal-soft: #223638;
+    --identity-purple: #bf8fff;
+    --identity-purple-tint: #2b2635;
+    --identity-purple-edge: #4f3f67;
+    --identity-purple-soft: #382f47;
+    --identity-fuchsia: #f370ff;
+    --identity-fuchsia-tint: #302335;
+    --identity-fuchsia-edge: #5f3667;
+    --identity-fuchsia-soft: #412947;
+    --identity-pink: #ff78b3;
+    --identity-pink-tint: #31232e;
+    --identity-pink-edge: #63384e;
+    --identity-pink-soft: #432b3a;
+    --identity-rose: #ff7e88;
+    --identity-rose-tint: #31242a;
+    --identity-rose-edge: #633a41;
+    --identity-rose-soft: #432c32;
+    --identity-amber: #cca028;
+    --identity-amber-tint: #2c2720;
+    --identity-amber-edge: #534522;
+    --identity-amber-soft: #3a3221;
+    --identity-lime: #78b72a;
+    --identity-lime-tint: #232a20;
+    --identity-lime-edge: #384c23;
+    --identity-lime-soft: #2b3621;
+    --identity-emerald: #43ba8a;
+    --identity-emerald-tint: #1e2a2a;
+    --identity-emerald-edge: #274d41;
+    --identity-emerald-soft: #213732;
+    --identity-cyan: #46b2d4;
+    --identity-cyan-tint: #1e2931;
+    --identity-cyan-edge: #284b59;
+    --identity-cyan-soft: #223540;
+    --identity-sky: #4eadf3;
+    --identity-sky-tint: #1f2934;
+    --identity-sky-edge: #2b4963;
+    --identity-sky-soft: #233445;
+    --identity-brown: #f38a54;
+    --identity-brown-tint: #302524;
+    --identity-brown-edge: #5f3e30;
+    --identity-brown-soft: #412e29;
   }
 }
 
@@ -3483,6 +4143,72 @@
     0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
   --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #a19aff;
+  --identity-violet-tint: #282735;
+  --identity-violet-edge: #454367;
+  --identity-violet-soft: #323147;
+  --identity-green: #40bd50;
+  --identity-green-tint: #1e2a24;
+  --identity-green-edge: #264e2f;
+  --identity-green-soft: #213728;
+  --identity-red: #ff8078;
+  --identity-red-tint: #312428;
+  --identity-red-edge: #633b3b;
+  --identity-red-soft: #432c2f;
+  --identity-orange: #f28d27;
+  --identity-orange-tint: #302620;
+  --identity-orange-edge: #5f3f22;
+  --identity-orange-soft: #412f20;
+  --identity-blue: #86a1ff;
+  --identity-blue-tint: #252835;
+  --identity-blue-edge: #3d4567;
+  --identity-blue-soft: #2d3247;
+  --identity-teal: #46b7aa;
+  --identity-teal-tint: #1e2a2d;
+  --identity-teal-edge: #284c4b;
+  --identity-teal-soft: #223638;
+  --identity-purple: #bf8fff;
+  --identity-purple-tint: #2b2635;
+  --identity-purple-edge: #4f3f67;
+  --identity-purple-soft: #382f47;
+  --identity-fuchsia: #f370ff;
+  --identity-fuchsia-tint: #302335;
+  --identity-fuchsia-edge: #5f3667;
+  --identity-fuchsia-soft: #412947;
+  --identity-pink: #ff78b3;
+  --identity-pink-tint: #31232e;
+  --identity-pink-edge: #63384e;
+  --identity-pink-soft: #432b3a;
+  --identity-rose: #ff7e88;
+  --identity-rose-tint: #31242a;
+  --identity-rose-edge: #633a41;
+  --identity-rose-soft: #432c32;
+  --identity-amber: #cca028;
+  --identity-amber-tint: #2c2720;
+  --identity-amber-edge: #534522;
+  --identity-amber-soft: #3a3221;
+  --identity-lime: #78b72a;
+  --identity-lime-tint: #232a20;
+  --identity-lime-edge: #384c23;
+  --identity-lime-soft: #2b3621;
+  --identity-emerald: #43ba8a;
+  --identity-emerald-tint: #1e2a2a;
+  --identity-emerald-edge: #274d41;
+  --identity-emerald-soft: #213732;
+  --identity-cyan: #46b2d4;
+  --identity-cyan-tint: #1e2931;
+  --identity-cyan-edge: #284b59;
+  --identity-cyan-soft: #223540;
+  --identity-sky: #4eadf3;
+  --identity-sky-tint: #1f2934;
+  --identity-sky-edge: #2b4963;
+  --identity-sky-soft: #233445;
+  --identity-brown: #f38a54;
+  --identity-brown-tint: #302524;
+  --identity-brown-edge: #5f3e30;
+  --identity-brown-soft: #412e29;
 }
 
 /* Electric — an explicit Dark, whatever the device says. */
@@ -3794,6 +4520,72 @@
     0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
   --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #a19aff;
+  --identity-violet-tint: #282735;
+  --identity-violet-edge: #454367;
+  --identity-violet-soft: #323147;
+  --identity-green: #40bd50;
+  --identity-green-tint: #1e2a24;
+  --identity-green-edge: #264e2f;
+  --identity-green-soft: #213728;
+  --identity-red: #ff8078;
+  --identity-red-tint: #312428;
+  --identity-red-edge: #633b3b;
+  --identity-red-soft: #432c2f;
+  --identity-orange: #f28d27;
+  --identity-orange-tint: #302620;
+  --identity-orange-edge: #5f3f22;
+  --identity-orange-soft: #412f20;
+  --identity-blue: #86a1ff;
+  --identity-blue-tint: #252835;
+  --identity-blue-edge: #3d4567;
+  --identity-blue-soft: #2d3247;
+  --identity-teal: #46b7aa;
+  --identity-teal-tint: #1e2a2d;
+  --identity-teal-edge: #284c4b;
+  --identity-teal-soft: #223638;
+  --identity-purple: #bf8fff;
+  --identity-purple-tint: #2b2635;
+  --identity-purple-edge: #4f3f67;
+  --identity-purple-soft: #382f47;
+  --identity-fuchsia: #f370ff;
+  --identity-fuchsia-tint: #302335;
+  --identity-fuchsia-edge: #5f3667;
+  --identity-fuchsia-soft: #412947;
+  --identity-pink: #ff78b3;
+  --identity-pink-tint: #31232e;
+  --identity-pink-edge: #63384e;
+  --identity-pink-soft: #432b3a;
+  --identity-rose: #ff7e88;
+  --identity-rose-tint: #31242a;
+  --identity-rose-edge: #633a41;
+  --identity-rose-soft: #432c32;
+  --identity-amber: #cca028;
+  --identity-amber-tint: #2c2720;
+  --identity-amber-edge: #534522;
+  --identity-amber-soft: #3a3221;
+  --identity-lime: #78b72a;
+  --identity-lime-tint: #232a20;
+  --identity-lime-edge: #384c23;
+  --identity-lime-soft: #2b3621;
+  --identity-emerald: #43ba8a;
+  --identity-emerald-tint: #1e2a2a;
+  --identity-emerald-edge: #274d41;
+  --identity-emerald-soft: #213732;
+  --identity-cyan: #46b2d4;
+  --identity-cyan-tint: #1e2931;
+  --identity-cyan-edge: #284b59;
+  --identity-cyan-soft: #223540;
+  --identity-sky: #4eadf3;
+  --identity-sky-tint: #1f2934;
+  --identity-sky-edge: #2b4963;
+  --identity-sky-soft: #233445;
+  --identity-brown: #f38a54;
+  --identity-brown-tint: #302524;
+  --identity-brown-edge: #5f3e30;
+  --identity-brown-soft: #412e29;
 }
 
 /* Pulse — an explicit Dark, whatever the device says. */
@@ -4105,6 +4897,72 @@
     0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
   --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #a19aff;
+  --identity-violet-tint: #282735;
+  --identity-violet-edge: #454367;
+  --identity-violet-soft: #323147;
+  --identity-green: #40bd50;
+  --identity-green-tint: #1e2a24;
+  --identity-green-edge: #264e2f;
+  --identity-green-soft: #213728;
+  --identity-red: #ff8078;
+  --identity-red-tint: #312428;
+  --identity-red-edge: #633b3b;
+  --identity-red-soft: #432c2f;
+  --identity-orange: #f28d27;
+  --identity-orange-tint: #302620;
+  --identity-orange-edge: #5f3f22;
+  --identity-orange-soft: #412f20;
+  --identity-blue: #86a1ff;
+  --identity-blue-tint: #252835;
+  --identity-blue-edge: #3d4567;
+  --identity-blue-soft: #2d3247;
+  --identity-teal: #46b7aa;
+  --identity-teal-tint: #1e2a2d;
+  --identity-teal-edge: #284c4b;
+  --identity-teal-soft: #223638;
+  --identity-purple: #bf8fff;
+  --identity-purple-tint: #2b2635;
+  --identity-purple-edge: #4f3f67;
+  --identity-purple-soft: #382f47;
+  --identity-fuchsia: #f370ff;
+  --identity-fuchsia-tint: #302335;
+  --identity-fuchsia-edge: #5f3667;
+  --identity-fuchsia-soft: #412947;
+  --identity-pink: #ff78b3;
+  --identity-pink-tint: #31232e;
+  --identity-pink-edge: #63384e;
+  --identity-pink-soft: #432b3a;
+  --identity-rose: #ff7e88;
+  --identity-rose-tint: #31242a;
+  --identity-rose-edge: #633a41;
+  --identity-rose-soft: #432c32;
+  --identity-amber: #cca028;
+  --identity-amber-tint: #2c2720;
+  --identity-amber-edge: #534522;
+  --identity-amber-soft: #3a3221;
+  --identity-lime: #78b72a;
+  --identity-lime-tint: #232a20;
+  --identity-lime-edge: #384c23;
+  --identity-lime-soft: #2b3621;
+  --identity-emerald: #43ba8a;
+  --identity-emerald-tint: #1e2a2a;
+  --identity-emerald-edge: #274d41;
+  --identity-emerald-soft: #213732;
+  --identity-cyan: #46b2d4;
+  --identity-cyan-tint: #1e2931;
+  --identity-cyan-edge: #284b59;
+  --identity-cyan-soft: #223540;
+  --identity-sky: #4eadf3;
+  --identity-sky-tint: #1f2934;
+  --identity-sky-edge: #2b4963;
+  --identity-sky-soft: #233445;
+  --identity-brown: #f38a54;
+  --identity-brown-tint: #302524;
+  --identity-brown-edge: #5f3e30;
+  --identity-brown-soft: #412e29;
 }
 
 /* Ocean — an explicit Dark, whatever the device says. */
@@ -4416,6 +5274,72 @@
     0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
   --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #a19aff;
+  --identity-violet-tint: #282735;
+  --identity-violet-edge: #454367;
+  --identity-violet-soft: #323147;
+  --identity-green: #40bd50;
+  --identity-green-tint: #1e2a24;
+  --identity-green-edge: #264e2f;
+  --identity-green-soft: #213728;
+  --identity-red: #ff8078;
+  --identity-red-tint: #312428;
+  --identity-red-edge: #633b3b;
+  --identity-red-soft: #432c2f;
+  --identity-orange: #f28d27;
+  --identity-orange-tint: #302620;
+  --identity-orange-edge: #5f3f22;
+  --identity-orange-soft: #412f20;
+  --identity-blue: #86a1ff;
+  --identity-blue-tint: #252835;
+  --identity-blue-edge: #3d4567;
+  --identity-blue-soft: #2d3247;
+  --identity-teal: #46b7aa;
+  --identity-teal-tint: #1e2a2d;
+  --identity-teal-edge: #284c4b;
+  --identity-teal-soft: #223638;
+  --identity-purple: #bf8fff;
+  --identity-purple-tint: #2b2635;
+  --identity-purple-edge: #4f3f67;
+  --identity-purple-soft: #382f47;
+  --identity-fuchsia: #f370ff;
+  --identity-fuchsia-tint: #302335;
+  --identity-fuchsia-edge: #5f3667;
+  --identity-fuchsia-soft: #412947;
+  --identity-pink: #ff78b3;
+  --identity-pink-tint: #31232e;
+  --identity-pink-edge: #63384e;
+  --identity-pink-soft: #432b3a;
+  --identity-rose: #ff7e88;
+  --identity-rose-tint: #31242a;
+  --identity-rose-edge: #633a41;
+  --identity-rose-soft: #432c32;
+  --identity-amber: #cca028;
+  --identity-amber-tint: #2c2720;
+  --identity-amber-edge: #534522;
+  --identity-amber-soft: #3a3221;
+  --identity-lime: #78b72a;
+  --identity-lime-tint: #232a20;
+  --identity-lime-edge: #384c23;
+  --identity-lime-soft: #2b3621;
+  --identity-emerald: #43ba8a;
+  --identity-emerald-tint: #1e2a2a;
+  --identity-emerald-edge: #274d41;
+  --identity-emerald-soft: #213732;
+  --identity-cyan: #46b2d4;
+  --identity-cyan-tint: #1e2931;
+  --identity-cyan-edge: #284b59;
+  --identity-cyan-soft: #223540;
+  --identity-sky: #4eadf3;
+  --identity-sky-tint: #1f2934;
+  --identity-sky-edge: #2b4963;
+  --identity-sky-soft: #233445;
+  --identity-brown: #f38a54;
+  --identity-brown-tint: #302524;
+  --identity-brown-edge: #5f3e30;
+  --identity-brown-soft: #412e29;
 }
 
 /* Graphite — an explicit Dark, whatever the device says. */
@@ -4727,6 +5651,72 @@
     0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-panel: 0 12px 32px -12px rgba(0, 0, 0, 0.68);
   --shadow-toast: 0 10px 28px -10px rgba(0, 0, 0, 0.7);
+
+  /* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */
+  --identity-violet: #a19aff;
+  --identity-violet-tint: #282735;
+  --identity-violet-edge: #454367;
+  --identity-violet-soft: #323147;
+  --identity-green: #40bd50;
+  --identity-green-tint: #1e2a24;
+  --identity-green-edge: #264e2f;
+  --identity-green-soft: #213728;
+  --identity-red: #ff8078;
+  --identity-red-tint: #312428;
+  --identity-red-edge: #633b3b;
+  --identity-red-soft: #432c2f;
+  --identity-orange: #f28d27;
+  --identity-orange-tint: #302620;
+  --identity-orange-edge: #5f3f22;
+  --identity-orange-soft: #412f20;
+  --identity-blue: #86a1ff;
+  --identity-blue-tint: #252835;
+  --identity-blue-edge: #3d4567;
+  --identity-blue-soft: #2d3247;
+  --identity-teal: #46b7aa;
+  --identity-teal-tint: #1e2a2d;
+  --identity-teal-edge: #284c4b;
+  --identity-teal-soft: #223638;
+  --identity-purple: #bf8fff;
+  --identity-purple-tint: #2b2635;
+  --identity-purple-edge: #4f3f67;
+  --identity-purple-soft: #382f47;
+  --identity-fuchsia: #f370ff;
+  --identity-fuchsia-tint: #302335;
+  --identity-fuchsia-edge: #5f3667;
+  --identity-fuchsia-soft: #412947;
+  --identity-pink: #ff78b3;
+  --identity-pink-tint: #31232e;
+  --identity-pink-edge: #63384e;
+  --identity-pink-soft: #432b3a;
+  --identity-rose: #ff7e88;
+  --identity-rose-tint: #31242a;
+  --identity-rose-edge: #633a41;
+  --identity-rose-soft: #432c32;
+  --identity-amber: #cca028;
+  --identity-amber-tint: #2c2720;
+  --identity-amber-edge: #534522;
+  --identity-amber-soft: #3a3221;
+  --identity-lime: #78b72a;
+  --identity-lime-tint: #232a20;
+  --identity-lime-edge: #384c23;
+  --identity-lime-soft: #2b3621;
+  --identity-emerald: #43ba8a;
+  --identity-emerald-tint: #1e2a2a;
+  --identity-emerald-edge: #274d41;
+  --identity-emerald-soft: #213732;
+  --identity-cyan: #46b2d4;
+  --identity-cyan-tint: #1e2931;
+  --identity-cyan-edge: #284b59;
+  --identity-cyan-soft: #223540;
+  --identity-sky: #4eadf3;
+  --identity-sky-tint: #1f2934;
+  --identity-sky-edge: #2b4963;
+  --identity-sky-soft: #233445;
+  --identity-brown: #f38a54;
+  --identity-brown-tint: #302524;
+  --identity-brown-edge: #5f3e30;
+  --identity-brown-soft: #412e29;
 }
 
 /* @end generated by scripts/generate-m3-scheme.mjs */
@@ -6629,4 +7619,150 @@
 ::selection {
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
+}
+
+/* ========================================================================== */
+/* IDENTITY-01 — THE DALYHUB IDENTITY RAMP                                    */
+/* ========================================================================== */
+
+/*
+ * A record's identity, as four inherited custom properties.
+ *
+ * ── The mechanism, and why it is this one ────────────────────────────────────
+ * `data-identity="<slot>"` is set ONCE, by the resolver, on the outermost
+ * element that owns the record — a gallery card, a list row, a bare tile — and
+ * the four roles below are INHERITED by everything inside it. So a card's tile,
+ * its progress fill, its chart line and its chip all read the same three or four
+ * properties and cannot disagree about what colour the record is. "One hue per
+ * record" stops being a convention every component has to remember and becomes a
+ * property of the cascade.
+ *
+ * The alternative — every component mapping sixteen slots to sixteen colours for
+ * itself — is what `.dh-accent-icon`, `.dh-pcard`, `.dh-mrow`, `.dh-ptable` and
+ * `.dh-area-dot` were each doing with six, in five different stylesheets. That
+ * is five places for a slot to be forgotten.
+ *
+ * ── The four roles ───────────────────────────────────────────────────────────
+ *   --dh-identity        the hue itself: the glyph, the progress fill, the
+ *                        chart line, a chip's icon
+ *   --dh-identity-tint   the identity tile's FILL — a whisper of the hue over
+ *                        the card, near-white in light
+ *   --dh-identity-edge   the tile's 1px border, which is what actually draws the
+ *                        tile since the fill deliberately barely does
+ *   --dh-identity-soft   pill fills and progress TRACKS — the hue at a strength
+ *                        that can sit under text
+ *
+ * Values come from `--identity-<slot>*`, generated per appearance by
+ * `scripts/generate-m3-scheme.mjs`. There is no `prefers-color-scheme` rule
+ * here, and there must never be one: dark is derived in the generator, exactly
+ * like every other appearance-dependent colour in the product.
+ *
+ * ── The bare `:root` values are the NEUTRAL container ────────────────────────
+ * An element with no `data-identity` — a Project with no Area and no chosen
+ * colour, an archived record — inherits a neutral tile with a neutral hairline
+ * and a muted glyph. That is a designed outcome rather than a missing one: a
+ * colour that means nothing is worse than no colour at all.
+ */
+:root {
+  --dh-identity: var(--dh-color-text-muted);
+  --dh-identity-tint: var(--dh-color-surface-subtle);
+  --dh-identity-edge: var(--dh-color-border);
+  --dh-identity-soft: var(--dh-color-surface-quiet);
+}
+
+[data-identity="violet"] {
+  --dh-identity: var(--identity-violet);
+  --dh-identity-tint: var(--identity-violet-tint);
+  --dh-identity-edge: var(--identity-violet-edge);
+  --dh-identity-soft: var(--identity-violet-soft);
+}
+[data-identity="green"] {
+  --dh-identity: var(--identity-green);
+  --dh-identity-tint: var(--identity-green-tint);
+  --dh-identity-edge: var(--identity-green-edge);
+  --dh-identity-soft: var(--identity-green-soft);
+}
+[data-identity="red"] {
+  --dh-identity: var(--identity-red);
+  --dh-identity-tint: var(--identity-red-tint);
+  --dh-identity-edge: var(--identity-red-edge);
+  --dh-identity-soft: var(--identity-red-soft);
+}
+[data-identity="orange"] {
+  --dh-identity: var(--identity-orange);
+  --dh-identity-tint: var(--identity-orange-tint);
+  --dh-identity-edge: var(--identity-orange-edge);
+  --dh-identity-soft: var(--identity-orange-soft);
+}
+[data-identity="blue"] {
+  --dh-identity: var(--identity-blue);
+  --dh-identity-tint: var(--identity-blue-tint);
+  --dh-identity-edge: var(--identity-blue-edge);
+  --dh-identity-soft: var(--identity-blue-soft);
+}
+[data-identity="teal"] {
+  --dh-identity: var(--identity-teal);
+  --dh-identity-tint: var(--identity-teal-tint);
+  --dh-identity-edge: var(--identity-teal-edge);
+  --dh-identity-soft: var(--identity-teal-soft);
+}
+[data-identity="purple"] {
+  --dh-identity: var(--identity-purple);
+  --dh-identity-tint: var(--identity-purple-tint);
+  --dh-identity-edge: var(--identity-purple-edge);
+  --dh-identity-soft: var(--identity-purple-soft);
+}
+[data-identity="fuchsia"] {
+  --dh-identity: var(--identity-fuchsia);
+  --dh-identity-tint: var(--identity-fuchsia-tint);
+  --dh-identity-edge: var(--identity-fuchsia-edge);
+  --dh-identity-soft: var(--identity-fuchsia-soft);
+}
+[data-identity="pink"] {
+  --dh-identity: var(--identity-pink);
+  --dh-identity-tint: var(--identity-pink-tint);
+  --dh-identity-edge: var(--identity-pink-edge);
+  --dh-identity-soft: var(--identity-pink-soft);
+}
+[data-identity="rose"] {
+  --dh-identity: var(--identity-rose);
+  --dh-identity-tint: var(--identity-rose-tint);
+  --dh-identity-edge: var(--identity-rose-edge);
+  --dh-identity-soft: var(--identity-rose-soft);
+}
+[data-identity="amber"] {
+  --dh-identity: var(--identity-amber);
+  --dh-identity-tint: var(--identity-amber-tint);
+  --dh-identity-edge: var(--identity-amber-edge);
+  --dh-identity-soft: var(--identity-amber-soft);
+}
+[data-identity="lime"] {
+  --dh-identity: var(--identity-lime);
+  --dh-identity-tint: var(--identity-lime-tint);
+  --dh-identity-edge: var(--identity-lime-edge);
+  --dh-identity-soft: var(--identity-lime-soft);
+}
+[data-identity="emerald"] {
+  --dh-identity: var(--identity-emerald);
+  --dh-identity-tint: var(--identity-emerald-tint);
+  --dh-identity-edge: var(--identity-emerald-edge);
+  --dh-identity-soft: var(--identity-emerald-soft);
+}
+[data-identity="cyan"] {
+  --dh-identity: var(--identity-cyan);
+  --dh-identity-tint: var(--identity-cyan-tint);
+  --dh-identity-edge: var(--identity-cyan-edge);
+  --dh-identity-soft: var(--identity-cyan-soft);
+}
+[data-identity="sky"] {
+  --dh-identity: var(--identity-sky);
+  --dh-identity-tint: var(--identity-sky-tint);
+  --dh-identity-edge: var(--identity-sky-edge);
+  --dh-identity-soft: var(--identity-sky-soft);
+}
+[data-identity="brown"] {
+  --dh-identity: var(--identity-brown);
+  --dh-identity-tint: var(--identity-brown-tint);
+  --dh-identity-edge: var(--identity-brown-edge);
+  --dh-identity-soft: var(--identity-brown-soft);
 }

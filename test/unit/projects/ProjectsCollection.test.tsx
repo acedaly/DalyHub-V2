@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { DERIVED_IDENTITY_SLOTS } from "~/kernel/entities/identity-colour-slots";
 import { FeedbackProvider } from "~/shared/feedback";
 
 import { ProjectsCollectionView } from "~/modules/projects/ProjectsCollection";
@@ -47,6 +48,7 @@ function project(
     areaColourRank: 0,
     colourRank: 0,
     iconKey: null,
+    colourSlot: null,
     taskTotal: 4,
     taskCompleted: 1,
     health: stubHealth({ taskTotal: 4, taskCompleted: 1 }),
@@ -437,6 +439,7 @@ describe("Projects collection", () => {
           id: "with-icon",
           title: "Has icon",
           iconKey: "travel",
+          colourSlot: null,
           areaColourRank: 2,
           colourRank: 1,
         }),
@@ -444,6 +447,7 @@ describe("Projects collection", () => {
           id: "no-icon",
           title: "No icon",
           iconKey: null,
+          colourSlot: null,
           areaColourRank: null,
           colourRank: 2,
         }),
@@ -454,23 +458,24 @@ describe("Projects collection", () => {
       failed: false,
     });
     expect(container.querySelector('[data-icon-key="travel"]')).not.toBeNull();
-    // The Project's OWN rank drives the accent: rank 1 -> accent 2, rank 2 ->
-    // accent 3 (0-based rank, 1-based accent). The Area's rank (2) is
-    // deliberately NOT what the first card wears.
+    // The Project's OWN rank drives the identity: rank 1 -> the ramp's second
+    // slot, rank 2 -> its third. The Area's rank (2) is deliberately NOT what
+    // the first card wears — REDESIGN-03/#130, reconciled in `resolveIdentity`
+    // so the tile and the bar cannot disagree.
     expect(
       screen
         .getByRole("article", { name: "Has icon" })
         .querySelector(".dh-accent-icon")
-        ?.getAttribute("data-accent"),
-    ).toBe("2");
+        ?.getAttribute("data-identity"),
+    ).toBe(DERIVED_IDENTITY_SLOTS[1]);
     // Two consecutively-created Projects take adjacent ranks and therefore
     // different colours — the whole point of giving a Project its own identity.
     expect(
       screen
         .getByRole("article", { name: "No icon" })
         .querySelector(".dh-accent-icon")
-        ?.getAttribute("data-accent"),
-    ).toBe("3");
+        ?.getAttribute("data-identity"),
+    ).toBe(DERIVED_IDENTITY_SLOTS[2]);
   });
 
   it("derives the muted treatment from the archived FACT, not the chip's word", () => {

@@ -270,6 +270,7 @@ export function ProjectOverview({
           <AccentIcon
             entityType="project"
             iconKey={overview.iconKey}
+            colourSlot={overview.colourSlot}
             colourRank={overview.colourRank}
             size="md"
           />

@@ -25,7 +25,7 @@
  * archived state.
  */
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -35,8 +35,19 @@ import {
   type GoalAlignment,
   type SerializedGoalAlignmentEvidence,
 } from "~/shared/alignment";
-import { EntityIcon } from "~/shared/entity";
+import {
+  EntityIcon,
+  EntityIdentityPicker,
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import {
+  identityForRank,
+  isIdentityColourSlot,
+  type IdentityColourSlot,
+} from "~/kernel/entities/identity-colour-slots";
 import { GOAL_DEFINITION_OF_DONE_MAX_LENGTH } from "~/kernel/goals";
 import {
   InlineDateField,
@@ -59,6 +70,7 @@ import {
   isGoalComplete,
   NO_DEFINITION_OF_DONE_TEXT,
   targetDatePresentation,
+  type SerializedGoalArea,
   type SerializedGoalDetails,
   type SerializedGoalOverview,
   type SerializedGoalProjectContribution,
@@ -89,6 +101,15 @@ interface GoalOverviewProps {
     targetDate: string | null,
   ) => Promise<InlineSaveOutcome>;
   /** DS-16 — set or clear the definition of done (`set_definition_of_done`). */
+  /**
+   * IDENTITY-01 — choose or clear the Goal's OWN icon and colour. Reject to
+   * fail; the previous identity stays, because the loader value is the truth
+   * and it has not changed.
+   */
+  readonly onSetIdentity?: (identity: {
+    readonly iconKey: EntityIconKey | null;
+    readonly colourSlot: IdentityColourSlot | null;
+  }) => Promise<void>;
   readonly onSetDefinitionOfDone: (
     definitionOfDone: string,
   ) => Promise<InlineSaveOutcome>;
@@ -130,6 +151,7 @@ export function GoalOverview({
   onToggleComplete,
   onRename,
   onSetTargetDate,
+  onSetIdentity,
   onSetDefinitionOfDone,
   onDelete,
   deletePending = false,
@@ -237,8 +259,32 @@ export function GoalOverview({
     onDelete,
   });
 
+  /*
+   * IDENTITY-01 — the record's resolved identity, stamped ONCE on the whole
+   * screen.
+   *
+   * The progress meter and the trend chart already read `--dh-identity`; without
+   * this nothing on the Goal RECORD set it, so both fell back to the
+   * application's action colour while the Goal's own card, row and Today tile
+   * wore its hue. One record must not be two colours depending on which screen
+   * you opened it from.
+   *
+   * A Goal's own choice first, its Area's otherwise — the same ladder every
+   * other surface walks, through the same resolver.
+   */
+  const identity = resolveIdentity({
+    colourSlot: details.colourSlot,
+    iconKey: details.iconKey,
+    colourRank: null,
+    inherited: {
+      colourSlot: overview.area.colourSlot,
+      colourRank: overview.area.colourRank,
+      iconKey: overview.area.iconKey,
+    },
+  });
+
   return (
-    <>
+    <div {...identityAttribute(identity.slot)}>
       <RecordLayout
         title={overview.title}
         titleSlot={
@@ -348,6 +394,24 @@ export function GoalOverview({
                 />
               </div>
               {/*
+                IDENTITY-01 — the Goal's OWN identity.
+                
+                A Goal has no Settings tab (see the note above the timestamps for
+                why one was not added), so its one appearance control lives here,
+                beside the other Goal-owned field the record edits in place. The
+                Automatic option names the Area's resolved colour, so an owner
+                can see what inheriting currently means before choosing not to.
+              */}
+              {onSetIdentity ? (
+                <div className="dh-goal-overview__appearance">
+                  <GoalIdentityField
+                    details={details}
+                    area={overview.area}
+                    onSetIdentity={onSetIdentity}
+                  />
+                </div>
+              ) : null}
+              {/*
                 RECORD-01 — the contribution EVIDENCE, and only when there is
                 any. The alignment state and its reasons are the summary band's
                 chip and signal line; this is the part they cannot carry — the
@@ -400,6 +464,63 @@ export function GoalOverview({
         ]}
       />
       {lifecycle.dialogs}
-    </>
+    </div>
+  );
+}
+
+/**
+ * The Goal's OWN identity, as one field.
+ *
+ * A Goal inherits its Area's icon and colour and may now override either. The
+ * two halves are independent: a Goal that picks a heart but no colour keeps the
+ * heart and takes its Area's hue, which is the combination the reference draws.
+ *
+ * `derivedSlot` is the AREA's RESOLVED colour — its own choice where it made
+ * one, otherwise the colour its rank derives — so the picker's Automatic option
+ * can name what inheriting currently means rather than asking the owner to
+ * trust it. Resolving it here rather than in the picker keeps the picker
+ * ignorant of what a Goal inherits FROM.
+ *
+ * A failure is reported inline and the previous identity stays, because the
+ * loader value is the truth and it has not changed.
+ */
+function GoalIdentityField({
+  details,
+  area,
+  onSetIdentity,
+}: {
+  readonly details: SerializedGoalDetails;
+  readonly area: SerializedGoalArea;
+  readonly onSetIdentity: (identity: {
+    readonly iconKey: EntityIconKey | null;
+    readonly colourSlot: IdentityColourSlot | null;
+  }) => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const derivedSlot = isIdentityColourSlot(area.colourSlot)
+    ? area.colourSlot
+    : area.colourRank === null
+      ? null
+      : identityForRank(area.colourRank);
+
+  return (
+    <EntityIdentityPicker
+      entityType="goal"
+      label="Appearance"
+      value={{ iconKey: details.iconKey, colourSlot: details.colourSlot }}
+      derivedSlot={derivedSlot}
+      error={error}
+      help={`Optional. A Goal that chooses neither uses ${area.title}’s icon and colour.`}
+      onChange={(next) => {
+        setError(null);
+        void onSetIdentity(next).catch((cause: unknown) => {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "That couldn’t be saved. Please try again.",
+          );
+        });
+      }}
+    />
   );
 }

@@ -67,3 +67,9 @@ export {
   ENTITY_ICON_FIELD_ERROR,
   type EntityIconFieldResult,
 } from "./entity-icon-field";
+
+export {
+  readIdentityColourField,
+  IDENTITY_COLOUR_FIELD_ERROR,
+  type IdentityColourFieldResult,
+} from "./identity-colour-field";

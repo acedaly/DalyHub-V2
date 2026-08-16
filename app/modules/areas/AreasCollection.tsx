@@ -16,13 +16,32 @@
  *    lot of whitespace, and six of them tiled across a 1440 was a page of air
  *    with words in the corners.
  *
- * So Areas are now `EntityRow` in `EntityRowList`: one surface, hairlines
- * between, a column of identity marks down the left edge. That is the reference
- * design's own Areas composition, it is the design system's stated rule for a
- * record too sparse to fill a gallery card, and it makes the two modules
- * distinguishable by STRUCTURE rather than by reading the labels.
+ * So Areas became `EntityRow` in `EntityRowList`: one surface, hairlines
+ * between, a column of identity marks down the left edge.
  *
- * What did NOT change, and must not:
+ * ── IDENTITY-01 follow-up: the gallery returns, as the DEFAULT ───────────────
+ *
+ * The owner asked for Areas to default to a grid, as Projects does. Both of
+ * UIX-02's objections were real and one of them has since been answered:
+ *
+ *   - "An Area was a Project with renamed fields" — no longer true. A Project
+ *     card is `.dh-pcard`, bottom-heavy around a progress bar it pins to a
+ *     shared baseline; an Area card is `.dh-ecard` with no bar at all, because
+ *     an Area never completes. They are different components with different
+ *     anatomy, and the identity ramp now gives each record a colour the owner
+ *     may have chosen. The two are no longer distinguishable only by reading.
+ *   - "The cards were mostly empty" — still partly true, and it is the reason
+ *     the LIST survives rather than being deleted. An Area genuinely has fewer
+ *     facts than a Project, so the gallery card states the three it has (what
+ *     is living in this Area, how much is waiting, when it last moved) and
+ *     stops, and an owner who prefers the denser reading keeps it one click
+ *     away.
+ *
+ * So this is a presentation TOGGLE, `?present=`, exactly as Projects has —
+ * Grid by default, List beside it. Neither view filters: both draw the same
+ * records from the same loader in the same order.
+ *
+ * What did NOT change, and must not — in EITHER presentation:
  *
  *   - **No progress, anywhere.** Areas never complete (AGENTS.md §4), so a
  *     completion bar answers a question the entity does not have. The row has
@@ -39,12 +58,19 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import { EntityRow, EntityRowList } from "~/shared/card";
 import {
+  EntityCard,
+  EntityCardGrid,
+  EntityRow,
+  EntityRowList,
+} from "~/shared/card";
+import {
+  CollectionControlRow,
   CollectionLayout,
   collectionCountLabel,
   CreateActionLabel,
   useCollectionLoading,
+  type CollectionPresentation,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -56,8 +82,10 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { GridIcon, ListIcon } from "~/shared/icons";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
+import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { NewAreaForm } from "./NewAreaForm";
 import {
@@ -80,9 +108,37 @@ type AreasPageData = {
   readonly failed: boolean;
 };
 
+/**
+ * The presentation toggle's two options — a gallery, or the same Areas as rows.
+ *
+ * Grid is FIRST and is the default: it is what the owner asked for, and it is
+ * what Projects does, so the two spine collections now open the same way.
+ * `Table` is deliberately absent — Areas has no columns worth a table, and
+ * offering one that drew the same three facts in a grid of cells would be a
+ * third drawing of one list.
+ */
+const PRESENTATION_OPTIONS = [
+  { value: "grid", label: "Grid", icon: <GridIcon /> },
+  { value: "list", label: "List", icon: <ListIcon /> },
+] as const;
+
+export interface AreasCollectionViewProps {
+  readonly areas: readonly SerializedAreaListItem[];
+  /** Opaque cursor for the next page from the loader, or null when exhausted. */
+  readonly nextCursor: string | null;
+  /**
+   * Gallery or list. A presentation, never a filter — both draw the same
+   * records, in the same order, from the same loader. Resolved on the server
+   * from `?present=`, so the first byte is already right.
+   */
+  readonly presentation?: CollectionPresentation;
+  readonly failed: boolean;
+}
+
 export function AreasCollectionView({
   areas,
   nextCursor,
+  presentation,
   failed,
 }: AreasCollectionViewProps) {
   const renderDrawer = useMemo(() => {
@@ -100,7 +156,12 @@ export function AreasCollectionView({
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
-      <AreasCollection areas={areas} nextCursor={nextCursor} failed={failed} />
+      <AreasCollection
+        areas={areas}
+        nextCursor={nextCursor}
+        presentation={presentation}
+        failed={failed}
+      />
     </DrawerProvider>
   );
 }
@@ -132,9 +193,12 @@ function NewAreaFormHost() {
  */
 function AreaEntityCard({
   card,
+  presentation,
   onArchived,
 }: {
   readonly card: AreaCardData;
+  /** Which drawing this Area takes. The DATA is identical in both. */
+  readonly presentation: CollectionPresentation;
   readonly onArchived: () => void;
 }) {
   const archive = useCallback(async () => {
@@ -162,6 +226,71 @@ function AreaEntityCard({
     onArchive: archive,
   });
 
+  const overflow = (
+    <OverflowMenu
+      items={lifecycle.overflowActions}
+      label={`More actions for ${card.title}`}
+    />
+  );
+  const href = `/areas/${encodeURIComponent(card.id)}`;
+  const openAriaLabel = `Open ${card.title}`;
+
+  /*
+   * The GALLERY card. Deliberately not the Project card: `.dh-ecard` has no
+   * progress bar and this call passes none, because an Area never completes
+   * (AGENTS.md §4) and a bar would answer a question the entity does not have.
+   *
+   * An Area has fewer facts than a Project, and the card says the three it
+   * genuinely has rather than padding to fill the space: what is LIVING here
+   * (the relationship line), how much is WAITING here (the metric), and when it
+   * last moved. That sparseness is exactly why the list presentation survives
+   * beside this one rather than being replaced by it.
+   */
+  if (presentation === "grid") {
+    return (
+      <>
+        <EntityCard
+          data-testid="area-card"
+          /*
+           * The mark leads the composition at the gallery rung — an Area is the
+           * record most often navigated to by recognition rather than by
+           * reading, and in a grid the tile is what the eye lands on first.
+           */
+          icon={
+            <AccentIcon
+              entityType="area"
+              iconKey={card.iconKey}
+              colourSlot={card.colourSlot}
+              colourRank={card.colourRank}
+              size="lg"
+            />
+          }
+          title={card.title}
+          headingLevel={2}
+          accent={card.colourRank}
+          colourSlot={card.colourSlot}
+          subtitle={areaRelationshipLine(card)}
+          metric={
+            card.openTasks > 0
+              ? {
+                  value: String(card.openTasks),
+                  label: card.openTasks === 1 ? "open task" : "open tasks",
+                }
+              : undefined
+          }
+          /* The one supporting fact a card has room for that a row does not.
+           * `updatedLabel` is honestly "Updated <date>" — never implied
+           * activity the projection cannot see. */
+          meta={card.updatedLabel}
+          overflow={overflow}
+          href={href}
+          openAriaLabel={openAriaLabel}
+        />
+        {lifecycle.dialogs}
+      </>
+    );
+  }
+
   return (
     <>
       <EntityRow
@@ -177,6 +306,7 @@ function AreaEntityCard({
           <AccentIcon
             entityType="area"
             iconKey={card.iconKey}
+            colourSlot={card.colourSlot}
             colourRank={card.colourRank}
             size="md"
           />
@@ -184,6 +314,7 @@ function AreaEntityCard({
         title={card.title}
         headingLevel={2}
         accent={card.colourRank}
+        colourSlot={card.colourSlot}
         /*
          * The relationships, on one line — what is LIVING in this part of life.
          *
@@ -206,14 +337,9 @@ function AreaEntityCard({
             ? `${card.openTasks} open ${card.openTasks === 1 ? "task" : "tasks"}`
             : null
         }
-        overflow={
-          <OverflowMenu
-            items={lifecycle.overflowActions}
-            label={`More actions for ${card.title}`}
-          />
-        }
-        href={`/areas/${encodeURIComponent(card.id)}`}
-        openAriaLabel={`Open ${card.title}`}
+        overflow={overflow}
+        href={href}
+        openAriaLabel={openAriaLabel}
       />
       {lifecycle.dialogs}
     </>
@@ -302,12 +428,9 @@ export function areasCountLabel(count: number, hasMore: boolean): string {
 function AreasCollection({
   areas,
   nextCursor,
+  presentation = "grid",
   failed,
-}: {
-  readonly areas: readonly SerializedAreaListItem[];
-  readonly nextCursor: string | null;
-  readonly failed: boolean;
-}) {
+}: AreasCollectionViewProps) {
   const { items, hasMore, loading, loadFailed, loadMore } = useAreaPagination(
     areas,
     nextCursor,
@@ -331,15 +454,20 @@ function AreasCollection({
   const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
-      // DS-05 — Areas is a flat LIST, so it takes the white ground DS-04
-      // established for one (`collection-layout.css` → `--flat`). It was drawn
-      // as a bordered white panel floating on the grey canvas, which is the
-      // ground a card GRID wants.
-      className="dh-collection--flat"
+      /*
+       * DS-05 — a flat LIST takes the white ground DS-04 established for one
+       * (`collection-layout.css` → `--flat`); a card GRID wants the grey canvas
+       * with the cards floating on it, which is the default. So the ground
+       * follows the presentation rather than the module.
+       */
+      className={presentation === "list" ? "dh-collection--flat" : undefined}
       isLoading={isReloading}
       title="Areas"
       subtitle={subtitle}
-      presentation="list"
+      // So the loading skeleton resembles the anatomy that replaces it. The
+      // skeleton's own vocabulary is narrower than the collection's (it has no
+      // table shape), so the mapping is explicit rather than a cast.
+      presentation={presentation === "list" ? "list" : "grid"}
       primaryAction={
         <DrawerTrigger
           drawerKey={NEW_AREA_KEY}
@@ -347,6 +475,25 @@ function AreasCollection({
         >
           <CreateActionLabel>New area</CreateActionLabel>
         </DrawerTrigger>
+      }
+      /*
+       * The toggle sits on the control row rather than in the header's
+       * `viewSwitcher` slot, for the reason Projects gives: the title row is
+       * already carrying the count and the primary action. Areas has no state
+       * tabs to lead the row, so the switcher takes the trailing edge alone —
+       * the same position, on a lighter row.
+       */
+      filterBar={
+        <CollectionControlRow
+          trailing={
+            <ViewSwitcher
+              param="present"
+              options={PRESENTATION_OPTIONS}
+              value={presentation}
+              label="Area layout"
+            />
+          }
+        />
       }
       error={
         failed ? (
@@ -373,15 +520,29 @@ function AreasCollection({
         />
       }
     >
-      <EntityRowList label="Areas">
-        {cards.map((card) => (
-          <AreaEntityCard
-            key={card.id}
-            card={card}
-            onArchived={() => revalidator.revalidate()}
-          />
-        ))}
-      </EntityRowList>
+      {presentation === "grid" ? (
+        <EntityCardGrid label="Areas">
+          {cards.map((card) => (
+            <AreaEntityCard
+              key={card.id}
+              card={card}
+              presentation="grid"
+              onArchived={() => revalidator.revalidate()}
+            />
+          ))}
+        </EntityCardGrid>
+      ) : (
+        <EntityRowList label="Areas">
+          {cards.map((card) => (
+            <AreaEntityCard
+              key={card.id}
+              card={card}
+              presentation="list"
+              onArchived={() => revalidator.revalidate()}
+            />
+          ))}
+        </EntityRowList>
+      )}
       {!failed && hasMore ? (
         <LoadMore
           loading={loading}

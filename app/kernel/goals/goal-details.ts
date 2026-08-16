@@ -43,6 +43,8 @@ import {
   UNMEASURED_GOAL,
   type GoalMeasurementConfig,
 } from "./goal-measurement";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import type { WorkspaceId } from "~/kernel/workspaces";
 
 /** Activity event appended when a Goal's detail fields (target date and/or
@@ -72,6 +74,22 @@ export type GoalDetails = {
   /** GOAL-02 — how this Goal is measured. `type: null` means "not measured",
    * which is the state every Goal created before GOAL-02 is in. */
   readonly measurement: GoalMeasurementConfig;
+  /**
+   * IDENTITY-01 — the Goal's OWN chosen icon, or `null` for "no choice".
+   *
+   * A Goal had no identity of its own until now: it inherited its Area's glyph
+   * and its Area's colour, so every Goal in an Area looked the same. The
+   * reference draws Goals with individually meaningful icons — a heart, a book,
+   * a box — so a Goal may now choose, and `null` still means "inherit the
+   * Area's", which is what every existing Goal has.
+   */
+  readonly iconKey: EntityIconKey | null;
+  /**
+   * IDENTITY-01 — the Goal's OWN chosen colour slot, or `null` for "inherit the
+   * Area's resolved colour". Chosen independently of the icon: a Goal that
+   * picked a heart but no colour keeps the heart and takes its Area's hue.
+   */
+  readonly colourSlot: IdentityColourSlot | null;
 };
 
 export type GoalDetailsRecord = GoalDetails & {
@@ -94,6 +112,10 @@ export type UpdateGoalDetailsInput = {
    * `{ type: null }` clears the measurement entirely.
    */
   readonly measurement?: Partial<GoalMeasurementConfig>;
+  /** IDENTITY-01 — the Goal's own icon. `null` clears it back to inheritance. */
+  readonly iconKey?: EntityIconKey | null;
+  /** IDENTITY-01 — the Goal's own colour. `null` clears it back to inheritance. */
+  readonly colourSlot?: IdentityColourSlot | null;
 };
 
 export type GoalDetailsChangeResult = {

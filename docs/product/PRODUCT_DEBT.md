@@ -2054,6 +2054,34 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** A column header sorts the whole collection (not the loaded page), the cursor is bound to the ordering, and `e2e/spine-workspaces.spec.ts` proves a sort survives a "Load more".
 - **Related roadmap item.** REDESIGN-04 §4.4.
 
+### ☐ DEBT-139 — Migration 0042 has not been applied, and no production backup has been taken — P1
+- **Current issue.** `migrations/0042_add_entity_identity_colour.sql` adds `colour_slot` to `area_details`, `project_details` and `goal_details`, and `icon_key` to `goal_details`. It has been applied to the LOCAL Miniflare D1 and the full suite is green against it, but it has **not** been applied to production and **no `pnpm run db:production:backup` has been run**, because the IDENTITY-01 environment held no Cloudflare credentials. AGENTS.md makes the backup non-negotiable before any migration.
+- **Impact.** Every read path already handles the columns' absence exactly as it handles a missing detail row, so an un-migrated production is not broken — it simply cannot store a choice, and the picker's Apply would fail against it.
+- **Desired future state.** The documented order, run in full before this branch is deployed: `db:production:backup` → `db:production:backup:list` (confirm non-zero) → `db:migrate:local` + full suite → `db:production:list` (confirm 0042 pending) → `db:production:apply`.
+- **Closing condition.** A backup object exists with the pre-0042 timestamp, `db:production:list` shows 0042 applied, and the picker persists a choice against production.
+- **Related roadmap item.** IDENTITY-01 §5.
+
+### ☐ DEBT-140 — `red` and `rose` are the identity ramp's one weak pair — P3
+- **Current issue.** The two slots sit 7.5° apart in HCT hue and clip to the same gamut ceiling in the dark appearance (`#ff8078` and `#ff7e88`). `identity-ramp.test.ts` passes them — they differ in hue and, in light, in tone — but an owner who picks both for adjacent Areas will not get much from the difference. The ramp's dark tone was lowered from 74 to 68 partly to buy back what chroma there was.
+- **Impact.** Fifteen of sixteen slots are cleanly separable; one pair is not. Identity is never carried by colour alone (the record's name is always text beside its tile, and both slots are named in the picker), so this costs recognition speed rather than meaning.
+- **Desired future state.** Either `rose` moves far enough from `red` to hold a real separation in dark, or it is replaced with a hue the ramp does not already occupy — judged on a seeded grid in both appearances, as the slot-16 call was.
+- **Closing condition.** No two slots sit within 12° of hue at a comparable tone in either appearance, asserted.
+- **Related roadmap item.** IDENTITY-01 §2.5.
+
+### ☐ DEBT-141 — The application frame's icons are Material Symbols; the identity vocabulary is DalyHub's own — P3
+- **Current issue.** IDENTITY-01 drew all 101 identity glyphs, plus every entity default, as DalyHub stroke icons (`app/shared/icons/entity-glyphs.tsx`) because a filled symbol inside the rebuilt identity tile reads as a blob of the record's hue. `app/shared/icons/icons.tsx` — the navigation rail, the toolbars, the menus, the empty states — is still Material Symbols Outlined at a different construction and a different optical weight.
+- **Impact.** The split is invisible where it was made deliberately (a record's tile is never beside a rail glyph at the same size) and visible where the two meet at close quarters, such as an empty state that pairs a frame glyph with a record's mark.
+- **Desired future state.** One drawn vocabulary for the whole product, or a documented rule for exactly which surfaces take which — decided, not inherited.
+- **Closing condition.** Either every `createIcon` glyph is redrawn in the stroke idiom, or `DALYHUB_DESIGN_SYSTEM.md` states the boundary and a test holds each set to its side of it.
+- **Related roadmap item.** IDENTITY-01 §6.1.
+
+### ☐ DEBT-142 — Person avatars and analytics split bars still paint from the retired container ramp — P3
+- **Current issue.** `app/styles/people.css` (`.dh-person-avatar[data-accent]`) and `app/styles/analytics.css` (`.dh-analytics__split-track[data-accent]`) still read `--md-sys-color-area-accent-N(-container)`, so the `area-accent-*` quartet stays generated for them. `areaAccentForRank` survives as a shim resolving through `identityForRank` so the number and the name cannot disagree about which slot a rank lands on.
+- **Impact.** Two surfaces speak the old vocabulary. Neither is a record's own identity — one is a person's relationship circle, the other an Area breakdown chart — so nothing on the spine is inconsistent, but the tokens cannot be retired while they have readers.
+- **Desired future state.** The person circle gets its own named ramp (it is a relationship, not a rank), the analytics series moves to the chart ramp it should have been on, and `area-accent-*` is deleted from the generator.
+- **Closing condition.** `rg "area-accent" app/styles` returns nothing, and the generator no longer emits the group.
+- **Related roadmap item.** IDENTITY-01 §10, `docs/md3-inventory.md`.
+
 ### ☐ DEBT-NN — <one-line title> — P<1|2|3>
 - **Current issue.** <what diverges today, with file references>
 - **Impact.** <what it costs the owner>
