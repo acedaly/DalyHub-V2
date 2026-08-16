@@ -17,6 +17,23 @@ no version number to group them under.
 
 ---
 
+## Areas open as a grid, like Projects
+
+The Areas page opened as a list of rows while Projects opened as a gallery of
+cards, which made two halves of the same spine feel like two different products.
+Areas now opens as a **grid**, with a **Grid / List** toggle beside it — the
+same control, in the same place, as the Grid / Table toggle on Projects.
+
+The list is still there and still does what it always did: more Areas on screen
+at once, in a denser read. The toggle lives in the address bar, so a view you
+like is a link you can bookmark, and Back and Forward work the way they should.
+
+An Area card says the three things an Area has — what is living in it, how much
+is waiting in it, and when it last moved. It still has no progress bar: Areas
+never complete, so there is nothing for one to measure.
+
+---
+
 ## Areas, Projects and Goals get a colour and an icon you choose
 
 Every Area, Project and Goal has always had a colour. You have never been able to

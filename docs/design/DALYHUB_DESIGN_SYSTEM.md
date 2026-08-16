@@ -216,6 +216,27 @@ Three rules hold across both:
    percentage. The Areas index states what is IN each Area; the Area record
    states the momentum the kernel actually evaluates, and nothing more.
 
+### 5a.1 Both collections default to a GRID (IDENTITY-01 follow-up)
+
+UIX-02 made Areas a row list and Projects a card gallery, so the two spine
+collections opened differently. They now both open on a **grid**, with a
+`?present=` toggle beside it — `Grid | Table` for Projects, `Grid | List` for
+Areas.
+
+That is a reversal of one half of UIX-02, and only one half. Its two arguments
+were:
+
+| UIX-02's argument | Status |
+| --- | --- |
+| "An Area was a Project with renamed fields" | **No longer true.** A Project card is `.dh-pcard`, bottom-heavy around a progress bar pinned to a shared row baseline; an Area card is `.dh-ecard` with no bar at all, because an Area never completes. Different components, different anatomy — and since IDENTITY-01 each record carries a colour its owner may have chosen |
+| "The cards were mostly empty" | **Still partly true.** An Area genuinely has fewer facts than a Project. So the gallery card states the three it has — what is living here, how much is waiting here, when it last moved — and stops; and the LIST survives beside it rather than being deleted, one click away for an owner who wants the denser reading |
+
+The rule this leaves behind: **a presentation is a drawing, never a filter.**
+Both views show the same records, in the same order, from the same loader, and
+the choice lives in the URL so it is shareable and correct on the first server
+byte. A collection whose record is too sparse for a card does not lose the
+gallery — it keeps a list beside it.
+
 ## 5b. The record surface families — six, and none a variant of another
 
 Completed in UIX-05; **amended by REDESIGN-04**, which moved a Goal off a gallery

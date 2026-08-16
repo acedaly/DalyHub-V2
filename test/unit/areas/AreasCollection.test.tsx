@@ -6,6 +6,7 @@ import { FeedbackProvider } from "~/shared/feedback";
 
 import { AreasCollectionView } from "~/modules/areas/AreasCollection";
 import { DERIVED_IDENTITY_SLOTS } from "~/kernel/entities/identity-colour-slots";
+import type { CollectionPresentation } from "~/shared/collection-layout";
 import type { SerializedAreaListItem } from "~/modules/areas/area-view";
 
 function area(
@@ -33,7 +34,12 @@ function area(
 
 function renderCollection(
   areas: readonly SerializedAreaListItem[],
-  opts: { nextCursor?: string | null; failed?: boolean } = {},
+  opts: {
+    nextCursor?: string | null;
+    failed?: boolean;
+    /** Omitted means the product's own default, which is the GRID. */
+    presentation?: CollectionPresentation;
+  } = {},
 ) {
   const router = createMemoryRouter(
     [
@@ -43,6 +49,7 @@ function renderCollection(
           <AreasCollectionView
             areas={areas}
             nextCursor={opts.nextCursor ?? null}
+            presentation={opts.presentation}
             failed={opts.failed ?? false}
           />
         ),
@@ -81,9 +88,19 @@ describe("Areas collection", () => {
      * are what the eye compares down the column.
      */
     expect(within(card).getByText("1 Project · 1 Goal")).toBeInTheDocument();
-    // 4 total tasks, 1 completed -> 3 open, stated with its noun so it is never
-    // a bare number — and never a proportion, because an Area does not complete.
-    expect(within(card).getByText("3 open tasks")).toBeInTheDocument();
+    /*
+     * 4 total tasks, 1 completed -> 3 open, stated with its NOUN so it is never
+     * a bare number — and never a proportion, because an Area does not
+     * complete.
+     *
+     * The figure and its noun are separate elements in the gallery card (the
+     * metric's value is set larger than its label) and one string in the row,
+     * so this asserts both parts are present rather than one concatenation —
+     * which is the fact that actually matters and the only one true of both
+     * presentations.
+     */
+    expect(within(card).getByText("3")).toBeInTheDocument();
+    expect(within(card).getByText(/open tasks/)).toBeInTheDocument();
     expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.getByText("1 Area")).toBeInTheDocument();
   });
@@ -213,50 +230,99 @@ describe("Areas collection", () => {
 });
 
 /**
- * DS-16 — the Areas gallery.
+ * The Areas collection's two PRESENTATIONS.
  *
  * The assertions are about what the collection PRESENTS and how its controls
  * behave, not about pixel geometry: a layout test that pins column widths breaks
  * on every refinement and proves nothing about whether the grid works.
+ *
+ * UIX-02 made Areas a row list, on two arguments: an Area card was a Project
+ * card with renamed fields, and the cards were mostly empty. The first no longer
+ * holds — a Project card is `.dh-pcard`, bottom-heavy around a progress bar, and
+ * an Area card is `.dh-ecard` with no bar at all — so the gallery returned as
+ * the DEFAULT. The second still partly holds, which is why the list survives
+ * beside it rather than being deleted.
  */
-describe("Areas row list (UIX-02)", () => {
-  it("renders the SHARED row list rather than the Projects gallery grid", () => {
+describe("Areas presentations", () => {
+  it("DEFAULTS to the gallery grid, as Projects does", () => {
     const { container } = renderCollection([area(), area({ id: "a2" })]);
-    /*
-     * UIX-02 — Areas are ROWS, not gallery cards.
-     *
-     * They rendered through the same `EntityCard` in the same `EntityCardGrid`
-     * Projects used, which made the two most different records in the spine the
-     * same object with different words in it — and left most of each card
-     * empty, because an Area has no description, no completion and no progress.
-     */
+    const grid = container.querySelector(".dh-ecard-grid");
+    expect(grid).not.toBeNull();
+    expect(container.querySelector(".dh-erow-list")).toBeNull();
+    // A labelled list, so a screen reader is told what it is before reading it.
+    expect(grid?.tagName).toBe("UL");
+    expect(grid?.getAttribute("aria-label")).toBe("Areas");
+    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
+  });
+
+  it("draws NO progress bar in either presentation, because Areas never complete", () => {
+    // The one rule UIX-02 set that survives the gallery's return unchanged. An
+    // Area has no completion, so a bar would answer a question the entity does
+    // not have (AGENTS.md §4).
+    for (const presentation of ["grid", "list"] as const) {
+      const { container, unmount } = renderCollection([area()], {
+        presentation,
+      });
+      expect(
+        container.querySelectorAll("[role='progressbar']").length,
+        presentation,
+      ).toBe(0);
+      unmount();
+    }
+  });
+
+  it("renders the SHARED row list when the list presentation is asked for", () => {
+    const { container } = renderCollection([area(), area({ id: "a2" })], {
+      presentation: "list",
+    });
     expect(container.querySelector(".dh-ecard-grid")).toBeNull();
     const list = container.querySelector(".dh-erow-list");
     expect(list).not.toBeNull();
-    // A labelled list, so a screen reader is told how much is there before
-    // reading any of it.
     expect(list?.tagName).toBe("UL");
     expect(list?.getAttribute("aria-label")).toBe("Areas");
     expect(list?.querySelectorAll(":scope > li").length).toBe(2);
   });
 
+  it("offers the two presentations as ONE view switcher, never as a filter", () => {
+    renderCollection([area()]);
+    // Both options are always reachable, and both are links carrying the
+    // `present` param — deep-linkable, Back/Forward-correct, no JavaScript
+    // required. Neither changes WHICH records are shown.
+    const grid = screen.getByRole("link", { name: /Grid/ });
+    const list = screen.getByRole("link", { name: /List/ });
+    expect(grid).toHaveAttribute("aria-current", "true");
+    expect(list).not.toHaveAttribute("aria-current");
+    expect(list.getAttribute("href")).toContain("present=list");
+  });
+
   it("states counts as one relationship line with their nouns beside them", () => {
-    renderCollection([
-      area({
-        title: "Career",
-        activeProjectCount: 2,
-        rollup: {
-          kind: "area",
-          goals: { total: 3, completed: 1, ratio: 1 / 3 },
-          projects: { total: 2, completed: 0, ratio: 0 },
-          tasks: { total: 5, completed: 1, ratio: 0.2 },
-        },
-      }),
-    ]);
-    const card = screen.getByRole("article", { name: "Career" });
-    // Never a bare number: every count carries its noun as text.
-    expect(within(card).getByText("2 Projects · 2 Goals")).toBeInTheDocument();
-    expect(within(card).getByText("4 open tasks")).toBeInTheDocument();
+    const career = area({
+      title: "Career",
+      activeProjectCount: 2,
+      rollup: {
+        kind: "area",
+        goals: { total: 3, completed: 1, ratio: 1 / 3 },
+        projects: { total: 2, completed: 0, ratio: 0 },
+        tasks: { total: 5, completed: 1, ratio: 0.2 },
+      },
+    });
+    // The same facts in both drawings — a presentation never changes what a
+    // record says about itself, only how it is laid out.
+    for (const presentation of ["grid", "list"] as const) {
+      const { unmount } = renderCollection([career], { presentation });
+      const card = screen.getByRole("article", { name: "Career" });
+      // Never a bare number: every count carries its noun as text.
+      expect(
+        within(card).getByText("2 Projects · 2 Goals"),
+        presentation,
+      ).toBeInTheDocument();
+      expect(within(card).getByText(/4/), presentation).toBeInTheDocument();
+      expect(
+        within(card).getByText(/open tasks/),
+        presentation,
+      ).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it("omits an absent dimension instead of rendering a zero row", () => {
