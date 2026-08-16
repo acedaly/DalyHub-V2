@@ -58,6 +58,36 @@ const BASE_PROPS = {
 const SYMBOLS_TO_24 = "translate(0 24) scale(0.025)";
 
 /**
+ * IDENTITY-01 — the attributes a DalyHub STROKE glyph renders with.
+ *
+ * A second base, and the reason is the one the identity pass exists for. The
+ * set above is Material Symbols: closed shapes with holes in them, painted as
+ * fills. Inside a 40px identity tile at the mockup's construction — a whisper
+ * of tint, a fine edge, and the record's saturated hue as the glyph — a filled
+ * symbol reads as a solid blob of colour, which is the Material look the tile
+ * was rebuilt to leave behind. The reference draws stroked line art: a vivid
+ * blue monitor, a vivid green heart, a vivid red flame.
+ *
+ * So the ENTITY IDENTITY vocabulary is drawn here, in DalyHub's own geometry,
+ * at one weight, and the application FRAME keeps Material Symbols. That is a
+ * deliberate split rather than drift: the frame's glyphs are chrome the owner
+ * never chooses, and converting them is not what IDENTITY-01 was scoped to do
+ * (see `docs/md3-inventory.md`). What matters is that every glyph an owner can
+ * pick, and every glyph that lands inside an identity tile, is one set.
+ *
+ * 1.75 is the weight the mockup's own icons measure at 24px, and the whole set
+ * is authored on a 24-unit grid so the number means what it says.
+ */
+const STROKE_PROPS = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.75,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+} as const;
+
+/**
  * Build a named icon component from its inner SVG geometry. Keeps every icon a tiny,
  * tree-shakeable component with identical accessibility and sizing behaviour.
  */
@@ -78,6 +108,43 @@ export function createIcon(displayName: string, children: React.ReactNode) {
       >
         {title !== undefined ? <title>{title}</title> : null}
         <g transform={SYMBOLS_TO_24}>{children}</g>
+      </svg>
+    );
+  }
+  IconComponent.displayName = displayName;
+  return IconComponent;
+}
+
+/**
+ * Build a named STROKE icon component from geometry authored on the 24×24 grid.
+ *
+ * Identical accessibility and sizing behaviour to {@link createIcon} — the same
+ * `title`-promotes-to-`role="img"` contract, the same `1em` default — so a call
+ * site cannot tell the two apart and nothing has to know which kind of glyph it
+ * is holding. What differs is the paint (stroke, not fill) and that there is no
+ * 960-unit transform, because these are DalyHub's own drawings rather than a
+ * copied design space.
+ */
+export function createStrokeIcon(
+  displayName: string,
+  children: React.ReactNode,
+) {
+  function IconComponent({ size = "1em", title, ...rest }: IconProps) {
+    const accessible = title !== undefined;
+    return (
+      <svg
+        {...STROKE_PROPS}
+        width={size}
+        height={size}
+        className="dh-icon"
+        role={accessible ? "img" : undefined}
+        aria-hidden={accessible ? undefined : true}
+        aria-label={accessible ? title : undefined}
+        focusable="false"
+        {...rest}
+      >
+        {title !== undefined ? <title>{title}</title> : null}
+        {children}
       </svg>
     );
   }

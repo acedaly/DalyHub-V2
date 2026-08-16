@@ -203,9 +203,17 @@
   cursor: pointer;
 }
 
+/*
+ * IDENTITY-01 — the glyph is drawn in the hue currently being chosen.
+ *
+ * The grid inherits `data-identity` from the staged draft, so an owner picking a
+ * flame for a red Area sees a RED flame while they pick. That is the whole
+ * reason colour and icon share one surface: they are choosing a combination, and
+ * a grey grid would make them choose two abstractions and hope.
+ */
 .dh-icon-picker__option-icon {
   display: inline-flex;
-  color: var(--dh-color-text-muted);
+  color: var(--dh-identity);
 }
 
 .dh-icon-picker__option-label {
@@ -227,7 +235,10 @@
 }
 
 .dh-icon-picker__option[data-selected="true"] .dh-icon-picker__option-icon {
-  color: var(--dh-color-text-on-accent-subtle);
+  /* Selected keeps the hue: the option is showing what the record will look
+   * like, and repainting it on selection would hide the answer at the moment the
+   * owner commits to it. The border, the plane and the check carry the state. */
+  color: var(--dh-identity);
 }
 
 .dh-icon-picker__option-check {
@@ -312,9 +323,14 @@
 }
 
 /*
- * The chip IS the identity tile, at swatch size and built the same way — tint,
- * edge, hue — so what the owner picks from is what they will get. A flat blob of
- * the raw hue would preview a colour the product never actually paints.
+ * The chip is the identity tile's CONSTRUCTION — a tint fill inside a tinted
+ * ring — with the hue itself shown as a filled disc in the middle.
+ *
+ * The tile alone was tried first and was wrong for this one surface: at 28px a
+ * 4% tint behind a 24% edge is a near-white box, and sixteen near-white boxes
+ * are not a colour picker. The disc restores what the swatch is FOR — naming the
+ * hue — while the ring around it still previews what the tile will look like, so
+ * the owner is not picking a colour the product never paints.
  */
 .dh-swatch__chip {
   display: inline-flex;
@@ -328,6 +344,20 @@
   border: var(--app-border-width-thick) solid var(--dh-identity-edge);
   color: var(--dh-identity);
   line-height: 0;
+}
+
+/* The hue, as a disc. Hidden once the check takes its place, so the two never
+ * fight for the same 16px. */
+.dh-swatch__chip::before {
+  content: "";
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-identity);
+}
+
+.dh-swatch[data-selected="true"] .dh-swatch__chip::before {
+  display: none;
 }
 
 .dh-swatch__chip .dh-icon {

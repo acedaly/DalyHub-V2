@@ -49,8 +49,6 @@ import {
   type IdentityColourSlot,
 } from "~/kernel/entities/identity-colour-slots";
 
-import type { EntityType } from "./identity";
-
 /** What a caller knows about one record's identity, straight from the loader. */
 export type IdentitySource = {
   /** The record's own stored colour slot, or `null` for "no choice". */
@@ -124,8 +122,8 @@ export function resolveIdentity(source: IdentitySource): ResolvedIdentity {
  * A `null` slot emits no attribute at all, so the element keeps the neutral
  * defaults `:root` publishes.
  */
-export function identityAttribute(
-  slot: IdentityColourSlot | null,
-): { readonly "data-identity"?: IdentityColourSlot } {
+export function identityAttribute(slot: IdentityColourSlot | null): {
+  readonly "data-identity"?: IdentityColourSlot;
+} {
   return slot === null ? {} : { "data-identity": slot };
 }

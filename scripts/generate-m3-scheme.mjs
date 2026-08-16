@@ -1170,7 +1170,6 @@ const IDENTITY_TONES = {
 /** The darkest LIGHT surface a bar sits on — the binding contrast constraint. */
 const IDENTITY_BAR_SURFACE = "#f0f0f3";
 
-
 /** sRGB relative luminance, for the identity ramp's own clamping. */
 function relativeLuminance(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -1832,7 +1831,7 @@ function mixSrgbHex(top, bottom, strength) {
   const b = parseInt(bottom.slice(1), 16);
   const channel = (shift) => {
     const mixed =
-      (((a >> shift) & 255) * strength + ((b >> shift) & 255) * (1 - strength));
+      ((a >> shift) & 255) * strength + ((b >> shift) & 255) * (1 - strength);
     return Math.round(mixed).toString(16).padStart(2, "0");
   };
   return `#${channel(16)}${channel(8)}${channel(0)}`;
@@ -1881,16 +1880,25 @@ function identitySlotRoles(hex) {
 
   const roles = (colour, mode) => ({
     hue: colour,
-    tint: mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].tint),
-    edge: mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].edge),
-    soft: mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].soft),
+    tint: mixSrgbHex(
+      colour,
+      IDENTITY_SURFACE[mode],
+      IDENTITY_STRENGTHS[mode].tint,
+    ),
+    edge: mixSrgbHex(
+      colour,
+      IDENTITY_SURFACE[mode],
+      IDENTITY_STRENGTHS[mode].edge,
+    ),
+    soft: mixSrgbHex(
+      colour,
+      IDENTITY_SURFACE[mode],
+      IDENTITY_STRENGTHS[mode].soft,
+    ),
   });
 
   return { light: roles(light, "light"), dark: roles(dark, "dark") };
 }
-
-/** The four role suffixes each slot publishes, in emission order. */
-const IDENTITY_ROLES = ["hue", "tint", "edge", "soft"];
 
 /**
  * The whole ramp, resolved once.

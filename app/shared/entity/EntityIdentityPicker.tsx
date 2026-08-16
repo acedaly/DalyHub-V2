@@ -200,7 +200,9 @@ export function EntityIdentityPicker({
 
   function openPicker() {
     setDraftIcon(isEntityIconKey(value.iconKey) ? value.iconKey : null);
-    setDraftSlot(isIdentityColourSlot(value.colourSlot) ? value.colourSlot : null);
+    setDraftSlot(
+      isIdentityColourSlot(value.colourSlot) ? value.colourSlot : null,
+    );
     setQuery("");
     setOpen(true);
   }
@@ -217,10 +219,7 @@ export function EntityIdentityPicker({
   }`;
 
   return (
-    <div
-      className="dh-icon-picker"
-      data-invalid={error ? "true" : undefined}
-    >
+    <div className="dh-icon-picker" data-invalid={error ? "true" : undefined}>
       <span className="dh-field__label" id={`${baseId}-label`}>
         {label}
       </span>
@@ -459,14 +458,26 @@ export function EntityIdentityPicker({
  * already activates them.
  */
 function useGridKeys() {
-  return useCallback((event: React.KeyboardEvent<HTMLUListElement>) => {
-    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+  return useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const keys = [
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Home",
+      "End",
+    ];
     if (!keys.includes(event.key)) return;
-    const list = event.currentTarget;
+    // The handler lives on the BUTTONS rather than on the `<ul>`: a list is a
+    // non-interactive element and giving one key handlers is the pattern
+    // `jsx-a11y` rules out, for the good reason that a keystroke would then be
+    // handled by something a keyboard user cannot reach.
+    const list = event.currentTarget.closest("ul");
+    if (!list) return;
     const items = Array.from(
       list.querySelectorAll<HTMLButtonElement>("button"),
     );
-    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const index = items.indexOf(event.currentTarget);
     if (index === -1) return;
 
     // The column count, measured: the first item whose top differs from the
@@ -529,11 +540,7 @@ function SwatchGrid({
   return (
     <section className="dh-icon-picker__category">
       <h3 className="dh-icon-picker__category-title">Colour</h3>
-      <ul
-        className="dh-icon-picker__swatches"
-        aria-label="Identity colour"
-        onKeyDown={onKeyDown}
-      >
+      <ul className="dh-icon-picker__swatches" aria-label="Identity colour">
         <li>
           <button
             type="button"
@@ -541,6 +548,7 @@ function SwatchGrid({
             aria-pressed={draft === null}
             data-selected={draft === null ? "true" : undefined}
             onClick={() => onPick(null)}
+            onKeyDown={onKeyDown}
             {...identityAttribute(derivedSlot)}
           >
             <span className="dh-swatch__chip" aria-hidden="true">
@@ -563,6 +571,7 @@ function SwatchGrid({
                 aria-pressed={selected}
                 data-selected={selected ? "true" : undefined}
                 onClick={() => onPick(slot)}
+                onKeyDown={onKeyDown}
                 {...identityAttribute(slot)}
               >
                 <span className="dh-swatch__chip" aria-hidden="true">
@@ -629,7 +638,6 @@ function IconGrid({
     <ul
       className="dh-icon-picker__grid"
       aria-label={label}
-      onKeyDown={onKeyDown}
       {...identityAttribute(slot)}
     >
       {options.map((option) => {
@@ -642,6 +650,7 @@ function IconGrid({
               aria-pressed={selected}
               data-selected={selected ? "true" : undefined}
               onClick={() => onPick(option.key)}
+              onKeyDown={onKeyDown}
             >
               {/* Drawn in the hue currently staged, so the owner is choosing the
                   actual combination rather than two abstractions. */}

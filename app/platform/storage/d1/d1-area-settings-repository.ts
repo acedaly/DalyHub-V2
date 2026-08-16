@@ -168,7 +168,12 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.archived_at, result.row.icon_key, result.row.colour_slot),
+        settings: this.#record(
+          id,
+          result.row.archived_at,
+          result.row.icon_key,
+          result.row.colour_slot,
+        ),
         changed: true,
       };
     }
@@ -216,7 +221,12 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.archived_at, result.row.icon_key, result.row.colour_slot),
+        settings: this.#record(
+          id,
+          result.row.archived_at,
+          result.row.icon_key,
+          result.row.colour_slot,
+        ),
         changed: true,
       };
     }

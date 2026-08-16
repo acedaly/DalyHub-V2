@@ -123,7 +123,11 @@ import { Link, useSearchParams } from "react-router";
 // so the Today route chunk does not eagerly pull the palette controller.
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 import type { AppAction } from "~/shared/commands/action";
-import { AccentIcon, identityAttribute, resolveIdentity } from "~/shared/entity";
+import {
+  AccentIcon,
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import {
   AssetIcon,
@@ -1112,7 +1116,7 @@ function GoalProgressSection({
             return (
               <li
                 className="dh-today__goal"
-/*
+                /*
                  * UIX-03 / IDENTITY-01 — the tile carries the Goal's resolved
                  * IDENTITY, stamped once here so everything inside it agrees.
                  *
