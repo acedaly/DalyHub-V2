@@ -170,8 +170,19 @@
   background: var(--dh-color-surface-raised);
 }
 
+/*
+ * MOBILE-02 — the phone's most important commitment meets the touch floor.
+ *
+ * The shared `Button` is `--button-height-md` (36px) by default, which is right
+ * for a dense desktop form and wrong for the one control that ends a capture on
+ * a phone: measured at 36px against the 44px floor at 320, 375, 390 and 430.
+ * The row is the SHEET's commitment row — it exists only in the phone
+ * presentation — so the floor applies to it unconditionally rather than behind a
+ * pointer query.
+ */
 .dh-capture-actions > * {
   flex: 1;
+  min-block-size: var(--app-touch-target-min);
 }
 
 /* -------------------------------------------------------------------------- */
