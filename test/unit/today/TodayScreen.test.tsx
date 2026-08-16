@@ -120,6 +120,7 @@ function project(
     needsAttention: false,
     lastActivityIso: "2026-08-07T00:00:00.000Z",
     iconKey: null,
+    colourSlot: null,
     colourRank: 0,
     ...overrides,
   };
@@ -925,6 +926,9 @@ function todayGoal(
     areaTitle: "Health",
     areaColourRank: 0,
     areaIconKey: null,
+    areaColourSlot: null,
+    iconKey: null,
+    colourSlot: null,
     progress,
     changeInWindow: null,
     windowDays: 30,

@@ -14,6 +14,7 @@
  */
 
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import type { WorkspaceId } from "~/kernel/workspaces";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 
@@ -183,6 +184,17 @@ export type ProjectListItem = {
    * default.
    */
   readonly iconKey: EntityIconKey | null;
+  /**
+   * IDENTITY-01 — the owner's chosen identity COLOUR, as the semantic SLOT NAME
+   * and nothing else: never a hex, never an index into a ramp.
+   *
+   * Read in the SAME query and from the same detail row as `iconKey`, so it
+   * costs no extra read and cannot become an N+1. Normalised on the way OUT:
+   * a slot this build no longer recognises arrives here as `null` and the
+   * record falls back to its DERIVED colour — which is exactly what it looked
+   * like before anyone chose anything.
+   */
+  readonly colourSlot: IdentityColourSlot | null;
   /** Total active direct child tasks. */
   readonly taskTotal: number;
   /** Completed active direct child tasks. */

@@ -13,6 +13,7 @@
  */
 
 import { env } from "cloudflare:workers";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import { useCallback, useMemo, useState } from "react";
 import {
   isRouteErrorResponse,
@@ -168,7 +169,11 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     // The KEY only. The settings repository has already normalised it, so a key
     // this build no longer recognises arrives as `null` and the Project renders
     // its entity default rather than an empty box.
-    overview: serializeProjectOverview(overview, settings?.iconKey ?? null),
+    overview: serializeProjectOverview(
+      overview,
+      settings?.iconKey ?? null,
+      settings?.colourSlot ?? null,
+    ),
     progress,
     health,
     tasks: taskPage.items.map(serializeProjectTask),
@@ -460,17 +465,21 @@ function ProjectDetail({
     [postMutation, revalidator],
   );
 
-  const onSetIcon = useCallback(
-    async (iconKey: EntityIconKey | null) => {
+  const onSetIdentity = useCallback(
+    async (identity: {
+      readonly iconKey: EntityIconKey | null;
+      readonly colourSlot: IdentityColourSlot | null;
+    }) => {
       const body = new FormData();
-      body.set("intent", "set_icon");
-      // Empty means reset-to-default, which the server honours as a real
-      // choice rather than reading as an omitted field.
-      body.set("iconKey", iconKey ?? "");
+      body.set("intent", "set_identity");
+      // Empty means reset-to-default / Automatic, which the server honours as a
+      // real choice rather than reading as an omitted field.
+      body.set("iconKey", identity.iconKey ?? "");
+      body.set("colourSlot", identity.colourSlot ?? "");
       const result = await postMutation(body);
-      if (result.kind !== "setIcon" || !result.ok) {
+      if (result.kind !== "setIdentity" || !result.ok) {
         throw new Error(
-          result.kind === "setIcon" && !result.ok
+          result.kind === "setIdentity" && !result.ok
             ? result.formError
             : SETTINGS_GENERIC_ERROR,
         );
@@ -680,7 +689,7 @@ function ProjectDetail({
           onMove={onMove}
           onArchive={onArchive}
           onRestore={onRestore}
-          onSetIcon={onSetIcon}
+          onSetIdentity={onSetIdentity}
         />
       }
     />

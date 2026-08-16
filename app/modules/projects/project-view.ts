@@ -13,6 +13,7 @@
 
 import { normaliseProgress, type CardTone } from "~/shared/card";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import {
   projectWorkflowStatusLabel,
   type ProjectWorkflowStatus,
@@ -66,6 +67,8 @@ export interface SerializedProjectListItem {
   readonly colourRank: number;
   /** The owner's chosen icon KEY, or `null` for the Project default. */
   readonly iconKey: EntityIconKey | null;
+  /** IDENTITY-01 — the owner's chosen colour SLOT, or `null` for the derived one. */
+  readonly colourSlot: IdentityColourSlot | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
   /** The DERIVED health signal (PROJ-02) — never persisted, JSON-safe. */
@@ -99,6 +102,11 @@ export interface SerializedProjectOverview {
    * choice", and the Project renders its entity default.
    */
   readonly iconKey: string | null;
+  /**
+   * IDENTITY-01 — the owner's chosen colour SLOT, or `null` for "no choice —
+   * derive it". A stable NAME for the same reasons the icon is a key.
+   */
+  readonly colourSlot: string | null;
 }
 
 /**
@@ -123,6 +131,7 @@ export function serializeProjectListItem(
     areaColourRank: item.areaColourRank,
     colourRank: item.colourRank,
     iconKey: item.iconKey,
+    colourSlot: item.colourSlot,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
     health,
@@ -134,12 +143,15 @@ export function serializeProjectListItem(
 export function serializeProjectOverview(
   overview: ProjectOverview,
   iconKey: string | null = null,
+  colourSlot: string | null = null,
 ): SerializedProjectOverview {
   return {
-    // Passed in rather than read from `ProjectOverview`: the icon lives in the
-    // Projects module's own detail row and is the settings repository's to
-    // serve (ADR-037), so the projection the collection reads is unchanged.
+    // Passed in rather than read from `ProjectOverview`: the chosen icon and
+    // colour live in the Projects module's own detail row and are the settings
+    // repository's to serve (ADR-037), so the projection the collection reads
+    // is unchanged.
     iconKey,
+    colourSlot,
     id: overview.id,
     title: overview.title,
     colourRank: overview.colourRank,
@@ -553,6 +565,8 @@ export interface ProjectCardData {
   readonly colourRank: number;
   /** The owner's chosen icon KEY, or `null` for the Project default. */
   readonly iconKey: EntityIconKey | null;
+  /** IDENTITY-01 — the owner's chosen colour SLOT, or `null` for the derived one. */
+  readonly colourSlot: IdentityColourSlot | null;
   /** The parent context line — "DalyHub V2 · Launch the site" — or null. */
   readonly parentLabel: string | null;
   /** The ONE status chip. */
@@ -663,6 +677,7 @@ export function toProjectCardData(
     areaColourRank: item.areaColourRank,
     colourRank: item.colourRank,
     iconKey: item.iconKey,
+    colourSlot: item.colourSlot,
     parentLabel: projectParentLabel({ areaLabel, goalLabel }),
     status,
     // The SAME predicates `projectCardStatus` branches on, so the chip and the

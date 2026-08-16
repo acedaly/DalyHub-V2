@@ -177,6 +177,7 @@ function AreaEntityCard({
           <AccentIcon
             entityType="area"
             iconKey={card.iconKey}
+            colourSlot={card.colourSlot}
             colourRank={card.colourRank}
             size="md"
           />
@@ -184,6 +185,7 @@ function AreaEntityCard({
         title={card.title}
         headingLevel={2}
         accent={card.colourRank}
+        colourSlot={card.colourSlot}
         /*
          * The relationships, on one line — what is LIVING in this part of life.
          *

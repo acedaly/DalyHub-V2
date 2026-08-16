@@ -1170,6 +1170,7 @@ const IDENTITY_TONES = {
 /** The darkest LIGHT surface a bar sits on — the binding contrast constraint. */
 const IDENTITY_BAR_SURFACE = "#f0f0f3";
 
+
 /** sRGB relative luminance, for the identity ramp's own clamping. */
 function relativeLuminance(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -1702,6 +1703,223 @@ function dalyhubPrimitiveDeclarations(mode) {
   return lines;
 }
 
+/* -------------------------------------------------------------------------- */
+/* IDENTITY-01 — the DalyHub sixteen-slot identity ramp                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The DalyHub IDENTITY RAMP: sixteen named colour slots, four roles each.
+ *
+ * ── Why it is here and not in a stylesheet ──────────────────────────────────
+ * This is a BRAND VALUE SET — sixteen authored hues, five of them sampled from
+ * `mockup3.png` itself — but only its LIGHT half is authored. The dark half is
+ * derived from the same sources by formula, exactly like `DALYHUB_PRIMITIVES`
+ * above, because `appearance-cascade.test.ts` is right that a hand-written dark
+ * block is the drift `scheme:check` exists to catch. One authored source,
+ * sixteen dark derivations, no `prefers-color-scheme` fork in component CSS.
+ *
+ * ── The four roles ──────────────────────────────────────────────────────────
+ * A record has ONE hue, and every surface that carries its identity resolves
+ * from that hue's four roles — which is what makes a gallery scannable, and
+ * what stops a tile and its bar disagreeing:
+ *
+ *   `--identity-<slot>`        the hue itself — glyph, progress fill, chart
+ *                              line, chip icon
+ *   `--identity-<slot>-tint`   the tile FILL: a whisper of the hue over the
+ *                              card, near-white in light. The reference's tiles
+ *                              are `#FEFEFE`–`#FFFFFF` with a hint of colour;
+ *                              the tint is felt rather than seen, and the
+ *                              BORDER does the work the fill does not.
+ *   `--identity-<slot>-edge`   the tile's 1px border
+ *   `--identity-<slot>-soft`   pill fills and progress TRACKS — the hue at a
+ *                              strength that can sit under text
+ *
+ * ── This is not `area-accent-*` with more members ───────────────────────────
+ * `area-accent-N` is an M3 CUSTOM COLOUR: a `<name>` / `on-<name>` /
+ * `<name>-container` / `on-<name>-container` quartet, and the `-container` /
+ * `on-container` pairing is precisely the Material construction the owner keeps
+ * recognising in the product. The identity ramp emits no container and no
+ * on-colour at all. There is nothing to pair, because the glyph IS the hue.
+ *
+ * The old ramp stays generated for the consumers IDENTITY-01 was not scoped to
+ * migrate (`people.css`'s avatars, `analytics.css`'s split bars) — see
+ * `docs/md3-inventory.md`.
+ */
+const IDENTITY_SLOTS = [
+  // 1–5 are measured from `mockup3.png` — icon strokes, progress bars and the
+  // goal chart line agree per slot, which is what identifies them as one hue
+  // each rather than five coincidences.
+  ["violet", "#5646E0"], // the monitor icon, the rocket, the violet bars
+  ["green", "#22A63C"], // the heart icon, the green bars, the goal chart line
+  ["red", "#E93A3C"], // the flame
+  ["orange", "#F98A00"], // the truck, the dumbbell
+  ["blue", "#1D5BEE"], // the box icon
+  // 6–16 follow the same family: saturated, contemporary, distinct at tile size.
+  ["teal", "#0D9488"],
+  ["purple", "#8B3DE8"],
+  ["fuchsia", "#C026D3"],
+  ["pink", "#EC4899"],
+  ["rose", "#E11D48"],
+  ["amber", "#EAB308"],
+  ["lime", "#65A30D"],
+  ["emerald", "#059669"],
+  ["cyan", "#0891B2"],
+  ["sky", "#0284C7"],
+  /*
+   * Slot 16 is BROWN, not the indigo the brief opened with, and the reason is
+   * measured rather than aesthetic.
+   *
+   * Indigo `#4338CA` and slot 1's violet `#5646E0` are 1.6° apart in HCT hue.
+   * In LIGHT that survives on a 6-tone difference; in DARK, where both are
+   * lifted to the same tone, they resolve to `#a5a1ff` and `#a7a0ff` — the same
+   * colour to two decimal places of luminance. A ramp whose members are not
+   * mutually distinguishable has stopped doing the job it exists for, and a
+   * slot that cannot be made to pass is replaced rather than excused.
+   *
+   * Brown's closest neighbour is slot 4's orange at 14° in dark, which the ramp
+   * already tolerates between green and lime. Recorded in
+   * `IDENTITY_01_IDENTITY_SYSTEM_2026_08.md` §3.
+   */
+  ["brown", "#92400E"],
+];
+
+/**
+ * The surfaces the identity ramp is composed over and measured against.
+ *
+ * These are `DALYHUB_PRIMITIVES` values, referenced rather than repeated so a
+ * repaint of the product's surfaces cannot leave the ramp measuring itself
+ * against a surface that no longer exists.
+ */
+const IDENTITY_SURFACE = {
+  light: DALYHUB_PRIMITIVES.light.surface,
+  dark: DALYHUB_PRIMITIVES.dark.surface,
+};
+
+/** The sunken TRACK a progress bar sits in, per appearance. */
+const IDENTITY_TRACK = {
+  light: DALYHUB_PRIMITIVES.light["surface-sunken"],
+  dark: DALYHUB_PRIMITIVES.dark["surface-sunken"],
+};
+
+/**
+ * The strengths each role is mixed at, per appearance.
+ *
+ * Dark is stronger throughout: a 4% tint over `#1a1a1f` is invisible, and a
+ * tile that cannot be seen is not a tile. The numbers are the ones §2.1 and §4
+ * of the brief specify, at the calm end of each range.
+ */
+const IDENTITY_STRENGTHS = {
+  light: { tint: 0.04, edge: 0.24, soft: 0.12 },
+  dark: { tint: 0.1, edge: 0.32, soft: 0.18 },
+};
+
+/**
+ * The tone a DARK glyph is lifted to — roughly a 400-weight version of the hue.
+ *
+ * Low enough that the ramp keeps its chroma (and therefore its hue separation:
+ * at tone 74 red and rose clip to the same gamut boundary), high enough to read
+ * as vivid on a near-black tile. Every slot is checked against its own tile and
+ * track afterwards and lifted further only if it genuinely fails.
+ */
+const IDENTITY_GLYPH_TONE_DARK = 68;
+
+/** The floor every identity pairing owes: WCAG 1.4.11 non-text contrast. */
+const IDENTITY_MIN_CONTRAST = 3.05;
+
+/** Mix `top` over `bottom` at `strength` in sRGB — what `color-mix` computes. */
+function mixSrgbHex(top, bottom, strength) {
+  const a = parseInt(top.slice(1), 16);
+  const b = parseInt(bottom.slice(1), 16);
+  const channel = (shift) => {
+    const mixed =
+      (((a >> shift) & 255) * strength + ((b >> shift) & 255) * (1 - strength));
+    return Math.round(mixed).toString(16).padStart(2, "0");
+  };
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
+}
+
+/**
+ * Resolve one identity slot to its four roles in both appearances.
+ *
+ * LIGHT starts at the authored hue and darkens along its OWN hue only as far as
+ * two promises require — 3:1 for the glyph on its own tile, and 3:1 for the bar
+ * on the sunken track — and no further. Four slots move (green, orange, amber,
+ * lime); the other twelve ship at the authored value. Every movement is
+ * recorded in the pass document.
+ *
+ * DARK lifts the resolved light hue to {@link IDENTITY_GLYPH_TONE_DARK} and
+ * then holds it to the same two promises against the DARK tile and track.
+ */
+function identitySlotRoles(hex) {
+  const source = Hct.fromInt(argbFromHex(hex));
+  const palette = TonalPalette.fromHueAndChroma(source.hue, source.chroma);
+
+  const holds = (colour, mode) =>
+    contrastOf(
+      colour,
+      mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].tint),
+    ) >= IDENTITY_MIN_CONTRAST &&
+    contrastOf(colour, IDENTITY_TRACK[mode]) >= IDENTITY_MIN_CONTRAST;
+
+  let light = hex.toLowerCase();
+  if (!holds(light, "light")) {
+    for (let tone = Math.round(source.tone); tone >= 10; tone -= 1) {
+      light = hexFromArgb(palette.tone(tone));
+      if (holds(light, "light")) break;
+    }
+  }
+
+  const resolved = Hct.fromInt(argbFromHex(light));
+  const full = TonalPalette.fromHueAndChroma(resolved.hue, resolved.chroma);
+  let dark = hexFromArgb(full.tone(IDENTITY_GLYPH_TONE_DARK));
+  if (!holds(dark, "dark")) {
+    for (let tone = IDENTITY_GLYPH_TONE_DARK; tone <= 95; tone += 1) {
+      dark = hexFromArgb(full.tone(tone));
+      if (holds(dark, "dark")) break;
+    }
+  }
+
+  const roles = (colour, mode) => ({
+    hue: colour,
+    tint: mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].tint),
+    edge: mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].edge),
+    soft: mixSrgbHex(colour, IDENTITY_SURFACE[mode], IDENTITY_STRENGTHS[mode].soft),
+  });
+
+  return { light: roles(light, "light"), dark: roles(dark, "dark") };
+}
+
+/** The four role suffixes each slot publishes, in emission order. */
+const IDENTITY_ROLES = ["hue", "tint", "edge", "soft"];
+
+/**
+ * The whole ramp, resolved once.
+ *
+ * It is GLOBAL across colour schemes, exactly like `DALYHUB_PRIMITIVES`: an
+ * identity mark that changed colour when the owner switched scheme would not be
+ * an identity. The generator emits the same values in every block so each block
+ * stays self-contained and the cascade never has to fall through.
+ */
+const IDENTITY_RAMP = Object.fromEntries(
+  IDENTITY_SLOTS.map(([slot, hex]) => [slot, identitySlotRoles(hex)]),
+);
+
+/** The identity ramp for one appearance, as declaration lines. */
+function identityRampDeclarations(mode) {
+  const lines = [
+    "",
+    "/* IDENTITY-01 the DalyHub identity ramp — see IDENTITY_SLOTS. */",
+  ];
+  for (const [slot] of IDENTITY_SLOTS) {
+    const roles = IDENTITY_RAMP[slot][mode];
+    lines.push(`--identity-${slot}: ${roles.hue};`);
+    lines.push(`--identity-${slot}-tint: ${roles.tint};`);
+    lines.push(`--identity-${slot}-edge: ${roles.edge};`);
+    lines.push(`--identity-${slot}-soft: ${roles.soft};`);
+  }
+  return lines;
+}
+
 /** Emit the declarations for one scheme in one appearance, as CSS text. */
 function schemeDeclarations(all, entry, mode) {
   const lines = [];
@@ -1734,6 +1952,7 @@ function schemeDeclarations(all, entry, mode) {
   }
   lines.push(...previewDeclarations(all, mode));
   lines.push(...dalyhubPrimitiveDeclarations(mode));
+  lines.push(...identityRampDeclarations(mode));
   return lines.join("\n");
 }
 
@@ -1988,6 +2207,53 @@ export const SCHEME: SchemeColorPair = COLOR_SCHEME_PALETTES.${DEFAULT_COLOR_SCH
 
 /** The seed the default scheme is derived from. */
 export const SOURCE_COLOR = ${JSON.stringify(byDefaultSeed(built))};
+
+/* -------------------------------------------------------------------------- */
+/* IDENTITY-01 — the DalyHub identity ramp                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The sixteen identity SLOTS, in ramp order.
+ *
+ * A slot is named, never numbered, at every boundary that outlives a release:
+ * \`"teal"\` survives a reorder of this list and \`7\` does not. The kernel's
+ * \`IDENTITY_COLOUR_SLOTS\` is the same list, and
+ * \`test/unit/tokens/identity-ramp.test.ts\` holds the two in lockstep.
+ */
+export const IDENTITY_SLOT_NAMES = [
+${IDENTITY_SLOTS.map(([slot]) => `  ${JSON.stringify(slot)},`).join("\n")}
+] as const;
+
+/** One identity slot. */
+export type IdentitySlot = (typeof IDENTITY_SLOT_NAMES)[number];
+
+/** The four roles a slot publishes. \`hue\` is the glyph, bar and chart line. */
+export type IdentityRoles = {
+  /** The saturated hue itself — glyph, progress fill, chart line, chip icon. */
+  readonly hue: string;
+  /** The tile FILL: a whisper of the hue over the card. */
+  readonly tint: string;
+  /** The tile's 1px border. */
+  readonly edge: string;
+  /** Pill fills and progress tracks. */
+  readonly soft: string;
+};
+
+/**
+ * The ramp, by appearance then slot. GLOBAL across colour schemes — an identity
+ * that changed colour when the owner switched scheme would not be an identity.
+ */
+export const IDENTITY_RAMP: Record<
+  "light" | "dark",
+  Record<IdentitySlot, IdentityRoles>
+> = {
+${["light", "dark"]
+  .map(
+    (mode) =>
+      `  ${mode}: {\n${IDENTITY_SLOTS.map(([slot]) => `    ${JSON.stringify(slot)}: ${JSON.stringify(IDENTITY_RAMP[slot][mode])},`).join("\n")}\n  },`,
+  )
+  .join("\n")}
+};
 `;
   return prettier.format(body, { parser: "typescript" });
 }

@@ -48,7 +48,13 @@ function overview(
     createdAt: "2026-07-01T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
     completedAt: null,
-    area: { id: "a1", title: "Health", colourRank: 0, iconKey: null },
+    area: {
+      id: "a1",
+      title: "Health",
+      colourRank: 0,
+      iconKey: null,
+      colourSlot: null,
+    },
     ...over,
   };
 }

@@ -22,6 +22,7 @@ import {
 } from "~/kernel/spine";
 import { GOAL_ALIGNMENT_DISPLAY_RANK } from "~/kernel/alignment";
 import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { normaliseIdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import {
   decodeGoalAlignmentCursorForScope,
   decodeGoalCursorForScope,

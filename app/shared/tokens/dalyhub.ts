@@ -67,6 +67,30 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-scrim",
 ] as const;
 
+/**
+ * IDENTITY-01 — a record's identity, as four inherited roles.
+ *
+ * Four names, not sixty-four. The sixteen SLOTS are attribute values
+ * (`data-identity="teal"`), and `tokens.css` maps the chosen slot onto these
+ * four properties once, on the element that owns the record. Everything inside
+ * it inherits them, so a card's tile and its progress bar read the same colour
+ * by construction rather than by convention.
+ *
+ * With no `data-identity` in scope these resolve to the NEUTRAL container — a
+ * designed outcome for a record that has no identity to show, not a missing
+ * value.
+ */
+export const DALYHUB_IDENTITY_TOKEN_NAMES = [
+  /** The hue itself: glyph, progress fill, chart line, chip icon. */
+  "dh-identity",
+  /** The identity tile's fill — a whisper of the hue over the card. */
+  "dh-identity-tint",
+  /** The tile's 1px border. */
+  "dh-identity-edge",
+  /** Pill fills and progress tracks. */
+  "dh-identity-soft",
+] as const;
+
 /** The 4px spacing scale, under DalyHub's own name. */
 export const DALYHUB_SPACE_TOKEN_NAMES = [
   "dh-space-0",
@@ -249,6 +273,7 @@ export const DEFAULT_DENSITY: DalyhubDensity = "default";
 /** Every published `--dh-*` token name, without the leading `--`. */
 export const DALYHUB_TOKEN_NAMES: readonly string[] = [
   ...DALYHUB_COLOR_TOKEN_NAMES,
+  ...DALYHUB_IDENTITY_TOKEN_NAMES,
   ...DALYHUB_SPACE_TOKEN_NAMES,
   ...DALYHUB_RADIUS_TOKEN_NAMES,
   ...DALYHUB_OVERLAY_TOKEN_NAMES,

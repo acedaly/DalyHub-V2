@@ -7,6 +7,7 @@ import { env } from "cloudflare:workers";
 import { SpineValidationError } from "~/kernel/spine";
 import {
   readEntityIconField,
+  readIdentityColourField,
   requireAuthenticatedSession,
 } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -46,17 +47,25 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!icon.ok) {
     return json({ ok: false, fieldErrors: { iconKey: icon.message } });
   }
+  const colour = readIdentityColourField(form);
+  if (!colour.ok) {
+    return json({ ok: false, fieldErrors: { colourSlot: colour.message } });
+  }
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const area = await scope.spine.createArea({ title });
     // A second write rather than a creation parameter: identity belongs to the
-    // spine and the icon belongs to the Areas module's own detail table
-    // (ADR-037/039), so `createArea` has no business knowing about glyphs. The
-    // Area is already usable without one, which is why a failure here does not
-    // undo the creation — it is reported and the Area keeps its default icon.
-    if (icon.iconKey !== null) {
-      await scope.areaSettings.setIcon(area.id, icon.iconKey);
+    // spine and the chosen icon and colour belong to the Areas module's own
+    // detail table (ADR-037/039), so `createArea` has no business knowing about
+    // glyphs. The Area is already usable without either, which is why a failure
+    // here does not undo the creation — it is reported and the Area keeps its
+    // default icon and its derived colour.
+    if (icon.iconKey !== null || colour.colourSlot !== null) {
+      await scope.areaSettings.setIdentity(area.id, {
+        iconKey: icon.iconKey,
+        colourSlot: colour.colourSlot,
+      });
     }
     return json({ ok: true, areaId: area.id });
   } catch (cause) {

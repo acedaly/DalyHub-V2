@@ -2564,3 +2564,175 @@ export const SCHEME: SchemeColorPair = COLOR_SCHEME_PALETTES.violet;
 
 /** The seed the default scheme is derived from. */
 export const SOURCE_COLOR = "#6D4AE6";
+
+/* -------------------------------------------------------------------------- */
+/* IDENTITY-01 — the DalyHub identity ramp                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The sixteen identity SLOTS, in ramp order.
+ *
+ * A slot is named, never numbered, at every boundary that outlives a release:
+ * `"teal"` survives a reorder of this list and `7` does not. The kernel's
+ * `IDENTITY_COLOUR_SLOTS` is the same list, and
+ * `test/unit/tokens/identity-ramp.test.ts` holds the two in lockstep.
+ */
+export const IDENTITY_SLOT_NAMES = [
+  "violet",
+  "green",
+  "red",
+  "orange",
+  "blue",
+  "teal",
+  "purple",
+  "fuchsia",
+  "pink",
+  "rose",
+  "amber",
+  "lime",
+  "emerald",
+  "cyan",
+  "sky",
+  "brown",
+] as const;
+
+/** One identity slot. */
+export type IdentitySlot = (typeof IDENTITY_SLOT_NAMES)[number];
+
+/** The four roles a slot publishes. `hue` is the glyph, bar and chart line. */
+export type IdentityRoles = {
+  /** The saturated hue itself — glyph, progress fill, chart line, chip icon. */
+  readonly hue: string;
+  /** The tile FILL: a whisper of the hue over the card. */
+  readonly tint: string;
+  /** The tile's 1px border. */
+  readonly edge: string;
+  /** Pill fills and progress tracks. */
+  readonly soft: string;
+};
+
+/**
+ * The ramp, by appearance then slot. GLOBAL across colour schemes — an identity
+ * that changed colour when the owner switched scheme would not be an identity.
+ */
+export const IDENTITY_RAMP: Record<
+  "light" | "dark",
+  Record<IdentitySlot, IdentityRoles>
+> = {
+  light: {
+    violet: {
+      hue: "#5646e0",
+      tint: "#f8f8fe",
+      edge: "#d6d3f8",
+      soft: "#ebe9fb",
+    },
+    green: {
+      hue: "#149e35",
+      tint: "#f6fbf7",
+      edge: "#c7e8cf",
+      soft: "#e3f3e7",
+    },
+    red: { hue: "#e93a3c", tint: "#fef7f7", edge: "#fad0d0", soft: "#fce7e8" },
+    orange: {
+      hue: "#ce7100",
+      tint: "#fdf9f5",
+      edge: "#f3ddc2",
+      soft: "#f9eee0",
+    },
+    blue: { hue: "#1d5bee", tint: "#f6f8fe", edge: "#c9d8fb", soft: "#e4ebfd" },
+    teal: { hue: "#0d9488", tint: "#f5fbfa", edge: "#c5e5e2", soft: "#e2f2f1" },
+    purple: {
+      hue: "#8b3de8",
+      tint: "#faf7fe",
+      edge: "#e3d0f9",
+      soft: "#f1e8fc",
+    },
+    fuchsia: {
+      hue: "#c026d3",
+      tint: "#fcf6fd",
+      edge: "#f0cbf4",
+      soft: "#f7e5fa",
+    },
+    pink: { hue: "#ec4899", tint: "#fef8fb", edge: "#fad3e7", soft: "#fde9f3" },
+    rose: { hue: "#e11d48", tint: "#fef6f8", edge: "#f8c9d3", soft: "#fbe4e9" },
+    amber: {
+      hue: "#ac8300",
+      tint: "#fcfaf5",
+      edge: "#ebe1c2",
+      soft: "#f5f0e0",
+    },
+    lime: { hue: "#5d9900", tint: "#f9fbf5", edge: "#d8e7c2", soft: "#ecf3e0" },
+    emerald: {
+      hue: "#059669",
+      tint: "#f5fbf9",
+      edge: "#c3e6db",
+      soft: "#e1f2ed",
+    },
+    cyan: { hue: "#0891b2", tint: "#f5fbfc", edge: "#c4e5ed", soft: "#e1f2f6" },
+    sky: { hue: "#0284c7", tint: "#f5fafd", edge: "#c2e1f2", soft: "#e1f0f8" },
+    brown: {
+      hue: "#92400e",
+      tint: "#fbf7f5",
+      edge: "#e5d1c5",
+      soft: "#f2e8e2",
+    },
+  },
+  dark: {
+    violet: {
+      hue: "#a19aff",
+      tint: "#282735",
+      edge: "#454367",
+      soft: "#323147",
+    },
+    green: {
+      hue: "#40bd50",
+      tint: "#1e2a24",
+      edge: "#264e2f",
+      soft: "#213728",
+    },
+    red: { hue: "#ff8078", tint: "#312428", edge: "#633b3b", soft: "#432c2f" },
+    orange: {
+      hue: "#f28d27",
+      tint: "#302620",
+      edge: "#5f3f22",
+      soft: "#412f20",
+    },
+    blue: { hue: "#86a1ff", tint: "#252835", edge: "#3d4567", soft: "#2d3247" },
+    teal: { hue: "#46b7aa", tint: "#1e2a2d", edge: "#284c4b", soft: "#223638" },
+    purple: {
+      hue: "#bf8fff",
+      tint: "#2b2635",
+      edge: "#4f3f67",
+      soft: "#382f47",
+    },
+    fuchsia: {
+      hue: "#f370ff",
+      tint: "#302335",
+      edge: "#5f3667",
+      soft: "#412947",
+    },
+    pink: { hue: "#ff78b3", tint: "#31232e", edge: "#63384e", soft: "#432b3a" },
+    rose: { hue: "#ff7e88", tint: "#31242a", edge: "#633a41", soft: "#432c32" },
+    amber: {
+      hue: "#cca028",
+      tint: "#2c2720",
+      edge: "#534522",
+      soft: "#3a3221",
+    },
+    lime: { hue: "#78b72a", tint: "#232a20", edge: "#384c23", soft: "#2b3621" },
+    emerald: {
+      hue: "#43ba8a",
+      tint: "#1e2a2a",
+      edge: "#274d41",
+      soft: "#213732",
+    },
+    cyan: { hue: "#46b2d4", tint: "#1e2931", edge: "#284b59", soft: "#223540" },
+    sky: { hue: "#4eadf3", tint: "#1f2934", edge: "#2b4963", soft: "#233445" },
+    brown: {
+      hue: "#f38a54",
+      tint: "#302524",
+      edge: "#5f3e30",
+      soft: "#412e29",
+    },
+  },
+};

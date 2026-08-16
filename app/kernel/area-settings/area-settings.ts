@@ -16,6 +16,7 @@
  */
 
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import type { WorkspaceId } from "~/kernel/workspaces";
 
 /** A meaningful Area lifecycle event was appended to the shared Activity stream. */
@@ -43,6 +44,14 @@ export const AREA_DELETED = "area.deleted";
 export type AreaSettings = {
   readonly archivedAt: Date | null;
   readonly iconKey: EntityIconKey | null;
+  /**
+   * IDENTITY-01 — the Area's chosen identity colour, or `null` for "no choice,
+   * derive it from the rank". Stored and typed exactly like `iconKey`, for the
+   * same reasons: a controlled name, validated at the write boundary, narrowed
+   * here so a slot that reached the database before this build cannot be handed
+   * on as though it were understood.
+   */
+  readonly colourSlot: IdentityColourSlot | null;
 };
 
 export type AreaSettingsRecord = AreaSettings & {
@@ -60,6 +69,7 @@ export type AreaSettingsChangeResult = {
 export const DEFAULT_AREA_SETTINGS: AreaSettings = {
   archivedAt: null,
   iconKey: null,
+  colourSlot: null,
 };
 
 export function isAreaArchived(settings: AreaSettings): boolean {

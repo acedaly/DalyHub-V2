@@ -60,11 +60,16 @@ import {
   normaliseEntityIconKey,
   type EntityIconKey,
 } from "~/kernel/entities/entity-icon-keys";
+import {
+  normaliseIdentityColourSlot,
+  type IdentityColourSlot,
+} from "~/kernel/entities/identity-colour-slots";
 
 /** The `area_details` row shape this adapter reads/writes, exactly as stored. */
 interface AreaDetailsRow {
   readonly archived_at: string | null;
   readonly icon_key: string | null;
+  readonly colour_slot: string | null;
 }
 
 export type D1AreaSettingsRepositoryOptions = {
@@ -102,7 +107,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
   async get(id: string): Promise<AreaSettingsRecord | null> {
     const row = await this.#row(id);
     if (!row) return null;
-    return this.#record(id, row.archived_at, row.icon_key);
+    return this.#record(id, row.archived_at, row.icon_key, row.colour_slot);
   }
 
   /**
@@ -134,7 +139,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
            archived_at = excluded.archived_at, updated_at = excluded.updated_at
          WHERE area_details.archived_at IS NULL
-         RETURNING archived_at, icon_key`,
+         RETURNING archived_at, icon_key, colour_slot`,
       )
       .bind(
         // SELECT: workspace_id, entity_id, archived_at, updated_at
@@ -163,7 +168,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.archived_at, result.row.icon_key),
+        settings: this.#record(id, result.row.archived_at, result.row.icon_key, result.row.colour_slot),
         changed: true,
       };
     }
@@ -194,7 +199,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
         `UPDATE area_details SET archived_at = NULL, updated_at = ?
          WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
            AND EXISTS (${this.#activeAreaExistsSql})
-         RETURNING archived_at, icon_key`,
+         RETURNING archived_at, icon_key, colour_slot`,
       )
       .bind(nowTs, this.#workspaceId, id, this.#workspaceId, id);
 
@@ -211,7 +216,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.archived_at, result.row.icon_key),
+        settings: this.#record(id, result.row.archived_at, result.row.icon_key, result.row.colour_slot),
         changed: true,
       };
     }
@@ -247,7 +252,8 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
     try {
       const row = await this.#db
         .prepare(
-          `SELECT d.archived_at AS archived_at, d.icon_key AS icon_key
+          `SELECT d.archived_at AS archived_at, d.icon_key AS icon_key,
+                  d.colour_slot AS colour_slot
            FROM entities e
            LEFT JOIN area_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -276,56 +282,79 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
     id: string,
     archived: string | null,
     iconKey: string | null,
+    colourSlot: string | null,
   ): AreaSettingsRecord {
     return {
       id,
       workspaceId: parseWorkspaceId(this.#workspaceId),
       archivedAt: archived ? fromStorageTimestamp(archived) : null,
       iconKey: normaliseEntityIconKey(iconKey),
+      // Same posture as the key, and for the same reason: the column is
+      // deliberately unconstrained (migration 0042), so a slot retired in a
+      // later release becomes `null` at the kernel boundary and the Area falls
+      // back to its DERIVED colour rather than to nothing.
+      colourSlot: normaliseIdentityColourSlot(colourSlot),
     };
   }
 
   /**
-   * Choose (or clear) the Area's icon.
+   * Choose (or clear) the Area's IDENTITY — icon and colour, in one write.
    *
    * An upsert, because `area_details` is sparse: an Area that has never been
-   * archived has no row at all, and choosing an icon must create one rather than
-   * silently doing nothing. The `EXISTS` guard keeps the same contract every
-   * other write here has — the Area must exist, be an Area, and not be
+   * archived has no row at all, and choosing an identity must create one rather
+   * than silently doing nothing. The `EXISTS` guard keeps the same contract
+   * every other write here has — the Area must exist, be an Area, and not be
    * soft-deleted — resolved at commit rather than against a stale read.
    *
-   * `null` clears the choice and is a legitimate value, not a failure: it is what
-   * "reset to default" stores. Validation of a NON-null key belongs at the route
-   * boundary, which refuses an unrecognised one rather than quietly storing
-   * nothing; by the time a key reaches here it is already a member of the
-   * vocabulary.
+   * ONE statement for both fields. The owner picks them together and applies
+   * them once, so writing them separately would let a half-applied identity
+   * exist between two round trips and give the failure path two things to undo.
+   *
+   * `null` on either field clears that choice and is a legitimate value, not a
+   * failure: it is what "reset to default" and "Automatic" store. Validation of
+   * a NON-null value belongs at the route boundary, which refuses an
+   * unrecognised one rather than quietly storing nothing; by the time it reaches
+   * here it is already a member of its vocabulary.
    *
    * No Activity event. The lifecycle events in this slice mark transitions that
    * change what an Area IS to the rest of the product — archived, restored,
-   * deleted. Choosing a glyph changes how it is drawn, and an activity feed that
-   * records every appearance tweak buries the events that matter.
+   * deleted. Choosing how it is drawn is not one of them, and an activity feed
+   * that records every appearance tweak buries the events that matter.
    */
-  async setIcon(
+  async setIdentity(
     id: string,
-    iconKey: EntityIconKey | null,
+    identity: {
+      readonly iconKey: EntityIconKey | null;
+      readonly colourSlot: IdentityColourSlot | null;
+    },
   ): Promise<AreaSettingsRecord> {
     const current = await this.#require(id);
     const nowTs = toStorageTimestamp(this.#clock());
     try {
       await this.#db
         .prepare(
-          `INSERT INTO area_details (workspace_id, entity_id, entity_type, icon_key, updated_at)
-           SELECT ?, ?, '${AREA}', ?, ?
+          `INSERT INTO area_details (workspace_id, entity_id, entity_type, icon_key, colour_slot, updated_at)
+           SELECT ?, ?, '${AREA}', ?, ?, ?
            WHERE EXISTS (${this.#activeAreaExistsSql})
            ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
-             icon_key = excluded.icon_key, updated_at = excluded.updated_at`,
+             icon_key = excluded.icon_key,
+             colour_slot = excluded.colour_slot,
+             updated_at = excluded.updated_at`,
         )
-        .bind(this.#workspaceId, id, iconKey, nowTs, this.#workspaceId, id)
+        .bind(
+          this.#workspaceId,
+          id,
+          identity.iconKey,
+          identity.colourSlot,
+          nowTs,
+          this.#workspaceId,
+          id,
+        )
         .run();
     } catch (cause) {
       throw new AreaSettingsStorageError({ cause });
     }
-    return { ...current, iconKey };
+    return { ...current, ...identity };
   }
 
   async #runAtomic<TRow>(

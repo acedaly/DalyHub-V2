@@ -31,6 +31,7 @@ import {
 } from "~/platform/entity-links";
 import {
   readEntityIconField,
+  readIdentityColourField,
   requireAuthenticatedSession,
 } from "~/platform/request";
 import {
@@ -47,12 +48,18 @@ import type { Route } from "./+types/mutate";
 /** The discriminated project-mutation outcomes the client consumes. */
 export type ProjectMutationResult =
   | {
-      readonly kind: "setIcon";
+      readonly kind: "setIdentity";
       readonly ok: true;
+      /** The slot that now applies — `null` when reset to Automatic. */
+      readonly colourSlot: string | null;
       /** The key that now applies — `null` when reset to the entity default. */
       readonly iconKey: string | null;
     }
-  | { readonly kind: "setIcon"; readonly ok: false; readonly formError: string }
+  | {
+      readonly kind: "setIdentity";
+      readonly ok: false;
+      readonly formError: string;
+    }
   | { readonly kind: "rename"; readonly ok: true }
   | {
       readonly kind: "rename";
@@ -172,8 +179,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(
         await handleMove(scope, projectId, String(form.get("parentId") ?? "")),
       );
-    case "set_icon":
-      return json(await handleSetIcon(scope, projectId, form));
+    case "set_identity":
+      return json(await handleSetIdentity(scope, projectId, form));
     case "archive":
       return json(await handleArchive(scope, projectId));
     case "restore":
@@ -187,10 +194,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 }
 
 /**
- * Choose or clear the Project's icon.
+ * Choose or clear the Project's IDENTITY — its icon and its colour.
  *
  * No archived guard of its own: the dispatcher above already refuses every
- * non-restore intent on an archived Project, and `set_icon` is deliberately
+ * non-restore intent on an archived Project, and `set_identity` is deliberately
  * routed through that same gate rather than carrying a second, divergent copy
  * of the rule.
  *
@@ -198,24 +205,36 @@ export async function action({ request, params, context }: Route.ActionArgs) {
  * "no icon", so an owner whose choice cannot be honoured is told, instead of
  * being shown a success message and then a default glyph.
  */
-async function handleSetIcon(
+async function handleSetIdentity(
   scope: WorkspaceScope,
   projectId: string,
   form: FormData,
 ): Promise<ProjectMutationResult> {
   const icon = readEntityIconField(form);
   if (!icon.ok) {
-    return { kind: "setIcon", ok: false, formError: icon.message };
+    return { kind: "setIdentity", ok: false, formError: icon.message };
+  }
+  const colour = readIdentityColourField(form);
+  if (!colour.ok) {
+    return { kind: "setIdentity", ok: false, formError: colour.message };
   }
   try {
-    const updated = await scope.projectSettings.setIcon(
-      projectId,
-      icon.iconKey,
-    );
-    return { kind: "setIcon", ok: true, iconKey: updated.iconKey };
+    // IDENTITY-01 — one write for both fields. The owner picks them together
+    // and applies them once, so two writes would let a half-applied identity
+    // exist and give one optimistic update two failures to reconcile.
+    const updated = await scope.projectSettings.setIdentity(projectId, {
+      iconKey: icon.iconKey,
+      colourSlot: colour.colourSlot,
+    });
+    return {
+      kind: "setIdentity",
+      ok: true,
+      iconKey: updated.iconKey,
+      colourSlot: updated.colourSlot,
+    };
   } catch {
     return {
-      kind: "setIcon",
+      kind: "setIdentity",
       ok: false,
       formError: "That couldn’t be saved. Please try again.",
     };

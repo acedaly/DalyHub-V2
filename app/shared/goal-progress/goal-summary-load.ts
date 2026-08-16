@@ -76,6 +76,18 @@ export interface GoalSummary {
    */
   readonly areaColourRank: number | null;
   readonly areaIconKey: string | null;
+  /** IDENTITY-01 — the Area's own CHOSEN colour, which beats its rank. */
+  readonly areaColourSlot: string | null;
+  /**
+   * IDENTITY-01 — the Goal's OWN identity, which beats everything above.
+   *
+   * The premise that "a Goal carries no identity of its own" is now false in
+   * both directions: it inherits its Area's, and it may also choose. The
+   * reference draws Goals with individually meaningful icons, so the rail
+   * carries both halves and lets the one resolver decide.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
   readonly progress: GoalProgressEvaluation;
   /** The change since the comparison reading, e.g. `-0.3`. `null` when there is
    * no earlier reading to compare with — never a fabricated zero. */
@@ -171,6 +183,9 @@ export async function loadGoalSummaries(
       areaTitle: item.area.title,
       areaColourRank: item.area.colourRank ?? null,
       areaIconKey: item.area.iconKey ?? null,
+      areaColourSlot: item.area.colourSlot ?? null,
+      iconKey: details?.iconKey ?? null,
+      colourSlot: details?.colourSlot ?? null,
       progress,
       changeInWindow:
         prior !== null && summary?.latest

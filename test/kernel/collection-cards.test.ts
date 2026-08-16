@@ -55,10 +55,7 @@ describe("Areas collection — icon keys", () => {
     const s = spine(WS);
     const withIcon = await s.createArea({ title: "Health" });
     const plain = await s.createArea({ title: "Career" });
-    await makeAreaSettingsRepository(makeContext(WS)).setIcon(
-      withIcon.id,
-      "shield",
-    );
+    await makeAreaSettingsRepository(makeContext(WS)).setIdentity(withIcon.id, { iconKey: "shield", colourSlot: null });
 
     const page = await makeAreaRepository(makeContext(WS)).listAreas();
     const byId = new Map(page.items.map((item) => [item.id, item]));
@@ -90,14 +87,8 @@ describe("Areas collection — icon keys", () => {
     const theirs = spine(OTHER, "theirs");
     const ours = await mine.createArea({ title: "Ours" });
     const hidden = await theirs.createArea({ title: "Theirs" });
-    await makeAreaSettingsRepository(makeContext(WS)).setIcon(
-      ours.id,
-      "shield",
-    );
-    await makeAreaSettingsRepository(makeContext(OTHER)).setIcon(
-      hidden.id,
-      "travel",
-    );
+    await makeAreaSettingsRepository(makeContext(WS)).setIdentity(ours.id, { iconKey: "shield", colourSlot: null });
+    await makeAreaSettingsRepository(makeContext(OTHER)).setIdentity(hidden.id, { iconKey: "travel", colourSlot: null });
 
     const page = await makeAreaRepository(makeContext(WS)).listAreas();
     expect(page.items.map((item) => item.id)).toEqual([ours.id]);
@@ -455,10 +446,7 @@ describe("Projects collection — icon keys and inherited Area accent", () => {
       title: "Launch checklist",
       parent: { kind: "area", id: area.id },
     });
-    await makeProjectSettingsRepository(makeContext(WS)).setIcon(
-      withIcon.id,
-      "travel",
-    );
+    await makeProjectSettingsRepository(makeContext(WS)).setIdentity(withIcon.id, { iconKey: "travel", colourSlot: null });
 
     const page = await makeProjectRepository(makeContext(WS)).listProjects();
     const byId = new Map(page.items.map((item) => [item.id, item]));
@@ -632,10 +620,7 @@ describe("Projects collection — icon keys and inherited Area accent", () => {
       title: "Their project",
       parent: { kind: "area", id: theirArea.id },
     });
-    await makeProjectSettingsRepository(makeContext(OTHER)).setIcon(
-      hidden.id,
-      "travel",
-    );
+    await makeProjectSettingsRepository(makeContext(OTHER)).setIdentity(hidden.id, { iconKey: "travel", colourSlot: null });
 
     const page = await makeProjectRepository(makeContext(WS)).listProjects();
     expect(page.items.map((item) => item.id)).toEqual([ours.id]);

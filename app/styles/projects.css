@@ -259,24 +259,9 @@ a.dh-btn {
   inline-size: 1%;
 }
 
-/* The SAME six-slot identity ramp the gallery card uses. */
-.dh-ptable__row[data-accent="1"] .dh-ptable__fill {
-  background: var(--md-sys-color-area-accent-1);
-}
-.dh-ptable__row[data-accent="2"] .dh-ptable__fill {
-  background: var(--md-sys-color-area-accent-2);
-}
-.dh-ptable__row[data-accent="3"] .dh-ptable__fill {
-  background: var(--md-sys-color-area-accent-3);
-}
-.dh-ptable__row[data-accent="4"] .dh-ptable__fill {
-  background: var(--md-sys-color-area-accent-4);
-}
-.dh-ptable__row[data-accent="5"] .dh-ptable__fill {
-  background: var(--md-sys-color-area-accent-5);
-}
-.dh-ptable__row[data-accent="6"] .dh-ptable__fill {
-  background: var(--md-sys-color-area-accent-6);
+/* The SAME identity hue the gallery card uses, inherited from the row. */
+.dh-ptable__row[data-identity] .dh-ptable__fill {
+  background: var(--dh-identity);
 }
 
 @media (forced-colors: active) {

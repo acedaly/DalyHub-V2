@@ -54,7 +54,7 @@
   flex: none;
   inline-size: 8px;
   block-size: 8px;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
 }
 
 .dh-area-pill {
@@ -63,7 +63,7 @@
   gap: var(--app-space-2);
   min-block-size: 2rem;
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-sm);
   padding-inline: var(--app-space-2);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-label-large-size);
@@ -74,48 +74,32 @@
   text-decoration: none;
 }
 
-.dh-area-dot[data-accent="1"] {
-  background: var(--md-sys-color-area-accent-1);
-}
-.dh-area-dot[data-accent="2"] {
-  background: var(--md-sys-color-area-accent-2);
-}
-.dh-area-dot[data-accent="3"] {
-  background: var(--md-sys-color-area-accent-3);
-}
-.dh-area-dot[data-accent="4"] {
-  background: var(--md-sys-color-area-accent-4);
-}
-.dh-area-dot[data-accent="5"] {
-  background: var(--md-sys-color-area-accent-5);
-}
-.dh-area-dot[data-accent="6"] {
-  background: var(--md-sys-color-area-accent-6);
+/*
+ * IDENTITY-01 — the dot and the pill speak the RAMP, not the container pairs.
+ *
+ * Both used `area-accent-N` and `area-accent-N-container` /
+ * `on-area-accent-N-container`, which is the same Material tonal construction
+ * the identity tile carried, in a second stylesheet. So a workspace could show
+ * a record's tile in one vocabulary and its Area pill in another and both were
+ * "the accent".
+ *
+ * Now both read the hue INHERITED from the element's `data-identity`:
+ *
+ *   the DOT     is the hue at full strength — it is a mark, and a mark that is
+ *               tinted is a smudge
+ *   the PILL    is the `soft` role with the hue as its LABEL colour, which is
+ *               the same inversion the tile makes: the colour is the content,
+ *               not a box drawn around it
+ *
+ * Twelve selectors became two, and adding a slot needs neither.
+ */
+.dh-area-dot[data-identity] {
+  background: var(--dh-identity);
 }
 
-.dh-area-pill[data-accent="1"] {
-  background: var(--md-sys-color-area-accent-1-container);
-  color: var(--md-sys-color-on-area-accent-1-container);
-}
-.dh-area-pill[data-accent="2"] {
-  background: var(--md-sys-color-area-accent-2-container);
-  color: var(--md-sys-color-on-area-accent-2-container);
-}
-.dh-area-pill[data-accent="3"] {
-  background: var(--md-sys-color-area-accent-3-container);
-  color: var(--md-sys-color-on-area-accent-3-container);
-}
-.dh-area-pill[data-accent="4"] {
-  background: var(--md-sys-color-area-accent-4-container);
-  color: var(--md-sys-color-on-area-accent-4-container);
-}
-.dh-area-pill[data-accent="5"] {
-  background: var(--md-sys-color-area-accent-5-container);
-  color: var(--md-sys-color-on-area-accent-5-container);
-}
-.dh-area-pill[data-accent="6"] {
-  background: var(--md-sys-color-area-accent-6-container);
-  color: var(--md-sys-color-on-area-accent-6-container);
+.dh-area-pill[data-identity] {
+  background: var(--dh-identity-soft);
+  color: var(--dh-identity);
 }
 
 /* Forced colours drop authored backgrounds entirely, which would erase both the

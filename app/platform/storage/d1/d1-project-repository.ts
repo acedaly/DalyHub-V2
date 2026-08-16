@@ -29,6 +29,7 @@ import {
   validateSpineLimit,
 } from "~/kernel/spine";
 import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { normaliseIdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import {
   decodeProjectCursorForScope,
   encodeProjectCursor,
@@ -162,7 +163,8 @@ const AREA_RANK_JOIN = `
 const PROJECT_LIST_COLUMNS = `
   ar.colour_rank AS area_colour_rank,
   pr.colour_rank AS project_colour_rank,
-  pd.icon_key AS icon_key`;
+  pd.icon_key AS icon_key,
+  pd.colour_slot AS colour_slot`;
 
 /**
  * The authoritative PRESENTATION timestamp expression (ADR-037 §37.2): the later of
@@ -211,6 +213,7 @@ interface ProjectListRow extends ProjectBaseRow {
   readonly area_colour_rank: number | null;
   readonly project_colour_rank: number | null;
   readonly icon_key: string | null;
+  readonly colour_slot: string | null;
 }
 
 export class D1ProjectRepository implements ProjectRepository {
@@ -569,6 +572,10 @@ export class D1ProjectRepository implements ProjectRepository {
       // must degrade to the Project's default icon rather than reach a
       // component that cannot draw it.
       iconKey: normaliseEntityIconKey(row.icon_key),
+      // Same posture for the chosen COLOUR: an unrecognised slot degrades to
+      // the Project's derived colour rather than reaching a stylesheet with no
+      // value for it.
+      colourSlot: normaliseIdentityColourSlot(row.colour_slot),
       taskTotal: Number(row.task_total ?? 0),
       taskCompleted: Number(row.task_completed ?? 0),
     };

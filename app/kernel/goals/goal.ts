@@ -30,6 +30,12 @@ export type GoalAreaContext = {
   readonly colourRank?: number | null;
   /** The Area's chosen icon key, normalised at the storage boundary. */
   readonly iconKey?: string | null;
+  /**
+   * IDENTITY-01 — the Area's chosen colour SLOT, normalised at the storage
+   * boundary. A Goal that has chosen nothing inherits this rather than the raw
+   * rank, so an Area that picked `teal` carries its Goals with it.
+   */
+  readonly colourSlot?: string | null;
 };
 
 /** The canonical Goal record header, resolved from the spine + its Area link. */

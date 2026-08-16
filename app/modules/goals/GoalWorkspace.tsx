@@ -35,7 +35,7 @@ import type { ReactNode } from "react";
 
 import { ProgressRow, ProgressRowList } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
-import { AccentIcon } from "~/shared/entity";
+import { AccentIcon, resolveIdentity } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
@@ -130,8 +130,17 @@ export function GoalWorkspaceList({
             icon={
               <AccentIcon
                 entityType="goal"
-                iconKey={goal.area.iconKey}
-                colourRank={goal.area.colourRank}
+                // A Goal's OWN identity first, its Area's otherwise. The two
+                // halves are walked independently by the resolver, so a Goal
+                // that chose a glyph but no colour keeps both answers right.
+                colourSlot={goal.colourSlot}
+                iconKey={goal.iconKey}
+                colourRank={null}
+                inherited={{
+                  colourSlot: goal.area.colourSlot,
+                  colourRank: goal.area.colourRank,
+                  iconKey: goal.area.iconKey,
+                }}
                 size="sm"
               />
             }
@@ -139,6 +148,12 @@ export function GoalWorkspaceList({
             headingLevel={3}
             context={goal.area.title}
             accent={goal.area.colourRank}
+            colourSlot={
+              resolveIdentity({
+                colourSlot: goal.colourSlot,
+                inherited: { colourSlot: goal.area.colourSlot },
+              }).slot
+            }
             selected={goal.id === selectedId}
             progress={
               goal.progress.progressPercent === null

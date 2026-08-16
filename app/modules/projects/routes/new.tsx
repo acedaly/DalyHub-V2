@@ -27,6 +27,7 @@ import {
 } from "~/kernel/spine";
 import {
   readEntityIconField,
+  readIdentityColourField,
   requireAuthenticatedSession,
 } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -82,17 +83,24 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!icon.ok) {
     return json({ ok: false, fieldErrors: { iconKey: icon.message } });
   }
+  const colour = readIdentityColourField(form);
+  if (!colour.ok) {
+    return json({ ok: false, fieldErrors: { colourSlot: colour.message } });
+  }
 
   try {
     const project = await scope.spine.createProject({
       title,
       parent: { kind: parent.kind, id: parentId },
     });
-    // See the Area equivalent: identity is the spine's, the icon is the
-    // module's detail row, so this is a second write rather than a creation
-    // parameter.
-    if (icon.iconKey !== null) {
-      await scope.projectSettings.setIcon(project.id, icon.iconKey);
+    // See the Area equivalent: identity is the spine's, the chosen icon and
+    // colour are the module's detail row, so this is a second write rather than
+    // a creation parameter.
+    if (icon.iconKey !== null || colour.colourSlot !== null) {
+      await scope.projectSettings.setIdentity(project.id, {
+        iconKey: icon.iconKey,
+        colourSlot: colour.colourSlot,
+      });
     }
     return json({ ok: true, projectId: project.id });
   } catch (cause) {

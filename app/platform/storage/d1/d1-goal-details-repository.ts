@@ -41,6 +41,8 @@ import {
   type GoalMeasurementConfig,
   type UpdateGoalDetailsInput,
 } from "~/kernel/goals";
+import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { normaliseIdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
 import { D1ActivityRecorder } from "./d1-activity-recorder";
@@ -60,11 +62,15 @@ interface GoalDetailsRow {
   readonly measurement_direction: string | null;
   readonly baseline_value: number | null;
   readonly target_value: number | null;
+  /* IDENTITY-01 — the Goal's OWN chosen identity, on the same owned slice. */
+  readonly icon_key: string | null;
+  readonly colour_slot: string | null;
 }
 
 /** The columns every read of this slice selects, in one place. */
 const GOAL_DETAILS_COLUMNS = `target_date, definition_of_done, measurement_type,
-   measurement_unit, measurement_direction, baseline_value, target_value`;
+   measurement_unit, measurement_direction, baseline_value, target_value,
+   icon_key, colour_slot`;
 
 /**
  * Ids per batched statement. D1 caps bound variables at 100 per statement; 50
@@ -155,7 +161,9 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
                       d.measurement_unit AS measurement_unit,
                       d.measurement_direction AS measurement_direction,
                       d.baseline_value AS baseline_value,
-                      d.target_value AS target_value
+                      d.target_value AS target_value,
+                      d.icon_key AS icon_key,
+                      d.colour_slot AS colour_slot
                FROM entities e
                LEFT JOIN goal_details d
                  ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -200,11 +208,20 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
       current.measurement,
       patch.measurement,
     );
+    // IDENTITY-01 — the Goal's own identity, on the same patch contract as
+    // every other field here: an omitted key leaves it unchanged, and `null`
+    // clears it back to inheriting the Area's.
+    const nextIconKey =
+      patch.iconKey === undefined ? current.iconKey : patch.iconKey;
+    const nextColourSlot =
+      patch.colourSlot === undefined ? current.colourSlot : patch.colourSlot;
 
     if (
       nextTargetDate === current.targetDate &&
       nextDefinitionOfDone === current.definitionOfDone &&
-      sameMeasurement(nextMeasurement, current.measurement)
+      sameMeasurement(nextMeasurement, current.measurement) &&
+      nextIconKey === current.iconKey &&
+      nextColourSlot === current.colourSlot
     ) {
       return { details: current, changed: false };
     }
@@ -217,8 +234,8 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         `INSERT INTO goal_details
            (workspace_id, entity_id, target_date, definition_of_done,
             measurement_type, measurement_unit, measurement_direction,
-            baseline_value, target_value, updated_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            baseline_value, target_value, icon_key, colour_slot, updated_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${GOAL}'
@@ -232,6 +249,8 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
            measurement_direction = excluded.measurement_direction,
            baseline_value = excluded.baseline_value,
            target_value = excluded.target_value,
+           icon_key = excluded.icon_key,
+           colour_slot = excluded.colour_slot,
            updated_at = excluded.updated_at
          RETURNING ${GOAL_DETAILS_COLUMNS}`,
       )
@@ -245,6 +264,8 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         nextMeasurement.direction,
         nextMeasurement.baselineValue,
         nextMeasurement.targetValue,
+        nextIconKey,
+        nextColourSlot,
         nowTs,
         this.#workspaceId,
         id,
@@ -354,6 +375,15 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         baselineValue: row.baseline_value,
         targetValue: row.target_value,
       }),
+      /*
+       * IDENTITY-01 — normalised on the way OUT, the same posture the Area and
+       * Project slices take. `icon_key` and `colour_slot` are deliberately
+       * unconstrained columns (migrations 0032, 0042), so a value this build no
+       * longer recognises degrades to `null` here — the Goal then inherits its
+       * Area's identity, which is exactly what it did before it chose anything.
+       */
+      iconKey: normaliseEntityIconKey(row.icon_key),
+      colourSlot: normaliseIdentityColourSlot(row.colour_slot),
     };
   }
 

@@ -44,6 +44,7 @@ import {
   type AreaSearchInput,
 } from "~/kernel/areas";
 import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { normaliseIdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
@@ -91,6 +92,7 @@ interface AreaListRow extends AreaRow {
   readonly colour_rank: number;
   /** The owner's chosen icon key, from the `area_details` row already joined. */
   readonly icon_key: string | null;
+  readonly colour_slot: string | null;
   readonly goal_total: number | null;
   readonly goal_completed: number | null;
   readonly project_total: number | null;
@@ -488,6 +490,7 @@ export class D1AreaRepository implements AreaRepository {
            SELECT e.id, e.workspace_id, e.title, e.created_at, e.updated_at,
                   ar.colour_rank,
                   ad.icon_key AS icon_key,
+                  ad.colour_slot AS colour_slot,
                   COALESCE(gc.total, 0) AS goal_total,
                   COALESCE(gc.completed, 0) AS goal_completed,
                   COALESCE(pc.total, 0) AS project_total,
@@ -1042,6 +1045,10 @@ export class D1AreaRepository implements AreaRepository {
       // must degrade to the Area's default icon rather than reach a component
       // that cannot draw it.
       iconKey: normaliseEntityIconKey(row.icon_key),
+      // Same posture for the chosen COLOUR: a slot this build does not
+      // recognise degrades to the Area's derived colour rather than reaching a
+      // stylesheet that has no value for it.
+      colourSlot: normaliseIdentityColourSlot(row.colour_slot),
       rollup: areaRollup(row),
       activeProjectCount: Number(row.active_project_count ?? 0),
       completedProjectCount: Number(row.completed_project_count ?? 0),

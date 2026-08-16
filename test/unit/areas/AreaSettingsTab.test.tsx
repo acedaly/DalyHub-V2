@@ -25,6 +25,7 @@ const ACTIVE_OVERVIEW: SerializedAreaOverview = {
   updatedAt: "2026-07-20T10:00:00.000Z",
   archivedAt: null,
   iconKey: null,
+  colourSlot: null,
 };
 
 const ARCHIVED_OVERVIEW: SerializedAreaOverview = {

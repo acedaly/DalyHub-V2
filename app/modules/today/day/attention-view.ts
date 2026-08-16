@@ -220,6 +220,8 @@ export interface ContinueProject {
    */
   readonly iconKey: string | null;
   readonly colourRank: number;
+  /** IDENTITY-01 — the Project's own chosen colour slot, which beats the rank. */
+  readonly colourSlot: string | null;
 }
 
 /**

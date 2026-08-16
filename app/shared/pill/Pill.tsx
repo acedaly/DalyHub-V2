@@ -28,6 +28,15 @@
 
 import type { ReactNode } from "react";
 
+import {
+  DERIVED_IDENTITY_SLOTS,
+  DERIVED_IDENTITY_SLOT_COUNT,
+  identityForRank,
+} from "~/kernel/entities/identity-colour-slots";
+import {
+  identityAttribute,
+  resolveIdentity,
+} from "~/shared/entity/identity-resolution";
 import { Badge, type BadgeTone } from "~/shared/ui/Badge";
 
 /**
@@ -83,32 +92,47 @@ export function StatusPill({
   );
 }
 
-/** How many Area accents the ramp holds. Beyond this it wraps (ADR-068 §5). */
-export const AREA_ACCENT_COUNT = 6;
+/**
+ * How many slots the DERIVED identity ramp folds over. Beyond this it wraps
+ * (ADR-068 §5).
+ *
+ * The number itself now lives in the kernel beside the slot vocabulary
+ * (`DERIVED_IDENTITY_SLOT_COUNT`); this is the name the ~30 existing call sites
+ * and tests already import, re-exported so IDENTITY-01 does not have to move
+ * them in the same change that moves the colours.
+ */
+export const AREA_ACCENT_COUNT = DERIVED_IDENTITY_SLOT_COUNT;
 
 /**
- * The Area accent for an Area's stable rank in its workspace.
+ * The NUMBERED Area accent for a stable rank — 1 to 6.
  *
- * Rank, not a hash of the id: with six accents and five Areas, hashing collides
- * about 91% of the time, and a dot whose colours collide almost always is not
- * carrying identity (ADR-068 decision 5). Rank gives six Areas six distinct
- * accents, deterministically, for the case the product is built for — Areas are
- * permanent and few.
+ * ── IDENTITY-01: this is now a legacy shim, deliberately kept ────────────────
+ * Record identity resolves through `resolveIdentity` and is carried by a slot
+ * NAME (`data-identity="teal"`), not by an index. What is left reading a number
+ * is the set of surfaces IDENTITY-01 was not scoped to convert — the person
+ * avatar's ramp, the analytics split bars, the schedule row's source mark — all
+ * of which still paint from `--md-sys-color-area-accent-N`. Deleting this would
+ * either break them or force a conversion the pass deliberately did not take on
+ * (see `docs/md3-inventory.md`).
+ *
+ * It resolves through `identityForRank`, so the number and the name can never
+ * disagree about which slot a rank lands on. Rank, not a hash of the id: with
+ * six slots and five Areas, hashing collides about 91% of the time, and a mark
+ * whose colours collide almost always is not carrying identity (ADR-068
+ * decision 5).
  *
  * Returns 1–6. Negative and non-integer ranks are folded rather than trusted, so
  * a bad caller cannot produce an accent the token layer has no value for.
  */
 export function areaAccentForRank(rank: number): number {
-  if (!Number.isFinite(rank)) return 1;
-  const whole = Math.trunc(rank);
-  const folded =
-    ((whole % AREA_ACCENT_COUNT) + AREA_ACCENT_COUNT) % AREA_ACCENT_COUNT;
-  return folded + 1;
+  return DERIVED_IDENTITY_SLOTS.indexOf(identityForRank(rank)) + 1;
 }
 
 export interface AreaDotProps {
   /** The Area's stable rank in its workspace (0-based). */
   readonly rank: number;
+  /** The Area's own chosen colour slot, when it has one. Beats the rank. */
+  readonly colourSlot?: string | null;
   /**
    * The Area's name. Used as the dot's accessible name so the mark is never
    * colour-only — pass `decorative` when the name is already adjacent in the
@@ -120,12 +144,18 @@ export interface AreaDotProps {
 }
 
 /** The Area identity dot. A mark on the surface, never a filled background. */
-export function AreaDot({ rank, name, decorative, className }: AreaDotProps) {
-  const accent = areaAccentForRank(rank);
+export function AreaDot({
+  rank,
+  colourSlot = null,
+  name,
+  decorative,
+  className,
+}: AreaDotProps) {
+  const { slot } = resolveIdentity({ colourSlot, colourRank: rank });
   return (
     <span
       className={className ? `dh-area-dot ${className}` : "dh-area-dot"}
-      data-accent={accent}
+      {...identityAttribute(slot)}
       {...(decorative
         ? { "aria-hidden": true as const }
         : { role: "img", "aria-label": `Area: ${name}` })}
@@ -135,19 +165,26 @@ export function AreaDot({ rank, name, decorative, className }: AreaDotProps) {
 
 export interface AreaPillProps {
   readonly rank: number;
+  /** The Area's own chosen colour slot, when it has one. Beats the rank. */
+  readonly colourSlot?: string | null;
   readonly name: string;
   readonly className?: string;
 }
 
-/** An Area's name on its own accent tint, with its dot. */
-export function AreaPill({ rank, name, className }: AreaPillProps) {
-  const accent = areaAccentForRank(rank);
+/** An Area's name in its own identity hue, on that hue's soft fill. */
+export function AreaPill({
+  rank,
+  colourSlot = null,
+  name,
+  className,
+}: AreaPillProps) {
+  const { slot } = resolveIdentity({ colourSlot, colourRank: rank });
   return (
     <span
       className={className ? `dh-area-pill ${className}` : "dh-area-pill"}
-      data-accent={accent}
+      {...identityAttribute(slot)}
     >
-      <AreaDot rank={rank} name={name} decorative />
+      <AreaDot rank={rank} colourSlot={colourSlot} name={name} decorative />
       {name}
     </span>
   );

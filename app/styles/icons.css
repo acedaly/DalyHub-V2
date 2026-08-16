@@ -37,18 +37,47 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Identity container — a record's glyph on its Area's accent                  */
+/* IDENTITY-01 — the identity TILE                                            */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The 40px rounded square the reference uses for entity identity, and the thing
- * that makes a grid of Area or Project cards scannable before a word is read.
+ * The rounded square that carries a record's identity, and the thing that makes
+ * a grid of Area, Project or Goal cards scannable before a word is read.
  *
- * The tint is the Area's GENERATED container role, not an authored colour, and
- * `on-*-container` is its checked partner — so the glyph's contrast is a
- * property of the palette rather than of this rule. Without an accent (a
- * Project with no Area) it falls back to the neutral card-subtle surface: a
- * colour that means nothing would be worse than no colour at all.
+ * ── What changed, and why it is not a restyle ────────────────────────────────
+ * Until IDENTITY-01 this tile was built from Material's generated tonal pair:
+ * a `*-container` fill holding its checked `on-*-container` partner. That
+ * construction IS the Material look — a pastel box with a dark muted glyph —
+ * whatever the wrapper is called, and it is what the owner kept recognising.
+ *
+ * The reference draws the inverse, and all three parts of it matter:
+ *
+ *   fill    a whisper of the record's hue over the card. Near-white in light.
+ *           It is felt, not seen.
+ *   edge    a fine tinted border. Because the fill deliberately barely draws
+ *           the tile, the BORDER is what actually does — remove it and the tile
+ *           dissolves into the card.
+ *   glyph   the full, saturated hue ITSELF. Not a partner colour chosen to be
+ *           legible on a fill; the hue the record's progress bar, chart line
+ *           and chip are also painted in. That agreement across surfaces is the
+ *           whole point: one record, one colour, everywhere.
+ *
+ * The three roles arrive as INHERITED custom properties (`tokens.css` →
+ * IDENTITY-01), set once by the resolver on whichever element owns the record.
+ * This file spends them; it does not know which slot is active, how many slots
+ * exist, or what appearance the document is in. Adding a seventeenth slot is a
+ * change to the generator and nothing else.
+ *
+ * The NEUTRAL case needs no rule here at all. With no `data-identity` in scope
+ * the roles resolve to the neutral container `:root` publishes — neutral tint,
+ * neutral hairline, muted glyph — which is what a Project with no Area and no
+ * chosen colour should look like. A colour that means nothing would be worse
+ * than no colour at all.
+ *
+ * It is deliberately not a status: the hue says WHICH record, never how the work
+ * is going, so it never competes with the one status chip beside it. Meaning is
+ * never carried by the tint alone — the record's name is always present as text
+ * on the same card.
  */
 .dh-accent-icon {
   display: inline-flex;
@@ -57,9 +86,15 @@
   inline-size: var(--app-entity-icon-container-size);
   block-size: var(--app-entity-icon-container-size);
   flex: none;
-  border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--dh-color-surface-subtle);
-  color: var(--dh-color-text-muted);
+  /*
+   * DalyHub geometry, not the M3 shape scale. At the 40px gallery size the
+   * reference's tile is a ~12px radius — soft enough to be an object, square
+   * enough to still be a tile rather than a pill.
+   */
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-identity-tint);
+  border: var(--dh-border-width) solid var(--dh-identity-edge);
+  color: var(--dh-identity);
   font-size: var(--app-entity-icon-size);
   line-height: 0;
 }
@@ -70,16 +105,18 @@
 }
 
 /*
- * M3X-02 — the mark's three rungs. The container steps up with the glyph AND
- * with the radius: a 56px square at `corner-medium` reads as a rounded rectangle
- * rather than as an identity tile, so the large rung takes the shape scale's
- * next rung too. This is the shape hierarchy applied to the identity mark, not
- * a second scale beside it.
+ * M3X-02 — the mark's three rungs, kept.
+ *
+ * The container steps up with the glyph AND with the radius: a 56px square at
+ * the 40px radius reads as a rounded rectangle rather than as an identity tile,
+ * so each rung takes the DalyHub radius that keeps the same proportion. This is
+ * the shape hierarchy applied to the identity mark, not a second scale beside
+ * it.
  */
 .dh-accent-icon[data-size="lg"] {
   inline-size: var(--app-entity-icon-container-size-lg);
   block-size: var(--app-entity-icon-container-size-lg);
-  border-radius: var(--app-shape-supporting);
+  border-radius: var(--dh-radius-lg);
   font-size: var(--app-entity-icon-size-lg);
 }
 
@@ -91,7 +128,7 @@
 .dh-accent-icon[data-size="sm"] {
   inline-size: var(--app-entity-icon-container-size-sm);
   block-size: var(--app-entity-icon-container-size-sm);
-  border-radius: var(--app-shape-control);
+  border-radius: var(--dh-radius-control);
   font-size: var(--app-entity-icon-size-sm);
 }
 
@@ -101,68 +138,14 @@
 }
 
 /*
- * VIS-01 — the identity mark takes its container at a GENERATED strength.
- *
- * This is Part 2 item A7 ("calmer identity marks in DARK") delivered by the
- * mechanism the design system already uses for every other amount that differs
- * between the appearances: one authored rule, one generated percentage, and no
- * hand-edited dark hex anywhere. In LIGHT the strength is 100% and the mark is
- * unchanged — a pale tone-90 square, which was never the problem. In DARK the
- * container is a saturated tone-30, and a gallery of nine of them read as a
- * rainbow of coloured rectangles rather than as identity; mixing it toward the
- * card underneath lands it between the two.
- *
- * The mix can be ONE rule across all six ramps because it is contrast-safe by
- * construction: the glyph is the container's own `on-` role, and moving a
- * container toward the card always moves it AWAY from that role — darker under
- * a light glyph in dark, lighter under a dark glyph in light. Asserted in
- * `contrast.test.ts` over every ramp in both appearances.
- *
- * The mix target is the CARD, because that is where an identity mark almost
- * always sits: a gallery card, a rail row, a record header.
- */
-.dh-accent-icon[data-accent] {
-  background: color-mix(
-    in srgb,
-    var(--accent-icon-container) var(--app-tint-strength-identity),
-    var(--dh-color-surface)
-  );
-  color: var(--accent-icon-on-container);
-}
-
-.dh-accent-icon[data-accent="1"] {
-  --accent-icon-container: var(--md-sys-color-area-accent-1-container);
-  --accent-icon-on-container: var(--md-sys-color-on-area-accent-1-container);
-}
-.dh-accent-icon[data-accent="2"] {
-  --accent-icon-container: var(--md-sys-color-area-accent-2-container);
-  --accent-icon-on-container: var(--md-sys-color-on-area-accent-2-container);
-}
-.dh-accent-icon[data-accent="3"] {
-  --accent-icon-container: var(--md-sys-color-area-accent-3-container);
-  --accent-icon-on-container: var(--md-sys-color-on-area-accent-3-container);
-}
-.dh-accent-icon[data-accent="4"] {
-  --accent-icon-container: var(--md-sys-color-area-accent-4-container);
-  --accent-icon-on-container: var(--md-sys-color-on-area-accent-4-container);
-}
-.dh-accent-icon[data-accent="5"] {
-  --accent-icon-container: var(--md-sys-color-area-accent-5-container);
-  --accent-icon-on-container: var(--md-sys-color-on-area-accent-5-container);
-}
-.dh-accent-icon[data-accent="6"] {
-  --accent-icon-container: var(--md-sys-color-area-accent-6-container);
-  --accent-icon-on-container: var(--md-sys-color-on-area-accent-6-container);
-}
-
-/*
- * Forced colours strip the generated tints, which would leave six identical
- * boxes. The border restores the container as a SHAPE, so the identity mark
- * survives as structure rather than depending on colour that is no longer there.
+ * Forced colours strip authored fills, which would leave sixteen identical
+ * boxes. The border is already load-bearing here, so it only has to be
+ * re-pointed at a system colour: the identity mark survives as STRUCTURE rather
+ * than depending on colour that is no longer there.
  */
 @media (forced-colors: active) {
   .dh-accent-icon {
-    border: var(--app-border-width-thin) solid CanvasText;
+    border-color: CanvasText;
   }
 }
 
@@ -180,13 +163,17 @@
 /*
  * The tonal icon TILE — the reference's single most recognisable device.
  *
- * Same geometry as the entity identity mark above (one shape ladder, not two),
- * and the same generated `identity` strength over the card, so a Project's mark
- * and a glance widget's tile are visibly the same object at the same weight.
- * What differs is the glyph colour: an entity mark uses `on-container` because
- * it holds a record's own icon inside its Area's colour, while a tonal tile
- * uses the ACCENT, because the tile IS the identity and the reference paints
- * that glyph in the hue.
+ * Same geometry as the identity tile above (one shape ladder, not two), so a
+ * Project's mark and a glance widget's tile read as the same object.
+ *
+ * They are no longer built the same way, and that is deliberate rather than
+ * drift. A glance widget declares a named TONE from the widget-accent ramp and
+ * still composes it through the generated container machinery; a record's tile
+ * resolves a SLOT from the identity ramp and takes the hue directly. IDENTITY-01
+ * was scoped to the record identity that carries the spine, and converting the
+ * widget vocabulary is its own pass — see `docs/md3-inventory.md`. What the two
+ * already agree on is the part the eye reads: the glyph is painted in the hue,
+ * never in an `on-container` partner.
  */
 .dh-tone-icon {
   display: inline-flex;

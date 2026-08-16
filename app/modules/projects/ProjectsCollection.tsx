@@ -310,6 +310,7 @@ function ProjectEntityCard({
           <AccentIcon
             entityType="project"
             iconKey={card.iconKey}
+            colourSlot={card.colourSlot}
             colourRank={card.colourRank}
             size="lg"
           />
@@ -317,9 +318,11 @@ function ProjectEntityCard({
         title={card.title}
         headingLevel={2}
         context={card.parentLabel}
-        // The SAME rank the mark above is painted with, so the bar and the mark
-        // are one identity rather than two colour decisions.
+        // The SAME inputs the mark above is painted from, so the bar and the
+        // mark are one identity rather than two colour decisions — the resolver
+        // folds them once, inside the card.
         accent={card.colourRank}
+        colourSlot={card.colourSlot}
         /*
          * REDESIGN-04 §5.6 — attention survives as SIGNAL, not as a sentence.
          *

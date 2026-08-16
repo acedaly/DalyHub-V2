@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { FeedbackProvider } from "~/shared/feedback";
 
 import { AreasCollectionView } from "~/modules/areas/AreasCollection";
+import { DERIVED_IDENTITY_SLOTS } from "~/kernel/entities/identity-colour-slots";
 import type { SerializedAreaListItem } from "~/modules/areas/area-view";
 
 function area(
@@ -17,6 +18,7 @@ function area(
     updatedAt: "2026-07-20T10:00:00.000Z",
     colourRank: 0,
     iconKey: null,
+    colourSlot: null,
     activeProjectCount: 1,
     completedProjectCount: 0,
     rollup: {
@@ -155,15 +157,34 @@ describe("Areas collection", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("gives every Area card its Area's own accent, not a shared one", () => {
+  it("gives every Area card its Area's own identity, not a shared one", () => {
     const { container } = renderCollection([
       area({ id: "a1", title: "Health", colourRank: 0 }),
       area({ id: "a2", title: "Career", colourRank: 1 }),
     ]);
-    const accents = Array.from(
+    // IDENTITY-01 — the slot is carried by NAME, so the assertion is about the
+    // ramp's first two slots rather than about two array indices.
+    const identities = Array.from(
       container.querySelectorAll(".dh-accent-icon"),
-    ).map((node) => node.getAttribute("data-accent"));
-    expect(accents).toEqual(["1", "2"]);
+    ).map((node) => node.getAttribute("data-identity"));
+    expect(identities).toEqual([
+      DERIVED_IDENTITY_SLOTS[0],
+      DERIVED_IDENTITY_SLOTS[1],
+    ]);
+  });
+
+  it("lets an Area's CHOSEN colour beat the one its rank derives", () => {
+    // The whole point of IDENTITY-01: an owner who picks a colour gets it, and
+    // an Area that picked nothing is untouched by the fact that its neighbour
+    // did.
+    const { container } = renderCollection([
+      area({ id: "a1", title: "Health", colourRank: 0, colourSlot: "amber" }),
+      area({ id: "a2", title: "Career", colourRank: 1 }),
+    ]);
+    const identities = Array.from(
+      container.querySelectorAll(".dh-accent-icon"),
+    ).map((node) => node.getAttribute("data-identity"));
+    expect(identities).toEqual(["amber", DERIVED_IDENTITY_SLOTS[1]]);
   });
 
   it("shows an empty state with a real New area action", () => {

@@ -39,6 +39,8 @@ export type SerializedGoalArea = {
   readonly title: string;
   readonly colourRank: number | null;
   readonly iconKey: string | null;
+  /** IDENTITY-01 — the Area's own CHOSEN colour, which beats its rank. */
+  readonly colourSlot: string | null;
 };
 
 export type SerializedGoalOverview = {
@@ -56,12 +58,14 @@ function serializeGoalArea(area: {
   readonly title: string;
   readonly colourRank?: number | null;
   readonly iconKey?: string | null;
+  readonly colourSlot?: string | null;
 }): SerializedGoalArea {
   return {
     id: area.id,
     title: area.title,
     colourRank: area.colourRank ?? null,
     iconKey: area.iconKey ?? null,
+    colourSlot: area.colourSlot ?? null,
   };
 }
 
@@ -102,11 +106,25 @@ export type SerializedGoalListItem = {
   readonly updatedAt: string;
   readonly completedAt: string | null;
   readonly area: SerializedGoalArea;
+  /**
+   * IDENTITY-01 — the Goal's OWN identity, when it has chosen one.
+   *
+   * A Goal used to have none: it inherited its Area's glyph and colour, so
+   * every Goal in an Area was drawn identically. The reference draws Goals with
+   * individually meaningful icons, so both halves travel and the shared
+   * resolver decides — own choice first, the Area's otherwise.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
 };
 
 /** AREA-03: one Goal on the workspace-wide Alignment collection. */
 export function serializeGoalListItem(
   item: GoalListItem,
+  own?: {
+    readonly iconKey?: string | null;
+    readonly colourSlot?: string | null;
+  } | null,
 ): SerializedGoalListItem {
   return {
     id: item.id,
@@ -115,6 +133,11 @@ export function serializeGoalListItem(
     updatedAt: item.updatedAt.toISOString(),
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
     area: serializeGoalArea(item.area),
+    // Passed in rather than read from the projection: a Goal's chosen identity
+    // lives on its own detail row, which the loader already has in hand for the
+    // measurement configuration — so this costs no extra read.
+    iconKey: own?.iconKey ?? null,
+    colourSlot: own?.colourSlot ?? null,
   };
 }
 

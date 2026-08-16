@@ -30,7 +30,7 @@
 import { Link } from "react-router";
 
 import { ProgressRow, ProgressRowList } from "~/shared/card";
-import { AccentIcon } from "~/shared/entity";
+import { AccentIcon, resolveIdentity } from "~/shared/entity";
 import {
   goalProgressSummaryText,
   goalRowValue,
@@ -60,8 +60,17 @@ export function GoalSummarySection({
             icon={
               <AccentIcon
                 entityType="goal"
-                iconKey={goal.areaIconKey}
-                colourRank={goal.areaColourRank}
+                // A Goal's OWN identity first, its Area's otherwise — the
+                // resolver walks the two halves independently, so a Goal that
+                // chose a glyph but no colour keeps both answers right.
+                colourSlot={goal.colourSlot}
+                iconKey={goal.iconKey}
+                colourRank={null}
+                inherited={{
+                  colourSlot: goal.areaColourSlot,
+                  colourRank: goal.areaColourRank,
+                  iconKey: goal.areaIconKey,
+                }}
                 size="sm"
               />
             }
@@ -69,6 +78,12 @@ export function GoalSummarySection({
             headingLevel={3}
             context={goal.areaTitle}
             accent={goal.areaColourRank}
+            colourSlot={
+              resolveIdentity({
+                colourSlot: goal.colourSlot,
+                inherited: { colourSlot: goal.areaColourSlot },
+              }).slot
+            }
             progress={
               goal.progress.progressPercent === null
                 ? undefined
