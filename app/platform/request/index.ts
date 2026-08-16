@@ -73,3 +73,9 @@ export {
   IDENTITY_COLOUR_FIELD_ERROR,
   type IdentityColourFieldResult,
 } from "./identity-colour-field";
+
+/**
+ * The loader an ACTION-ONLY route needs so a GET renders DalyHub's error
+ * boundary instead of React Router's internal error object and stack trace.
+ */
+export { actionOnlyLoader } from "./action-only";

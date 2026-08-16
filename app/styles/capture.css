@@ -383,14 +383,69 @@
  * rarest thing on the surface: an owner who opened Create and typed a task
  * title is capturing a task.
  */
-.dh-capture-change-type {
-  align-self: flex-start;
+/* -------------------------------------------------------------------------- */
+/* MOBILE-02 — the capture TYPE SELECTOR                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Five chips above the field, replacing the chooser SCREEN that used to come
+ * before it. The sheet opens on a Task with the cursor in the title; a different
+ * type is one tap, not one tap and a decision.
+ *
+ * `.dh-scroll-strip` (from the component) brings the horizontal overflow and its
+ * cue, so five chips on a 320px phone say that they continue rather than being
+ * silently cut. The cover colour is the sheet's own surface — the strip sits on
+ * the raised sheet, not on the page.
+ */
+.dh-capture-types {
+  --scroll-strip-cover: var(--dh-color-surface-raised);
+
+  display: flex;
+  gap: var(--dh-space-2);
+  padding-block-end: var(--dh-space-1);
+}
+
+.dh-capture-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  flex: none;
+  /* The touch floor: this is the phone's own primary control row. */
   min-block-size: var(--app-touch-target-min);
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--md-sys-color-primary);
-  font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  padding-inline: var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.dh-capture-type__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+/* The active type. `aria-pressed` carries it for assistive tech, and the label
+ * is always present, so the fill is reinforcement and never the signal. */
+.dh-capture-type[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-capture-type:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+@media (forced-colors: active) {
+  .dh-capture-type[aria-pressed="true"] {
+    border-color: Highlight;
+    border-width: var(--app-border-width-thick);
+  }
 }

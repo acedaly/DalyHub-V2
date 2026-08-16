@@ -47,6 +47,14 @@ import { ownerLocalToUtc } from "~/shared/datetime";
 
 import type { Route } from "./+types/schedule";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 export type ScheduleActionResult =
   | { readonly ok: true; readonly meetingId: string; readonly created: boolean }
   | { readonly ok: false; readonly message: string };

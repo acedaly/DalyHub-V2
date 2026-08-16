@@ -39,6 +39,14 @@ import { aiErrorResponse, aiJson } from "../ai-request";
 import { computeWeeklyReviewFacts } from "../review-facts";
 import type { Route } from "./+types/assist";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 /** The bounded request body. Anything else is rejected before any work happens. */
 interface AssistBody {
   readonly feature: AiFeatureId;

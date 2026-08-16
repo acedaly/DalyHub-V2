@@ -280,6 +280,12 @@ export interface InsightTrend {
   readonly higherIsBetter: boolean;
   readonly points: readonly TrendPoint[];
   readonly summary: string;
+  /**
+   * CONVERGE-01 §I — the VISIBLE caption: the sentence {@link summary} opens
+   * with, without the per-period enumeration. The enumeration stays in
+   * `summary`, which is the chart's accessible description.
+   */
+  readonly headline: string;
 }
 
 /** At least this many points before a trend is worth drawing. Two points is a
@@ -866,6 +872,8 @@ function buildTrends(input: ResolvedInput): InsightTrend[] {
     higherIsBetter: true,
     points: taskPoints,
     summary: seriesSummary(taskPoints, taskDirection, "Tasks completed"),
+    // CONVERGE-01 §I — the visible caption. `summary` stays the accessible one.
+    headline: seriesHeadline(taskPoints, taskDirection, "Tasks completed"),
   });
 
   if (points.some((point) => point.projects > 0)) {
@@ -884,6 +892,7 @@ function buildTrends(input: ResolvedInput): InsightTrend[] {
       higherIsBetter: true,
       points: projectPoints,
       summary: seriesSummary(projectPoints, direction, "Projects completed"),
+      headline: seriesHeadline(projectPoints, direction, "Projects completed"),
     });
   }
 
@@ -901,8 +910,31 @@ export function seriesSummary(
   const listed = points
     .map((point) => `${point.label}: ${point.value}`)
     .join("; ");
+  const headline = seriesHeadline(points, direction, what);
+  return direction === "insufficient"
+    ? `${what} — ${listed}. Not enough Reviews yet to show a direction.`
+    : `${headline} ${listed}.`;
+}
+
+/**
+ * CONVERGE-01 §I — the same series, as the ONE VISIBLE line.
+ *
+ * {@link seriesSummary} spells out every reading, which is right for the
+ * chart's accessible description and wrong printed under the plot: on a twelve
+ * period range it draws a paragraph enumerating twelve numbers the axis beneath
+ * it is already showing. This is the sentence that enumeration opens with — the
+ * shape of the trend, without the data table in prose.
+ *
+ * Derived from the same points and the same direction, so the visible line and
+ * the announced one can never disagree about which way the series went.
+ */
+export function seriesHeadline(
+  points: readonly TrendPoint[],
+  direction: TrendDirection,
+  what: string,
+): string {
   if (direction === "insufficient") {
-    return `${what} — ${listed}. Not enough Reviews yet to show a direction.`;
+    return `${what} — not enough Reviews yet to show a direction.`;
   }
   const first = points[0];
   const last = points[points.length - 1];
@@ -912,7 +944,7 @@ export function seriesSummary(
       : direction === "down"
         ? `down from ${first.value} to ${last.value}`
         : `unchanged at ${last.value}`;
-  return `${what} over the last ${points.length} Review periods, ${movement}. ${listed}.`;
+  return `${what} over the last ${points.length} Review periods, ${movement}.`;
 }
 
 /* -- Notes ----------------------------------------------------------------- */

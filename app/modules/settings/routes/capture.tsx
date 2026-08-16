@@ -40,6 +40,14 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/capture";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 /** The bounded set of actions this route accepts. */
 const ACTIONS = new Set(["create", "revoke"]);
 

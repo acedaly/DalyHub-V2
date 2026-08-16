@@ -393,6 +393,29 @@
   border-radius: var(--dh-radius-sm);
 }
 
+/*
+ * MOBILE-02 §9 — a keycap is not shown to a device with no keys.
+ *
+ * The phone's More drawer renders the same navigation the desktop rail does,
+ * so it inherited its two keyboard hints: "Search  /" and "Command palette
+ * ⌘K", printed on a touchscreen. Advertising a shortcut nobody on that device
+ * can press is worse than saying nothing — it is the product telling the owner
+ * about a version of itself they are not using.
+ *
+ * Keyed on the POINTER, not on the width: a narrow desktop window keeps its
+ * hints (the keys are still there), and a tablet with a keyboard attached
+ * reports a fine pointer and keeps them too. The ACTIONS are untouched — both
+ * rows still open what they always did, by tap.
+ *
+ * The hints are `aria-hidden` already, so nothing changes for a screen reader
+ * at any width.
+ */
+@media (pointer: coarse) {
+  .dh-sidebar__search-hint {
+    display: none;
+  }
+}
+
 /* Primary navigation. */
 .dh-nav {
   margin-top: var(--dh-space-2);

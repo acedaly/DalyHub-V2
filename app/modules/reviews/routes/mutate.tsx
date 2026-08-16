@@ -14,6 +14,14 @@ import { lifecycleBlockedByLinks } from "~/shared/record-lifecycle";
 import { captureSnapshotForCompletedReview } from "../insights/review-insights-context";
 import type { Route } from "./+types/mutate";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 export type ReviewMutationResult =
   | { readonly kind: "rename"; readonly ok: true }
   | { readonly kind: "rename"; readonly ok: false; readonly formError: string }

@@ -34,8 +34,7 @@ import {
 import { useNavigate } from "react-router";
 
 import { EntityIcon } from "~/shared/entity";
-import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
-import { ChevronRightIcon } from "~/shared/icons";
+import { Sheet } from "~/shared/sheet";
 
 import {
   CAPTURE_TYPE_DESCRIPTORS,
@@ -85,7 +84,7 @@ export default function CaptureSheet({
 }: CaptureSheetProps) {
   const navigate = useNavigate();
   // Resolved once on mount: an explicit request wins, then the session memory.
-  const [active, setActive] = useState<CaptureType | null>(() =>
+  const [active, setActive] = useState<CaptureType>(() =>
     resolveInitialCaptureType(requestedType, readRememberedCaptureType()),
   );
   const firstFieldRef = useRef<HTMLElement | null>(null);
@@ -100,13 +99,10 @@ export default function CaptureSheet({
   const formId = useId();
   const [activeContext, setActiveContext] =
     useState<CaptureContextContract | null>(() =>
-      active ? contextForCaptureType(active, captureContext) : captureContext,
+      contextForCaptureType(active, captureContext),
     );
 
   useEffect(() => {
-    if (active === null) {
-      return;
-    }
     rememberCaptureType(active);
 
     /*
@@ -134,32 +130,43 @@ export default function CaptureSheet({
     setActive(type);
     setActiveContext((current) => contextForCaptureType(type, current));
   }, []);
-  const backToChooser = useCallback(() => setActive(null), []);
 
-  if (active === null) {
-    return (
-      <Sheet
-        title="Capture"
-        description="What are you capturing?"
-        opener={opener}
-        onClose={onClose}
-        data-testid="capture-sheet"
-      >
-        <SheetOptionList label="Capture type">
-          {CAPTURE_TYPE_DESCRIPTORS.map((descriptor) => (
-            <SheetOption
-              key={descriptor.type}
-              label={descriptor.label}
-              description={descriptor.description}
-              icon={<EntityIcon type={descriptor.entityType} />}
-              onSelect={() => choose(descriptor.type)}
-              data-testid={`capture-choose-${descriptor.type}`}
-            />
-          ))}
-        </SheetOptionList>
-      </Sheet>
-    );
-  }
+  /*
+   * MOBILE-02 — the type SELECTOR replaces the chooser screen.
+   *
+   * The sheet used to open on a list of five options and only then show a
+   * field. It now opens on the field, with the five types as a compact chip row
+   * above it: the common case costs no decision at all, and an uncommon one
+   * costs exactly one tap instead of one tap plus a screen.
+   *
+   * It is a `dh-scroll-strip`, so five chips on a 320px phone announce that
+   * they continue rather than being cut off — the same affordance every other
+   * horizontally-constrained strip in the product uses. `aria-pressed` carries
+   * which type is active; the chip is never distinguished by fill alone.
+   */
+  const typeSelector = (
+    <div
+      className="dh-capture-types dh-scroll-strip"
+      role="group"
+      aria-label="Capture type"
+    >
+      {CAPTURE_TYPE_DESCRIPTORS.map((descriptor) => (
+        <button
+          key={descriptor.type}
+          type="button"
+          className="dh-capture-type"
+          aria-pressed={descriptor.type === active}
+          onClick={() => choose(descriptor.type)}
+          data-testid={`capture-choose-${descriptor.type}`}
+        >
+          <span className="dh-capture-type__icon" aria-hidden="true">
+            <EntityIcon type={descriptor.entityType} />
+          </span>
+          {descriptor.label}
+        </button>
+      ))}
+    </div>
+  );
 
   const descriptor = captureDescriptor(active);
   const handoffRoute = fullFormRoute(active, activeContext);
@@ -211,27 +218,10 @@ export default function CaptureSheet({
             ),
           }
         : {})}
-      leading={
-        // "Change type" is always available, so remembering the last type never
-        // makes another type hard to reach. On the Task panel it moves OUT of
-        // the header — that corner belongs to Cancel — and sits at the end of
-        // the body, where it is still one tap away and no longer competes with
-        // the two controls that decide whether this capture happens.
-        headerSubmit ? null : (
-          <button
-            type="button"
-            className="dh-sheet__leading-control"
-            onClick={backToChooser}
-            data-testid="capture-change-type"
-          >
-            <span className="dh-sheet__leading-icon" aria-hidden="true">
-              <ChevronRightIcon />
-            </span>
-            Change type
-          </button>
-        )
-      }
     >
+      {/* The type selector, above everything: it says what this sheet is about
+          to create before the field asks for its title. */}
+      {typeSelector}
       {activeContext ? (
         <CaptureContextChip
           captureType={active}
@@ -240,17 +230,7 @@ export default function CaptureSheet({
         />
       ) : null}
       {active === "task" ? (
-        <>
-          <TaskCapturePanel {...panelProps} />
-          <button
-            type="button"
-            className="dh-capture-change-type"
-            onClick={backToChooser}
-            data-testid="capture-change-type"
-          >
-            Capture something else
-          </button>
-        </>
+        <TaskCapturePanel {...panelProps} />
       ) : active === "diary" ? (
         <DiaryCapturePanel {...panelProps} />
       ) : active === "meeting" ? (

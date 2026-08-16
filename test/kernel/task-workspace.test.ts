@@ -745,7 +745,7 @@ describe("listWorkspaceTaskGroups", () => {
     await mk(WS, project.id, "a1", { priority: "p1" });
     await mk(WS, project.id, "a2", { priority: "p1" });
     await mk(WS, project.id, "b1", { priority: "p2" });
-    await mk(WS, project.id, "u1", {}); // untriaged
+    await mk(WS, project.id, "u1", {}); // stored `null` — Priority 4
     // Excluded from the active planning scope:
     const done = await mk(WS, project.id, "done p1", { priority: "p1" });
     await repo.completeTask(done.id);
@@ -764,9 +764,19 @@ describe("listWorkspaceTaskGroups", () => {
     const byKey = new Map(grouping.groups.map((g) => [g.key, g]));
     expect(byKey.get("p1")?.count).toBe(2);
     expect(byKey.get("p2")?.count).toBe(1);
-    expect(byKey.get("untriaged")?.count).toBe(1);
+    /*
+     * CONTROL-01 — a task stored `null` groups into P4, not into a fifth
+     * `untriaged` bucket.
+     *
+     * `null` IS Priority 4 in the product's settled priority contract, and the
+     * rows have drawn a grey P4 flag on those tasks for some time. The grouping
+     * disagreed: it produced a separate "No priority" section holding tasks
+     * every row inside it labelled P4 — two headings for one state, and the one
+     * the product has no name for was usually the larger.
+     */
+    expect(byKey.get("p4")?.count).toBe(1);
+    expect(byKey.get("untriaged")).toBeUndefined();
     expect(byKey.get("p3")).toBeUndefined(); // empty bucket → not returned
-    expect(byKey.get("p4")).toBeUndefined();
   });
 
   it("reports the true count and hasMore when a bucket exceeds bucketLimit", async () => {

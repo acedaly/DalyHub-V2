@@ -59,6 +59,7 @@ export {
   classifyGoalContribution,
   classifyProjectHealthChange,
   trendDirection,
+  seriesHeadline,
   seriesSummary,
   evaluateReviewInsights,
   REVIEW_INSIGHT_VIEW_QUERIES,

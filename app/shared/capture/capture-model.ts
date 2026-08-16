@@ -120,14 +120,28 @@ export const CAPTURE_TYPE_SESSION_KEY = "dh.capture.lastType";
 export function resolveInitialCaptureType(
   requested: CaptureType | undefined,
   remembered: string | null,
-): CaptureType | null {
+): CaptureType {
   if (requested !== undefined) {
     return requested;
   }
   if (isCaptureType(remembered)) {
     return remembered;
   }
-  return null;
+  /*
+   * MOBILE-02 — capture opens on TASK, it does not ask.
+   *
+   * It used to return null, which rendered a chooser: pressing the phone's `+`
+   * asked "What are you capturing?" and offered five options before showing a
+   * field. Capture is the interaction this product is fastest at and the one an
+   * owner performs most, and the answer is a Task overwhelmingly often — so the
+   * chooser spent a tap, a screen and a decision on a question that already had
+   * an answer, every single time, before the keyboard could appear.
+   *
+   * Nothing is lost: the sheet carries a compact type selector, so the other
+   * four types are ONE tap away rather than one tap in. The remembered type
+   * still wins, so an owner in the middle of a run of Notes keeps getting Notes.
+   */
+  return "task";
 }
 
 /** Read the remembered capture type. SSR-safe and storage-failure-safe. */

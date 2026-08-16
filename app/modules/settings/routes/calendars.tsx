@@ -55,6 +55,14 @@ import { ownerCalendarIso } from "~/shared/datetime";
 
 import type { Route } from "./+types/calendars";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 const ACTIONS = new Set(["add", "rename", "toggle", "refresh", "remove"]);
 
 /**

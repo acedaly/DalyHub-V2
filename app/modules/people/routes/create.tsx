@@ -20,6 +20,14 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/create";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 /** The discriminated create-person outcome the forms consume. */
 export type CreatePersonResult =
   | { readonly ok: true; readonly personId: string }

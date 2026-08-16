@@ -233,11 +233,28 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
    * The chart's own text form, and the only place the FULL bucket labels are
    * spelled out. The axis takes the short form (see `bucketShortLabels`), so the
    * plot carries one line of caption rather than three.
+   *
+   * CONVERGE-01 §I — it is now split in two, and the split is the fix.
+   *
+   * `summary` is the ACCESSIBLE description: every bucket, every reading, which
+   * is exactly what a screen reader needs and what makes the chart usable
+   * without seeing it. It was also being PRINTED under the plot, so a 12-week
+   * range drew a paragraph enumerating twelve readings the axis beneath it
+   * already showed — Analytics communicating its own accessibility rather than
+   * its data, which is the audit's phrasing and is fair.
+   *
+   * `caption` is the visible line: the headline the enumeration opens with. The
+   * long form stays in the document, visually hidden, so nothing is taken from
+   * anyone.
    */
-  const summary =
+  const headline =
     points.length < 2
       ? "Not enough of this period has passed to show a trend."
-      : `Tasks completed across ${points.length} periods, ${total} in total. ${model.series
+      : `Tasks completed across ${points.length} periods, ${total} in total.`;
+  const summary =
+    points.length < 2
+      ? headline
+      : `${headline} ${model.series
           .map(
             (point, index) =>
               `${data.bucketLabels[index]}: ${point.tasksCompleted}`,
@@ -247,11 +264,12 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
   return (
     <DashboardCard title="Completion trend" density="standard">
       {points.length < 2 ? (
-        <p className="dh-analytics__absent">{summary}</p>
+        <p className="dh-analytics__absent">{headline}</p>
       ) : (
         <TrendLine
           points={points}
           summary={summary}
+          caption={headline}
           scaleToTarget={false}
           startLabel={data.bucketShortLabels[0] ?? ""}
           endLabel={

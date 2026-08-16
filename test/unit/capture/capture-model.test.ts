@@ -72,12 +72,19 @@ describe("resolveInitialCaptureType", () => {
     expect(resolveInitialCaptureType(undefined, "meeting")).toBe("meeting");
   });
 
-  it("shows the chooser when nothing is remembered or requested", () => {
-    expect(resolveInitialCaptureType(undefined, null)).toBeNull();
+  it("opens on a TASK when nothing is remembered or requested", () => {
+    /*
+     * MOBILE-02 — it used to return null, which rendered a chooser: pressing
+     * the phone's `+` asked "What are you capturing?" and offered five options
+     * before showing a field, every time, on the interaction this product is
+     * meant to be fastest at. The answer is a Task overwhelmingly often, and
+     * the other four are still one tap away in the sheet's type selector.
+     */
+    expect(resolveInitialCaptureType(undefined, null)).toBe("task");
   });
 
   it("ignores a corrupted remembered value rather than opening a broken panel", () => {
-    expect(resolveInitialCaptureType(undefined, "not-a-type")).toBeNull();
+    expect(resolveInitialCaptureType(undefined, "not-a-type")).toBe("task");
   });
 });
 

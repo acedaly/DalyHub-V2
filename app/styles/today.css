@@ -1127,20 +1127,26 @@
   }
 
   /*
-   * TODAY-10 — the priority tag is a POINTER-WIDTH affordance.
+   * MOBILE-02 §8 — the FLAG stays on a phone; only its TAG goes.
    *
-   * Its job is to explain why the panel is ordered the way it is, and on a
-   * phone the panel is at most eight rows: the order is legible from position
-   * alone. Keeping it would cost 43px of a 200px content line, which measured
-   * at 320px as a 72px title beside an 84px project — the row read by its
-   * metadata, which is the failure §20 of the brief names. Nothing is lost that
-   * is only here: priority is on the Task record a tap away and on every
-   * `/tasks` row. The ORDER is unchanged — it is the same order at every width.
+   * TODAY-10 hid the whole indicator here, and its measurement was right: the
+   * flag plus a "P2" tag cost 43px of a 200px content line, which at 320px read
+   * as a 72px title beside an 84px project — a row read by its metadata. Its
+   * conclusion was the part to revisit. The panel is ORDERED by priority, so a
+   * phone row that shows no priority is a list in an order the owner cannot
+   * see; "it is legible from position alone" asks them to infer the sort key
+   * from the sort.
+   *
+   * The flag alone is ~15px, not 43px — the tag was almost all of the cost. So
+   * the glyph stays and the two characters beside it go, which is the same
+   * trade the Tasks row makes at this width for the same reason.
+   *
+   * The accessible name is untouched: it lives on the indicator's container
+   * (`role="img"`, "Priority 2"), not on the tag, so a screen reader hears the
+   * full priority on every row at every width and nothing here is carried by
+   * colour alone.
    */
-  /* Two class selectors, because the shared `.dh-priority` sets its own
-   * `display` and is loaded after this file — a single class would tie on
-   * specificity and lose on source order. */
-  .dh-day-row .dh-day-row__priority {
+  .dh-day-row .dh-day-row__priority .dh-priority__label {
     display: none;
   }
 
@@ -1779,16 +1785,30 @@
 
 @media (max-width: 48rem) {
   /*
-   * The header's action is full width on a phone, under the greeting rather
-   * than beside it. At 320 a "+ Add task" button beside "Good afternoon, Aidan"
-   * leaves the greeting ~150px and wraps it to three lines.
+   * MOBILE-02 §5 — the header's "+ Add task" goes on a phone.
+   *
+   * It was full width under the greeting, because at 320 a button beside "Good
+   * afternoon, Aidan" leaves the greeting ~150px and wraps it to three lines.
+   * That was the right fix for the wrong problem: the phone shell already
+   * carries a create action, in the bottom bar's centre slot, under the thumb —
+   * and it opens the SAME capture sheet on the SAME Task panel. So the header's
+   * copy was a second, worse-placed control for one action, spending ~60px of a
+   * first viewport that the audit measured as ~55% consumed before the first
+   * task.
+   *
+   * `display: none`, not removal: the button is the DESKTOP header's create
+   * action and stays exactly where every other collection puts one. Nothing is
+   * unreachable — the bottom bar's Add is one thumb away at every phone width,
+   * and the tab order simply no longer runs through a duplicate.
    */
   .dh-today__head-actions {
-    inline-size: 100%;
+    display: none;
   }
 
-  .dh-today__head-actions .dh-btn {
-    inline-size: 100%;
+  /* With the action gone the greeting block IS the header, so it stops being a
+   * two-column row waiting for a second column. */
+  .dh-today__head {
+    display: block;
   }
 
   /* The strip keeps its seven columns — a week is a week — and gives up the

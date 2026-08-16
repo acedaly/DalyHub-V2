@@ -12,6 +12,14 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerLocalToUtc } from "~/shared/datetime";
 import type { Route } from "./+types/mutate";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 /**
  * MEET-03 — the JSON shape the "Mark as held" submission answers with. `outcome`
  * is the truthful distinction between "this call recorded it" and "it was already
