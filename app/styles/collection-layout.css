@@ -682,6 +682,15 @@
     display: none;
   }
 
+  /* …unless the switcher selects WHICH principal collection is shown rather
+   * than how one is drawn. Notes' Active / Archived / Deleted is not among the
+   * control groups — it is the collection's mode — so hiding it here left a
+   * phone with no route to an archived or deleted Note at all. */
+  .dh-collection--has-mobile-controls.dh-collection--keep-views
+    .dh-pane-header__views {
+    display: flex;
+  }
+
   .dh-collection__mobile-controls {
     display: block;
     padding: var(--app-space-2) var(--app-page-padding) var(--app-space-3);

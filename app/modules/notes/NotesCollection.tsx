@@ -296,6 +296,9 @@ function NotesCollection({
       // desktop filter bar and a phone sheet that drift apart. Tasks, Assets
       // and Views already opt in; Notes was the module still forking.
       persistentControls
+      // The lifecycle switcher is the collection's MODE, not a filter, so it is
+      // not in the control groups — and must therefore survive on a phone.
+      keepViewsOnCompact
       isLoading={isReloading}
       title="Notes"
       subtitle={subtitle}

@@ -140,6 +140,17 @@ export type CollectionLayoutProps = {
    * from always being visible.
    */
   readonly persistentControls?: boolean;
+  /**
+   * Keep the view switcher visible at phone widths, beside the control row.
+   *
+   * `mobileControls` normally REPLACES the view switcher on a phone, which is
+   * right when the switcher only changes how the same records are drawn and the
+   * sheet carries the same choice. It is wrong when the switcher selects WHICH
+   * PRINCIPAL COLLECTION is shown: Notes' Active / Archived / Deleted is not a
+   * filter, is deliberately absent from the control groups, and hiding it left a
+   * phone with no route to a deleted Note at all.
+   */
+  readonly keepViewsOnCompact?: boolean;
 
   /* -- State slots (precedence: error → loading → filtered-empty → empty) -- */
   readonly error?: ReactNode;
@@ -175,6 +186,7 @@ export function CollectionLayout({
   filterBar,
   mobileControls,
   persistentControls = false,
+  keepViewsOnCompact = false,
   error,
   isLoading = false,
   loadingSlot,
@@ -195,6 +207,7 @@ export function CollectionLayout({
     // Drives the phone/desktop control swap in CSS (see collection-layout.css).
     mobileControls ? "dh-collection--has-mobile-controls" : null,
     persistentControls ? "dh-collection--persistent-controls" : null,
+    keepViewsOnCompact ? "dh-collection--keep-views" : null,
     className,
   ]
     .filter(Boolean)

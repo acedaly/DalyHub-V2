@@ -676,6 +676,10 @@ function PeopleCollection({
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
       mobileControls={mobileControls}
+      // The circles and Archived are principal collections, not filters — they
+      // are not among the control groups, so hiding the switcher on a phone left
+      // no route to them at all.
+      keepViewsOnCompact
       primaryAction={quickAdd}
       error={
         failed ? (
