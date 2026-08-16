@@ -200,7 +200,10 @@ const BUCKET_FILTERS: Record<
 > = {
   priority: {
     param: TASKS_FILTER_PARAMS.priority,
-    value: (key) => (key === "untriaged" ? "__none" : key),
+    // CONTROL-01 — an `untriaged` bucket can only come from a cursor issued
+    // before the query coalesced `null` into `p4`. It scopes to P4, which is
+    // what those rows are, rather than to the retired `__none` filter.
+    value: (key) => (key === "untriaged" ? "p4" : key),
   },
   sector: {
     param: TASKS_FILTER_PARAMS.timeSector,

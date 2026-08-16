@@ -337,10 +337,16 @@ describe("priority and dates, changed on the record (EDIT-02)", () => {
     const dialog = within(
       screen.getByRole("dialog", { name: "Edit due date" }),
     );
-    fireEvent.change(screen.getByLabelText("Due date"), {
-      target: { value: "2026-09-30" },
-    });
-    fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+    /*
+     * CONTROL-01 — DalyHub's own month grid, not a native `<input type="date">`,
+     * and a day commits on selection. `PageDown` walks the month, which is the
+     * keyboard contract the grid publishes.
+     */
+    const grid = dialog.getByRole("grid", { name: "Due date" });
+    fireEvent.keyDown(grid, { key: "PageDown" });
+    fireEvent.click(
+      within(grid).getByRole("button", { name: "Wednesday 30 September 2026" }),
+    );
 
     await waitFor(() =>
       expect(posts.some((post) => post.body.get("intent") === "set_due")).toBe(

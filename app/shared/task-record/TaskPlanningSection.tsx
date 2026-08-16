@@ -145,6 +145,9 @@ export function TaskPlanningSection({
               format={(iso) => formatCalendarDate(iso) ?? iso}
               emptyLabel="Not planned"
               shortcuts={shortcuts}
+              // CONTROL-01 — the owner's day (ADR-022), so the grid opens on
+              // this month and marks today rather than the browser's idea of it.
+              todayIso={todayIso}
               // Planning applies to OPEN work: a completed task shows its plan
               // as plain text, with no tab stop and no hover container.
               readOnly={completed}
@@ -162,6 +165,7 @@ export function TaskPlanningSection({
               format={(iso) => formatCalendarDate(iso) ?? iso}
               emptyLabel="No due date"
               shortcuts={shortcuts}
+              todayIso={todayIso}
               readOnly={completed || onSetDue === undefined}
               data-testid="task-due-edit"
             />

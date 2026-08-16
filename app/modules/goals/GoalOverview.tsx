@@ -197,6 +197,10 @@ export function GoalOverview({
             onSave={onSetTargetDate}
             format={(iso) => formatCalendarDate(iso) ?? iso}
             emptyLabel="Add a target date"
+            // CONTROL-01 — the owner's day (ADR-022), which the Goal record
+            // already resolves for its own overdue arithmetic. It opens the
+            // grid on this month and marks today.
+            todayIso={todayIso}
             data-testid="goal-target-date-edit"
           />
           {target.state === "overdue" ? (

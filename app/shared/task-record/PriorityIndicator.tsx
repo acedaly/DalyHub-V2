@@ -144,6 +144,45 @@ export function PriorityFlag({
   );
 }
 
+/**
+ * CONTROL-01 — the flag ALONE, in the priority's colour.
+ *
+ * The priority contract is "a flag, plus a short P1–P4 tag in compact rows and
+ * the full label in menus". A menu row therefore wants the glyph beside the
+ * words "Priority 2" — not beside "P2 Priority 2", which is what reusing
+ * `PriorityFlag` there would print.
+ *
+ * It shares this file, this glyph and the same `data-priority` colour mapping
+ * with `PriorityFlag`, so the two cannot drift into two flags. It is
+ * DECORATIVE: it renders no text and carries no accessible name, because every
+ * surface that uses it already states the priority in words immediately beside
+ * it. A mark with a name there would make a screen reader say it twice.
+ */
+export function PriorityGlyph({
+  priority,
+  size = "sm",
+  className,
+}: {
+  readonly priority: TaskPriority | null;
+  readonly size?: "sm" | "md";
+  readonly className?: string;
+}) {
+  return (
+    <span
+      className={["dh-priority", "dh-priority--glyph", className]
+        .filter(Boolean)
+        .join(" ")}
+      data-priority={priorityKey(priority)}
+      data-size={size}
+      aria-hidden="true"
+    >
+      <span className="dh-priority__flag">
+        <PriorityFlagGlyph />
+      </span>
+    </span>
+  );
+}
+
 /** Compatibility name during the migration to `PriorityFlag`. */
 export function PriorityIndicator(props: PriorityIndicatorProps) {
   return <PriorityFlag {...props} />;

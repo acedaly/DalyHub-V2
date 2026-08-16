@@ -1,5 +1,5 @@
 /**
- * MOBILE-01 — the shared phone collection controls and the one collection sheet.
+ * MOBILE-01 / CONTROL-01 — the shared collection controls, in two presentations.
  *
  * The phone collection header is ONE row: a Filter button carrying its active
  * count, and (where the collection has them) a Sort/View menu. Everything richer —
@@ -23,6 +23,23 @@
  * options. A collection needing to filter by a searched record passes that control
  * through `children`, where it keeps using the shared server-backed picker — the
  * sheet never loads a collection to filter it locally.
+ *
+ * ── CONTROL-01: the sheet is the PHONE presentation, not the only one ────────
+ * Everything above is right for a phone and wrong for a desktop. On a 1440px
+ * window the same button slid a full-width modal up from the bottom edge, with
+ * a drag handle and a sticky Apply footer, over the list it was filtering — so
+ * adjusting three filters meant three open/choose/apply/close round trips, each
+ * of them hiding the result of the last.
+ *
+ * So the SHEET is now what a compact viewport gets, and a pointer device gets
+ * `CollectionControlsPopover`: the same groups, the same committed params, the
+ * same `applyDraft`, anchored beside the trigger and live-applying. The split is
+ * `useCompactViewport`, the one boolean in the product allowed to change the DOM
+ * rather than its presentation, and the same one `InlineSelectField` already
+ * uses to choose between a menu and a sheet.
+ *
+ * There is one model, one set of options and one URL writer. Only the container
+ * differs, which is what stops this becoming two filter systems that drift.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -30,6 +47,13 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "react-router";
 
 import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
+import { useCompactViewport } from "~/shared/viewport";
+
+import {
+  CollectionControlsPopover,
+  hasActiveControls,
+} from "./CollectionControlsPopover";
+import { ControlOptionMark } from "./ControlOptionMark";
 
 import { CollectionFilterChips } from "./CollectionFilterChips";
 import {
@@ -91,6 +115,7 @@ export function CollectionControls({
 }: CollectionControlsProps) {
   const [urlParams, setSearchParams] = useSearchParams();
   const searchParams = params ?? urlParams;
+  const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CollectionControlsDraft>(() =>
     draftFromParams(groups, searchParams),
@@ -101,12 +126,59 @@ export function CollectionControls({
 
   const openSheet = useCallback(() => {
     // Seed the draft from what is COMMITTED each time, so a discarded draft never
-    // resurfaces on the next open.
+    // resurfaces on the next open. The popover has no draft to seed, and doing
+    // it anyway costs nothing and keeps one open path.
     setDraft(draftFromParams(groups, searchParams));
     setOpen(true);
   }, [groups, searchParams]);
 
   const closeSheet = useCallback(() => setOpen(false), []);
+
+  /**
+   * CONTROL-01 — close the popover and put focus back where it came from.
+   *
+   * The Sheet restores focus itself (it is a modal and owns the trap). The
+   * popover is not modal, so the host does it: without this, dismissing with
+   * Escape drops focus onto `<body>` and a keyboard user is returned to the top
+   * of the document.
+   */
+  const closePopover = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  /**
+   * Commit ONE control immediately — the popover's whole behavioural difference.
+   *
+   * It writes through the same `applyDraft` the sheet's Apply uses, over a draft
+   * containing only this change, so there is exactly one function in the product
+   * that turns collection controls into a URL.
+   */
+  const commit = useCallback(
+    (group: CollectionControlGroup, value: string) => {
+      const next = withDraftValue(
+        draftFromParams(groups, searchParams),
+        group,
+        value,
+      );
+      setSearchParams(
+        applyDraft(groups, searchParams, next, {
+          ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
+        }),
+        { replace: true, preventScrollReset: true },
+      );
+    },
+    [groups, searchParams, setSearchParams, resetParams],
+  );
+
+  const clearAll = useCallback(() => {
+    setSearchParams(
+      applyDraft(groups, searchParams, emptyDraft(groups), {
+        ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
+      }),
+      { replace: true, preventScrollReset: true },
+    );
+  }, [groups, searchParams, setSearchParams, resetParams]);
 
   const apply = useCallback(() => {
     setSearchParams(
@@ -130,7 +202,8 @@ export function CollectionControls({
           ref={triggerRef}
           className="dh-collection-controls__trigger"
           aria-expanded={open}
-          onClick={openSheet}
+          aria-haspopup={compact ? "dialog" : "menu"}
+          onClick={() => (open ? closePopover() : openSheet())}
           data-testid="collection-filter-trigger"
         >
           {triggerLabel}
@@ -158,7 +231,23 @@ export function CollectionControls({
         />
       </div>
 
-      {open ? (
+      {open && !compact ? (
+        <CollectionControlsPopover
+          groups={groups}
+          params={searchParams}
+          anchorRef={triggerRef}
+          label={label}
+          onSelect={commit}
+          onReset={
+            hasActiveControls(groups, searchParams) ? clearAll : undefined
+          }
+          onClose={closePopover}
+        >
+          {children}
+        </CollectionControlsPopover>
+      ) : null}
+
+      {open && compact ? (
         <Sheet
           title={label}
           opener={triggerRef.current}
@@ -205,6 +294,9 @@ export function CollectionControls({
                         label={option.label}
                         {...(option.description
                           ? { description: option.description }
+                          : {})}
+                        {...(option.mark
+                          ? { icon: <ControlOptionMark mark={option.mark} /> }
                           : {})}
                         selected={
                           selected === option.value ||

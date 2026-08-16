@@ -523,33 +523,249 @@
   padding: var(--app-space-3);
 }
 
-.dh-inline-date__label {
-  color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
-  font-weight: 500;
-}
+/* -------------------------------------------------------------------------- */
+/* CONTROL-01 — the DalyHub DATE PICKER                                        */
+/* -------------------------------------------------------------------------- */
 
-.dh-inline-date__input {
-  min-block-size: var(--app-touch-target-min);
+/*
+ * Presets, then the month, then the commands. The native `<input type="date">`
+ * that used to sit between the presets and the commands is gone: it was the one
+ * control on a Task row drawn by the browser rather than by the product, in the
+ * browser's typeface, with a grey `dd/mm/yyyy` skeleton and a platform calendar
+ * glyph inside a popover styled to the pixel.
+ */
+.dh-datepicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-inline-size: 16.5rem;
 }
 
 /*
- * The one-press dates, above the input.
+ * The one-press dates, above the grid.
  *
- * They wrap rather than scroll: three short words at the top of a popover that
- * is already width-clamped, and a horizontal scroller for three buttons is a
- * gesture nobody would guess at.
+ * A two-column grid rather than a wrapping row: there are four of them now
+ * ("This weekend" joined Today / Tomorrow / Next week), and wrapping gave
+ * "Next week" a line of its own at the popover's width, which read as an
+ * afterthought rather than as the fourth of four.
  */
-.dh-inline-date__shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
+.dh-datepicker__presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--dh-space-1);
 }
 
-.dh-inline-date__actions {
+.dh-datepicker__preset {
+  min-block-size: var(--dh-control-height);
+  padding-inline: var(--dh-space-2);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  cursor: pointer;
+}
+
+.dh-datepicker__preset:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+/* The preset that matches the stored date. `aria-pressed` carries it for
+ * assistive tech, so the fill is reinforcement rather than the signal. */
+.dh-datepicker__preset[aria-pressed="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-datepicker__preset:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+/* The commands, separated from the month by a hairline: they are a different
+ * KIND of thing from a day, and "No date" in particular must not read as one
+ * more option in the grid. */
+.dh-datepicker__actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
+  justify-content: flex-end;
+  gap: var(--dh-space-1);
+  padding-block-start: var(--dh-space-2);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-datepicker__command {
+  min-block-size: var(--dh-control-height);
+  padding-inline: var(--dh-space-3);
+  border: none;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  cursor: pointer;
+}
+
+.dh-datepicker__command:hover {
+  background: var(--dh-color-surface-quiet);
+  color: var(--dh-color-text);
+}
+
+.dh-datepicker__command:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+/* -- The month grid (`~/shared/forms/CalendarGrid`) ------------------------- */
+
+.dh-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-calendar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-2);
+}
+
+.dh-calendar__month {
+  margin: 0;
+  flex: 1 1 auto;
+  text-align: center;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-calendar__month-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: var(--dh-control-height);
+  block-size: var(--dh-control-height);
+  border: none;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  cursor: pointer;
+}
+
+.dh-calendar__month-step:hover {
+  background: var(--dh-color-surface-quiet);
+  color: var(--dh-color-text);
+}
+
+.dh-calendar__month-step:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+/* One chevron asset, rotated. Two mirrored SVGs would be two things to keep in
+ * step for a shape that is its own mirror. */
+.dh-calendar__month-step:first-of-type .dh-calendar__month-step-icon {
+  transform: rotate(180deg);
+}
+
+.dh-calendar__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+}
+
+.dh-calendar__row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--dh-space-px);
+}
+
+.dh-calendar__weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: var(--dh-space-6);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-calendar__pad {
+  display: block;
+}
+
+/*
+ * A day is a SQUARE target on a 7-column grid.
+ *
+ * `aspect-ratio` rather than a fixed height, so the same grid is comfortable in
+ * a 264px popover and in a full-width phone sheet without a second set of
+ * metrics. On a coarse pointer `--dh-control-height` floors at 45px, which
+ * clears the touch target for every cell without any phone-specific rule.
+ */
+.dh-calendar__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  aspect-ratio: 1;
+  min-block-size: var(--dh-space-8);
+  padding: 0;
+  border: none;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-row-size);
+  font-variant-numeric: var(--dh-font-numeric);
+  cursor: pointer;
+}
+
+.dh-calendar__day:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+.dh-calendar__day:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+/* TODAY is a ring, and the cell's accessible name also says "today" — the mark
+ * is never the only carrier (AGENTS.md §15). */
+.dh-calendar__day[data-today="true"] {
+  box-shadow: inset 0 0 0 var(--dh-border-width-strong)
+    var(--dh-color-border-strong);
+  font-weight: var(--dh-text-label-weight);
+}
+
+/* SELECTED is the filled one. It outranks today's ring: on the day itself the
+ * two coincide, and a filled cell that also drew a ring reads as two states. */
+.dh-calendar__day[data-selected="true"] {
+  background: var(--dh-color-accent);
+  box-shadow: none;
+  color: var(--dh-color-text-on-accent);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-calendar__day[data-selected="true"]:hover {
+  background: var(--dh-color-accent);
+}
+
+@media (forced-colors: active) {
+  /* The fills are dropped, so selection becomes a border — otherwise the chosen
+   * day would be indistinguishable from the other thirty. */
+  .dh-calendar__day[data-selected="true"] {
+    border: var(--app-border-width-thick) solid Highlight;
+  }
+  .dh-calendar__day[data-today="true"] {
+    border: var(--app-border-width-thin) solid CanvasText;
+  }
 }
 
 @media (forced-colors: active) {

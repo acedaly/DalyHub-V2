@@ -42,6 +42,16 @@ export {
   CollectionControls,
   type CollectionControlsProps,
 } from "./CollectionControls";
+/**
+ * CONTROL-01 — the DESKTOP presentation of the same controls. Exported for
+ * tests and for a surface that already owns its own trigger; ordinary consumers
+ * render `CollectionControls`, which chooses the presentation for them.
+ */
+export {
+  CollectionControlsPopover,
+  hasActiveControls,
+  type CollectionControlsPopoverProps,
+} from "./CollectionControlsPopover";
 export {
   activeControls,
   activeFilterCount,

@@ -607,9 +607,8 @@ export function TaskRecordDrawer({
   // Scheduled + Due are shown by the Planning section (TODAY-04), so they are not
   // duplicated here; the summary metadata carries the remaining task facts.
   const metadata: RecordMetaItem[] = [];
-  // The shared coloured PriorityIndicator (TASKS-02) — `showEmpty` so an untriaged
-  // task reads "No priority" here rather than an absent field. The full action word
-  // ("Do"…"Delete / Review") is available to assistive tech.
+  // The shared coloured PriorityIndicator (TASKS-02). An untriaged task reads
+  // "Priority 4" here, because that is what an untriaged task is (CONTROL-01).
   metadata.push({
     id: "priority",
     label: "Priority",
@@ -619,10 +618,12 @@ export function TaskRecordDrawer({
     value: (
       <InlineSelectField
         label="Priority"
-        value={task.priority ?? ""}
+        // CONTROL-01 — `null` IS Priority 4, so it selects P4 rather than
+        // falling through to an empty state that then has to be labelled
+        // "Priority 4" anyway. One state, one rendering, one option checked.
+        value={task.priority ?? "p4"}
         options={PRIORITY_OPTIONS}
         onSave={setPriority}
-        emptyLabel="Priority 4"
         renderValue={(option) =>
           option ? (
             <PriorityFlag

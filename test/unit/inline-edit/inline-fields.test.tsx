@@ -228,17 +228,78 @@ describe("InlineSelectField", () => {
 });
 
 describe("InlineDateField", () => {
-  it("opens a popover and commits an ISO date", async () => {
+  it("opens a popover and commits an ISO date from the calendar", async () => {
+    /*
+     * CONTROL-01 — the editor is DalyHub's own month grid, not a native
+     * `<input type="date">`, and a calendar day COMMITS on selection: a day is
+     * an unambiguous complete answer, unlike a half-typed `dd/mm/yyyy`, so
+     * there is no Save step after it.
+     */
     const onSave = vi.fn(async () => ({ ok: true }) as const);
-    render(<InlineDateField label="Due date" value={null} onSave={onSave} />);
+    render(
+      <InlineDateField
+        label="Due date"
+        value="2026-09-01"
+        todayIso="2026-09-01"
+        onSave={onSave}
+      />,
+    );
     fireEvent.click(
-      screen.getByRole("button", { name: "Due date: Add a date" }),
+      screen.getByRole("button", { name: "Due date: 2026-09-01" }),
     );
     const dialog = screen.getByRole("dialog", { name: "Edit due date" });
-    const input = dialog.querySelector("input") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "2026-09-03" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    // No browser-native residue anywhere in the editor.
+    expect(dialog.querySelector("input[type='date']")).toBeNull();
+    // The day is addressable by its FULL date, which is what a screen reader
+    // hears — "3" alone would name nothing.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Thursday 3 September 2026" }),
+    );
     await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-09-03"));
+  });
+
+  it("offers the product's own presets, and marks the one in force", () => {
+    render(
+      <InlineDateField
+        label="Due date"
+        value="2026-09-02"
+        todayIso="2026-09-01"
+        shortcuts={[
+          { label: "Today", value: "2026-09-01" },
+          { label: "Tomorrow", value: "2026-09-02" },
+        ]}
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Due date: 2026-09-02" }),
+    );
+    expect(screen.getByRole("button", { name: "Tomorrow" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Today" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("marks today in words as well as with a ring", () => {
+    // Never colour or a mark alone (AGENTS.md §15).
+    render(
+      <InlineDateField
+        label="Due date"
+        value="2026-09-03"
+        todayIso="2026-09-01"
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Due date: 2026-09-03" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Tuesday 1 September 2026, today" }),
+    ).toBeInTheDocument();
   });
 
   it("treats clearing as a real value, not an empty string", async () => {
@@ -347,28 +408,67 @@ describe("InlineTextField — a blur-triggered save does not steal focus back", 
   });
 });
 
-describe("InlineDateField — Enter belongs to the input, not to the buttons", () => {
-  it("does not submit the draft when Enter activates Cancel", () => {
-    const onSave = vi.fn(async () => ({ ok: true }) as const);
+describe("InlineDateField — the keyboard walks the month", () => {
+  /*
+   * CONTROL-01 replaced the typed input with a month grid, which retires the
+   * "Enter belongs to the input" pair of tests that used to live here: there is
+   * no draft to commit with Enter and no input to press it in, so the failure
+   * they guarded (a dialog-level Enter that also fired while Cancel was focused,
+   * making Cancel save) cannot occur. What replaces them is the contract the
+   * grid brings instead — one tab stop, and arrows that reach every day.
+   */
+  function openEditor() {
     render(
-      <InlineDateField label="Due date" value="2026-09-03" onSave={onSave} />,
+      <InlineDateField
+        label="Due date"
+        value="2026-09-03"
+        todayIso="2026-09-01"
+        onSave={async () => ({ ok: true })}
+      />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "Due date: 2026-09-03" }),
     );
-    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
-    const input = dialog.querySelector("input") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "2026-12-25" } });
+    return screen.getByRole("grid", { name: "Due date" });
+  }
 
-    // Enter on Cancel must cancel. The dialog-level shortcut previously
-    // intercepted it and persisted the draft — the opposite of the label.
-    const cancel = screen.getByRole("button", { name: "Cancel" });
-    cancel.focus();
-    fireEvent.keyDown(cancel, { key: "Enter" });
-    expect(onSave).not.toHaveBeenCalled();
+  it("gives the whole month ONE tab stop", () => {
+    const grid = openEditor();
+    const stops = Array.from(
+      grid.querySelectorAll("button:not([tabindex='-1'])"),
+    );
+    expect(stops).toHaveLength(1);
+    expect(stops[0]).toHaveAccessibleName("Thursday 3 September 2026");
   });
 
-  it("still commits when Enter is pressed in the date input itself", async () => {
+  it("moves a day with the arrows and a month with Page keys", () => {
+    const grid = openEditor();
+    fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(
+      grid.querySelector("button:not([tabindex='-1'])"),
+    ).toHaveAccessibleName("Friday 4 September 2026");
+
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    expect(
+      grid.querySelector("button:not([tabindex='-1'])"),
+    ).toHaveAccessibleName("Friday 11 September 2026");
+
+    fireEvent.keyDown(grid, { key: "PageDown" });
+    expect(screen.getByText("October 2026")).toBeInTheDocument();
+  });
+
+  it("crosses a month boundary with an arrow, not with the month buttons", () => {
+    // A keyboard user reaching the 1st of next month must not have to leave the
+    // grid to find a chevron.
+    const grid = openEditor();
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.keyDown(grid, { key: "ArrowDown" });
+    }
+    expect(screen.getByText("October 2026")).toBeInTheDocument();
+  });
+
+  it("cancels on Enter over Cancel rather than saving", () => {
+    // The behaviour the retired pair was really protecting, kept.
     const onSave = vi.fn(async () => ({ ok: true }) as const);
     render(
       <InlineDateField label="Due date" value="2026-09-03" onSave={onSave} />,
@@ -376,11 +476,8 @@ describe("InlineDateField — Enter belongs to the input, not to the buttons", (
     fireEvent.click(
       screen.getByRole("button", { name: "Due date: 2026-09-03" }),
     );
-    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
-    const input = dialog.querySelector("input") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "2026-12-25" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-12-25"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
 

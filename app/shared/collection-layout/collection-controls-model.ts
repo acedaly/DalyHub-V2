@@ -23,12 +23,33 @@
  * is a different way to reach the same state, never a second state store.
  */
 
+/**
+ * CONTROL-01 — a decorative MARK a control option carries, as pure data.
+ *
+ * A priority filter that lists "Priority 1 … Priority 4" as four identical rows
+ * of text is not the priority system the rest of the product speaks: everywhere
+ * else a priority is a coloured flag beside a P1–P4 tag, and a picker that drops
+ * both is a fifth way of saying the same thing.
+ *
+ * It is a discriminated DESCRIPTOR rather than a `ReactNode` so this module (and
+ * every module that builds control groups) stays React-free and directly
+ * testable. The shared control surfaces map the descriptor to the one shared
+ * component; nothing here knows what a flag looks like.
+ */
+export type CollectionControlMark = {
+  readonly kind: "priority";
+  /** A `TaskPriority` — validated by the surface that renders it. */
+  readonly value: string;
+};
+
 /** One choice within a control group. */
 export type CollectionControlOption = {
   readonly value: string;
   readonly label: string;
   /** Optional supporting line (e.g. what a saved view contains). */
   readonly description?: string;
+  /** An optional decorative mark rendered before the label. */
+  readonly mark?: CollectionControlMark;
 };
 
 /**

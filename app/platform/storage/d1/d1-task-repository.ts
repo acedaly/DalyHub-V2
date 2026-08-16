@@ -431,7 +431,16 @@ const TASK_PARENT_SEARCH_MAX = 50;
  */
 const WORKSPACE_GROUP_BUCKET_EXPR: Record<WorkspaceTaskGroupDimension, string> =
   {
-    priority: "COALESCE(td.priority, 'untriaged')",
+    /*
+     * CONTROL-01 — grouping by priority folds `null` into P4.
+     *
+     * It coalesced to a fifth bucket, `untriaged`, so a list grouped by priority
+     * grew a "No priority" section holding tasks every row in it labels P4. Two
+     * headings for one state, and the one the product does not have a name for
+     * was the larger. `null` IS P4 (see the filter above); the grouping now says
+     * the same thing the rows do.
+     */
+    priority: "COALESCE(td.priority, 'p4')",
     sector: "COALESCE(td.time_sector, '__none')",
     status:
       "CASE WHEN sr.completed_at IS NOT NULL THEN 'completed'" +
@@ -1811,6 +1820,25 @@ export class D1TaskRepository implements TaskRepository {
     if (filterPriority !== undefined) {
       if (filterPriority === null) {
         whereParts.push("td.priority IS NULL");
+      } else if (filterPriority === "p4") {
+        /*
+         * CONTROL-01 — filtering to P4 includes the tasks stored as `null`.
+         *
+         * The product's priority contract is that a stored `null` IS Priority 4
+         * (`PriorityIndicator`: "legacy stored null is treated as normal
+         * Priority 4 in the UI"). The UI has drawn a grey P4 flag on those rows
+         * for some time; the QUERY did not agree, so "Priority 4" returned only
+         * the rows someone had explicitly triaged to P4 and silently omitted
+         * every row the same screen was labelling P4. On the seeded workspace
+         * that is most of them.
+         *
+         * The `null` branch above is kept: the repository contract still allows
+         * an explicit "stored empty" query, and a legacy `?priority=__none`
+         * bookmark still resolves to it. It is simply no longer something the
+         * product's own controls can produce.
+         */
+        whereParts.push("(td.priority = ? OR td.priority IS NULL)");
+        params.push(filterPriority);
       } else {
         whereParts.push("td.priority = ?");
         params.push(filterPriority);

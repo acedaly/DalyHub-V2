@@ -157,13 +157,17 @@ export const PRIORITY_FILTER_LABELS: Record<string, string> = {
 };
 
 /**
- * The label used in a chip or a group heading. Identical to the filter's labels plus
- * the SERVER's `untriaged` bucket key, so a filter option and the heading it produces
- * can never read differently.
+ * The label used in a chip or a group heading. Identical to the filter's labels.
+ *
+ * CONTROL-01 — the SERVER no longer produces an `untriaged` priority bucket: the
+ * grouping query coalesces `null` to `p4`, because `null` IS Priority 4. The key
+ * is kept mapped so a cursor issued before that change still renders a heading
+ * rather than a raw bucket key, and it reads "Priority 4" — the one name the
+ * state has.
  */
 export const PRIORITY_SHORT_LABELS: Record<string, string> = {
   ...PRIORITY_FILTER_LABELS,
-  untriaged: "No priority",
+  untriaged: PRIORITY_FILTER_LABELS.p4 ?? "Priority 4",
 };
 
 export const SECTOR_LABELS: Record<string, string> = {
@@ -218,6 +222,17 @@ export function declaredBucketOrder(
 ): readonly string[] | null {
   switch (dimension) {
     case "priority":
+      /*
+       * CONTROL-01 — four buckets in practice: the grouping query coalesces
+       * `null` into `p4`, because `null` IS Priority 4, so `untriaged` is never
+       * occupied and an unoccupied bucket is not rendered.
+       *
+       * It stays in the ORDER anyway. A bucket the server sends that this list
+       * does not name is DROPPED, not shown unordered — so removing the key
+       * would turn a cursor issued before the coalesce from "a section labelled
+       * Priority 4" into "those tasks are gone", which is the worse of the two
+       * failures by a wide margin.
+       */
       return [...TASK_PRIORITIES, "untriaged"];
     case "sector":
       return ["__none", ...TIME_SECTORS];

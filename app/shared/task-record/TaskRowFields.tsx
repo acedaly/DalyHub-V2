@@ -124,17 +124,29 @@ export function InlineTaskPriority({
   return (
     <InlineSelectField
       label="Priority"
-      value={priority ?? ""}
+      /*
+       * CONTROL-01 — a stored `null` renders as P4, because that is what it IS.
+       *
+       * It rendered as the shell's empty state, so the priority column of the
+       * seeded workspace read P1 · P2 · P3 · "No priority" · (blank) — FIVE
+       * states for a four-state field, with the two largest groups being the
+       * same state written two ways. "No priority" was the null rows; the blanks
+       * were the rows stored `p4`, hidden by `hideNormal`.
+       *
+       * Both go. `null` maps to `p4` here (the settled contract), and P4 draws
+       * its grey flag like the other three — which is what keeps the column a
+       * column and stops "normal" and "not triaged" looking like different
+       * things when they are not.
+       *
+       * The CLEAR command goes with them: with no "no priority" state to clear
+       * TO, it was a second way to say Priority 4.
+       */
+      value={priority ?? "p4"}
       options={PRIORITY_OPTIONS}
       onSave={save}
-      emptyLabel="No priority"
-      clearable
-      clearLabel="Clear priority"
       readOnly={disabled}
       renderValue={(option) =>
-        option ? (
-          <PriorityFlag priority={option.value as TaskPriority} hideNormal />
-        ) : null
+        option ? <PriorityFlag priority={option.value as TaskPriority} /> : null
       }
       renderOption={(option) => (
         <PriorityFlag
@@ -259,7 +271,7 @@ export function InlineTaskDate({
       // and the commands alone rather than guessing from the browser clock.
       {...(todayIso === undefined
         ? {}
-        : { shortcuts: taskDateShortcuts(todayIso) })}
+        : { shortcuts: taskDateShortcuts(todayIso), todayIso })}
       className={
         // Only a DUE date carries urgency: a planned date is the owner's own
         // intention about when to work on something, and being "late" against

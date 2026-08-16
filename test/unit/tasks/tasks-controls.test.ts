@@ -60,8 +60,33 @@ describe("the declared filter dimensions", () => {
   });
 
   it("offers an explicit empty-field option where absence is meaningful", () => {
-    expect(byId("priority")?.options.map((o) => o.value)).toContain("__none");
+    // A Time Sector genuinely CAN be unset — "no sector" is a state a task is
+    // in, and an owner filtering for unsectored work is triaging.
     expect(byId("sector")?.options.map((o) => o.value)).toContain("__none");
+  });
+
+  it("does NOT offer a fifth priority for the absence of one", () => {
+    /*
+     * CONTROL-01 — `null` IS Priority 4, so there is no "No priority" to filter
+     * for. The option existed and was worse than redundant: it and "Priority 4"
+     * returned two DIFFERENT subsets of the one state, and neither returned all
+     * the tasks the list beside it was drawing with a grey P4 flag.
+     */
+    const values = byId("priority")?.options.map((o) => o.value) ?? [];
+    expect(values).not.toContain("__none");
+    expect(values).toEqual(["", "p1", "p2", "p3", "p4"]);
+  });
+
+  it("gives every priority option its flag, in the one priority vocabulary", () => {
+    // The filter speaks the same language as the row it filters: a coloured
+    // pennant and the full label (the short P1–P4 tag belongs to compact rows).
+    for (const option of byId("priority")?.options ?? []) {
+      if (option.value === "") continue;
+      expect(option.mark, option.value).toEqual({
+        kind: "priority",
+        value: option.value,
+      });
+    }
   });
 
   it("offers a due and a planned filter as SEPARATE dimensions", () => {

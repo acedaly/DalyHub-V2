@@ -414,7 +414,9 @@ export function NewTaskForm({
       <SelectField
         label="Priority"
         help="Optional."
-        placeholder="No priority"
+        // CONTROL-01 — an unset priority IS Priority 4, so the placeholder says
+        // so rather than naming a fifth state the product does not have.
+        placeholder={taskPriorityLabel("p4")}
         options={PRIORITY_OPTIONS}
         {...form.field("priority")}
       />
