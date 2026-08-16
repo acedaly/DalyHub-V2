@@ -116,11 +116,30 @@ export const DALYHUB_SURFACE_TOKEN_NAMES = [
   "dh-focus-color",
 ] as const;
 
-/** The seven type ROLES, each a size / line-height / weight triple. */
+/**
+ * The type ROLES, each a size / line-height / weight triple.
+ *
+ * REDESIGN-03 added the two the ladder was missing, and their absence is why
+ * the card families were still reading Material's typescale directly: a card
+ * TITLE and a METRIC are both real jobs in this product, neither had a DalyHub
+ * role, and `--md-sys-typescale-title-medium-*` / `-headline-small-*` were
+ * filling the gap on `.dh-pcard`, `.dh-gcard`, `.dh-acard` and every stat tile.
+ *
+ *   card-title  a record card's name — 15px/600, one rung under a section
+ *               heading. Material's `title-medium` is 16px, and that extra
+ *               pixel is what wrapped "Consolidate every household…" onto a
+ *               second line in the Projects gallery and left the grid's rows
+ *               ragged.
+ *   metric      a figure meant to be read as a figure — 24px/600, tabular.
+ *               Replaces a mix of `title-large` (22px) and `headline-small`
+ *               (24px) that differed by surface rather than by meaning.
+ */
 export const DALYHUB_TEXT_ROLES = [
   "page-title",
   "record-title",
   "section-title",
+  "card-title",
+  "metric",
   "body",
   "row",
   "meta",

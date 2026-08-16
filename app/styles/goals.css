@@ -13,7 +13,7 @@
 
 .dh-goal-overview__definition-heading {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -53,7 +53,7 @@
 
 .dh-goal-overview__alignment-heading {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -61,7 +61,7 @@
 .dh-goal-bounded-note {
   margin: var(--app-space-4) 0 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   overflow-wrap: anywhere;
 }
 
@@ -122,7 +122,7 @@
   min-inline-size: 0;
   padding: var(--app-card-padding);
   background: var(--dh-color-surface);
-  border-radius: var(--md-sys-shape-corner-large);
+  border-radius: var(--dh-radius-lg);
   box-shadow: var(--app-elevation-resting);
 }
 
@@ -172,18 +172,17 @@
 }
 
 .dh-goal-measure__metric dt {
-  font-size: var(--md-sys-typescale-label-small-size);
-  line-height: var(--md-sys-typescale-label-small-line-height);
+  font: var(--t-eyebrow);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--t-eyebrow-tracking);
   color: var(--dh-color-text-muted);
 }
 
 .dh-goal-measure__metric dd {
   margin: var(--app-space-px) 0 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
-  line-height: var(--md-sys-typescale-title-medium-line-height);
-  font-weight: var(--md-sys-typescale-title-medium-weight-emphasized);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
   color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -193,11 +192,25 @@
  * NOW is the page's biggest number. Start and Target are fixed facts the owner
  * chose; the current value is the one that moved, and it is why they opened the
  * record.
+ *
+ * ── REDESIGN-03: biggest, not enormous ───────────────────────────────────────
+ * It was Material's `display-small` — 36px against 18px siblings, a full
+ * Material headline ladder apart. At that ratio "83 kg" stopped being the lead
+ * figure of a quartet and became a banner with three captions under it: the eye
+ * cannot take Start, Now, Target and Remaining as ONE reading, which is exactly
+ * what the row is for, because the relationship between them is the whole
+ * measurement.
+ *
+ * The approved reference draws Current, Target and Target date at the SAME size
+ * and separates them by label alone. DalyHub keeps a step — the current value
+ * genuinely is why the record was opened — but takes it from the product's own
+ * `--t-stat` (24px) rather than from Material's display ramp. 24 against 18
+ * still reads as the lead at a glance and still lets the four figures be read
+ * together.
  */
 .dh-goal-measure__metric[data-lead="true"] dd {
-  font-size: var(--md-sys-typescale-display-small-size);
-  line-height: var(--md-sys-typescale-display-small-line-height);
-  font-weight: var(--md-sys-typescale-display-small-weight);
+  font: var(--t-stat);
+  letter-spacing: var(--t-stat-tracking);
 }
 
 /* The bar and its figure on one line, directly under the numbers they measure. */
@@ -215,8 +228,8 @@
 
 .dh-goal-measure__percent {
   flex: none;
-  font-size: var(--md-sys-typescale-title-small-size);
-  font-weight: var(--md-sys-typescale-title-small-weight);
+  font-size: var(--dh-text-label-size);
+  font-weight: 600;
   color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
@@ -233,7 +246,7 @@
 /* "from 85 kg → 70 kg" — the same sentence the gallery card carries, so the
  * two surfaces describe one Goal in one vocabulary. */
 .dh-goal-measure__journey {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -256,9 +269,21 @@
   grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: var(--app-space-3);
   margin: 0;
-  padding: var(--app-space-3);
-  border-radius: var(--app-shape-supporting);
-  background: var(--dh-color-bg-sunken);
+  /*
+   * REDESIGN-03 — an open band with a rule, not a filled well.
+   *
+   * These three facts sat on `bg-sunken` with a supporting corner radius, which
+   * on a record that is otherwise white surfaces read as a Material tonal
+   * container: a grey slab in the middle of the page, drawing more attention
+   * than the measurement above it. The brief is explicit that the data is the
+   * hero and the chrome is not, and that fine separators beat containment.
+   *
+   * The facts keep their grid and lose their box: a hairline says "these belong
+   * together and they are not the headline", which is the whole job the fill
+   * was doing.
+   */
+  padding-block: var(--app-space-4);
+  border-block: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
 .dh-goal-measure__pace-item {
@@ -266,13 +291,13 @@
 }
 
 .dh-goal-measure__pace dt {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-goal-measure__pace dd {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-small-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
@@ -285,7 +310,7 @@
 /* The honest "not enough data" line — a sentence, never a flat fake line. */
 .dh-goal-measure__thin {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -295,7 +320,7 @@
 
 .dh-goal-measure__history-heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -345,8 +370,7 @@
   align-items: center;
   gap: var(--app-space-2);
   padding-block: var(--app-space-1);
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
   min-inline-size: 0;
 }
 
@@ -363,19 +387,19 @@
 }
 
 .dh-goal-measure__history-date {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
 
 .dh-goal-measure__history-value {
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-row-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
 
 .dh-goal-measure__history-change {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
@@ -383,7 +407,7 @@
 /* A note is its own line within the facts group — it is prose, not a figure. */
 .dh-goal-measure__history-note {
   flex-basis: 100%;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
@@ -442,7 +466,7 @@
 }
 
 .dh-goal-measure__milestone-weight {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
@@ -483,19 +507,25 @@
  * reaches it (AGENTS.md §15).
  */
 .dh-goalprogress__current {
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 600;
   line-height: 1.15;
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
+/*
+ * REDESIGN-03 — the hero readout takes the product's stat role, not Material's
+ * display ramp, for the same reason the record's NOW figure does: 24px leads a
+ * quartet, 36px replaces it.
+ */
 .dh-goalprogress[data-size="hero"] .dh-goalprogress__current {
-  font-size: var(--md-sys-typescale-display-small-size);
+  font: var(--t-stat);
+  letter-spacing: var(--t-stat-tracking);
 }
 
 .dh-goalprogress__target {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -505,7 +535,7 @@
   align-items: center;
   gap: var(--app-space-2);
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   min-inline-size: 0;
 }
@@ -544,14 +574,14 @@
 
 .dh-goalprogress__state[data-tone="accent"],
 .dh-goalprogress__state[data-tone="info"] {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 /* The glance value is a card's headline, not a record's: one rung down from the
  * `title-large` a compact readout takes, so four of them in a row read as a row
  * of figures rather than as four small heroes. */
 .dh-goalprogress[data-size="glance"] .dh-goalprogress__current {
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -575,7 +605,7 @@
 
 .dh-measure-choices__legend {
   padding: 0;
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -587,7 +617,7 @@
   column-gap: var(--app-space-3);
   row-gap: var(--app-space-1);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--app-shape-card);
   background: var(--dh-color-surface);
   cursor: pointer;
@@ -597,13 +627,13 @@
 /* Selection is a tinted surface AND a heavier border AND the radio's own
  * checked state — never colour alone. */
 .dh-measure-choice[data-selected="true"] {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   background: var(--dh-color-accent-subtle);
   color: var(--dh-color-text-on-accent-subtle);
 }
 
 .dh-measure-choice:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-px);
 }
 
@@ -615,14 +645,14 @@
 }
 
 .dh-measure-choice__label {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-body-size);
   font-weight: 500;
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
 
 .dh-measure-choice__description {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   min-inline-size: 0;
   overflow-wrap: anywhere;
@@ -641,16 +671,16 @@
 .dh-measure-unit {
   min-block-size: var(--app-touch-target-min);
   padding-inline: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   cursor: pointer;
 }
 
 .dh-measure-unit[data-selected="true"] {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
 }
@@ -659,7 +689,7 @@
  * understanding the inference. */
 .dh-measure-inference {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }

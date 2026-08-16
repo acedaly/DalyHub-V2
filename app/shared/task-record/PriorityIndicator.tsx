@@ -105,6 +105,24 @@ export function PriorityFlag({
       data-priority={key}
       data-size={size}
       data-testid={testId}
+      /*
+       * `role="img"`, and it is what makes the accessible name legal.
+       *
+       * Both children are `aria-hidden` — the flag because it is decoration, the
+       * tag because the container already says "Priority 2" in full — so the
+       * name has to live on the container. But `aria-label` on a bare `<span>`
+       * is prohibited: a span has no role, and ARIA only permits a label on an
+       * element that has one. Axe reports it as `aria-prohibited-attr`
+       * (serious), and the practical consequence is worse than the rule sounds —
+       * a browser is free to drop the label entirely, which would leave the
+       * priority carried by COLOUR alone (AGENTS.md §15).
+       *
+       * `img` is the right role rather than a convenient one: this is a single
+       * graphical unit conveying one fact, its interior is not a structure a
+       * screen reader should walk into, and the role gives it exactly one
+       * accessible name. Nothing about the rendered mark changes.
+       */
+      role="img"
       aria-label={label}
     >
       <span className="dh-priority__flag" aria-hidden="true">

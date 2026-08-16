@@ -1,10 +1,14 @@
 /**
- * GOAL-02 — Today's Goal ranking and its workload-trend words.
+ * GOAL-02 — Today's Goal ranking.
  *
- * Both are pure, and both encode a product judgement worth pinning down: WHICH
- * Goals earn a place on Today, and WHAT the week's totals are allowed to claim.
- * The ranking is four explicable buckets, not a hidden score, so the test reads
- * as the rule itself.
+ * Pure, and it encodes a product judgement worth pinning down: WHICH Goals earn
+ * a place on Today. The ranking is four explicable buckets, not a hidden score,
+ * so the test reads as the rule itself.
+ *
+ * REDESIGN-03 removed this file's other half. It covered `trend-view.ts`, whose
+ * only consumer was Today's workload chart — a chart that restated the two
+ * figures the summary above it already printed. Both the chart and the module
+ * went; see `TodayScreen.tsx` for why.
  */
 
 import { describe, expect, it } from "vitest";
@@ -17,10 +21,6 @@ import {
   todayGoalRank,
   type TodayGoal,
 } from "~/modules/today/day/goal-progress";
-import {
-  activityTrendSummary,
-  weekdayLabel,
-} from "~/modules/today/day/trend-view";
 
 const TODAY = "2026-08-09";
 
@@ -97,86 +97,5 @@ describe("which Goals Today shows first", () => {
       targetDate: "2027-12-31",
     });
     expect(todayGoalRank(fresh, TODAY)).toBe(3);
-  });
-});
-
-describe("the week's workload sentence", () => {
-  const days = (pairs: readonly (readonly [number, number])[]) =>
-    pairs.map(([completed, created], index) => ({
-      dateIso: `2026-08-0${index + 3}`,
-      completed,
-      created,
-    }));
-
-  it("states both totals and the net change when they differ", () => {
-    const summary = activityTrendSummary({
-      days: days([
-        [5, 3],
-        [4, 6],
-        [7, 2],
-        [4, 4],
-        [6, 5],
-        [2, 1],
-        [3, 2],
-      ]),
-      totalCompleted: 31,
-      totalCreated: 23,
-    });
-    expect(summary.visible).toBe(
-      "31 completed · 23 created · 8 tasks fewer in your active workload",
-    );
-  });
-
-  it("says the workload GREW when more was created than finished", () => {
-    const summary = activityTrendSummary({
-      days: days([
-        [1, 4],
-        [0, 3],
-      ]),
-      totalCompleted: 1,
-      totalCreated: 7,
-    });
-    expect(summary.visible).toContain("6 tasks more in your active workload");
-  });
-
-  it("makes no workload claim at all when the week finished level", () => {
-    const summary = activityTrendSummary({
-      days: days([
-        [2, 2],
-        [3, 3],
-      ]),
-      totalCompleted: 5,
-      totalCreated: 5,
-    });
-    expect(summary.visible).toBe("5 completed · 5 created");
-    expect(summary.visible).not.toContain("workload");
-  });
-
-  it("uses the singular for one task", () => {
-    const summary = activityTrendSummary({
-      days: days([[1, 0]]),
-      totalCompleted: 1,
-      totalCreated: 0,
-    });
-    expect(summary.visible).toContain("1 task fewer");
-  });
-
-  it("gives the chart a text equivalent naming every day", () => {
-    const summary = activityTrendSummary({
-      days: days([
-        [5, 3],
-        [4, 6],
-      ]),
-      totalCompleted: 9,
-      totalCreated: 9,
-    });
-    expect(summary.accessible).toContain("Mon 5 completed, 3 created");
-    expect(summary.accessible).toContain("Tue 4 completed, 6 created");
-  });
-
-  it("labels a day from its own components, never a timezone reading", () => {
-    expect(weekdayLabel("2026-08-09")).toBe("Sun");
-    expect(weekdayLabel("2026-08-03")).toBe("Mon");
-    expect(weekdayLabel("nonsense")).toBe("nonsense");
   });
 });

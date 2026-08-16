@@ -11,6 +11,75 @@ Generated from `rg -l "md-sys|md-app|material|tonal|state-layer|elevation-[0-9]|
 - Non-UI app files: 12
 - Total matches: 170
 
+## Progress — REDESIGN-03, Today + Core Spine (2026-08)
+
+This pass reduced **active visual dependence** on the MD3 token layer across the
+surfaces it owns, and — unlike the pass below it — the reduction is in the token
+references themselves, not only in appearance.
+
+Active `--md-sys-*` references in the touched stylesheets:
+
+| File | Before | After |
+|---|---|---|
+| `app/styles/today.css` | 41 | 3 |
+| `app/styles/projects.css` | 4 | 0 |
+| `app/styles/goals.css` | 44 | 2 |
+| `app/styles/areas.css` | 10 | 0 |
+| `app/styles/card-family.css` | 272 | 38 |
+
+**Zero typescale, shape and motion references remain in any of the five files.**
+The migration was semantic rather than mechanical: each Material role was mapped
+to the DalyHub role that does the same job, `letter-spacing` declarations reading
+Material tracking were dropped rather than re-pointed (the DalyHub roles carry
+their own), and two roles that did not exist were added rather than approximated
+— `--dh-text-card-title-*` (15px/600) and `--dh-text-metric-*` (24px/600). Their
+absence was *why* the card families were still reading Material's typescale.
+
+### The classification §36 asks for
+
+Every surviving match in the five files above falls into one of these, and none
+of them is an active MD3 *appearance*:
+
+- **Active visual dependency — colour roles only.** `--md-sys-color-area-accent-1…6`
+  (Area identity), `--md-sys-color-entity-meeting` (entity identity),
+  `--md-sys-color-state-due-soon` (a task-state colour). These are DATA
+  vocabularies, and the DalyHub token layer explicitly routes them straight to
+  the generated role: "a chart series, a priority ramp, an identity accent reads
+  the generated role directly — those are data vocabularies, not surface
+  vocabularies". Retained deliberately.
+- **Active visual dependency — genuine remaining debt.**
+  `--md-sys-color-{error,success,warning,secondary}-container` and their `on-`
+  pairs, dressing status badges and the selected measurement-unit chip. This *is*
+  Material tonal-container language. It is not fixed here because it is a shared
+  feedback-vocabulary pass: converting the badges one module at a time would
+  leave two badge languages in the product.
+- **Compatibility shim.** `box-shadow: var(--app-elevation-resting)` still
+  appears in several rules. The token resolves to `none`, so these are inert —
+  the "shadow means floating" rule is already honoured in the rendered product.
+  Noise to sweep when the `--app-*` layer retires, not a visual defect.
+- **Historical documentation.** `app/modules/today/day/TodayScreen.tsx` matches
+  this inventory's pattern **twice, and both are the word "tonal" in prose**
+  describing a rail row's identity tile. It carries no MD3 token reference at
+  all and should be read as documentation, not as debt.
+
+### Moved, not removed: the appearance pair
+
+The DalyHub Part B colour primitives (`--canvas`, `--surface*`, `--ink*`,
+`--border*`, `--accent*`, the feedback/priority/category ramps and the shadow
+set) were authored on a bare `:root` in `tokens.css` **with light values and no
+dark counterpart**, which pinned the entire product to the light appearance —
+every `--dh-color-*` name resolves onto them and `base.css` paints the document
+from `--dh-color-bg`.
+
+They now come from `scripts/generate-m3-scheme.mjs` (`DALYHUB_PRIMITIVES`) as a
+light/dark pair inside the generated markers, which is the only place
+`scheme:check` can police and where every other appearance-dependent colour in
+the file already lives. Light values are unchanged to the digit. This does not
+change the MD3 count in either direction; it is recorded here because the
+inventory's subject is where colour comes from.
+
+See `docs/design/REDESIGN_03_CORE_SPINE_CONVERGENCE_2026_08.md`.
+
 ## Progress — visual-references pass (2026-08)
 
 The count above is unchanged, and that is the honest reading: this pass removed
@@ -62,7 +131,7 @@ Still carrying MD3 vocabulary in ACTIVE UI, and therefore still the target:
 | `app/modules/settings/routes/index.tsx` | Active module UI or route with legacy design vocabulary; migrate after shared primitives are converted. |
 | `app/modules/tasks/NewTaskForm.tsx` | Active module UI or route with legacy design vocabulary; migrate after shared primitives are converted. |
 | `app/modules/tasks/task-revalidation.ts` | Active module UI or route with legacy design vocabulary; migrate after shared primitives are converted. |
-| `app/modules/today/day/TodayScreen.tsx` | Active module UI or route with legacy design vocabulary; migrate after shared primitives are converted. |
+| `app/modules/today/day/TodayScreen.tsx` | **Historical documentation only** (REDESIGN-03). Both matches are the word "tonal" in prose; the file references no MD3 token. Not migration debt. |
 | `app/root.tsx` | Root still wires old appearance/colour-scheme token attributes; inspect during shell/token migration. |
 | `app/shared/alignment/window.ts` | Active shared product component still references legacy design vocabulary; migrate through shared primitives/tokens. |
 | `app/shared/capture/CaptureSheet.tsx` | Active shared product component still references legacy design vocabulary; migrate through shared primitives/tokens. |

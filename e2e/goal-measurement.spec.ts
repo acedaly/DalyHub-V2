@@ -375,17 +375,22 @@ test.describe("GOAL-02 — Today", () => {
 
     await gotoFixture(page, "/today");
 
-    // The trend is a comparison with a sentence beneath it, never a score.
-    const trend = page.getByTestId("today-activity-trend");
-    await expect(trend).toBeVisible();
-    await expect(trend.getByText("Completed", { exact: true })).toBeVisible();
-    await expect(trend.getByText("Created", { exact: true })).toBeVisible();
-    await expect(trend.getByRole("img")).toHaveAttribute(
-      "aria-label",
-      /completed, .* created/,
-    );
-    // The totals are stated in words, so the chart is never the only reading.
-    await expect(trend).toContainText(/\d+ completed · \d+ created/);
+    /*
+     * REDESIGN-03 — the week is a MEASURE now, not a chart.
+     *
+     * The workload trend restated the summary's own first two figures ("21
+     * completed · 124 created") one screen below them, and its single linear
+     * scale made a day of bulk capture flatten the rest of the week to
+     * hairlines. It is gone; Analytics owns the shape of a week, and the
+     * measure the completion above just moved links there.
+     */
+    await expect(page.getByTestId("today-activity-trend")).toHaveCount(0);
+    const summary = page.getByTestId("today-summary");
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText("Tasks completed");
+    await expect(
+      summary.getByRole("link", { name: /Tasks completed/ }),
+    ).toHaveAttribute("href", "/analytics");
     await expectNoAxeViolations(page);
   });
 

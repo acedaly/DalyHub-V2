@@ -1305,6 +1305,208 @@ function previewDeclarations(all, mode) {
   return lines;
 }
 
+/**
+ * REDESIGN-03 — the DalyHub Part B primitives, as an APPEARANCE PAIR.
+ *
+ * ── The defect this fixes ────────────────────────────────────────────────────
+ * Part B gave DalyHub its own authored palette — `--canvas`, `--surface*`,
+ * `--ink*`, `--border*`, `--accent*`, the feedback, priority and category
+ * ramps — and the redesign foundation wrote it onto a bare `:root` in
+ * `tokens.css` with LIGHT values and no counterpart. Nothing else in that file
+ * works that way: every generated colour block below has a light block and two
+ * dark ones, guarded exactly as APPEARANCE-01 specifies.
+ *
+ * That would be contained if the primitives were a leaf. They are not — the
+ * DalyHub semantic layer re-points onto them (`--dh-color-bg: var(--canvas)`,
+ * `--dh-color-surface: var(--surface)`, the whole `--dh-color-rail-*` set),
+ * `base.css` paints the document from `--dh-color-bg`, and `shell.css`,
+ * `ui.css` and `inline-edit.css` read several primitives directly. So the
+ * product's entire surface and ink vocabulary was pinned to light: choosing
+ * Dark repainted only the fragments still reading a generated role, leaving a
+ * light page and a white navigation rail with a few dark accents on them.
+ * Measured on the REDESIGN-03 base commit at 1440px, `/today` in explicit Dark
+ * rendered `body` at `#f6f6f8` and the rail at `#ffffff`.
+ *
+ * ── Why it belongs HERE rather than in `tokens.css` ──────────────────────────
+ * Because `appearance-cascade.test.ts` is right: "the appearance blocks are
+ * GENERATED — a hand-written override for one appearance is exactly the drift
+ * `scheme:check` exists to catch". Authoring the dark half by hand beside the
+ * light half would reintroduce the very second source of truth this generator
+ * exists to prevent. Emitting the pair from here keeps ONE mechanism, gives all
+ * five schemes the dark half at once, and keeps `scheme:check` authoritative
+ * over every appearance-dependent colour in the product without exception.
+ *
+ * ── What is and is not here ──────────────────────────────────────────────────
+ * Only the APPEARANCE-DEPENDENT primitives. Geometry, spacing, typography,
+ * duration, easing and z-index stay authored in `tokens.css`: they are the same
+ * in both appearances, and restating them per block would be four more places
+ * for the two appearances to drift apart. `--focus-ring` and
+ * `--danger-focus-ring` also stay there — they are composed from
+ * `var(--accent-tint)` and `var(--danger-tint)`, so they follow this pair
+ * without being restated.
+ *
+ * The LIGHT values are the Part B originals, unchanged to the digit, so this
+ * move repaints nothing in the appearance the product already shipped.
+ *
+ * ── How the dark half was chosen ─────────────────────────────────────────────
+ * A near-black frame with the surface ramp INVERTED rather than mirrored: in
+ * light a card is lighter than its page, so in dark a card is lighter than its
+ * page too (`canvas → surface → subtle → muted`), and `sunken` stays the one
+ * rung BELOW the page in both. Inverting the ramp instead of the values is what
+ * keeps "a container inside a container" reading the same way in both
+ * appearances (DALYHUB_DESIGN_SYSTEM.md §1).
+ *
+ * Borders become light-on-dark at slightly higher alpha, because a 6% black
+ * hairline over a light page and a 6% white hairline over a near-black one are
+ * not equally visible. The violet lightens — Part B's #5b4bd6 on a #121215 page
+ * is ~2.4:1 and unreadable — and its tint becomes a translucent block rather
+ * than a pale wash, which is what the semantic layer's own rail comment already
+ * described ("a pale lavender row in light, a block in dark").
+ *
+ * The feedback and priority ramps KEEP their meanings — P1 red, P2 orange, P3
+ * blue, P4 grey; danger red, warning orange, success green, info blue — and are
+ * lightened to stay legible on the dark surfaces, so the priority language is
+ * one product vocabulary in both appearances. Their tints become translucent so
+ * they compose over whichever surface they land on rather than assuming the
+ * page.
+ *
+ * Shadows deepen and the scrim strengthens: a shadow tuned for a white page is
+ * invisible on a near-black one, and elevation is the one thing this product
+ * still spends on genuinely floating UI.
+ *
+ * Identical in every block of an appearance — DalyHub's own palette is one
+ * palette, exactly as it was when it lived on a bare `:root`, so a scheme
+ * change does not repaint the product's surfaces.
+ */
+const DALYHUB_PRIMITIVES = {
+  light: {
+    canvas: "#f6f6f8",
+    surface: "#ffffff",
+    "surface-subtle": "#fafafb",
+    "surface-muted": "#f4f4f6",
+    "surface-sunken": "#f0f0f3",
+    "overlay-scrim": "rgba(16, 16, 20, 0.32)",
+
+    border: "rgba(16, 16, 20, 0.06)",
+    "border-strong": "rgba(16, 16, 20, 0.09)",
+    "border-hover": "rgba(16, 16, 20, 0.14)",
+    hairline: "rgba(16, 16, 20, 0.055)",
+
+    ink: "#101014",
+    "ink-body": "#1c1c22",
+    "ink-secondary": "#45454e",
+    "ink-muted": "#82828c",
+    "ink-faint": "#a3a3ac",
+    "ink-icon": "#8a8a94",
+    "ink-inverse": "#ffffff",
+
+    accent: "#5b4bd6",
+    "accent-hover": "#4b3cc2",
+    "accent-pressed": "#3a2fa0",
+    "accent-tint": "#efedfc",
+    "accent-tint-hover": "#e6e2fa",
+
+    danger: "#d9483b",
+    "danger-tint": "#fbeae8",
+    warning: "#d98324",
+    "warning-tint": "#fbf0e2",
+    success: "#2e9e6b",
+    "success-tint": "#e7f5ee",
+    info: "#3b82c4",
+    "info-tint": "#eaf1f9",
+
+    "priority-1": "#dd302a",
+    "priority-2": "#e2680a",
+    "priority-3": "#2e56e3",
+    "priority-4": "#8a8a94",
+
+    "category-purple": "#5b4bd6",
+    "category-purple-tint": "#efedfc",
+    "category-blue": "#3b82c4",
+    "category-blue-tint": "#eaf1f9",
+    "category-orange": "#d98324",
+    "category-orange-tint": "#fbf0e2",
+    "category-green": "#2e9e6b",
+    "category-green-tint": "#e7f5ee",
+    "category-red": "#d9483b",
+    "category-red-tint": "#fbeae8",
+
+    "shadow-popover":
+      "0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06)",
+    "shadow-panel": "0 12px 32px -12px rgba(16, 16, 20, 0.22)",
+    "shadow-toast": "0 10px 28px -10px rgba(16, 16, 20, 0.26)",
+  },
+  dark: {
+    canvas: "#121215",
+    surface: "#1a1a1f",
+    "surface-subtle": "#202027",
+    "surface-muted": "#26262e",
+    "surface-sunken": "#0c0c0f",
+    "overlay-scrim": "rgba(0, 0, 0, 0.58)",
+
+    border: "rgba(255, 255, 255, 0.09)",
+    "border-strong": "rgba(255, 255, 255, 0.14)",
+    "border-hover": "rgba(255, 255, 255, 0.22)",
+    hairline: "rgba(255, 255, 255, 0.075)",
+
+    ink: "#f3f3f6",
+    "ink-body": "#e5e5ea",
+    "ink-secondary": "#b7b7c1",
+    "ink-muted": "#8c8c97",
+    "ink-faint": "#6d6d78",
+    "ink-icon": "#9b9ba6",
+    "ink-inverse": "#101014",
+
+    accent: "#b5a8ff",
+    "accent-hover": "#c6bcff",
+    "accent-pressed": "#a08fff",
+    "accent-tint": "rgba(139, 122, 255, 0.18)",
+    "accent-tint-hover": "rgba(139, 122, 255, 0.26)",
+
+    danger: "#ff8578",
+    "danger-tint": "rgba(255, 133, 120, 0.16)",
+    warning: "#ffab52",
+    "warning-tint": "rgba(255, 171, 82, 0.16)",
+    success: "#5ec899",
+    "success-tint": "rgba(94, 200, 153, 0.16)",
+    info: "#74b0e8",
+    "info-tint": "rgba(116, 176, 232, 0.16)",
+
+    "priority-1": "#ff7268",
+    "priority-2": "#ff9a3d",
+    "priority-3": "#7d9bff",
+    "priority-4": "#9b9ba6",
+
+    "category-purple": "#b5a8ff",
+    "category-purple-tint": "rgba(139, 122, 255, 0.18)",
+    "category-blue": "#74b0e8",
+    "category-blue-tint": "rgba(116, 176, 232, 0.16)",
+    "category-orange": "#ffab52",
+    "category-orange-tint": "rgba(255, 171, 82, 0.16)",
+    "category-green": "#5ec899",
+    "category-green-tint": "rgba(94, 200, 153, 0.16)",
+    "category-red": "#ff8578",
+    "category-red-tint": "rgba(255, 133, 120, 0.16)",
+
+    "shadow-popover":
+      "0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)",
+    "shadow-panel": "0 12px 32px -12px rgba(0, 0, 0, 0.68)",
+    "shadow-toast": "0 10px 28px -10px rgba(0, 0, 0, 0.7)",
+  },
+};
+
+/** The DalyHub Part B primitives for one appearance, as declaration lines. */
+function dalyhubPrimitiveDeclarations(mode) {
+  const lines = [
+    "",
+    "/* REDESIGN-03 DalyHub Part B primitives — see DALYHUB_PRIMITIVES. */",
+  ];
+  for (const [name, value] of Object.entries(DALYHUB_PRIMITIVES[mode])) {
+    lines.push(`--${name}: ${value};`);
+  }
+  return lines;
+}
+
 /** Emit the declarations for one scheme in one appearance, as CSS text. */
 function schemeDeclarations(all, entry, mode) {
   const lines = [];
@@ -1336,6 +1538,7 @@ function schemeDeclarations(all, entry, mode) {
     lines.push(`--app-tint-strength-${name}: ${value};`);
   }
   lines.push(...previewDeclarations(all, mode));
+  lines.push(...dalyhubPrimitiveDeclarations(mode));
   return lines.join("\n");
 }
 

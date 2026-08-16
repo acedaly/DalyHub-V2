@@ -96,28 +96,60 @@ test.describe("Today — the day surface", () => {
   }) => {
     await page.goto("/today");
 
-    // M3X: the assist-chip row became the expressive summary's figures. Same
-    // three facts, same rules, one surface.
+    /*
+     * REDESIGN-03 — one measure row, and it is about the WEEK.
+     *
+     * The `.dh-stat--interactive` cards this asserted on are gone. Every figure
+     * on that row counted something the same page rendered in full a few
+     * hundred pixels lower — the Schedule panel names the meeting, Focus's own
+     * Overdue band holds the overdue work — so it was a caption printed at
+     * headline size, and at 390px it and its sibling row filled the entire
+     * first viewport with no task in it.
+     *
+     * The RULES survive and are asserted here against what replaced them: a
+     * figure never states a zero, and a figure the owner can check links to
+     * where they can check it. "Tasks captured" deliberately does not link —
+     * there is no canonical view of "created in the last seven days", and a
+     * link to an approximation of itself is worse than none.
+     */
     const stats = page.locator(".dh-stat--interactive");
-    const count = await stats.count();
+    expect(await stats.count()).toBe(0);
+
+    const summary = page.getByTestId("today-summary");
+    await expect(summary).toBeVisible();
+    const measures = summary.locator(".dh-today__measure");
+    const count = await measures.count();
     expect(count).toBeGreaterThan(0);
+
     for (let index = 0; index < count; index += 1) {
-      const stat = stats.nth(index);
-      const label = (await stat.innerText()).replace(/\s+/g, " ").trim();
-      // A figure never states a zero — that is the whole rule.
-      expect(label).not.toMatch(/^0\b/);
-      const href = await stat.getAttribute("href");
-      expect(href).toMatch(/^\/(tasks\?system=(today|overdue)|meetings)$/);
+      const measure = measures.nth(index);
+      const value = (
+        await measure.locator(".dh-today__measure-value").innerText()
+      ).trim();
+      // A figure is a figure, and it is never rendered as an empty slot.
+      expect(value).toMatch(/^\d/);
+
+      const link = measure.locator("a.dh-today__measure-link");
+      if ((await link.count()) === 1) {
+        expect(await link.getAttribute("href")).toMatch(
+          /^\/(analytics|goals)$/,
+        );
+      }
     }
 
-    // Overdue work is the ONLY toned figure on the page.
-    const toned = page.locator('.dh-stat__value[data-tone="attention"]');
-    expect(await toned.count()).toBeLessThanOrEqual(1);
-    if ((await toned.count()) === 1) {
-      await expect(
-        page.locator('.dh-stat:has([data-tone="attention"])'),
-      ).toContainText(/overdue/i);
-    }
+    // At least one measure is checkable, or the row is decoration.
+    expect(
+      await summary.locator("a.dh-today__measure-link").count(),
+    ).toBeGreaterThan(0);
+
+    /*
+     * Nothing on this row carries a tone. The `attention` treatment belonged to
+     * the overdue FIGURE, and overdue work is now actionable rows in Focus and
+     * nothing else — which is the "one fact, one place" rule the page states.
+     */
+    expect(
+      await page.locator('.dh-stat__value[data-tone="attention"]').count(),
+    ).toBe(0);
   });
 
   test("overdue work is actionable in the day, and never in the rail", async ({

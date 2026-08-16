@@ -214,10 +214,20 @@ describe("PX-02 AppShell — frame & landmarks", () => {
   it("renders the phone quick-navigation bar as a distinct landmark", () => {
     renderShell();
     const quick = screen.getByRole("navigation", { name: "Quick navigation" });
-    // Capture and More are always present; registry destinations appear only for
-    // modules that declare `meta.mobilePrimaryOrder` (none in this fixture).
+    /*
+     * The central capture slot is labelled "Add", and More is always beside it;
+     * registry destinations appear only for modules that declare
+     * `meta.mobilePrimaryOrder` (none in this fixture).
+     *
+     * This assertion said `/capture/i` and had been failing on `main` since the
+     * visual north-star pass deliberately renamed the slot — the bar is
+     * "Today · Tasks · Add · Projects · More" in all three approved references,
+     * and `BottomNav` follows them. The control is unchanged: it still opens the
+     * one shared Quick Capture surface. Only the word the owner reads is new, so
+     * the guard is re-pointed rather than relaxed.
+     */
     expect(
-      within(quick).getByRole("button", { name: /capture/i }),
+      within(quick).getByRole("button", { name: /add/i }),
     ).toBeInTheDocument();
     expect(
       within(quick).getByRole("button", { name: /more/i }),
