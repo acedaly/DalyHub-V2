@@ -33,8 +33,7 @@
  * claim about THIS control's frequency, not a redesign of the shared button, and
  * a global change would silently resize every record in the product.
  */
-.dh-task-record .record-header__actions .dh-btn,
-.dh-task-record .record-header__actions .dh-button {
+.dh-task-record .record-header__actions .record-action {
   min-block-size: var(--app-touch-target-min);
 }
 
