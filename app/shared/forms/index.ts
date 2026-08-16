@@ -61,6 +61,11 @@ export {
 export { TextField, type TextFieldProps } from "./TextField";
 export { DateField, type DateFieldProps } from "./DateField";
 export {
+  CalendarDateField,
+  formatDateOnly,
+  type CalendarDateFieldProps,
+} from "./CalendarDateField";
+export {
   LocalDateTimeField,
   type LocalDateTimeFieldProps,
 } from "./LocalDateTimeField";

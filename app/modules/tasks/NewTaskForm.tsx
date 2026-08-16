@@ -29,7 +29,7 @@ import {
 } from "~/shared/capture";
 import { captureRelationshipPlan } from "~/shared/capture/capture-context";
 import {
-  DateField,
+  CalendarDateField,
   Form,
   FormActions,
   FormButton,
@@ -420,7 +420,13 @@ export function NewTaskForm({
         options={PRIORITY_OPTIONS}
         {...form.field("priority")}
       />
-      <DateField label="Due date" {...form.field("dueDate")} />
+      {/* CONTROL-01 — DalyHub's own month grid, not the browser's date
+          control: the same interaction the Task row's inline due date opens. */}
+      <CalendarDateField
+        label="Due date"
+        todayIso={todayIso ?? null}
+        {...form.field("dueDate")}
+      />
 
       <details className="dh-progressive-section">
         <summary>More details</summary>
@@ -435,7 +441,11 @@ export function NewTaskForm({
           options={COMMITMENT_OPTIONS}
           {...form.field("commitmentState")}
         />
-        <DateField label="Scheduled date" {...form.field("scheduledDate")} />
+        <CalendarDateField
+          label="Scheduled date"
+          todayIso={todayIso ?? null}
+          {...form.field("scheduledDate")}
+        />
       </details>
 
       {/* MOBILE-01: sticky, so "Create task" stays above the phone keyboard

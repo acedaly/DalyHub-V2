@@ -1054,3 +1054,28 @@
     border-color: CanvasText;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* CONTROL-01 — the form date TRIGGER                                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * `CalendarDateField` wears `.dh-input` so a date sits in a form column looking
+ * like every other field, but it is a `<button>`: a button centres its label and
+ * an input does not, so the text is pulled back to the start and the empty state
+ * takes the placeholder's colour rather than the value's.
+ */
+.dh-datefield__trigger {
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-datefield__trigger[data-empty="true"] {
+  color: var(--dh-color-text-muted);
+}
+
+/* The visual state `aria-invalid` carries on the native controls. It cannot be
+ * used here: it is not supported on `role="button"`. */
+.dh-datefield__trigger[data-invalid="true"] {
+  border-color: var(--dh-color-danger);
+}

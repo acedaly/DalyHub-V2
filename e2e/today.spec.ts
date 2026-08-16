@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { pickCalendarDate } from "./helpers";
+
 /**
  * The Today screen, driven end to end against the development-auth server.
  *
@@ -255,7 +257,11 @@ test.describe("Today — the day surface", () => {
       .getByRole("option", { name: "Priority 1", exact: true })
       .click();
     await dialog.locator("summary", { hasText: "More details" }).click();
-    await dialog.getByLabel("Due date").fill(today);
+    await dialog.getByLabel("Due date").click();
+    await pickCalendarDate(
+      page.getByRole("dialog", { name: "Choose Due date" }),
+      today,
+    );
     const [response] = await Promise.all([
       page.waitForResponse(
         (r) =>

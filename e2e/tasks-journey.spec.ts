@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   ownerToday,
+  pickCalendarDate,
 } from "./helpers";
 
 /**
@@ -73,7 +74,13 @@ async function createJourneyTask(
       .click();
   }
   if (options.scheduledDate) {
-    await dialog.getByLabel("Scheduled date").fill(options.scheduledDate);
+    // CONTROL-01 — the form's date is DalyHub's month grid now, not a native
+    // date input, and the grid is portalled so it is anchored outside `dialog`.
+    await dialog.getByLabel("Scheduled date").click();
+    await pickCalendarDate(
+      page.getByRole("dialog", { name: "Choose Scheduled date" }),
+      options.scheduledDate,
+    );
   }
 
   // Submit and assert the create POST actually succeeded (robust against the

@@ -169,9 +169,6 @@ export function CollectionControlsPopover({
       onDismiss={onClose}
       onKeyDown={onKeyDown}
       className="dh-collection-popover"
-      role="menu"
-      aria-label={label}
-      tabIndex={-1}
       id={id}
       data-testid="collection-popover"
     >
@@ -179,8 +176,24 @@ export function CollectionControlsPopover({
         ref={(node) => {
           surfaceRef.current = node;
         }}
-        // A wrapper the effect can focus. The surface itself is owned by
-        // `AnchoredSurface`, which does not hand its node out.
+        /*
+         * The MENU is this element, not the surface.
+         *
+         * A `role="menu"` may contain only menu items, and the surface also
+         * carries the `children` slot — the escape hatch a collection uses for a
+         * server-backed picker that cannot be a closed set of options. Naming
+         * the surface the menu put that arbitrary content inside it. The menu is
+         * therefore the box that holds the groups and Reset, and `children` is
+         * its sibling.
+         *
+         * It is also the single TAB STOP. Every row below is `tabIndex={-1}` and
+         * reached with the arrow keys, which is the roving half of the menu
+         * pattern; without it each option was its own tab stop while Tab was
+         * simultaneously bound to close the popover, so tabbing through the
+         * options was impossible by construction.
+         */
+        role="menu"
+        aria-label={label}
         tabIndex={-1}
         className="dh-collection-popover__body"
       >
@@ -208,6 +221,7 @@ export function CollectionControlsPopover({
                     ref={register}
                     role="menuitemradio"
                     aria-checked={checked}
+                    tabIndex={-1}
                     className="dh-collection-popover__option"
                     onClick={() => onSelect(group, option.value)}
                     data-testid={`collection-popover-${group.param}-${
@@ -230,10 +244,6 @@ export function CollectionControlsPopover({
           );
         })}
 
-        {children ? (
-          <div className="dh-collection-popover__custom">{children}</div>
-        ) : null}
-
         {/* Reset is a row, not a footer. It appears only when something is set,
             because an always-present "clear everything" on a collection with
             nothing to clear is a control that spends its space being disabled. */}
@@ -243,6 +253,7 @@ export function CollectionControlsPopover({
               type="button"
               ref={register}
               role="menuitem"
+              tabIndex={-1}
               className="dh-collection-popover__reset"
               onClick={onReset}
               data-testid="collection-popover-reset"
@@ -252,6 +263,11 @@ export function CollectionControlsPopover({
           </div>
         ) : null}
       </div>
+
+      {/* Outside the menu: a server-backed picker is not a menu item. */}
+      {children ? (
+        <div className="dh-collection-popover__custom">{children}</div>
+      ) : null}
     </AnchoredSurface>
   );
 }
