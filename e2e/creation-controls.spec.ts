@@ -130,7 +130,8 @@ test.describe("the global capture control", () => {
     await expect(captureControl(page)).toBeHidden();
     await expect(
       page.locator("[data-testid='bottom-nav']").getByRole("button", {
-        name: "Add", exact: true,
+        name: "Add",
+        exact: true,
       }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
