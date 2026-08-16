@@ -2276,6 +2276,53 @@
     padding-block: var(--dh-space-3) var(--dh-space-3);
   }
 
+  /*
+   * POLISH-01 — and the COUNT gets the width the hidden title was holding.
+   *
+   * The narrow composition puts the title's column, the search icon and the
+   * primary action on one line, which is right when there IS a title there.
+   * When the title is published to the phone top bar the only thing left in
+   * that column is the state breakdown, and 170px of a 393px screen is not
+   * enough for one: measured on `/projects`, "20 active · 62 completed · 1
+   * archived" broke over three lines beside a button with nowhere to go.
+   *
+   * So the count takes the first row outright and the icon cluster drops to the
+   * second, still at the trailing edge. It is not a taller header — the count
+   * was already spending two or three lines on a third of the width — and the
+   * reading order now matches the DOM order rather than running around a
+   * button.
+   */
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__lead {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__search {
+    grid-row: 2;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__actions {
+    grid-row: 2;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__views {
+    grid-row: 3;
+  }
+
+  /* An open search field still claims a full row of its own, ahead of the view
+   * switcher — the field the owner just asked for must not appear below a
+   * control they did not. */
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"]):has(
+      .dh-csearch[data-open="true"]
+    )
+    .dh-pane-header__views {
+    grid-row: 3;
+  }
+
   /* The height the bottom bar occupies, consumed by every scrolling surface so
    * content is never trapped beneath it.
    *

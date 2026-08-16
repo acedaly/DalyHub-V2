@@ -21,7 +21,7 @@ const routes: readonly RouteContribution[] = [
       navLabel: "AI",
       navGroup: "more",
       navOrder: 240,
-      navIcon: "insight",
+      navIcon: "ai",
     },
   },
   {

@@ -269,7 +269,15 @@ export function SavedViewSwitcher({
   ];
 
   return (
-    <div className={classPrefix}>
+    /*
+     * POLISH-01 — the SWITCHER is the scroll strip, not the rail inside it.
+     *
+     * On a phone this whole band scrolls as one object (the tabs, the "View"
+     * trigger and the manage menu together — `tasks.css`), so the shared
+     * affordance belongs here. Putting it on the rail as well would nest two
+     * scroll containers and paint a cue on the one that never moves.
+     */
+    <div className={`${classPrefix} dh-scroll-strip`}>
       {pinned.length > 0 ? (
         /*
          * The rail is a `nav`, because that is what it is: each tab is an

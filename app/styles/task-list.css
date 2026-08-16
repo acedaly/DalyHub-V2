@@ -735,11 +735,11 @@
   display: none;
 }
 
+/* POLISH-01 — truncation moved to the shared `.dh-inline-select__label`, which
+ * every inline select now gets. What is left here is the row's own rule: the
+ * value fills the cell it was given rather than sizing to the Project's name. */
 .dh-tasklist .dh-task-parent .dh-inline-select__value {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  inline-size: 100%;
 }
 
 /* -- Due: ordinary text, and red only when it has actually slipped ---------- */
@@ -1209,14 +1209,13 @@
   /*
    * And the project TRUNCATES with an ellipsis rather than being chopped.
    *
-   * `.dh-inline-select__value` is an `inline-flex` box holding the label and a
-   * caret, and `text-overflow` does not apply to a flex container's anonymous
-   * text item — a shrinking cell around it clips mid-glyph, which reads as a
-   * rendering fault rather than as truncation. The caret is already hidden at
-   * this width (see the note further down), so the box has one child and can be
-   * a block, where the ellipsis works.
+   * POLISH-01 gave the select's label its own element, so the ellipsis is now
+   * the shared `.dh-inline-select__label` rule rather than a phone-only
+   * override — `text-overflow` never applied to the flex container's anonymous
+   * text item, which is why a shrinking cell used to clip mid-glyph. What is
+   * still phone-only is the `.dh-inline-edit__value` half, which wraps a
+   * multi-line title on a wide row and must not here.
    */
-  .dh-taskrow__cell--project .dh-inline-select__value,
   .dh-taskrow__cell--project .dh-inline-edit__value {
     display: block;
     min-inline-size: 0;

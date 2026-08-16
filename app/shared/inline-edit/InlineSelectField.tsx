@@ -382,8 +382,25 @@ export function InlineSelectField({
         className={className}
         data-testid={testId}
       >
+        {/*
+         * POLISH-01 — the value is WRAPPED, so it can be truncated without
+         * taking the caret with it.
+         *
+         * `__value` is an inline-flex box, and an inline-level box sizes to its
+         * max-content and then overflows a narrower parent rather than
+         * shrinking into it. On a Tasks row between 820 and 1100px the Project
+         * cell is 4rem and a real Project name is 130–190px, so the value ran
+         * straight out of the cell, out of the row and out of the document —
+         * a page-level horizontal scrollbar on the product's most-used screen.
+         *
+         * Bounding `__value` alone would clip the chevron off the end of a long
+         * name, which is worse than the overflow: the field would stop looking
+         * editable exactly when it is too narrow to read. So the label is its
+         * own element that takes the ellipsis, and the caret stays `flex: none`
+         * beside it.
+         */}
         <span className="dh-inline-select__value">
-          {valueNode}
+          <span className="dh-inline-select__label">{valueNode}</span>
           <ChevronDownIcon className="dh-inline-select__caret" />
         </span>
       </InlineEditShell>

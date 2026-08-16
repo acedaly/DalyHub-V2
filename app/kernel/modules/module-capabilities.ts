@@ -86,6 +86,23 @@ export const NAV_ICON_NAMES = [
   "settings",
   "insight",
   "search",
+  /*
+   * POLISH-01 — four names added so four adjacent destinations stop sharing a
+   * glyph.
+   *
+   * `inbox` and `upcoming` belong to the Tasks module, so they inherited the
+   * Task entity's tick and the daily group drew the same mark three times in a
+   * row. `ai` and `analytics` both declared `insight`, so two destinations in
+   * the "more" group were literally the same lightbulb. On the collapsed 68px
+   * rail the label is the one thing that is NOT available, which is precisely
+   * where a duplicated glyph stops being a blemish and becomes a navigation
+   * failure.
+   */
+  "inbox",
+  "upcoming",
+  "ai",
+  "analytics",
+  "views",
 ] as const;
 
 /** A shell navigation glyph name. */

@@ -1,0 +1,106 @@
+/*
+ * POLISH-01 — the ONE horizontal scroll affordance.
+ *
+ * A strip of tabs, chips or segments that is wider than the phone it is on has
+ * to say so. The August 2026 UX audit found three places where it did not:
+ * Projects' lifecycle rail at 393px showed "Active | All" and nothing else, so
+ * Completed and Archived looked as if they had been removed rather than
+ * scrolled past; Goals and Tasks had the same shape.
+ *
+ * The mechanism is MOBILE-01's, promoted out of `record-layout.css` so the
+ * record tabs and every collection rail share one implementation instead of
+ * three near-copies. It is the classic pure-CSS scroll shadow, with no script
+ * and no state:
+ *
+ *   - two COVER layers travel with the content (`background-attachment: local`);
+ *   - two SHADOW layers stay pinned to the box (`scroll`).
+ *
+ * At either end the cover sits over the shadow and hides it, so the cue appears
+ * only on the side that genuinely has more to show and disappears entirely when
+ * the strip fits. Nothing has to know how many tabs there are.
+ *
+ * The covers paint `--scroll-strip-cover`, defaulted AT THE POINT OF USE to
+ * `--app-surface-current` — the surface the strip is actually sitting on, which
+ * a card, the phone Drawer and the page each set for themselves. The fallback
+ * lives in the `var()` rather than as a declaration on this class on purpose:
+ * a declaration here would shadow an ancestor's value and the override would
+ * silently do nothing. A cover in the
+ * wrong colour is a visible band at the edge of the tabs rather than a cover,
+ * and the default is right for every strip that sits directly on its container.
+ * A strip whose own band is painted differently from its container overrides
+ * the property; nothing else about the affordance changes.
+ *
+ * Usage: add `dh-scroll-strip` to the element that SCROLLS. It owns the
+ * affordance and the scrollbar suppression; the caller still owns the layout
+ * (`display`, `gap`) and must not restate `overflow-x`.
+ */
+
+.dh-scroll-strip {
+  overflow-x: auto;
+  /*
+   * `contain` rather than the default `auto`: the strip is a bounded control
+   * rail, and a swipe that reaches its end must not start scrolling the page
+   * underneath it. Without this a horizontal flick on the lifecycle tabs is
+   * frequently read as a page gesture on iOS.
+   */
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  /*
+   * The COVER is wider than the shadow and opaque across the whole of it.
+   *
+   * A cover that merely fades across the same 20px as the shadow leaves a
+   * visible grey wash at rest — the two alphas multiply out to a few percent of
+   * darkening in the middle of the band, which reads as a permanent smudge
+   * beside the first tab rather than as "there is more this way". So the cover
+   * is `--app-space-6` wide and fully opaque for the `--app-space-5` the shadow
+   * occupies. At rest the shadow is completely hidden; as the strip scrolls the
+   * cover travels with the content and uncovers the cue progressively, which is
+   * a better signal than a binary one anyway.
+   */
+  background-image:
+    linear-gradient(
+      to right,
+      var(--scroll-strip-cover, var(--app-surface-current)) 0 var(--app-space-5),
+      transparent 100%
+    ),
+    linear-gradient(
+      to left,
+      var(--scroll-strip-cover, var(--app-surface-current)) 0 var(--app-space-5),
+      transparent 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--md-sys-color-shadow) 20%, transparent),
+      transparent
+    ),
+    linear-gradient(
+      to left,
+      color-mix(in srgb, var(--md-sys-color-shadow) 20%, transparent),
+      transparent
+    );
+  background-position:
+    left center,
+    right center,
+    left center,
+    right center;
+  background-size:
+    var(--app-space-6) 100%,
+    var(--app-space-6) 100%,
+    var(--app-space-5) 100%,
+    var(--app-space-5) 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.dh-scroll-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Forced colours drop background images entirely, so the cue would be a lie
+ * about what is scrollable. Nothing is lost — every strip that uses this keeps
+ * every one of its items reachable by keyboard. */
+@media (forced-colors: active) {
+  .dh-scroll-strip {
+    background-image: none;
+  }
+}

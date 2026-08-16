@@ -389,10 +389,29 @@
   min-inline-size: 0;
 }
 
+/*
+ * POLISH-01 — the value NEVER exceeds the track it was given.
+ *
+ * `inline-flex` sizes to max-content, so without the max the box happily grew
+ * past a 4rem grid cell and pushed the whole document sideways (see
+ * `InlineSelectField`). `max-inline-size` is the fix and `min-inline-size: 0`
+ * is what lets it actually shrink once it is inside a flex or grid parent.
+ */
 .dh-inline-select__value {
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+/* The half that TRUNCATES. The caret is `flex: none` beside it, so a name that
+ * runs out of room ellipsises and the field still looks editable. */
+.dh-inline-select__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dh-inline-select__caret {

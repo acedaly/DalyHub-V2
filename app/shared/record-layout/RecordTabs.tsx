@@ -223,7 +223,8 @@ export function RecordTabs({
           OUTSIDE the tablist — a tablist may contain only tabs. */}
       <div className="record-tabs__strip">
         <div
-          className="record-tabs__list"
+          // POLISH-01 — the ONE horizontal scroll affordance (`scroll-strip.css`).
+          className="record-tabs__list dh-scroll-strip"
           role="tablist"
           aria-label={label}
           aria-orientation="horizontal"

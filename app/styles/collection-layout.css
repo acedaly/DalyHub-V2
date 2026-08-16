@@ -35,6 +35,15 @@
   top: var(--dh-shell-bar-height);
   z-index: var(--app-z-sticky);
   background: var(--dh-color-bg);
+  /*
+   * POLISH-01 — the ground the band is painted on, published for the strips
+   * inside it (`scroll-strip.css`). A scroll cue's cover layer has to be the
+   * SAME colour as the surface behind the tabs or it is a visible block at the
+   * edge of them rather than a cover, and this band is the one place that
+   * colour is decided — it is the page ground on a gallery collection and the
+   * list ground on a flat one.
+   */
+  --scroll-strip-cover: var(--dh-color-bg);
 }
 
 @media (max-width: 47.99rem) {
@@ -82,6 +91,7 @@
 .dh-collection--flat,
 .dh-collection--flat .dh-collection__sticky {
   background: var(--dh-color-surface);
+  --scroll-strip-cover: var(--dh-color-surface);
 }
 
 /*
@@ -722,19 +732,21 @@
   min-inline-size: 0;
 }
 
+/*
+ * §7 — at 390 the rail and the toggle stay on ONE row; it is the RAIL that
+ * scrolls, so the toggle is never pushed off the screen or onto a second band.
+ * `min-width: 0` is what lets the flex child actually shrink.
+ *
+ * POLISH-01 — the scroll container is the RAIL ITSELF (`.dh-viewtabs`, now a
+ * `.dh-scroll-strip`), not this wrapper. Both had `overflow-x: auto`, so the
+ * outer box never overflowed — its content was already a scroller — and any
+ * affordance painted here would have been permanently invisible. One scroll
+ * container per axis, and it is the one the tabs are in.
+ */
 .dh-controlrow__lead {
   min-inline-size: 0;
-  /*
-   * §7 — at 390 the rail and the toggle stay on ONE row; it is the RAIL that
-   * scrolls, so the toggle is never pushed off the screen or onto a second
-   * band. `min-width: 0` is what lets the flex child actually shrink.
-   */
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.dh-controlrow__lead::-webkit-scrollbar {
-  display: none;
+  display: flex;
+  align-items: center;
 }
 
 /*
@@ -768,6 +780,56 @@
  * desktop-filters/phone-sheet swap.
  */
 @media (max-width: 48rem) {
+  /*
+   * POLISH-01 — LIFECYCLE and PRESENTATION stop reading as one tab strip.
+   *
+   * At 393px on `/projects` the band drew "Active  All  [✓ Grid]  Table" with
+   * nothing between the pairs, so the near-black selected Grid pill read as the
+   * selected TAB of a four-tab rail — two controls answering two different
+   * questions ("which Projects?" and "drawn how?") presented as one choice.
+   *
+   * Three things separate them, and none of them is a new component:
+   *
+   *   1. a rule between the clusters, which is what says "these are two
+   *      controls" in the same language the rest of the product uses;
+   *   2. the presentation toggle goes ICON-ONLY, so it is visibly a different
+   *      KIND of control from a row of text tabs — and it stops spending ~180px
+   *      of a 393px band on two words. The near-black selected treatment is
+   *      unchanged (it is a settled decision); it is simply much smaller;
+   *   3. the lifecycle rail gets the shared scroll affordance, so the tabs the
+   *      band cannot fit announce themselves instead of vanishing.
+   */
+  .dh-controlrow__trail {
+    padding-inline-start: var(--dh-space-3);
+    margin-inline-start: var(--dh-space-3);
+    border-inline-start: var(--app-border-width-thin) solid
+      var(--dh-color-border);
+  }
+
+  /*
+   * The label is CLIPPED rather than removed: `display: none` would strip the
+   * option's accessible name and leave a glyph nobody can address by voice or
+   * hear announced. This is `.dh-visually-hidden`'s own technique, applied by
+   * the viewport instead of by a prop — the alternative is a breakpoint read in
+   * JavaScript, which would make the first server byte wrong.
+   */
+  .dh-controlrow__trail .dh-segmented__label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dh-controlrow__trail .dh-segmented__icon {
+    /* Without a label beside it the glyph is the whole control, so it takes the
+     * whole option's centre rather than sitting where a leading icon would. */
+    margin: 0;
+  }
+
   .dh-csearch {
     inline-size: auto;
     flex: none;

@@ -142,22 +142,34 @@ describe("the Project card's meta line", () => {
 });
 
 describe("the Projects collection's lifecycle count line", () => {
+  /*
+   * POLISH-01 — the segments are joined by the SHARED breakdown grammar, whose
+   * separator carries a NO-BREAK SPACE before it (`collectionStateBreakdown`).
+   * At 393px the plain-space version broke "· 1 archived" onto a second line
+   * with the separator orphaned at its start; the non-breaking half is what
+   * keeps a separator attached to the segment it follows.
+   *
+   * The expectations spell the character out rather than pasting an invisible
+   * one, so a future edit cannot delete it by accident and still look right.
+   */
+  const SEP = "\u00a0· ";
+
   it("reads as the reference draws it", () => {
     expect(
       projectLifecycleCountLabel({ active: 8, completed: 0, archived: 2 }),
-    ).toBe("8 active · 2 archived");
+    ).toBe(`8\u00a0active${SEP}2\u00a0archived`);
   });
 
   it("drops a bucket that is empty rather than printing a zero", () => {
     expect(
       projectLifecycleCountLabel({ active: 8, completed: 0, archived: 0 }),
-    ).toBe("8 active");
+    ).toBe("8\u00a0active");
   });
 
   it("folds completed in only when there is some", () => {
     expect(
       projectLifecycleCountLabel({ active: 8, completed: 3, archived: 2 }),
-    ).toBe("8 active · 3 completed · 2 archived");
+    ).toBe(`8\u00a0active${SEP}3\u00a0completed${SEP}2\u00a0archived`);
   });
 
   it("yields null when the count read failed, so the caller can fall back", () => {

@@ -13,7 +13,15 @@ const routes: readonly RouteContribution[] = [
     id: "views.index",
     path: "views",
     file: "routes/index.tsx",
-    meta: { navLabel: "Views", navGroup: "more", navOrder: 210 },
+    meta: {
+      navLabel: "Views",
+      navGroup: "more",
+      navOrder: 210,
+      // POLISH-01 — a stack, not the filter funnel: a saved view is a stored
+      // way of looking at records, and the funnel is already the glyph of the
+      // control that narrows a collection.
+      navIcon: "views",
+    },
   },
   // The saved-view mutations (create / update / rename / duplicate / delete). A
   // resource route, so the switcher's fetchers receive the action's JSON directly.

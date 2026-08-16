@@ -87,7 +87,18 @@ export function ViewTabs({
 
   return (
     <nav
-      className={["dh-viewtabs", className].filter(Boolean).join(" ")}
+      /*
+       * POLISH-01 — the rail is the SCROLL CONTAINER, and it says so.
+       *
+       * `dh-scroll-strip` brings the horizontal overflow, the hidden scrollbar
+       * and the shared "there is more this way" cue. A tab rail that silently
+       * cuts "Completed" mid-word reads as a shorter set of views rather than
+       * as a scrollable one — measured at 393px on `/projects`, where Completed
+       * and Archived were both effectively unreachable.
+       */
+      className={["dh-viewtabs", "dh-scroll-strip", className]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={label}
       data-testid={testId}
     >

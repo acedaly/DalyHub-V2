@@ -119,6 +119,54 @@ test.describe("responsive — no horizontal overflow across the breakpoint matri
   }
 });
 
+/**
+ * POLISH-01 — the LAPTOP/TABLET band the canonical matrix stepped over.
+ *
+ * `RESPONSIVE_VIEWPORTS` runs 320 → 430 → 768 → 1024 → 1280 → 1440 → 2560. The
+ * August 2026 UX audit found a page-level horizontal scrollbar on `/tasks`
+ * between roughly 820 and 1100px — an inline-flex select value sizing to a
+ * Project's name and running out of a 4rem grid cell — and every one of those
+ * widths falls in a gap in the list above. The suite was proving both sides of
+ * the defect and not the defect.
+ *
+ * So this sweeps the audit's own widths over the surfaces it named. `/tasks`,
+ * `/inbox` and `/upcoming` are absent from `PRODUCT_ROUTES` entirely (that list
+ * was written when Tasks was a placeholder), which is the other half of why the
+ * regression was invisible; they are the densest grids in the product and the
+ * ones a fixed column is most likely to break.
+ */
+const AUDIT_WIDTHS = [
+  { label: "laptop-1100", width: 1100, height: 800 },
+  { label: "tablet-900", width: 900, height: 800 },
+  { label: "tablet-820", width: 820, height: 1180 },
+] as const;
+
+const DENSE_GRID_ROUTES = [
+  "/tasks",
+  "/inbox",
+  "/upcoming",
+  "/projects",
+  "/projects?presentation=table",
+  "/today",
+  "/goals",
+  "/areas",
+] as const;
+
+test.describe("responsive — the laptop/tablet band the audit measured", () => {
+  for (const path of DENSE_GRID_ROUTES) {
+    for (const viewport of AUDIT_WIDTHS) {
+      test(`${path} at ${viewport.width}px`, async ({ page }) => {
+        await page.setViewportSize({
+          width: viewport.width,
+          height: viewport.height,
+        });
+        await gotoFixture(page, path);
+        await expectNoHorizontalOverflow(page);
+      });
+    }
+  }
+});
+
 test.describe("responsive — open overlays never overflow", () => {
   // The extremes bound the behaviour: the narrowest phone and an ultra-wide desktop.
   const EXTREMES = [

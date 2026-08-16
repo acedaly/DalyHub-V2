@@ -23,7 +23,7 @@ const routes: readonly RouteContribution[] = [
       navLabel: "Analytics",
       navGroup: "organise",
       navOrder: 180,
-      navIcon: "insight",
+      navIcon: "analytics",
     },
   },
 ];

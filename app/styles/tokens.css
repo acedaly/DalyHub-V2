@@ -6150,7 +6150,19 @@
    * forgets falls back to the page colour, which is a wrong colour rather than a
    * transparent bar with text scrolling through it.
    */
-  --app-surface-current: var(--md-app-color-surface-page);
+  /*
+   * POLISH-01 — the default is the ground the APPLICATION paints, not the
+   * generated M3 page tone.
+   *
+   * `.dh-app` has painted `--dh-color-bg` since REDESIGN-03, and the two differ
+   * (#f6f6f8 against #faf9fd in light). Anything that consumed this on the page
+   * — a sticky bar's occluding background, a floating label's notch, and now the
+   * shared scroll cue's cover layers — was painting a colour two tones off the
+   * surface behind it, which reads as a pale block rather than as a cover. The
+   * "a surface declares itself" contract above is unchanged; only what `:root`
+   * declares is corrected to what `:root` actually paints.
+   */
+  --app-surface-current: var(--dh-color-bg);
 
   --app-safe-area-top: env(safe-area-inset-top, 0px);
   --app-safe-area-right: env(safe-area-inset-right, 0px);

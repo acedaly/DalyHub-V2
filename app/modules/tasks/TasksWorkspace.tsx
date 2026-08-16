@@ -94,6 +94,7 @@ import {
   type TaskViewConfig,
 } from "~/kernel/task-views";
 
+import { tasksDestinationTitle } from "./destination";
 import { NewTaskForm } from "./NewTaskForm";
 import { TasksQuickAdd } from "./TasksQuickAdd";
 import { TasksViewSwitcher } from "./TasksViewSwitcher";
@@ -1544,7 +1545,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // would be a redesign of eleven modules made by accident.
       className="dh-collection--tasks dh-collection--flat"
       isLoading={isReloading}
-      title="Tasks"
+      title={tasksDestinationTitle(basePath)}
       subtitle={subtitle}
       density={density}
       // UIQ-014 — Review Inbox is a SECONDARY action, and now sits in the

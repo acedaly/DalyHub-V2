@@ -253,11 +253,27 @@
  * carry is already printed beside it, which is why it is `aria-hidden` and why
  * it is allowed to be this small.
  */
+/*
+ * POLISH-01 — the plot is CLIPPED to its own region, with room for its cap.
+ *
+ * `overflow: visible` was chosen so a `non-scaling-stroke` round cap and the
+ * 4.5px end marker are not sliced in half at the frame; it also meant the mark
+ * could paint arbitrarily far outside the box it was given, and a chart that
+ * crosses the edge of the card it is in reads as a rendering fault rather than
+ * as data. `clip` with an explicit margin gets both: the cap has its radius of
+ * room and nothing can reach the card's border, let alone the card beside it.
+ *
+ * The margin is stated in pixels rather than taken from the space scale on
+ * purpose — it is derived from the widest stroke this chart draws (4.5px, so
+ * 2.25px of radius) plus a hair, not from a layout rhythm, and tying it to a
+ * spacing token would make it wrong the moment the token moved.
+ */
 .dh-spark {
   display: block;
   inline-size: 100%;
   min-inline-size: 0;
-  overflow: visible;
+  overflow: clip;
+  overflow-clip-margin: 3px;
 }
 
 .dh-spark__line {
