@@ -543,6 +543,94 @@ axe + overflow sweeps at 1280 / 390 / 320.
 
 ---
 
+## 10b. The identity palette — why the spine looked like Material, and what fixed it
+
+Added after review. The first pass rebuilt every anatomy in this scope correctly
+and left the COLOUR alone, and the colour was the thing making the result read as
+Material rather than as `mockup3.png`. Three separate causes, all in the
+generator.
+
+### The three causes
+
+**1. The ramp was the wrong six colours.** UIX-02 moved record identity off the
+chart ramp and onto UIX-01's widget accents — the right direction, the wrong
+destination. That ramp is green, blue, amber, violet, **teal** and **cyan**: two
+of the six are blue-greens, and none is a red. The reference draws violet,
+green, red, orange, blue and amber.
+
+**2. The tile was a tonal container.** M3's custom-colour tones give a container
+at **tone 90** and an on-container at **tone 10** — a mid-saturation pastel
+carrying a near-black glyph. That is Material's identity chip, and it is exactly
+what "looks very like MD3" describes. The reference's tile is a near-white
+**tint** (tone 96 at capped chroma) carrying the **saturated hue** as its glyph.
+
+**3. `Blend.harmonize` was rewriting the hues.** It rotates every source up to
+15° toward the scheme's seed. Measured under Daly Violet, the reference's red
+`#E53E3F` arrived as `#DC3166` — a magenta — and its orange `#E05700` arrived as
+`#D54334` — a red. The ramp's own documentation already said an identity colour
+is *"GLOBAL across schemes… because a record whose colour changed with the scheme
+would make identity meaningless"*; harmonisation had been quietly contradicting
+it. The identity ramp is now **unharmonised**, which makes that sentence true.
+
+### What was measured, and what moved
+
+The six hues were **sampled from `mockup3.png`** rather than guessed — a blob
+scan over the gallery region, reading each tile's glyph stroke and each progress
+bar's fill. Five of the six bar colours are the reference's own hex, unchanged.
+Everything that moved, moved for a stated reason:
+
+| Slot | Reference | Shipped | Why it moved |
+| --- | --- | --- | --- |
+| 1 violet | `#4527D6` | `#4527d6` | — |
+| 2 green | `#12972D` | `#008a25` | Its own darkest tone is 4.0:1 under it and white is 3.8:1 — a mid-tone fill with **no honest `on-` colour**. Darkened until one exists. |
+| 3 red | `#E53E3F` | `#d93538` | Same. |
+| 4 orange | `#E05700` | `#c84d00` | Same. |
+| 5 blue | `#0F55DB` | `#0f55db` | — |
+| 6 amber | `#F0A020` | `#008392` **(teal)** | See below. |
+
+**Slot 6 is the one substitution, and it is a real trade.** The reference uses
+two warm hues — a deep orange and a bright gold — and they read apart in the
+picture because the gold is bright. It cannot stay bright: at 2.0:1 on the sunken
+track it fails the 3:1 a progress bar owes, and darkening it along its own hue
+lands on an ochre a shade from slot 4's burnt orange. Drawing eight cards is not
+the same problem as rotating six slots: a ramp whose members are not mutually
+distinguishable has stopped doing the one job it exists for. Teal is the nearest
+hue the reference does not use, stays clean at every tone, and sits far from both
+the green and the blue.
+
+**A red identity is now allowed, and D21 still holds.** UIX-02 kept warm reds out
+of this ramp because a red mark could be mistaken for the overdue state. The
+reference draws one, and REDESIGN-03 §2.4 had already confirmed the reference's
+red bar is deliberate. The separation that matters is structural, not chromatic:
+identity paints the tile and the bar; state paints a dot with its own tone **and**
+its own words. Nothing on the card is carried by colour alone.
+
+### The contrast promises, kept rather than relaxed
+
+Not one assertion was weakened. `identityTones` derives each slot under four
+constraints, checked across **all five schemes and both appearances**:
+
+| Promise | Worst measured |
+| --- | --- |
+| Bar ≥ 3:1 on the sunken track, the card and the page | 3.08:1 |
+| Glyph ≥ 4.5:1 on the composed tile | 4.67:1 |
+| Dark bar ≥ 3:1 on its surfaces | 7.67:1 |
+| Dark glyph ≥ 4.5:1 on the composed dark mark | 8.96:1 |
+
+The `on-area-accent-N` role is now **derived** rather than hardcoded to white:
+each slot takes whichever of white or its own darkest tone genuinely clears AA on
+its fill. Nothing in the product currently draws a label on a filled identity
+swatch; the reason to make the role truthful rather than exempt it from the
+blanket assertion is that the assertion is what stops one being added carelessly.
+
+### What this also removes
+
+Six `-container` / `on-container` pairs stop being Material tonal containers and
+become a DalyHub tint-and-hue pair. That is REDESIGN-03 debt item 1 progress on
+the surfaces this pass owns, achieved by deletion rather than by re-skinning.
+
+---
+
 ## 11. Before / after
 
 * `docs/design/assets/redesign-04/before/` — 78 frames at the base SHA

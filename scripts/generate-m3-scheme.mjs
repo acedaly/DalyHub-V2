@@ -195,44 +195,60 @@ const PULSE_CHART_HUES = [
 ];
 
 /**
- * The six DECORATIVE identity hues — UIX-01's widget accent ramp, and from
- * UIX-02 the source of record identity (`area-accent-*`) as well.
+ * The six DECORATIVE identity hues — the ramp a record's stable colour rank
+ * (ADR-068 §5) resolves to for its mark, its progress bar, its Area dot and its
+ * Area pill.
  *
- * They are the same six sources the `accent-*` quartets below are generated
- * from, declared once here so a record's identity mark and a glance widget's
- * tonal tile can never drift into being two palettes that merely look alike.
- * A surface picks a slot; it never picks a colour.
+ * ── REDESIGN-04: these are `mockup3.png`'s own colours, sampled ─────────────
+ * UIX-02 moved identity off the chart ramp and onto UIX-01's widget accents,
+ * which was the right direction and the wrong destination. That ramp is green,
+ * blue, amber, violet, teal and cyan — two of the six are blue-greens, none is
+ * a red, and every one of them arrives through M3's tonal-container machinery.
+ * The result was a gallery of mint, lavender and aqua tiles that read exactly
+ * like Material's tonal containers, because that is what they were.
  *
- * They are also GLOBAL across schemes: an Area keeps the same identity colour
- * whichever scheme is chosen (harmonised to it, so it still belongs), because a
- * record whose colour changed with the scheme would make identity meaningless.
+ * The reference draws something quite different, and REDESIGN-03 §2.4 had
+ * already confirmed it is deliberate rather than a rainbow: violet, green, red,
+ * orange, blue and amber across one Projects grid. These are those six, sampled
+ * from the image (see `REDESIGN_04_SPINE_WORKSPACES_2026_08.md` §14), in the
+ * order the reference's own cards use them — so a workspace's first Projects
+ * get the colours the picture gives them.
+ *
+ * **A red identity is allowed here, and D21 still holds.** UIX-02 kept warm reds
+ * out of this ramp because a red identity could be mistaken for the overdue
+ * state. The reference draws one anyway, and the separation it relies on is
+ * structural rather than chromatic: identity paints the tile and the bar, state
+ * paints a dot with its own tone AND its own words. A card whose mark is red is
+ * not a card that says anything is wrong — nothing on it is carried by colour
+ * alone, which is the rule that actually protects the reader.
+ *
+ * They are GLOBAL across schemes and, from REDESIGN-04, **unharmonised** — see
+ * {@link identityTones} for why.
  */
 const IDENTITY_HUES = [
-  "#1B873F", // green
-  BLUE_HEX, // blue
-  "#B26A00", // amber
-  VIOLET_HEX, // violet — DalyHub's own, in every scheme
-  "#00897B", // teal
+  "#4527D6", // violet
+  "#12972D", // green
+  "#E53E3F", // red
+  "#E05700", // orange
+  "#0F55DB", // blue
   /*
-   * Cyan, and NOT the widget ramp's coral — the one place the two lists differ,
-   * for a reason that is about where each is drawn.
+   * Teal — the ONE slot that is not the reference's, and the reason is the
+   * difference between drawing eight cards and rotating six slots.
    *
-   * `Blend.harmonize` rotates every design hue up to 15° toward the seed, and
-   * from any warm-red source that lands inside the scheme's alarm band:
-   * `accent-coral` arrives at HCT hue 20.3 against `state-overdue`'s 8.5 and
-   * `priority-p2`'s 32.5, with a tone-40 of #ad3035. As a WASH under a glance
-   * widget that is exactly right — coral is UIX-01's "tasks due today" identity,
-   * and a pale tint beside a worded label cannot be mistaken for a state. As a
-   * full-strength fill on a Project's progress bar it is a brick red sitting one
-   * line under an attention line drawn in the real overdue colour, and the
-   * gallery then says "this Project is in trouble" about a Project that is on
-   * track — purely because of where its Area happened to sort.
+   * `mockup3.png` uses two warm hues: a deep orange (slot 4) and a bright gold
+   * `#F0A020`. Side by side in the picture they read as different colours
+   * because the gold is bright. It cannot stay bright here: at 2.0:1 on the
+   * sunken track it fails the 3:1 a progress bar owes, and darkening it along
+   * its own hue lands it on an ochre a shade from slot 4's burnt orange. Two
+   * near-identical slots is a worse outcome than one substituted hue, because a
+   * ramp whose members are not mutually distinguishable has stopped doing the
+   * job it exists for — telling records apart.
    *
-   * Cyan is the one hue with genuinely empty space around it: 26° from teal,
-   * 57° from blue, and clear of every semantic role. Identity therefore avoids
-   * the alarm band by construction rather than by hoping nobody notices.
+   * Teal is the nearest hue the reference does not already use, it stays clean
+   * at every tone, and it is far from both the green above it and the blue
+   * before it. Recorded in `REDESIGN_04_SPINE_WORKSPACES_2026_08.md` §14.
    */
-  "#00ACC1", // cyan
+  "#0E8F9E", // teal
 ];
 
 /**
@@ -321,7 +337,12 @@ function customColorGroups(scheme) {
        * late enough that a small workspace's gallery is not mostly primary.
        */
       label:
-        "Area and Project identity (UIX-02) — the widget accent ramp, never the chart ramp",
+        "Area and Project identity (REDESIGN-04) — mockup3's own six hues, unharmonised",
+      /*
+       * REDESIGN-04 — this group resolves through `identityTones`, not M3's
+       * custom-colour ladder. See that function for the two reasons.
+       */
+      identity: true,
       colors: IDENTITY_HUES.map((hex, index) => [
         `area-accent-${index + 1}`,
         hex,
@@ -1098,6 +1119,178 @@ function customTones(sourceArgb, hex) {
   };
 }
 
+/**
+ * REDESIGN-04 — the tone assignment for the IDENTITY ramp, which is not M3's.
+ *
+ * Two things had to change for a gallery to look like `mockup3.png` rather than
+ * like Material, and both are here.
+ *
+ * **1. No harmonisation.** `Blend.harmonize` rotates a source up to 15° toward
+ * the scheme's seed. On a semantic hue that is exactly right — an error red
+ * should belong to the scheme it appears in. On the identity ramp it is
+ * destructive and measurably so: under the Daly Violet seed the reference's red
+ * `#E53E3F` arrives as `#DC3166`, a magenta, and its orange `#E05700` arrives
+ * as `#D54334`, a red. The ramp's own doc already said an identity colour is
+ * "GLOBAL across schemes… because a record whose colour changed with the scheme
+ * would make identity meaningless" — harmonisation was quietly contradicting
+ * that. Now it genuinely does not change: six colours, five schemes, one
+ * identity.
+ *
+ * **2. The tile is a TINT, not a tonal container.** M3's custom-colour tones
+ * give a container tone 90 and an on-container tone 10 — a mid-saturation
+ * pastel with a near-black glyph on it, which is the Material look the reference
+ * does not have. The reference's tile is a near-white tint of the hue (tone 96
+ * at low chroma) carrying the SATURATED hue as its glyph. That is what these
+ * tones produce.
+ *
+ * ── What is the reference's, and what the contrast promise moved ────────────
+ * `color` — the progress-bar fill — is the reference's own hex **unchanged** for
+ * five of the six. Amber is the exception: `#F0A020` is 2.2:1 on white and
+ * 1.9:1 on the sunken track, and a bar whose extent carries meaning owes 3:1
+ * (`contrast.test.ts`). It is darkened along its own hue until it clears, and
+ * nothing else is touched. The glyph is likewise the bar's own colour where that
+ * clears 4.5:1 on the tile (violet and blue do), and a shade deeper where it
+ * does not.
+ *
+ * Every threshold here is asserted rather than asserted-by-construction, in
+ * `test/unit/tokens/contrast.test.ts`, across all five schemes and both
+ * appearances.
+ */
+const IDENTITY_TONES = {
+  /** Cap the tint's chroma so tone 96 reads as a tint, never as a pastel. */
+  tintChroma: 14,
+  /** The dark tile is deeper and allowed a little more colour. */
+  tintChromaDark: 26,
+  tintToneLight: 96,
+  tintToneDark: 28,
+  barToneDark: 74,
+  glyphToneDark: 84,
+};
+
+/** The darkest LIGHT surface a bar sits on — the binding contrast constraint. */
+const IDENTITY_BAR_SURFACE = "#f0f0f3";
+
+/** sRGB relative luminance, for the identity ramp's own clamping. */
+function relativeLuminance(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const channel = (c) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return (
+    0.2126 * channel((n >> 16) & 255) +
+    0.7152 * channel((n >> 8) & 255) +
+    0.0722 * channel(n & 255)
+  );
+}
+
+function contrastOf(a, b) {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort(
+    (x, y) => y - x,
+  );
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * Resolve one identity hue to its four roles in both appearances.
+ *
+ * The token NAMES are M3's (`area-accent-N`, `on-area-accent-N-container`, …) so
+ * every consumer — `data-accent` in CSS, `scheme.ts`, the contrast assertions —
+ * is untouched. Only the values behind them move, from Material's container
+ * ladder to the reference's tint-and-hue pair.
+ */
+function identityTones(hex) {
+  const source = Hct.fromInt(argbFromHex(hex));
+  const palette = TonalPalette.fromHueAndChroma(source.hue, source.chroma);
+
+  /*
+   * The bar: the reference's own colour, darkened along its hue only as far as
+   * two promises require — and no further.
+   *
+   *   - 3:1 against the sunken track, because a bar's extent carries meaning;
+   *   - an `on-` colour that genuinely clears AA, which a mid-tone fill can
+   *     fail from BOTH directions: the reference's green is 3.8:1 under white
+   *     and 4.0:1 under its own darkest tone, so neither would have been an
+   *     honest on-role. Requiring one is what keeps the derived role above
+   *     truthful rather than nominal.
+   */
+  const admitsOnColour = (fill) => {
+    const dark = hexFromArgb(
+      TonalPalette.fromHueAndChroma(
+        Hct.fromInt(argbFromHex(fill)).hue,
+        Hct.fromInt(argbFromHex(fill)).chroma,
+      ).tone(15),
+    );
+    return contrastOf("#ffffff", fill) >= 4.5 || contrastOf(dark, fill) >= 4.5;
+  };
+  const barOk = (fill) =>
+    contrastOf(fill, IDENTITY_BAR_SURFACE) >= 3.05 && admitsOnColour(fill);
+
+  let bar = hex.toLowerCase();
+  if (!barOk(bar)) {
+    for (let tone = Math.round(source.tone); tone >= 10; tone -= 1) {
+      bar = hexFromArgb(palette.tone(tone));
+      if (barOk(bar)) break;
+    }
+  }
+
+  const barHct = Hct.fromInt(argbFromHex(bar));
+  const full = TonalPalette.fromHueAndChroma(barHct.hue, barHct.chroma);
+  const tintLight = hexFromArgb(
+    TonalPalette.fromHueAndChroma(
+      barHct.hue,
+      Math.min(barHct.chroma, IDENTITY_TONES.tintChroma),
+    ).tone(IDENTITY_TONES.tintToneLight),
+  );
+
+  // The glyph: the bar's own colour where it clears AA on the tile, a shade
+  // deeper where it does not.
+  let glyph = bar;
+  if (contrastOf(glyph, tintLight) < 4.55) {
+    for (let tone = Math.round(barHct.tone); tone >= 10; tone -= 1) {
+      glyph = hexFromArgb(full.tone(tone));
+      if (contrastOf(glyph, tintLight) >= 4.55) break;
+    }
+  }
+
+  const tintDark = hexFromArgb(
+    TonalPalette.fromHueAndChroma(
+      barHct.hue,
+      Math.min(barHct.chroma, IDENTITY_TONES.tintChromaDark),
+    ).tone(IDENTITY_TONES.tintToneDark),
+  );
+
+  /*
+   * The `on-` role is DERIVED, not assumed to be white.
+   *
+   * M3 hands a tone-40 colour a white on-role and is right to; the reference's
+   * bars sit nearer tone 50, where white is 3.8:1 on the green — readable as a
+   * bar, not as text. Nothing in the product currently draws a label on a filled
+   * identity swatch, and the reason to fix it rather than exempt it is that the
+   * blanket assertion is the thing stopping one from being added carelessly. So
+   * each slot takes whichever of white or its own darkest tone genuinely clears
+   * AA on its fill.
+   */
+  const onFor = (fill) =>
+    contrastOf("#ffffff", fill) >= 4.5 ? "#ffffff" : hexFromArgb(full.tone(15));
+
+  const barDark = hexFromArgb(full.tone(IDENTITY_TONES.barToneDark));
+  return {
+    light: {
+      color: bar,
+      on: onFor(bar),
+      container: tintLight,
+      onContainer: glyph,
+    },
+    dark: {
+      color: barDark,
+      on: onFor(barDark),
+      container: tintDark,
+      onContainer: hexFromArgb(full.tone(IDENTITY_TONES.glyphToneDark)),
+    },
+  };
+}
+
 /** The surface ladder for a scheme: the default, with the scheme's overrides. */
 function surfaceTones(scheme) {
   return {
@@ -1167,7 +1360,9 @@ function buildOneScheme(scheme) {
   for (const group of customColorGroups(scheme)) {
     const tokens = [];
     for (const [name, hex] of group.colors) {
-      const resolved = customTones(sourceArgb, hex);
+      const resolved = group.identity
+        ? identityTones(hex)
+        : customTones(sourceArgb, hex);
       for (const mode of ["light", "dark"]) {
         out[mode][name] = resolved[mode].color;
         out[mode][`on-${name}`] = resolved[mode].on;

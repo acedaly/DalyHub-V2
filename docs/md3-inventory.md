@@ -45,6 +45,28 @@ new surface — the search field, the control row, the measured row, the table,
 the chips, the stat trio and the chart's projection — is authored entirely in
 `--dh-*` and `--app-*` roles, plus that one generated ramp.
 
+### The identity ramp stopped being a tonal container
+
+The largest MD3 reduction in this pass is not a token count — it is that the six
+identity slots no longer resolve through Material's custom-colour ladder at all.
+
+`area-accent-N-container` was tone 90 (a mid-saturation pastel) with an
+`on-container` at tone 10 (a near-black glyph): Material's identity chip,
+rendered nine times across a Projects gallery. It is now a near-white **tint**
+(tone 96 at capped chroma) carrying the **saturated hue** as its glyph, derived
+by `identityTones` in the generator rather than by `customTones`. The token names
+are unchanged, so every consumer is untouched; only the values moved.
+
+`Blend.harmonize` is also no longer applied to this ramp. That is what was
+turning the reference's red into a magenta and its orange into a red under the
+Daly Violet seed — and it makes the ramp's own stated promise ("an Area keeps the
+same identity colour whichever scheme is chosen") true for the first time.
+
+Six `-container` / `on-container` pairs therefore stop being tonal containers.
+That is REDESIGN-03 debt item 1 progress on the surfaces this pass owns, achieved
+by removing the mechanism rather than by re-skinning its output. See
+`REDESIGN_04_SPINE_WORKSPACES_2026_08.md` §10b.
+
 ### Two REDESIGN-03 debt items honoured rather than propagated
 
 - **Tonal containers (debt item 1).** The linked-project chips are a genuine

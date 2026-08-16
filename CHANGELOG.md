@@ -69,6 +69,15 @@ it is for are on one screen.
 now small chips on its overview, each opening the Project, with **Link project**
 beside them to attach another.
 
+**The colours are the concept's own.** Project, Goal and Area identity used to
+draw from a palette of mint, lavender and aqua — pastel tiles with near-black
+icons, which is the Material look rather than DalyHub's. The six identity
+colours are now sampled from the design itself: violet, green, red, orange,
+blue and teal, each drawn as a soft tint of its own hue with the colour itself
+as the icon, and the same colour on the progress bar beneath. They no longer
+shift with the colour scheme you pick, which is what an identity colour was
+always supposed to mean.
+
 Areas were left alone, deliberately. They already read the way they should: a
 quiet list of the permanent parts of your life, with no progress bars and no
 invented scores, because an Area is never finished.
