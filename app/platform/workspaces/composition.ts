@@ -31,6 +31,10 @@ import type {
   CaptureRateLimiter,
   CaptureTokenRepository,
 } from "~/kernel/capture";
+import type {
+  NotificationRepository,
+  NotificationSettingsRepository,
+} from "~/kernel/notifications";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import {
   DEFAULT_OWNER_TIME_ZONE,
@@ -108,6 +112,8 @@ import {
   createGoalRepository,
   createNoteDetailsRepository,
   createNoteRepository,
+  createNotificationRepository,
+  createNotificationSettingsRepository,
   createPersonRepository,
   createMeetingRepository,
   createMeetingTaskConversionRepository,
@@ -329,6 +335,26 @@ export interface WorkspaceScope {
    */
   readonly calendarSources: CalendarSourceRepository;
   readonly calendarEvents: ExternalCalendarEventRepository;
+  /**
+   * NOTIFY-01 — the notification EVENT ledger and the owner's notification
+   * configuration.
+   *
+   * `notifications` is a LOG of what DalyHub said and when, never a second copy
+   * of what currently needs the owner — that is Today's attention rail, which is
+   * STATE and is authoritative. The ledger's UNIQUE dedupe key is both the
+   * "already said" rule and the concurrency guard, and the insert commits before
+   * any external channel is called, so a duplicate is structurally impossible.
+   *
+   * `notificationSettings` is the ONLY repository in this scope besides
+   * `calendarSources` that stores a third-party credential. Its ordinary read
+   * does not select the Pushover columns at all, so a loader cannot leak one even
+   * by accident; two named methods select them, and neither renders.
+   *
+   * Neither records Activity (ADR-012): the owner did nothing, and configuration
+   * is not history.
+   */
+  readonly notifications: NotificationRepository;
+  readonly notificationSettings: NotificationSettingsRepository;
   /**
    * The IDENT-01 READ-ONLY actor directory: resolves a batch of Activity actor
    * references to display identities in one bounded query. EVERY surface that
@@ -600,6 +626,13 @@ export function bindWorkspaceRepositories(
   // neither records Activity (see the interface above).
   const calendarSources = createCalendarSourceRepository(env.DB, context);
   const calendarEvents = createExternalCalendarEventRepository(env.DB, context);
+  // NOTIFY-01 — the event ledger and its configuration. No actor: neither
+  // records Activity (see the interface above).
+  const notifications = createNotificationRepository(env.DB, context);
+  const notificationSettings = createNotificationSettingsRepository(
+    env.DB,
+    context,
+  );
   const alignment = createAlignmentRepository(env.DB, context);
   const reviewInsights = createReviewInsightRepository(env.DB, context);
   // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
@@ -662,6 +695,8 @@ export function bindWorkspaceRepositories(
     captureRateLimit,
     calendarSources,
     calendarEvents,
+    notifications,
+    notificationSettings,
     alignment,
     reviewInsights,
     appPreferences,

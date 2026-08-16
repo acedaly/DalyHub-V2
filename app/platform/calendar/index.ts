@@ -10,6 +10,14 @@
  *   - `feed-fetch.server.ts`     the SSRF-guarded, bounded fetch
  *   - `calendar-secrets.server.ts` sealing/opening the feed URL
  *   - `calendar-sync.server.ts`  the refresh itself
+ *   - `schedule-load.server.ts` the ONE workspace read the day surfaces and the
+ *                               NOTIFY-01 digest share
+ *
+ * `schedule-load.server.ts` is deliberately NOT re-exported here. Today's three
+ * routes and the notification digest import it by module path, the same way the
+ * shell imports specific shell modules rather than the barrel: this index also
+ * exports the ICS parser, and a barrel import would pull `ical.js` into a route
+ * chunk that only wants to know what is on this afternoon.
  */
 
 export {

@@ -17,6 +17,49 @@ no version number to group them under.
 
 ---
 
+## DalyHub can now tell you things
+
+Until now, everything DalyHub knew reached you only when you opened it. A
+registration expiring next week, a waiting item ageing quietly, the day already
+assembled — all correct, all sitting there, none of it going anywhere. If you
+were away for a fortnight, the rego expired in silence.
+
+**A short digest each morning.** One message, at a time you choose, in your own
+timezone: what is on today, what is overdue, what is unfiled, what is waiting and
+how long, any asset obligation needing attention, and anything drifting. It is the
+same information Today's attention rail shows — the same numbers from the same
+place, so the two can never tell you different things.
+
+**On a day with nothing to report, nothing is sent.** That is deliberate, and it
+is the most important thing about it. A daily "all clear" would teach you to stop
+reading the channel, and then the one morning that matters is the one you skim
+past. Silence from DalyHub means there was nothing to say.
+
+**A heads-up before an asset obligation falls due** — 30 days, 7 days and 1 day
+before. Each one is sent once, ever. You will not be told about the same renewal
+every morning until you deal with it.
+
+**A bell in the top bar**, with a count of what you have not read. It opens a log
+of what DalyHub has actually told you and when — newest first, tap to go to the
+thing it was about. It is a record, not a second to-do list: Today remains the
+place that says what needs you now, and if the two ever seem to disagree, Today is
+right.
+
+**On your phone, if you want it.** Connect a Pushover account in Settings and
+every notification arrives there as well. DalyHub is straightforward about the
+trade: your notification list never leaves this workspace, but a Pushover message
+does — the title and body, which can include a record title and a date, pass
+through Pushover's servers under their retention policy. DalyHub will not switch
+the channel on until it has sent a real test message and you have received it.
+
+**All of it is off until you turn it on**, and turning the whole thing off makes
+DalyHub completely silent again. What DalyHub deliberately does NOT do: notify you
+about individual overdue tasks (they change every day — they are counted in the
+digest instead), offer a snooze, or have any way to send an alert that keeps
+sounding until you acknowledge it.
+
+---
+
 ## Today becomes the command centre
 
 Today has been rebuilt around the picture you approved. It is the same screen in

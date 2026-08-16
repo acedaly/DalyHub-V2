@@ -1100,6 +1100,57 @@ redirects and oversized bodies — see
 
 ---
 
+## Notification configuration (NOTIFY-01, 2026-08-16)
+
+DalyHub deploys perfectly well with **no notification configuration at all**.
+Notifications are off until the owner turns them on in Settings, the scheduled
+tick is a no-op until then, and nothing here is required for the rest of the
+product.
+
+### The one optional value
+
+| Value | Purpose | Required? |
+|---|---|---|
+| `APP_PUBLIC_ORIGIN` | the deployment's public `https` origin (e.g. `https://hub.example.com`), used ONLY to turn a notification's in-application path into a link a Pushover message can open | optional — without it a push still arrives, simply with no tappable link |
+
+Set it as an environment variable at deploy time, not as a committed `var`:
+
+```bash
+pnpm exec wrangler secret put APP_PUBLIC_ORIGIN --env production
+```
+
+It is not a secret in the cryptographic sense — it is the address anyone visiting
+DalyHub already types — but it is a private operational detail of this
+deployment, so it follows the same rule as the Access values and the capture
+addresses: never committed, read through an optional config shape (`PushoverEnv`),
+absent from the generated `Env` type. It must be `https`; anything else is ignored
+and the link is simply omitted.
+
+### The Pushover credentials are NOT deployment configuration
+
+They are the OWNER's, and they live in D1 (`notification_settings`), set from
+`Settings → Notifications`. That is a deliberate decision rather than an
+oversight: they identify the owner's Pushover account and their own DalyHub
+application registration, they change when the owner changes them, and putting
+them behind `wrangler secret` would make "turn on notifications" a deploy. See
+[ADR-099 decision 6](../decisions/ARCHITECTURE_DECISIONS.md#adr-099-notifications-are-events-in-a-ledger-not-a-second-attention-model--insert-before-send-a-channel-contract-and-secrets-in-the-settings-store)
+for the trade and [DEBT-146](../product/PRODUCT_DEBT.md) for the uniformity it
+costs against the calendar feed URL's sealed storage.
+
+### Outbound network
+
+The notification tick reaches exactly one host, `api.pushover.net`, over HTTPS on
+port 443, and only when the owner has enabled and validated that channel. There is
+no configurable base URL, so nothing the owner types can point DalyHub at another
+host.
+
+### The cron
+
+There is none to add. The tick runs on CAL-01's existing `*/15 * * * *` trigger,
+declared in both the top-level and `env.production` blocks of `wrangler.jsonc`.
+
+---
+
 ## Response security headers, and the one Cloudflare owns (AUDIT-10, 2026-08-08)
 
 Every response the Worker emits carries its security headers from ONE place,

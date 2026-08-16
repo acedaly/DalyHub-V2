@@ -23,6 +23,7 @@ import { useNavigate } from "react-router";
 
 import { PRODUCT_NAME } from "~/shared/brand";
 import { BrandMark, ChevronRightIcon, SearchIcon } from "~/shared/icons";
+import { NotificationBell } from "~/shared/notifications";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
 
 import { useMobileTopBar } from "./mobile-top-bar-context";
@@ -32,11 +33,26 @@ export type MobileTopBarProps = {
   readonly workspaceName: string;
   /** Open global Search (DS-08). */
   readonly onOpenSearch: (opener: HTMLElement) => void;
+  /**
+   * NOTIFY-01 — open the notification inbox. Omitted renders no bell, so a
+   * surface rendering this bar without the shell's loader data is unchanged.
+   *
+   * It sits in the top bar on a phone rather than in the bottom navigation: the
+   * bottom bar's five slots are DESTINATIONS (Today · Tasks · Capture · Diary ·
+   * More) and the inbox is not one — it is a log you glance at, not a place you
+   * work. Adding a sixth slot would also cost every destination its width.
+   */
+  readonly onOpenNotifications?: (opener: HTMLElement) => void;
+  readonly unreadNotifications?: number;
+  readonly notificationsOpen?: boolean;
 };
 
 export function MobileTopBar({
   workspaceName,
   onOpenSearch,
+  onOpenNotifications,
+  unreadNotifications = 0,
+  notificationsOpen = false,
 }: MobileTopBarProps) {
   const navigate = useNavigate();
   const searchRef = useRef<HTMLButtonElement>(null);
@@ -93,6 +109,14 @@ export function MobileTopBar({
 
       <div className="dh-mobilebar__actions">
         {actions}
+        {onOpenNotifications ? (
+          <NotificationBell
+            unread={unreadNotifications}
+            open={notificationsOpen}
+            onOpen={onOpenNotifications}
+            testId="mobilebar-notifications"
+          />
+        ) : null}
         <Tooltip label="Search" shortcut="/" placement="bottom">
           {(tip) => (
             <button

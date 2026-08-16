@@ -41,7 +41,7 @@
 | MEET-01…04 | ✅ Complete | `e2e/meetings-follow-up.spec.ts`, `meetings-people-history.spec.ts`; ADR-048, ADR-055 | ⚠️ [DEBT-44](../product/PRODUCT_DEBT.md#-debt-44--a-held-meeting-appears-on-the-timeline-of-a-linked-non-attendee--p2): a held meeting shows on a linked non-attendee's history. Presentational; cannot affect the contact signal. |
 | PEOPLE-01…03 | ✅ Complete | `e2e/people.spec.ts`, `people-timeline.spec.ts`, `people-relationship.spec.ts`; ADR-052, ADR-056 | — |
 | PEOPLE-04 (mobile) | ⏭️ Partly delivered | Layout, quick actions and ADR-060 capture context shipped | **V2.1** — the DEBT-45 capture-context matrix |
-| ASSET-01, 02 | ✅ Complete | `e2e/assets.spec.ts`, `assets-ownership.spec.ts`; `test/kernel/asset-history*`; ADR-063 | ⚠️ [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2): no notification channel |
+| ASSET-01, 02 | ✅ Complete | `e2e/assets.spec.ts`, `assets-ownership.spec.ts`; `test/kernel/asset-history*`; ADR-063 | ⚠️ [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01): no notification channel — **resolved 2026-08-16 by NOTIFY-01** |
 | ASSET-03 (mobile) | ✅ Complete **in V2.1 (2026-08-08)** | Record + history surfaces verified at 320–430px in V2; phone-first capture of a NEW asset closed in V2.1 — `e2e/assets-mobile-capture.spec.ts`, `test/kernel/asset-create-route.test.ts` | — |
 | DIARY-01A, 01, 01B, 03 | ✅ Complete | `e2e/diary.spec.ts`; `test/kernel/diary-*`; ADR-041 | — |
 | DIARY-02 (day context links) | ⏭️ Not started | — | **V2.1** |

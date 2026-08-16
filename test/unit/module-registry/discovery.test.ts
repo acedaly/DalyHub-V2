@@ -601,6 +601,14 @@ describe("module discovery", () => {
           moduleId: "settings",
           file: "routes/calendars.tsx",
         },
+        // NOTIFY-01 — the notification settings endpoints (`update`, `test`).
+        // POST-only, no navigation entry: one action accepts a Pushover
+        // credential and the other acts on one.
+        {
+          id: "settings.notifications",
+          moduleId: "settings",
+          file: "routes/notifications.tsx",
+        },
         // BACKUP-02 — the backup endpoints. `GET status` (sanitised health and
         // recent history, polled while a backup runs) and `POST run`. Unlike its
         // siblings it has a GET, because it returns operational metadata rather

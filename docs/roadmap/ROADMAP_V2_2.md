@@ -45,6 +45,162 @@ visual redesign or add speculative capability.
 
 ### NOW
 
+### ☑ NOTIFY-01 - Notifications: an event ledger, an in-app inbox, and Pushover — **DELIVERED 2026-08-16**
+
+DalyHub knows things the owner does not — an asset obligation approaching, a waiting
+item ageing, a day's work assembled — and today none of it reaches the owner unless
+they open the application. This closes the deferral condition on push reminders (the
+in-app attention model is now correct: TODAY-09/10, DS-06) and addresses the honest
+consequence recorded in
+[DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01).
+
+- **State and events are different surfaces, and this item builds the events one.**
+  The attention rail is STATE — recomputed from facts, unable to go stale. A
+  notification is an EVENT — a fact crossed a threshold at a moment, and DalyHub said
+  so. The notification inbox therefore shows what fired and when, never a second copy
+  of current concerns. If the inbox and the rail ever disagree about what needs the
+  owner, the rail is right and the inbox is history. This distinction is the item's
+  governing rule and belongs in the ADR.
+- **One table is both the dedupe ledger and the inbox.** `notifications`
+  (workspace-scoped): `kind` (`digest` | `asset_obligation`), an optional subject
+  entity reference, a `dedupe_key` with a UNIQUE constraint per workspace
+  (`digest:{localDate}` · `asset:{entityId}:{thresholdDays}`), rendered
+  `title`/`body`/`href`, `created_at`, `read_at`. A companion
+  `notification_deliveries` table records per-channel attempts (`channel`, `status`,
+  `attempted_at`, `detail`). The UNIQUE constraint is the concurrency guard: insert
+  the notification row FIRST; a conflict means another tick already owns this event —
+  stop, silently. In-app delivery IS the insert and cannot fail separately; every
+  external channel is a best-effort delivery recorded against the row, so a provider
+  outage can never make an event not-have-happened, and a failed delivery is visible
+  in the inbox rather than silent. This is operational metadata, not Activity — the
+  owner did nothing, so nothing belongs in any record's history (the AI usage ledger's
+  precedent, ADR-073).
+- **The scheduler is a frequent tick, not an encoded send time.** One Cron Trigger
+  every 15 minutes; each tick evaluates (a) is it at or past the owner's configured
+  digest time in their configured IANA timezone with no digest row for this local
+  date, and (b) has any enabled event source crossed a threshold the ledger has not
+  recorded. Cron expressions stay timezone-ignorant; DST is the evaluator's problem
+  and is tested as one. A tick that finds nothing writes nothing and sends nothing.
+- **The digest is the attention model serialised, plus the day.** The digest renderer
+  consumes the SAME pure facts `attention-view.ts` consumes (inbox count, waiting
+  count + oldest age, visible asset obligations, stalled projects), plus today's
+  due/overdue counts and the CAL-01 external schedule. It inherits the rail's
+  suppression philosophy unchanged: an empty digest is not sent. Silence must mean
+  something; a daily "nothing needs attention" trains the owner to ignore the channel.
+  No new derivation logic — if the digest wants a fact the rail cannot supply, the
+  fact is added to the shared facts layer, not computed twice.
+- **Event sources: asset obligations only, at fixed rungs.** 30 / 7 / 1 days before
+  the obligation date, one notification per rung per obligation, deduped forever by
+  the ledger key. Overdue tasks and ageing waiting items remain digest-only — they
+  change daily, and per-event delivery of them is the nagging failure mode this design
+  exists to prevent. Rung configurability is deliberately NOT built; three fixed rungs,
+  revisit on evidence.
+- **Pushover is the first external channel, behind a channel contract.**
+  `deliver(notification) → delivered | failed(reason)`; formatting is per-channel and
+  pure; the evaluator knows no channel. The adapter POSTs
+  `api.pushover.net/1/messages.json` with the application token, the owner's user key,
+  `title` (≤250), `message` (≤1024, `html=1`), `url`/`url_title` as the deep link.
+  Priority 0 for everything in this item — priority 1 is permitted by the contract for
+  a future final-rung decision, priority 2 (emergency, retry-until-acknowledged) is
+  structurally refused: nothing in a personal planner justifies it. `POST
+  /1/users/validate.json` backs a "Send test notification" action in Settings; the
+  channel can only be ENABLED after a successful validation.
+- **In-app surface: a bell, a count, a sheet.** An unread-count indicator in the top
+  bar beside the existing shell controls, opening the shared Sheet: newest first, tap
+  navigates to `href` and marks read, mark-all-read, failed external deliveries badged
+  on their row. No per-notification actions, no snooze, no grouping — it is a log.
+  Read rows are purged after 90 days. Naming collision, resolved before code:
+  `app/shared/feedback/NotificationCenter.tsx` already exists and is the
+  toast/feedback layer. The new surface takes a different name (`NotificationInbox`)
+  and the ADR records that "notification" in DalyHub means the ledger-backed event,
+  not the transient feedback toast.
+- **Settings owns the whole configuration, off by default.** A Notifications section:
+  master enable · digest send time · timezone (defaulted from the profile, stated not
+  hidden) · per-source toggles (digest, asset obligations) · channels. In-app is
+  always on when notifications are enabled — it is the ledger's face, and turning it
+  off would blind the system. Pushover: user key, application token, validate/test,
+  enable. Honest copy in the register's usual style: notification content (record
+  titles, dates) transits Pushover's servers under Pushover's retention; in-app
+  content never leaves the Worker. The Pushover credentials are stored in the settings
+  store in D1 by decision, recorded in the ADR — a single-owner deployment behind
+  Cloudflare Access accepts secrets-in-database knowingly rather than by accident.
+- **Failure handling is boring on purpose.** A failed external send records a failed
+  delivery and does not retry within the tick; the notification row already exists, so
+  nothing re-fires. A digest that arrives late because of a transient failure is
+  acceptable; a duplicate is not — the ledger insert commits before any send attempt.
+- **Not built, deliberately:** a generic outbound webhook; per-task "remind me at"
+  reminders (a different feature with a different UI surface); Web Push /
+  service-worker push (real work — VAPID, per-device subscription state — none of it
+  needed to prove the channel); email-out, ntfy and any other channel beyond the
+  contract they would implement; notification grouping, snoozing or actions; read
+  tracking beyond `read_at`; any AI involvement.
+- **Verification.** Unit: the evaluator as a pure function — local-date digest gating
+  across a DST transition, empty-digest suppression, rung crossing, dedupe-key
+  construction; the Pushover formatter's length bounds. Kernel (real Workers/D1):
+  insert-first concurrency (two ticks, one row), delivery failure recorded without
+  blocking the insert, purge behaviour. E2E: the bell count, the sheet, mark-read
+  navigation, and the Settings validate→enable gate with the Pushover API faked at the
+  boundary. `pnpm verify` green.
+- **New ADR** (take the next free number at merge, per the register's own collision
+  rule): the state/events distinction, the ledger-as-inbox decision,
+  insert-before-send, the channel contract, priority-2 refusal, and
+  secrets-in-database.
+- Raises no debt it can avoid; DEBT-57 moves to ☑ on this item's evidence (asset
+  obligations now reach the owner outside the app). If scope is cut during
+  implementation, the cut is recorded as new debt with the next free ID — which is
+  checked at merge, not now.
+- **Size.** Comparable to CAPTURE-01. One item, one PR. Migration required —
+  **three tables, not the two this line originally said**: the ledger pair plus
+  `notification_settings`, following `workspace_ai_preferences`' precedent rather
+  than adding nine columns (one of them a credential) to `owner_app_preferences`.
+  Corrected here on delivery rather than left as a claim the migration disproves.
+  Backup before migration per AGENTS.md.
+
+**Delivered, and where the evidence is.**
+
+- **The ledger.** `migrations/0043` · `app/kernel/notifications/` (pure: the
+  domain, the evaluator, the digest, the channel contract, the Pushover
+  formatter) · `app/platform/storage/d1/d1-notification-repository.ts`. The insert
+  is `ON CONFLICT DO NOTHING … RETURNING` and commits before any send, so two
+  ticks produce one row and a provider outage cannot make an event
+  not-have-happened. Proved in `test/kernel/notifications.test.ts` (23
+  assertions).
+- **The tick.** On CAL-01's existing fifteen-minute cron, after the calendar
+  refresh so the digest states a fresh day. `runScheduledNotifications` is inert
+  until an owner turns notifications on. DST is a unit-tested property of a pure
+  function in both directions, driven through the real zone conversion.
+- **The digest.** Built from a SHARED facts layer
+  (`app/platform/attention/attention-facts.server.ts`) that this item extracted
+  from Today's loader rather than duplicating — so the digest and the rail cannot
+  state two different numbers for one fact. An empty digest is not sent, and is
+  not recorded either.
+- **The inbox.** A counted bell in both top bars and the shared Sheet behind it:
+  newest first, tap to navigate and mark read, mark-all-read, failed external
+  deliveries badged in DalyHub's own words. `DesktopTopBar`'s "DalyHub has no
+  notification system" comment is corrected rather than deleted.
+- **Pushover.** Behind the channel contract, priority 2 refused by the TYPE, and
+  the channel enableable only after a real test message has arrived — enforced in
+  the route, the repository AND the database.
+- **Two things moved, both for the same reason.** `schedule-load.ts` went from
+  `app/modules/today/day/` to `app/platform/calendar/`, and the attention reads
+  left Today's loader for the shared facts layer. A cron tick has no Today loader
+  to borrow from, and a second read is how a page and a notification come to
+  disagree.
+- **Record:** [ADR-099](../decisions/ARCHITECTURE_DECISIONS.md#adr-099-notifications-are-events-in-a-ledger-not-a-second-attention-model--insert-before-send-a-channel-contract-and-secrets-in-the-settings-store)
+  · [`NOTIFICATIONS.md`](../development/NOTIFICATIONS.md)
+  · [`DESIGN_SYSTEM.md → The notification bell and inbox`](../design/DESIGN_SYSTEM.md#the-notification-bell-and-inbox-notify-01-2026-08-16)
+  · [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01) ☑
+  · raised [DEBT-146](../product/PRODUCT_DEBT.md), [DEBT-147](../product/PRODUCT_DEBT.md)
+  and [DEBT-148](../product/PRODUCT_DEBT.md).
+- **Found on the way, recorded rather than fixed.** Three E2E specs
+  (`mobile-shell`, and parts of `today` and `settings`) assert a shell TODAY-11
+  and FINAL-UI already replaced — the phone bar's labels, Today's "Focus"
+  landmark, the stat rank's presence, and a 200% reflow overflow that measures
+  to TODAY-11's reflection panel. Confirmed by running the same specs at
+  `b2622b6` in a clean worktree, and by measuring the overflow with the new bell
+  hidden. [DEBT-148](../product/PRODUCT_DEBT.md) states each drift with its
+  evidence. Not corrected here: they are another item's acceptance criteria.
+
 ### ☑ TODAY-09 - Attention rail truth and Tasks/Today wording — DELIVERED 2026-08-09
 
 Make Today truthful enough to remain the daily entry point.
@@ -1023,7 +1179,11 @@ rather than a coin toss.
 - AI task prioritisation or autonomous rescheduling.
 - Jira-style subtasks, dependencies, Gantt views or workflow builders.
 - Collaboration or multi-user assignment.
-- Push reminders before the in-app attention model is correct.
+- ~~Push reminders before the in-app attention model is correct.~~ The CONDITION
+  was met (TODAY-09/10 and DS-06 made the rail correct) and the capability
+  shipped as **NOTIFY-01** above. The line is struck rather than removed: the
+  order it insisted on is the reason the notification system has an attention
+  model to serialise instead of inventing a second one.
 - A broad visual redesign before the daily-driver hardening work above.
 
 ---
@@ -1173,7 +1333,9 @@ which revises one sentence of ADR-085 §3 for the list surface and leaves
 ## What this programme deliberately did NOT add
 
 Recorded so they are not mistaken for oversights. Each is a separate product decision:
-calendar sync, Todoist sync, notifications and push reminders, email ingestion, AI task
+calendar sync, Todoist sync, ~~notifications and push reminders~~ (delivered later, as
+CAL-01 and NOTIFY-01 — each a separate item with its own decision, which is the point
+this list was making), email ingestion, AI task
 prioritisation, autonomous rescheduling, time tracking, collaboration, multi-user
 assignment, attachments, subtasks, dependencies/Gantt, a kanban board added merely
 because Todoist has one, another Eisenhower replacement view, a generic workflow

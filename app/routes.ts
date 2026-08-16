@@ -86,6 +86,11 @@ export default [
   // DS-08 global Search endpoint — a JSON resource route behind the Worker auth
   // boundary. It renders no shell, so it stays OUTSIDE the app-shell layout.
   route("search", "routes/search.ts"),
+  // NOTIFY-01 — the notification INBOX endpoint. `GET` returns the recent log
+  // the bell's sheet renders; `POST` marks one row, or every row, read. A
+  // shell-owned resource route: it renders no shell, so it stays outside the
+  // layout, exactly like Search above.
+  route("notifications", "routes/notifications.ts"),
   // DS-09 Command Palette endpoints — a JSON catalogue (GET) and the authenticated
   // command-execution boundary (POST /commands/:commandId). Resource routes; they
   // render no shell, so they stay OUTSIDE the app-shell layout.

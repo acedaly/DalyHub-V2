@@ -15,30 +15,28 @@
 import { addDaysToIsoDate } from "~/kernel/alignment";
 import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
-import {
-  composeGoalAlignmentFacts,
-  createOwnerAlignmentContext,
-  evaluateGoalAlignment,
-} from "~/shared/alignment";
+import { createOwnerAlignmentContext } from "~/shared/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
-import { evaluateProjectHealth } from "~/kernel/project-health";
-import {
-  createOwnerHealthContext,
-  healthNeedsAttention,
-} from "~/shared/project-health";
-import { projectWorkflowStatusLabel } from "~/kernel/project-settings";
 
+import { bucketDay, type DayBuckets, type DayTask } from "./day-view";
+/**
+ * NOTIFY-01 — the attention facts moved OUT of this file.
+ *
+ * The Inbox count, the waiting age, the Asset obligations, the active projects'
+ * health and the neglected goals are now read by the shared facts layer, because
+ * the morning digest is built from exactly the same facts and two readers is how
+ * a page and a notification come to state two different numbers for one thing.
+ * Nothing about what they read or how they degrade changed in the move; only
+ * where they live did.
+ */
 import {
-  bucketDay,
-  daysBetween,
-  type DayBuckets,
-  type DayTask,
-} from "./day-view";
-import {
-  dedupeAttention,
-  evaluateObligation,
-  type AssetsTodayData,
-} from "~/kernel/assets";
+  readActiveProjects,
+  readAssetAttention,
+  readGoalsAtRisk,
+  readInboxCount,
+  readWaiting,
+  type AttentionProjectFacts,
+} from "~/platform/attention/attention-facts.server";
 import {
   buildAttention,
   rankContinueProjects,
@@ -51,7 +49,10 @@ import {
   type TodayActivityTrend,
   type TodayGoal,
 } from "./goal-progress";
-import { loadScheduleWindow, scheduleForDate } from "./schedule-load";
+import {
+  loadScheduleWindow,
+  scheduleForDate,
+} from "~/platform/calendar/schedule-load.server";
 import { reflectionExcerpt, type TodayReflection } from "./reflection";
 import { buildWeekStrip, weekDatesFor, type WeekStripDay } from "./week-strip";
 import { ownerLocalToUtc } from "~/shared/datetime";
@@ -71,17 +72,6 @@ import { createDiaryEntryTypeRegistry } from "~/kernel/diary";
 const PLANNING_SCHEDULED_LIMIT = 200;
 const PLANNING_BACKLOG_LIMIT = 100;
 const PLANNING_COMPLETED_LIMIT = 100;
-/** How many waiting items are read to count them and age the oldest. */
-const WAITING_LIMIT = 50;
-/**
- * How many active projects are read before ranking.
- *
- * The repository can only order by recency of UPDATE; the ranking this surface
- * needs is recency of ACTIVITY, which lives in the health facts. So a slightly
- * larger bounded page is read and re-ranked in memory — one query, no N+1, and a
- * project that was worked on but not renamed still surfaces.
- */
-const PROJECTS_LIMIT = 12;
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                      */
@@ -267,53 +257,6 @@ async function loadTasks(
 }
 
 /**
- * The authoritative Inbox count. It uses the canonical `inbox` system view rather
- * than Today's bounded planning read, so Today and `/tasks?system=inbox` cannot
- * disagree when the workspace holds more unfiled work than the planning backlog
- * limit returns.
- */
-async function loadInboxCount(
-  scope: WorkspaceScope,
-  todayIso: string,
-): Promise<number> {
-  const grouped = await scope.tasks.listWorkspaceTaskGroups({
-    dimension: "parent",
-    view: "inbox",
-    todayIso,
-    bucketLimit: 1,
-  });
-  return grouped.groups.reduce((total, group) => total + group.count, 0);
-}
-
-/** Asset obligations that need attention and are not already represented by Tasks. */
-async function loadAssetAttention(
-  scope: WorkspaceScope,
-  todayIso: string,
-): Promise<AssetsTodayData> {
-  const items = await scope.assetHistory.listAttention({ today: todayIso });
-  return dedupeAttention(
-    items.map((item) => {
-      const evaluation = evaluateObligation(
-        item.obligation,
-        todayIso,
-        item.reading,
-      );
-      return {
-        obligationId: item.obligation.id,
-        assetId: item.assetId,
-        assetTitle: item.assetTitle,
-        assetType: item.assetType,
-        title: item.obligation.title,
-        category: item.obligation.category,
-        state: evaluation.state,
-        text: evaluation.text,
-        hasOpenTask: item.hasOpenTask,
-      };
-    }),
-  );
-}
-
-/**
  * CAL-01 — the day's unified Schedule, and the Meeting figures derived from it.
  *
  * ONE read, where there used to be two Meeting queries. `loadScheduleWindow`
@@ -434,134 +377,6 @@ async function loadReflection(
   };
 }
 
-/** The waiting count and the age of the oldest — the fact that earns the row. */
-async function loadWaiting(
-  scope: WorkspaceScope,
-  todayIso: string,
-  timezone: string,
-): Promise<{ readonly count: number; readonly oldestDays: number | null }> {
-  const page = await scope.tasks.listWaitingTasks({
-    limit: WAITING_LIMIT,
-    todayIso,
-  });
-  let oldestDays: number | null = null;
-  for (const item of page.items) {
-    const days = daysBetween(
-      ownerCalendarIso(item.waiting.since, timezone),
-      todayIso,
-    );
-    if (oldestDays === null || days > oldestDays) {
-      oldestDays = days;
-    }
-  }
-  return { count: page.items.length, oldestDays };
-}
-
-/** Every active project, with its EXISTING derived health, in one N+1-free read. */
-async function loadProjects(
-  scope: WorkspaceScope,
-  now: Date,
-  todayIso: string,
-  timezone: string,
-): Promise<
-  readonly {
-    readonly project: ContinueProject;
-    readonly needsAttention: boolean;
-  }[]
-> {
-  // `state: "open"` excludes Completed and Archived; `workflowStatus: "active"`
-  // further restricts to projects the owner has deliberately moved into active
-  // work. Both are applied AT the database, never re-filtered in React.
-  const page = await scope.projects.listProjects({
-    state: "open",
-    workflowStatus: "active",
-    orderBy: "recent",
-    limit: PROJECTS_LIMIT,
-  });
-  const context = createOwnerHealthContext(now, timezone);
-  const facts = await scope.projectHealth.listProjectHealthFacts(
-    page.items.map((item) => item.id),
-    todayIso,
-  );
-  return page.items.map((item) => {
-    const health = facts.get(item.id)
-      ? evaluateProjectHealth(facts.get(item.id)!, context)
-      : null;
-    const needsAttention = health !== null && healthNeedsAttention(health);
-    return {
-      needsAttention,
-      project: {
-        id: item.id,
-        title: item.title,
-        openCount: Math.max(0, item.taskTotal - item.taskCompleted),
-        taskTotal: item.taskTotal,
-        taskCompleted: item.taskCompleted,
-        statusLabel: health?.label ?? projectWorkflowStatusLabel("active"),
-        needsAttention,
-        lastActivityIso: health?.summary.lastActivityIso ?? null,
-        iconKey: item.iconKey,
-        colourRank: item.colourRank,
-        colourSlot: item.colourSlot,
-      },
-    };
-  });
-}
-
-/** Goals the EXISTING alignment evaluation flags as neglected. Nothing new. */
-async function loadGoalsAtRisk(
-  scope: WorkspaceScope,
-  now: Date,
-  timezone: string,
-): Promise<
-  readonly {
-    readonly id: string;
-    readonly title: string;
-    readonly statusLabel: string;
-  }[]
-> {
-  const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-    createOwnerAlignmentContext(now, timezone);
-  const page = await scope.goals.listGoalsByAlignment({
-    activeBoundaryIso: recentBoundaryStartIso,
-  });
-  // `listGoalsByAlignment` already ranks neglected goals first, so a small slice
-  // is enough to find the ones at risk without reading the whole collection.
-  const items = page.items.slice(0, 8);
-  const ids = items.map((item) => item.id);
-  const [contributions, activityFacts] = await Promise.all([
-    scope.goals.listGoalProjectContributions(ids),
-    scope.alignment.listGoalAlignmentFacts(ids, { recentWindowStartIso }),
-  ]);
-  const atRisk: { id: string; title: string; statusLabel: string }[] = [];
-  for (const item of items) {
-    const alignment = evaluateGoalAlignment(
-      composeGoalAlignmentFacts({
-        goalId: item.id,
-        completedAt: item.completedAt,
-        contribution: contributions.get(item.id) ?? {
-          total: 0,
-          completed: 0,
-          incomplete: 0,
-          active: 0,
-          planned: 0,
-          onHold: 0,
-          archived: 0,
-        },
-        activity: activityFacts.get(item.id),
-      }),
-      evaluation,
-    );
-    if (alignment.state === "neglected") {
-      atRisk.push({
-        id: item.id,
-        title: item.title,
-        statusLabel: alignment.label,
-      });
-    }
-  }
-  return atRisk;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Composition                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -611,8 +426,8 @@ export async function loadTodayDay(
       today: [],
       completedToday: [],
     }),
-    safely(() => loadInboxCount(scope, todayIso), 0),
-    safely(() => loadAssetAttention(scope, todayIso), {
+    safely(() => readInboxCount(scope, todayIso), 0),
+    safely(() => readAssetAttention(scope, todayIso), {
       items: [],
       trackedAsTasksCount: 0,
       overdueCount: 0,
@@ -624,12 +439,15 @@ export async function loadTodayDay(
       hasSources: false,
       stale: false,
     }),
-    safely(() => loadWaiting(scope, todayIso, timezone), {
+    safely(() => readWaiting(scope, todayIso, timezone), {
       count: 0,
       oldestDays: null,
     }),
-    safely(() => loadProjects(scope, now, todayIso, timezone), []),
-    safely(() => loadGoalsAtRisk(scope, now, timezone), []),
+    safely(
+      () => readActiveProjects(scope, now, todayIso, timezone),
+      [] as readonly AttentionProjectFacts[],
+    ),
+    safely(() => readGoalsAtRisk(scope, now, timezone), []),
     safely(
       () =>
         loadTodayGoals(scope, {
@@ -675,17 +493,15 @@ export async function loadTodayDay(
       // Overdue TASKS are deliberately absent: they are actionable rows in the
       // timeline, and the rail holds only what the timeline does not show.
       projects: projects
-        .filter((entry) => entry.needsAttention)
-        .map((entry) => ({
-          id: entry.project.id,
-          title: entry.project.title,
-          statusLabel: entry.project.statusLabel,
+        .filter((project) => project.needsAttention)
+        .map((project) => ({
+          id: project.id,
+          title: project.title,
+          statusLabel: project.statusLabel,
         })),
       goals,
     }),
-    continueProjects: rankContinueProjects(
-      projects.map((entry) => entry.project),
-    ),
+    continueProjects: rankContinueProjects(projects),
     goals: measurableGoals,
     activityTrend,
     reflection,

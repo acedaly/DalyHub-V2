@@ -1,6 +1,14 @@
 /**
  * CAL-01/CAL-02 — the ONE workspace read behind Today's Schedule, Tomorrow and
- * Next 7 Days.
+ * Next 7 Days, and (NOTIFY-01) behind the day's line in the morning digest.
+ *
+ * NOTIFY-01 moved this file from `app/modules/today/day/` to the calendar
+ * platform without changing a line of it. The reason is the reason it says
+ * below: three surfaces, one loader, one ordering. A background cron tick has no
+ * Today loader to borrow from, and the alternative — a second schedule read for
+ * the digest — is exactly how the digest and the page come to disagree about
+ * what is on this afternoon. It was never Today-specific code; it was a
+ * workspace read that happened to live in Today's folder.
  *
  * Three surfaces, one loader, one ordering, one set of bounds. The alternative —
  * a schedule read per surface — is exactly how two pages come to disagree about
