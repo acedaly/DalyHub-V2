@@ -183,8 +183,19 @@ test.describe("removed duplicates — the page header no longer repeats capture"
     await create.click();
     const sheet = page.getByTestId("capture-sheet");
     await expect(sheet).toBeVisible();
-    // Straight onto Task — never the chooser.
-    await expect(sheet.getByTestId("capture-choose-task")).toHaveCount(0);
+    /*
+     * Straight onto Task — never a chooser first.
+     *
+     * MOBILE-02 turned the chooser SCREEN into a chip row that stays above the
+     * field, so the Task chip is present; what must not happen is being made to
+     * pick before you can write. The chip is therefore asserted PRESSED with
+     * the cursor already in the title, which is the same rule stated against
+     * the control that now exists.
+     */
+    await expect(sheet.getByTestId("capture-choose-task")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     await expect(sheet.getByLabel("Title")).toBeFocused();
     await page.keyboard.press("Escape");
 
