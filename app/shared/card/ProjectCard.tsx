@@ -1,5 +1,5 @@
 /**
- * UIX-02 — the PROJECT gallery card.
+ * UIX-02 / REDESIGN-04 — the PROJECT gallery card.
  *
  * A Project is a finite body of work being actively moved forward, and the
  * question its card exists to answer is "how is this going, and does it need
@@ -11,13 +11,39 @@
  * So a Project has a card of its own, composed bottom-heavy:
  *
  *     ┌──────────────────────────────────────┐
- *     │ [mark]  Title                     ⋯  │
- *     │         Area · Goal                  │
+ *     │ [mark]                            ⋯  │
+ *     │ Title                                │
+ *     │ Area · Goal                          │
  *     │                                      │
- *     │ ● 3 overdue                          │   ← ONE attention line
- *     │ 63%                          3 open  │   ← the figure, and one fact
- *     │ ████████████░░░░░░░░░░░░░░░░░░░░░░   │   ← 8px, the record's accent
+ *     │ ████████████░░░░░░░░░░░░░░░░░   63%  │   ← the measure, and its figure
+ *     │ 14 tasks · 4 due this week           │   ← the meta line
  *     └──────────────────────────────────────┘
+ *
+ * ── REDESIGN-04: the anatomy is the mockup's ────────────────────────────────
+ * `mockup3.png` settles three things UIX-02 had drawn differently, and §5.6
+ * decides the collision between them:
+ *
+ *   - **The mark leads its own row.** In the reference the tinted tile sits
+ *     alone at the top-left with the overflow opposite it, and the title starts
+ *     the row beneath. That gives the title the card's FULL width instead of
+ *     the width left over beside a 40px tile, which is what was clamping
+ *     realistic Project names.
+ *   - **The bar comes before the meta line, and the percentage rides at the
+ *     bar's right end.** One statement about proportion, then one about volume.
+ *   - **The attention SENTENCE is gone; attention survives as SIGNAL.** The
+ *     reference's card carries a description and a `tasks · due` meta line, not
+ *     a health sentence. So `projectAttention` is not deleted — it is
+ *     re-expressed: the state dot joins the meta line, and a Project with
+ *     overdue work tints the DUE fragment. Small, tokenised, colour PLUS text,
+ *     never colour alone, and the evaluator's full sentence still rides along
+ *     for assistive tech.
+ *
+ * The reference also draws a two-line DESCRIPTION between the title and the
+ * bar. DalyHub Projects have no description field — the spine stores identity
+ * and lifecycle, and `project_details` stores status, archival and an icon key
+ * — so `description` is rendered only where a caller genuinely has one, and the
+ * Projects gallery passes nothing rather than inventing placeholder prose. See
+ * `REDESIGN_04_SPINE_WORKSPACES_2026_08.md` §5 and `PRODUCT_DEBT.md`.
  *
  * Three rules make it a Project card rather than a card with Project data in it:
  *
@@ -65,12 +91,36 @@ export type ProjectCardProps = {
   readonly headingLevel?: 2 | 3 | 4;
   /** The parent context — "Work & Career · Ship DalyHub V2". */
   readonly context?: string | null;
-  /** The ONE attention line: compact text, a decorative tone, a full sentence. */
+  /**
+   * REDESIGN-04 — the record's own description, clamped to two lines.
+   *
+   * Absent for a Project that has none: an empty region, never placeholder
+   * prose. DalyHub's data model carries no Project description today (see the
+   * note above), so the Projects gallery passes nothing; the prop exists
+   * because the mockup's anatomy has the slot and a caller that acquires real
+   * descriptive text should have somewhere honest to put it.
+   */
+  readonly description?: string | null;
+  /**
+   * The attention SIGNAL — a state dot and its accessible sentence, shown at
+   * the head of the meta line rather than as a sentence of its own (§5.6).
+   */
   readonly attention?: {
     readonly text: string;
     readonly tone: ProjectCardTone;
     readonly detail: string;
   };
+  /**
+   * The meta line's facts, in the reference's order — "14 tasks", "4 due this
+   * week". Each carries its own words; a fragment with nothing true to say is
+   * simply absent. `tone` tints a fragment (an overdue Project's due count),
+   * and is decorative: the words are the fact.
+   */
+  readonly meta?: readonly {
+    readonly key: string;
+    readonly text: string;
+    readonly tone?: ProjectCardTone;
+  }[];
   /**
    * Bounded progress. Omitted for a Project with no tasks — see the note above
    * about why an absence is not zero.
@@ -101,7 +151,9 @@ export function ProjectCard({
   title,
   headingLevel = 3,
   context,
+  description,
   attention,
+  meta,
   progress,
   fact,
   accent,
@@ -170,6 +222,16 @@ export function ProjectCard({
       {overflow ? <div className="dh-pcard__overflow">{overflow}</div> : null}
 
       {/*
+       * The reference's two-line description. Rendered only where the caller
+       * genuinely has one — a Project without descriptive text shows nothing,
+       * not a placeholder, and the pinned foot keeps the row's baselines
+       * regardless.
+       */}
+      {description ? (
+        <p className="dh-pcard__description">{description}</p>
+      ) : null}
+
+      {/*
        * DS-05 — the foot is TWO lines, not three.
        *
        * The status line and the count are one statement about the work ("3
@@ -179,36 +241,15 @@ export function ProjectCard({
        * of its own at 24px, which is what made the card 215px tall and put a
        * derived number above the record's own name in the visual hierarchy.
        */}
+      {/*
+       * REDESIGN-04 — the foot is the MEASURE, then the META LINE.
+       *
+       * The reference's order, and the honest one: the bar answers "how far
+       * along", the line beneath answers "how much, and how urgent". The foot
+       * is still pinned to the bottom of the card (rule 1 above), so a row of
+       * cards puts every bar on the same baseline whatever the title did.
+       */}
       <div className="dh-pcard__foot">
-        {attention || fact ? (
-          <p
-            className="dh-pcard__attention"
-            data-tone={attention?.tone ?? "neutral"}
-            // Named so a test can aim at the REGION — the one place a raised,
-            // non-interactive element could swallow a click on the card's
-            // stretched link — without reaching for a styling class.
-            data-testid="project-card-attention"
-          >
-            {attention ? (
-              <>
-                {/* Decorative — the text beside it is the fact, and the fuller
-                 * sentence is available to assistive tech below. */}
-                <span className="dh-pcard__dot" aria-hidden="true" />
-                <span className="dh-pcard__attention-text">
-                  {attention.text}
-                </span>
-                {attention.detail !== attention.text ? (
-                  <span className="dh-visually-hidden">
-                    {" "}
-                    — {attention.detail}
-                  </span>
-                ) : null}
-              </>
-            ) : null}
-            {fact ? <span className="dh-pcard__fact">{fact}</span> : null}
-          </p>
-        ) : null}
-
         {progress ? (
           <div
             className="dh-pcard__progress"
@@ -230,6 +271,45 @@ export function ProjectCard({
             </span>
             <span className="dh-pcard__percent">{progress.percent}%</span>
           </div>
+        ) : null}
+
+        {attention || (meta && meta.length > 0) || fact ? (
+          <p
+            className="dh-pcard__meta"
+            data-tone={attention?.tone ?? "neutral"}
+            // Named so a test can aim at the REGION — the one place a raised,
+            // non-interactive element could swallow a click on the card's
+            // stretched link — without reaching for a styling class.
+            data-testid="project-card-attention"
+          >
+            {attention ? (
+              <>
+                {/*
+                 * §5.6 — attention survives as SIGNAL rather than as a
+                 * sentence. The dot is decorative; the evaluator's own full
+                 * wording rides along for assistive tech, so nothing on this
+                 * card is carried by colour alone.
+                 */}
+                <span className="dh-pcard__dot" aria-hidden="true" />
+                <span className="dh-visually-hidden">{attention.detail}. </span>
+              </>
+            ) : null}
+            {(meta ?? []).map((item, index) => (
+              <span
+                key={item.key}
+                className="dh-pcard__meta-fact"
+                data-tone={item.tone ?? undefined}
+              >
+                {index > 0 ? (
+                  <span className="dh-pcard__meta-sep" aria-hidden="true">
+                    ·
+                  </span>
+                ) : null}
+                {item.text}
+              </span>
+            ))}
+            {fact ? <span className="dh-pcard__fact">{fact}</span> : null}
+          </p>
         ) : null}
       </div>
     </article>

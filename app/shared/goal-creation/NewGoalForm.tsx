@@ -51,11 +51,13 @@ import {
   FormActions,
   FormButton,
   FormErrorSummary,
+  SelectField,
   TextField,
   required,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
+import type { SelectOption } from "~/shared/forms/types";
 
 /** The JSON shape `POST /goals/new` returns — duplicated here (not imported)
  * because importing the Goals module's route types from `app/shared` would
@@ -106,12 +108,39 @@ const FIELD_COPY: Record<
 };
 
 interface NewGoalFormProps {
-  readonly areaId: string;
+  /**
+   * The Area this Goal will live in, when the caller already knows it — the
+   * Area record's own "New Goal", which is created IN an Area.
+   */
+  readonly areaId?: string;
+  /**
+   * REDESIGN-04 §5.1 — the Areas to choose from, for a caller that does NOT
+   * already know one: the Goals workspace's `+ Add goal`.
+   *
+   * The mockup wins on the entry point, the architecture wins on the shape. A
+   * Goal has no existence outside an Area (AREA-02 / ADR-040 lineage), so the
+   * goals-side door does not create an orphan and then ask where it belongs —
+   * it makes the Area a required field of the same form, posting the same body
+   * to the same trusted `/goals/new` endpoint, which re-verifies the Area's
+   * existence, kind and workspace itself. One more door into the same room.
+   *
+   * When this is supplied the picker is rendered and `areaId` seeds it; when it
+   * is not, the form behaves exactly as it always has.
+   */
+  readonly areaOptions?: readonly SelectOption[];
   readonly onCreated: (goalId: string) => void;
   readonly onCancel: () => void;
 }
 
-export function NewGoalForm({ areaId, onCreated, onCancel }: NewGoalFormProps) {
+export function NewGoalForm({
+  areaId,
+  areaOptions,
+  onCreated,
+  onCancel,
+}: NewGoalFormProps) {
+  const choosingArea = areaOptions !== undefined;
+  const [chosenArea, setChosenArea] = useState(areaId ?? "");
+  const [areaError, setAreaError] = useState<string | null>(null);
   /** `null` until the owner chooses — the Goal is created unmeasured. */
   const [measurementType, setMeasurementType] =
     useState<GoalMeasurementType | null>(null);
@@ -127,9 +156,16 @@ export function NewGoalForm({ areaId, onCreated, onCancel }: NewGoalFormProps) {
     fields: { title: { validate: required("A title is required") } },
     fieldOrder: ["title", "targetDate", "unit", "baselineValue", "targetValue"],
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
+      if (choosingArea && chosenArea.length === 0) {
+        setAreaError("Choose the Area this Goal belongs to");
+        return {
+          status: "error",
+          formError: "Choose the Area this Goal belongs to.",
+        };
+      }
       const body = new FormData();
       body.set("title", values.title);
-      body.set("areaId", areaId);
+      body.set("areaId", choosingArea ? chosenArea : (areaId ?? ""));
       body.set("targetDate", values.targetDate);
       if (measurementType !== null) {
         body.set("measurementType", measurementType);
@@ -191,6 +227,28 @@ export function NewGoalForm({ areaId, onCreated, onCancel }: NewGoalFormProps) {
         labels={FIELD_LABELS}
         onFocusField={form.focusField}
       />
+      {/*
+        §5.1 — the Area leads, because it is the fact a Goal cannot exist
+        without. It is validated on the client so an unanswered required field
+        is caught before a round trip, and again on the server, which is the
+        authority: `/goals/new` re-verifies that the id names an active Area in
+        this workspace and fails closed with a field error if it does not.
+      */}
+      {choosingArea ? (
+        <SelectField
+          label="Area"
+          required
+          help="Every Goal lives in one Area of your life."
+          value={chosenArea}
+          error={areaError ?? undefined}
+          options={areaOptions ?? []}
+          placeholder="Choose an Area…"
+          onChange={(value) => {
+            setChosenArea(value);
+            if (value.length > 0) setAreaError(null);
+          }}
+        />
+      ) : null}
       <TextField label="Title" required maxLength={512} {...titleField} />
       <DateField
         label="Target date"

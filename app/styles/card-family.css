@@ -55,7 +55,7 @@
  * rectangles. It still spends only ONE device: a hairline and no shadow, on a
  * corner one rung smaller than before.
  *
- * The SIX RECORD FAMILIES below (`.dh-pcard`, `.dh-gcard`, `.dh-acard`,
+ * The RECORD FAMILIES below (`.dh-pcard`, `.dh-acard`,
  * `.dh-rcard`, the person row, the entity row) are deliberately untouched.
  * §5b's shape distinctions are the product's strongest recognition device and
  * flattening them into one generic surface is DS-05's decision to make with the
@@ -586,7 +586,6 @@
  */
 .dh-ecard-grid__item > .dh-ecard,
 .dh-ecard-grid__item > .dh-pcard,
-.dh-ecard-grid__item > .dh-gcard,
 .dh-ecard-grid__item > .dh-acard,
 .dh-ecard-grid__item > .dh-rcard {
   flex: 1;
@@ -2214,8 +2213,19 @@
   opacity: 0.72;
 }
 
+/*
+ * REDESIGN-04 — the mark leads its OWN row, with the title beneath it.
+ *
+ * `mockup3.png` draws the tinted tile alone at the card's top-left and the
+ * overflow opposite it, with the title starting the row below. The practical
+ * consequence is the point: the title's track becomes the card's FULL width
+ * rather than the width left over beside a 40px tile plus the corner the menu
+ * reserves — which is what was clamping realistic Project names in a
+ * four-column 1440 gallery.
+ */
 .dh-pcard__head {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
   gap: var(--app-space-3);
   min-inline-size: 0;
@@ -2249,20 +2259,20 @@
 }
 
 .dh-pcard__titles {
-  flex: 1;
+  inline-size: 100%;
   min-inline-size: 0;
 }
 
 /*
  * TWO lines, then an ellipsis.
  *
- * One line is what a ROW wants; a gallery card is a different shape. At four
- * columns on a 1440 the card is ~285px and the title's track is that minus the
- * mark, which is not enough for "Records Migration" — clamping to one line
- * produced a gallery of "DalyHub…", "Kitchen…", "Base Training…", which is
- * worse than a wrap in every way. Two lines fit every realistic Project name at
- * every column count the grid produces, and the pinned foot means a card whose
- * title takes two lines still lands its bar on the row's baseline.
+ * One line is what a ROW wants; a gallery card is a different shape. Two lines
+ * fit every realistic Project name at every column count the grid produces, and
+ * the pinned foot means a card whose title takes two of them still lands its
+ * bar on the row's baseline. REDESIGN-04 moved the mark onto its own row above
+ * the title, so the track is now the card's full width and the clamp is reached
+ * far less often — but it stays, because a wrapped third line would break the
+ * one thing the gallery exists to do, which is compare bars across a row.
  *
  * `-webkit-line-clamp` rather than `text-overflow: ellipsis` because the title's
  * child is a link whose ::after covers the card: an ellipsis declared on the
@@ -2337,10 +2347,38 @@
   inset-inline-end: var(--app-space-2);
 }
 
-/* The head reserves the corner the menu sits in, so a long title never runs
- * underneath it. */
-.dh-pcard:has(.dh-pcard__overflow) .dh-pcard__titles {
+/*
+ * The MARK row reserves the corner the menu sits in.
+ *
+ * With the mark on its own row the overflow is level with the tile rather than
+ * with the title, so it is the mark's row that has to leave room — the title
+ * beneath it now spans the full card, which is the width REDESIGN-04 moved the
+ * mark to give it.
+ */
+.dh-pcard:has(.dh-pcard__overflow) .dh-pcard__mark {
   padding-inline-end: var(--app-space-6);
+}
+
+/*
+ * REDESIGN-04 — the reference's two-line description.
+ *
+ * Clamped rather than truncated at a character count, so the cut lands on a
+ * line boundary at whatever column width the grid produced. It sits between the
+ * head and the pinned foot, in the space rule 1 already reserved for a wrapped
+ * context line, so a card WITH a description and one without still land their
+ * bars on the same baseline.
+ */
+.dh-pcard__description {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .dh-pcard__foot {
@@ -2351,45 +2389,61 @@
 }
 
 /*
- * The ONE attention line. A dot and a word, never a filled chip.
+ * REDESIGN-04 — the META LINE: "14 tasks · 4 due this week".
  *
- * The chip this replaced was the loudest object on a card whose job is to be
- * recognised by its mark — and on a gallery of nine it produced nine pills in
- * five colours above nine bars in six more. The dot is decorative; the words
- * beside it carry the state, and the evaluator's fuller sentence is available to
- * assistive tech, so nothing here is conveyed by colour alone.
+ * It replaces the UIX-02 attention SENTENCE, and inherits its dot (§5.6).
+ * Attention is therefore still on the card and still in words for assistive
+ * tech — what changed is that the visible line now states volume and urgency,
+ * which is what the reference draws and what an owner scanning a gallery is
+ * actually comparing.
  */
-.dh-pcard__attention {
+.dh-pcard__meta {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
   margin: 0;
   min-inline-size: 0;
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-pcard__meta-sep {
+  margin-inline-end: var(--dh-space-1);
   color: var(--dh-color-text-muted);
 }
 
-/* The count sits at the trailing edge of the status line — one row for the two
- * facts about the WORK, the row below it for the proportion. */
-.dh-pcard__attention .dh-pcard__fact {
-  margin-inline-start: auto;
-  padding-inline-start: var(--dh-space-3);
-  font-weight: var(--dh-text-meta-weight);
+/*
+ * A tinted fragment — an overdue Project's due count.
+ *
+ * Colour PLUS text: the fragment says "4 due this week" whatever its tone, and
+ * the state dot at the head of the line carries the same signal with the
+ * evaluator's full sentence behind it. Nothing here is colour alone.
+ */
+.dh-pcard__meta-fact[data-tone="danger"] {
+  color: var(--dh-color-overdue);
 }
 
-.dh-pcard__attention-text {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.dh-pcard__meta-fact[data-tone="warning"] {
+  color: var(--md-sys-color-state-due-soon);
 }
 
+/*
+ * REDESIGN-04 — the attention DOT, now at the head of the meta line.
+ *
+ * UIX-02 replaced a filled status chip with a dot and a sentence; §5.6 keeps
+ * the dot and drops the sentence, because `mockup3.png` gives that line to
+ * volume and urgency instead. Nothing was lost: the dot carries the signal, the
+ * evaluator's full wording is on the line for assistive tech, and a tinted meta
+ * fragment states its own fact in words. Nothing on this card is colour alone.
+ */
 .dh-pcard__dot {
   flex: none;
   inline-size: var(--app-space-2);
   block-size: var(--app-space-2);
+  margin-inline-end: var(--dh-space-1);
   border-radius: var(--dh-radius-pill);
   background: var(--dh-color-border-strong);
 }
@@ -2399,23 +2453,23 @@
  * a record, not an application fault. `warning` likewise takes the due-soon
  * state rather than the feedback role.
  */
-.dh-pcard__attention[data-tone="danger"] {
-  color: var(--dh-color-overdue);
-}
-.dh-pcard__attention[data-tone="danger"] .dh-pcard__dot {
+.dh-pcard__meta[data-tone="danger"] .dh-pcard__dot {
   background: var(--dh-color-overdue);
 }
-.dh-pcard__attention[data-tone="warning"] {
-  color: var(--md-sys-color-state-due-soon);
-}
-.dh-pcard__attention[data-tone="warning"] .dh-pcard__dot {
+.dh-pcard__meta[data-tone="warning"] .dh-pcard__dot {
   background: var(--md-sys-color-state-due-soon);
 }
-.dh-pcard__attention[data-tone="success"] .dh-pcard__dot {
+.dh-pcard__meta[data-tone="success"] .dh-pcard__dot {
   background: var(--dh-color-success);
 }
-.dh-pcard__attention[data-tone="info"] .dh-pcard__dot {
+.dh-pcard__meta[data-tone="info"] .dh-pcard__dot {
   background: var(--md-sys-color-info);
+}
+
+/* The one trailing fact, pushed to the line's end. */
+.dh-pcard__meta .dh-pcard__fact {
+  margin-inline-start: auto;
+  padding-inline-start: var(--dh-space-3);
 }
 
 /*
@@ -2517,565 +2571,17 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* GoalCard (UIX-03)                                                          */
+/* GoalCard (UIX-03) — REMOVED by REDESIGN-04                                 */
 /* -------------------------------------------------------------------------- */
-
 /*
- * The Goal gallery card. A sibling of `.dh-pcard`, deliberately NOT a variant of
- * it: the two answer different questions and are meant to be told apart at a
- * glance across the sidebar.
+ * `.dh-gcard` and its rules are gone with the component they dressed.
  *
- * Where a Project card pins a big percentage and a full-width bar to its floor,
- * a Goal card puts the READING in the middle at display size with its trend
- * beside it, and reduces the percentage to a small figure on a thin inline bar.
- * A Project is measured in work done; a Goal is measured in the unit the owner
- * actually cares about, and the composition says so before a word is read.
+ * `mockup3.png` replaced the Goals gallery with a master–detail: the row is
+ * `.dh-mrow` and the pane is the Goal's own Overview, drawn by the same
+ * measurement workspace the canonical record uses. A card family whose only
+ * caller has been deleted is sediment, not a spare part (§13) — the next reader
+ * cannot tell a dead selector from a dormant one.
  */
-/* DS-05 — the same one card boundary `.dh-pcard` documents above. */
-.dh-gcard {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-  block-size: 100%;
-  padding: var(--dh-space-4);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  box-shadow: none;
-  transition:
-    background var(--dh-motion-fast) var(--dh-ease-standard),
-    border-color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-gcard:hover {
-  border-color: var(--dh-color-border-strong);
-}
-
-/* The mark takes the product's 40px identity rung, for the reason
- * `.dh-pcard__mark` documents. */
-.dh-gcard__mark > .dh-accent-icon {
-  inline-size: var(--app-entity-icon-container-size);
-  block-size: var(--app-entity-icon-container-size);
-  border-radius: var(--dh-radius-control);
-  font-size: var(--app-entity-icon-size);
-}
-
-.dh-gcard__mark > .dh-accent-icon .dh-icon {
-  inline-size: var(--app-entity-icon-size);
-  block-size: var(--app-entity-icon-size);
-}
-
-.dh-gcard--muted {
-  opacity: 0.72;
-}
-
-.dh-gcard__head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--app-space-3);
-  min-inline-size: 0;
-}
-
-.dh-gcard__mark {
-  flex: none;
-  display: inline-flex;
-}
-
-.dh-gcard__titles {
-  flex: 1;
-  min-inline-size: 0;
-}
-
-/* Two lines then an ellipsis, for the reason `.dh-pcard__title` documents: a
- * gallery row shares a height, and one long name must not set it for the row. */
-.dh-gcard__title {
-  margin: 0;
-  font-size: var(--dh-text-card-title-size);
-  line-height: var(--dh-text-card-title-line-height);
-  font-weight: var(--dh-text-card-title-weight);
-  color: var(--dh-color-text);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.dh-gcard__open,
-.dh-gcard__open:visited {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* The whole card is the destination; the overflow sits above it. */
-.dh-gcard__open::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-}
-
-.dh-gcard__open:focus-visible {
-  outline: none;
-}
-
-/* The ring belongs to the CARD, not to the inline text of its link — a keyboard
- * user needs to see which card they are on, not which words. */
-.dh-gcard:has(.dh-gcard__open:focus-visible) {
-  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-  outline-offset: 2px;
-}
-
-.dh-gcard__context {
-  margin: var(--app-space-1) 0 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.dh-gcard__overflow {
-  position: absolute;
-  z-index: 1;
-  inset-block-start: var(--app-space-2);
-  inset-inline-end: var(--app-space-2);
-}
-
-.dh-gcard:has(.dh-gcard__overflow) .dh-gcard__titles {
-  padding-inline-end: var(--app-space-6);
-}
-
-/*
- * The reading block — the card's one tinted region.
- *
- * This is the Goal card's signature and the brief's "subtle tonal background":
- * a faint wash of the Area's own accent behind the outcome, so a grid of Goals
- * groups by the part of life each serves before any text is read. It is
- * deliberately confined to this block rather than washed over the whole card —
- * a fully tinted card is the "full-surface saturated colour" the brief rules
- * out, and it would leave the title fighting its own background.
- *
- * The default is the neutral sunken surface, so a Goal whose Area could not be
- * ranked gets a calm block rather than an arbitrary colour.
- */
-/*
- * The reading sits directly under the title; only the FOOT is pushed to the
- * bottom (see `.dh-gcard__foot`).
- *
- * Putting the auto margin here instead opened a hole between the title and the
- * reading on every card shorter than its row — at four columns on a 1440 that
- * was most of them, and the card's most important element floated in the middle
- * of nowhere. Pinning the foot alone still lands every bar in a row on one
- * baseline, which is the property that made the auto margin worth having.
- */
-.dh-gcard__body {
-  display: flex;
-  min-inline-size: 0;
-}
-
-/*
- * `wrap`, so the sparkline drops BELOW the reading rather than squeezing it.
- *
- * At four columns the card is ~250px and the reading's track is that minus a
- * 6.5rem chart, which broke "from 85 kg → 70 kg" after the arrow and left "kg"
- * alone on the next line. Giving the metric a real flex basis makes the visual
- * the thing that yields.
- */
-/*
- * DS-05 — the reading is TEXT ON THE CARD, and the tinted slab is gone.
- *
- * This block was the Goal card's "signature": a wash of the Area's accent behind
- * the outcome, so a grid grouped by part of life before a word was read. The
- * baseline capture is what retires it. At ~110px tall, filled in a saturated
- * mint / peach / pale blue, it was the largest and loudest object on the card,
- * on every card, and a grid of ten of them read as a colour swatch page rather
- * than as a set of outcomes. It is the most Material-looking object left in the
- * product — a tonal container doing a job the concept does with type — and
- * `DALYHUB_DESIGN_SYSTEM.md` §35 already forbids exactly this shape of thing.
- *
- * Identity does not go with it. The mark above still carries the Area's accent,
- * and so does the progress fill below — two placements, at a size where the
- * colour is a signal rather than a field. What is lost is only the field.
- */
-.dh-gcard__reading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dh-space-2) var(--dh-space-3);
-  inline-size: 100%;
-  min-inline-size: 0;
-  padding: 0;
-  background: none;
-}
-
-.dh-gcard__metric {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-px);
-  margin: 0;
-  /* 9rem: enough for "from $0 → $15,000" on one line. Below it the sparkline
-   * wraps under rather than the sentence breaking mid-value. */
-  flex: 1 1 9rem;
-  min-inline-size: 0;
-}
-
-/*
- * The outcome — the largest thing on the card, and FINAL-UI made it smaller.
- *
- * The principle is unchanged and it is the right one: the reading is the thing
- * the owner set out to change, and the percentage is a derivation of it, so the
- * two are drawn in the opposite proportion to the Project card. What changed is
- * the size. At `headline-small` (24px) the reading was the largest type in the
- * entire application on a screen that shows ten of them, and it forced the card
- * to ~235px for six facts.
- *
- * Concept 1's Goal card draws the reading at roughly its title's size and lets
- * the CHART and the BAR carry the visual weight — "79.0 kg → 70 kg", a
- * sparkline, a bar with 61% at its end, then "Lost 6.0 kg" and the target date,
- * in ~150px. `title-large` emphasized is that relationship: still the biggest
- * thing on the card, still a figure you read first, no longer a headline.
- */
-.dh-gcard__value {
-  font-size: var(--dh-text-metric-size);
-  line-height: var(--dh-text-metric-line-height);
-  font-weight: var(--dh-text-metric-weight);
-  color: var(--dh-color-text);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-/* "from 85 kg → 70 kg" — the line that makes the percentage checkable by eye. */
-.dh-gcard__journey {
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-  font-variant-numeric: tabular-nums;
-  /* `break-word`, not `anywhere`: a long custom unit still breaks rather than
-   * overflowing the card, but an ordinary "70 kg" is never split across lines
-   * just because the column is narrow. */
-  overflow-wrap: break-word;
-}
-
-/*
- * The sparkline's box. Bounded so it stays a supporting mark: at a wide column
- * an unbounded chart would become the card, and the card is about the number.
- */
-.dh-gcard__visual {
-  flex: 1 1 5rem;
-  max-inline-size: 6.5rem;
-  min-inline-size: 3rem;
-  display: flex;
-  align-items: center;
-  /* The end marker is a 4.5px round cap drawn at the series' last point, so a
-   * rising trend would otherwise put half a dot outside the tinted block. */
-  padding-block: var(--app-space-1);
-  padding-inline-end: var(--app-space-1);
-}
-
-/*
- * The honest absence, where a reading would be. Same block, same tint, no bar.
- *
- * It keeps the Area wash rather than falling back to grey: a Goal with no
- * measurement is still a Goal in Health & Fitness, and greying its one block
- * made the card read as disabled beside its measured neighbours.
- */
-/* DS-05 — de-tinted with `.dh-gcard__reading`, and for the same reason. */
-.dh-gcard__note {
-  inline-size: 100%;
-  min-inline-size: 0;
-  padding: 0;
-  background: none;
-}
-
-/*
- * UIX-06 — an absence with nothing to say takes NO surface.
- *
- * The wash is for a qualitative Goal's definition of done: those words are the
- * card's content, and content earns a container. Where the Goal has none, the
- * box held the two words "Not measured", tinted in the Area's identity accent,
- * across the full width of the card — the biggest object on it, on six of the
- * six seeded Goals, saying only that a field is unset. §6 rule 3 forbids
- * exactly that ("no empty bar, no 0%, no chip announcing that something has not
- * been configured"), and the identity wash on top of it spent the Area's colour
- * on the one thing that is not a fact about the Area.
- *
- * The sentence stays. It is one quiet line where the reading would have been.
- */
-/* The `[data-accent]` qualifier is deliberate: the identity wash is applied by
- * `.dh-gcard[data-accent="N"] .dh-gcard__note`, which is written later in this
- * file and would otherwise win on both specificity and order. */
-.dh-gcard__note[data-detail="false"],
-.dh-gcard[data-accent] .dh-gcard__note[data-detail="false"] {
-  padding-inline: 0;
-  background: none;
-}
-
-.dh-gcard__note-label {
-  margin: 0;
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-.dh-gcard__note[data-detail="false"] .dh-gcard__note-label {
-  font-weight: var(--dh-text-row-weight);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * The definition of done, clamped at three lines. A qualitative Goal's card is
- * carried by these words, so they get real space — but a gallery row shares a
- * height, and one Goal with a paragraph must not set it for the row.
- */
-.dh-gcard__note-detail {
-  margin: var(--app-space-1) 0 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-/*
- * REFINE §49 — two lines on a phone, not three.
- *
- * The comment above is right that a gallery ROW must not be set by one Goal's
- * paragraph, and on a desktop grid three lines cost that row ~36px. On a phone
- * there is no row to share: every card is full width, so the paragraph is three
- * FULL lines and the card measured 230px — over a quarter of a 844px viewport,
- * for a Goal that is not even measured. §49 asks that no single Goal occupy most
- * of the screen unless it has to.
- */
-@media (max-width: 47.99rem) {
-  .dh-gcard__note-detail {
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-  }
-}
-
-/*
- * The pinned foot. `auto` top margin spends a taller-than-needed card's extra
- * height on AIR between the reading and the bar, so every card in a row lands
- * its bar and its state line on one baseline — which is what makes a gallery
- * comparable at a glance.
- */
-.dh-gcard__foot {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-  margin-block-start: auto;
-}
-
-/*
- * Bar and percentage on ONE row.
- *
- * The Project card stacks a title-large percentage above a full-width bar,
- * which is right when the percentage IS the measure. Here the measure is the
- * reading above, so the pair collapses to a single quiet line and the card
- * spends its vertical budget on the outcome instead.
- */
-.dh-gcard__progress {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  min-inline-size: 0;
-}
-
-.dh-gcard__track {
-  flex: 1;
-  display: block;
-  min-inline-size: 0;
-  block-size: var(--app-progress-bar-height-entity);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-bg-sunken);
-  overflow: hidden;
-}
-
-.dh-gcard__fill {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: var(--dh-color-accent);
-  transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
-}
-
-.dh-gcard__percent {
-  flex: none;
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text);
-  font-variant-numeric: tabular-nums;
-}
-
-/*
- * The state line: one word for how it is going, then the facts a chooser needs
- * — what remains, and by when. A WORD in its own tone, never a filled chip: a
- * gallery of nine Goals would otherwise carry nine pills above nine bars, which
- * is the metadata density UIX-02 removed from Projects.
- */
-.dh-gcard__state-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
-  margin: 0;
-  min-inline-size: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-gcard__state {
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text-muted);
-}
-
-/* Only the two states that are FACTS the owner can act on take a tone — a
- * passed date, a slipped schedule. Everything in flight is the normal state of
- * a Goal and stays neutral. The tone always agrees with the word beside it. */
-.dh-gcard__state[data-tone="success"] {
-  color: var(--dh-color-success);
-}
-.dh-gcard__state[data-tone="warning"] {
-  color: var(--md-sys-color-state-due-soon);
-}
-.dh-gcard__state[data-tone="info"] {
-  color: var(--md-sys-color-info);
-}
-/* D3 — a slipped Goal is `state-overdue`, never `error`: being behind on
- * something you set yourself is a state of a record, not an application fault. */
-.dh-gcard__state[data-tone="danger"] {
-  color: var(--dh-color-overdue);
-}
-
-/* Separators between the trailing facts, so the line reads as one sentence
- * without a bullet character in the DOM for a screen reader to announce. */
-.dh-gcard__fact {
-  min-inline-size: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-gcard__fact::before {
-  content: "·";
-  margin-inline-end: var(--app-space-2);
-  color: var(--dh-color-border-strong);
-}
-
-.dh-gcard__state-line > .dh-gcard__fact:first-child::before {
-  content: none;
-}
-
-/*
- * The Area's accent, applied to exactly ONE thing: the progress fill.
- *
- * It used to paint the wash behind the reading as well. DS-05 removed that wash
- * (see `.dh-gcard__reading`) because a filled tonal block ~110px tall was the
- * largest object on the card and made a gallery read as a colour swatch page.
- * The mark at the top of the card still carries the same rank from the same
- * ramp, so identity is still drawn twice — once as a 40px tile, once as a 6px
- * bar — which is the size at which a hue is a signal rather than a field.
- *
- * The percentage beside the bar and the Area's name on the card state
- * everything the colour hints at, so nothing here is carried by hue alone.
- */
-.dh-gcard[data-accent="1"] .dh-gcard__fill {
-  background: var(--md-sys-color-area-accent-1);
-}
-.dh-gcard[data-accent="2"] .dh-gcard__fill {
-  background: var(--md-sys-color-area-accent-2);
-}
-.dh-gcard[data-accent="3"] .dh-gcard__fill {
-  background: var(--md-sys-color-area-accent-3);
-}
-.dh-gcard[data-accent="4"] .dh-gcard__fill {
-  background: var(--md-sys-color-area-accent-4);
-}
-.dh-gcard[data-accent="5"] .dh-gcard__fill {
-  background: var(--md-sys-color-area-accent-5);
-}
-.dh-gcard[data-accent="6"] .dh-gcard__fill {
-  background: var(--md-sys-color-area-accent-6);
-}
-
-/* The sparkline takes the same accent as the bar beneath it, so a card carries
- * one colour rather than a violet line over a green bar. */
-.dh-gcard[data-accent="1"] .dh-gcard__visual .dh-spark__line,
-.dh-gcard[data-accent="1"] .dh-gcard__visual .dh-spark__end {
-  stroke: var(--md-sys-color-area-accent-1);
-}
-.dh-gcard[data-accent="2"] .dh-gcard__visual .dh-spark__line,
-.dh-gcard[data-accent="2"] .dh-gcard__visual .dh-spark__end {
-  stroke: var(--md-sys-color-area-accent-2);
-}
-.dh-gcard[data-accent="3"] .dh-gcard__visual .dh-spark__line,
-.dh-gcard[data-accent="3"] .dh-gcard__visual .dh-spark__end {
-  stroke: var(--md-sys-color-area-accent-3);
-}
-.dh-gcard[data-accent="4"] .dh-gcard__visual .dh-spark__line,
-.dh-gcard[data-accent="4"] .dh-gcard__visual .dh-spark__end {
-  stroke: var(--md-sys-color-area-accent-4);
-}
-.dh-gcard[data-accent="5"] .dh-gcard__visual .dh-spark__line,
-.dh-gcard[data-accent="5"] .dh-gcard__visual .dh-spark__end {
-  stroke: var(--md-sys-color-area-accent-5);
-}
-.dh-gcard[data-accent="6"] .dh-gcard__visual .dh-spark__line,
-.dh-gcard[data-accent="6"] .dh-gcard__visual .dh-spark__end {
-  stroke: var(--md-sys-color-area-accent-6);
-}
-
-/*
- * UIX-03 — the Goal card on a PHONE.
- *
- * At 390px the card is the full column, so the reading has room; what it does
- * not have room for is a 6.5rem sparkline beside a currency value like
- * "$7,240". The visual keeps its place but yields first, and the tinted block's
- * padding tightens so a list of Goals stays scannable rather than becoming one
- * card per screen (the exact failure the brief calls out at §38).
- */
-@media (max-width: 30rem) {
-  .dh-gcard {
-    gap: var(--app-space-3);
-    padding: var(--app-space-4);
-  }
-
-  .dh-gcard__reading {
-    padding: var(--app-space-3) var(--app-space-3);
-  }
-
-  .dh-gcard__visual {
-    flex: 0 1 4.5rem;
-  }
-}
-
-@media (forced-colors: active) {
-  .dh-gcard {
-    border: var(--app-border-width-thin) solid CanvasText;
-  }
-  .dh-gcard .dh-gcard__fill {
-    background: CanvasText;
-  }
-  .dh-gcard__reading,
-  .dh-gcard__note {
-    border: var(--app-border-width-thin) solid CanvasText;
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* EntityRow + EntityRowList (UIX-02) — the Areas surface                     */
@@ -4265,50 +3771,209 @@
 /* ========================================================================== */
 
 /*
- * A Goal card is a GALLERY tile, and a gallery on a phone is one column.
- *
- * The desktop tile's air is doing a job there — several cards side by side land
- * their bars and state lines on one baseline, and that comparison is the point
- * of a gallery. In a single column there is nothing to compare across, so the
- * same 16px gaps and 20px padding are just distance between four short lines:
- * MEASURED at 390px, an unmeasured Goal's card was 188px tall and a measured
- * one 272px, of which 80px was gap and padding, so a 844px viewport showed
- * fewer than two Goals under 297px of collection chrome.
- *
- * The rungs below are the design system's own compact rungs, not new numbers,
- * and nothing is removed: every card keeps its mark, title, context, reading,
- * bar and state line. Only the distance between them changes.
+ * REDESIGN-04 — the phone rungs for `.dh-gcard` went with the card itself.
+ * The Goals workspace's row is `.dh-mrow`, which is a row at every width and
+ * therefore needs no compact variant of a gallery card.
  */
-@media (max-width: 48rem) {
-  .dh-gcard {
-    gap: var(--app-space-3);
-    padding: var(--app-card-padding-compact);
-  }
 
-  .dh-gcard__head {
-    gap: var(--app-space-2);
-  }
+/* ==========================================================================
+   REDESIGN-04 — the MEASURED row (`.dh-mrow`).
 
-  /*
-   * The identity mark steps down with the card — the SAME rungs the Project
-   * card already takes at this width (see `.dh-pcard__mark` above), because
-   * "Projects and Areas are distinct" is a rule about what a card SAYS, never
-   * about how large its glyph is. At 64px it was the largest object on a phone
-   * Goals screen.
-   */
-  /* `[data-size="lg"]` is stated, not implied: the mark IS the large rung, and
-   * a selector without it merely ties with `icons.css` on specificity and then
-   * loses or wins on load order — which is how the first attempt at this rule
-   * changed nothing at all. */
-  .dh-gcard__mark > .dh-accent-icon[data-size="lg"] {
-    inline-size: var(--app-entity-icon-container-size);
-    block-size: var(--app-entity-icon-container-size);
-    border-radius: var(--dh-radius-md);
-    font-size: var(--app-entity-icon-size);
-  }
+   `mockup3.png` draws it twice: the Goals workspace's left list, and the
+   compact Goals section on the Projects page. A sibling of `.dh-erow` rather
+   than a variant of it — an Area row deliberately carries NO bar (an Area never
+   completes), and a Goal row's whole point is the bar and the honest value at
+   the line's end.
+   ========================================================================== */
 
-  .dh-gcard__mark > .dh-accent-icon[data-size="lg"] .dh-icon {
-    inline-size: var(--app-entity-icon-size);
-    block-size: var(--app-entity-icon-size);
+.dh-mrow-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: none;
+}
+
+.dh-mrow-list__item + .dh-mrow-list__item {
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
+}
+
+.dh-mrow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+  padding: var(--dh-space-3) var(--dh-inset-inline);
+  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-mrow:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+/*
+ * The master–detail's CURRENT row.
+ *
+ * A tint AND `aria-current="page"` on the link inside it (see `ProgressRow`),
+ * plus a leading rail in the record's own accent — so selection is a shape as
+ * well as a tone, and survives forced-colors.
+ */
+.dh-mrow[data-selected="true"] {
+  background: var(--dh-color-surface-selected);
+}
+
+.dh-mrow[data-selected="true"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--app-border-width-thick);
+  background: var(--dh-color-accent);
+}
+
+.dh-mrow--muted {
+  opacity: 0.72;
+}
+
+.dh-mrow__mark {
+  flex: none;
+  display: inline-flex;
+  /* Optically centred on the title line rather than on the whole row, which
+   * grows by a bar and would otherwise drag the mark below the name. */
+  margin-block-start: 1px;
+}
+
+.dh-mrow__body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-mrow__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+.dh-mrow__title {
+  margin: 0;
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--dh-text-card-title-size);
+  line-height: var(--dh-text-card-title-line-height);
+  font-weight: var(--dh-text-card-title-weight);
+  color: var(--dh-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-mrow__open,
+.dh-mrow__open:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-mrow__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.dh-mrow__open:focus-visible {
+  outline: none;
+}
+
+.dh-mrow:has(.dh-mrow__open:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
+  outline-offset: calc(-1 * var(--app-border-width-thick));
+}
+
+/*
+ * The honest value at the line's end — "60.0 / 70 kg", "12 / 24".
+ *
+ * Tabular figures, so a column of them lines up; `flex: none` so the measure
+ * never wraps under the name it belongs to.
+ */
+.dh-mrow__value {
+  flex: none;
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text);
+  font-variant-numeric: var(--dh-font-numeric);
+  white-space: nowrap;
+}
+
+.dh-mrow__context {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The track is a HAIRLINE-derived neutral, not `--dh-color-bg-sunken`.
+ *
+ * REDESIGN-03 debt item 5 records that the sunken token reads as a Material
+ * tonal well on a white-surface record, and §13 forbids one appearing on any
+ * surface this pass creates. `--dh-color-border` is the same hairline the row
+ * separators are drawn with, so an empty track reads as a rule rather than as a
+ * filled container, in both appearances.
+ */
+.dh-mrow__track {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--app-progress-bar-height);
+  margin-block-start: var(--dh-space-1);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-border);
+  overflow: hidden;
+}
+
+.dh-mrow__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--dh-color-accent);
+  transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
+}
+
+/* The SAME six-slot identity ramp the mark is painted from — one identity, not
+ * two colour decisions (the rule `.dh-pcard` already follows). */
+.dh-mrow[data-accent="1"] .dh-mrow__fill {
+  background: var(--md-sys-color-area-accent-1);
+}
+.dh-mrow[data-accent="2"] .dh-mrow__fill {
+  background: var(--md-sys-color-area-accent-2);
+}
+.dh-mrow[data-accent="3"] .dh-mrow__fill {
+  background: var(--md-sys-color-area-accent-3);
+}
+.dh-mrow[data-accent="4"] .dh-mrow__fill {
+  background: var(--md-sys-color-area-accent-4);
+}
+.dh-mrow[data-accent="5"] .dh-mrow__fill {
+  background: var(--md-sys-color-area-accent-5);
+}
+.dh-mrow[data-accent="6"] .dh-mrow__fill {
+  background: var(--md-sys-color-area-accent-6);
+}
+
+@media (forced-colors: active) {
+  .dh-mrow__fill {
+    background: CanvasText;
+  }
+  .dh-mrow[data-selected="true"] {
+    /* The tint does not survive forced-colors; the rail is a shape and does. */
+    outline: var(--app-border-width-thin) solid CanvasText;
+    outline-offset: calc(-1 * var(--app-border-width-thin));
   }
 }

@@ -12,10 +12,11 @@
  * assumptions):
  *   - a Pane Header, in the ONE documented collection-header anatomy (UIQ-013):
  *
- *         Collection title                [ view switcher ]  [ 2nd ]  [ PRIMARY ]
+ *         Collection title      [ search ]  [ view switcher ]  [ 2nd ]  [ PRIMARY ]
  *         count / supporting context
  *         ────────────────────────────────────────────────────────────────────
- *         filters (search · selects · chips)
+ *         mode rail (lifecycle tabs)              [ presentation toggle ]
+ *         filters (selects · chips)
  *
  *     Semantic ownership is fixed product-wide and does not vary by module: the
  *     view switcher changes HOW records are shown or WHICH principal collection
@@ -96,6 +97,13 @@ export type CollectionLayoutProps = {
    */
   readonly viewSwitcher?: ReactNode;
   /**
+   * REDESIGN-04 — the collection's inline search field, on the title row
+   * (`mockup3.png`). Pass the shared `CollectionSearchField`; see
+   * `PaneHeader` for why search is the one narrowing control that lives in the
+   * header band rather than the filter one.
+   */
+  readonly search?: ReactNode;
+  /**
    * Supporting actions beside the primary one (Tasks' Review Inbox). One or
    * two at most; past that the shared overflow menu is the answer.
    */
@@ -161,6 +169,7 @@ export function CollectionLayout({
   headingLevel = 1,
   subtitle,
   viewSwitcher,
+  search,
   secondaryActions,
   primaryAction,
   filterBar,
@@ -214,6 +223,7 @@ export function CollectionLayout({
           titleId={titleId}
           headingLevel={headingLevel}
           subtitle={subtitle}
+          search={search}
           viewSwitcher={viewSwitcher}
           secondaryActions={secondaryActions}
           primaryAction={primaryAction}

@@ -321,37 +321,49 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
 
+    /*
+     * REDESIGN-04 — `/goals` is a master–detail, and on a PHONE it opens on the
+     * LIST. The workspace defaults to a selection at desktop widths, where both
+     * panes are visible; defaulting on a phone would mean the collection URL
+     * never showed the collection (§7), so it does not.
+     */
     const activeCard = page.getByRole("article", { name: goalTitle });
     await expect(activeCard).toBeVisible();
-    await expect(activeCard.getByText("Recently active")).toBeVisible();
 
     /*
-     * The seeded neglected Goal HAS a contributing Project, so M3X-02 draws its
-     * measure and lets the measure explain the state: the alignment word stays,
-     * and its long reason sentence — which restates what the bar beside it
-     * already shows — does not. A Goal nothing advances still gets the sentence,
-     * because there the sentence is the only explanation available.
+     * §6.2 — alignment survives as a QUIET state, not as a badge on the row.
+     *
+     * The row draws identity, a bar and the Goal's own value; drawing a second
+     * state word beside a measure would make a reader decide which of two
+     * things answers "how is this going?". It is not LOST: the row's accessible
+     * name carries the evaluator's state and its reason in words, which is what
+     * this asserts — a stricter check than a visible chip, because it proves
+     * the fact reaches assistive tech rather than only the eye.
      */
+    const activeLink = activeCard.getByRole("link");
+    await expect(activeLink).toHaveAttribute("aria-label", /Recently active/);
+
     const neglectedCard = page.getByRole("article", { name: "Learn Spanish" });
     await expect(neglectedCard).toBeVisible();
-    await expect(neglectedCard.getByText("No recent action")).toBeVisible();
-    await expect(neglectedCard.getByRole("progressbar")).toBeVisible();
-    await expect(
-      neglectedCard.getByText(/of \d+ Projects? complete/),
-    ).toBeVisible();
-    await expect(
-      neglectedCard.getByText(
-        "Projects exist, but no recent Task activity was found.",
-      ),
-    ).toHaveCount(0);
+    await expect(neglectedCard.getByRole("link")).toHaveAttribute(
+      "aria-label",
+      /No recent action/,
+    );
+    /*
+     * An UNMEASURED Goal draws no bar and no value — the rule the deleted Goal
+     * card held, now held by the row. An empty bar at 0% would say "nothing
+     * done" when the truth is "nothing measured".
+     */
+    await expect(neglectedCard.getByRole("progressbar")).toHaveCount(0);
 
     // 14. Keyboard operation: focus + Enter opens the active Goal (no pointer).
-    const openActiveLink = activeCard.getByRole("link", {
-      name: `Open ${goalTitle}`,
-    });
-    await openActiveLink.focus();
+    await activeLink.focus();
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(goalUrl);
+    // Selecting a Goal is a change of SELECTION, not of page: the workspace
+    // URL carries it, and on a phone that is the detail screen.
+    await expect(page).toHaveURL(/[?&]goal=/);
+    await expect(page.getByTestId("goal-workspace-pane")).toBeVisible();
+    await gotoFixture(page, goalUrl);
 
     /*
      * 11. The Goal's summary explains WHY, with working evidence navigation to

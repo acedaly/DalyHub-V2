@@ -427,6 +427,50 @@ export function goalJourneyLabel(
  * than the "Target achieved" the status already says — and null whenever the
  * distance is unknown, rather than a zero standing in for an absence.
  */
+/**
+ * REDESIGN-04 — the honest value at the end of a Goal ROW.
+ *
+ * `mockup3.png` ends each row of its Goals list with the Goal's own arithmetic,
+ * in the Goal's own terms: `60.0 / 70 kg`, `12 / 24`, `75% complete`. Three
+ * different strings, because those are three genuinely different kinds of Goal,
+ * and flattening them all to a percentage would throw away the only number the
+ * owner actually thinks in.
+ *
+ * The rules, in the order they apply:
+ *
+ *   - a **numeric** Goal with a current reading and a target reads
+ *     `60.0 / 70 kg` — value, target, unit, once;
+ *   - a **milestone** Goal reads `12 / 24`, its own count of stages;
+ *   - anything else that has a percentage reads `75% complete`;
+ *   - a Goal with a configuration but no reading yet, and a Goal with no
+ *     measurement configuration at all, return `null`. Neither has a value, and
+ *     `0%` would be a claim about progress rather than a statement of absence —
+ *     the row draws no bar and no figure, and the surface says why once.
+ *
+ * Every number here comes from the kernel evaluator that produced `progress`;
+ * this function only chooses which of them to show and formats it with the same
+ * `formatMeasurementValue` every other Goal surface uses.
+ */
+export function goalRowValue(progress: GoalProgressEvaluation): string | null {
+  if (!progress.measured) return null;
+  if (progress.current === null) return null;
+  if (progress.type === "milestone") {
+    const total = progress.target ?? 0;
+    return total > 0 ? `${progress.current} / ${total}` : null;
+  }
+  if (progress.target !== null) {
+    // The unit is stated once, on the target, exactly as the reference draws
+    // it — "60.0 / 70 kg", never "60.0 kg / 70 kg".
+    const current = formatMeasurementNumber(progress.current);
+    const target = formatMeasurementValue(progress.target, progress.unit);
+    return `${current} / ${target}`;
+  }
+  if (progress.progressPercent !== null) {
+    return `${progress.progressPercent}% complete`;
+  }
+  return formatMeasurementValue(progress.current, progress.unit);
+}
+
 export function goalRemainingLabel(
   progress: GoalProgressEvaluation,
 ): string | null {

@@ -191,15 +191,21 @@ describe("Projects collection", () => {
       failed: false,
     });
     /*
-     * UIX-02 — ONE attention line, not a chip plus the sentence explaining it.
-     * The compact wording is built from the reason's own structured count, and
-     * the evaluator's full sentence rides along for assistive tech.
+     * REDESIGN-04 §5.6 — attention survives as SIGNAL, not as a sentence.
+     *
+     * The visible line is now the reference's meta line ("4 tasks · 2 due this
+     * week"); the health state is the dot's tone, and the evaluator's own full
+     * sentence is still on the line for assistive tech. Nothing is carried by
+     * colour alone, and nothing the evaluator said has been lost.
      */
-    const attention = screen.getByText("2 overdue").closest("p");
-    expect(attention).toHaveAttribute("data-tone", "danger");
-    expect(
-      screen.getByText("2 tasks past their due date", { exact: false }),
-    ).toBeInTheDocument();
+    const card = screen.getByRole("article", { name: "Overdue project" });
+    const meta = card.querySelector(".dh-pcard__meta");
+    expect(meta).toHaveAttribute("data-tone", "danger");
+    // The dot is decorative; the sentence beside it is the fact.
+    expect(meta?.querySelector(".dh-pcard__dot")).not.toBeNull();
+    expect(meta).toHaveTextContent("2 tasks past their due date");
+    // And the visible meta line states volume, from the same rollup the bar uses.
+    expect(within(card).getByText("4 tasks")).toBeInTheDocument();
   });
 
   it("does not falsely label a completed project as actively at risk", () => {
@@ -269,10 +275,13 @@ describe("Projects collection", () => {
       failed: false,
     });
     const card = screen.getByRole("article", { name: "Overdue project" });
-    // Exactly one attention line on the card, and it is the health signal — the
+    // Exactly ONE line beneath the bar, and it carries the health signal — the
     // workflow word it replaces must not also be present.
-    expect(card.querySelectorAll(".dh-pcard__attention")).toHaveLength(1);
-    expect(within(card).getByText("2 overdue")).toBeInTheDocument();
+    expect(card.querySelectorAll(".dh-pcard__meta")).toHaveLength(1);
+    expect(card.querySelector(".dh-pcard__meta")).toHaveAttribute(
+      "data-tone",
+      "danger",
+    );
     expect(within(card).queryByText("Active")).not.toBeInTheDocument();
     // And no filled status chip anywhere on it.
     expect(card.querySelectorAll(".dh-pill")).toHaveLength(0);
@@ -293,8 +302,13 @@ describe("Projects collection", () => {
       failed: false,
     });
     const card = screen.getByRole("article", { name: "Healthy project" });
-    expect(card.querySelectorAll(".dh-pcard__attention")).toHaveLength(1);
-    expect(within(card).getByText("On track")).toBeInTheDocument();
+    expect(card.querySelectorAll(".dh-pcard__meta")).toHaveLength(1);
+    // The evaluator's own sentence for a healthy Project, still announced in
+    // full — the visible line states volume, and neither is fabricated.
+    expect(card.querySelector(".dh-pcard__meta")).toHaveTextContent(
+      "Progressing with no attention signals.",
+    );
+    expect(within(card).getByText("4 tasks")).toBeInTheDocument();
   });
 
   it("states progress once, with the bar and the text agreeing", () => {
@@ -489,13 +503,13 @@ describe("Projects collection", () => {
         id: "planned",
         title: "Planned one",
         over: { status: "planned" as const, healthVisible: false },
-        label: "Planned",
+        label: "This Project is planned.",
       },
       {
         id: "onhold",
         title: "On-hold one",
         over: { status: "on_hold" as const, healthVisible: false },
-        label: "On hold",
+        label: "This Project is on hold.",
       },
       /*
        * UIX-02 — an actively-worked Project with nothing wrong reads "On
@@ -504,7 +518,12 @@ describe("Projects collection", () => {
        * to say; "Active" is the workflow status, which is only the most useful
        * word when health is deliberately not evaluated (Planned, On hold).
        */
-      { id: "active", title: "Active one", over: {}, label: "On track" },
+      {
+        id: "active",
+        title: "Active one",
+        over: {},
+        label: "Progressing with no attention signals.",
+      },
       {
         id: "completed",
         title: "Completed one",
@@ -512,13 +531,13 @@ describe("Projects collection", () => {
           completedAt: "2026-07-20T00:00:00.000Z",
           healthVisible: false,
         },
-        label: "Completed",
+        label: "This Project is complete.",
       },
       {
         id: "archived",
         title: "Archived one",
         over: { archivedAt: "2026-07-21T00:00:00.000Z", healthVisible: false },
-        label: "Archived",
+        label: "This Project is archived.",
       },
       {
         id: "warning",
@@ -530,9 +549,10 @@ describe("Projects collection", () => {
             overdueOpen: 2,
           }),
         },
-        // The compact form of the primary reason, from its own structured
-        // count — the state word ("At risk") is what the sentence implies.
-        label: "2 overdue",
+        // REDESIGN-04 §5.6 — the evaluator's own full sentence, which is what
+        // the meta line carries for assistive tech now that the compact
+        // wording has given its place to volume and urgency.
+        label: "2 tasks past their due date",
       },
     ];
 
@@ -548,9 +568,16 @@ describe("Projects collection", () => {
 
     for (const c of cases) {
       const card = screen.getByRole("article", { name: c.title });
-      // Exactly ONE status treatment per card, and it says the right thing.
-      expect(card.querySelectorAll(".dh-pcard__attention")).toHaveLength(1);
-      expect(within(card).getByText(c.label)).toBeInTheDocument();
+      /*
+       * Exactly ONE line beneath the bar per card, and it says the right thing.
+       *
+       * REDESIGN-04 §5.6 moved the state from the line's visible words to its
+       * dot plus its accessible sentence, so this asserts the sentence — which
+       * is a STRONGER check than the compact form it replaces: the compact
+       * wording was derived, the sentence is the evaluator's own.
+       */
+      expect(card.querySelectorAll(".dh-pcard__meta")).toHaveLength(1);
+      expect(card.querySelector(".dh-pcard__meta")).toHaveTextContent(c.label);
     }
   });
 
@@ -625,7 +652,7 @@ describe("Projects collection", () => {
       state: "open",
       failed: false,
     });
-    expect(screen.getByText("No open projects")).toBeInTheDocument();
+    expect(screen.getByText("No active projects")).toBeInTheDocument();
   });
 
   describe("Archived collection (PROJ-05 §7)", () => {
@@ -640,11 +667,23 @@ describe("Projects collection", () => {
       const group = screen.getByRole("navigation", {
         name: "Project views",
       });
-      expect(
-        within(group)
-          .getAllByRole("link")
-          .map((link) => link.textContent?.trim()),
-      ).toEqual(["All", "Open", "Completed", "Archived"]);
+      /*
+       * REDESIGN-04 — `mockup3.png`'s order and its word for `open`
+       * ("Active"), with the product's fourth real bucket kept. The VALUES are
+       * untouched, which is what the href assertion below proves: every
+       * `?state=open` link, bookmark and test in the product still resolves.
+       */
+      const links = within(group).getAllByRole("link");
+      expect(links.map((link) => link.textContent?.trim())).toEqual([
+        "Active",
+        "All",
+        "Completed",
+        "Archived",
+      ]);
+      expect(links[0]).toHaveAttribute(
+        "href",
+        expect.stringContaining("state=open"),
+      );
     });
 
     it("renders archived cards with the Archived state and no health metadata", () => {

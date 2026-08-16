@@ -32,8 +32,10 @@ import { normaliseEntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import {
   decodeProjectCursorForScope,
   encodeProjectCursor,
+  normaliseProjectSearch,
   ProjectStorageError,
   type ListProjectsInput,
+  type ProjectLifecycleCounts,
   type ProjectCursorScope,
   type ProjectListItem,
   type ProjectListPage,
@@ -220,6 +222,49 @@ export class D1ProjectRepository implements ProjectRepository {
     this.#workspaceId = context.workspaceId;
   }
 
+  /**
+   * REDESIGN-04 — the workspace's project counts by lifecycle bucket.
+   *
+   * ONE statement. The three buckets are computed as conditional sums over the
+   * same two lifecycle columns `listProjects` filters on
+   * (`spine_records.completed_at`, `project_details.archived_at`), so the count
+   * line and the tabs can never disagree about what "active" means. No join to
+   * tasks, no per-project read, and the same partial index the list query uses
+   * serves it (`entities_active_workspace_type_created_idx`).
+   */
+  async countProjectsByLifecycle(): Promise<ProjectLifecycleCounts> {
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT
+             SUM(CASE WHEN pd.archived_at IS NULL AND sr.completed_at IS NULL THEN 1 ELSE 0 END) AS active,
+             SUM(CASE WHEN pd.archived_at IS NULL AND sr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed,
+             SUM(CASE WHEN pd.archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived
+           FROM entities e
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN project_details pd
+             ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL`,
+        )
+        .bind(this.#workspaceId),
+    );
+    const row = (result.results ?? [])[0] as
+      | {
+          readonly active: number | null;
+          readonly completed: number | null;
+          readonly archived: number | null;
+        }
+      | undefined;
+    // A workspace with no Projects returns one row of NULLs (SUM over nothing),
+    // never no row — but both are answered the same honest way.
+    return {
+      active: Number(row?.active ?? 0),
+      completed: Number(row?.completed ?? 0),
+      archived: Number(row?.archived ?? 0),
+    };
+  }
+
   async searchProjects(
     input: ProjectSearchInput,
   ): Promise<readonly ProjectSearchHit[]> {
@@ -329,10 +374,24 @@ export class D1ProjectRepository implements ProjectRepository {
     // cursor issued for a different scope is rejected, never reinterpreted against
     // a different result set. The keyset predicate resumes strictly AFTER the last
     // returned row in the ordering's direction.
+    /*
+     * REDESIGN-04 — the collection's free-text narrowing.
+     *
+     * ONE predicate on the query that already exists, through the SAME
+     * normalisation the cursor scope binds, so "which rows" and "which cursor
+     * is valid" can never drift apart. It is a bound parameter with an explicit
+     * ESCAPE, exactly like `searchProjects` — a `%` or `_` an owner types is a
+     * literal character, never a wildcard they did not ask for.
+     */
+    const search = normaliseProjectSearch(input.search);
+    const searchClause =
+      search !== null ? " AND lower(e.title) LIKE ? ESCAPE '\\'" : "";
+
     const scope: ProjectCursorScope = {
       workspaceId: this.#workspaceId,
       state,
       workflowStatus: input.workflowStatus ?? null,
+      search,
       order,
     };
     const conditions: string[] = [];
@@ -381,7 +440,7 @@ export class D1ProjectRepository implements ProjectRepository {
                  AND tl.deleted_at IS NULL
            GROUP BY tl.target_entity_id
          ) tc ON tc.project_id = e.id
-         WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}${workflowStatusClause}${cursorClause}
+         WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}${workflowStatusClause}${searchClause}${cursorClause}
          ORDER BY ${orderClause}
          LIMIT ?`,
       )
@@ -393,6 +452,7 @@ export class D1ProjectRepository implements ProjectRepository {
         this.#workspaceId,
         this.#workspaceId,
         ...(input.workflowStatus !== undefined ? [input.workflowStatus] : []),
+        ...(search !== null ? [likeContains(search)] : []),
         ...cursorParams,
         fetchLimit,
       );

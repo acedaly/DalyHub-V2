@@ -122,8 +122,23 @@ export {
  * Project's "how is this work going?". It lives here rather than in the Goals
  * module because Today and an Area's Goals tab render it too.
  */
-export { GoalCard, type GoalCardProps, type GoalCardTone } from "./GoalCard";
+/*
+ * REDESIGN-04 — `GoalCard` was removed with the Goals gallery it existed for.
+ * `mockup3.png` replaced that gallery with a master–detail, whose row is the
+ * shared `ProgressRow` below and whose pane is the Goal's own Overview. Nothing
+ * the card guaranteed was dropped — see the note in `GoalsCollection.tsx`.
+ */
 export { EntityRow, EntityRowList, type EntityRowProps } from "./EntityRowList";
+/**
+ * REDESIGN-04 — the MEASURED row (`mockup3.png`): tile · name · context · a
+ * thin bar · the record's own honest value at the line's end. Shared by the
+ * Goals workspace list and the compact Goals section on the Projects page.
+ */
+export {
+  ProgressRow,
+  ProgressRowList,
+  type ProgressRowProps,
+} from "./ProgressRow";
 /*
  * UIX-05 — the fourth family. A Person has no completion, no proportion and no
  * deadline; what they have is a face, a place in a life, a way to be reached and
@@ -140,7 +155,7 @@ export {
 /*
  * UIX-05 — the fifth family. An Asset's measure is TIME: what does this thing
  * need, and when? That is neither a proportion nor a reading, so it is neither
- * `.dh-pcard` nor `.dh-gcard`. Shared because an Area's Assets tab and the
+ * `.dh-pcard` nor `.dh-mrow`. Shared because an Area's Assets tab and the
  * Assets gallery must draw the same object.
  */
 export {

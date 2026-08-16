@@ -1725,6 +1725,22 @@
 }
 
 /*
+ * REDESIGN-04 — the SEARCH slot, between the title and the view switcher.
+ *
+ * `mockup3.png` draws it there. It yields width before the switcher and long
+ * before the primary action, because a search field that has shrunk is still a
+ * usable search field, whereas a create button squeezed to two wrapped words is
+ * not "immediately discoverable" (UIQ-014).
+ */
+.dh-pane-header__search {
+  display: flex;
+  align-items: center;
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  justify-content: flex-end;
+}
+
+/*
  * UIQ-013 — the view switcher is its own header slot, between the title and
  * the actions. `flex: 0 1 auto` + `min-inline-size: 0` lets a many-view
  * switcher (Assets carries five) give up width before the primary action does:
@@ -1768,7 +1784,13 @@
 @media (max-width: 48rem) {
   .dh-pane-header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    /*
+     * REDESIGN-04 — three columns rather than two: title, the collapsed search
+     * icon, then the primary action. The handset frame draws exactly that
+     * trailing pair, and giving search its own column is what stops it landing
+     * in the action cluster's cell.
+     */
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
   }
 
@@ -1777,7 +1799,7 @@
   }
 
   .dh-pane-header__actions {
-    grid-column: 2;
+    grid-column: 3;
   }
 
   /* Its own row, spanning the full width, so a four-view switcher has the
@@ -1785,6 +1807,34 @@
   .dh-pane-header__views {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  /*
+   * REDESIGN-04 — the phone header's trailing icon cluster.
+   *
+   * Collapsed, search is one icon beside the add button on the title row, which
+   * is what the handset frame draws. Expanded, it takes a full row of its own
+   * beneath the title — ahead of the view switcher, because the field the owner
+   * just asked for should not appear below a control they did not.
+   */
+  .dh-pane-header__search {
+    grid-column: 2;
+    grid-row: 1;
+    flex: none;
+  }
+
+  /* A header with no search keeps the two-column shape it always had. */
+  .dh-pane-header:not(:has(.dh-pane-header__search)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dh-pane-header__search:has(.dh-csearch[data-open="true"]) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dh-pane-header:has(.dh-csearch[data-open="true"]) .dh-pane-header__views {
+    grid-row: 3;
   }
 
   /*
@@ -1803,7 +1853,7 @@
    */
   .dh-pane-header:has(.dh-pane-header__secondary) .dh-pane-header__actions {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 4;
     justify-content: flex-start;
   }
 

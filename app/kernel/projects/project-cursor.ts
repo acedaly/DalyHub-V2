@@ -10,13 +10,15 @@
  *      tiebreaker that makes the ordering total and therefore deterministic. The
  *      `sortValue` is `createdAt` for the `created` order and `updatedAt` for the
  *      `recent` order — whichever column the requested ordering sorts on.
- *   2. the query SCOPE — the workspace, the completion `state` filter and the
- *      `order`. Every input that affects WHICH rows appear, and in WHAT sequence,
- *      is bound in.
+ *   2. the query SCOPE — the workspace, the completion `state` filter, the
+ *      free-text `search` narrowing and the `order`. Every input that affects
+ *      WHICH rows appear, and in WHAT sequence, is bound in.
  *
  * Binding the scope into the cursor is a correctness and safety requirement: a
  * cursor issued for one workspace must be rejected under another, a cursor for the
- * `open` filter must be rejected under `completed`, and a cursor for the `created`
+ * `open` filter must be rejected under `completed`, a cursor issued while the
+ * collection was narrowed to "kitchen" must be rejected once the search box is
+ * cleared, and a cursor for the `created`
  * ordering must be rejected under `recent` — a stale cursor is never silently
  * reinterpreted against a different result set (which could skip or duplicate
  * projects). Mismatches — like malformed cursors — are rejected as
@@ -33,8 +35,17 @@ import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 
 import type { ProjectOrder, ProjectStateFilter } from "./project";
 
-/** The current project cursor format version. Bump when the encoded shape changes. */
-export const PROJECT_CURSOR_VERSION = 3;
+/**
+ * The current project cursor format version. Bump when the encoded shape changes.
+ *
+ * REDESIGN-04 raised it to 4 when the collection's free-text `search` joined the
+ * scope. The bump is the point: a v3 cursor encodes no search term, so silently
+ * accepting one under a narrowed collection would resume an unfiltered ordering
+ * inside a filtered result set — skipping and duplicating rows. Old cursors are
+ * rejected as `InvalidSpineCursorError`, and every caller already resets calmly
+ * to the first page on that error.
+ */
+export const PROJECT_CURSOR_VERSION = 4;
 
 /** The ordering position a project cursor points just after. */
 export type ProjectCursorPosition = {
@@ -54,6 +65,13 @@ export type ProjectCursorScope = {
   readonly state: ProjectStateFilter;
   /** The exact `workflowStatus` filter, or `null` when unrestricted. */
   readonly workflowStatus: ProjectWorkflowStatus | null;
+  /**
+   * REDESIGN-04 — the normalised free-text narrowing, or `null` when the
+   * collection is not narrowed. Part of the scope because it changes WHICH rows
+   * appear: a cursor issued mid-search cannot be resumed once the search
+   * changes or clears.
+   */
+  readonly search: string | null;
   readonly order: ProjectOrder;
 };
 
@@ -111,6 +129,7 @@ export function encodeProjectCursor(
     scope.workspaceId,
     scope.state,
     scope.workflowStatus,
+    scope.search,
     scope.order,
     position.sortValue,
     position.id,
@@ -148,12 +167,20 @@ export function decodeProjectCursor(cursor: string): DecodedProjectCursor {
     throw new InvalidSpineCursorError();
   }
 
-  if (!Array.isArray(parsed) || parsed.length !== 7) {
+  if (!Array.isArray(parsed) || parsed.length !== 8) {
     throw new InvalidSpineCursorError();
   }
 
-  const [version, workspaceId, state, workflowStatus, order, sortValue, id] =
-    parsed;
+  const [
+    version,
+    workspaceId,
+    state,
+    workflowStatus,
+    search,
+    order,
+    sortValue,
+    id,
+  ] = parsed;
 
   if (
     version !== PROJECT_CURSOR_VERSION ||
@@ -166,6 +193,7 @@ export function decodeProjectCursor(cursor: string): DecodedProjectCursor {
         !PROJECT_WORKFLOW_STATUS_VALUES.includes(
           workflowStatus as ProjectWorkflowStatus,
         ))) ||
+    (search !== null && (typeof search !== "string" || search.length === 0)) ||
     typeof order !== "string" ||
     !PROJECT_ORDERS.includes(order as ProjectOrder) ||
     typeof sortValue !== "string" ||
@@ -181,13 +209,17 @@ export function decodeProjectCursor(cursor: string): DecodedProjectCursor {
       workspaceId,
       state: state as ProjectStateFilter,
       workflowStatus: workflowStatus as ProjectWorkflowStatus | null,
+      search: search as string | null,
       order: order as ProjectOrder,
     },
     position: { sortValue, id },
   };
 }
 
-/** True when two scopes are identical in workspace, state filter and ordering. */
+/**
+ * True when two scopes are identical in workspace, state filter, free-text
+ * narrowing and ordering.
+ */
 export function projectCursorScopeMatches(
   a: ProjectCursorScope,
   b: ProjectCursorScope,
@@ -196,8 +228,23 @@ export function projectCursorScopeMatches(
     a.workspaceId === b.workspaceId &&
     a.state === b.state &&
     a.workflowStatus === b.workflowStatus &&
+    a.search === b.search &&
     a.order === b.order
   );
+}
+
+/**
+ * The ONE normalisation of a collection search term, so the cursor's scope, the
+ * SQL predicate and the "is this collection narrowed?" test can never disagree
+ * about what the owner typed. Trimmed, lower-cased, and an empty result reported
+ * as `null` — the absence of a search, not a search for nothing.
+ */
+export function normaliseProjectSearch(
+  text: string | null | undefined,
+): string | null {
+  if (typeof text !== "string") return null;
+  const trimmed = text.trim().toLocaleLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /**

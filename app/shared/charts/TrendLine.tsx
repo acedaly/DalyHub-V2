@@ -27,6 +27,29 @@
  * `baseline` is drawn as a second, quieter reference so "start → now → target"
  * is one picture rather than three numbers printed above one.
  *
+ * ── REDESIGN-04: the dotted path to the target ──────────────────────────────
+ * `mockup3.png` continues the solid line of recorded readings with a DOTTED
+ * segment running to a marked point at the target date. `projection` draws it,
+ * and what it draws is deliberately not a forecast:
+ *
+ *   - the solid line is what HAPPENED — the recorded readings, unchanged;
+ *   - the dotted line is what is REQUIRED — the straight path from the last
+ *     reading to the target value on the target date, which is the same fact
+ *     the evaluator already publishes as `requiredChangePerWeek`, drawn instead
+ *     of printed.
+ *
+ * It is never an extrapolation of recent pace. Extrapolating would put a
+ * confident line through a future the product cannot know, and §6.2 is explicit
+ * that "if recent pace is undefined, the projection is absent, not invented" —
+ * so a caller supplies `projection` only when a target value AND a target date
+ * both exist and the date is still ahead of the last reading. Everything else
+ * draws no dotted line at all.
+ *
+ * The dotted path also EXTENDS the time axis: without that the target point
+ * would have no x position, and squeezing it onto the last reading's date would
+ * assert that the deadline is today. The axis's end label becomes the target
+ * date, so what the chart's width now means is stated in words.
+ *
  * ── How it stays crisp at every width ───────────────────────────────────────
  * The plot is a 100x100 coordinate space stretched to the container
  * (`preserveAspectRatio="none"`), which is what lets the chart fill a 1200px
@@ -85,6 +108,20 @@ export interface TrendLineProps {
     readonly tag?: string;
   } | null;
   /** Where the owner started, drawn as a quieter dotted reference. */
+  /**
+   * REDESIGN-04 — the dotted path from the last reading to the target point.
+   *
+   * Supply it ONLY when a target value and a target date both genuinely exist
+   * and the date is after the last reading; see the note above for why this is
+   * a required path and never a forecast.
+   */
+  readonly projection?: {
+    /** The target's owner-calendar date, `YYYY-MM-DD`. Extends the time axis. */
+    readonly date: string;
+    readonly value: number;
+    /** Stated in words beneath the plot — "Target 70 kg by 31 Dec 2025". */
+    readonly label: string;
+  } | null;
   readonly baseline?: {
     readonly value: number;
     readonly label: string;
@@ -144,6 +181,7 @@ export function TrendLine({
   summary,
   target = null,
   baseline = null,
+  projection = null,
   scaleToTarget = true,
   startLabel,
   endLabel,
@@ -181,7 +219,23 @@ export function TrendLine({
     if (points.length < 2) return null;
     const days = points.map((point) => dayNumber(point.date));
     const firstDay = days[0]!;
-    const daySpan = days[days.length - 1]! - firstDay;
+    const lastDay = days[days.length - 1]!;
+    /*
+     * The projection's date joins the TIME axis, so the target point has a real
+     * x position rather than being stacked on the last reading. A projection
+     * dated on or before the last reading is ignored: a target date already
+     * passed is a fact the status line states in words, not a line drawn
+     * backwards.
+     */
+    const projectionDay =
+      projection !== null ? dayNumber(projection.date) : null;
+    const usableProjection =
+      projectionDay !== null && projectionDay > lastDay ? projection : null;
+    const axisEndDay =
+      usableProjection !== null && projectionDay !== null
+        ? projectionDay
+        : lastDay;
+    const daySpan = axisEndDay - firstDay;
 
     const values = points.map((point) => point.value);
     /*
@@ -193,6 +247,9 @@ export function TrendLine({
     const domain = [...values];
     if (scaleToTarget && target !== null) domain.push(target.value);
     if (baseline !== null) domain.push(baseline.value);
+    // The projected point must be inside the plot, or the dotted line would run
+    // off the top or bottom edge to a target the chart never shows.
+    if (usableProjection !== null) domain.push(usableProjection.value);
     const dataMin = Math.min(...domain);
     const dataMax = Math.max(...domain);
     const rawSpan = dataMax - dataMin;
@@ -216,9 +273,24 @@ export function TrendLine({
 
     const inRange = (value: number) => value >= low && value <= high;
 
+    const projectionPath =
+      usableProjection !== null && projectionDay !== null
+        ? `M${x(points.length - 1).toFixed(2)} ${y(points[points.length - 1]!.value).toFixed(2)} ` +
+          `L${(((projectionDay - firstDay) / (daySpan || 1)) * VIEW).toFixed(2)} ${y(usableProjection.value).toFixed(2)}`
+        : null;
+
     return {
       x,
       y,
+      projection:
+        usableProjection !== null && projectionDay !== null
+          ? {
+              path: projectionPath,
+              x: ((projectionDay - firstDay) / (daySpan || 1)) * VIEW,
+              y: y(usableProjection.value),
+              label: usableProjection.label,
+            }
+          : null,
       path: points
         .map(
           (point, index) =>
@@ -230,7 +302,7 @@ export function TrendLine({
       baselineY:
         baseline !== null && inRange(baseline.value) ? y(baseline.value) : null,
     };
-  }, [points, target, baseline, scaleToTarget]);
+  }, [points, target, baseline, projection, scaleToTarget]);
 
   // Two readings are the minimum a line can honestly be drawn from. The caller
   // renders the "more measurements needed" state instead; this component does
@@ -303,6 +375,21 @@ export function TrendLine({
               vectorEffect="non-scaling-stroke"
             />
           ) : null}
+          {/*
+            REDESIGN-04 — the DOTTED path to the target point.
+            Drawn beneath the solid line so the recorded history stays the
+            dominant mark: what happened is the subject, what is required is
+            the context.
+          */}
+          {geometry.projection?.path ? (
+            <path
+              className="dh-linechart__projection"
+              d={geometry.projection.path}
+              fill="none"
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+            />
+          ) : null}
           <path
             className="dh-linechart__line"
             d={geometry.path}
@@ -311,6 +398,17 @@ export function TrendLine({
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+          {/* The target itself, as a marked point — a ring rather than a filled
+              dot, so it reads as a destination rather than as a reading that
+              has already been taken. */}
+          {geometry.projection ? (
+            <path
+              className="dh-linechart__projection-point"
+              d={`M${geometry.projection.x.toFixed(2)} ${geometry.projection.y.toFixed(2)} L${geometry.projection.x.toFixed(2)} ${geometry.projection.y.toFixed(2)}`}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+            />
+          ) : null}
           {points.map((point, index) => (
             // A zero-length round-capped segment: a true circle on screen even
             // though the coordinate space is stretched. See the module comment.
@@ -416,6 +514,18 @@ export function TrendLine({
             so the two agree — and pointing at the chart simply moves it.
           */}
           {describePoint!(selectedPoint ?? points[points.length - 1]!)}
+        </p>
+      ) : null}
+      {/*
+        REDESIGN-04 — the projection, stated in words.
+        The dotted line and its ring are a picture of this sentence; the
+        sentence is what a screen reader, a printout and a forced-colors
+        rendering all still get.
+      */}
+      {geometry.projection ? (
+        <p className="dh-linechart__projection-note">
+          <span className="dh-linechart__projection-key" aria-hidden="true" />
+          {geometry.projection.label}
         </p>
       ) : null}
       <figcaption className="dh-linechart__summary">

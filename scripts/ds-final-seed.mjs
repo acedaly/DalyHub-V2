@@ -277,6 +277,35 @@ const GOALS = [
     targetDate: cal(300),
     dod: "Forty thousand dollars held in the offset account.",
   },
+  /*
+   * REDESIGN-04 — a goal with exactly ONE reading. The measurement panel's
+   * honesty rule ("one reading is not a trend") has to be visible in the
+   * fixture, or the surface that states it can never be reviewed.
+   */
+  {
+    suffix: "goal-sleep",
+    title: "Sleep seven hours a night",
+    area: "area-health",
+    unit: "h",
+    direction: "increase",
+    baseline: 5.9,
+    target: 7,
+    readings: [[-4, 6.1]],
+    targetDate: cal(90),
+    dod: "A fortnight averaging seven hours or more.",
+  },
+  /*
+   * REDESIGN-04 — a goal with NO measurement configuration at all, so the
+   * "invitation instead of a fabricated 0%" path is a real row on the screen.
+   */
+  {
+    suffix: "goal-mentor",
+    title: "Mentor two junior engineers",
+    area: "area-work",
+    unmeasured: true,
+    targetDate: null,
+    dod: "Two people meeting fortnightly, with their own goals written down.",
+  },
   {
     suffix: "goal-spanish",
     title: "Hold a conversation in Spanish",
@@ -301,9 +330,11 @@ for (const goal of GOALS) {
 
   // The controlled enum is `app/kernel/goals/goal-measurement.ts`; an
   // unrecognised value degrades to "not measured", which is silent.
-  const measured = goal.milestones
-    ? "milestone"
-    : (goal.type ?? "target_value");
+  const measured = goal.unmeasured
+    ? null
+    : goal.milestones
+      ? "milestone"
+      : (goal.type ?? "target_value");
   statements.push(
     `INSERT INTO goal_details
        (workspace_id, entity_id, entity_type, target_date, definition_of_done,
@@ -425,6 +456,33 @@ const PROJECTS = [
     overdue: 0,
     completed: true,
   },
+  /*
+   * REDESIGN-04 — two ARCHIVED projects, so the collection's "N active · N
+   * archived" count line and the Archived lifecycle tab are exercised against
+   * real rows rather than an empty segment.
+   */
+  {
+    suffix: "proj-archive-crm",
+    title: "CRM migration",
+    area: "area-work",
+    status: "on_hold",
+    icon: "document",
+    done: 7,
+    open: 2,
+    overdue: 0,
+    archived: true,
+  },
+  {
+    suffix: "proj-archive-loft",
+    title: "Loft insulation",
+    area: "area-home",
+    status: "planned",
+    icon: "property",
+    done: 3,
+    open: 1,
+    overdue: 0,
+    archived: true,
+  },
 ];
 
 let taskSeq = 0;
@@ -489,8 +547,8 @@ for (const project of PROJECTS) {
   }
   statements.push(
     `INSERT INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, icon_key, updated_at)
-     VALUES (${q(WORKSPACE)}, ${q(id)}, 'project', ${q(project.status)}, NULL, ${q(project.icon)}, ${q(STAMP)})
-     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET status = excluded.status, icon_key = excluded.icon_key, updated_at = excluded.updated_at;`,
+     VALUES (${q(WORKSPACE)}, ${q(id)}, 'project', ${q(project.status)}, ${q(project.archived ? at(-30, 10) : null)}, ${q(project.icon)}, ${q(STAMP)})
+     ON CONFLICT (workspace_id, entity_id) DO UPDATE SET status = excluded.status, archived_at = excluded.archived_at, icon_key = excluded.icon_key, updated_at = excluded.updated_at;`,
   );
 
   /* Completed tasks, spread across the last fortnight so a trend has a shape. */
@@ -644,5 +702,5 @@ for (let i = 0; i < statements.length; i += 120) {
   );
 }
 process.stdout.write(
-  `DS-final design fixture seeded: ${GOALS.length} measurable Goals, ${PROJECTS.length} Projects, ${taskSeq} Tasks, ${MEETINGS.length} Meetings, ${DIARY.length} Diary entries.\n`,
+  `DS-final design fixture seeded: ${GOALS.length} Goals (${GOALS.filter((g) => !g.unmeasured).length} measurable), ${PROJECTS.length} Projects (${PROJECTS.filter((p) => p.archived).length} archived), ${taskSeq} Tasks, ${MEETINGS.length} Meetings, ${DIARY.length} Diary entries.\n`,
 );

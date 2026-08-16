@@ -15,6 +15,7 @@
 
 import type {
   ListProjectsInput,
+  ProjectLifecycleCounts,
   ProjectListPage,
   ProjectOverview,
   ProjectSearchHit,
@@ -30,6 +31,13 @@ export interface ProjectRepository {
    * never an unbounded "load everything".
    */
   listProjects(input?: ListProjectsInput): Promise<ProjectListPage>;
+
+  /**
+   * REDESIGN-04 — the workspace's project counts by lifecycle bucket, in ONE
+   * grouped statement. Serves the collection's "8 active · 2 archived" count
+   * line, which describes the workspace rather than the loaded page.
+   */
+  countProjectsByLifecycle(): Promise<ProjectLifecycleCounts>;
 
   /** Search active, non-archived Projects by title with Area/Goal context. */
   searchProjects(

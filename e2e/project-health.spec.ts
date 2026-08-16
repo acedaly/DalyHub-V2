@@ -48,18 +48,23 @@ test.describe("PROJ-02 — Project health", () => {
     const atRisk = page
       .getByRole("listitem")
       .filter({ hasText: "Conference talk" });
-    const atRiskLine = atRisk.locator(".dh-pcard__attention");
+    /*
+     * REDESIGN-04 §5.6 — the visible line is now the reference's meta line
+     * ("14 tasks · 4 due this week"); the health STATE is the dot's tone and
+     * the evaluator's own full sentence, which rides along for assistive tech.
+     * Asserting the sentence is a stronger check than the compact wording it
+     * replaces: the compact form was derived, the sentence is the evaluator's.
+     */
+    const atRiskLine = atRisk.locator(".dh-pcard__meta");
     await expect(atRiskLine).toHaveCount(1);
-    await expect(atRiskLine).toContainText(/\d+ overdue/);
-    // The evaluator's own sentence rides along for a screen reader, so nothing
-    // is lost by the compact wording. It is deliberately not VISIBLE.
+    await expect(atRiskLine).toHaveAttribute("data-tone", "danger");
     await expect(atRiskLine).toContainText(/past (its|their) due date/);
 
     const blocked = page
       .getByRole("listitem")
       .filter({ hasText: "Office move" });
-    await expect(blocked.locator(".dh-pcard__attention")).toContainText(
-      "All open work waiting",
+    await expect(blocked.locator(".dh-pcard__meta")).toContainText(
+      /waiting on something else/,
     );
 
     /*
@@ -75,18 +80,21 @@ test.describe("PROJ-02 — Project health", () => {
     const onTrack = page
       .getByRole("listitem")
       .filter({ hasText: "Team offsite" });
-    await expect(onTrack.locator(".dh-pcard__attention")).toContainText(
-      "On track",
+    // The evaluator's own sentence for THIS fixture — a Project whose tasks are
+    // all done. Asserting what the evaluator actually says, rather than a
+    // sentence chosen to match, is the point of moving to the accessible text.
+    await expect(onTrack.locator(".dh-pcard__meta")).toContainText(
+      /All tasks complete/,
     );
     // …and still exactly one treatment, with no filled chip anywhere on it.
-    await expect(onTrack.locator(".dh-pcard__attention")).toHaveCount(1);
+    await expect(onTrack.locator(".dh-pcard__meta")).toHaveCount(1);
     await expect(onTrack.locator(".dh-pill")).toHaveCount(0);
 
     const stale = page
       .getByRole("listitem")
       .filter({ hasText: "Old archive tidy" });
-    await expect(stale.locator(".dh-pcard__attention")).toContainText(
-      "No recent activity",
+    await expect(stale.locator(".dh-pcard__meta")).toContainText(
+      /No progress in \d+ days/,
     );
 
     // Health is never conveyed by colour alone: the line carries a data-tone
@@ -180,7 +188,7 @@ test.describe("PROJ-02 — Project health", () => {
     // Every card still carries exactly one status treatment after paging —
     // health rides along on each appended item, and never adds a second one.
     for (const card of await page.getByRole("article").all()) {
-      expect(await card.locator(".dh-pcard__attention").count()).toBe(1);
+      expect(await card.locator(".dh-pcard__meta").count()).toBe(1);
       expect(await card.locator(".dh-pill").count()).toBe(0);
     }
   });

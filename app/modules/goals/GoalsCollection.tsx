@@ -30,21 +30,25 @@
  * same collection would make the lifecycle filter feel like a different page.
  */
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useNavigate } from "react-router";
 
-import {
-  EntityCard,
-  EntityCardGrid,
-  GoalCard,
-  type GoalCardTone,
-} from "~/shared/card";
-import { Sparkline } from "~/shared/charts";
+import { EntityCard, EntityCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   collectionCountLabel,
   useCollectionLoading,
 } from "~/shared/collection-layout";
+import {
+  DrawerProvider,
+  DrawerTrigger,
+  useDrawer,
+  type DrawerEntry,
+  type DrawerRenderResult,
+} from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
+import type { SelectOption } from "~/shared/forms/types";
+import { NewGoalForm } from "~/shared/goal-creation/NewGoalForm";
 import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
@@ -55,28 +59,23 @@ import {
   ViewTabs,
 } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
-import {
-  alignmentReasonText,
-  type AlignmentTone,
-  type GoalAlignment,
-} from "~/shared/alignment";
+import type { GoalAlignment } from "~/shared/alignment";
 import {
   GOAL_COLLECTION_VIEWS,
   GOAL_COLLECTION_VIEW_LABELS,
-  formatMeasurementValue,
-  goalAbsenceNote,
-  goalJourneyLabel,
   goalMatchesCollectionView,
-  goalOverTargetLabel,
-  goalProgressStatusLabel,
-  goalProgressStatusTone,
-  goalProgressSummaryText,
-  goalRemainingLabel,
   type GoalCollectionView,
   type GoalProgressEvaluation,
 } from "~/shared/goal-progress";
 
-import { goalContributionProgress, isGoalComplete } from "./goal-view";
+import { isGoalComplete } from "./goal-view";
+import {
+  GoalWorkspaceLayout,
+  GoalWorkspaceList,
+  GoalWorkspaceTabs,
+} from "./GoalWorkspace";
+import { GoalWorkspacePane } from "./GoalWorkspacePane";
+import type { GoalWorkspaceDetail } from "./goal-workspace-load";
 import type {
   SerializedGoalListItem,
   SerializedGoalProjectContribution,
@@ -141,6 +140,25 @@ export interface GoalsCollectionViewProps {
   readonly goals: readonly SerializedGoalWithAlignment[];
   readonly deletedGoals?: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
+  /**
+   * REDESIGN-04 — the selected Goal's detail, for the workspace's right pane.
+   * `null` when nothing is selected, when the workspace is empty, or when the
+   * one detail read failed — the list stays perfectly usable in all three.
+   */
+  readonly selected?: GoalWorkspaceDetail | null;
+  /** The RESOLVED selection, so a row is highlighted only if its pane loaded. */
+  readonly selectedId?: string | null;
+  /**
+   * §7 — true when the URL genuinely named a Goal, false when the workspace
+   * merely opened on its first. The phone shows the LIST unless a Goal was
+   * asked for; see `goals.css`.
+   */
+  readonly selectionExplicit?: boolean;
+  /** §5.1 — the Areas the `+ Add goal` flow chooses from. */
+  readonly areaOptions?: readonly SelectOption[];
+  readonly areaOptionsFailed?: boolean;
+  readonly todayIso?: string | null;
+  readonly timeZone?: string | null;
   readonly state?: GoalCollectionState;
   /** UIX-03 — the status view (`?view=`), narrowing the loaded Goals. */
   readonly view?: GoalCollectionView;
@@ -163,18 +181,109 @@ export function GoalsCollectionView({
   goals,
   deletedGoals = [],
   nextCursor,
+  selected = null,
+  selectedId = null,
+  selectionExplicit = false,
+  areaOptions = [],
+  areaOptionsFailed = false,
+  todayIso = null,
   state = "active",
   view = "all",
   failed,
 }: GoalsCollectionViewProps) {
+  /*
+   * REDESIGN-04 §5.1 — the creation flow the reference's `+ Add goal` opens.
+   *
+   * A Drawer over the workspace, hosting the SAME `NewGoalForm` the Area record
+   * uses, posting the SAME body to the SAME trusted `/goals/new` endpoint. The
+   * only difference is that this door makes the Area a required field instead
+   * of already knowing it, because a Goal without an Area home is not a thing
+   * the model has. No second creation system, and no kernel change.
+   */
+  const renderDrawer = useMemo(() => {
+    return function render(entry: DrawerEntry): DrawerRenderResult | null {
+      if (entry.key !== NEW_GOAL_KEY) return null;
+      return {
+        title: "New Goal",
+        description: "Create a Goal in one of your Areas.",
+        children: (
+          <NewGoalFormHost
+            areaOptions={areaOptions}
+            areaOptionsFailed={areaOptionsFailed}
+          />
+        ),
+      };
+    };
+  }, [areaOptions, areaOptionsFailed]);
+
   return (
-    <GoalsCollection
-      goals={goals}
-      deletedGoals={deletedGoals}
-      nextCursor={nextCursor}
-      state={state}
-      view={view}
-      failed={failed}
+    <DrawerProvider renderDrawer={renderDrawer}>
+      <GoalsCollection
+        goals={goals}
+        deletedGoals={deletedGoals}
+        nextCursor={nextCursor}
+        selected={selected}
+        selectedId={selectedId}
+        selectionExplicit={selectionExplicit}
+        todayIso={todayIso}
+        state={state}
+        view={view}
+        failed={failed}
+      />
+    </DrawerProvider>
+  );
+}
+
+/** The drawer key hosting the create form. */
+const NEW_GOAL_KEY = "new-goal";
+
+/** The create-form host: closes the Drawer and opens the new Goal's pane. */
+function NewGoalFormHost({
+  areaOptions,
+  areaOptionsFailed,
+}: {
+  readonly areaOptions: readonly SelectOption[];
+  readonly areaOptionsFailed: boolean;
+}) {
+  const navigate = useNavigate();
+  const { closeDrawer } = useDrawer();
+
+  if (areaOptionsFailed) {
+    return (
+      <EmptyState
+        title="We couldn’t load your Areas"
+        description="A Goal lives in an Area, so creating one needs the list. Please try again."
+      />
+    );
+  }
+  if (areaOptions.length === 0) {
+    /*
+     * The one state where creation genuinely cannot proceed, said plainly and
+     * with the way forward — never a form whose required field has no options.
+     */
+    return (
+      <EmptyState
+        title="Create an Area first"
+        description="Every Goal lives in an Area of your life, and this workspace has none yet."
+        primaryAction={
+          <a className="dh-btn dh-btn--primary" href="/areas">
+            Go to Areas
+          </a>
+        }
+      />
+    );
+  }
+  return (
+    <NewGoalForm
+      areaOptions={areaOptions}
+      onCreated={(goalId) => {
+        closeDrawer();
+        // Straight to the new Goal's pane in the workspace the owner is
+        // already looking at — not to a record they then have to come back
+        // from.
+        navigate(`/goals?goal=${encodeURIComponent(goalId)}`);
+      }}
+      onCancel={closeDrawer}
     />
   );
 }
@@ -290,238 +399,27 @@ function useRestoreGoal() {
   return useCollectionRestore({ post });
 }
 
-/**
- * Alignment's own tone vocabulary, mapped onto the card's.
+/*
+ * REDESIGN-04 — `GoalEntityCard`, `goalCardFacts`, `alignmentPillTone` and the
+ * shared `GoalCard` they rendered are GONE.
  *
- * `AlignmentTone` is deliberately narrower than the card's — it excludes
- * `warning` and `danger`, because a Goal receiving no recent attention is not a
- * missed deadline (ADR-040 §40.5). The map is written out rather than cast so
- * that narrowing stays visible here: the card CAN paint a warning, and
- * alignment must never ask it to.
+ * `mockup3.png` replaced the Goals gallery with a master–detail, and the card
+ * had no second caller: every rule it held now lives somewhere that is still on
+ * screen, and none of them was dropped.
+ *
+ *   - the READING, the journey and the bar → the workspace row's value and bar
+ *     (`ProgressRow`), and the pane's stat trio;
+ *   - "no bar, and no zero, for a Goal nothing advances" → `goalRowValue`
+ *     returns `null` and the row draws no track;
+ *   - the alignment state a MEASURED Goal deliberately did not show → still not
+ *     shown as a measure; it is the pane's quiet indicator and the row's
+ *     accessible name;
+ *   - the sparkline → the pane's full chart (see `GoalWorkspace`).
+ *
+ * Removing it here rather than leaving it unreferenced is §13: a card family
+ * with no caller is sediment, and the next reader cannot tell a dead component
+ * from a dormant one.
  */
-function alignmentPillTone(tone: AlignmentTone): GoalCardTone {
-  switch (tone) {
-    case "success":
-      return "success";
-    case "info":
-      return "info";
-    default:
-      return "neutral";
-  }
-}
-
-/**
- * One Goal card — UIX-03.
- *
- * The M3X-02 card led with a percentage and a bar, because that was the only
- * measure a Goal had. GOAL-02 gave Goals a real one, and this card is built
- * around it: the READING is the card's largest element, the journey that makes
- * it checkable sits under it, and the percentage is demoted to a small figure on
- * a thin bar. A Goal is an outcome, and the card now looks like one — which is
- * also what stops the Goals gallery reading as a second Projects gallery.
- *
- * ── What each Goal shows, and why it differs ────────────────────────────────
- *
- * A MEASURED Goal states its reading, its journey, its bar, its status, what
- * remains and its target date. A Goal with a history also gets a sparkline —
- * one visual, never two, and never a flat line drawn from a single point.
- *
- * An UNMEASURED Goal states the absence in words and gets NO bar. Its story is
- * the WORK underneath it, so it keeps what this collection was built for
- * (ADR-040 — the intention-to-action gap): the alignment state is its one state
- * word, and its facts carry the Project contribution and, when there is no
- * contribution to state, alignment's own reason.
- *
- * A MEASURED Goal does not show alignment, and that is the one thing UIX-03
- * takes away. Its measurement status ("On track") and its alignment
- * ("Recently active") are two different state words about two different
- * subjects — the outcome and the work — and a card carrying both makes the
- * reader decide which one answers "how is this going?". The measurement is the
- * Goal's own answer, so it wins; the record still explains alignment in full.
- *
- * Identity is the AREA's, resolved server-side (`SerializedGoalArea`) and
- * applied once — the mark, the tint behind the reading, the bar and the
- * sparkline all take the same rank. Before UIX-03 every Goal in the gallery drew
- * the same neutral grey flag.
- */
-function GoalEntityCard({
-  goal,
-}: {
-  readonly goal: SerializedGoalWithAlignment;
-}) {
-  const complete = isGoalComplete(goal);
-  const contribution = goalContributionProgress(goal.contribution);
-  const { progress } = goal;
-  const measured = progress.measured && progress.current !== null;
-  const absence = goalAbsenceNote(progress);
-
-  /*
-   * The reading. A milestone Goal counts stages ("2 of 5"), everything else
-   * states its value in its own unit — the two are different sentences and
-   * flattening them into one would make "2" read as a weight.
-   */
-  const value = measured
-    ? progress.type === "milestone"
-      ? `${progress.current} of ${progress.target ?? 0}`
-      : formatMeasurementValue(progress.current, progress.unit)
-    : null;
-
-  /*
-   * The state line's trailing facts, in the order a chooser needs them: how far
-   * is left, then by when. `goalOverTargetLabel` replaces the remainder once the
-   * target is passed, because "0 kg to go" is a worse sentence than "113% of
-   * target" and only one of the two is news.
-   */
-  const facts: string[] = [];
-  const over = goalOverTargetLabel(progress);
-  const remaining = goalRemainingLabel(progress);
-  if (over) {
-    facts.push(over);
-  } else if (remaining) {
-    facts.push(remaining);
-  }
-  if (progress.targetDate && !complete) {
-    const formatted = formatCalendarDate(progress.targetDate);
-    if (formatted) facts.push(`by ${formatted}`);
-  }
-  /*
-   * An unmeasured Goal has no reading to qualify, so its facts are the WORK
-   * beneath it. The alignment reason joins them only when there is no
-   * contribution to state — with "2 of 3 Projects complete" on the card,
-   * "Projects exist, but no recent Task activity was found" is a second
-   * sentence about the same subject; without it, it is the whole story.
-   */
-  if (!measured) {
-    if (contribution.has) {
-      facts.push(contribution.summary);
-    } else {
-      for (const reason of goal.alignment.reasons) {
-        facts.push(alignmentReasonText(reason));
-      }
-    }
-  }
-
-  /*
-   * The sparkline, and ONLY when the history genuinely supports one. Two
-   * readings is the floor: one point has no direction, and drawing a flat line
-   * through it would assert the Goal is steady when nobody has said so.
-   */
-  const sparkPoints = (goal.series ?? []).map((point) => ({
-    key: `${goal.id}-${point.measuredOn}-${point.value}`,
-    date: point.measuredOn,
-    value: point.value,
-  }));
-
-  return (
-    <GoalCard
-      data-testid="goal-card"
-      icon={
-        <AccentIcon
-          entityType="goal"
-          iconKey={goal.area.iconKey}
-          colourRank={goal.area.colourRank}
-          size="lg"
-        />
-      }
-      title={goal.title}
-      headingLevel={2}
-      context={goal.area.title}
-      accent={goal.area.colourRank}
-      metric={
-        value === null
-          ? undefined
-          : { value, caption: goalJourneyLabel(progress) }
-      }
-      note={value === null ? absence : null}
-      /*
-       * A qualitative Goal's definition of done is its content, and without it
-       * the card is the words "Not measured" in an otherwise empty box. It is
-       * only ever shown when there is no reading — a measured Goal's card is
-       * about the measurement.
-       */
-      noteDetail={value === null ? goal.definitionOfDone : null}
-      visual={
-        sparkPoints.length >= 2 ? (
-          <Sparkline points={sparkPoints} direction={progress.direction} />
-        ) : undefined
-      }
-      /*
-       * The bar. A measured Goal's own percentage when it has one; otherwise
-       * the Project contribution, which is real bounded data with a real
-       * denominator and is the only measure an unmeasured Goal has (M3X-02).
-       *
-       * Never both — two bars on one card would be two answers to "how far
-       * along?" — and never a contribution bar on a MEASURED Goal, where the
-       * outcome's own percentage is the better answer to the same question.
-       * A Goal with neither gets no bar at all rather than an empty track at 0%.
-       */
-      progress={
-        progress.progressPercent === null
-          ? contribution.has
-            ? {
-                percent: contribution.percent,
-                valueText: `${contribution.percent}% — ${contribution.summary}`,
-                /*
-                 * No figure beside this bar. It measures the WORK, not the
-                 * outcome, and the card has already said "Not measured" where
-                 * the reading would be — a bare "0%" next to those two words
-                 * reads as "this Goal is nought per cent done", which is
-                 * exactly the claim the note is there to refuse. The fact line
-                 * states "0 of 1 Project complete", which labels the bar
-                 * honestly and says whose percentage it is.
-                 */
-                label: null,
-              }
-            : undefined
-          : {
-              percent: progress.progressPercent,
-              // The SAME sentence the record's own bar announces, so one Goal
-              // has one wording everywhere.
-              valueText: goalProgressSummaryText(progress),
-              /*
-               * A MANUAL Goal's reading is the percentage itself, so the figure
-               * beside the bar would be the same number the card already prints
-               * at display size. One card, one statement of one number.
-               */
-              label: progress.type === "manual" ? null : undefined,
-            }
-      }
-      /*
-       * ONE state word. A completed Goal says "Completed" — the spine's
-       * explicit truth, which outranks whatever the last reading implied — and
-       * everything else says what the evaluator concluded.
-       */
-      state={
-        complete
-          ? { label: "Completed", tone: "success" }
-          : progress.measured
-            ? {
-                label: goalProgressStatusLabel(progress.status),
-                tone: goalProgressStatusTone(progress.status),
-              }
-            : // The unmeasured Goal's one state word is its alignment — the
-              // question this collection was built to answer for exactly the
-              // Goals that cannot answer it with a number.
-              {
-                label: goal.alignment.label,
-                tone: alignmentPillTone(goal.alignment.tone),
-              }
-      }
-      facts={facts}
-      /*
-       * A completed Goal is NOT muted.
-       *
-       * Muting is the treatment for archived and deleted records — things
-       * withdrawn from view. A Goal the owner actually achieved is the best news
-       * on the page, and greying it out is the opposite of the "readable and
-       * dignified" completion the brief asks for. The "Completed" state word and
-       * the full bar carry it.
-       */
-      href={`/goals/${encodeURIComponent(goal.id)}`}
-      openAriaLabel={`Open ${goal.title}`}
-    />
-  );
-}
 
 /** UX-01 — the ONE shared keyset paginator (DEBT-45). */
 function useGoalPagination(
@@ -605,6 +503,10 @@ function GoalsCollection({
   goals,
   deletedGoals,
   nextCursor,
+  selected,
+  selectedId,
+  selectionExplicit,
+  todayIso,
   state,
   view,
   failed,
@@ -612,6 +514,10 @@ function GoalsCollection({
   readonly goals: readonly SerializedGoalWithAlignment[];
   readonly deletedGoals: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
+  readonly selected: GoalWorkspaceDetail | null;
+  readonly selectedId: string | null;
+  readonly selectionExplicit: boolean;
+  readonly todayIso: string | null;
   readonly state: GoalCollectionState;
   readonly view: GoalCollectionView;
   readonly failed: boolean;
@@ -801,14 +707,24 @@ function GoalsCollection({
       }
       isEmpty={!failed && count === 0}
       emptySlot={
+        /*
+         * REDESIGN-04 §5.1 — the empty state now CREATES rather than
+         * redirecting. It used to send the owner to Areas to find the creation
+         * control, which is a dead end dressed as a suggestion; the same flow
+         * that runs from `+ Add goal` runs from here, and it still requires
+         * choosing an Area, so nothing about the model changed.
+         */
         <EmptyState
           icon={<EntityIcon type="goal" />}
           title={emptyCollectionTitle("goal")}
-          description="Goals are the aspirational outcomes you pursue under an Area. Open an Area to add one."
+          description="Goals are the aspirational outcomes you pursue under an Area. Every Goal lives in one, so creating a Goal starts by choosing its Area."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/areas">
-              Browse Areas
-            </a>
+            <DrawerTrigger
+              drawerKey={NEW_GOAL_KEY}
+              className="dh-btn dh-btn--primary"
+            >
+              Add goal
+            </DrawerTrigger>
           }
         />
       }
@@ -852,20 +768,65 @@ function GoalsCollection({
           }
         />
       ) : (
-        <EntityCardGrid label="Goals">
-          {visible.map((goal) => (
-            <GoalEntityCard key={goal.id} goal={goal} />
-          ))}
-        </EntityCardGrid>
-      )}
-      {!failed && hasMore ? (
-        <LoadMore
-          loading={loading}
-          loadFailed={loadFailed}
-          onLoadMore={loadMore}
-          label="Load more Goals"
+        /*
+         * REDESIGN-04 §2.2 — the master–detail workspace.
+         *
+         * The gallery of Goal cards is gone, and what replaced it carries more
+         * rather than less: the same identity, the same progress bar and the
+         * same honest value now sit on a ROW, and the space the cards were
+         * spending on nine copies of the same anatomy pays for the selected
+         * Goal's whole Overview beside them. Alignment survives as the quiet
+         * state on the row and on the pane (§6.2); the sparkline does not —
+         * see the note on `GoalWorkspaceList`.
+         */
+        <GoalWorkspaceLayout
+          selectionExplicit={selectionExplicit}
+          list={
+            <GoalWorkspaceList
+              goals={visible}
+              selectedId={selectedId}
+              hasMore={hasMore}
+              loading={loading}
+              loadFailed={loadFailed}
+              onLoadMore={loadMore}
+              failed={failed}
+            />
+          }
+          detail={
+            selected && todayIso ? (
+              <GoalWorkspacePane
+                detail={selected}
+                todayIso={todayIso}
+                alignment={
+                  visible.find((goal) => goal.id === selectedId)?.alignment ??
+                  selected.alignment
+                }
+                areaColourRank={
+                  visible.find((goal) => goal.id === selectedId)?.area
+                    .colourRank ?? null
+                }
+                areaIconKey={
+                  visible.find((goal) => goal.id === selectedId)?.area
+                    .iconKey ?? null
+                }
+                tabs={<GoalWorkspaceTabs goalId={selected.overview.id} />}
+              />
+            ) : (
+              /*
+               * A pane with nothing selected is a designed state, not a hole:
+               * it happens when a `?goal=` names a record that is gone, and
+               * when the one detail read failed. Either way the list beside it
+               * still works, and the sentence says what to do.
+               */
+              <EmptyState
+                icon={<EntityIcon type="goal" />}
+                title="Select a Goal"
+                description="Choose a Goal from the list to see its progress, its measurements and the Projects advancing it."
+              />
+            )
+          }
         />
-      ) : null}
+      )}
     </CollectionLayout>
   );
 }

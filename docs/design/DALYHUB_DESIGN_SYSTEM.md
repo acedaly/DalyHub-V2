@@ -182,7 +182,7 @@ specification does not, because the specification's answer was worse *here*.
 | D41 | **A flat list is drawn on a WHITE workspace; a card dashboard keeps the sunken one** (DS-04) | Both concept references make the distinction explicitly. A hairline-separated list on a tinted ground has neither the cards' separation nor the white page's calm — it reads as "cards, without the cards" |
 | D42 | **A record DRAWER is a raised neutral surface, never a tinted one** (DS-04) | `surface-container-low` is a generated tonal step that resolves to a lavender wash in the violet scheme, so every record in the product opened onto a purple panel — which is exactly what reserving the accent for action, selection and focus exists to prevent. The elevation and the radius already say the panel floats |
 | D43 | **An affordance may be invisible until hover; it may never be smaller than 24×24** (DS-04) | Learned expensively: making the row's inline triggers read as plain text produced 16×18px targets on four adjacent editors — `target-size` serious under WCAG 2.2, on every task, invisible to the eye and caught by the axe pass. Quiet is a property of the PAINT |
-| D44 | **ONE card boundary for the whole product: a hairline, a 12px corner, no shadow** (DS-05) | Amends D1. Measured on the whole-app baseline: the record families (`.dh-pcard`, `.dh-gcard`, `.dh-acard`, `.dh-ecard`) still painted a shadow, no border and a 16px corner while `.dh-dcard` had moved to a hairline and 12px in DS-02 — so a gallery read as a different product from the panel beside it. Both concepts draw one card. Hover is a border change rather than a lift, so the grid never moves |
+| D44 | **ONE card boundary for the whole product: a hairline, a 12px corner, no shadow** (DS-05) | Amends D1. Measured on the whole-app baseline: the record families (`.dh-pcard`, `.dh-acard`, `.dh-ecard`) still painted a shadow, no border and a 16px corner while `.dh-dcard` had moved to a hairline and 12px in DS-02 — so a gallery read as a different product from the panel beside it. Both concepts draw one card. Hover is a border change rather than a lift, so the grid never moves |
 | D45 | **A Goal's reading is TEXT ON THE CARD; identity is drawn at the mark and the bar, never as a field** (DS-05) | The tinted reading block was the Goal card's signature from UIX-01 and the largest, loudest object on it — ~110px of saturated mint, peach or pale blue, on every card, so a gallery of ten read as a colour swatch page. The same wash was on Today's goal tiles. A hue at 40px (the mark) and 6px (the fill) is a signal; a hue at 110px is a field |
 | D46 | **A SELECTION is a tint, never a tonal slab — including in Settings** (DS-08) | `secondary-container` at full strength filled 70px rows in the appearance list, the colour-scheme list, the settings section nav, the notes rail and the Diary type rail. `--dh-color-surface-selected` is what the navigation rail and every menu already paint, and the tint version keeps every non-colour signal (a real radio, a check glyph, `aria-current`, a weight step, an accent edge). It also removes a contrast trap: `on-secondary-container` clears 4.5:1 against its own container exactly, so any transparency over it fails |
 | D47 | **A collection's COUNT sits beside its title; its create action is `+ New <thing>` in sentence case** (DS-08) | Both were established by DS-04 for Tasks alone, and the whole-app baseline found one collection header in the product and seven of another. The count moved from `.dh-collection--tasks` to `.dh-pane-header--compact`, which is the collection band itself. The record band (`--identity`) is untouched: a record's supporting line is a sentence, and a sentence belongs under the title |
@@ -218,14 +218,27 @@ Three rules hold across both:
 
 ## 5b. The record surface families — six, and none a variant of another
 
-Completed in UIX-05. The product's collections are read by SHAPE before a word of
+Completed in UIX-05; **amended by REDESIGN-04**, which moved a Goal off a gallery
+card and onto a measured ROW (`.dh-mrow`) when `mockup3.png` replaced the Goals
+gallery with a master–detail. `.dh-gcard` was deleted with it. The families are
+still six and still none a variant of another; what changed is which shape a Goal
+takes, and the reason is rule 3 below applied honestly: a Goal's comparable facts
+are a name, a bar and one value, and a row carries those better than a card while
+leaving the freed width to the selected Goal's whole Overview.
+
+The measured row is **shared, not Goal-specific** — the Projects page's compact
+Goals section renders the same component — and it is the one row family that
+carries **selection** as a first-class state (`aria-current`, a tint and an
+accent rail; never a tone alone), because it is the master half of a
+master–detail.
+ The product's collections are read by SHAPE before a word of
 them is read, so two records that answer different questions are drawn as
 different objects. The test is §41's: distinguishable with the labels hidden.
 
 | | Leads with | Its measure | Colour carries | Surface |
 | --- | --- | --- | --- | --- |
-| **Project** `.dh-pcard` | mark, then the measure | a proportion — 8px bar + % | the Area's identity | gallery card, bottom-heavy |
-| **Goal** `.dh-gcard` | mark, then the reading | a reading and its shape | the Area's identity | gallery card, middle-heavy |
+| **Project** `.dh-pcard` | mark, then the measure | a proportion — a bar + % | the record's identity | gallery card, bottom-heavy |
+| **Goal** `.dh-mrow` | mark, then the name | the Goal's OWN value at the line's end | the Area's identity | one row list, selectable |
 | **Area** `.dh-erow` | mark, then relationships | **none** — an Area never completes | its own identity | one row list |
 | **Person** `.dh-prow` | a **face** (D26) | **none** — a rhythm, in words | the circle's identity | one row list, four columns |
 | **Asset** `.dh-acard` | a type **glyph** | **time** to the next commitment | the commitment's **state** (D27) | gallery card, bottom-heavy |
@@ -240,9 +253,13 @@ Three rules hold across all six:
    for a Goal with no target, no circle for a Person with no relationship
    recorded, "Nothing scheduled" for an Asset with no commitment — each stated
    once, in the space the figure would have taken.
-3. **A gallery is for records with enough to fill one.** A Person and an Area have
-   four facts each, so both are rows; a Project, a Goal, an Asset and a Review each
-   carry a measure worth comparing across a grid, so all four are cards.
+3. **A gallery is for records with enough to fill one.** A Person, an Area and
+   (since REDESIGN-04) a Goal are rows; a Project, an Asset and a Review each carry
+   a measure worth comparing across a grid, so those three are cards. A Goal moved
+   because its card was spending a gallery cell on a reading, a journey line, a
+   sparkline and an alignment sentence — four ways of saying one thing — while the
+   question "which of these needs me?" is answered by a column of names, bars and
+   values that a row gives for a fifth of the height.
 
 ## 5c. People — the circle
 
@@ -623,7 +640,7 @@ on every device, not just a touch one.
   evaluation or capture. `Button`, `Input`, `Select`, `Checkbox`, `Badge`,
   `Menu`, `Popover`, `Dialog`, `Drawer`, `Sheet`, `Tabs`, `Tooltip`, `Card`.
 - A **product** component knows the domain and composes generic ones.
-  `TaskRow`, `ProjectCard`, `AreaRow`, `GoalCard`, `GoalProgress`,
+  `TaskRow`, `ProjectCard`, `AreaRow`, `ProgressRow`, `GoalProgress`,
   `TodayWidget`, `QuickCapture`, `RecordLayout`.
 - **A product rule may not live in a generic component.** `Pill` may take a
   tone; it may not know that overdue tasks are coral.

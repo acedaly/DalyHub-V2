@@ -2040,6 +2040,20 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** `ds-final-audit.mjs` reports zero target findings at 320 and 390, or D43 names each survivor.
 - **Related roadmap item.** DS-07 (the adaptive/density audit).
 
+### ☐ DEBT-137 — A Project has no description field, so its gallery card cannot say what it is — P2
+- **Current issue.** `mockup3.png` draws a two-line description on every Project card, and REDESIGN-04 §6.1 assumed one existed. It does not. The spine's `entities` table stores identity and lifecycle only (migration 0001); `project_details` stores workflow status, archival and an icon key (0008, 0032). There is no description column for Projects — nor for Areas. Goals have `definition_of_done`, which is the nearest equivalent in the product and belongs to Goals alone.
+- **Impact.** A Projects gallery is recognisable by mark and name and by nothing else. An owner with two similarly-named Projects, or one returning to work after a month, has to open a record to learn what it was for — which is the question a gallery card exists to answer without a click. `ProjectCard` carries the slot (`description`, clamped to two lines) and the gallery passes nothing, so the card renders an honest absence rather than placeholder prose.
+- **Desired future state.** A Project (and probably an Area) carries a short, optional description on its module-owned detail slice — the additive `project_details` / `area_details` precedent, not a spine change — editable inline on the record with the shared multiline field, and surfaced on the card and in search.
+- **Closing condition.** A Project's real description renders on its gallery card, clamped to two lines, absent where unset; `ProjectCard.description` has a caller; REDESIGN-04 §4.7 can be struck.
+- **Related roadmap item.** REDESIGN-04 (`docs/design/REDESIGN_04_SPINE_WORKSPACES_2026_08.md` §4.7).
+
+### ☐ DEBT-138 — The Projects table cannot be sorted, because the loader has no vocabulary for it — P3
+- **Current issue.** REDESIGN-04 §5.4 permits sorting in the new Table view "only if sorting already exists in the loader's vocabulary". `ListProjectsInput.orderBy` has exactly two values — `created` and `recent` — and neither corresponds to a column the table draws (Area, Progress, Tasks, Updated). A clickable header today would either sort the loaded page client-side, which is a lie about a keyset-paginated collection, or need new repository orderings, new cursor scopes and new indexes.
+- **Impact.** The table shows the collection's own order in both presentations. For a workspace with many Projects, "which is furthest behind?" still means reading rather than sorting.
+- **Desired future state.** `ProjectOrder` gains the orderings the columns imply, each with an index and a cursor scope, and the table's headers become the control for them.
+- **Closing condition.** A column header sorts the whole collection (not the loaded page), the cursor is bound to the ordering, and `e2e/spine-workspaces.spec.ts` proves a sort survives a "Load more".
+- **Related roadmap item.** REDESIGN-04 §4.4.
+
 ### ☐ DEBT-NN — <one-line title> — P<1|2|3>
 - **Current issue.** <what diverges today, with file references>
 - **Impact.** <what it costs the owner>

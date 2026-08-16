@@ -573,3 +573,240 @@
     position: static;
   }
 }
+
+/* ==========================================================================
+   REDESIGN-04 — the collection SEARCH field and the CONTROL ROW.
+
+   `mockup3.png` puts search in the header band beside the primary action, and
+   the lifecycle rail + presentation toggle on the band beneath it. Both live
+   here rather than in a module stylesheet, because both are the shared
+   composition every collection converges on (§10.5).
+   ========================================================================== */
+
+.dh-csearch {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  /*
+   * The reference draws a comfortable field, not a token one. It is capped
+   * rather than fixed so the header band can compress it before it starts
+   * pushing the primary action off the row.
+   */
+  inline-size: min(100%, 22rem);
+  flex: 1 1 14rem;
+}
+
+.dh-csearch__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+/*
+ * The phone TOGGLE is desktop-hidden.
+ *
+ * `display: none` rather than a visually-hidden class: at desktop widths the
+ * field beside it is permanent, so a second control for the same job would be
+ * a duplicate in the tab order and in the accessibility tree, not a hidden
+ * convenience.
+ */
+.dh-csearch__toggle {
+  display: none;
+}
+
+.dh-csearch__icon {
+  position: absolute;
+  inset-inline-start: var(--dh-space-3);
+  display: inline-flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-csearch__icon svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.dh-csearch__input {
+  inline-size: 100%;
+  /*
+   * From `--dh-control-height`, NOT from `--button-height-md`.
+   *
+   * REDESIGN-03 debt item 6 records that `.dh-btn` sizes from the latter and so
+   * renders 36px on a coarse pointer, below the touch floor. That defect is
+   * product-wide and is deliberately not fixed here — but §7 is explicit that
+   * no NEW control in this scope may inherit it, and this token is the one that
+   * `@media (pointer: coarse)` raises to 44px.
+   */
+  min-block-size: var(--dh-control-height);
+  padding-block: var(--dh-space-2);
+  padding-inline: calc(var(--dh-space-3) + 1.5rem) var(--dh-space-3);
+  font: inherit;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
+  transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-csearch__input::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-csearch__input:hover {
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-csearch__input:focus-visible {
+  border-color: var(--dh-color-accent);
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+/* The native affordance duplicates the Clear button beside it. */
+.dh-csearch__input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.dh-csearch__clear {
+  position: absolute;
+  inset-inline-end: var(--dh-space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The same touch floor as the field it sits in. */
+  inline-size: var(--dh-control-height);
+  block-size: var(--dh-control-height);
+  padding: 0;
+  color: var(--dh-color-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--dh-radius-control);
+  cursor: pointer;
+}
+
+.dh-csearch__clear svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.dh-csearch__clear:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-quiet);
+}
+
+.dh-csearch__clear:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+/* -- The control row ------------------------------------------------------- */
+
+.dh-controlrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-4);
+  /*
+   * The row is the whole band. `.dh-collection__filters` is a wrapping flex
+   * container, so without this the row shrink-wraps its two clusters and the
+   * "trailing" toggle lands wherever the rail happens to end — which is not the
+   * trailing edge the reference draws it at.
+   */
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.dh-controlrow__lead {
+  min-inline-size: 0;
+  /*
+   * §7 — at 390 the rail and the toggle stay on ONE row; it is the RAIL that
+   * scrolls, so the toggle is never pushed off the screen or onto a second
+   * band. `min-width: 0` is what lets the flex child actually shrink.
+   */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dh-controlrow__lead::-webkit-scrollbar {
+  display: none;
+}
+
+.dh-controlrow__trail {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+/*
+ * REDESIGN-04 — the phone composition, per `mockup3.png`'s handset frame.
+ *
+ * Below the `md` boundary search is an ICON beside the add button; tapping it
+ * reveals the field on its own row. Both nodes are always in the DOM and the
+ * swap is entirely CSS, so the first server byte is correct and there is no
+ * hydration mismatch — the same technique `CollectionLayout` uses for its
+ * desktop-filters/phone-sheet swap.
+ */
+@media (max-width: 48rem) {
+  .dh-csearch {
+    inline-size: auto;
+    flex: none;
+  }
+
+  .dh-csearch__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* The touch floor, from the token `(pointer: coarse)` raises to 44px. */
+    inline-size: var(--dh-control-height);
+    block-size: var(--dh-control-height);
+    padding: 0;
+    color: var(--dh-color-text-muted);
+    background: none;
+    border: 0;
+    border-radius: var(--dh-radius-control);
+    cursor: pointer;
+  }
+
+  .dh-csearch__toggle svg {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+  }
+
+  .dh-csearch__toggle:hover {
+    color: var(--dh-color-text);
+    background: var(--dh-color-surface-quiet);
+  }
+
+  .dh-csearch__toggle:focus-visible {
+    outline: var(--dh-focus-width) solid var(--dh-focus-color);
+    outline-offset: calc(-1 * var(--dh-focus-width));
+  }
+
+  .dh-csearch__field {
+    display: none;
+  }
+
+  /*
+   * Open: the toggle steps aside and the field takes the header's full width on
+   * its own row. `order` is not used — the grid position below is what moves
+   * it, so the DOM order and the reading order stay identical.
+   */
+  .dh-csearch[data-open="true"] .dh-csearch__toggle {
+    display: none;
+  }
+
+  .dh-csearch[data-open="true"] {
+    inline-size: 100%;
+  }
+
+  .dh-csearch[data-open="true"] .dh-csearch__field {
+    display: flex;
+  }
+}

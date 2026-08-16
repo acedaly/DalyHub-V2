@@ -1,7 +1,7 @@
 /**
  * UIX-05 — the ASSET gallery card.
  *
- * The fifth record surface, beside `.dh-pcard` (a Project), `.dh-gcard` (a Goal),
+ * The fifth record surface, beside `.dh-pcard` (a Project), `.dh-mrow` (a Goal),
  * `.dh-erow` (an Area) and `.dh-prow` (a Person). It exists because an Asset asks
  * a question none of those ask:
  *

@@ -11,6 +11,75 @@ Generated from `rg -l "md-sys|md-app|material|tonal|state-layer|elevation-[0-9]|
 - Non-UI app files: 12
 - Total matches: 170
 
+## Progress — REDESIGN-04, the Spine Workspaces (2026-08)
+
+This pass's effect on the inventory is mostly **subtraction by deletion**, which
+is the cleanest kind: `GoalCard` and its ~19,000 characters of `.dh-gcard` CSS
+were removed with the Goals gallery they existed for, taking their token
+references with them.
+
+Active `--md-sys-*` references in the touched stylesheets:
+
+| File | Before (REDESIGN-03 exit) | After |
+|---|---|---|
+| `app/styles/card-family.css` | 38 | **30** |
+| `app/styles/goals.css` | 2 | 2 |
+| `app/styles/projects.css` | 0 | 6 |
+| `app/styles/collection-layout.css` | 16 | 16 |
+| `app/styles/charts.css` | 21 | 21 |
+
+### The six new references in `projects.css`, and why they are not a regression
+
+They are the **six-slot identity ramp** — `--md-sys-color-area-accent-1…6` — on
+the Table view's progress fill. That ramp is the same one `.dh-pcard__fill` and
+`.dh-mrow__fill` already resolve, and it is one of the two families REDESIGN-03
+classified as *"generated DalyHub primitives that happen to be named
+`--md-sys-*`"* rather than as Material dependence: the values come from
+`DALYHUB_PRIMITIVES` in `scripts/generate-m3-scheme.mjs`, not from a Material
+palette, and `scheme:check` proves it. Pointing the table's fill at anything
+else would have given one Project two identity colours across two presentations
+of the same collection.
+
+**No new typescale, shape or motion reference was introduced anywhere.** Every
+new surface — the search field, the control row, the measured row, the table,
+the chips, the stat trio and the chart's projection — is authored entirely in
+`--dh-*` and `--app-*` roles, plus that one generated ramp.
+
+### The identity ramp stopped being a tonal container
+
+The largest MD3 reduction in this pass is not a token count — it is that the six
+identity slots no longer resolve through Material's custom-colour ladder at all.
+
+`area-accent-N-container` was tone 90 (a mid-saturation pastel) with an
+`on-container` at tone 10 (a near-black glyph): Material's identity chip,
+rendered nine times across a Projects gallery. It is now a near-white **tint**
+(tone 96 at capped chroma) carrying the **saturated hue** as its glyph, derived
+by `identityTones` in the generator rather than by `customTones`. The token names
+are unchanged, so every consumer is untouched; only the values moved.
+
+`Blend.harmonize` is also no longer applied to this ramp. That is what was
+turning the reference's red into a magenta and its orange into a red under the
+Daly Violet seed — and it makes the ramp's own stated promise ("an Area keeps the
+same identity colour whichever scheme is chosen") true for the first time.
+
+Six `-container` / `on-container` pairs therefore stop being tonal containers.
+That is REDESIGN-03 debt item 1 progress on the surfaces this pass owns, achieved
+by removing the mechanism rather than by re-skinning its output. See
+`REDESIGN_04_SPINE_WORKSPACES_2026_08.md` §10b.
+
+### Two REDESIGN-03 debt items honoured rather than propagated
+
+- **Tonal containers (debt item 1).** The linked-project chips are a genuine
+  new chip family, and they take the card family's **hairline boundary** rather
+  than a `secondary-container` fill. No new tonal-container badge exists.
+- **`--dh-color-bg-sunken` wells (debt item 5).** Every progress track added
+  here (`.dh-mrow__track`, `.dh-ptable__track`) uses `--dh-color-border`, so an
+  empty track reads as a rule rather than as a filled container. The existing
+  `.dh-pcard__track` still uses the sunken token; converting it belongs to the
+  same sweep as item 1.
+
+---
+
 ## Progress — REDESIGN-03, Today + Core Spine (2026-08)
 
 This pass reduced **active visual dependence** on the MD3 token layer across the

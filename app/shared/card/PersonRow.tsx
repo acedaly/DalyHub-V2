@@ -2,7 +2,7 @@
  * UIX-05 — the PERSON row.
  *
  * The fourth member of the record-surface family, beside `.dh-pcard` (a Project),
- * `.dh-gcard` (a Goal) and `.dh-erow` (an Area). It exists for the same reason
+ * `.dh-mrow` (a measured record) and `.dh-erow` (an Area). It exists for the same reason
  * those do: People had been rendering through the generic `Card`, so the surface
  * whose subject is a relationship answered the question a Project card asks.
  *

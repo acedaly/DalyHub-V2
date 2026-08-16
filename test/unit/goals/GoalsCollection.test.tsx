@@ -70,22 +70,6 @@ function goal(
   };
 }
 
-/** A contribution with `completed` of `total` Projects done. */
-function contribution(
-  completed: number,
-  total: number,
-): SerializedGoalWithAlignment["contribution"] {
-  return {
-    total,
-    completed,
-    incomplete: total - completed,
-    active: total - completed,
-    planned: 0,
-    onHold: 0,
-    archived: 0,
-  };
-}
-
 function renderCollection(
   goals: readonly SerializedGoalWithAlignment[],
   opts: {
@@ -93,6 +77,8 @@ function renderCollection(
     failed?: boolean;
     deletedGoals?: readonly SerializedDeletedGoalItem[];
     state?: "active" | "deleted";
+    /** REDESIGN-04 — the resolved master–detail selection. */
+    selectedId?: string | null;
   } = {},
 ) {
   const state = opts.state ?? "active";
@@ -105,6 +91,7 @@ function renderCollection(
             goals={goals}
             deletedGoals={opts.deletedGoals ?? []}
             nextCursor={opts.nextCursor ?? null}
+            selectedId={opts.selectedId ?? null}
             state={state}
             failed={opts.failed ?? false}
           />
@@ -127,35 +114,69 @@ function deletedGoal(id: string, title: string): SerializedDeletedGoalItem {
 }
 
 describe("Goals collection (the Alignment view)", () => {
-  it("renders a Goal card as a canonical link with its alignment state and Area context", () => {
+  it("renders a Goal ROW linking to the workspace, with its Area and its alignment in the accessible name", () => {
     renderCollection([goal({ title: "Run a half-marathon" })]);
 
-    const card = screen.getByRole("article", { name: /Run a half-marathon/ });
+    const row = screen.getByRole("article", { name: /Run a half-marathon/ });
+    /*
+     * REDESIGN-04 — selecting a Goal is a change of SELECTION, not of page, so
+     * the row links to the workspace URL rather than to the record. Back
+     * therefore leaves the workspace instead of walking every Goal glanced at.
+     */
     expect(
-      within(card).getByRole("link", {
-        name: /Open Run a half-marathon/,
-      }),
-    ).toHaveAttribute("href", "/goals/g1");
-    // DS-16 — the Area is the card's CONTEXT LINE, as it is on a Project card,
-    // not a second link inside a card whose whole surface is already one link.
-    // A nested anchor beneath the whole-card overlay is unclickable anyway; the
-    // Area is one hop away through the Goal it names.
-    expect(within(card).getByText("Health")).toBeInTheDocument();
-    expect(within(card).getAllByRole("link")).toHaveLength(1);
-    expect(within(card).getByText("Recently active")).toBeInTheDocument();
-    // Meaning is never colour-alone: the reason text is visible too.
-    expect(
-      within(card).getByText("Contributing Task activity was recorded today."),
-    ).toBeInTheDocument();
+      within(row).getByRole("link", { name: /Run a half-marathon/ }),
+    ).toHaveAttribute("href", "/goals?goal=g1");
+    // The Area is the row's CONTEXT LINE, not a second link inside a row whose
+    // whole surface is already one link.
+    expect(within(row).getByText("Health")).toBeInTheDocument();
+    expect(within(row).getAllByRole("link")).toHaveLength(1);
+    /*
+     * §6.2 — alignment survives as a QUIET state. It is not drawn as a measure
+     * (which would make a Goal look like it had two), but it is never LOST:
+     * the row's accessible name carries the evaluator's own state and reason,
+     * so nothing here is conveyed by drawing alone.
+     */
+    const link = within(row).getByRole("link", { name: /Run a half-marathon/ });
+    expect(link.getAttribute("aria-label")).toContain("Recently active");
+    expect(link.getAttribute("aria-label")).toContain(
+      "Contributing Task activity was recorded today.",
+    );
   });
 
-  it("shows an honest empty state pointing to Areas (Goal creation is Area-owned)", () => {
+  it("marks the selected row as the current one, semantically and not by tint alone", () => {
+    renderCollection([goal(), goal({ id: "g2", title: "Learn to sail" })], {
+      selectedId: "g2",
+    });
+    const selected = screen.getByRole("article", { name: /Learn to sail/ });
+    expect(selected).toHaveAttribute("data-selected", "true");
+    expect(
+      within(selected).getByRole("link", { name: /Learn to sail/ }),
+    ).toHaveAttribute("aria-current", "page");
+    // And exactly one row is current.
+    const other = screen.getByRole("article", { name: /Run a half-marathon/ });
+    expect(other).not.toHaveAttribute("data-selected");
+    expect(
+      within(other).getByRole("link", { name: /Run a half-marathon/ }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("offers the §5.1 creation entry point on the list, not a dead end pointing at Areas", () => {
+    renderCollection([goal()]);
+    /*
+     * REDESIGN-04 §5.1 — the mockup wins on the entry point, the architecture
+     * wins on the shape. `+ Add goal` opens the one creation flow, which
+     * requires choosing an Area, rather than sending the owner to Areas to
+     * find a control.
+     */
+    expect(screen.getByTestId("goal-add")).toBeInTheDocument();
+  });
+
+  it("shows an honest empty state that CREATES, and still says a Goal needs an Area", () => {
     renderCollection([]);
     expect(screen.getByText("No Goals yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Browse Areas" })).toHaveAttribute(
-      "href",
-      "/areas",
-    );
+    expect(
+      screen.getByText(/Every Goal lives in one, so creating a Goal starts/),
+    ).toBeInTheDocument();
   });
 
   it("shows a retryable failure state without fabricated totals", () => {
@@ -308,16 +329,20 @@ describe("Goals collection (the Alignment view)", () => {
         alignment: alignment({ state: "active" }),
       }),
     ]);
-    const headings = screen.getAllByRole("heading", { level: 2 });
+    const headings = within(screen.getByTestId("goals-list")).getAllByRole(
+      "heading",
+      { level: 3 },
+    );
     const titles = headings.map((h) => h.textContent);
     expect(titles.indexOf("Neglected goal")).toBeLessThan(
       titles.indexOf("Active goal"),
     );
   });
 
-  it("renders a completed Goal with a calm Completed status, no attention styling", () => {
+  it("carries a completed Goal's state in words, with no attention styling", () => {
     renderCollection([
       goal({
+        completedAt: "2026-07-20T10:00:00.000Z",
         alignment: alignment({
           state: "completed",
           label: "Completed",
@@ -326,20 +351,145 @@ describe("Goals collection (the Alignment view)", () => {
             {
               code: "completed",
               tone: "neutral",
-              summary: "This Goal is already completed.",
+              summary: "This Goal is complete.",
             },
           ],
         }),
       }),
     ]);
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    const row = screen.getByRole("article", { name: /Run a half-marathon/ });
+    /*
+     * A completed Goal is not "needing attention", and the row must not imply
+     * it is. The state is in the accessible name, in the evaluator's own words,
+     * and the row carries no tone attribute of its own.
+     */
+    const link = within(row).getByRole("link", { name: /Run a half-marathon/ });
+    expect(link.getAttribute("aria-label")).toContain("Completed");
+    expect(link.getAttribute("aria-label")).toContain("This Goal is complete.");
   });
 });
 
-/**
- * PX-04 — the Deleted Goals view is the DURABLE path back from a reversible
- * removal, so it must not become a dead end of its own.
+/*
+ * REDESIGN-04 — the Goals WORKSPACE row replaced the gallery card.
+ *
+ * These are the card's own honesty rules, asserted where they now live. Not one
+ * of them was dropped in the move; what changed is which element carries them.
  */
+describe("the Goals workspace row (REDESIGN-04)", () => {
+  /** The brief's acceptance Goal: 85 kg down to 70 kg, currently 79.0. */
+  function measured() {
+    return evaluateGoalProgress(
+      {
+        config: normalizeGoalMeasurementConfig({
+          type: "target_value",
+          unit: "kg",
+          baselineValue: 85,
+          targetValue: 70,
+        }),
+        targetDate: "2026-12-31",
+        measurements: [{ value: 79, measuredOn: "2026-08-09" }],
+        startedOn: "2026-06-10",
+      },
+      { todayIso: "2026-08-09" },
+    );
+  }
+
+  it("renders one shared row list, not a Goals-only layout", () => {
+    const { container } = renderCollection([
+      goal(),
+      goal({ id: "g2", title: "Learn to sail" }),
+    ]);
+    const list = screen.getByTestId("goals-list");
+    expect(list.tagName).toBe("UL");
+    expect(list.getAttribute("aria-label")).toBe("Goals");
+    expect(list.querySelectorAll(":scope > li").length).toBe(2);
+    // The SHARED measured-row family, the same one the Projects page's Goals
+    // section renders — never a Goals-only component.
+    expect(container.querySelectorAll(".dh-mrow").length).toBe(2);
+  });
+
+  it("ends the row with the Goal's OWN honest value, in the Goal's own terms", () => {
+    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
+    const row = screen.getByRole("article", { name: /Reach 70 kg/ });
+    /*
+     * `mockup3.png` ends each row with the Goal's own arithmetic — "60.0 / 70
+     * kg" — not with a percentage. The unit is stated ONCE, on the target,
+     * exactly as the reference writes it.
+     */
+    expect(within(row).getByText("79 / 70 kg")).toBeInTheDocument();
+    expect(row.textContent).not.toContain("79 kg / 70 kg");
+  });
+
+  it("draws a bar whose announced sentence is the evaluator's own", () => {
+    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
+    const bar = screen.getByRole("progressbar", {
+      name: "Reach 70 kg progress",
+    });
+    expect(bar).toHaveAttribute("aria-valuenow", "40");
+    // The SAME sentence the record's own bar announces — one source of truth
+    // for the words, so a row and the record it opens cannot disagree.
+    expect(bar.getAttribute("aria-valuetext")).toContain("79 kg");
+    expect(bar.getAttribute("aria-valuetext")).toContain("40% complete");
+  });
+
+  it("draws NO bar and NO value for a Goal with no measurement configured", () => {
+    renderCollection([goal({ title: "Learn Spanish" })]);
+    const row = screen.getByRole("article", { name: /Learn Spanish/ });
+    /*
+     * The rule the deleted card held, unchanged: an empty bar at 0% says
+     * "nothing done" when the truth is "nothing measured", and the two are
+     * different facts. An absence is drawn as an absence.
+     */
+    expect(within(row).queryByRole("progressbar")).toBeNull();
+    expect(row.querySelector(".dh-mrow__value")).toBeNull();
+    expect(row.textContent).not.toContain("0%");
+  });
+
+  it("draws no bar for a measurable Goal that has no reading yet", () => {
+    const configured = evaluateGoalProgress(
+      {
+        config: normalizeGoalMeasurementConfig({
+          type: "target_value",
+          unit: "kg",
+          baselineValue: 85,
+          targetValue: 70,
+        }),
+        targetDate: null,
+        measurements: [],
+        startedOn: "2026-06-10",
+      },
+      { todayIso: "2026-08-09" },
+    );
+    renderCollection([goal({ title: "Reach 70 kg", progress: configured })]);
+    const row = screen.getByRole("article", { name: /Reach 70 kg/ });
+    // Configured is not the same as measured. Nothing has been recorded, so
+    // there is no value and no proportion — only the invitation, on the record.
+    expect(row.querySelector(".dh-mrow__value")).toBeNull();
+  });
+
+  it("states a counted Goal as a fraction, which is both terms at once", () => {
+    const milestone = evaluateGoalProgress(
+      {
+        config: normalizeGoalMeasurementConfig({ type: "milestone" }),
+        targetDate: null,
+        measurements: [],
+        milestones: {
+          total: 24,
+          completed: 12,
+          totalWeight: 24,
+          completedWeight: 12,
+        },
+        startedOn: "2026-06-10",
+      },
+      { todayIso: "2026-08-09" },
+    );
+    renderCollection([goal({ title: "Read 24 books", progress: milestone })]);
+    const row = screen.getByRole("article", { name: /Read 24 books/ });
+    // `mockup3.png` writes exactly this: "12 / 24".
+    expect(within(row).getByText("12 / 24")).toBeInTheDocument();
+  });
+});
+
 describe("Goals collection — the Deleted view", () => {
   it("lists deleted Goals with a one-click Restore and no open target", () => {
     renderCollection([], {
@@ -410,120 +560,7 @@ describe("Goals collection — the Deleted view", () => {
  * same `dh-ecard-grid`/`dh-ecard` the Areas and Projects collections render, so
  * a future change to the column rule reaches all three at once.
  */
-describe("Goals gallery grid (DS-16)", () => {
-  it("renders the shared gallery grid, not a Goals-only layout", () => {
-    const { container } = renderCollection([
-      goal(),
-      goal({ id: "g2", title: "Learn to sail" }),
-    ]);
-    const grid = container.querySelector(".dh-ecard-grid");
-    expect(grid?.tagName).toBe("UL");
-    expect(grid?.getAttribute("aria-label")).toBe("Goals");
-    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
-    /*
-     * UIX-03 — the shared GRID, and the Goal card FAMILY inside it.
-     *
-     * Goals used to render the generic `.dh-ecard`, which is why the gallery
-     * read as a second Projects gallery. They now render `.dh-gcard`, the same
-     * kind of move UIX-02 made for Projects (`.dh-pcard`): a family of its own
-     * in the one shared grid, not a Goals-only layout and not a lookalike of
-     * the generic card.
-     */
-    expect(container.querySelectorAll(".dh-gcard").length).toBe(2);
-    expect(container.querySelectorAll(".dh-ecard").length).toBe(0);
-  });
-
-  it("keeps the derived alignment signal on the card, with its reason in words", () => {
-    renderCollection([goal({ title: "Run a half-marathon" })]);
-    const card = screen.getByRole("article", { name: /Run a half-marathon/ });
-    expect(within(card).getByText("Recently active")).toBeInTheDocument();
-    expect(
-      within(card).getByText("Contributing Task activity was recorded today."),
-    ).toBeInTheDocument();
-  });
-
-  /*
-   * M3X-02 — a Goal card's MEASURE.
-   *
-   * DalyHub's Goal model carries no numeric target and no unit, so the one thing
-   * a Goal genuinely measures is how far the Projects advancing it have got.
-   * These tests hold the honest boundary: the measure is drawn when the Goal has
-   * contributing Projects, and NOTHING is drawn — no bar, no implied zero — when
-   * it has none.
-   */
-  describe("the Goal's measure", () => {
-    it("draws Project contribution as the card's progress", () => {
-      renderCollection([
-        goal({
-          title: "Run a half-marathon",
-          contribution: contribution(3, 8),
-        }),
-      ]);
-      const card = screen.getByRole("article", { name: /Run a half-marathon/ });
-      const bar = within(card).getByRole("progressbar");
-      expect(bar).toHaveAttribute("aria-valuenow", "38");
-      expect(bar).toHaveAttribute(
-        "aria-valuetext",
-        "38% — 3 of 8 Projects complete",
-      );
-      /*
-       * UIX-03 — no bare percentage beside a CONTRIBUTION bar.
-       *
-       * This bar measures the WORK, and the card has already said "Not
-       * measured" where the reading would be. A bare "38%" next to those two
-       * words reads as "this Goal is 38% done", which is exactly the claim the
-       * note is there to refuse — and at 0% it read as "nothing achieved" about
-       * a Goal nobody has told DalyHub how to measure. The fact line names
-       * whose percentage it is, and the bar still announces it in full.
-       */
-      expect(within(card).queryByText("38%")).toBeNull();
-      expect(
-        within(card).getByText("3 of 8 Projects complete"),
-      ).toBeInTheDocument();
-    });
-
-    it("draws no bar, and no zero, for a Goal nothing advances", () => {
-      renderCollection([goal({ title: "Learn to sail" })]);
-      const card = screen.getByRole("article", { name: /Learn to sail/ });
-      expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
-      expect(within(card).queryByText("0%")).not.toBeInTheDocument();
-    });
-
-    it("states the alignment REASON only when there is no measure to read", () => {
-      renderCollection([
-        goal({ title: "Measured", contribution: contribution(1, 2) }),
-      ]);
-      const measured = screen.getByRole("article", { name: /Measured/ });
-      expect(within(measured).getByText("Recently active")).toBeInTheDocument();
-      expect(
-        within(measured).queryByText(
-          "Contributing Task activity was recorded today.",
-        ),
-      ).not.toBeInTheDocument();
-    });
-
-    it("chips only COMPLETION — an open Goal wears no pill saying it is open", () => {
-      renderCollection([
-        goal({ id: "open", title: "Still going" }),
-        goal({
-          id: "done",
-          title: "Finished",
-          completedAt: "2026-07-01T00:00:00.000Z",
-        }),
-      ]);
-      expect(
-        within(
-          screen.getByRole("article", { name: /Still going/ }),
-        ).queryByText("Open"),
-      ).toBeNull();
-      expect(
-        within(screen.getByRole("article", { name: /Finished/ })).getByText(
-          "Completed",
-        ),
-      ).toBeInTheDocument();
-    });
-  });
-
+describe("the Deleted view grid (DS-16)", () => {
   it("uses the same grid for the Deleted view, with Restore and no open target", () => {
     const { container } = renderCollection([], {
       state: "deleted",
@@ -544,120 +581,5 @@ describe("Goals gallery grid (DS-16)", () => {
     expect(
       within(card).getByRole("button", { name: "Restore" }),
     ).toBeInTheDocument();
-  });
-});
-
-describe("a measurable Goal's card (GOAL-02)", () => {
-  /** The brief's acceptance Goal: 85 kg down to 70 kg, currently 79.0. */
-  function measured() {
-    return evaluateGoalProgress(
-      {
-        config: normalizeGoalMeasurementConfig({
-          type: "target_value",
-          unit: "kg",
-          baselineValue: 85,
-          targetValue: 70,
-        }),
-        targetDate: "2026-12-31",
-        measurements: [{ value: 79, measuredOn: "2026-08-09" }],
-        startedOn: "2026-06-10",
-      },
-      { todayIso: "2026-08-09" },
-    );
-  }
-
-  it("leads with the Goal's OWN reading rather than its Project contribution", () => {
-    renderCollection([
-      goal({
-        title: "Reach 70 kg",
-        progress: measured(),
-        contribution: contribution(1, 4),
-      }),
-    ]);
-    const card = screen.getByTestId("goal-card");
-    expect(within(card).getByText("79 kg")).toBeInTheDocument();
-    /*
-     * UIX-03 — the line under the reading is the whole JOURNEY, not the target
-     * alone.
-     *
-     * VIS-01 cut it back to "Target 70 kg" because the pair it replaced
-     * ("79 kg → 70 kg") repeated the figure printed directly above it. The
-     * journey states the START instead, which is the one fact neither the
-     * reading nor the target carries — and the fact that makes "38%" checkable
-     * by eye rather than a number to be trusted.
-     */
-    expect(within(card).getByText("from 85 kg → 70 kg")).toBeInTheDocument();
-    expect(card.textContent).not.toContain("79 kg → 70 kg");
-    // The contribution bar is REPLACED, not joined: two bars would be two
-    // answers to "how far along?".
-    expect(within(card).queryByText("1 of 4 Projects complete")).toBeNull();
-  });
-
-  it("prints the percentage beside a MEASURED Goal's own bar", () => {
-    /*
-     * The contrast that makes the contribution rule above a rule rather than an
-     * omission: an OUTCOME's percentage is about the outcome the card is
-     * showing, so it is stated beside the bar. A contribution percentage is
-     * about the work, on a card that has already said "Not measured", so it is
-     * not.
-     */
-    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
-    const card = screen.getByRole("article", { name: /Reach 70 kg/ });
-    expect(within(card).getByText("40%")).toBeInTheDocument();
-  });
-
-  it("announces the same sentence the record's own bar announces", () => {
-    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
-    const bar = within(screen.getByTestId("goal-card")).getByRole(
-      "progressbar",
-    );
-    expect(bar.getAttribute("aria-valuetext")).toContain(
-      "79 kg · 40% complete · 9 kg remaining",
-    );
-  });
-
-  /*
-   * VIS-01 — ONE state signal and ONE fact.
-   *
-   * A measured Goal's card carried four things in its fact run at once: a
-   * status pill, an alignment pill, "9 kg remaining" and "↓ 6 kg overall". The
-   * remainder is the value against the target two lines above it, and the
-   * alignment is a state of the WORK on a card that is now leading with a state
-   * of the OUTCOME. Both went; the status and the total change stayed, because
-   * they are the two things the number itself cannot say.
-   */
-  it("states its measurement status in words, then what remains and by when", () => {
-    renderCollection([goal({ title: "Reach 70 kg", progress: measured() })]);
-    const card = screen.getByTestId("goal-card");
-    const state = within(card).getByTestId("goal-card-state");
-    expect(state.textContent).toMatch(/On track|Ahead|In progress/);
-    /*
-     * UIX-03 — the trailing facts are what a CHOOSER needs: the distance still
-     * to cover and the date it is wanted by.
-     *
-     * They replace "↓ 6 kg overall", which described the past. A gallery card is
-     * read to decide which Goal to open, and "how far is left, and by when" is
-     * the pair that decides it; how far the owner has already come is the
-     * record's story, and the journey line above already implies it.
-     */
-    expect(state.textContent).toContain("9 kg to go");
-    expect(card.textContent).not.toContain("overall");
-  });
-
-  it("keeps Project contribution as an UNMEASURED Goal's bar and fact", () => {
-    renderCollection([
-      goal({ title: "Learn Spanish", contribution: contribution(1, 4) }),
-    ]);
-    const card = screen.getByTestId("goal-card");
-    expect(
-      within(card).getByText("1 of 4 Projects complete"),
-    ).toBeInTheDocument();
-    expect(within(card).getByRole("progressbar")).toBeInTheDocument();
-  });
-
-  it("draws no bar at all for a Goal with neither a measurement nor Projects", () => {
-    renderCollection([goal({ title: "Learn Spanish" })]);
-    const card = screen.getByTestId("goal-card");
-    expect(within(card).queryByRole("progressbar")).toBeNull();
   });
 });

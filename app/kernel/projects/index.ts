@@ -13,6 +13,7 @@ export type {
   ProjectSearchInput,
   ProjectSearchHit,
   ListProjectsInput,
+  ProjectLifecycleCounts,
   ProjectListItem,
   ProjectListPage,
   ProjectOverview,
@@ -28,6 +29,7 @@ export {
   decodeProjectCursor,
   decodeProjectCursorForScope,
   projectCursorScopeMatches,
+  normaliseProjectSearch,
 } from "./project-cursor";
 export type {
   ProjectCursorPosition,
