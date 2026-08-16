@@ -204,9 +204,14 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     const title = await captureProbe(page, "priority");
     const row = taskRow(page, title).first();
 
-    // A freshly captured task has no priority, so the menu is the four REAL
-    // values and nothing else: the unset state is the field's empty state, not
-    // an option someone chose (EDIT-02).
+    /*
+     * CONTROL-01 — FOUR values, always, and no clear command.
+     *
+     * A freshly captured task stores `null`, and `null` IS Priority 4: the row
+     * draws a grey P4 flag for it and a filter for Priority 4 returns it. So
+     * the menu is the four real values, the current one is checked from the
+     * first open, and there is no fifth option and nothing to clear TO.
+     */
     await openEditor(page, row, "task-row-priority");
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitemradio")).toHaveText([
@@ -216,29 +221,30 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
       "Priority 4",
     ]);
     await expectUnclipped(page, 150);
-    // The menu takes focus, so the keyboard can drive it from the first frame.
-    await expect(menu.getByRole("menuitemradio").first()).toBeFocused();
+    // The menu takes focus on the CURRENT value, so the keyboard can drive it
+    // from the first frame and arrowing starts where the owner already is.
+    await expect(menu.locator('[aria-checked="true"]')).toHaveText(
+      "Priority 4",
+    );
+    await expect(menu.locator('[aria-checked="true"]')).toBeFocused();
 
-    // Unset → set, in one action.
+    // One value replaces another, in one action, with no clearing step.
     await menu.getByRole("menuitemradio", { name: "Priority 3" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
 
-    // Reopened, the new value is the checked one — and now there IS something
-    // to clear, so the separated command appears at the end.
     await openEditor(page, row, "task-row-priority");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
     ).toHaveText("Priority 3");
+    // Still four, still no clear: setting a value does not grow the menu.
     await expect(page.getByRole("menu").getByRole("menuitemradio")).toHaveText([
       "Priority 1",
       "Priority 2",
       "Priority 3",
       "Priority 4",
-      "Clear priority",
     ]);
 
-    // …and one value replaces another with no clearing step in between.
     await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
@@ -247,12 +253,12 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
       page.getByRole("menu").locator('[aria-checked="true"]'),
     ).toHaveText("Priority 1");
 
-    // Clearing returns the field to genuinely empty.
-    await page.getByRole("menuitemradio", { name: "Clear priority" }).click();
+    // Back to normal, which is Priority 4 and reads as Priority 4.
+    await page.getByRole("menuitemradio", { name: "Priority 4" }).click();
+    await settle(page);
     await expect(
       row.locator('[data-testid="task-row-priority"]'),
-    ).toContainText("No priority");
-    await settle(page);
+    ).toContainText("P4");
     await completeProbe(page, title);
   });
 
@@ -324,34 +330,53 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
 
     await openEditor(page, row, "task-row-due-date");
     const popover = page.getByRole("dialog", { name: "Edit due date" });
-    for (const shortcut of ["Today", "Tomorrow", "Next week"]) {
+    /*
+     * CONTROL-01 — the DalyHub date picker: the product's presets, the
+     * product's month grid, and a No date command. No native
+     * `<input type="date">`, whose grey `dd/mm/yyyy` skeleton and platform
+     * calendar glyph were the one browser-drawn control inside a popover the
+     * product had styled to the pixel.
+     *
+     * `exact` on the preset names: "Today" also matches the grid cell for
+     * today, whose accessible name ends "…, today".
+     */
+    for (const preset of ["Today", "Tomorrow", "This weekend", "Next week"]) {
       await expect(
-        popover.getByRole("button", { name: shortcut }),
+        popover.getByRole("button", { name: preset, exact: true }),
       ).toBeVisible();
     }
-    await expect(popover.locator('input[type="date"]')).toBeVisible();
+    await expect(popover.locator('input[type="date"]')).toHaveCount(0);
+    await expect(popover.getByRole("grid", { name: "Due date" })).toBeVisible();
     await expectUnclipped(page, 120);
     // Nothing to clear yet — the command appears with the value, as it does in
     // the select.
-    await expect(popover.getByRole("button", { name: "Clear" })).toHaveCount(0);
+    await expect(
+      popover.getByRole("button", { name: "Clear due date" }),
+    ).toHaveCount(0);
 
-    await popover.getByRole("button", { name: "Today" }).click();
+    await popover.getByRole("button", { name: "Today", exact: true }).click();
     await expect(
       row.locator('[data-testid="task-row-due-date"]'),
     ).toContainText("Today");
     await settle(page);
 
-    // An arbitrary date, through the platform's own picker input.
+    // An arbitrary date, by walking the month — which is what a calendar is for
+    // and the reason the picker cannot only offer presets.
     await openEditor(page, row, "task-row-due-date");
-    await page.locator('.dh-anchored input[type="date"]').fill("2026-12-25");
-    await page.getByRole("button", { name: "Save" }).click();
+    const grid = page
+      .getByRole("dialog", { name: "Edit due date" })
+      .getByRole("grid", { name: "Due date" });
+    for (let month = 0; month < 4; month += 1) {
+      await grid.press("PageDown");
+    }
+    await grid.getByRole("button", { name: "Friday 25 December 2026" }).click();
     await expect(
       row.locator('[data-testid="task-row-due-date"]'),
     ).toContainText("Dec");
     await settle(page);
 
     await openEditor(page, row, "task-row-due-date");
-    await page.getByRole("button", { name: "Clear" }).click();
+    await page.getByRole("button", { name: "Clear due date" }).click();
     await expect(
       row.locator('[data-testid="task-row-due-date"]'),
     ).toContainText("No due date");
@@ -427,10 +452,15 @@ test.describe("EDIT-03 — the phone presentation", () => {
     // the same defect wearing a different hat, so its width is asserted.
     const box = await sheet.boundingBox();
     expect(box?.width ?? 0).toBeGreaterThan(300);
-    for (const shortcut of ["Today", "Tomorrow", "Next week"]) {
-      await expect(sheet.getByRole("button", { name: shortcut })).toBeVisible();
+    // CONTROL-01 — the SAME editor as the popover, so the phone gets the same
+    // presets and the same month grid. One date control, two containers.
+    for (const preset of ["Today", "Tomorrow", "This weekend", "Next week"]) {
+      await expect(
+        sheet.getByRole("button", { name: preset, exact: true }),
+      ).toBeVisible();
     }
-    await expect(sheet.locator('input[type="date"]')).toBeVisible();
+    await expect(sheet.locator('input[type="date"]')).toHaveCount(0);
+    await expect(sheet.getByRole("grid", { name: "Due date" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 
@@ -448,9 +478,11 @@ test.describe("EDIT-03 — the phone presentation", () => {
       "Priority 3",
       "Priority 4",
     ]);
+    // CONTROL-01 — no clear command: `null` IS Priority 4, so there is nothing
+    // to clear TO and the sheet offers the four real values and nothing else.
     await expect(
-      sheet.getByRole("button", { name: "Clear priority" }),
-    ).toBeVisible();
+      sheet.getByRole("button", { name: /Clear priority/ }),
+    ).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
   });
 });
