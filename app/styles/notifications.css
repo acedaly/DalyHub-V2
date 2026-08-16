@@ -1,0 +1,149 @@
+/*
+ * NOTIFY-01 — the notification bell and the notification INBOX.
+ *
+ * Two small surfaces, both drawn entirely in `--dh-*` tokens: a counted control
+ * in the top bar, and a log of rows inside the ONE shared Sheet.
+ *
+ * ── The count is calm ───────────────────────────────────────────────────────
+ * DalyHub's product philosophy rules out "red badges competing for attention",
+ * so the count is the product's own accent rather than an alarm colour, and it
+ * is absent at zero rather than drawn as a "0". `danger` is reserved for a
+ * genuine fault (D3), and an unread digest is not one.
+ *
+ * The badge is `pointer-events: none` and sits INSIDE the control's box rather
+ * than overlapping the bar: a number that intercepts a tap is a number that
+ * stops the button working, and one that overflows its parent is what makes a
+ * top bar grow a pixel when the day's digest lands.
+ *
+ * ── The inbox is a list of rows, not a list of cards ────────────────────────
+ * D44 gives the product ONE card boundary and this is not one: a log is a flat
+ * sequence of equal things, divided by the row rule (`--dh-color-divider`), on
+ * the sheet's own surface. Unread is carried by weight AND by a leading mark AND
+ * by a visually-hidden word (the component) — never by colour alone.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* The bell                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dh-bell__count {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 0;
+  min-inline-size: 16px;
+  padding-inline: 4px;
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-text-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  /* The glyph beneath it is the target; the number must never take the tap. */
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The inbox                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-inbox {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-inbox__item + .dh-inbox__item {
+  border-block-start: 1px solid var(--dh-color-divider);
+}
+
+.dh-inbox__row {
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  /* A comfortable row even under the application's `compact` density: this is
+   * reading material, and on a phone it is a touch target. */
+  padding-block: var(--dh-space-3);
+  padding-inline: var(--dh-space-2);
+  border: 0;
+  border-radius: var(--dh-radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-inbox__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  justify-content: space-between;
+}
+
+.dh-inbox__title {
+  font-size: var(--dh-text-card-title-size);
+  line-height: var(--dh-text-card-title-line-height);
+  /* UNREAD is heavier; read rows step back to the ordinary body weight. The
+   * weight is a second signal, never the only one. */
+  font-weight: var(--dh-text-card-title-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-inbox__row[data-read="true"] .dh-inbox__title {
+  font-weight: var(--dh-text-body-weight);
+  color: var(--dh-color-text-muted);
+}
+
+/* The unread mark: a small accent dot before the title, so the state survives
+ * greyscale, a screenshot and a colour-blind reader (the row also carries the
+ * word "Unread" for a screen reader). */
+.dh-inbox__row[data-read="false"] .dh-inbox__title::before {
+  content: "";
+  display: inline-block;
+  inline-size: 6px;
+  block-size: 6px;
+  margin-inline-end: var(--dh-space-2);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-accent);
+  vertical-align: middle;
+}
+
+.dh-inbox__when {
+  flex: none;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  white-space: nowrap;
+}
+
+.dh-inbox__body {
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text-muted);
+  /* The digest's body is line-broken text, and those breaks are the content. */
+  white-space: pre-line;
+}
+
+.dh-inbox__failure {
+  display: block;
+  margin-block-start: var(--dh-space-1);
+  font-size: var(--dh-text-meta-size);
+  /* A failed external delivery IS a fault, so `danger` is the right name here —
+   * and the row states the failure in words as well, so the colour is never the
+   * only carrier. */
+  color: var(--dh-color-danger);
+}
+
+.dh-inbox__empty {
+  margin: 0;
+  padding-block: var(--dh-space-6);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text-muted);
+}

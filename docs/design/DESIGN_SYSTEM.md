@@ -2805,3 +2805,58 @@ Progress uses `role="status"` (a running request is not an alert); `role="alert"
 is reserved for a blocking failure. Provider, model and cost sit in a secondary
 `<details>` disclosure. Every layout is single-column and fluid, so 320px is the
 design width rather than a squeeze, and no proposal region scrolls inside another.
+
+---
+
+## The notification bell and inbox (NOTIFY-01, 2026-08-16)
+
+One counted control in the frame, and one log inside the shared Sheet. Both live
+in `app/shared/notifications/`.
+
+**Naming, stated once so nobody trips on it.** `app/shared/feedback/` owns the
+transient TOAST layer, and its component is called `NotificationCenter`. This is
+the ledger-backed EVENT log, and it is called the **inbox**. They share a word and
+nothing else — no type, no table, no surface. New code says INBOX for the durable
+log and FEEDBACK for the toast.
+
+**The bell.** A shared `IconButton` with a count drawn inside its own box. Three
+rules:
+
+- **The count is in the accessible NAME** — "Notifications, 3 unread" — because a
+  number in a corner is invisible to a screen reader, and colour-plus-position is
+  not information. The visible number is `aria-hidden`.
+- **It is the product's accent, not alarm red.** DalyHub's philosophy rules out
+  "red badges competing for attention"; `--dh-color-danger` stays reserved for a
+  genuine fault (D3), and an unread digest is not one.
+- **It is absent at zero, and the control is not.** No "0" badge, and no control
+  that appears and disappears — a bell that comes and goes moves everything beside
+  it, and "nothing has happened" is a thing the owner should be able to check
+  rather than infer from empty space. The badge is `pointer-events: none`, so the
+  number can never take a tap meant for the glyph.
+
+**The inbox.** The shared `Sheet`, so the focus trap, background inerting, scroll
+lock and focus restoration are the DS-03 ones and there is no second modal
+machinery. Newest first, flat rows divided by `--dh-color-divider` — **not cards**:
+D44's card boundary marks "this is one object", and a log is a sequence of equal
+things.
+
+- **One row, one action.** Opening it goes where the event pointed and marks it
+  read on the way. No per-notification actions, no snooze, no grouping, no filters
+  and no priority — every one of those would make the log a second attention
+  model, and Today's rail is that (see
+  [ADR-099](../decisions/ARCHITECTURE_DECISIONS.md#adr-099-notifications-are-events-in-a-ledger-not-a-second-attention-model--insert-before-send-a-channel-contract-and-secrets-in-the-settings-store)).
+- **Unread is carried three ways**: a heavier title, a small leading accent dot,
+  and a visually-hidden "Unread." in the row's own text. Never colour alone, and
+  never weight alone — weight is not information a screen reader receives.
+- **A failed external delivery is stated on its row**, in DalyHub's own words from
+  a closed vocabulary. The row exists whatever the channel did, because the ledger
+  insert commits before any send — so "I never got a push" has an answer inside
+  the application.
+- **Read state is painted optimistically.** It is a claim about what the owner has
+  looked at rather than about their data, so it cannot be wrong in a way that
+  matters; waiting would leave the row bold as the page navigates out from under
+  it. The COUNT stays server-resolved and refreshes through the shell's loader.
+
+**The empty state teaches the next action** and is honest about why it is empty —
+notifications are off by default, so "nothing yet" alone would mislead most owners
+reading it.

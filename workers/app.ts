@@ -12,12 +12,20 @@
 // Changes (CAL-01): add the `scheduled` handler so the external calendar refresh
 // runs on the SAME Worker with the SAME bindings, on a Cloudflare Cron Trigger.
 // No page request ever fetches a calendar feed.
+// Changes (NOTIFY-01): the same `scheduled` handler also runs the notification
+// tick, on the SAME fifteen-minute trigger. No second cron, no second Worker: a
+// notification needs a frequent tick rather than an encoded send time, and the
+// one that already exists is frequent enough.
 import { createRequestHandler } from "react-router";
 
 import {
   runScheduledCalendarRefresh,
   type ScheduledCalendarEnv,
 } from "~/platform/calendar/scheduled-refresh.server";
+import {
+  runScheduledNotifications,
+  type ScheduledNotificationEnv,
+} from "~/platform/notifications/scheduled-notifications.server";
 import {
   handleCaptureEmail,
   type EmailCaptureEnv,
@@ -43,7 +51,21 @@ export default {
   // failed tick costs one tick, and the next is fifteen minutes away.
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(
-      runScheduledCalendarRefresh(env as unknown as ScheduledCalendarEnv),
+      (async () => {
+        // The calendar refresh runs FIRST, and the notification tick waits for
+        // it. The order is the point: the morning digest states what is on
+        // today, and assembling it from a projection that is up to fifteen
+        // minutes stale would tell the owner about a meeting that moved. Both
+        // are individually failure-tolerant, so neither can take the other down
+        // — the refresh returns a summary rather than throwing, and the
+        // notification tick does the same.
+        await runScheduledCalendarRefresh(
+          env as unknown as ScheduledCalendarEnv,
+        );
+        await runScheduledNotifications(
+          env as unknown as ScheduledNotificationEnv,
+        );
+      })(),
     );
   },
 } satisfies ExportedHandler<Env>;

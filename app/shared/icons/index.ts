@@ -88,6 +88,7 @@ export {
   ObservationIcon,
   ReflectionIcon,
   InboxIcon,
+  BellIcon,
   BrandMark,
   // Asset subtype icons
   VehicleIcon,

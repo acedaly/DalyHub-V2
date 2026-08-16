@@ -200,3 +200,35 @@ export function utcToOwnerLocal(instant: Date, timeZone: string): string {
   const parts = partsInTimeZone(instant, timeZone);
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
+
+/**
+ * NOTIFY-01 — the owner's wall clock: which calendar date it is for them, and how
+ * far through that day they are.
+ *
+ * The notification evaluator asks one question every fifteen minutes — "has the
+ * owner's local clock reached their digest time today?" — and it needs BOTH halves
+ * of the answer from the SAME reading, because taking the date from one call and
+ * the time from another can straddle a minute boundary and, twice a year, a DST
+ * transition.
+ *
+ * It is deliberately expressed in minutes since local midnight rather than as a
+ * `HH:MM` string: comparing times is arithmetic, and a string comparison is only
+ * accidentally correct while both sides are zero-padded. Both values come from
+ * {@link partsInTimeZone}, so there is still exactly ONE zone-conversion
+ * implementation in DalyHub.
+ *
+ * On a spring-forward day the local clock skips an hour, so `minutesSinceMidnight`
+ * jumps; on a fall-back day it repeats one. Neither can produce a duplicate or a
+ * missed digest, because the LEDGER decides that (one row per local date), not the
+ * clock — see `~/kernel/notifications`.
+ */
+export function wallClockInTimeZone(
+  instant: Date,
+  timeZone: string,
+): { readonly date: string; readonly minutesSinceMidnight: number } {
+  const parts = partsInTimeZone(instant, timeZone);
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    minutesSinceMidnight: Number(parts.hour) * 60 + Number(parts.minute),
+  };
+}

@@ -55,6 +55,15 @@ const routes: readonly RouteContribution[] = [
     file: "routes/calendars.tsx",
   },
   {
+    // NOTIFY-01 — the notification settings endpoints (`update`, `test`). A
+    // POST-only resource route with no navigation entry, driven from the
+    // Notifications section. It has no GET on purpose: one action accepts a
+    // Pushover credential and the other acts on one.
+    id: "settings.notifications",
+    path: "settings/notifications/:action",
+    file: "routes/notifications.tsx",
+  },
+  {
     // BACKUP-02 — the backup endpoints. `GET status` (sanitised health and recent
     // history, polled while a backup runs) and `POST run` (start a manual
     // backup). Unlike its POST-only siblings this one has a GET on purpose: it

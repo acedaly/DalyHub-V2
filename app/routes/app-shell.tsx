@@ -93,6 +93,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     navigation: navigation.filter(
       (item) => !hiddenModuleIds.has(item.moduleId),
     ),
+    /*
+     * NOTIFY-01 — the bell's count.
+     *
+     * One indexed COUNT over a partial index, in a loader that already runs once
+     * per real navigation and is skipped for same-document parameter changes
+     * (see `shouldRevalidate` above). That is deliberately the cheapest thing
+     * that can be true: the alternative — polling, or a request per page — would
+     * cost far more than a number that changes a couple of times a day.
+     *
+     * It degrades to 0 rather than failing the shell. A bell that cannot count
+     * is a bell with no badge; a shell that cannot load is every page down.
+     */
+    unreadNotifications: await scope.notifications.unreadCount().catch(() => 0),
   };
 
   /*
@@ -148,6 +161,7 @@ export default function AppShellLayout({ loaderData }: Route.ComponentProps) {
       email={loaderData.email}
       appearance={loaderData.appearance}
       navigation={loaderData.navigation}
+      unreadNotifications={loaderData.unreadNotifications}
     >
       <Outlet />
     </AppShell>

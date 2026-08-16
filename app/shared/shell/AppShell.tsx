@@ -28,7 +28,16 @@
  * `children` (the route Outlet), so it never imports a module route component.
  */
 
-import { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useFetcher, useNavigate, useRevalidator } from "react-router";
 
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
@@ -74,6 +83,15 @@ const CommandPalette = lazy(() => import("~/shared/commands/CommandPalette"));
 const KeyboardShortcutsSheet = lazy(
   () => import("~/shared/commands/KeyboardShortcutsSheet"),
 );
+/**
+ * NOTIFY-01 — the notification inbox. Lazy for the same reason as its
+ * neighbours: it is opened occasionally, and its markup, its fetchers and the
+ * log's view model have no business in the bundle every page loads. The BELL is
+ * eager — it is a control in the frame — but the sheet behind it is not.
+ */
+const NotificationInbox = lazy(
+  () => import("~/shared/notifications/NotificationInbox"),
+);
 
 /**
  * The phone bar, wired to the shared capture surface.
@@ -116,6 +134,18 @@ export type AppShellProps = {
   readonly appearance: AppearancePreference;
   /** The derived, registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
+  /**
+   * NOTIFY-01 — how many ledger notifications the owner has not read, from the
+   * shell's own loader.
+   *
+   * The count lives here rather than in the inbox surface because the BELL is
+   * always on screen and the sheet is not: a count fetched when the sheet opens
+   * would be a count nobody ever sees. It is a plain number in the shell's
+   * existing payload — no polling, no socket, no second request per page. It
+   * refreshes when the shell's loader does, which a revalidation after marking
+   * something read forces explicitly.
+   */
+  readonly unreadNotifications?: number;
   /** The routed page content (the route `Outlet`). */
   readonly children: React.ReactNode;
 };
@@ -125,9 +155,13 @@ export function AppShell({
   email,
   appearance,
   navigation,
+  unreadNotifications = 0,
   children,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsOpener, setNotificationsOpener] =
+    useState<HTMLElement | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -240,6 +274,66 @@ export function AppShell({
     [openShortcuts],
   );
 
+  /**
+   * NOTIFY-01 — the inbox is a SHEET over whatever is on screen, so it closes
+   * the other two modal surfaces on the way in, exactly as they close each
+   * other. There is never more than one focus trap open in DalyHub.
+   */
+  const openNotifications = useCallback((opener: HTMLElement) => {
+    setNotificationsOpener(opener);
+    setNavOpen(false);
+    setSearchOpen(false);
+    setCommandOpen(false);
+    setNotificationsOpen(true);
+  }, []);
+  const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
+  /**
+   * Marking something read moved the count the BELL shows, and the count lives
+   * in the shell's loader data. Re-running the shell loader is the honest way to
+   * refresh it: the server stays the authority on how many are unread, and the
+   * bell can never drift from the ledger.
+   */
+  const revalidator = useRevalidator();
+  const refreshUnread = useCallback(() => {
+    void revalidator.revalidate();
+  }, [revalidator]);
+
+  /**
+   * Opening a notification: navigate to it, mark it read, close the sheet.
+   *
+   * The WRITE lives here rather than in the sheet because opening a row closes
+   * the sheet, and a `useFetcher` belongs to the component that created it — a
+   * submission fired on the way out would have nobody left to observe its
+   * result, so the bell would keep its old count. This component is still
+   * mounted, so the fetcher lands and the effect below refreshes the count.
+   */
+  const navigate = useNavigate();
+  const notificationWrite = useFetcher<{
+    readonly ok: boolean;
+    readonly changed: number;
+  }>();
+  const openNotification = useCallback(
+    (item: {
+      readonly id: string;
+      readonly href: string;
+      readonly read: boolean;
+    }) => {
+      if (!item.read) {
+        notificationWrite.submit(
+          { intent: "read", id: item.id },
+          { method: "post", action: "/notifications" },
+        );
+      }
+      setNotificationsOpen(false);
+      void navigate(item.href);
+    },
+    [navigate, notificationWrite],
+  );
+  useEffect(() => {
+    if (notificationWrite.data?.ok === true) refreshUnread();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notificationWrite.data]);
+
   const openMoreNavigation = useCallback((opener: HTMLElement) => {
     setNavOpener(opener);
     setNavOpen(true);
@@ -319,6 +413,9 @@ export function AppShell({
                   <DesktopTopBar
                     onOpenSearch={openSearch}
                     onOpenCommand={openCommand}
+                    onOpenNotifications={openNotifications}
+                    unreadNotifications={unreadNotifications}
+                    notificationsOpen={notificationsOpen}
                   />
 
                   {/* A `header` so the phone bar’s title and actions are contained by a
@@ -328,6 +425,9 @@ export function AppShell({
                   <MobileTopBar
                     workspaceName={workspaceName}
                     onOpenSearch={openSearch}
+                    onOpenNotifications={openNotifications}
+                    unreadNotifications={unreadNotifications}
+                    notificationsOpen={notificationsOpen}
                   />
 
                   <main id="main-content" className="dh-pane" tabIndex={-1}>
@@ -381,6 +481,17 @@ export function AppShell({
                     <CommandPalette
                       onClose={closeCommand}
                       opener={commandOpenerRef.current}
+                    />
+                  </Suspense>
+                ) : null}
+
+                {notificationsOpen ? (
+                  <Suspense fallback={null}>
+                    <NotificationInbox
+                      opener={notificationsOpener}
+                      onClose={closeNotifications}
+                      onUnreadChanged={refreshUnread}
+                      onOpenNotification={openNotification}
                     />
                   </Suspense>
                 ) : null}

@@ -487,6 +487,18 @@ export const InboxIcon = createIcon(
   <path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h600q24 0 42 18t18 42v600q0 24-18 42t-42 18H180Zm0-60h600v-136H634q-26 40-67.5 61.5T480-233q-45 0-86.5-21.5T326-316H180v136Zm374-136.5q33-23.5 56-59.5h170v-404H180v404h170q23 36 56.25 59.5 33.24 23.5 74 23.5Q521-293 554-316.5ZM180-180h600-600Z" />,
 );
 
+/**
+ * Notification — a bell. Material Symbols `notifications`.
+ *
+ * NOTIFY-01. The name is the LEDGER's, not the feedback layer's: this is the
+ * glyph on the top bar's inbox control, never on a toast (see
+ * `app/shared/notifications`).
+ */
+export const BellIcon = createIcon(
+  "BellIcon",
+  <path d="M160-200v-60h80v-304q0-84 49.5-150.5T420-798v-22q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v22q81 17 130.5 83.5T720-564v304h80v60H160Zm320-302Zm0 422q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM300-260h360v-304q0-75-52.5-127.5T480-744q-75 0-127.5 52.5T300-564v304Z" />,
+);
+
 /* -------------------------------------------------------------------------- */
 /* Asset-kind icons (ASSETS-01).                                              */
 /* -------------------------------------------------------------------------- */

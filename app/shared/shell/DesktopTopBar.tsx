@@ -58,12 +58,19 @@
  * The utilities are `IconButton` for the same reason. Each keeps its required
  * accessible name and its tooltip carrying the reserved shortcut.
  *
- * What the bar deliberately does NOT carry: a notification bell (DalyHub has no
- * notification system, and a bell that never rings is a decorative control — the
- * references show one, and this is the clearest place the product's truth has to
- * win over the picture), a plan or billing entry (there is no plan concept), or
- * a standing appearance toggle. APPEARANCE-01 puts appearance inside the account
- * menu, because it is set once and then forgotten.
+ * ── The bell, and the sentence that used to be here ─────────────────────────
+ * This paragraph read: "What the bar deliberately does NOT carry: a notification
+ * bell (DalyHub has no notification system, and a bell that never rings is a
+ * decorative control — the references show one, and this is the clearest place
+ * the product's truth has to win over the picture)". NOTIFY-01 changed the
+ * truth, not the principle: there is a ledger of events now, the bell counts the
+ * unread ones, and it opens a log of what was actually said. It is still absent
+ * from the bar when the shell is not given a count to show, so a deployment with
+ * notifications off gains no decorative control.
+ *
+ * What the bar still deliberately does NOT carry: a plan or billing entry (there
+ * is no plan concept), or a standing appearance toggle. APPEARANCE-01 puts
+ * appearance inside the account menu, because it is set once and then forgotten.
  *
  * LANDMARKS. This bar is the desktop `banner`, which is what a top app bar is.
  * It has to be a landmark rather than a bare `div`: axe's `region` rule requires
@@ -83,6 +90,7 @@ import { useRef } from "react";
 
 import { useCapture } from "~/shared/capture";
 import { CommandIcon, HelpIcon, PlusIcon, SearchIcon } from "~/shared/icons";
+import { NotificationBell } from "~/shared/notifications";
 import { Tooltip } from "~/shared/tooltip";
 import { Button, IconButton } from "~/shared/ui";
 
@@ -136,11 +144,22 @@ export type DesktopTopBarProps = {
   readonly onOpenSearch?: (opener: HTMLElement) => void;
   /** Opens the Command Palette (DS-09), receiving the trigger for the same reason. */
   readonly onOpenCommand?: (opener: HTMLElement) => void;
+  /**
+   * NOTIFY-01 — opens the notification inbox. Omitted (with `unread`) renders no
+   * bell at all, which is what the pre-NOTIFY-01 bar was and what a surface
+   * rendering this component without the shell's loader data still gets.
+   */
+  readonly onOpenNotifications?: (opener: HTMLElement) => void;
+  readonly unreadNotifications?: number;
+  readonly notificationsOpen?: boolean;
 };
 
 export function DesktopTopBar({
   onOpenSearch,
   onOpenCommand,
+  onOpenNotifications,
+  unreadNotifications = 0,
+  notificationsOpen = false,
 }: DesktopTopBarProps) {
   return (
     <header className="dh-topbar">
@@ -213,6 +232,15 @@ export function DesktopTopBar({
             </a>
           )}
         </Tooltip>
+
+        {onOpenNotifications ? (
+          <NotificationBell
+            unread={unreadNotifications}
+            open={notificationsOpen}
+            onOpen={onOpenNotifications}
+            testId="topbar-notifications"
+          />
+        ) : null}
 
         <TopBarCreate />
       </div>

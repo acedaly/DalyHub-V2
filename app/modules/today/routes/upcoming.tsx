@@ -30,7 +30,7 @@ import {
   EMPTY_SCHEDULE_WINDOW,
   loadScheduleWindow,
   scheduleForDate,
-} from "../day/schedule-load";
+} from "~/platform/calendar/schedule-load.server";
 import { DayNav } from "../schedule/DayNav";
 import { eventDrawerKey } from "../schedule/EventDetail";
 import { ScheduleList } from "../schedule/ScheduleList";

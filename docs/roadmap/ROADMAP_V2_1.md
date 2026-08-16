@@ -968,7 +968,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   lookup, no attachments or receipt photos, no AI classification, no valuations, no
   reminders or notifications — all remain
   [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3)
-  and [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2).
+  and [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01).
 - **Verified.** `format:check`, `lint`, `typecheck`, `scheme:check`, unit, Workers/D1
   kernel, `build`, and a focused
   [`e2e/assets-mobile-capture.spec.ts`](../../e2e/assets-mobile-capture.spec.ts):
@@ -1667,7 +1667,7 @@ because a reader would otherwise wonder whether it was forgotten:
   webhook merely because future integrations might use one — a future integration
   gets a purpose-specific authentication adapter over the same capture contract.
   Notification channels are a separate concern: capture is INPUT, and
-  ([DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)
+  ([DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01)
   still records the honest consequence for Asset obligations, which CAPTURE-01
   does not address);
 - transcription and advanced analytics;

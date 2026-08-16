@@ -87,6 +87,11 @@ import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search
 
 import { ExportDownloads } from "../ExportDownloads";
 import { CaptureSection, type CaptureSettingsData } from "../CaptureSection";
+import {
+  NotificationsSection,
+  type NotificationSettingsData,
+} from "../NotificationsSection";
+import { toNotificationSettingsView } from "./notifications";
 import { toCaptureDeviceView } from "./capture";
 import { toCalendarSourceView } from "./calendars";
 import {
@@ -94,6 +99,8 @@ import {
   type CalendarSettingsData,
 } from "../CalendarSourcesSection";
 import { MAX_CALENDAR_SOURCES } from "~/kernel/calendar";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "~/kernel/notifications";
+import { publicOrigin, type PushoverEnv } from "~/platform/notifications";
 import {
   calendarEncryptionConfigured,
   type CalendarSecretsEnv,
@@ -108,6 +115,7 @@ type SectionId =
   | "ai"
   | "capture"
   | "calendars"
+  | "notifications"
   | "account-security"
   | "backups"
   | "date-time"
@@ -192,6 +200,17 @@ const SECTIONS: readonly {
     label: "Calendars",
     group: "data",
     summary: "Read-only calendar links, and how fresh each one is.",
+  },
+  {
+    // NOTIFY-01 — Notifications sits in "Your data" beside Calendars and
+    // Capture, because what it really configures is what leaves DalyHub, and to
+    // whom. It is the only section on this page that can send the owner's record
+    // titles to a third party, so it belongs with the other consent decisions
+    // rather than among the app's behavioural defaults.
+    id: "notifications",
+    label: "Notifications",
+    group: "data",
+    summary: "A daily digest, obligation reminders, and where they arrive.",
   },
   {
     id: "account-security",
@@ -373,6 +392,31 @@ async function readCalendarSettings(
   };
 }
 
+/**
+ * NOTIFY-01 — the notification configuration, read ONLY for its own section.
+ *
+ * `toNotificationSettingsView` is the leak boundary: it has no user-key or
+ * application-token field, so neither can cross into the loader payload even by
+ * accident. The repository's ordinary read does not select those columns either,
+ * so there are two independent reasons this cannot leak.
+ */
+async function readNotificationSettings(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  ownerId: string,
+  profileTimeZone: string,
+): Promise<NotificationSettingsData> {
+  const settings = await scope.notificationSettings
+    .get(ownerId)
+    .catch(() => DEFAULT_NOTIFICATION_SETTINGS);
+  return {
+    settings: toNotificationSettingsView(settings, profileTimeZone),
+    // The SAME zone list Date & time offers, so the two controls cannot present
+    // different worlds.
+    timezoneOptions: TIMEZONE_OPTIONS,
+    deepLinksConfigured: publicOrigin(env as unknown as PushoverEnv) !== null,
+  };
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
@@ -403,6 +447,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // fingerprint crosses this boundary: `CalendarSourceView` cannot hold one.
     calendars:
       section === "calendars" ? await readCalendarSettings(scope) : null,
+    // NOTIFY-01 — read ONLY for the section that renders it, like the blocks
+    // above. No Pushover key or token crosses this boundary:
+    // `NotificationSettingsView` cannot hold one.
+    notifications:
+      section === "notifications"
+        ? await readNotificationSettings(
+            scope,
+            session.user.subject,
+            preferences.timezone,
+          )
+        : null,
     // BACKUP-02 — read ONLY for the section that renders it, like the blocks
     // above. It costs one service-binding round trip to the private backup
     // Worker, and every other Settings section would pay for it while showing
@@ -1080,6 +1135,9 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
         ) : null}
         {active === "capture" && loaderData.capture ? (
           <CaptureSection data={loaderData.capture} />
+        ) : null}
+        {active === "notifications" && loaderData.notifications ? (
+          <NotificationsSection data={loaderData.notifications} />
         ) : null}
         {active === "account-security" && loaderData.accountSecurity ? (
           <AccountSecuritySection data={loaderData.accountSecurity} />

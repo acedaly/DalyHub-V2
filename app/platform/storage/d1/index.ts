@@ -25,6 +25,10 @@ import type {
   CaptureRateLimiter,
   CaptureTokenRepository,
 } from "~/kernel/capture";
+import type {
+  NotificationRepository,
+  NotificationSettingsRepository,
+} from "~/kernel/notifications";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import { TASK_VIEW_CODEC, type TaskViewRepository } from "~/kernel/task-views";
@@ -85,6 +89,14 @@ import {
   D1ExternalCalendarEventRepository,
   type D1ExternalCalendarEventRepositoryOptions,
 } from "./d1-calendar-event-repository";
+import {
+  D1NotificationRepository,
+  type D1NotificationRepositoryOptions,
+} from "./d1-notification-repository";
+import {
+  D1NotificationSettingsRepository,
+  type D1NotificationSettingsRepositoryOptions,
+} from "./d1-notification-settings-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
@@ -717,6 +729,38 @@ export function createExternalCalendarEventRepository(
   options?: D1ExternalCalendarEventRepositoryOptions,
 ): ExternalCalendarEventRepository {
   return new D1ExternalCalendarEventRepository(db, context, options);
+}
+
+/**
+ * NOTIFY-01 — the notification EVENT ledger and the owner's notification
+ * configuration.
+ *
+ * Both workspace-bound; the settings store is owner-scoped as well, and its
+ * ordinary read does not select the Pushover credentials at all. Neither records
+ * Activity: a notification is operational metadata about the system, and
+ * configuration is not history (ADR-012, ADR-073's precedent).
+ */
+export {
+  D1NotificationRepository,
+  type D1NotificationRepositoryOptions,
+  D1NotificationSettingsRepository,
+  type D1NotificationSettingsRepositoryOptions,
+};
+
+export function createNotificationRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1NotificationRepositoryOptions,
+): NotificationRepository {
+  return new D1NotificationRepository(db, context, options);
+}
+
+export function createNotificationSettingsRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1NotificationSettingsRepositoryOptions,
+): NotificationSettingsRepository {
+  return new D1NotificationSettingsRepository(db, context, options);
 }
 
 export function createAppPreferencesRepository(
