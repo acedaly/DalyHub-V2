@@ -57,7 +57,7 @@ const DRAWER_URL = "/today?drawer=task%3At-drawer";
 async function openCapture(page: Page, type: string) {
   await page
     .locator(bottomNav)
-    .getByRole("button", { name: "Capture" })
+    .getByRole("button", { name: "Add", exact: true })
     .click();
   const sheet = page.getByTestId("capture-sheet");
   await expect(sheet).toBeVisible();

@@ -51,7 +51,7 @@ test.afterEach(async () => {
 async function openCaptureChooser(page: Page) {
   await page
     .locator(bottomNav)
-    .getByRole("button", { name: "Capture" })
+    .getByRole("button", { name: "Add", exact: true })
     .click();
   const sheet = page.getByTestId("capture-sheet");
   await expect(sheet).toBeVisible();
@@ -245,7 +245,7 @@ test.describe("phone capture", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("capture-sheet")).toBeHidden();
     await expect(
-      page.locator(bottomNav).getByRole("button", { name: "Capture" }),
+      page.locator(bottomNav).getByRole("button", { name: "Add", exact: true }),
     ).toBeFocused();
 
     // Nothing was written: the collection has no such Asset.
