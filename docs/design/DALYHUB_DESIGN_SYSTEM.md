@@ -348,13 +348,18 @@ entity card, so the gallery answered a Project's question on the Goals screen.
 | **One visual, chosen by the data** | A sparkline where history supports one; the bar alone where it does not. Never a flat line drawn from a single reading, and never two drawings of one number |
 | **An absence is drawn as an absence** | No bar for a Goal with no measurement — its definition of done takes the space the reading would have had |
 
-### 6.2 Goal identity is the AREA's
+### 6.2 Goal identity is its OWN, and its Area's otherwise (IDENTITY-01)
 
-A Goal has no accent of its own. It inherits its Area's rank and glyph — the
-same rule a Project follows (D21/D22) — resolved server-side on every Goal read
-and applied ONCE per card: the mark, the wash behind the reading, the bar and
-the sparkline all take it. A grid of Goals therefore groups visually by the part
-of life each serves without needing a heading.
+A Goal inherits its Area's identity, and may now also choose its own. Both
+halves — colour and glyph — are walked independently by the one resolver
+(§14a), so a Goal that picks a heart but no colour keeps the heart and takes its
+Area's hue. That combination is what the reference draws: individually
+meaningful Goal icons inside one Area's colour.
+
+The inheritance is resolved on every Goal read and applied ONCE per card: the
+mark, the bar, the meter and the trend line all take it. A grid of Goals
+therefore groups visually by the part of life each serves without needing a
+heading, and a Goal that has said something about itself still says it.
 
 Before UIX-03 every Goal in the gallery drew the same neutral grey flag, and
 Today derived a tone from a hash of the Goal's id — stable, and stable is not
@@ -408,6 +413,85 @@ Remaining** — with `Now` a rung larger than its neighbours, because start and
 target are fixed facts the owner chose and the current value is the one that
 moved. Once the target is passed, the fourth column switches from `Remaining` to
 `Achieved · 113% of target`: "0 kg to go" is true and useless.
+
+## 6a. Record identity — the sixteen-slot ramp (IDENTITY-01)
+
+**This section is POLICY.** A surface that paints a record's identity does it
+this way or it is wrong.
+
+### The ramp
+
+Sixteen named slots. Five are measured from `mockup3.png`; the rest are authored
+to the same family — saturated, contemporary, distinct at tile size.
+
+| # | Slot | | # | Slot | | # | Slot | | # | Slot |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | `violet` | | 5 | `blue` | | 9 | `pink` | | 13 | `emerald` |
+| 2 | `green` | | 6 | `teal` | | 10 | `rose` | | 14 | `cyan` |
+| 3 | `red` | | 7 | `purple` | | 11 | `amber` | | 15 | `sky` |
+| 4 | `orange` | | 8 | `fuchsia` | | 12 | `lime` | | 16 | `brown` |
+
+Authored once in `scripts/generate-m3-scheme.mjs`, emitted per appearance into
+`tokens.css`, mirrored into `scheme.ts`. **Dark is derived, never authored.**
+Exact values, contrast results and every adjustment are recorded in
+`IDENTITY_01_IDENTITY_SYSTEM_2026_08.md`.
+
+### The four roles
+
+| Token | Is | Consumed by |
+|---|---|---|
+| `--dh-identity` | the hue itself | glyph, progress fill, chart line, chip icon, Area dot |
+| `--dh-identity-tint` | a whisper of the hue over the card | the identity tile's fill |
+| `--dh-identity-edge` | the hue at border strength | the tile's 1px border |
+| `--dh-identity-soft` | the hue at pill/track strength | Area pill fill, identity progress tracks |
+
+They are resolved by `data-identity="<slot>"`, set ONCE by the resolver on the
+element that owns the record, and INHERITED by everything inside it.
+
+### The rules
+
+1. **One hue per record.** A record's tile, bar, chart line, pill and chip all
+   resolve from the same four properties. This is structural, not conventional:
+   they read the same inherited custom property, so they cannot disagree.
+2. **The glyph is the hue; the fill is a whisper; the edge does the drawing.**
+   The tile is near-white with a fine tinted border and a saturated glyph. The
+   inverse — a tonal fill holding a dark partner glyph — is forbidden.
+3. **`*-container` / `on-*-container` pairings are PROHIBITED on identity
+   surfaces.** That construction is Material's tonal container whatever it is
+   named, and it is what the identity system exists to leave behind. Asserted by
+   `identity-ramp.test.ts` over `icons.css`, `pill.css`, `progress.css` and
+   `charts.css`.
+4. **Identity is never status.** The hue says WHICH record, never how the work is
+   going. A red identity is not an alarm; state has its own tones AND its own
+   words.
+5. **Colour is never the only carrier.** The record's name is always text beside
+   its tile; a bar's value is always printed; a swatch always has a name.
+6. **Geometry is DalyHub's.** `--dh-radius-*`, never `--md-sys-shape-corner-*`.
+7. **The glyph vocabulary is one idiom** — DalyHub's stroke set at one weight
+   (`entity-glyphs.tsx`), including every entity DEFAULT. The frame's Material
+   Symbols never appear inside an identity tile.
+
+### The resolution rules
+
+```
+1. the record's OWN stored choice     (colour_slot / icon_key)
+2. the record's OWN derived colour    (colourRank, folded over the FIRST SIX slots)
+3. the identity it INHERITS           (a Goal's Area, resolved recursively)
+4. the neutral container / the entity's default glyph
+```
+
+Colour and icon walk the ladder independently. An **Area** and a **Project** each
+use their OWN rank — a Project never its Area's. A **Goal** has no rank and
+inherits its Area's resolved identity.
+
+**The derived fallback folds over SIX slots, not sixteen**, and in the order the
+six shipped accents used. Widening it would repaint every record that never chose
+anything. Sixteen are reachable by CHOICE; six are the deterministic default.
+
+### One resolver
+
+`resolveIdentity` (`~/shared/entity`) is the only place any of this is decided.
+A surface that computes its own slot mapping is the defect this replaced.
 
 ## 7. Interaction principles
 

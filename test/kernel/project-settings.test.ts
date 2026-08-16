@@ -72,6 +72,7 @@ describe("get", () => {
       // point: a new field on the record has to be acknowledged here rather
       // than slipping into the contract unasserted.
       iconKey: null,
+      colourSlot: null,
     });
   });
 
@@ -114,6 +115,7 @@ describe("setStatus", () => {
         // now returns `icon_key` alongside the columns it writes, so this is
         // the persisted value rather than one carried over from the pre-read.
         iconKey: null,
+        colourSlot: null,
       },
       changed: true,
     });

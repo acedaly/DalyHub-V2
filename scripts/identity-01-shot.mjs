@@ -33,7 +33,10 @@ async function shootPicker(width, height, scheme) {
     ...(phone ? { isMobile: true, hasTouch: true } : {}),
   });
   const page = await context.newPage();
-  await page.goto(`${BASE}/areas`, { waitUntil: "networkidle", timeout: 40000 });
+  await page.goto(`${BASE}/areas`, {
+    waitUntil: "networkidle",
+    timeout: 40000,
+  });
   const href = await page
     .locator("a[href*='/areas/']")
     .first()

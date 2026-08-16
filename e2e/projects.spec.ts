@@ -270,7 +270,7 @@ test.describe("PROJ-01 — Projects", () => {
     const accents = await page
       .locator(".dh-accent-icon")
       .evaluateAll((nodes) =>
-        nodes.map((node) => node.getAttribute("data-accent")),
+        nodes.map((node) => node.getAttribute("data-identity")),
       );
     expect(accents.filter(Boolean).length).toBeGreaterThan(0);
 

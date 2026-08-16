@@ -11,6 +11,60 @@ Generated from `rg -l "md-sys|md-app|material|tonal|state-layer|elevation-[0-9]|
 - Non-UI app files: 12
 - Total matches: 170
 
+## Progress — IDENTITY-01, the DalyHub Identity System (2026-08)
+
+Record identity — the tile, the bars, the pills, the dots, the goal meter and the
+chart line — no longer resolves through Material's generated
+`area-accent-N-container` / `on-area-accent-N-container` quartet. It resolves
+through DalyHub's own sixteen-slot ramp and four semantic roles.
+
+### Retired from identity surfaces
+
+| File | `area-accent-*` refs before | After |
+|---|---|---|
+| `app/styles/icons.css` | 12 | **0** |
+| `app/styles/pill.css` | 18 | **0** |
+| `app/styles/card-family.css` | 19 | **0** |
+| `app/styles/projects.css` | 6 | **0** |
+
+Sixty-eight rules (six-slot mappings repeated in five stylesheets) became six
+declarations that do not know how many slots exist. `identity-ramp.test.ts` fails
+if any of those four files reads a `(on-)area-accent-*` role again.
+
+`--md-sys-shape-corner-*` also left the identity tile and the Area pill/dot, for
+`--dh-radius-*`.
+
+### Deliberately LEFT reading `area-accent-*`, with the tokens kept alive
+
+The pass migrated the surfaces §10 of the brief scoped it to. These three are
+outside that scope and still have live readers, so the generated
+`area-accent-*` quartet stays emitted:
+
+| File | What it paints | Why it was left |
+|---|---|---|
+| `app/styles/people.css` | `.dh-person-avatar[data-accent]` | A person's relationship CIRCLE, derived by `person-circles.ts` — not a record's own identity, and not on the spine |
+| `app/styles/analytics.css` | `.dh-analytics__split-track[data-accent]` | An Area BREAKDOWN chart's series, not a record's own mark |
+| `app/shared/pill/Pill.tsx` | `areaAccentForRank` | Kept as a legacy shim resolving through `identityForRank`, so the number and the name can never disagree about which slot a rank lands on. Its only remaining callers are the two files above and `ScheduleList` |
+
+`app/styles/schedule.css` reads the WIDGET-accent ramp (`accent-violet`,
+`accent-blue`, …) rather than the identity ramp, and `app/styles/icons.css`'s
+`.dh-tone-icon` still composes a widget tone through the container machinery.
+Converting the widget vocabulary is its own pass; nothing in it is a record's
+identity.
+
+### The icon set is now split, deliberately
+
+`app/shared/icons/icons.tsx` (Material Symbols Outlined, filled paths) is the
+application FRAME's set and is unchanged. `app/shared/icons/entity-glyphs.tsx` is
+new: every glyph an owner can choose, plus every entity DEFAULT a record wears,
+drawn in DalyHub's own stroke idiom at one weight. A filled symbol inside the
+rebuilt identity tile reads as a solid blob of the record's hue, which is the
+look the tile exists to leave behind. `catalogue.test.ts` fails if a catalogue
+entry is not stroked at the set's weight.
+
+Converting the frame's glyphs is NOT scheduled — they are chrome the owner never
+chooses, and one honest split beats a half-finished sweep.
+
 ## Progress — REDESIGN-04, the Spine Workspaces (2026-08)
 
 This pass's effect on the inventory is mostly **subtraction by deletion**, which

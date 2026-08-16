@@ -245,11 +245,14 @@ ALTER TABLE goal_details    ADD COLUMN icon_key    TEXT;
 
 ### Backup and application
 
-**Not yet applied anywhere.** `pnpm run db:production:backup` (AGENTS.md's
-non-negotiable pre-migration step) requires production Cloudflare credentials,
-which this environment does not hold, so the production path has deliberately not
-been started. The local path (`pnpm run db:migrate:local`) is likewise unrun in
-CI-shaped environments without a Miniflare D1.
+**Applied LOCALLY, not to production.** `pnpm run db:migrate:local` applied 0042
+cleanly to the Miniflare D1, the ds-final fixture writes and reads all four
+columns, and the full unit, kernel and E2E suites are green against it.
+
+**No production backup has been taken and the migration has NOT been applied to
+production**, because this environment holds no Cloudflare credentials.
+`pnpm run db:production:backup` is AGENTS.md's non-negotiable pre-migration step
+and it has not run.
 
 **Before this branch is deployed, the documented order must be followed exactly:**
 
@@ -261,7 +264,7 @@ pnpm run db:production:list          # confirm 0042 is pending
 pnpm run db:production:apply         # apply
 ```
 
-Recorded as an open item in `PRODUCT_DEBT.md`.
+Recorded as **DEBT-139 (P1)** in `PRODUCT_DEBT.md`.
 
 ---
 
@@ -413,6 +416,17 @@ what is not yet run.
 
 No baseline failure to explain: `main` was green on all eight.
 
+### E2E
+
+`e2e/identity.spec.ts` walks the journey: open the picker, choose a colour and an
+icon, see the combination on the record header, on the collection row and after a
+reload; prove every OTHER Area is byte-identical before and after; revert to
+Automatic and get the derived colour back; kill the network mid-save and find the
+failure stated in words with nothing written; arrow-navigate the swatch grid;
+search a synonym; axe-clean in both appearances; and a 44px-target, no-overflow
+sheet at 390px. Registered in the partition manifest
+(`pnpm run e2e:partitions:check`).
+
 ### Tests added
 
 - `test/unit/tokens/identity-ramp.test.ts` — the ramp is complete; every slot
@@ -432,33 +446,73 @@ No baseline failure to explain: `main` was green on all eight.
 
 ---
 
-## 11. Remaining work, stated plainly
+## 11. Evidence
 
-This pass delivered the ramp, the tile, the flow-through, the vocabulary, the
-schema and the picker. Three things the brief asks for are **not** done, and
-saying so is more useful than implying otherwise:
+Captured at 1440 and 390, light and dark, against the same locally-migrated and
+seeded database — so the two matrices differ only by the code that rendered them.
 
-1. **The migration has not been applied anywhere**, and no production backup has
-   been taken, because this environment holds no Cloudflare credentials. §5
-   records the exact order that must be followed first. Until then the columns
-   exist in the migration file only, and every read path already handles their
-   absence the way it handles a missing detail row.
-2. **The `ds-final` seed fixture has not been extended** with entities across ten
-   chosen slots, and **no before/after screenshot matrix has been captured**
-   (`docs/design/assets/identity-01/{before,after}/` exists but is empty). Both
-   need a running local D1 and a browser against a seeded workspace. The
-   acceptance test in §13 of the brief — placing the AFTER gallery beside
-   `mockup3.png` — therefore has **not** been performed, and the pass should not
-   be called visually accepted until it has.
-3. **E2E coverage for the picker journey** (open, choose colour + icon, save, see
-   it on card and row and phone card, reload, choose Automatic, kill the network
-   mid-save) is not written. The unit layer covers the resolver, the vocabulary
-   and the ramp; the journey is not covered.
+- `docs/design/assets/identity-01/before/` — the base SHA's app code
+  (`fcdfb8c4`), checked out over the same working database.
+- `docs/design/assets/identity-01/after/` — this branch.
 
-Everything above is tracked in `PRODUCT_DEBT.md`.
+Comparable filenames in both: `projects-`, `areas-`, `goals-`, `today-` and
+`picker-`, each `{1440,390}-{light,dark}`.
+
+### The fixture
+
+`scripts/ds-final-seed.mjs` now seeds chosen identities across **fifteen distinct
+slots**, including all three §5 flagged as contrast edge cases (`amber`, `lime`,
+`sky`), beside Areas, Projects and Goals that deliberately chose **nothing** — so
+the derived fallback and the chosen path appear in the same screenshot, and a
+reviewer can see that an unchosen record is untouched. Goals cover all four
+combinations: own colour + own icon, own icon only, own colour only, neither.
+
+### The acceptance test (§13), performed
+
+> **Do the tiles read as vivid, distinct identities — bright icon, whisper of
+> tint, fine tinted edge, matching bar — or as pastel boxes with dark glyphs?**
+
+They read as identities. The tile is near-white, the edge draws it, the glyph is
+the full hue, and the bar beneath is the same hue.
+
+The honest comparison with the BEFORE matrix is narrower than the brief's §1
+predicted, and §1 above explains why: REDESIGN-04 had already moved the six hues
+onto mockup3's own colours and pushed the container to tone 96. What visibly
+changed in this pass is the **edge** (the tile no longer dissolves into the card),
+the **stroke vocabulary** (the glyphs are line art at one weight instead of
+Material's filled symbols), the **geometry** (DalyHub radii), and — the part that
+is not visible in a static gallery — that there are now sixteen slots and the
+owner can pick one.
+
+- Does every record's tile agree with its bar? **Yes**, by construction: both
+  read `--dh-identity` from the same `data-identity`, asserted.
+- Do the pills and dots speak the same ramp? **Yes** — `pill.css` reads the same
+  two roles and no longer names a container.
+- Does dark hold the same identities, calm and contrast-passing, across all
+  sixteen? **Yes** — see the dark matrix and §2.2's measured ratios.
+- Is the neutral container honestly neutral, and Automatic honest about what it
+  resolves to? **Yes** — the neutral is `:root`'s published fallback, and
+  Automatic renders and names the current derived colour.
+- Does a chosen identity follow its record to every surface, including the phone?
+  **Yes** — walked end to end in `e2e/identity.spec.ts`.
+- Does every unchosen entity look exactly as it did yesterday? **The
+  assignment does**, and that is asserted twice (unit and E2E). The six ramp
+  VALUES moved slightly because re-measuring the ramp is the pass's purpose; §2.3
+  records every movement.
 
 ---
 
-## 12. Evidence
+## 12. What is NOT done
 
-`docs/design/assets/identity-01/before/` and `.../after/` — **empty**, see §11.2.
+1. **The migration has not been applied to production, and no production backup
+   has been taken.** This environment holds no Cloudflare credentials. It IS
+   applied to the local D1 and the full suite is green against it. §5 records the
+   exact order that must be run first. Tracked as **DEBT-139 (P1)**.
+2. **`red` and `rose` are the ramp's one weak pair** in dark. Tracked as
+   **DEBT-140 (P3)**, with §2.5's reasoning.
+3. **The application frame's icons are still Material Symbols.** The split is
+   deliberate and argued (§6.1), not accidental — but it is a split. Tracked as
+   **DEBT-141 (P3)**.
+4. **Person avatars and analytics split bars still read `area-accent-*`.** Out of
+   §10's scope; the tokens stay generated for them. Tracked as **DEBT-142 (P3)**
+   and mirrored into `docs/md3-inventory.md`.

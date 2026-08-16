@@ -194,13 +194,15 @@ test.describe("AREA-01 — Areas", () => {
       fallback.locator('.dh-accent-icon [data-entity="area"]'),
     ).toBeVisible();
 
-    // Each Area wears its OWN accent, so a grid is scannable by colour.
-    const accents = await page
+    // IDENTITY-01 — each Area wears its OWN identity slot, so a grid is
+    // scannable by colour. The slot is carried by NAME, so this survives a
+    // reorder of the ramp in a way a numeric accent would not.
+    const identities = await page
       .locator(".dh-accent-icon")
       .evaluateAll((nodes) =>
-        nodes.map((node) => node.getAttribute("data-accent")),
+        nodes.map((node) => node.getAttribute("data-identity")),
       );
-    expect(new Set(accents).size).toBeGreaterThan(1);
+    expect(new Set(identities).size).toBeGreaterThan(1);
 
     // The seeded `a-dh` Area holds Projects, Goals and Tasks; the counts come
     // from workspace-wide aggregates, so they are integers, never blanks.

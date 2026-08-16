@@ -17,6 +17,46 @@ no version number to group them under.
 
 ---
 
+## Areas, Projects and Goals get a colour and an icon you choose
+
+Every Area, Project and Goal has always had a colour. You have never been able to
+pick it — the product worked one out from where the record sat, and gave you six
+to work with. Now there are sixteen, and you choose.
+
+**Choose a colour and an icon in one place.** Open any Area, Project or Goal's
+settings and the Appearance section shows both together, with a live preview of
+the combination: pick a flame, pick red, and you can see the red flame before you
+apply it. The icon grid draws every glyph in the colour you are trying, because
+what you are choosing is what the record will look like, not two separate things.
+
+**A hundred and one icons, up from thirty-four.** The old set covered the parts of
+a life the product had built modules for. This one covers the parts of a life you
+actually run: a heart, a dumbbell, a pair of running shoes, a book, a plane, a
+tent, a coffee, a paw, a piggy bank, a guitar. Search it — typing "gym" finds
+Fitness — because a hundred options without a filter is a wall.
+
+**Or leave it Automatic.** The no-choice option is still there, it is still the
+default, and it now tells you which colour it currently resolves to rather than
+asking you to trust it. **Every record that has never chosen anything looks
+exactly as it did yesterday** — the automatic colours are the same six, in the
+same order, on the same records.
+
+**Goals can have an identity of their own.** They used to borrow their Area's icon
+and colour with no say in it. A Goal can now choose either, or both, or neither —
+and a Goal that picks a heart but no colour keeps the heart and takes its Area's
+colour.
+
+**The identity follows the record everywhere.** The colour you choose paints the
+record's tile, its progress bar, its chart line, its Area pill and its chip — on
+the gallery, in the table, on Today, on your phone. One record, one colour,
+everywhere. The tiles themselves are redrawn to match the design reference: a
+whisper of colour behind a fine coloured edge, with the icon in the full colour
+rather than a muted one on a pastel square.
+
+It all works in dark mode, and every colour is contrast-checked in both.
+
+---
+
 ## Projects and Goals became workspaces (REDESIGN-04)
 
 The last pass reconciled the spine's competing designs and fixed dark mode; it
