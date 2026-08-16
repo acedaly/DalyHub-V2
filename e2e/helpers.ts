@@ -563,3 +563,65 @@ export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
   await toggle.press(" ");
   await expect(toggle).toBeChecked({ checked: on });
 }
+
+/**
+ * Choose a date in the shared DalyHub calendar (`~/shared/forms/CalendarGrid`).
+ *
+ * CONTROL-01 replaced the native `<input type="date">` inside every inline date
+ * editor with a real month grid, so a journey can no longer `fill()` an ISO
+ * string: it steps to the month and presses the day, which is what an owner
+ * does. There is no Save — the grid COMMITS on selection, because a calendar day
+ * is an unambiguous, complete answer.
+ *
+ * The day is matched by its accessible name rather than its digits: a bare "15"
+ * also matches "15" inside "25" under Playwright's substring matching, whereas
+ * the full spoken date ("15 March 2027") is unique within the grid.
+ *
+ * `scope` is the surface the calendar is in — a popover or a sheet — so a page
+ * with two open date editors cannot be ambiguous.
+ */
+const CALENDAR_MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+export async function pickCalendarDate(
+  scope: Locator,
+  iso: string,
+): Promise<void> {
+  const [year, month, day] = iso.split("-").map(Number);
+  const monthLabel = `${CALENDAR_MONTHS[month - 1]} ${year}`;
+  const dayLabel = `${day} ${monthLabel}`;
+
+  const heading = scope.locator(".dh-calendar__month");
+  await expect(heading).toBeVisible();
+
+  // Bounded: twenty-four steps covers any date a journey reasonably picks, and
+  // a bound means a broken stepper fails with this message rather than hanging.
+  for (let step = 0; step < 24; step += 1) {
+    const shown = (await heading.textContent())?.trim() ?? "";
+    if (shown === monthLabel) break;
+    // Parsed from its two parts rather than fed to `new Date("August 2026")`,
+    // whose behaviour on a month-and-year string is implementation-defined.
+    const [shownMonth, shownYear] = shown.split(" ");
+    const shownIndex = CALENDAR_MONTHS.indexOf(shownMonth ?? "");
+    const forwards =
+      shownIndex < 0 ||
+      Number(shownYear) * 12 + shownIndex < year * 12 + (month - 1);
+    await scope
+      .getByRole("button", { name: forwards ? "Next month" : "Previous month" })
+      .click();
+  }
+  await expect(heading).toHaveText(monthLabel);
+  await scope.getByRole("button", { name: dayLabel }).click();
+}
