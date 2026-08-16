@@ -62,7 +62,19 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-danger",
   "dh-color-success",
   "dh-color-warning",
+  "dh-color-info",
   "dh-color-overdue",
+  /*
+   * POLISH-01 — the meter pair. A progress fill answers "how is this going?",
+   * so it is painted from the STATUS ramp rather than from the record's
+   * identity; see `~/shared/progress/meter-status`.
+   */
+  "dh-color-meter-track",
+  "dh-color-meter-neutral",
+  "dh-color-meter-success",
+  "dh-color-meter-info",
+  "dh-color-meter-warning",
+  "dh-color-meter-danger",
   "dh-color-focus",
   "dh-color-scrim",
 ] as const;

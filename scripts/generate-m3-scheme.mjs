@@ -1540,8 +1540,32 @@ function previewDeclarations(all, mode) {
  * `var(--accent-tint)` and `var(--danger-tint)`, so they follow this pair
  * without being restated.
  *
- * The LIGHT values are the Part B originals, unchanged to the digit, so this
- * move repaints nothing in the appearance the product already shipped.
+ * ── The light contrast correction (POLISH-01, 2026-08) ──────────────────────
+ * The LIGHT values were the Part B originals until POLISH-01. They shipped a
+ * text ramp and a feedback ramp that did not meet WCAG AA as TEXT: muted body
+ * text at #82828c is 3.80:1 on white, P2 orange at #e2680a is 3.38:1, overdue
+ * red at #d9483b is 4.25:1 and status green at #2e9e6b is 3.38:1 — and every
+ * one of those names is painted as small text somewhere (a metadata line, the
+ * "P2" tag beside its flag, an overdue chip, a status caption), not only as a
+ * mark.
+ *
+ * The correction is made HERE rather than in the components that were failing,
+ * because a per-selector patch fixes one screen and leaves the next one wrong.
+ * Each value keeps its hue and its saturation and loses only lightness, chosen
+ * as the LIGHTEST value that clears 4.5:1 against `surface-sunken` (#f0f0f3) —
+ * the deepest light surface any of them is drawn on, so the same token is safe
+ * on all five. `test/unit/tokens/dalyhub-primitive-contrast.test.ts` asserts the
+ * whole matrix, which is what stops the next re-tone lightening them back.
+ *
+ * Two names are deliberately NOT held to 4.5: `ink-faint` and `ink-icon` are
+ * non-text marks under WCAG 1.4.11 and take 3:1, though both were raised as
+ * well so an icon does not read two tones lighter than the label beside it.
+ * The `category-*` legend ramp follows its feedback counterparts to the digit,
+ * because a legend swatch and the status it names must not be two oranges.
+ *
+ * DARK is untouched. It already passes everywhere the light ramp failed (the
+ * lowest pair is `ink-muted` on `surface-muted` at 4.51:1), and re-toning a
+ * passing appearance to match a failing one is how a fix becomes a redesign.
  *
  * ── How the dark half was chosen ─────────────────────────────────────────────
  * A near-black frame with the surface ramp INVERTED rather than mirrored: in
@@ -1590,9 +1614,9 @@ const DALYHUB_PRIMITIVES = {
     ink: "#101014",
     "ink-body": "#1c1c22",
     "ink-secondary": "#45454e",
-    "ink-muted": "#82828c",
-    "ink-faint": "#a3a3ac",
-    "ink-icon": "#8a8a94",
+    "ink-muted": "#6b6b75",
+    "ink-faint": "#83838d",
+    "ink-icon": "#71717c",
     "ink-inverse": "#ffffff",
 
     accent: "#5b4bd6",
@@ -1601,29 +1625,29 @@ const DALYHUB_PRIMITIVES = {
     "accent-tint": "#efedfc",
     "accent-tint-hover": "#e6e2fa",
 
-    danger: "#d9483b",
+    danger: "#c5372a",
     "danger-tint": "#fbeae8",
-    warning: "#d98324",
+    warning: "#a25c10",
     "warning-tint": "#fbf0e2",
-    success: "#2e9e6b",
+    success: "#1d7a52",
     "success-tint": "#e7f5ee",
-    info: "#3b82c4",
+    info: "#31709f",
     "info-tint": "#eaf1f9",
 
-    "priority-1": "#dd302a",
-    "priority-2": "#e2680a",
+    "priority-1": "#cf2a23",
+    "priority-2": "#b05108",
     "priority-3": "#2e56e3",
-    "priority-4": "#8a8a94",
+    "priority-4": "#6b6b75",
 
     "category-purple": "#5b4bd6",
     "category-purple-tint": "#efedfc",
-    "category-blue": "#3b82c4",
+    "category-blue": "#31709f",
     "category-blue-tint": "#eaf1f9",
-    "category-orange": "#d98324",
+    "category-orange": "#a25c10",
     "category-orange-tint": "#fbf0e2",
-    "category-green": "#2e9e6b",
+    "category-green": "#1d7a52",
     "category-green-tint": "#e7f5ee",
-    "category-red": "#d9483b",
+    "category-red": "#c5372a",
     "category-red-tint": "#fbeae8",
 
     "shadow-popover":

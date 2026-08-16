@@ -36,6 +36,8 @@ export type {
 export {
   GOAL_PROGRESS_STATUS_LABELS,
   GOAL_PROGRESS_STATUS_TONES,
+  GOAL_PROGRESS_METER_STATUSES,
+  goalProgressMeterStatus,
   GOAL_CHECK_IN_DUE_DAYS,
   evaluateGoalFromSeries,
   evaluateGoalFromSummary,

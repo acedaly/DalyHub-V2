@@ -45,7 +45,11 @@ import {
   alignmentAccessibleSummary,
   type GoalAlignment,
 } from "~/shared/alignment";
-import { goalProgressSummaryText, goalRowValue } from "~/shared/goal-progress";
+import {
+  goalProgressMeterStatus,
+  goalProgressSummaryText,
+  goalRowValue,
+} from "~/shared/goal-progress";
 
 import type { SerializedGoalWithAlignment } from "./GoalsCollection";
 
@@ -161,6 +165,10 @@ export function GoalWorkspaceList({
                 : {
                     percent: goal.progress.progressPercent,
                     valueText: goalProgressSummaryText(goal.progress),
+                    // POLISH-01 — the bar states how the Goal is GOING. It used
+                    // to take the Goal's identity hue, so "60.0 / 70 kg ·
+                    // Ahead" could be drawn in red.
+                    status: goalProgressMeterStatus(goal.progress.status),
                   }
             }
             value={goalRowValue(goal.progress)}

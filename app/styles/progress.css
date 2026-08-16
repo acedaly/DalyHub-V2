@@ -52,44 +52,113 @@
      illustrates it. */
   block-size: var(--app-progress-bar-height);
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-secondary-container);
+  /* POLISH-01 — the ONE meter track. It was `secondary-container`, a lavender
+     in this scheme, so an empty bar read as a full one in a different colour. */
+  background: var(--dh-color-meter-track);
   overflow: hidden;
 }
 
 .dh-progress__fill {
   block-size: 100%;
   border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-meter-neutral);
   transition: inline-size var(--md-sys-motion-duration-medium2)
     var(--md-sys-motion-easing-standard);
 }
 
 /*
- * IDENTITY-01 — a meter inside a record takes that RECORD's identity hue.
+ * POLISH-01 — THE METER SAYS HOW IT IS GOING, NOT WHAT IT IS.
  *
- * The Goal rail on Today, a Goal's own card, a Project's summary bar: all of
- * them draw this meter inside an element the resolver has already stamped with
- * `data-identity`, and until now all of them drew it in the application's
- * action colour. Four Goal tiles side by side were four violet bars under four
- * differently-coloured marks — the tile said one thing about which record this
- * was and the bar said another.
+ * IDENTITY-01 pointed this fill at `--dh-identity`, so a Goal's bar was painted
+ * in the Goal's chosen colour. Four Goal tiles side by side did read as four
+ * records — and a Goal at "60% — Ahead" whose colour slot happened to be red
+ * drew a red bar, a finished Project drew an orange one, and a healthy Goal
+ * drew the same amber the product spends on "needs attention". At a glance the
+ * bar was answering the wrong question, in the one position on the card where
+ * the eye is asking about progress.
  *
- * The track takes the same hue's `soft` role rather than the neutral container,
- * so the bar reads as one object in one colour instead of a coloured fill in a
- * grey slot. Outside an identity context nothing matches and the neutral pair
- * above still applies, which is what keeps a task-count bar neutral.
+ * The identity ramp keeps the tile, the dot, the mark, the pills and the
+ * Analytics legends — every place a colour means "which record is this". The
+ * bar takes the status the surface already derived (`~/shared/progress/meter-status`),
+ * and `neutral` is what an unmeasured or purely-volumetric bar gets, because a
+ * meter with nothing to judge should not guess.
+ *
+ * These rules are shared by every meter in the product: the four bespoke fills
+ * (`__pcard`, `__ecard`, `__mrow`, `__ptable`) opt in by carrying the same
+ * `data-meter-status` attribute on their track, so there is one mapping from
+ * status to colour rather than five.
  */
-[data-identity] .dh-progress__track {
-  background: var(--dh-identity-soft);
+.dh-progress__fill,
+.dh-pcard__fill,
+.dh-ecard__progress-fill,
+.dh-mrow__fill,
+.dh-ptable__fill,
+.dh-scard__progress-fill {
+  background: var(--dh-color-meter-neutral);
 }
 
-[data-identity] .dh-progress__fill {
-  background: var(--dh-identity);
+[data-meter-status="success"]
+  :is(
+    .dh-progress__fill,
+    .dh-pcard__fill,
+    .dh-ecard__progress-fill,
+    .dh-mrow__fill,
+    .dh-ptable__fill,
+    .dh-scard__progress-fill
+  ) {
+  background: var(--dh-color-meter-success);
+}
+
+[data-meter-status="info"]
+  :is(
+    .dh-progress__fill,
+    .dh-pcard__fill,
+    .dh-ecard__progress-fill,
+    .dh-mrow__fill,
+    .dh-ptable__fill,
+    .dh-scard__progress-fill
+  ) {
+  background: var(--dh-color-meter-info);
+}
+
+[data-meter-status="warning"]
+  :is(
+    .dh-progress__fill,
+    .dh-pcard__fill,
+    .dh-ecard__progress-fill,
+    .dh-mrow__fill,
+    .dh-ptable__fill,
+    .dh-scard__progress-fill
+  ) {
+  background: var(--dh-color-meter-warning);
+}
+
+[data-meter-status="danger"]
+  :is(
+    .dh-progress__fill,
+    .dh-pcard__fill,
+    .dh-ecard__progress-fill,
+    .dh-mrow__fill,
+    .dh-ptable__fill,
+    .dh-scard__progress-fill
+  ) {
+  background: var(--dh-color-meter-danger);
+}
+
+/* Every meter's TRACK, in one place. */
+.dh-progress__track,
+.dh-pcard__track,
+.dh-ecard__progress-track,
+.dh-mrow__track,
+.dh-ptable__track,
+.dh-scard__progress-track {
+  background: var(--dh-color-meter-track);
 }
 
 /* Complete is signalled by colour AND by the summary text ("8 of 8 complete"),
- * never by the bar reaching the end alone. It outranks identity deliberately:
- * a finished measure is the one thing a Goal's bar is allowed to announce. */
+ * never by the bar reaching the end alone. It outranks the status deliberately:
+ * a finished measure is the one thing a Goal's bar is allowed to announce on
+ * its own. */
 .dh-progress__track[data-complete="true"] .dh-progress__fill {
   background: var(--dh-color-success);
 }

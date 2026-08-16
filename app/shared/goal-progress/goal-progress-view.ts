@@ -35,6 +35,7 @@ import {
   goalDaysBetween,
 } from "~/kernel/goals";
 import type { PillTone } from "~/shared/pill";
+import type { MeterStatus } from "~/shared/progress";
 
 /* -------------------------------------------------------------------------- */
 /* JSON-safe shapes                                                            */
@@ -307,6 +308,46 @@ export function goalProgressStatusLabel(status: GoalProgressStatus): string {
 
 export function goalProgressStatusTone(status: GoalProgressStatus): PillTone {
   return GOAL_PROGRESS_STATUS_TONES[status];
+}
+
+/**
+ * POLISH-01 — the METER status for each Goal status.
+ *
+ * Close to {@link GOAL_PROGRESS_STATUS_TONES} but not the same map, and the
+ * difference is deliberate. A CHIP is a label the owner reads; a BAR is a
+ * verdict the eye reads without deciding to. So the bar is allowed to be one
+ * step stricter about the two states that are genuinely bad news:
+ *
+ *   - `overdue` — the target DATE has passed and the target has not been
+ *     reached. The chip says "Overdue" in amber because the sentence carries
+ *     the weight; the bar says `danger`, because a red bar under a passed
+ *     deadline is the honest picture and an amber one under-reports it.
+ *   - `needs_attention` — behind the line, or moving away from it. `warning` in
+ *     both: it is a slope, not a wall.
+ *
+ * Everything in flight is `neutral`. A Goal that is not measured, not started,
+ * or moving with no target date to be on track AGAINST has no status to draw,
+ * and a bar that guessed "success" for it would be congratulating the owner for
+ * work that has not begun (the same reasoning `goalIsOnTrack` records).
+ */
+export const GOAL_PROGRESS_METER_STATUSES: Readonly<
+  Record<GoalProgressStatus, MeterStatus>
+> = {
+  not_measured: "neutral",
+  not_started: "neutral",
+  in_progress: "neutral",
+  on_track: "success",
+  ahead: "success",
+  needs_attention: "warning",
+  achieved: "success",
+  overdue: "danger",
+  stale: "neutral",
+};
+
+export function goalProgressMeterStatus(
+  status: GoalProgressStatus,
+): MeterStatus {
+  return GOAL_PROGRESS_METER_STATUSES[status];
 }
 
 /** Statuses worth surfacing on Today. Deliberately short and explicable. */

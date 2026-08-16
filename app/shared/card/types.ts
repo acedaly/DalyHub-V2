@@ -16,6 +16,8 @@
  * entity needs it, and add it to this one Card (never a bespoke per-module card).
  */
 
+import type { MeterStatus } from "~/shared/progress";
+
 import type { MouseEvent, ReactNode } from "react";
 
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
@@ -123,6 +125,15 @@ export interface CardProgress {
    * Defaults to the visible label, so a caller that sets neither is unchanged.
    */
   readonly valueText?: string;
+  /**
+   * POLISH-01 — what the bar SAYS about how the work is going.
+   *
+   * A meter is the one figure on a card the eye reads as a verdict, so it is
+   * painted from the STATUS ramp rather than from the record's identity. Absent
+   * means `neutral`: an honest "there is nothing to judge here" for a count bar
+   * or an unmeasured record, and never a guess (`~/shared/progress/meter-status`).
+   */
+  readonly status?: MeterStatus;
 }
 
 /** Modifier keys that were held when a selection was toggled. */
@@ -343,6 +354,8 @@ export interface NormalisedProgress {
   readonly text: string;
   /** What assistive tech is told. Falls back to {@link text}. */
   readonly valueText: string;
+  /** POLISH-01 — the meter's status. `neutral` when the caller states none. */
+  readonly status: MeterStatus;
 }
 
 export function normaliseProgress(progress: CardProgress): NormalisedProgress {
@@ -354,7 +367,13 @@ export function normaliseProgress(progress: CardProgress): NormalisedProgress {
   const fraction = Math.min(1, Math.max(0, rawFraction));
   const percent = Math.round(fraction * 100);
   const text = progress.label ?? `${percent}%`;
-  return { fraction, percent, text, valueText: progress.valueText ?? text };
+  return {
+    fraction,
+    percent,
+    text,
+    valueText: progress.valueText ?? text,
+    status: progress.status ?? "neutral",
+  };
 }
 
 export function primaryOpenIsModifiedClick(

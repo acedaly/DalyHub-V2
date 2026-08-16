@@ -32,6 +32,7 @@ import { Link } from "react-router";
 import { ProgressRow, ProgressRowList } from "~/shared/card";
 import { AccentIcon, resolveIdentity } from "~/shared/entity";
 import {
+  goalProgressMeterStatus,
   goalProgressSummaryText,
   goalRowValue,
   type GoalSummary,
@@ -90,6 +91,10 @@ export function GoalSummarySection({
                 : {
                     percent: goal.progress.progressPercent,
                     valueText: goalProgressSummaryText(goal.progress),
+                    // POLISH-01 — the bar states how the Goal is GOING. It used
+                    // to take the Goal's identity hue, so "60.0 / 70 kg ·
+                    // Ahead" could be drawn in red.
+                    status: goalProgressMeterStatus(goal.progress.status),
                   }
             }
             value={goalRowValue(goal.progress)}

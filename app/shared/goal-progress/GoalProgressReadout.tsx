@@ -25,6 +25,7 @@ import { ProgressTrack } from "~/shared/progress";
 import {
   formatMeasurementValue,
   goalProgressStatusLabel,
+  goalProgressMeterStatus,
   goalProgressStatusTone,
   goalProgressSummaryText,
   goalTargetLabel,
@@ -112,6 +113,8 @@ export function GoalProgressReadout({
           percent={progress.progressPercent}
           valueText={summary}
           complete={progress.achieved}
+          // POLISH-01 — the bar and the state word beneath it read one ramp.
+          status={goalProgressMeterStatus(progress.status)}
         />
       ) : null}
       <p className="dh-goalprogress__facts">

@@ -50,6 +50,8 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { meterStatusAttribute } from "~/shared/progress";
+
 import { normaliseProgress, type CardProgress } from "./types";
 
 /** How warm the surface is. `quiet` is Level 2 by SHAPE and scale alone. */
@@ -152,6 +154,7 @@ export function SupportingSurface({
            * progress is never carried by a shape alone. */}
           <span
             className="dh-scard__progress-track"
+            {...meterStatusAttribute(resolved.status)}
             role="progressbar"
             aria-valuenow={resolved.percent}
             aria-valuemin={0}

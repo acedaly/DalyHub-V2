@@ -222,14 +222,14 @@ a.dh-btn {
   min-inline-size: 8rem;
 }
 
-/* The hairline neutral, not `--dh-color-bg-sunken` — see `.dh-prow__track`. */
+/* POLISH-01 — track and fill colour come from the shared meter
+   (`progress.css`); this owns the geometry only. */
 .dh-ptable__track {
   display: block;
   flex: 1;
   min-inline-size: 5rem;
   block-size: var(--app-progress-bar-height);
   border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-border);
   overflow: hidden;
 }
 
@@ -237,7 +237,6 @@ a.dh-btn {
   display: block;
   block-size: 100%;
   border-radius: inherit;
-  background: var(--dh-color-accent);
 }
 
 .dh-ptable__percent,
@@ -257,11 +256,6 @@ a.dh-btn {
 
 .dh-ptable__actions {
   inline-size: 1%;
-}
-
-/* The SAME identity hue the gallery card uses, inherited from the row. */
-.dh-ptable__row[data-identity] .dh-ptable__fill {
-  background: var(--dh-identity);
 }
 
 @media (forced-colors: active) {

@@ -59,10 +59,14 @@
  *    and rule 1 means a card whose title takes two of them still lands its bar
  *    on the row's baseline. Past that it ellipsises, and the full text is on the
  *    link's accessible name and on the record it opens.
- * 3. **Identity is never status.** The mark and the bar take the record's own
- *    stable accent (ADR-068 §5); the attention line takes the health tone. A
- *    Project with a violet identity that is running late stays violet and says
- *    "3 overdue" in coral beside it — the two never repaint each other.
+ * 3. **Identity is never status.** The MARK takes the record's own stable
+ *    accent (ADR-068 §5); the attention line and the BAR take the health tone.
+ *    A Project with a violet identity that is running late keeps its violet
+ *    mark and draws a coral bar over "3 overdue" — the two never repaint each
+ *    other, and the bar agrees with the sentence beside it by construction
+ *    because it is derived from the same tone (POLISH-01). Until POLISH-01 the
+ *    bar was on the identity side of that sentence, which is how a completed
+ *    Project drew an orange meter.
  *
  * A Project with NO tasks draws no bar and no percentage: an empty track at 0%
  * says "nothing done", and the truth is "nothing planned". The foot still holds
@@ -81,6 +85,11 @@ import {
   identityAttribute,
   resolveIdentity,
 } from "~/shared/entity/identity-resolution";
+import {
+  meterStatusAttribute,
+  meterStatusFromTone,
+  type MeterStatus,
+} from "~/shared/progress";
 
 /** The tone vocabulary the attention dot understands. Meaning is in the words. */
 export type ProjectCardTone =
@@ -130,6 +139,14 @@ export type ProjectCardProps = {
    */
   readonly progress?: {
     readonly percent: number;
+    /**
+     * POLISH-01 — what the bar SAYS, when it is not simply the attention tone.
+     *
+     * Defaults to the tone of the attention line, so a card cannot draw a green
+     * bar over the words "3 overdue". Pass it explicitly only where the two
+     * genuinely differ.
+     */
+    readonly status?: MeterStatus;
     /** The complete sentence for assistive tech — "63% — 5 of 8 tasks complete". */
     readonly valueText: string;
   };
@@ -269,6 +286,9 @@ export function ProjectCard({
           >
             <span
               className="dh-pcard__track"
+              {...meterStatusAttribute(
+                progress.status ?? meterStatusFromTone(attention?.tone),
+              )}
               role="progressbar"
               aria-valuenow={progress.percent}
               aria-valuemin={0}

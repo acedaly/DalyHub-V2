@@ -134,8 +134,12 @@ describe("DS-01 the layer is semantic over the Part B primitives", () => {
    * is right to — so `DALYHUB_PRIMITIVES` in `generate-m3-scheme.mjs` now emits
    * the pair inside the generated markers.
    *
-   * The assertion is unchanged in substance and reads from the new home: these
-   * are still the Part B values, to the digit, in the light appearance.
+   * The assertion reads from the new home. The SURFACE ramp and the two
+   * darkest text tones are still the Part B values to the digit; the text,
+   * feedback and priority foregrounds were darkened by POLISH-01 to clear WCAG
+   * AA as text (see `dalyhub-primitive-contrast.test.ts`, which owns the
+   * ratios). What this test still holds is that the values are pinned at all —
+   * a repaint of the product's own palette is a decision, not a side effect.
    */
   it("defines the authored Part B colour primitives in light", () => {
     const root = lightSchemeTokens();
@@ -148,17 +152,17 @@ describe("DS-01 the layer is semantic over the Part B primitives", () => {
       ink: "#101014",
       "ink-body": "#1c1c22",
       "ink-secondary": "#45454e",
-      "ink-muted": "#82828c",
-      "ink-faint": "#a3a3ac",
-      "ink-icon": "#8a8a94",
+      "ink-muted": "#6b6b75",
+      "ink-faint": "#83838d",
+      "ink-icon": "#71717c",
       accent: "#5b4bd6",
       "accent-hover": "#4b3cc2",
       "accent-pressed": "#3a2fa0",
       "accent-tint": "#efedfc",
-      danger: "#d9483b",
-      warning: "#d98324",
-      info: "#3b82c4",
-      success: "#2e9e6b",
+      danger: "#c5372a",
+      warning: "#a25c10",
+      info: "#31709f",
+      success: "#1d7a52",
     };
     for (const [name, value] of Object.entries(expected)) {
       expect(root.get(name), `--${name}`).toBe(value);
