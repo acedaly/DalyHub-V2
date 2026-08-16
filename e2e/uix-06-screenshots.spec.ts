@@ -240,7 +240,7 @@ for (const scheme of ["light", "dark"] as const) {
       await gotoFixture(page, "/today");
       const capture = page
         .locator("[data-testid='bottom-nav']")
-        .getByRole("button", { name: "Capture" });
+        .getByRole("button", { name: "Add", exact: true });
       if (await capture.count()) {
         await capture.click();
         await page.getByTestId("capture-sheet").waitFor();

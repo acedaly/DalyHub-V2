@@ -599,9 +599,8 @@ export async function pickCalendarDate(
   scope: Locator,
   iso: string,
 ): Promise<void> {
-  const [year, month, day] = iso.split("-").map(Number);
+  const [year, month] = iso.split("-").map(Number);
   const monthLabel = `${CALENDAR_MONTHS[month - 1]} ${year}`;
-  const dayLabel = `${day} ${monthLabel}`;
 
   const heading = scope.locator(".dh-calendar__month");
   await expect(heading).toBeVisible();
@@ -623,5 +622,8 @@ export async function pickCalendarDate(
       .click();
   }
   await expect(heading).toHaveText(monthLabel);
-  await scope.getByRole("button", { name: dayLabel }).click();
+  // By `data-iso`, not by name: "1 January 2027" is a substring of the 11th,
+  // the 21st and the 31st under Playwright's default matching, and the full
+  // spoken label would make the caller compute a weekday to say it.
+  await scope.locator(`.dh-calendar__day[data-iso="${iso}"]`).click();
 }

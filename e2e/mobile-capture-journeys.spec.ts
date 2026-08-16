@@ -74,7 +74,9 @@ async function chooseCaptureType(
   sheet: ReturnType<Page["getByTestId"]>,
   type: string,
 ) {
-  await sheet.getByTestId("capture-change-type").click();
+  // MOBILE-02 — the sheet opens ON a type with the chip row above the field, so
+  // a different type is ONE tap. The "Change type" screen it used to go back to
+  // is gone, and with it the tap that led to it.
   await sheet.getByTestId(`capture-choose-${type}`).click();
 }
 

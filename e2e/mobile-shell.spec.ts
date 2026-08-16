@@ -32,7 +32,7 @@ test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 const bottomNav = "[data-testid='bottom-nav']";
 
 test.describe("MOBILE-01 phone bottom navigation", () => {
-  test("puts Today, Tasks, Capture, Diary and More within thumb reach", async ({
+  test("puts Today, Tasks, Add, Projects and More within thumb reach", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
@@ -42,7 +42,7 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
 
     // The registry-derived destinations plus the two shell controls, in order.
     const labels = await bar.locator(".dh-bottomnav__label").allTextContents();
-    expect(labels).toEqual(["Today", "Tasks", "Capture", "Diary", "More"]);
+    expect(labels).toEqual(["Today", "Tasks", "Add", "Projects", "More"]);
 
     // It is its own labelled landmark, distinct from the sidebar's "Primary".
     await expect(
@@ -76,8 +76,11 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
     await page.locator(bottomNav).getByRole("link", { name: "Tasks" }).click();
     await expect(page).toHaveURL(/\/tasks/);
 
-    await page.locator(bottomNav).getByRole("link", { name: "Diary" }).click();
-    await expect(page).toHaveURL(/\/diary/);
+    await page
+      .locator(bottomNav)
+      .getByRole("link", { name: "Projects" })
+      .click();
+    await expect(page).toHaveURL(/\/projects/);
 
     // Destinations are real links, so Back walks the history normally.
     await page.goBack();
@@ -181,7 +184,7 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     await gotoFixture(page, "/today");
     await page
       .locator(bottomNav)
-      .getByRole("button", { name: "Capture" })
+      .getByRole("button", { name: "Add", exact: true })
       .click();
 
     const sheet = page.getByTestId("capture-sheet");
@@ -195,10 +198,10 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
       await expect(sheet.getByTestId(`capture-choose-${type}`)).toBeVisible();
     }
 
-    // Every option carries a real, visible word — never an unlabelled glyph.
-    const labels = await sheet
-      .locator(".dh-sheet-option__label")
-      .allTextContents();
+    // Every type carries a real, visible word — never an unlabelled glyph.
+    // MOBILE-02 — they are a CHIP ROW above the field rather than a list on a
+    // screen of their own, so the labels are read from the chips.
+    const labels = await sheet.locator(".dh-capture-type").allTextContents();
     expect(labels).toEqual(["Task", "Diary entry", "Meeting", "Note", "Asset"]);
   });
 
@@ -208,7 +211,7 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     await gotoFixture(page, "/today");
     await page
       .locator(bottomNav)
-      .getByRole("button", { name: "Capture" })
+      .getByRole("button", { name: "Add", exact: true })
       .click();
 
     const sheet = page.getByTestId("capture-sheet");
@@ -255,7 +258,7 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     await gotoFixture(page, "/today");
     await page
       .locator(bottomNav)
-      .getByRole("button", { name: "Capture" })
+      .getByRole("button", { name: "Add", exact: true })
       .click();
     const sheet = page.getByTestId("capture-sheet");
     await sheet.getByTestId("capture-choose-task").click();
@@ -275,13 +278,15 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     await gotoFixture(page, "/today");
     await page
       .locator(bottomNav)
-      .getByRole("button", { name: "Capture" })
+      .getByRole("button", { name: "Add", exact: true })
       .click();
     const sheet = page.getByTestId("capture-sheet");
     await sheet.getByTestId("capture-choose-note").click();
     await expect(sheet.getByLabel("Title")).toBeVisible();
 
-    await sheet.getByTestId("capture-change-type").click();
+    // MOBILE-02 — every type stays on screen while you write, so the other
+    // types are one tap from any panel rather than one tap from a screen that
+    // was one tap away.
     await expect(sheet.getByTestId("capture-choose-task")).toBeVisible();
   });
 
@@ -289,7 +294,7 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
     await gotoFixture(page, "/today");
     const capture = page
       .locator(bottomNav)
-      .getByRole("button", { name: "Capture" });
+      .getByRole("button", { name: "Add", exact: true });
     await capture.click();
     await expect(page.getByTestId("capture-sheet")).toBeVisible();
     await page.keyboard.press("Escape");
@@ -338,7 +343,7 @@ test.describe("MOBILE-01 phone shell baseline", () => {
 
     await page
       .locator(bottomNav)
-      .getByRole("button", { name: "Capture" })
+      .getByRole("button", { name: "Add", exact: true })
       .click();
     await expect(page.getByTestId("capture-sheet")).toBeVisible();
     await expectNoAxeViolations(page);
@@ -381,7 +386,7 @@ test.describe("MOBILE-01 phone shell baseline", () => {
       // trivially satisfiable by hiding things and that is not the contract.
       const bar = page.locator(bottomNav);
       await expect(bar).toBeVisible();
-      const capture = bar.getByRole("button", { name: "Capture" });
+      const capture = bar.getByRole("button", { name: "Add", exact: true });
       await expect(capture).toBeVisible();
 
       /*
