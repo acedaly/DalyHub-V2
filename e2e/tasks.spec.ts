@@ -94,11 +94,11 @@ test.describe("TASKS-01 — desktop", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks?view=list&group=priority");
-    // The section heading carries a count suffix, e.g. "P1 · Urgent (1)".
+    // The section heading carries a count suffix, e.g. "Priority 1 (1)".
     await expect(
-      page.getByRole("heading", { name: /P1 · Urgent/ }).first(),
+      page.getByRole("heading", { name: /Priority 1/ }).first(),
     ).toBeVisible();
-    const p1Band = page.getByRole("region", { name: "P1 · Urgent" });
+    const p1Band = page.getByRole("region", { name: "Priority 1" });
     await expect(
       p1Band.getByRole("link", { name: "Draft the proposal" }),
     ).toBeVisible();
@@ -228,7 +228,7 @@ test.describe("TASKS-01 — mobile 375px", () => {
   }) => {
     await gotoFixture(page, "/tasks?view=list&group=priority");
     await expect(
-      page.getByRole("heading", { name: /P1 · Urgent/ }).first(),
+      page.getByRole("heading", { name: /Priority 1/ }).first(),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

@@ -695,6 +695,58 @@
   }
 }
 
+/*
+ * MOBILE-02 §1 — a metadata trigger is TAPPABLE without the row growing.
+ *
+ * On a phone the row's inline editors measured 85x24 (Project) and 43x24
+ * (priority) — a 24px target on a device whose floor is 44. They are the
+ * controls the audit found hardest to hit, and the ones an owner reaches for
+ * most after completion.
+ *
+ * The visible row must not grow to fix it: the row is already 73px with two
+ * lines, and taking every metadata line to 44px would make it ~93px and put
+ * three tasks on a phone screen instead of five. So the HIT AREA grows and the
+ * ink does not — a pseudo-element that extends the target on the BLOCK axis
+ * only.
+ *
+ * Block-axis only is what keeps them from overlapping each other: the metadata
+ * line lays its triggers out side by side, so growing them vertically expands
+ * into the row's own padding rather than into a neighbour, and `inset-inline: 0`
+ * means a trigger's target is never wider than the trigger. `e2e` and the
+ * geometry probe both check that no two hit areas intersect.
+ *
+ * `--app-touch-target-min` is the floor, and the expansion is derived from it
+ * rather than written as a number, so a change to the floor moves this with it.
+ */
+@media (pointer: coarse) {
+  .dh-tasklist .dh-inline-edit__trigger {
+    position: relative;
+  }
+
+  /*
+   * `::before`, not `::after`: the shared state layer (`base.css`) owns this
+   * control's `::after`, and taking it would leave the trigger with no hover
+   * or pressed feedback anywhere in the product.
+   *
+   * `pointer-events: auto` is the load-bearing declaration — a state layer is
+   * decoration and is `none` by default, and a hit area that does not take
+   * pointer events is a hit area that does nothing.
+   */
+  .dh-tasklist .dh-inline-edit__trigger::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    /* A target of exactly the floor, centred on the value it edits — stated as
+       a HEIGHT rather than as an inset, so it does not depend on the trigger's
+       own measured height. A trigger that is already taller keeps its own area,
+       because the box is centred inside it. */
+    top: 50%;
+    block-size: var(--app-touch-target-min);
+    translate: 0 -50%;
+    pointer-events: auto;
+  }
+}
+
 /* -- Project: a dot and a name --------------------------------------------- */
 
 /*

@@ -167,7 +167,7 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     await expect(drawer).toBeVisible();
 
     const priority = drawer.getByRole("button", { name: /^Priority: / });
-    await expect(priority).toHaveAccessibleName("Priority: P1 · Urgent");
+    await expect(priority).toHaveAccessibleName("Priority: Priority 1");
     await expectMinTouchTarget(priority);
     await priority.click();
 
@@ -175,23 +175,23 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     await expect(menu).toBeVisible();
     // Selection is carried by semantics, not by colour alone.
     await expect(
-      menu.getByRole("menuitemradio", { name: "P1 · Urgent" }),
+      menu.getByRole("menuitemradio", { name: "Priority 1" }),
     ).toHaveAttribute("aria-checked", "true");
     await expect(
-      menu.getByRole("menuitemradio", { name: "P3 · Normal" }),
+      menu.getByRole("menuitemradio", { name: "Priority 3" }),
     ).toHaveAttribute("aria-checked", "false");
 
     // ONE action to a different real value — no "clear it first" step.
-    await menu.getByRole("menuitemradio", { name: "P3 · Normal" }).click();
+    await menu.getByRole("menuitemradio", { name: "Priority 3" }).click();
     await expect(
-      drawer.getByRole("button", { name: "Priority: P3 · Normal" }),
+      drawer.getByRole("button", { name: "Priority: Priority 3" }),
     ).toBeVisible();
 
     // Put the shared fixture back exactly as it was.
     await drawer.getByRole("button", { name: /^Priority: / }).click();
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(
-      drawer.getByRole("button", { name: "Priority: P1 · Urgent" }),
+      drawer.getByRole("button", { name: "Priority: Priority 1" }),
     ).toBeVisible();
   });
 
@@ -216,9 +216,9 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     ).toHaveCount(0);
 
     // Unset → set is also one action.
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(
-      drawer.getByRole("button", { name: "Priority: P1 · Urgent" }),
+      drawer.getByRole("button", { name: "Priority: Priority 1" }),
     ).toBeVisible();
   });
 

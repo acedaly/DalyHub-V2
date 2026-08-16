@@ -19,7 +19,7 @@ import {
  * can slide underneath, and the Project column is a fixed 12rem track that hides
  * its overflow too. A `position: absolute` menu inside that was painted as a
  * 45px sliver — measured before the fix, a 305px priority menu was cut to 45px
- * and squeezed to 64px wide, so "P2 · High" wrapped to "P2 · Hi / gh".
+ * and squeezed to 64px wide, so "Priority 2" wrapped to "P2 · Hi / gh".
  *
  * Which is why every assertion here is a MEASUREMENT rather than a
  * `toBeVisible()`: Playwright's visibility check passes on a clipped element —
@@ -210,17 +210,17 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     await openEditor(page, row, "task-row-priority");
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitemradio")).toHaveText([
-      "P1 · Urgent",
-      "P2 · High",
-      "P3 · Normal",
-      "P4 · Low",
+      "Priority 1",
+      "Priority 2",
+      "Priority 3",
+      "Priority 4",
     ]);
     await expectUnclipped(page, 150);
     // The menu takes focus, so the keyboard can drive it from the first frame.
     await expect(menu.getByRole("menuitemradio").first()).toBeFocused();
 
     // Unset → set, in one action.
-    await menu.getByRole("menuitemradio", { name: "P3 · Normal" }).click();
+    await menu.getByRole("menuitemradio", { name: "Priority 3" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
 
@@ -229,23 +229,23 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     await openEditor(page, row, "task-row-priority");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
-    ).toHaveText("P3 · Normal");
+    ).toHaveText("Priority 3");
     await expect(page.getByRole("menu").getByRole("menuitemradio")).toHaveText([
-      "P1 · Urgent",
-      "P2 · High",
-      "P3 · Normal",
-      "P4 · Low",
+      "Priority 1",
+      "Priority 2",
+      "Priority 3",
+      "Priority 4",
       "Clear priority",
     ]);
 
     // …and one value replaces another with no clearing step in between.
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(page.getByRole("menu")).toHaveCount(0);
     await settle(page);
     await openEditor(page, row, "task-row-priority");
     await expect(
       page.getByRole("menu").locator('[aria-checked="true"]'),
-    ).toHaveText("P1 · Urgent");
+    ).toHaveText("Priority 1");
 
     // Clearing returns the field to genuinely empty.
     await page.getByRole("menuitemradio", { name: "Clear priority" }).click();
@@ -443,10 +443,10 @@ test.describe("EDIT-03 — the phone presentation", () => {
     const sheet = page.getByRole("dialog", { name: "Priority" });
     await expect(sheet).toBeVisible();
     await expect(sheet.locator(".dh-sheet-option")).toHaveText([
-      "P1 · Urgent",
-      "P2 · High",
-      "P3 · Normal",
-      "P4 · Low",
+      "Priority 1",
+      "Priority 2",
+      "Priority 3",
+      "Priority 4",
     ]);
     await expect(
       sheet.getByRole("button", { name: "Clear priority" }),

@@ -252,7 +252,7 @@ test.describe("Today — the day surface", () => {
     await priority.click();
     await priority.fill("P1");
     await dialog
-      .getByRole("option", { name: "P1 · Urgent", exact: true })
+      .getByRole("option", { name: "Priority 1", exact: true })
       .click();
     await dialog.locator("summary", { hasText: "More details" }).click();
     await dialog.getByLabel("Due date").fill(today);

@@ -171,7 +171,7 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
     // quiet word IS the control, so there is no pencil beside every value.
     await card.hover();
     await card.getByRole("button", { name: /^Priority/ }).click();
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(cardFor(page, title)).toContainText("P1");
 
     // DUE DATE, in place, through the shared DS-16 date popover.
@@ -311,13 +311,13 @@ test.describe("TASKS-06 — bulk management", () => {
     // pretending the set shares a value.
     await gotoFixture(page, LIST);
     await selectTask(page, `E2E bulk ${stamp} 0`);
-    await runBulk(page, () => chooseBulk(page, "Priority", "P1 · Urgent"));
+    await runBulk(page, () => chooseBulk(page, "Priority", "Priority 1"));
     await selectTask(page, `E2E bulk ${stamp} 0`);
     await selectTask(page, `E2E bulk ${stamp} 1`);
     await expect(
       bulkBar(page).getByRole("combobox", { name: "Priority" }),
     ).toContainText("Mixed");
-    await runBulk(page, () => chooseBulk(page, "Priority", "P2 · High"));
+    await runBulk(page, () => chooseBulk(page, "Priority", "Priority 2"));
     await expect(cardFor(page, `E2E bulk ${stamp} 0`)).toContainText("P2");
     await expect(cardFor(page, `E2E bulk ${stamp} 1`)).toContainText("P2");
 
@@ -621,7 +621,7 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     const quickEdit = page.getByRole("dialog", { name: "Quick edit" });
     const priority = quickEdit.getByRole("combobox", { name: /^Priority/ });
     await priority.click();
-    await quickEdit.getByRole("option", { name: "P2 · High" }).click();
+    await quickEdit.getByRole("option", { name: "Priority 2" }).click();
     await page.keyboard.press("Escape");
     await expect(cardFor(page, `E2E phone ${stamp} 0`)).toContainText("P2");
 
