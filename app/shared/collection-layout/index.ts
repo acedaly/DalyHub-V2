@@ -17,7 +17,12 @@ export { useCollectionLoading } from "./use-collection-loading";
  * UIX-06 — the ONE collection count line, so every collection's subtitle answers
  * "how many, and is this all of them?" in the same words.
  */
-export { collectionCountLabel, type CountLabelOptions } from "./count-label";
+export {
+  collectionCountLabel,
+  collectionStateBreakdown,
+  collectionStateSegment,
+  type CountLabelOptions,
+} from "./count-label";
 
 /**
  * DS-08 — the ONE create-action label, so every collection's primary action is
@@ -37,6 +42,16 @@ export {
   CollectionControls,
   type CollectionControlsProps,
 } from "./CollectionControls";
+/**
+ * CONTROL-01 — the DESKTOP presentation of the same controls. Exported for
+ * tests and for a surface that already owns its own trigger; ordinary consumers
+ * render `CollectionControls`, which chooses the presentation for them.
+ */
+export {
+  CollectionControlsPopover,
+  hasActiveControls,
+  type CollectionControlsPopoverProps,
+} from "./CollectionControlsPopover";
 export {
   activeControls,
   activeFilterCount,

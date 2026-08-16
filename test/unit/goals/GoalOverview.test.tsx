@@ -320,10 +320,14 @@ describe("GoalOverview", () => {
     });
     void rerender;
 
+    // CONTROL-01 — the date comes from DalyHub's own month grid, and a day
+    // commits on selection rather than needing a Save press after it.
     fireEvent.click(screen.getByRole("button", { name: /^Target date: / }));
-    const input = screen.getByLabelText("Target date");
-    fireEvent.change(input, { target: { value: "2026-09-03" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const grid = screen.getByRole("grid", { name: "Target date" });
+    fireEvent.keyDown(grid, { key: "PageDown" });
+    fireEvent.click(
+      within(grid).getByRole("button", { name: "Thursday 3 September 2026" }),
+    );
     await waitFor(() =>
       expect(onSetTargetDate).toHaveBeenCalledWith("2026-09-03"),
     );

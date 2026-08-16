@@ -61,16 +61,20 @@ describe("TaskPlanningSection", () => {
   });
 
   it("sets the due date directly, without opening the Details form", async () => {
+    /*
+     * CONTROL-01 — the date is chosen from DalyHub's own month grid and commits
+     * on selection. The day is addressed by its full spoken date, which is what
+     * a screen reader hears; "1" alone would name nothing.
+     */
     const { onSetDue } = setup();
     fireEvent.click(screen.getByRole("button", { name: /^Due date: / }));
-    fireEvent.change(screen.getByLabelText("Due date"), {
-      target: { value: "2026-08-01" },
+    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
+    // The grid opens on the OWNER's month (July), so August is one step on.
+    fireEvent.keyDown(within(dialog).getByRole("grid", { name: "Due date" }), {
+      key: "PageDown",
     });
     fireEvent.click(
-      within(screen.getByRole("dialog", { name: "Edit due date" })).getByRole(
-        "button",
-        { name: "Save" },
-      ),
+      within(dialog).getByRole("button", { name: "Saturday 1 August 2026" }),
     );
     await waitFor(() => expect(onSetDue).toHaveBeenCalledWith("2026-08-01"));
   });
@@ -88,13 +92,10 @@ describe("TaskPlanningSection", () => {
   it("changes the scheduled date directly through the same field", async () => {
     const { onPlan } = setup({ scheduledDate: "2026-07-21" });
     fireEvent.click(screen.getByRole("button", { name: /^Scheduled date: / }));
-    fireEvent.change(screen.getByLabelText("Scheduled date"), {
-      target: { value: "2026-07-23" },
-    });
     fireEvent.click(
       within(
         screen.getByRole("dialog", { name: "Edit scheduled date" }),
-      ).getByRole("button", { name: "Save" }),
+      ).getByRole("button", { name: "Thursday 23 July 2026" }),
     );
     await waitFor(() => expect(onPlan).toHaveBeenCalledWith("2026-07-23"));
   });
@@ -159,13 +160,15 @@ describe("TaskPlanningSection", () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^Scheduled date: / }));
-    fireEvent.change(screen.getByLabelText("Scheduled date"), {
-      target: { value: "2026-09-15" },
-    });
+    const grid = within(
+      screen.getByRole("dialog", { name: "Edit scheduled date" }),
+    ).getByRole("grid", { name: "Scheduled date" });
+    // A date two months out is reached by walking the month, which is what a
+    // calendar is FOR — and the reason the picker cannot only offer presets.
+    fireEvent.keyDown(grid, { key: "PageDown" });
+    fireEvent.keyDown(grid, { key: "PageDown" });
     fireEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "Edit scheduled date" }),
-      ).getByRole("button", { name: "Save" }),
+      within(grid).getByRole("button", { name: "Tuesday 15 September 2026" }),
     );
     await waitFor(() => expect(onPlan).toHaveBeenCalledWith("2026-09-15"));
   });

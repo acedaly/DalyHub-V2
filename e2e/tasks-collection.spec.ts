@@ -302,7 +302,7 @@ test.describe("TASKS-03 — sorting and grouping", () => {
     await expect(page).toHaveURL(/view=list/);
     await expect(page).toHaveURL(/group=priority/);
     await expect(
-      page.getByRole("heading", { name: /P1 · Urgent/ }).first(),
+      page.getByRole("heading", { name: /Priority 1/ }).first(),
     ).toBeVisible();
     await expect(page.locator(".dh-tasks-matrix")).toHaveCount(0);
   });

@@ -40,6 +40,8 @@ import {
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
+import { meterStatusAttribute, meterStatusFromTone } from "~/shared/progress";
+
 import type { ProjectCardData } from "./project-view";
 
 export function ProjectsTable({
@@ -145,6 +147,11 @@ function ProjectTableRow({
             <>
               <span
                 className="dh-ptable__track"
+                // POLISH-01 — the same status the row's attention line states,
+                // so the table and the gallery card paint one verdict.
+                {...meterStatusAttribute(
+                  meterStatusFromTone(card.attention.tone),
+                )}
                 role="progressbar"
                 aria-valuenow={card.progress.percent}
                 aria-valuemin={0}

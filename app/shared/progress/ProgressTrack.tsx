@@ -17,6 +17,8 @@
  * true for the bare form as well as the packaged one (AGENTS.md §15).
  */
 
+import { meterStatusAttribute, type MeterStatus } from "./meter-status";
+
 export interface ProgressTrackProps {
   /** The bar's accessible name (e.g. "Kitchen renovation progress"). */
   readonly label: string;
@@ -29,6 +31,12 @@ export interface ProgressTrackProps {
   readonly valueText: string;
   /** Marks the "finished" paint; complete is signalled by text as well. */
   readonly complete?: boolean;
+  /**
+   * POLISH-01 — how the thing being measured is GOING. Defaults to `neutral`,
+   * which is the honest answer for a bar that measures volume rather than
+   * health ("12 of 40 captured") and the one this primitive will not guess past.
+   */
+  readonly status?: MeterStatus;
   readonly className?: string;
   /** Set when the value is stated by an element the caller already renders. */
   readonly id?: string;
@@ -45,6 +53,7 @@ export function ProgressTrack({
   percent,
   valueText,
   complete,
+  status,
   className,
   id,
 }: ProgressTrackProps) {
@@ -63,6 +72,7 @@ export function ProgressTrack({
       aria-valuemax={100}
       aria-valuetext={`${value}% — ${valueText}`}
       data-complete={isComplete ? "true" : undefined}
+      {...meterStatusAttribute(status)}
     >
       <div className="dh-progress__fill" style={{ inlineSize: `${value}%` }} />
     </div>

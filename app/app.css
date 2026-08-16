@@ -49,6 +49,7 @@
  * the shell because the account-menu density sits inside the shell's panel, and
  * before the Settings surface, which composes the same component. */
 @import "./styles/appearance.css";
+@import "./styles/scroll-strip.css";
 @import "./styles/collection-layout.css";
 @import "./styles/empty-state.css";
 @import "./styles/skeleton.css";

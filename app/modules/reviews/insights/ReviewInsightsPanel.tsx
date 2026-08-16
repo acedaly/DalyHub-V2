@@ -242,6 +242,9 @@ export function ReviewInsightsPanel({
                     current: point.current,
                   }))}
                   summary={trend.summary}
+                  // CONVERGE-01 §I — the enumeration stays the announced
+                  // description; the printed caption is the shape of the trend.
+                  caption={trend.headline}
                 />
               </figure>
             ))}

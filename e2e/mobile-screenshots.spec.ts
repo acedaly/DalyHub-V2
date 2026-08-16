@@ -64,7 +64,7 @@ async function shoot(page: Page, name: string) {
 async function openCapture(page: Page, type: string) {
   await page
     .locator(bottomNav)
-    .getByRole("button", { name: "Capture" })
+    .getByRole("button", { name: "Add", exact: true })
     .click();
   const sheet = page.getByTestId("capture-sheet");
   await sheet.waitFor();

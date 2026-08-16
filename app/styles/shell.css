@@ -393,6 +393,29 @@
   border-radius: var(--dh-radius-sm);
 }
 
+/*
+ * MOBILE-02 §9 — a keycap is not shown to a device with no keys.
+ *
+ * The phone's More drawer renders the same navigation the desktop rail does,
+ * so it inherited its two keyboard hints: "Search  /" and "Command palette
+ * ⌘K", printed on a touchscreen. Advertising a shortcut nobody on that device
+ * can press is worse than saying nothing — it is the product telling the owner
+ * about a version of itself they are not using.
+ *
+ * Keyed on the POINTER, not on the width: a narrow desktop window keeps its
+ * hints (the keys are still there), and a tablet with a keyboard attached
+ * reports a fine pointer and keeps them too. The ACTIONS are untouched — both
+ * rows still open what they always did, by tap.
+ *
+ * The hints are `aria-hidden` already, so nothing changes for a screen reader
+ * at any width.
+ */
+@media (pointer: coarse) {
+  .dh-sidebar__search-hint {
+    display: none;
+  }
+}
+
 /* Primary navigation. */
 .dh-nav {
   margin-top: var(--dh-space-2);
@@ -2274,6 +2297,53 @@
   /* Without a visible title the band collapses to whatever the actions need. */
   .dh-pane-header--compact {
     padding-block: var(--dh-space-3) var(--dh-space-3);
+  }
+
+  /*
+   * POLISH-01 — and the COUNT gets the width the hidden title was holding.
+   *
+   * The narrow composition puts the title's column, the search icon and the
+   * primary action on one line, which is right when there IS a title there.
+   * When the title is published to the phone top bar the only thing left in
+   * that column is the state breakdown, and 170px of a 393px screen is not
+   * enough for one: measured on `/projects`, "20 active · 62 completed · 1
+   * archived" broke over three lines beside a button with nowhere to go.
+   *
+   * So the count takes the first row outright and the icon cluster drops to the
+   * second, still at the trailing edge. It is not a taller header — the count
+   * was already spending two or three lines on a third of the width — and the
+   * reading order now matches the DOM order rather than running around a
+   * button.
+   */
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__lead {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__search {
+    grid-row: 2;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__actions {
+    grid-row: 2;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__views {
+    grid-row: 3;
+  }
+
+  /* An open search field still claims a full row of its own, ahead of the view
+   * switcher — the field the owner just asked for must not appear below a
+   * control they did not. */
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"]):has(
+      .dh-csearch[data-open="true"]
+    )
+    .dh-pane-header__views {
+    grid-row: 3;
   }
 
   /* The height the bottom bar occupies, consumed by every scrolling surface so

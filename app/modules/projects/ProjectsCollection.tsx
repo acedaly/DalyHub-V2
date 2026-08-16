@@ -50,6 +50,8 @@ import {
   CollectionLayout,
   CollectionSearchField,
   collectionCountLabel,
+  collectionStateBreakdown,
+  collectionStateSegment,
   CreateActionLabel,
   useCollectionLoading,
   useCollectionSearch,
@@ -338,6 +340,9 @@ function ProjectEntityCard({
           text: card.attention.text,
           tone: card.attention.tone,
           detail: card.attention.detail,
+          // CONVERGE-01 §C — the card DRAWS a health diagnostic ("6 overdue")
+          // and not a lifecycle word ("Completed"), which its pill already says.
+          fromHealth: card.attention.fromHealth,
         }}
         /*
          * The reference's meta line — "14 tasks · 4 due this week".
@@ -470,11 +475,14 @@ export function projectLifecycleCountLabel(
   counts: ProjectLifecycleCounts | null,
 ): string | null {
   if (!counts) return null;
-  const parts: string[] = [];
-  if (counts.active > 0) parts.push(`${counts.active} active`);
-  if (counts.completed > 0) parts.push(`${counts.completed} completed`);
-  if (counts.archived > 0) parts.push(`${counts.archived} archived`);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  // CONVERGE-01 — the joining is the SHARED breakdown grammar now, so every
+  // collection's state line breaks the same way on a phone and drops its zero
+  // segments by the same rule.
+  return collectionStateBreakdown([
+    collectionStateSegment(counts.active, "active"),
+    collectionStateSegment(counts.completed, "completed"),
+    collectionStateSegment(counts.archived, "archived"),
+  ]);
 }
 
 function ProjectsCollection({

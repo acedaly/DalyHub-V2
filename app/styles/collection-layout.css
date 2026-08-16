@@ -35,6 +35,15 @@
   top: var(--dh-shell-bar-height);
   z-index: var(--app-z-sticky);
   background: var(--dh-color-bg);
+  /*
+   * POLISH-01 — the ground the band is painted on, published for the strips
+   * inside it (`scroll-strip.css`). A scroll cue's cover layer has to be the
+   * SAME colour as the surface behind the tabs or it is a visible block at the
+   * edge of them rather than a cover, and this band is the one place that
+   * colour is decided — it is the page ground on a gallery collection and the
+   * list ground on a flat one.
+   */
+  --scroll-strip-cover: var(--dh-color-bg);
 }
 
 @media (max-width: 47.99rem) {
@@ -82,6 +91,7 @@
 .dh-collection--flat,
 .dh-collection--flat .dh-collection__sticky {
   background: var(--dh-color-surface);
+  --scroll-strip-cover: var(--dh-color-surface);
 }
 
 /*
@@ -484,6 +494,160 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* -------------------------------------------------------------------------- */
+/* CONTROL-01 — Filter & sort, as a desktop POPOVER                            */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The same controls the phone sheet renders, in the shape a pointer device
+ * wants: a panel anchored to its trigger, beside the list rather than over it.
+ *
+ * The width is the decision this rule is really making. 20rem (320px) is wide
+ * enough for the longest option label the product produces ("Scheduled date,
+ * newest first") on one line, and narrow enough that the collection it filters
+ * is still readable next to it — which is the entire reason this presentation
+ * exists. It is a `max` against the viewport so a 320px browser window (not a
+ * phone: a narrow desktop window, which gets the pointer presentation) cannot
+ * push it off-screen; the overlay layer clamps the block axis for the same
+ * reason.
+ *
+ * Geometry, layering and dismissal belong to `.dh-anchored` (`anchored.css`).
+ * This rule may not restate any of them.
+ */
+.dh-collection-popover {
+  inline-size: min(20rem, calc(100vw - 2 * var(--dh-space-4)));
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface-raised);
+  box-shadow: var(--dh-elevation-overlay);
+}
+
+.dh-collection-popover__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-collection-popover__body:focus-visible {
+  /* The surface takes focus on open so the menu announces its own name before
+   * an option does. It is a container, not a target, so it shows no ring. */
+  outline: none;
+}
+
+/*
+ * A group is separated by SPACE and a quiet caption, not by a rule.
+ *
+ * Four hairlines in a 320px panel is a table; the caption plus the gap already
+ * says "these belong together", and the ARIA `role="group"` says it to a screen
+ * reader independently.
+ */
+.dh-collection-popover__group + .dh-collection-popover__group {
+  margin-block-start: var(--dh-space-2);
+}
+
+.dh-collection-popover__label {
+  margin: 0;
+  padding: var(--dh-space-1) var(--dh-space-3) var(--dh-space-0);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+}
+
+/*
+ * A 34px row — the shared menu-item height, not the 44px touch floor.
+ *
+ * The floor is right for a thumb and wrong for a pointer: at 44px a five-option
+ * group is 220px tall and the panel needs a scrollbar for a list that would
+ * otherwise fit, which is the "phone control on a desktop" failure this whole
+ * change is about. A coarse pointer never sees this surface — it gets the sheet
+ * — so there is no target being taken from anyone.
+ */
+.dh-collection-popover__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  inline-size: 100%;
+  min-block-size: var(--dh-menu-item-height);
+  padding-inline: var(--dh-space-3);
+  border: none;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-collection-popover__option:hover,
+.dh-collection-popover__option:focus-visible {
+  background: var(--dh-color-surface-quiet);
+  outline: none;
+}
+
+/* The chosen option is announced by `aria-checked`; the fill reinforces it and
+ * is never the only signal. */
+.dh-collection-popover__option[aria-checked="true"] {
+  background: var(--dh-color-surface-quiet);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-collection-popover__option:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
+.dh-collection-popover__option-description {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 400;
+}
+
+.dh-collection-popover__custom {
+  padding: var(--dh-space-2) var(--dh-space-3);
+}
+
+/* Reset is ONE row at the end, separated by a hairline because it is a different
+ * KIND of item — a command, not a choice. It is not a sticky footer: a footer
+ * that occupies a fixed band of a 320px panel is most of what made the sheet
+ * feel heavy here. */
+.dh-collection-popover__foot {
+  margin-block-start: var(--dh-space-1);
+  padding-block-start: var(--dh-space-1);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-collection-popover__reset {
+  inline-size: 100%;
+  min-block-size: var(--dh-menu-item-height);
+  padding-inline: var(--dh-space-3);
+  border: none;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-collection-popover__reset:hover,
+.dh-collection-popover__reset:focus-visible {
+  background: var(--dh-color-surface-quiet);
+  color: var(--dh-color-text);
+}
+
+.dh-collection-popover__reset:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: calc(-1 * var(--dh-focus-width));
+}
+
 .dh-collection-sheet {
   display: flex;
   flex-direction: column;
@@ -516,6 +680,15 @@
   .dh-collection--has-mobile-controls .dh-collection__filters,
   .dh-collection--has-mobile-controls .dh-pane-header__views {
     display: none;
+  }
+
+  /* …unless the switcher selects WHICH principal collection is shown rather
+   * than how one is drawn. Notes' Active / Archived / Deleted is not among the
+   * control groups — it is the collection's mode — so hiding it here left a
+   * phone with no route to an archived or deleted Note at all. */
+  .dh-collection--has-mobile-controls.dh-collection--keep-views
+    .dh-pane-header__views {
+    display: flex;
   }
 
   .dh-collection__mobile-controls {
@@ -722,19 +895,21 @@
   min-inline-size: 0;
 }
 
+/*
+ * §7 — at 390 the rail and the toggle stay on ONE row; it is the RAIL that
+ * scrolls, so the toggle is never pushed off the screen or onto a second band.
+ * `min-width: 0` is what lets the flex child actually shrink.
+ *
+ * POLISH-01 — the scroll container is the RAIL ITSELF (`.dh-viewtabs`, now a
+ * `.dh-scroll-strip`), not this wrapper. Both had `overflow-x: auto`, so the
+ * outer box never overflowed — its content was already a scroller — and any
+ * affordance painted here would have been permanently invisible. One scroll
+ * container per axis, and it is the one the tabs are in.
+ */
 .dh-controlrow__lead {
   min-inline-size: 0;
-  /*
-   * §7 — at 390 the rail and the toggle stay on ONE row; it is the RAIL that
-   * scrolls, so the toggle is never pushed off the screen or onto a second
-   * band. `min-width: 0` is what lets the flex child actually shrink.
-   */
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.dh-controlrow__lead::-webkit-scrollbar {
-  display: none;
+  display: flex;
+  align-items: center;
 }
 
 /*
@@ -768,6 +943,56 @@
  * desktop-filters/phone-sheet swap.
  */
 @media (max-width: 48rem) {
+  /*
+   * POLISH-01 — LIFECYCLE and PRESENTATION stop reading as one tab strip.
+   *
+   * At 393px on `/projects` the band drew "Active  All  [✓ Grid]  Table" with
+   * nothing between the pairs, so the near-black selected Grid pill read as the
+   * selected TAB of a four-tab rail — two controls answering two different
+   * questions ("which Projects?" and "drawn how?") presented as one choice.
+   *
+   * Three things separate them, and none of them is a new component:
+   *
+   *   1. a rule between the clusters, which is what says "these are two
+   *      controls" in the same language the rest of the product uses;
+   *   2. the presentation toggle goes ICON-ONLY, so it is visibly a different
+   *      KIND of control from a row of text tabs — and it stops spending ~180px
+   *      of a 393px band on two words. The near-black selected treatment is
+   *      unchanged (it is a settled decision); it is simply much smaller;
+   *   3. the lifecycle rail gets the shared scroll affordance, so the tabs the
+   *      band cannot fit announce themselves instead of vanishing.
+   */
+  .dh-controlrow__trail {
+    padding-inline-start: var(--dh-space-3);
+    margin-inline-start: var(--dh-space-3);
+    border-inline-start: var(--app-border-width-thin) solid
+      var(--dh-color-border);
+  }
+
+  /*
+   * The label is CLIPPED rather than removed: `display: none` would strip the
+   * option's accessible name and leave a glyph nobody can address by voice or
+   * hear announced. This is `.dh-visually-hidden`'s own technique, applied by
+   * the viewport instead of by a prop — the alternative is a breakpoint read in
+   * JavaScript, which would make the first server byte wrong.
+   */
+  .dh-controlrow__trail .dh-segmented__label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dh-controlrow__trail .dh-segmented__icon {
+    /* Without a label beside it the glyph is the whole control, so it takes the
+     * whole option's centre rather than sitting where a leading icon would. */
+    margin: 0;
+  }
+
   .dh-csearch {
     inline-size: auto;
     flex: none;

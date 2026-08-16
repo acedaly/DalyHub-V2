@@ -38,6 +38,14 @@ import {
 } from "~/platform/meetings";
 import type { Route } from "./+types/follow-up";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 export type MeetingFollowUpResult =
   | { readonly ok: true; readonly taskId: string; readonly created: boolean }
   | {

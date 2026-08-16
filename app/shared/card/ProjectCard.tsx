@@ -59,10 +59,14 @@
  *    and rule 1 means a card whose title takes two of them still lands its bar
  *    on the row's baseline. Past that it ellipsises, and the full text is on the
  *    link's accessible name and on the record it opens.
- * 3. **Identity is never status.** The mark and the bar take the record's own
- *    stable accent (ADR-068 §5); the attention line takes the health tone. A
- *    Project with a violet identity that is running late stays violet and says
- *    "3 overdue" in coral beside it — the two never repaint each other.
+ * 3. **Identity is never status.** The MARK takes the record's own stable
+ *    accent (ADR-068 §5); the attention line and the BAR take the health tone.
+ *    A Project with a violet identity that is running late keeps its violet
+ *    mark and draws a coral bar over "3 overdue" — the two never repaint each
+ *    other, and the bar agrees with the sentence beside it by construction
+ *    because it is derived from the same tone (POLISH-01). Until POLISH-01 the
+ *    bar was on the identity side of that sentence, which is how a completed
+ *    Project drew an orange meter.
  *
  * A Project with NO tasks draws no bar and no percentage: an empty track at 0%
  * says "nothing done", and the truth is "nothing planned". The foot still holds
@@ -81,6 +85,11 @@ import {
   identityAttribute,
   resolveIdentity,
 } from "~/shared/entity/identity-resolution";
+import {
+  meterStatusAttribute,
+  meterStatusFromTone,
+  type MeterStatus,
+} from "~/shared/progress";
 
 /** The tone vocabulary the attention dot understands. Meaning is in the words. */
 export type ProjectCardTone =
@@ -112,6 +121,14 @@ export type ProjectCardProps = {
     readonly text: string;
     readonly tone: ProjectCardTone;
     readonly detail: string;
+    /**
+     * True when the line is a HEALTH signal rather than a lifecycle state.
+     *
+     * CONVERGE-01 §C — only a health signal is DRAWN. "Completed" and
+     * "Archived" are already the card's pill and its percentage; "6 overdue" is
+     * the thing the card knows and nothing else on it says.
+     */
+    readonly fromHealth?: boolean;
   };
   /**
    * The meta line's facts, in the reference's order — "14 tasks", "4 due this
@@ -130,6 +147,14 @@ export type ProjectCardProps = {
    */
   readonly progress?: {
     readonly percent: number;
+    /**
+     * POLISH-01 — what the bar SAYS, when it is not simply the attention tone.
+     *
+     * Defaults to the tone of the attention line, so a card cannot draw a green
+     * bar over the words "3 overdue". Pass it explicitly only where the two
+     * genuinely differ.
+     */
+    readonly status?: MeterStatus;
     /** The complete sentence for assistive tech — "63% — 5 of 8 tasks complete". */
     readonly valueText: string;
   };
@@ -269,6 +294,9 @@ export function ProjectCard({
           >
             <span
               className="dh-pcard__track"
+              {...meterStatusAttribute(
+                progress.status ?? meterStatusFromTone(attention?.tone),
+              )}
               role="progressbar"
               aria-valuenow={progress.percent}
               aria-valuemin={0}
@@ -301,9 +329,36 @@ export function ProjectCard({
                  * sentence. The dot is decorative; the evaluator's own full
                  * wording rides along for assistive tech, so nothing on this
                  * card is carried by colour alone.
+                 *
+                 * ── CONVERGE-01 §C: the SIGNAL got its words back ────────────
+                 * A dot plus a visually-hidden sentence meant a sighted owner
+                 * saw a coloured dot and "24 tasks · 1 due this week" — while
+                 * the card had already derived, and was announcing to screen
+                 * readers alone, "6 tasks past their due date". The one fact on
+                 * the card worth acting on was the one nobody could see; the
+                 * audit asks for exactly this diagnostic to be brought through
+                 * from the detail screen, and it was already here.
+                 *
+                 * So the evaluator's COMPACT phrasing ("6 overdue") is drawn,
+                 * and it is `aria-hidden` because the fuller sentence beside it
+                 * is the announced form — the same split `PriorityFlag` makes
+                 * between its "P2" tag and its "Priority 2" name, so nothing is
+                 * said twice.
+                 *
+                 * Only for a HEALTH signal: a lifecycle attention line says
+                 * "Completed" or "Archived", which the card's own pill and its
+                 * percentage already state.
                  */}
                 <span className="dh-pcard__dot" aria-hidden="true" />
                 <span className="dh-visually-hidden">{attention.detail}. </span>
+                {attention.fromHealth ? (
+                  <span
+                    className="dh-pcard__meta-fact dh-pcard__meta-fact--attention"
+                    aria-hidden="true"
+                  >
+                    {attention.text}
+                  </span>
+                ) : null}
               </>
             ) : null}
             {(meta ?? []).map((item, index) => (
@@ -312,7 +367,10 @@ export function ProjectCard({
                 className="dh-pcard__meta-fact"
                 data-tone={item.tone ?? undefined}
               >
-                {index > 0 ? (
+                {/* A separator before every fact except the line's first. The
+                    attention diagnostic above is a fact too when it is drawn,
+                    so it moves what "first" means. */}
+                {index > 0 || (attention?.fromHealth ?? false) ? (
                   <span className="dh-pcard__meta-sep" aria-hidden="true">
                     ·
                   </span>

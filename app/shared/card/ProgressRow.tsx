@@ -39,6 +39,7 @@ import {
   identityAttribute,
   resolveIdentity,
 } from "~/shared/entity/identity-resolution";
+import { meterStatusAttribute, type MeterStatus } from "~/shared/progress";
 
 export type ProgressRowProps = {
   /** The record's identity mark — a rendered node. Decorative. */
@@ -55,6 +56,15 @@ export type ProgressRowProps = {
     readonly percent: number;
     /** The complete sentence for assistive tech — "60 of 70 kg, 60% complete". */
     readonly valueText: string;
+    /**
+     * POLISH-01 — how the measure is GOING, from the caller's own evaluator.
+     *
+     * The bar used to take the record's identity hue, so a Goal reading "60.0 /
+     * 70 kg · Ahead" drew a red bar if red was that Goal's chosen colour.
+     * Absent is `neutral`, which is what an unmeasured or just-started Goal
+     * honestly is.
+     */
+    readonly status?: MeterStatus;
   };
   /**
    * The honest figure at the row's end — "60.0 / 70 kg", "12 / 24",
@@ -138,6 +148,7 @@ export function ProgressRow({
         {progress ? (
           <span
             className="dh-mrow__track"
+            {...meterStatusAttribute(progress.status)}
             role="progressbar"
             aria-valuenow={progress.percent}
             aria-valuemin={0}

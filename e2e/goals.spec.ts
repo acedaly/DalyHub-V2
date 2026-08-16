@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  pickCalendarDate,
 } from "./helpers";
 
 test.describe("AREA-02 — Goals", () => {
@@ -85,12 +86,12 @@ test.describe("AREA-02 — Goals", () => {
     await expect(targetTrigger).toBeFocused();
 
     await targetTrigger.click();
-    // A ROLE query, not `getByLabel`: DS-17 named the popover's clear control
-    // "Clear target date", which CONTAINS "Target date".
-    await datePopover
-      .getByRole("textbox", { name: "Target date" })
-      .fill("2027-01-01");
-    await datePopover.getByRole("button", { name: "Save" }).click();
+    /*
+     * CONTROL-01 — a month GRID, not a native date input, and it commits on
+     * selection: a calendar day is a complete answer, so there is no Save after
+     * it. The same interface the Task row's due date opens.
+     */
+    await pickCalendarDate(datePopover, "2027-01-01");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByText(/1 Jan 2027/).first()).toBeVisible();
 
@@ -118,14 +119,10 @@ test.describe("AREA-02 — Goals", () => {
     await expect(activityFeed.getByText("Updated goal details")).toHaveCount(2);
 
     await page.getByRole("button", { name: /^Target date: / }).click();
-    await page
-      .getByRole("dialog", { name: "Edit target date" })
-      .getByRole("textbox", { name: "Target date" })
-      .fill("2027-02-01");
-    await page
-      .getByRole("dialog", { name: "Edit target date" })
-      .getByRole("button", { name: "Save" })
-      .click();
+    await pickCalendarDate(
+      page.getByRole("dialog", { name: "Edit target date" }),
+      "2027-02-01",
+    );
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // Still on the Activity tab the whole time — the newest edit's event is

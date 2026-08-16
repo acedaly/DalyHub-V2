@@ -51,6 +51,14 @@ import {
 import type { TasksCreateResult } from "../tasks-contract";
 import type { Route } from "./+types/new";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 type TaskCreateParent =
   | { readonly kind: "area"; readonly id: string }
   | { readonly kind: "project"; readonly id: string };

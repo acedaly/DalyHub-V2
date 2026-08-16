@@ -12,6 +12,14 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerLocalToUtc } from "~/shared/datetime";
 import type { Route } from "./+types/create";
+
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST")
     throw new Response("Method Not Allowed", { status: 405 });

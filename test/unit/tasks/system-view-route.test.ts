@@ -20,6 +20,7 @@
 import { describe, expect, it } from "vitest";
 
 import { findTaskSystemView } from "~/kernel/task-views";
+import { tasksDestinationTitle } from "~/modules/tasks/destination";
 import { requestForSystemView } from "~/modules/tasks/routes/system-view";
 import {
   paramsFromConfig,
@@ -78,5 +79,41 @@ describe("requestForSystemView", () => {
     expect(applied.pathname).toBe("/inbox");
     expect(applied.searchParams.get("a")).toBe("1");
     expect(applied.searchParams.get(TASKS_PARAMS.savedView)).toBeNull();
+  });
+});
+
+describe("the destination's own title", () => {
+  /*
+   * POLISH-01 — the page says which place it IS.
+   *
+   * Every one of the three destinations used to render "Tasks" as its `h1`
+   * while the tab, the rail and the address bar all said Inbox. The mismatch
+   * undoes the reason these are routes at all (see the module comment above):
+   * a place an owner can be in has to be able to say its own name.
+   */
+  it("titles each named destination as itself", () => {
+    expect(tasksDestinationTitle("/inbox")).toBe("Inbox");
+    expect(tasksDestinationTitle("/upcoming")).toBe("Upcoming");
+  });
+
+  it("titles the general workspace Tasks", () => {
+    expect(tasksDestinationTitle("/tasks")).toBe("Tasks");
+  });
+
+  it("degrades to the general title rather than to nothing", () => {
+    // A destination added to the manifest without a title here must render a
+    // real heading, not an empty one.
+    expect(tasksDestinationTitle("/somewhere-new")).toBe("Tasks");
+  });
+
+  it("agrees with the navigation label each route declares", () => {
+    // The rail's label and the page's heading are the same words by
+    // construction, which is the whole claim this fix makes.
+    for (const [path, view] of [
+      ["/inbox", "inbox"],
+      ["/upcoming", "upcoming"],
+    ] as const) {
+      expect(tasksDestinationTitle(path)).toBe(findTaskSystemView(view)!.name);
+    }
   });
 });

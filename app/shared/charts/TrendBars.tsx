@@ -44,6 +44,25 @@ export interface TrendBarsProps {
   readonly points: readonly TrendBarPoint[];
   /** The sentence that states every value. Required — it IS the chart's text form. */
   readonly summary: string;
+  /**
+   * CONVERGE-01 §I — the VISIBLE caption, when it differs from the accessible
+   * description.
+   *
+   * `summary` is the chart's text form and its accessible name, so it spells
+   * every reading out: "Tasks completed across 12 periods, 84 in total. Week of
+   * 1 Jun: 12; Week of 8 Jun: 9; …". That is exactly right for a screen reader
+   * and exactly wrong printed under the plot, where it is a paragraph of
+   * accessibility prose sitting where a caption belongs — the August 2026 audit
+   * names it as the clearest case of Analytics communicating its own
+   * accessibility rather than its data.
+   *
+   * So a caller may hand a SHORT visible caption and keep the full enumeration
+   * as the accessible one. The long form is still in the document, visually
+   * hidden, so nothing is taken from anyone. Absent, the summary is drawn as
+   * before, which is right for a chart whose sentence is already one line.
+   */
+  readonly caption?: string;
+
   /** Height of the plotted area in pixels. The width is always fluid. */
   readonly height?: number;
 }
@@ -63,7 +82,12 @@ const COLUMN_MAX_WIDTH_REM = 4.5;
  * here" rather than as a rendering failure. */
 const MIN_BAR_FRACTION = 0.02;
 
-export function TrendBars({ points, summary, height = 64 }: TrendBarsProps) {
+export function TrendBars({
+  points,
+  summary,
+  caption,
+  height = 64,
+}: TrendBarsProps) {
   if (points.length < 2) return null;
 
   const max = points.reduce((peak, point) => Math.max(peak, point.value), 0);
@@ -123,7 +147,12 @@ export function TrendBars({ points, summary, height = 64 }: TrendBarsProps) {
           </li>
         ))}
       </ol>
-      <p className="dh-trend__summary">{summary}</p>
+      <p className="dh-trend__summary">
+        {caption ?? summary}
+        {caption ? (
+          <span className="dh-visually-hidden"> {summary}</span>
+        ) : null}
+      </p>
     </div>
   );
 }

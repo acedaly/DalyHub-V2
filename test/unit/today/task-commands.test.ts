@@ -13,8 +13,11 @@ import {
  */
 
 const TARGETS = {
+  // A Tuesday, so the four targets are four distinct dates.
   today: "2026-07-21",
   tomorrow: "2026-07-22",
+  // CONTROL-01 — the coming Saturday.
+  thisWeekend: "2026-07-25",
   nextWeek: "2026-07-28",
 };
 

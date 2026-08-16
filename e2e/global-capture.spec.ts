@@ -48,7 +48,7 @@ function topBarCreate(page: Page) {
 function barCapture(page: Page) {
   return page
     .locator("[data-testid='bottom-nav']")
-    .getByRole("button", { name: "Capture" });
+    .getByRole("button", { name: "Add", exact: true });
 }
 
 test.describe("compact widths — ONE global Capture affordance, not two", () => {

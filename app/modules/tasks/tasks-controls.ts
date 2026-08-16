@@ -103,6 +103,23 @@ export function buildTasksControlGroups(
       ],
     },
     {
+      /*
+       * CONTROL-01 — four priorities, each with its own flag, and NO fifth
+       * "No priority" option.
+       *
+       * The priority contract settled that a stored `null` IS Priority 4
+       * (IDENTITY/priority §"null maps to P4"). A filter that offered both
+       * "Priority 4" and "No priority" therefore offered two names for one
+       * state, and — worse — each returned a DIFFERENT subset of it: "Priority
+       * 4" matched only rows explicitly stored `p4`, "No priority" only rows
+       * stored `null`, and neither matched all the tasks the product draws with
+       * a grey P4 flag. Filtering to P4 now includes both
+       * (`d1-task-repository`), so the one option is the whole answer.
+       *
+       * The flag comes with them. Everywhere else in the product a priority is a
+       * coloured pennant beside its label; a filter that dropped the colour was
+       * a fifth dialect of a settled system.
+       */
       id: "priority",
       label: "Priority",
       param: TASKS_FILTER_PARAMS.priority,
@@ -111,8 +128,8 @@ export function buildTasksControlGroups(
         ...TASK_PRIORITIES.map((priority) => ({
           value: priority,
           label: PRIORITY_FILTER_LABELS[priority] ?? priority,
+          mark: { kind: "priority" as const, value: priority },
         })),
-        { value: "__none", label: PRIORITY_FILTER_LABELS.__none },
       ],
     },
     {

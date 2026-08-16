@@ -2060,16 +2060,14 @@
   }
 
   /* The rail is the thing that scrolls, and it is the whole band, so it clips
-   * against the screen's own edge and nothing else. */
+   * against the screen's own edge and nothing else.
+   *
+   * POLISH-01 — the overflow and the "there is more this way" cue come from
+   * `.dh-scroll-strip`, which `SavedViewSwitcher` puts on this element. What is
+   * left here is the phone's own layout decision: one row, no wrapping. */
   :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views {
     min-inline-size: 0;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-views::-webkit-scrollbar {
-    display: none;
   }
 
   /*

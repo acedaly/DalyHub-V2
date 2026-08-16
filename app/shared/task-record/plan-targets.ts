@@ -32,19 +32,53 @@ export function addCalendarDays(iso: string, days: number): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * The weekday of a date-only `YYYY-MM-DD`, 0 = Sunday … 6 = Saturday.
+ *
+ * UTC component arithmetic, like everything else here: a date-only value has no
+ * time and no zone, and reading its weekday through the local clock is how a
+ * Saturday becomes a Friday for anyone west of Greenwich. Returns `null` for a
+ * value that is not a date, so a caller degrades rather than guesses.
+ */
+export function calendarWeekday(iso: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return null;
+  return new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  ).getUTCDay();
+}
+
 /** The dates the quick-plan actions commit to, derived from the owner's today. */
 export interface PlanTargets {
   readonly today: string;
   readonly tomorrow: string;
+  /**
+   * CONTROL-01 — the coming Saturday, or today when today IS the weekend.
+   *
+   * "This weekend" is the preset every mature task product offers and the one
+   * an owner reaches for most after Today and Tomorrow, because it is the
+   * answer to "not during the week". Saturday rather than Sunday: it is the
+   * start of the window, so a task planned for it is still in the weekend if
+   * it slips a day.
+   *
+   * On a Saturday or a Sunday it resolves to today rather than to next week's
+   * Saturday — "this weekend" said on a Saturday means today, and jumping six
+   * days forward would be the one reading nobody intends.
+   */
+  readonly thisWeekend: string;
   /** One week ahead — the calm "later this week / next week" quick action. */
   readonly nextWeek: string;
 }
 
 /** Resolve the quick-plan target dates from the owner's calendar day. */
 export function planTargets(todayIso: string): PlanTargets {
+  const weekday = calendarWeekday(todayIso);
+  const daysToSaturday =
+    weekday === null ? 0 : weekday === 0 || weekday === 6 ? 0 : 6 - weekday;
   return {
     today: todayIso,
     tomorrow: addCalendarDays(todayIso, 1),
+    thisWeekend: addCalendarDays(todayIso, daysToSaturday),
     nextWeek: addCalendarDays(todayIso, 7),
   };
 }
@@ -68,9 +102,24 @@ export function taskDateShortcuts(
   todayIso: string,
 ): readonly { readonly label: string; readonly value: string }[] {
   const targets = planTargets(todayIso);
-  return [
+  const shortcuts = [
     { label: "Today", value: targets.today },
     { label: "Tomorrow", value: targets.tomorrow },
+    { label: "This weekend", value: targets.thisWeekend },
     { label: "Next week", value: targets.nextWeek },
   ];
+  /*
+   * CONTROL-01 — a preset that duplicates another is DROPPED, not drawn twice.
+   *
+   * On a Friday "Tomorrow" and "This weekend" are both Saturday; on a Saturday
+   * "Today" and "This weekend" are both today. Two buttons committing the same
+   * date is a choice that is not a choice, and the second one would light up
+   * `aria-pressed` alongside the first.
+   */
+  const seen = new Set<string>();
+  return shortcuts.filter((shortcut) => {
+    if (seen.has(shortcut.value)) return false;
+    seen.add(shortcut.value);
+    return true;
+  });
 }

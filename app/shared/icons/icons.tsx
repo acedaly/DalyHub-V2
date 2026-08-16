@@ -488,6 +488,52 @@ export const InboxIcon = createIcon(
 );
 
 /**
+ * POLISH-01 — UPCOMING: a calendar with the next event marked.
+ *
+ * Inbox, Upcoming and Tasks are three adjacent destinations in the daily group,
+ * and all three drew the Task entity's tick because that is the module they
+ * belong to. On the 68px collapsed rail — where a label is the one thing that
+ * is NOT available — three identical glyphs is a rail that cannot be read.
+ * Material Symbols `event_upcoming`.
+ */
+export const UpcomingIcon = createIcon(
+  "UpcomingIcon",
+  <path d="M580-240q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29ZM200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h60v80h360v-80h60v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-60h560q9 0 14.5-5.5T780-160v-400H180v400q0 9 5.5 14.5T200-140Zm-20-480h600v-100q0-9-5.5-14.5T760-740H200q-9 0-14.5 5.5T180-720v100Zm0 0v-120 120Z" />,
+);
+
+/**
+ * POLISH-01 — AI: a sparkle, the one glyph a person reads as "generated" without
+ * being told. It replaces the lightbulb `insight` glyph, which AI and Analytics
+ * were BOTH declaring — one glyph for two destinations in the same group.
+ * Material Symbols `auto_awesome`.
+ */
+export const SparkleIcon = createIcon(
+  "SparkleIcon",
+  <path d="m354-287 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143ZM233-120l65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Zm247-350Z" />,
+);
+
+/**
+ * POLISH-01 — ANALYTICS: bars in a frame. A measurement of what happened, which
+ * is a different promise from AI's sparkle and from the lightbulb both used to
+ * share. Material Symbols `bar_chart_4_bars`.
+ */
+export const AnalyticsIcon = createIcon(
+  "AnalyticsIcon",
+  <path d="M640-160v-280h160v280H640Zm-240 0v-640h160v640H400Zm-240 0v-440h160v440H160Zm60-60h40v-320h-40v320Zm240 0h40v-520h-40v520Zm240 0h40v-160h-40v160ZM460-700Zm240 260ZM220-540Z" />,
+);
+
+/**
+ * POLISH-01 — VIEWS: stacked layers. A saved view is a stored way of looking at
+ * records the product already has, which is a stack rather than a filter funnel
+ * — `FilterIcon` is the funnel, and it is already spoken for by the control that
+ * narrows a collection. Material Symbols `stacks`.
+ */
+export const ViewsIcon = createIcon(
+  "ViewsIcon",
+  <path d="M280-720v-60h400v60H280Zm-80 120v-60h560v60H200ZM160-80q-33 0-56.5-23.5T80-160v-280q0-33 23.5-56.5T160-520h640q33 0 56.5 23.5T880-440v280q0 33-23.5 56.5T800-80H160Zm0-60h640q9 0 14.5-5.5T820-160v-280q0-9-5.5-14.5T800-460H160q-9 0-14.5 5.5T140-440v280q0 9 5.5 14.5T160-140Zm-20 0v-320 320Z" />,
+);
+
+/**
  * Notification — a bell. Material Symbols `notifications`.
  *
  * NOTIFY-01. The name is the LEDGER's, not the feedback layer's: this is the

@@ -347,36 +347,36 @@
   --ink: #101014;
   --ink-body: #1c1c22;
   --ink-secondary: #45454e;
-  --ink-muted: #82828c;
-  --ink-faint: #a3a3ac;
-  --ink-icon: #8a8a94;
+  --ink-muted: #6b6b75;
+  --ink-faint: #83838d;
+  --ink-icon: #71717c;
   --ink-inverse: #ffffff;
   --accent: #5b4bd6;
   --accent-hover: #4b3cc2;
   --accent-pressed: #3a2fa0;
   --accent-tint: #efedfc;
   --accent-tint-hover: #e6e2fa;
-  --danger: #d9483b;
+  --danger: #c5372a;
   --danger-tint: #fbeae8;
-  --warning: #d98324;
+  --warning: #a25c10;
   --warning-tint: #fbf0e2;
-  --success: #2e9e6b;
+  --success: #1d7a52;
   --success-tint: #e7f5ee;
-  --info: #3b82c4;
+  --info: #31709f;
   --info-tint: #eaf1f9;
-  --priority-1: #dd302a;
-  --priority-2: #e2680a;
+  --priority-1: #cf2a23;
+  --priority-2: #b05108;
   --priority-3: #2e56e3;
-  --priority-4: #8a8a94;
+  --priority-4: #6b6b75;
   --category-purple: #5b4bd6;
   --category-purple-tint: #efedfc;
-  --category-blue: #3b82c4;
+  --category-blue: #31709f;
   --category-blue-tint: #eaf1f9;
-  --category-orange: #d98324;
+  --category-orange: #a25c10;
   --category-orange-tint: #fbf0e2;
-  --category-green: #2e9e6b;
+  --category-green: #1d7a52;
   --category-green-tint: #e7f5ee;
-  --category-red: #d9483b;
+  --category-red: #c5372a;
   --category-red-tint: #fbeae8;
   --shadow-popover:
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
@@ -722,36 +722,36 @@
   --ink: #101014;
   --ink-body: #1c1c22;
   --ink-secondary: #45454e;
-  --ink-muted: #82828c;
-  --ink-faint: #a3a3ac;
-  --ink-icon: #8a8a94;
+  --ink-muted: #6b6b75;
+  --ink-faint: #83838d;
+  --ink-icon: #71717c;
   --ink-inverse: #ffffff;
   --accent: #5b4bd6;
   --accent-hover: #4b3cc2;
   --accent-pressed: #3a2fa0;
   --accent-tint: #efedfc;
   --accent-tint-hover: #e6e2fa;
-  --danger: #d9483b;
+  --danger: #c5372a;
   --danger-tint: #fbeae8;
-  --warning: #d98324;
+  --warning: #a25c10;
   --warning-tint: #fbf0e2;
-  --success: #2e9e6b;
+  --success: #1d7a52;
   --success-tint: #e7f5ee;
-  --info: #3b82c4;
+  --info: #31709f;
   --info-tint: #eaf1f9;
-  --priority-1: #dd302a;
-  --priority-2: #e2680a;
+  --priority-1: #cf2a23;
+  --priority-2: #b05108;
   --priority-3: #2e56e3;
-  --priority-4: #8a8a94;
+  --priority-4: #6b6b75;
   --category-purple: #5b4bd6;
   --category-purple-tint: #efedfc;
-  --category-blue: #3b82c4;
+  --category-blue: #31709f;
   --category-blue-tint: #eaf1f9;
-  --category-orange: #d98324;
+  --category-orange: #a25c10;
   --category-orange-tint: #fbf0e2;
-  --category-green: #2e9e6b;
+  --category-green: #1d7a52;
   --category-green-tint: #e7f5ee;
-  --category-red: #d9483b;
+  --category-red: #c5372a;
   --category-red-tint: #fbeae8;
   --shadow-popover:
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
@@ -1097,36 +1097,36 @@
   --ink: #101014;
   --ink-body: #1c1c22;
   --ink-secondary: #45454e;
-  --ink-muted: #82828c;
-  --ink-faint: #a3a3ac;
-  --ink-icon: #8a8a94;
+  --ink-muted: #6b6b75;
+  --ink-faint: #83838d;
+  --ink-icon: #71717c;
   --ink-inverse: #ffffff;
   --accent: #5b4bd6;
   --accent-hover: #4b3cc2;
   --accent-pressed: #3a2fa0;
   --accent-tint: #efedfc;
   --accent-tint-hover: #e6e2fa;
-  --danger: #d9483b;
+  --danger: #c5372a;
   --danger-tint: #fbeae8;
-  --warning: #d98324;
+  --warning: #a25c10;
   --warning-tint: #fbf0e2;
-  --success: #2e9e6b;
+  --success: #1d7a52;
   --success-tint: #e7f5ee;
-  --info: #3b82c4;
+  --info: #31709f;
   --info-tint: #eaf1f9;
-  --priority-1: #dd302a;
-  --priority-2: #e2680a;
+  --priority-1: #cf2a23;
+  --priority-2: #b05108;
   --priority-3: #2e56e3;
-  --priority-4: #8a8a94;
+  --priority-4: #6b6b75;
   --category-purple: #5b4bd6;
   --category-purple-tint: #efedfc;
-  --category-blue: #3b82c4;
+  --category-blue: #31709f;
   --category-blue-tint: #eaf1f9;
-  --category-orange: #d98324;
+  --category-orange: #a25c10;
   --category-orange-tint: #fbf0e2;
-  --category-green: #2e9e6b;
+  --category-green: #1d7a52;
   --category-green-tint: #e7f5ee;
-  --category-red: #d9483b;
+  --category-red: #c5372a;
   --category-red-tint: #fbeae8;
   --shadow-popover:
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
@@ -1472,36 +1472,36 @@
   --ink: #101014;
   --ink-body: #1c1c22;
   --ink-secondary: #45454e;
-  --ink-muted: #82828c;
-  --ink-faint: #a3a3ac;
-  --ink-icon: #8a8a94;
+  --ink-muted: #6b6b75;
+  --ink-faint: #83838d;
+  --ink-icon: #71717c;
   --ink-inverse: #ffffff;
   --accent: #5b4bd6;
   --accent-hover: #4b3cc2;
   --accent-pressed: #3a2fa0;
   --accent-tint: #efedfc;
   --accent-tint-hover: #e6e2fa;
-  --danger: #d9483b;
+  --danger: #c5372a;
   --danger-tint: #fbeae8;
-  --warning: #d98324;
+  --warning: #a25c10;
   --warning-tint: #fbf0e2;
-  --success: #2e9e6b;
+  --success: #1d7a52;
   --success-tint: #e7f5ee;
-  --info: #3b82c4;
+  --info: #31709f;
   --info-tint: #eaf1f9;
-  --priority-1: #dd302a;
-  --priority-2: #e2680a;
+  --priority-1: #cf2a23;
+  --priority-2: #b05108;
   --priority-3: #2e56e3;
-  --priority-4: #8a8a94;
+  --priority-4: #6b6b75;
   --category-purple: #5b4bd6;
   --category-purple-tint: #efedfc;
-  --category-blue: #3b82c4;
+  --category-blue: #31709f;
   --category-blue-tint: #eaf1f9;
-  --category-orange: #d98324;
+  --category-orange: #a25c10;
   --category-orange-tint: #fbf0e2;
-  --category-green: #2e9e6b;
+  --category-green: #1d7a52;
   --category-green-tint: #e7f5ee;
-  --category-red: #d9483b;
+  --category-red: #c5372a;
   --category-red-tint: #fbeae8;
   --shadow-popover:
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
@@ -1847,36 +1847,36 @@
   --ink: #101014;
   --ink-body: #1c1c22;
   --ink-secondary: #45454e;
-  --ink-muted: #82828c;
-  --ink-faint: #a3a3ac;
-  --ink-icon: #8a8a94;
+  --ink-muted: #6b6b75;
+  --ink-faint: #83838d;
+  --ink-icon: #71717c;
   --ink-inverse: #ffffff;
   --accent: #5b4bd6;
   --accent-hover: #4b3cc2;
   --accent-pressed: #3a2fa0;
   --accent-tint: #efedfc;
   --accent-tint-hover: #e6e2fa;
-  --danger: #d9483b;
+  --danger: #c5372a;
   --danger-tint: #fbeae8;
-  --warning: #d98324;
+  --warning: #a25c10;
   --warning-tint: #fbf0e2;
-  --success: #2e9e6b;
+  --success: #1d7a52;
   --success-tint: #e7f5ee;
-  --info: #3b82c4;
+  --info: #31709f;
   --info-tint: #eaf1f9;
-  --priority-1: #dd302a;
-  --priority-2: #e2680a;
+  --priority-1: #cf2a23;
+  --priority-2: #b05108;
   --priority-3: #2e56e3;
-  --priority-4: #8a8a94;
+  --priority-4: #6b6b75;
   --category-purple: #5b4bd6;
   --category-purple-tint: #efedfc;
-  --category-blue: #3b82c4;
+  --category-blue: #31709f;
   --category-blue-tint: #eaf1f9;
-  --category-orange: #d98324;
+  --category-orange: #a25c10;
   --category-orange-tint: #fbf0e2;
-  --category-green: #2e9e6b;
+  --category-green: #1d7a52;
   --category-green-tint: #e7f5ee;
-  --category-red: #d9483b;
+  --category-red: #c5372a;
   --category-red-tint: #fbeae8;
   --shadow-popover:
     0 8px 24px -8px rgba(16, 16, 20, 0.18), 0 0 0 1px rgba(16, 16, 20, 0.06);
@@ -6150,7 +6150,19 @@
    * forgets falls back to the page colour, which is a wrong colour rather than a
    * transparent bar with text scrolling through it.
    */
-  --app-surface-current: var(--md-app-color-surface-page);
+  /*
+   * POLISH-01 — the default is the ground the APPLICATION paints, not the
+   * generated M3 page tone.
+   *
+   * `.dh-app` has painted `--dh-color-bg` since REDESIGN-03, and the two differ
+   * (#f6f6f8 against #faf9fd in light). Anything that consumed this on the page
+   * — a sticky bar's occluding background, a floating label's notch, and now the
+   * shared scroll cue's cover layers — was painting a colour two tones off the
+   * surface behind it, which reads as a pale block rather than as a cover. The
+   * "a surface declares itself" contract above is unchanged; only what `:root`
+   * declares is corrected to what `:root` actually paints.
+   */
+  --app-surface-current: var(--dh-color-bg);
 
   --app-safe-area-top: env(safe-area-inset-top, 0px);
   --app-safe-area-right: env(safe-area-inset-right, 0px);
@@ -6985,7 +6997,36 @@
   --dh-color-danger: var(--danger);
   --dh-color-success: var(--success);
   --dh-color-warning: var(--warning);
+  --dh-color-info: var(--info);
   --dh-color-overdue: var(--danger);
+
+  /*
+   * POLISH-01 — the METER pair: what a progress bar is drawn in, and what it is
+   * drawn on.
+   *
+   * Named separately from the status ramp above even though four of the five
+   * fills resolve straight onto it, because a meter answers a different
+   * question from a chip. A chip says "at risk"; a bar says "how far, and is
+   * that good?", and its fill has to clear 3:1 against the TRACK rather than
+   * against the page. Giving the pair its own names is what lets the track
+   * change once, for every meter in the product, instead of five times.
+   *
+   * `neutral` is `--ink-icon` rather than the accent: the accent is the
+   * application's one action colour and a bar is not an action. It is the same
+   * tone the product's own marks are drawn in, so an unmeasured bar reads as
+   * quiet structure rather than as a violet claim about progress.
+   *
+   * The track is the SUNKEN surface in both appearances — a well the fill sits
+   * in. It was `secondary-container` on one meter (a lavender: an empty bar
+   * read as a full one in another colour) and a translucent hairline on
+   * another, which is how two meters on one screen had different empty states.
+   */
+  --dh-color-meter-track: var(--surface-sunken);
+  --dh-color-meter-neutral: var(--ink-icon);
+  --dh-color-meter-success: var(--success);
+  --dh-color-meter-info: var(--info);
+  --dh-color-meter-warning: var(--warning);
+  --dh-color-meter-danger: var(--danger);
 
   /** The focus indicator. Named separately from the accent because it is an
    * accessibility contract, not a brand decision, and must survive a rebrand. */
@@ -7643,14 +7684,18 @@
  * is five places for a slot to be forgotten.
  *
  * ── The four roles ───────────────────────────────────────────────────────────
- *   --dh-identity        the hue itself: the glyph, the progress fill, the
- *                        chart line, a chip's icon
+ *   --dh-identity        the hue itself: the glyph, the identity dot, the
+ *                        chart line, a chip's icon. POLISH-01 removed the
+ *                        PROGRESS FILL from this list — a meter answers "how is
+ *                        this going?", which is the status ramp's question, not
+ *                        identity's (`~/shared/progress/meter-status`).
  *   --dh-identity-tint   the identity tile's FILL — a whisper of the hue over
  *                        the card, near-white in light
  *   --dh-identity-edge   the tile's 1px border, which is what actually draws the
  *                        tile since the fill deliberately barely does
- *   --dh-identity-soft   pill fills and progress TRACKS — the hue at a strength
- *                        that can sit under text
+ *   --dh-identity-soft   pill fills — the hue at a strength that can sit under
+ *                        text. Meter tracks left this role with POLISH-01, for
+ *                        the same reason the fill left `--dh-identity`.
  *
  * Values come from `--identity-<slot>*`, generated per appearance by
  * `scripts/generate-m3-scheme.mjs`. There is no `prefers-color-scheme` rule

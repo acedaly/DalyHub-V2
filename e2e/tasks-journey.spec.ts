@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   ownerToday,
+  pickCalendarDate,
 } from "./helpers";
 
 /**
@@ -73,7 +74,13 @@ async function createJourneyTask(
       .click();
   }
   if (options.scheduledDate) {
-    await dialog.getByLabel("Scheduled date").fill(options.scheduledDate);
+    // CONTROL-01 — the form's date is DalyHub's month grid now, not a native
+    // date input, and the grid is portalled so it is anchored outside `dialog`.
+    await dialog.getByLabel("Scheduled date").click();
+    await pickCalendarDate(
+      page.getByRole("dialog", { name: "Choose Scheduled date" }),
+      options.scheduledDate,
+    );
   }
 
   // Submit and assert the create POST actually succeeded (robust against the
@@ -199,37 +206,37 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Alpha",
       parent: "Tasks journey project",
-      priority: "P1 · Urgent",
+      priority: "Priority 1",
       sector: "This Week",
     });
 
     // V2.2 removed the Matrix; the priority-GROUPED list is where banded triage now
     // happens, and it is the same server grouping with the same authoritative counts.
     await gotoFixture(page, PRIORITY_GROUPS);
-    const p1Region = page.getByRole("region", { name: "P1 · Urgent" });
+    const p1Region = page.getByRole("region", { name: "Priority 1" });
     await expect(
       p1Region.getByRole("link", { name: "Journey task Alpha" }),
     ).toBeVisible();
     await expect(
-      // UIX-01 — a group heading reads "P1 · Urgent 3". The brackets went with
+      // UIX-01 — a group heading reads "Priority 1 3". The brackets went with
       // the redesign: "(3)" beside a small-caps band label reads as a debugger
       // printing a length, and the reference sets the count as a second figure.
-      page.getByRole("heading", { name: /P1 · Urgent \d+/ }).first(),
+      page.getByRole("heading", { name: /Priority 1 \d+/ }).first(),
     ).toBeVisible();
 
     // Move P1 → P4 via a bulk action; it leaves the P1 band and joins P4.
     await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Alpha");
-    await runBulk(page, () => chooseBulk(page, "Priority", "P4 · Low"));
+    await runBulk(page, () => chooseBulk(page, "Priority", "Priority 4"));
     await gotoFixture(page, PRIORITY_GROUPS);
     await expect(
       page
-        .getByRole("region", { name: "P4 · Low" })
+        .getByRole("region", { name: "Priority 4" })
         .getByRole("link", { name: "Journey task Alpha" }),
     ).toBeVisible();
     await expect(
       page
-        .getByRole("region", { name: "P1 · Urgent" })
+        .getByRole("region", { name: "Priority 1" })
         .getByRole("link", { name: "Journey task Alpha" }),
     ).toHaveCount(0);
 
@@ -255,7 +262,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Bravo",
       parent: "Tasks journey project",
-      priority: "P2 · High",
+      priority: "Priority 2",
     });
 
     // Delegate through the canonical Drawer's Details editor.
@@ -326,7 +333,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Charlie",
       parent: "Tasks journey project",
-      priority: "P1 · Urgent",
+      priority: "Priority 1",
     });
 
     // Bulk complete → it appears in the Completed view and leaves the active list.
@@ -359,7 +366,7 @@ test.describe("TASKS-01 — full journey", () => {
     await gotoFixture(page, PRIORITY_GROUPS);
     await expect(
       page
-        .getByRole("region", { name: "P1 · Urgent" })
+        .getByRole("region", { name: "Priority 1" })
         .getByRole("link", { name: "Journey task Charlie" }),
     ).toBeVisible();
   });
@@ -373,7 +380,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Delta",
       parent: "Tasks journey project",
-      priority: "P1 · Urgent",
+      priority: "Priority 1",
       scheduledDate: today,
     });
 
@@ -429,7 +436,7 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
     await createJourneyTask(page, {
       title: "Journey task Echo",
       parent: "Tasks journey project",
-      priority: "P3 · Normal",
+      priority: "Priority 3",
       sector: "This Month",
     });
     // TASKS-03 replaced the four "primary views" with presentations plus

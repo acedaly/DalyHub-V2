@@ -6,7 +6,6 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
-  ownerToday,
   taskRows,
   taskRow,
 } from "./helpers";
@@ -44,9 +43,6 @@ const FILING_PROJECT = "Daily driver filing project";
 const LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 const INBOX = "/tasks?view=list&system=inbox&sort=created&dir=desc";
 const DELETED = "/tasks?view=list&system=deleted&sort=updated";
-
-/** Today on the OWNER's calendar — never the UTC day (see `ownerToday`). */
-const TODAY = ownerToday();
 
 /** Capture a task through the in-workspace quick-add row. */
 async function quickAdd(page: Page, text: string) {
@@ -167,11 +163,12 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
     const card = cardFor(page, title);
     await expect(card).toBeVisible();
 
-    // PRIORITY, in place. An untriaged task reads a quiet "No priority" — that
-    // quiet word IS the control, so there is no pencil beside every value.
+    // PRIORITY, in place. An untriaged task reads a quiet "P4" — `null` IS
+    // Priority 4 (CONTROL-01) — and that quiet value IS the control, so there
+    // is no pencil beside it.
     await card.hover();
     await card.getByRole("button", { name: /^Priority/ }).click();
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(cardFor(page, title)).toContainText("P1");
 
     // DUE DATE, in place, through the shared DS-16 date popover.
@@ -179,8 +176,11 @@ test.describe("TASKS-05 — a task is edited where it is shown", () => {
     await dated.hover();
     await dated.getByRole("button", { name: /^Due date/ }).click();
     const duePopover = page.getByRole("dialog", { name: "Edit due date" });
-    await duePopover.getByLabel("Due date", { exact: true }).fill(TODAY);
-    await duePopover.getByRole("button", { name: "Save", exact: true }).click();
+    // CONTROL-01 — the product's own preset, in the product's own picker. There
+    // is no native input to type into and no Save after a complete answer.
+    await duePopover
+      .getByRole("button", { name: "Today", exact: true })
+      .click();
     /*
      * UIX-01 — the row states the due date as the WORD "Today", not as an
      * "Due today" urgency chip beside it.
@@ -311,13 +311,13 @@ test.describe("TASKS-06 — bulk management", () => {
     // pretending the set shares a value.
     await gotoFixture(page, LIST);
     await selectTask(page, `E2E bulk ${stamp} 0`);
-    await runBulk(page, () => chooseBulk(page, "Priority", "P1 · Urgent"));
+    await runBulk(page, () => chooseBulk(page, "Priority", "Priority 1"));
     await selectTask(page, `E2E bulk ${stamp} 0`);
     await selectTask(page, `E2E bulk ${stamp} 1`);
     await expect(
       bulkBar(page).getByRole("combobox", { name: "Priority" }),
     ).toContainText("Mixed");
-    await runBulk(page, () => chooseBulk(page, "Priority", "P2 · High"));
+    await runBulk(page, () => chooseBulk(page, "Priority", "Priority 2"));
     await expect(cardFor(page, `E2E bulk ${stamp} 0`)).toContainText("P2");
     await expect(cardFor(page, `E2E bulk ${stamp} 1`)).toContainText("P2");
 
@@ -606,10 +606,11 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     /*
      * A priority edit from the row, at phone width.
      *
-     * UIX-01 — the phone row is circle · title · date, and an UNSET priority is
-     * not drawn on it: at 390px a "No priority" control took ~70px out of a
-     * ~334px row, directly out of the title, to say that a dimension the owner
-     * has not used is not used. The capability did not move off the row — it
+     * UIX-01 — the phone row is circle · title · date, and an untriaged
+     * priority was not drawn on it: at 390px a "No priority" control took ~70px
+     * out of a ~334px row, directly out of the title, to say that a dimension
+     * the owner has not used is not used. The capability did not move off the
+     * row — it
      * moved into the row's own overflow → "Priority, dates and repeat…", which
      * is the shared quick-edit panel and is already the phone's path for the
      * sector and the recurrence (a phone has no hover to reveal anything).
@@ -621,7 +622,7 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     const quickEdit = page.getByRole("dialog", { name: "Quick edit" });
     const priority = quickEdit.getByRole("combobox", { name: /^Priority/ });
     await priority.click();
-    await quickEdit.getByRole("option", { name: "P2 · High" }).click();
+    await quickEdit.getByRole("option", { name: "Priority 2" }).click();
     await page.keyboard.press("Escape");
     await expect(cardFor(page, `E2E phone ${stamp} 0`)).toContainText("P2");
 

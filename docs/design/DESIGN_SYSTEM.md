@@ -184,7 +184,16 @@ the identity is restrained by *how little of the page it covers*, not by
 desaturating it.
 
 - **Violet is spent on action and on the expressive surfaces.** Filled
-  buttons, the FAB, the capture affordance, progress fills, the hero tint.
+  buttons, the FAB, the capture affordance, the hero tint. **Not progress
+  fills** — see the meter rule below.
+- **Identity says what a record IS; status says how it is GOING, and a METER
+  answers the second question.** A progress fill takes the semantic status the
+  surface already derived (`~/shared/progress/meter-status`), never the record's
+  identity hue and never the brand. `neutral` is a real answer for a bar with
+  nothing to judge — an unmeasured Goal, a Project with no tasks, a bar counting
+  volume — and is what a meter shows rather than guessing. The identity ramp
+  keeps the glyph tile, the identity dot, the mark, the chart line, the pills
+  and the Analytics legends, which is everything it was for.
 - **Selection is `secondary-container`** — the soft lilac in light, the muted
   plum in dark — in the sidebar, the phone navigation bar, the settings rail and
   the segmented control alike. M3X retired the old `primary-container`
@@ -422,12 +431,54 @@ by motion alone.
 
 ### Responsive behaviour
 
-Validated at 320 · 375 · 390–430 · tablet · 1024 · 1280 · 1440 · 1920. The
-laptop widths get the most attention, because that is where a title wraps, a
-gallery collapses a column early, or a control row doubles. Desktop and mobile
-are allowed genuinely different compositions — a split view against a dedicated
-screen, persistent filters against a sheet, a grid against a rich list — and that
-is the design, not a divergence to reconcile.
+Validated at 320 · 375 · 390–430 · **820 · 900 · 1100** · 1024 · 1280 · 1440 ·
+1920. The laptop widths get the most attention, because that is where a title
+wraps, a gallery collapses a column early, or a control row doubles. Desktop and
+mobile are allowed genuinely different compositions — a split view against a
+dedicated screen, persistent filters against a sheet, a grid against a rich list
+— and that is the design, not a divergence to reconcile.
+
+The three emphasised widths were added by POLISH-01. The canonical matrix ran
+320 → 430 → 768 → 1024 → 1280, and a page-level horizontal scrollbar lived on
+`/tasks` between roughly 820 and 1100px for as long as it took an audit driving
+a real browser to find it — every width it existed at fell in a gap in the list.
+`e2e/responsive.spec.ts` sweeps them over the densest grids in the product.
+
+### Horizontally-constrained strips
+
+Any rail that scrolls sideways — collection lifecycle tabs, the saved-view band,
+record tabs, the capture type selector — carries **`.dh-scroll-strip`**
+([`app/styles/scroll-strip.css`](../../app/styles/scroll-strip.css)). It brings
+the overflow, the hidden scrollbar and one shared "there is more this way" cue:
+cover layers travel with the content, shadow layers stay pinned, so the cue
+appears only on the side that genuinely has more and disappears when the strip
+fits. Nothing has to know how many tabs there are.
+
+Two rules it is easy to get wrong:
+
+- **one scroll container per strip.** Two nested `overflow-x: auto` boxes means
+  the outer never overflows, so an affordance painted on it is permanently
+  invisible. Put the class on the element the items are actually in.
+- **the cover colour must be the surface behind the strip.** It defaults to
+  `--app-surface-current`; a band painted differently from its container sets
+  `--scroll-strip-cover`. A cover in the wrong colour is a visible block at the
+  edge of the tabs rather than a cover.
+
+### One control, two presentations
+
+A behaviour that genuinely differs by DEVICE — not by width — is chosen by
+`useCompactViewport`, and the two presentations share their model, their options
+and their state. There is never a second implementation.
+
+| Control | Pointer | Touch |
+| --- | --- | --- |
+| Collection filters | anchored popover, live-applying | the shared sheet, draft + Apply |
+| Inline select | anchored menu | the shared sheet |
+| Date picker | anchored popover | the shared sheet |
+
+The filter pair is the one with a deliberate BEHAVIOURAL difference: the sheet
+edits a draft because it covers the list, and the popover live-applies because
+it sits beside it. Both write through the same `applyDraft`.
 
 ---
 
@@ -1112,7 +1163,7 @@ document column, its title and its one context line) · the module compositions 
 
 ### Inline editing (DS-16)
 **Purpose.** Change a commonly-edited value where it is shown, instead of routing every small correction through a modal, a drawer or a dedicated edit page.
-**Anatomy.** [`app/shared/inline-edit`](../../app/shared/inline-edit): one pure state machine (`inline-edit-model`) · one hook (`useInlineEdit`, which owns the async submission, the superseded-reply guard and focus) · one read affordance and editing frame (`InlineEditShell`) · the shared [anchored overlay](#anchored-overlay-edit-03) for anything that floats (`~/shared/anchored`) · three typed fields — `InlineTextField` (single-line, or `multiline` for plain text whose line breaks matter), `InlineSelectField` (an anchored WAI-ARIA menu button) and `InlineDateField` (an anchored `dialog` around a native date input). There is deliberately **no** inline Markdown field: long-form is editor-first (see [shared writing surface](#shared-writing-surface-edit-01)), so inline editing covers short values and closed vocabularies only.
+**Anatomy.** [`app/shared/inline-edit`](../../app/shared/inline-edit): one pure state machine (`inline-edit-model`) · one hook (`useInlineEdit`, which owns the async submission, the superseded-reply guard and focus) · one read affordance and editing frame (`InlineEditShell`) · the shared [anchored overlay](#anchored-overlay-edit-03) for anything that floats (`~/shared/anchored`) · three typed fields — `InlineTextField` (single-line, or `multiline` for plain text whose line breaks matter), `InlineSelectField` (an anchored WAI-ARIA menu button) and `InlineDateField` (an anchored `dialog` around the DalyHub date picker — the product's presets, `CalendarGrid`, and a No date command; **not** a native `<input type="date">`, which put a browser-drawn `dd/mm/yyyy` skeleton inside a popover styled to the pixel. The shared form `DateField` keeps the native input: a long form of dates is where the platform control is still right). There is deliberately **no** inline Markdown field: long-form is editor-first (see [shared writing surface](#shared-writing-surface-edit-01)), so inline editing covers short values and closed vocabularies only.
 **Behaviour.** A simple text field: activate the value, Enter saves, Escape cancels, blur saves. A multiline plain-text field: explicit **Save**/**Cancel** plus ⌘/Ctrl+Enter, blur does **not** save, and Escape cancels *only* while the draft is untouched. A select or date: a compact anchored popover with roving focus, Escape-to-close and focus returned to the trigger.
 
 **Adoption (EDIT-02).** Every canonical record edits its title this way — Areas, Projects, Goals, Notes, People, Assets, Meetings and Tasks — and the dedicated `Rename` action, its Drawer form and its Settings-tab twin are gone from all of them. A Goal's target date and definition of done, and a Task's priority, scheduled date and due date, are edited on the record too. What deliberately did **not** move: multi-field configuration with real interdependencies (a Meeting's start/end/timezone, a Task's delegation and recurrence, a Project's Settings tab), multi-value controls (a Note's tags) and every destructive workflow.

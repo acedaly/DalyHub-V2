@@ -46,6 +46,8 @@ import {
   resolveIdentity,
 } from "~/shared/entity/identity-resolution";
 
+import { meterStatusAttribute } from "~/shared/progress";
+
 import { normaliseProgress, type CardProgress } from "./types";
 
 export type EntityCardProps = {
@@ -223,6 +225,7 @@ export function EntityCard({
               <span className="dh-ecard__progress-text">{resolved.text}</span>
               <span
                 className="dh-ecard__progress-track"
+                {...meterStatusAttribute(resolved.status)}
                 role="progressbar"
                 aria-valuenow={resolved.percent}
                 aria-valuemin={0}

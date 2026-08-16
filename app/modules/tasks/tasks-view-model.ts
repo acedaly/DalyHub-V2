@@ -15,10 +15,15 @@
 
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 import {
+  relativeCalendarDate,
   taskDisplayState,
   taskPriorityTag,
   timeSectorLabel,
 } from "~/shared/task-record/task-view";
+import {
+  collectionStateBreakdown,
+  collectionStateSegment,
+} from "~/shared/collection-layout";
 import type { TaskPriority, TaskSystemView, TimeSector } from "~/kernel/tasks";
 import type { TaskGroupBy, TaskPresentation } from "~/kernel/task-views";
 
@@ -200,7 +205,10 @@ const BUCKET_FILTERS: Record<
 > = {
   priority: {
     param: TASKS_FILTER_PARAMS.priority,
-    value: (key) => (key === "untriaged" ? "__none" : key),
+    // CONTROL-01 — an `untriaged` bucket can only come from a cursor issued
+    // before the query coalesced `null` into `p4`. It scopes to P4, which is
+    // what those rows are, rather than to the retired `__none` filter.
+    value: (key) => (key === "untriaged" ? "p4" : key),
   },
   sector: {
     param: TASKS_FILTER_PARAMS.timeSector,
@@ -293,4 +301,61 @@ export function resolveGroupedSections(
   return [...byKey.entries()]
     .map(([key]) => build(key))
     .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title) || 0);
+}
+
+/**
+ * CONVERGE-01 §B — the Tasks state breakdown, for the collection's subtitle.
+ *
+ * "Tasks · 93 Tasks" repeats the page's own noun and answers a question nobody
+ * asked. The audit's replacement is the shape Projects has drawn since
+ * REDESIGN-04: what STATE the work is in — "63 active · 26 overdue · 4
+ * waiting" — from figures the page already holds.
+ *
+ * ── The honesty rule, which is why this can return null ──────────────────────
+ * These counts are derived from the tasks ON SCREEN. That is a complete, true
+ * statement exactly when the page IS the collection; the moment another page
+ * remains, "26 overdue" would mean "26 among the 50 we happened to load", which
+ * reads as a total and is not one.
+ *
+ * So a bounded page gets `null` and the caller keeps the count line that
+ * declares its own bound ("93 Tasks loaded"). A breakdown that is sometimes a
+ * sample and never says so would be worse than the count it replaced. The
+ * caller passes `hasMore` for a flat list, and for a GROUPED one whether any
+ * bucket is still bounded — a grouped view whose every group is fully loaded is
+ * as complete as a flat list that is.
+ */
+export function taskStateBreakdown(
+  cards: readonly TaskCardData[],
+  todayIso: string,
+  options: { readonly bounded: boolean },
+): string | null {
+  if (options.bounded || cards.length === 0) return null;
+
+  let overdue = 0;
+  let waiting = 0;
+  let done = 0;
+  for (const card of cards) {
+    if (card.completed) {
+      done += 1;
+      continue;
+    }
+    if (card.waiting) {
+      waiting += 1;
+      continue;
+    }
+    if (
+      card.dueDate !== null &&
+      relativeCalendarDate(card.dueDate, todayIso)?.urgency === "overdue"
+    ) {
+      overdue += 1;
+    }
+  }
+  const active = cards.length - done - waiting - overdue;
+
+  return collectionStateBreakdown([
+    collectionStateSegment(active, "active"),
+    collectionStateSegment(overdue, "overdue"),
+    collectionStateSegment(waiting, "waiting"),
+    collectionStateSegment(done, "done"),
+  ]);
 }

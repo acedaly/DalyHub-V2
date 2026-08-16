@@ -36,6 +36,7 @@ import {
   type ProjectProgress,
   type SerializedProjectOverview,
 } from "./project-view";
+import { meterStatusFromTone } from "~/shared/progress";
 
 interface ProjectOverviewProps {
   readonly overview: SerializedProjectOverview;
@@ -307,6 +308,13 @@ export function ProjectOverview({
               ? `${progress.summary} complete`
               : "No tasks yet.",
             available: progress.has,
+            // POLISH-01 — the bar states the same health the indicator beside
+            // it names, so a Project reading "At risk" cannot draw a calm bar.
+            // Health that is not being presented leaves the bar neutral rather
+            // than asserting something the surface is deliberately not saying.
+            status: overview.healthVisible
+              ? meterStatusFromTone(health.tone)
+              : "neutral",
           },
           // Shown ONLY for genuinely active work (PROJ-05 §8 / ADR-037) — see
           // `isHealthVisible` in `project-view.ts`, the SAME rule the collection

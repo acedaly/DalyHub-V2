@@ -136,6 +136,14 @@ describe("resolveGroupedSections — grouped by priority", () => {
         items: [item({ id: "d1" })],
       }),
       group({ key: "p2", count: 1, items: [item({ id: "f1" })] }),
+      /*
+       * CONTROL-01 — the SERVER no longer emits this bucket (the grouping query
+       * coalesces `null` into `p4`, because `null` IS Priority 4). It is kept in
+       * the fixture because a cursor issued before that change still can, and
+       * what happens then is a decision worth pinning: it renders as Priority 4
+       * and scopes to the P4 filter, rather than showing a raw key or linking to
+       * a filter option that no longer exists.
+       */
       group({
         key: "untriaged",
         count: 2,
@@ -156,15 +164,17 @@ describe("resolveGroupedSections — grouped by priority", () => {
     expect(byKey.get("p1")?.cards).toHaveLength(1);
     expect(byKey.get("p1")?.hasMore).toBe(true);
     expect(byKey.get("p1")?.filterKey).toBe("p1");
-    // Untriaged maps to the explicit no-priority filter.
+    // A legacy untriaged bucket scopes to P4 — which is what those tasks are.
     expect(byKey.get("untriaged")?.filterParam).toBe("priority");
-    expect(byKey.get("untriaged")?.filterKey).toBe("__none");
+    expect(byKey.get("untriaged")?.filterKey).toBe("p4");
   });
 
   it("labels a bucket in the ONE priority vocabulary", () => {
     const sections = resolveGroupedSections(grouping);
     expect(sections[0]?.title).toBe("Priority 1");
-    expect(sections.at(-1)?.title).toBe("No priority");
+    // Including the legacy bucket: there is one name for this state and it is
+    // "Priority 4". "No priority" was a second name for the same tasks.
+    expect(sections.at(-1)?.title).toBe("Priority 4");
   });
 
   it("returns nothing for a null grouping", () => {

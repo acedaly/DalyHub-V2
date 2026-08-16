@@ -115,7 +115,7 @@ for (const scheme of ["light", "dark"] as const) {
       await gotoFixture(page, "/today");
       await page
         .locator("[data-testid='bottom-nav']")
-        .getByRole("button", { name: "Capture" })
+        .getByRole("button", { name: "Add", exact: true })
         .click();
       await page.getByTestId("capture-sheet").waitFor();
       await shoot(page, `quick-capture-390-${scheme}`);

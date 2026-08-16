@@ -184,23 +184,29 @@ describe.each(APPEARANCES)("contrast in %s", (appearance) => {
     }
   });
 
-  it("holds 3:1 for every progress fill on the sunken track", () => {
+  /*
+   * POLISH-01 retired the identity PROGRESS FILL (a meter answers "how is this
+   * going?", which is the status ramp's question). The sunken surface is still
+   * where identity marks land — a dot in a nested panel, a chart line over a
+   * well — so the floor stays; only the name of the thing being checked changed.
+   */
+  it("holds 3:1 for every identity mark on the sunken surface", () => {
     for (const slot of IDENTITY_SLOT_NAMES) {
       const { hue } = IDENTITY_RAMP[appearance][slot];
       const ratio = contrastRatio(hue, track);
       expect(
         ratio,
-        `${slot}: bar ${hue} on track ${track} = ${ratio.toFixed(2)}:1`,
+        `${slot}: mark ${hue} on sunken ${track} = ${ratio.toFixed(2)}:1`,
       ).toBeGreaterThanOrEqual(3);
     }
   });
 
   /*
-   * The identity-scoped meter paints its TRACK in the slot's `soft` role and its
-   * fill in the hue, so the two owe each other the same 3:1 — otherwise a bar in
-   * its own colour would be less legible than the neutral one it replaced.
+   * A slot's `soft` role is a pill fill, and the hue is the glyph inside it, so
+   * the two owe each other 3:1. (Until POLISH-01 this pair was also a meter's
+   * track and fill; it no longer is, but the pill still needs it.)
    */
-  it("holds 3:1 for every fill against its own soft track", () => {
+  it("holds 3:1 for every hue against its own soft fill", () => {
     for (const slot of IDENTITY_SLOT_NAMES) {
       const { hue, soft } = IDENTITY_RAMP[appearance][slot];
       const ratio = contrastRatio(hue, soft);
@@ -309,8 +315,13 @@ describe("the sixteen slots are sixteen identities", () => {
     const progress = readCss("progress.css");
     const icons = readCss("icons.css");
     expect(icons).toContain("color: var(--dh-identity)");
-    expect(progress).toContain("background: var(--dh-identity)");
     expect(charts).toContain("stroke: var(--dh-identity)");
+    /*
+     * And the meter is the one consumer that must NOT: POLISH-01 moved every
+     * progress fill onto the status ramp, and this is the assertion that would
+     * fail if a future change pointed a bar back at the record's own colour.
+     */
+    expect(progress).not.toContain("background: var(--dh-identity)");
     // Nothing on an identity surface may reach for the retired container pairs.
     for (const [name, text] of [
       ["icons.css", icons],

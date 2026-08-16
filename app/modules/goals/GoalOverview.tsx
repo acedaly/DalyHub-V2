@@ -76,6 +76,7 @@ import {
   type SerializedGoalProjectContribution,
   type SerializedGoalProjectItem,
 } from "./goal-view";
+import { meterStatusFromTone } from "~/shared/progress";
 
 interface GoalOverviewProps {
   readonly overview: SerializedGoalOverview;
@@ -196,6 +197,10 @@ export function GoalOverview({
             onSave={onSetTargetDate}
             format={(iso) => formatCalendarDate(iso) ?? iso}
             emptyLabel="Add a target date"
+            // CONTROL-01 — the owner's day (ADR-022), which the Goal record
+            // already resolves for its own overdue arithmetic. It opens the
+            // grid on this month and marks today.
+            todayIso={todayIso}
             data-testid="goal-target-date-edit"
           />
           {target.state === "overdue" ? (
@@ -358,6 +363,15 @@ export function GoalOverview({
             percent: progress.percent,
             summary: progress.summary,
             available: progress.has,
+            /*
+             * POLISH-01 — this bar measures how the WORK under the Goal is
+             * going, and the alignment state beside it is the verdict on
+             * exactly that. Deriving it from the alignment tone keeps the two
+             * from disagreeing; it is not the Goal's own measurement status,
+             * which belongs to the progress feature above and says something
+             * different (§27 of the UIX-03 brief).
+             */
+            status: meterStatusFromTone(alignment.tone),
           },
           state: <AlignmentIndicator alignment={alignment} />,
           signals: alignment.reasons.map((reason) => ({

@@ -70,13 +70,26 @@ type TasksCreateResponse =
       readonly fieldErrors?: Record<string, string>;
     };
 
-/** The priority row's options. The empty value is a real choice, not a blank. */
+/**
+ * The priority row's options.
+ *
+ * CONTROL-01 — FOUR options, not five. The empty value is Priority 4 rather
+ * than a separate "No priority": a task captured without a priority stores
+ * `null`, and `null` IS Priority 4 everywhere the product draws it, so listing
+ * both would put two identical-looking rows in a four-choice control.
+ *
+ * The empty value is kept as the P4 option's value so the posted payload is
+ * unchanged — capture still stores `null` for an untriaged task, and nothing
+ * about the request or the parser moves for a labelling fix.
+ */
 const PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "", label: "No priority" },
-  ...TASK_PRIORITIES.map((priority: TaskPriority) => ({
-    value: priority,
-    label: taskPriorityLabel(priority),
-  })),
+  { value: "", label: taskPriorityLabel("p4") },
+  ...TASK_PRIORITIES.filter((priority) => priority !== "p4").map(
+    (priority: TaskPriority) => ({
+      value: priority,
+      label: taskPriorityLabel(priority),
+    }),
+  ),
 ];
 
 /** Add-a-day helpers for the one-tap due-date options (owner calendar, ISO dates). */
@@ -298,7 +311,7 @@ export function TaskCapturePanel({
         Every row is an ordinary labelled control, so each is one tap, keyboard
         operable, and announced with its own name. NONE of them is required:
         title-only capture is still type-and-Enter, and each row's own empty
-        state ("No due date", "No priority", "Inbox") is a real value rather
+        state ("No due date", "Priority 4", "Inbox") is a real value rather
         than a placeholder the owner must clear.
       */}
       <div className="dh-capture-rows">

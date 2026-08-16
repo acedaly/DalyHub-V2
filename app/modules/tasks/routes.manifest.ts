@@ -28,13 +28,26 @@ const routes: readonly RouteContribution[] = [
     id: "tasks.inbox",
     path: "inbox",
     file: "routes/inbox.tsx",
-    meta: { navLabel: "Inbox", navGroup: "daily", navOrder: 10 },
+    meta: {
+      navLabel: "Inbox",
+      navGroup: "daily",
+      navOrder: 10,
+      // POLISH-01 — its own glyph. Inbox, Upcoming and Tasks are three
+      // adjacent rows of one module, and inheriting the Task tick drew the
+      // same mark three times on a rail whose collapsed form has no labels.
+      navIcon: "inbox",
+    },
   },
   {
     id: "tasks.upcoming",
     path: "upcoming",
     file: "routes/upcoming.tsx",
-    meta: { navLabel: "Upcoming", navGroup: "daily", navOrder: 20 },
+    meta: {
+      navLabel: "Upcoming",
+      navGroup: "daily",
+      navOrder: 20,
+      navIcon: "upcoming",
+    },
   },
   {
     id: "tasks.index",

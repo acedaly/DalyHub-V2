@@ -335,17 +335,24 @@ describe("People collection", () => {
       screen.queryByRole("button", { name: /Needs a catch-up/ }),
     ).toBeNull();
     fireEvent.click(screen.getByTestId("collection-filter-trigger"));
-    const sheet = screen.getByTestId("collection-sheet");
-    expect(within(sheet).queryByText("Needs a catch-up")).toBeNull();
+    /*
+     * CONTROL-01 — the CONTROL SURFACE, whichever presentation this environment
+     * gets. `useCompactViewport` is false without a matching `matchMedia`, so
+     * the test renders the desktop popover; the assertion is about which
+     * controls are offered, which is the half that must not depend on the
+     * device.
+     */
+    const controls = screen.getByTestId("collection-popover");
+    expect(within(controls).queryByText("Needs a catch-up")).toBeNull();
     // The sort is still offered — it is the group that has data behind it.
-    expect(within(sheet).getByText("Sort")).toBeInTheDocument();
+    expect(within(controls).getByText("Sort")).toBeInTheDocument();
   });
 
-  it("offers the catch-up filter in the sheet on the active views", () => {
+  it("offers the catch-up filter on the active views", () => {
     renderCollection([personItem()]);
     fireEvent.click(screen.getByTestId("collection-filter-trigger"));
-    const sheet = screen.getByTestId("collection-sheet");
-    expect(within(sheet).getByText("Needs a catch-up")).toBeInTheDocument();
+    const controls = screen.getByTestId("collection-popover");
+    expect(within(controls).getByText("Needs a catch-up")).toBeInTheDocument();
   });
 
   it("shows a Restore action for an archived person in the Archived view", () => {

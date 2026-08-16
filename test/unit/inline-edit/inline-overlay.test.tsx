@@ -432,11 +432,17 @@ describe("InlineDateField — the full date-selection interface", () => {
     const dialog = screen.getByRole("dialog", { name: "Edit due date" });
     expect(screen.getByTestId("row").contains(dialog)).toBe(false);
 
-    // The whole supported interface: shortcuts, the picker, and Clear.
+    // The whole supported interface: presets, the month grid, and No date.
     expect(
       screen.getByRole("button", { name: "Tomorrow" }),
     ).toBeInTheDocument();
-    expect(dialog.querySelector('input[type="date"]')).not.toBeNull();
+    // CONTROL-01 — DalyHub's own grid, and NO browser-native residue: the grey
+    // `dd/mm/yyyy` skeleton and the platform calendar glyph are what made this
+    // editor read as an unfinished form field inside a styled popover.
+    expect(dialog.querySelector('input[type="date"]')).toBeNull();
+    expect(
+      within(dialog).getByRole("grid", { name: "Due date" }),
+    ).toBeInTheDocument();
     // DS-17 — the clear command names the field it empties, so a surface with two
     // dates on it offers two distinguishable commands.
     expect(
@@ -471,10 +477,12 @@ describe("InlineDateField — the full date-selection interface", () => {
     );
     const dialog = screen.getByRole("dialog", { name: "Edit due date" });
     const named = within(dialog)
-      .queryAllByLabelText(/Due date/)
+      .queryAllByLabelText(/^Due date$/)
       .filter((node) => node.tagName !== "LABEL");
     expect(named).toHaveLength(1);
-    expect(named[0]).toBe(dialog.querySelector('input[type="date"]'));
+    // CONTROL-01 — that one thing is the month grid, which took the input's
+    // place and its name with it.
+    expect(named[0]).toBe(within(dialog).getByRole("grid"));
   });
 
   it("marks the shortcut that matches the stored date", () => {
@@ -539,7 +547,12 @@ describe("InlineDateField — the full date-selection interface", () => {
     expect(
       within(sheet).getByRole("button", { name: "Tomorrow" }),
     ).toBeInTheDocument();
-    expect(sheet.querySelector('input[type="date"]')).not.toBeNull();
+    // CONTROL-01 — the SAME editor, so the phone gets the same month grid and
+    // the same absence of a native input. One date control, two containers.
+    expect(sheet.querySelector('input[type="date"]')).toBeNull();
+    expect(
+      within(sheet).getByRole("grid", { name: "Due date" }),
+    ).toBeInTheDocument();
     expect(
       within(sheet).getByRole("button", { name: "Clear due date" }),
     ).toBeInTheDocument();

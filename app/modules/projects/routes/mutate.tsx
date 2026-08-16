@@ -45,6 +45,14 @@ import {
 } from "../project-links";
 import type { Route } from "./+types/mutate";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 /** The discriminated project-mutation outcomes the client consumes. */
 export type ProjectMutationResult =
   | {

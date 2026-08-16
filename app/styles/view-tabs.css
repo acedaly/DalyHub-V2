@@ -20,20 +20,25 @@
  * the heaviest object on the calmest band of the screen.
  */
 
+/*
+ * POLISH-01 — the rail is a `.dh-scroll-strip` (`scroll-strip.css`).
+ *
+ * It always scrolled sideways rather than wrapping or squeezing; what it never
+ * did was SAY so. At 393px on `/projects` the band read "Active | All" with
+ * "Completed" cut mid-word and "Archived" nowhere, which reads as a shorter set
+ * of choices rather than as a scrollable one — and there was no cue of any kind
+ * to correct the impression.
+ *
+ * The overflow, the scrollbar suppression and the cue all come from the shared
+ * strip now, so this rule owns only the rail's own layout. `-webkit-overflow-
+ * scrolling: touch` went with them: it is an iOS 12-era property that current
+ * WebKit ignores.
+ */
 .dh-viewtabs {
   display: flex;
   align-items: stretch;
   gap: var(--app-space-1);
   min-inline-size: 0;
-  /* On a narrow window the rail scrolls sideways rather than wrapping into two
-   * rows of tabs or squeezing four labels into unreadable columns. */
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.dh-viewtabs::-webkit-scrollbar {
-  display: none;
 }
 
 /*

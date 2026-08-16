@@ -41,6 +41,7 @@ import {
   goalOverTargetLabel,
   goalPaceLabel,
   goalProgressStatusLabel,
+  goalProgressMeterStatus,
   goalProgressStatusTone,
   goalProgressSummaryText,
   goalRemainingLabel,
@@ -268,6 +269,9 @@ function ProgressHeader({
               percent={progress.progressPercent}
               valueText={summary}
               complete={progress.achieved}
+              // POLISH-01 — the bar states the same thing the pill below it
+              // states, in the same ramp.
+              status={goalProgressMeterStatus(progress.status)}
             />
             <span className="dh-goal-measure__percent">
               {progress.progressPercent}%

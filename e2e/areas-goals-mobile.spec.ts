@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   mobileNavigationOpener,
+  pickCalendarDate,
 } from "./helpers";
 import { d1Execute } from "./d1";
 
@@ -221,15 +222,18 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expect(targetTrigger).toBeFocused();
 
     await targetTrigger.click();
-    // A ROLE query, not `getByLabel`: DS-17 named the sheet's clear control
-    // "Clear target date", which CONTAINS "Target date".
-    await datePopover
-      .getByRole("textbox", { name: "Target date" })
-      .fill("2027-03-15");
+    /*
+     * CONTROL-01 — the sheet is the shared CALENDAR, not a native date input.
+     *
+     * A phone got the operating system's date spinner here, which is the one
+     * date interface in the product nothing else looked like. It is now the same
+     * month grid the desktop popover shows, and it commits on selection: a
+     * calendar day is a complete answer, so there is no Save to press after it.
+     */
     await expectMinTouchTarget(
-      datePopover.getByRole("button", { name: "Save" }),
+      datePopover.getByRole("button", { name: "Next month" }),
     );
-    await datePopover.getByRole("button", { name: "Save" }).click();
+    await pickCalendarDate(datePopover, "2027-03-15");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByText(/15 Mar 2027/).first()).toBeVisible();
     await expectNoHorizontalOverflow(page);

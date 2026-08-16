@@ -94,6 +94,7 @@ import {
   type TaskViewConfig,
 } from "~/kernel/task-views";
 
+import { tasksDestinationTitle } from "./destination";
 import { NewTaskForm } from "./NewTaskForm";
 import { TasksQuickAdd } from "./TasksQuickAdd";
 import { TasksViewSwitcher } from "./TasksViewSwitcher";
@@ -126,6 +127,7 @@ import { shouldRevalidateTasksForIntent } from "./task-revalidation";
 import { TASKS_PARAMS, paramsFromConfig } from "./tasks-url-state";
 import {
   resolveGroupedSections,
+  taskStateBreakdown,
   toTaskCardData,
   type GroupedSection,
   type TaskCardData,
@@ -1489,13 +1491,29 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
   const count = isGrouped ? groupedTotal : items.length;
   const filterCount = taskViewFilterCount(config);
+  /*
+   * CONVERGE-01 §B — say what STATE the work is in, not "93 Tasks" under a page
+   * titled Tasks.
+   *
+   * The breakdown is only drawn when it is a COMPLETE statement about the list
+   * on screen (see `taskStateBreakdown`); a bounded page falls back to the count
+   * line, which declares its own bound. A grouped view falls back too, because
+   * its per-bucket headings already carry authoritative server counts.
+   */
+  const groupedBounded = grouping
+    ? grouping.groups.some((group) => group.hasMore)
+    : false;
+  const breakdown = taskStateBreakdown(visibleCards, data.todayIso, {
+    bounded: isGrouped ? groupedBounded : hasMore,
+  });
   const subtitle = data.failed
     ? "We couldn’t load your Tasks."
-    : collectionCountLabel(count, "Task", "Tasks", {
+    : (breakdown ??
+      collectionCountLabel(count, "Task", "Tasks", {
         // A GROUPED view has already loaded every group it draws, so its figure
         // is the whole collection rather than a page of it.
         hasMore: !isGrouped && hasMore,
-      });
+      }));
 
   const isReloading = useCollectionLoading();
   const currentQuery = useMemo(() => {
@@ -1544,7 +1562,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // would be a redesign of eleven modules made by accident.
       className="dh-collection--tasks dh-collection--flat"
       isLoading={isReloading}
-      title="Tasks"
+      title={tasksDestinationTitle(basePath)}
       subtitle={subtitle}
       density={density}
       // UIQ-014 — Review Inbox is a SECONDARY action, and now sits in the

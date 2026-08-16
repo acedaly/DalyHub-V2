@@ -28,6 +28,7 @@
 
 import { AbsenceText } from "~/shared/pill";
 
+import type { MeterStatus } from "./meter-status";
 import { ProgressTrack, normaliseProgressPercent } from "./ProgressTrack";
 
 export interface ProgressMeterProps {
@@ -48,6 +49,8 @@ export interface ProgressMeterProps {
    * summary text alone — an empty bar would claim 0% of something real.
    */
   readonly available?: boolean;
+  /** POLISH-01 — how the measure is GOING; see {@link ProgressTrack}. */
+  readonly status?: MeterStatus;
 }
 
 export function ProgressMeter({
@@ -55,6 +58,7 @@ export function ProgressMeter({
   percent,
   summary,
   available = true,
+  status,
 }: ProgressMeterProps) {
   const value = normaliseProgressPercent(percent);
   const complete = available && value >= 100;
@@ -90,6 +94,7 @@ export function ProgressMeter({
           percent={value}
           valueText={summary}
           complete={complete}
+          status={status}
         />
       ) : null}
     </div>

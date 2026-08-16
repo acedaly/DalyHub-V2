@@ -42,6 +42,14 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerLocalToUtc } from "../occurred-time";
 import type { Route } from "./+types/mutate";
 
+/*
+ * A GET on this mutation endpoint renders DalyHub's error boundary rather
+ * than React Router's internal error object and stack trace.
+ */
+import { actionOnlyLoader } from "~/platform/request";
+
+export const loader = actionOnlyLoader;
+
 /** Which parts of an edit were persisted (for honest partial-failure reporting). */
 export type DiarySavedPart = "title" | "detail";
 

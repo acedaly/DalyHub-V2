@@ -23,12 +23,17 @@ import { NAV_ICON_NAMES, type NavIconName } from "~/kernel/modules";
 import { EntityIcon, isEntityType } from "~/shared/entity";
 import type { IconProps } from "~/shared/icons";
 import {
+  AnalyticsIcon,
   HelpIcon,
   IdeaIcon,
+  InboxIcon,
   InfoIcon,
   SearchIcon,
   SettingsIcon,
+  SparkleIcon,
   TodayIcon,
+  UpcomingIcon,
+  ViewsIcon,
 } from "~/shared/icons";
 
 /** Every declarable glyph name, mapped to its component. */
@@ -39,6 +44,11 @@ const NAV_ICONS: Record<NavIconName, ComponentType<IconProps>> = {
   settings: SettingsIcon,
   insight: IdeaIcon,
   search: SearchIcon,
+  inbox: InboxIcon,
+  upcoming: UpcomingIcon,
+  ai: SparkleIcon,
+  analytics: AnalyticsIcon,
+  views: ViewsIcon,
 };
 
 /**
@@ -63,14 +73,25 @@ export interface NavIconProps {
 }
 
 export function NavIcon({ entityType, navIcon }: NavIconProps) {
+  /*
+   * POLISH-01 — an EXPLICIT glyph outranks the module's entity type.
+   *
+   * The order used to be the other way round, which meant a module could not
+   * distinguish its own destinations: Inbox, Upcoming and Tasks all belong to
+   * the Tasks module, so all three drew the Task tick and the daily group
+   * rendered the same mark three rows running. Naming a glyph is a decision
+   * about THIS destination; inheriting the entity's is the default for a module
+   * whose destinations are all about that entity, and a default must not beat a
+   * decision.
+   */
+  if (navIcon !== undefined && navIcon in NAV_ICONS) {
+    const Glyph = NAV_ICONS[navIcon];
+    return <Glyph />;
+  }
   if (isEntityType(entityType)) {
     // `inherit`: a navigation glyph takes the row's colour, so selection
     // reads as one object and the accent stays meaningful where it is spent.
     return <EntityIcon type={entityType} tone="inherit" />;
-  }
-  if (navIcon !== undefined && navIcon in NAV_ICONS) {
-    const Glyph = NAV_ICONS[navIcon];
-    return <Glyph />;
   }
   // A module that declared neither. Not a dot: a real glyph, so navigation never
   // shows a placeholder. `InfoIcon` is the neutral choice — it says "a place",

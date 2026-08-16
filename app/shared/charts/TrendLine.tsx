@@ -95,6 +95,25 @@ export interface TrendLineProps {
   /** The sentence that states the series. Required — it IS the chart's text form. */
   readonly summary: string;
   /**
+   * CONVERGE-01 §I — the VISIBLE caption, when it differs from the accessible
+   * description.
+   *
+   * `summary` is the chart's text form and its accessible name, so it spells
+   * every reading out: "Tasks completed across 12 periods, 84 in total. Week of
+   * 1 Jun: 12; Week of 8 Jun: 9; …". That is exactly right for a screen reader
+   * and exactly wrong printed under the plot, where it is a paragraph of
+   * accessibility prose sitting where a caption belongs — the August 2026 audit
+   * names it as the clearest case of Analytics communicating its own
+   * accessibility rather than its data.
+   *
+   * So a caller may hand a SHORT visible caption and keep the full enumeration
+   * as the accessible one. The long form is still in the document, visually
+   * hidden, so nothing is taken from anyone. Absent, the summary is drawn as
+   * before, which is right for a chart whose sentence is already one line.
+   */
+  readonly caption?: string;
+
+  /**
    * The target, drawn as a dashed reference and included in the vertical scale.
    *
    * `label` is the sentence for the caption ("Target 70 kg."); `tag` is the
@@ -179,6 +198,7 @@ function dayNumber(iso: string): number {
 export function TrendLine({
   points,
   summary,
+  caption,
   target = null,
   baseline = null,
   projection = null,
@@ -529,7 +549,10 @@ export function TrendLine({
         </p>
       ) : null}
       <figcaption className="dh-linechart__summary">
-        {summary}
+        {caption ?? summary}
+        {caption ? (
+          <span className="dh-visually-hidden"> {summary}</span>
+        ) : null}
         {baseline !== null ? (
           <span className="dh-linechart__ref-note"> {baseline.label}</span>
         ) : null}

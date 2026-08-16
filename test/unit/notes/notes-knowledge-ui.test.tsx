@@ -1,19 +1,17 @@
 import {
-  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
-import { useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   NOTE_STATE_OPTIONS,
-  NotesFilterBar,
   hasActiveFilters,
+  noteControlGroups,
 } from "~/modules/notes/NotesFilterBar";
 import { NoteBacklinksTab, NoteLinksTab } from "~/modules/notes/NoteReferences";
 import { ProjectKnowledgeTab } from "~/modules/projects/ProjectKnowledgeTab";
@@ -55,62 +53,86 @@ function renderAt(node: React.ReactElement, initialEntry = "/notes") {
   );
 }
 
-describe("NotesFilterBar", () => {
-  it("is a real search form whose controls are all labelled", () => {
-    renderAt(
-      <NotesFilterBar
-        state="active"
-        filters={NO_FILTERS}
-        tags={[{ value: "reading", label: "reading (2)" }]}
-        projects={[{ value: "p1", label: "Atlas" }]}
-        areas={[{ value: "a1", label: "Home" }]}
-      />,
-    );
-    const form = screen.getByRole("search", {
-      name: "Filter and search notes",
-    });
-    expect(within(form).getByLabelText("Search notes")).toBeInTheDocument();
-    for (const label of ["Tag", "Project", "Area", "Links", "Sort"]) {
-      expect(within(form).getByLabelText(label)).toBeInTheDocument();
-    }
-    // A GET form puts every filter in the URL, so a filtered view is shareable.
-    expect(form).toHaveAttribute("method", "get");
-    expect(
-      within(form).getByRole("button", { name: "Apply" }),
-    ).toBeInTheDocument();
+describe("the Notes filter controls", () => {
+  /*
+   * CONTROL-01 — Notes stopped having its own filtering system.
+   *
+   * These used to drive a GET `<form>` of native `<select>`s with an Apply
+   * button: five labelled controls, a submit, and a filtering interaction
+   * nothing else in DalyHub had. The dimensions and the URL are unchanged; what
+   * they are declared AS changed, so they render through the same shared
+   * control surface as every other collection. So the tests move with them —
+   * from "the form is well-formed" to "the dimensions are declared correctly",
+   * which is the part that is genuinely Notes'.
+   */
+  const OPTIONS = {
+    tags: [{ value: "reading", label: "reading (2)" }],
+    projects: [{ value: "p1", label: "Atlas" }],
+    areas: [{ value: "a1", label: "Home" }],
+  };
+
+  it("declares every dimension the collection filters by", () => {
+    const groups = noteControlGroups(OPTIONS);
+    expect(groups.map((group) => group.param)).toEqual([
+      "tag",
+      "project",
+      "area",
+      "links",
+      "sort",
+    ]);
   });
 
-  it("offers the workspace's real tag, project and area options", () => {
-    renderAt(
-      <NotesFilterBar
-        state="active"
-        filters={NO_FILTERS}
-        tags={[{ value: "reading", label: "reading (2)" }]}
-        projects={[{ value: "p1", label: "Atlas" }]}
-        areas={[{ value: "a1", label: "Home" }]}
-      />,
+  it("offers the workspace's real tag, Project and Area options", () => {
+    const groups = noteControlGroups(OPTIONS);
+    const byId = (id: string) => groups.find((group) => group.id === id);
+    expect(byId("tag")?.options.map((o) => o.label)).toEqual([
+      "Any tag",
+      "reading (2)",
+    ]);
+    expect(byId("project")?.options.map((o) => o.label)).toEqual([
+      "Any Project",
+      "Atlas",
+    ]);
+    expect(byId("area")?.options.map((o) => o.label)).toEqual([
+      "Any Area",
+      "Home",
+    ]);
+  });
+
+  it("omits a dimension with nothing to choose from", () => {
+    // A workspace with no tags must not be offered a Tag control whose only
+    // option is "Any tag" — a control that cannot do anything.
+    const groups = noteControlGroups({ tags: [], projects: [], areas: [] });
+    expect(groups.map((group) => group.id)).toEqual(["links", "sort"]);
+  });
+
+  it("marks SORT as a sort, so it never counts as an active filter", () => {
+    const groups = noteControlGroups(OPTIONS);
+    expect(groups.find((group) => group.id === "sort")?.kind).toBe("sort");
+    // …and its default is the order the collection falls back to, so the
+    // default never appears in the URL.
+    expect(groups.find((group) => group.id === "sort")?.defaultValue).toBe(
+      "created",
     );
-    expect(
-      within(screen.getByLabelText("Tag")).getByRole("option", {
-        name: "reading (2)",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText("Project")).getByRole("option", {
-        name: "Atlas",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText("Area")).getByRole("option", {
-        name: "Home",
-      }),
-    ).toBeInTheDocument();
+  });
+
+  it("treats the URL's own 'all' as the unset link state", () => {
+    const links = noteControlGroups(OPTIONS).find(
+      (group) => group.id === "links",
+    );
+    expect(links?.defaultValue).toBe("all");
+  });
+
+  it("knows when the collection is narrowed", () => {
+    expect(hasActiveFilters(NO_FILTERS)).toBe(false);
+    expect(hasActiveFilters({ ...NO_FILTERS, tag: "reading" })).toBe(true);
+    expect(hasActiveFilters({ ...NO_FILTERS, links: "unlinked" })).toBe(true);
+    expect(hasActiveFilters({ ...NO_FILTERS, sort: "recent" })).toBe(true);
   });
 
   // UIQ-013 — the three lifecycle states are the collection's principal MODE,
   // so they render through the ONE shared view switcher in the pane header's
-  // view slot rather than inside the filter bar. The filter bar below carries
-  // only controls that narrow WHICH records are included.
+  // view slot rather than among the filters.
   it("keeps the three lifecycle states as one shared view switcher", () => {
     renderAt(
       <ViewSwitcher
@@ -130,99 +152,7 @@ describe("NotesFilterBar", () => {
       within(group).getByRole("link", { name: "Archived" }),
     ).toHaveAttribute("aria-current", "true");
   });
-
-  it("carries a non-default state through the form so applying a filter never resets it", () => {
-    const { container } = renderAt(
-      <NotesFilterBar
-        state="archived"
-        filters={NO_FILTERS}
-        tags={[]}
-        projects={[]}
-        areas={[]}
-      />,
-    );
-    expect(
-      container.querySelector('input[type="hidden"][name="state"]'),
-    ).toHaveValue("archived");
-  });
-
-  it("follows the loader's filters after a navigation, never showing stale values", () => {
-    // Regression (PR #80 review): the controls are deliberately UNCONTROLLED so
-    // the form works with no JavaScript, and React applies `defaultValue` only
-    // on mount. Without remounting on a scope change, Clear/Back/Forward would
-    // leave the previous values on screen and re-applying would silently restore
-    // filters the URL had already moved past.
-    // The props must change on the SAME mounted tree — that is what a loader
-    // revalidation does, and it is the case a fresh `render` would not exercise.
-    let applyFilters!: (next: NoteFilterValues) => void;
-    function Harness() {
-      const [filters, setFilters] = useState<NoteFilterValues>({
-        ...NO_FILTERS,
-        q: "hydroponics",
-        sort: "recent",
-      });
-      applyFilters = setFilters;
-      return (
-        <NotesFilterBar
-          state="active"
-          filters={filters}
-          tags={[]}
-          projects={[]}
-          areas={[]}
-        />
-      );
-    }
-
-    renderAt(<Harness />);
-    expect(screen.getByLabelText("Search notes")).toHaveValue("hydroponics");
-    expect(screen.getByLabelText("Sort")).toHaveValue("recent");
-
-    act(() => applyFilters(NO_FILTERS));
-    expect(screen.getByLabelText("Search notes")).toHaveValue("");
-    expect(screen.getByLabelText("Sort")).toHaveValue("");
-  });
-
-  it("offers Clear only when a filter is actually set", () => {
-    const { rerender } = renderAt(
-      <NotesFilterBar
-        state="active"
-        filters={NO_FILTERS}
-        tags={[]}
-        projects={[]}
-        areas={[]}
-      />,
-    );
-    expect(screen.queryByRole("link", { name: "Clear filters" })).toBeNull();
-    rerender(
-      <FeedbackProvider>
-        <NotesFilterBarInRouter filters={{ ...NO_FILTERS, tag: "reading" }} />
-      </FeedbackProvider>,
-    );
-    expect(hasActiveFilters({ ...NO_FILTERS, tag: "reading" })).toBe(true);
-    expect(hasActiveFilters(NO_FILTERS)).toBe(false);
-  });
 });
-
-function NotesFilterBarInRouter({ filters }: { filters: NoteFilterValues }) {
-  const router = createMemoryRouter(
-    [
-      {
-        path: "/notes",
-        element: (
-          <NotesFilterBar
-            state="active"
-            filters={filters}
-            tags={[]}
-            projects={[]}
-            areas={[]}
-          />
-        ),
-      },
-    ],
-    { initialEntries: ["/notes"] },
-  );
-  return <RouterProvider router={router} />;
-}
 
 function reference(over: Partial<RecordReference> = {}): RecordReference {
   return {

@@ -695,6 +695,58 @@
   }
 }
 
+/*
+ * MOBILE-02 §1 — a metadata trigger is TAPPABLE without the row growing.
+ *
+ * On a phone the row's inline editors measured 85x24 (Project) and 43x24
+ * (priority) — a 24px target on a device whose floor is 44. They are the
+ * controls the audit found hardest to hit, and the ones an owner reaches for
+ * most after completion.
+ *
+ * The visible row must not grow to fix it: the row is already 73px with two
+ * lines, and taking every metadata line to 44px would make it ~93px and put
+ * three tasks on a phone screen instead of five. So the HIT AREA grows and the
+ * ink does not — a pseudo-element that extends the target on the BLOCK axis
+ * only.
+ *
+ * Block-axis only is what keeps them from overlapping each other: the metadata
+ * line lays its triggers out side by side, so growing them vertically expands
+ * into the row's own padding rather than into a neighbour, and `inset-inline: 0`
+ * means a trigger's target is never wider than the trigger. `e2e` and the
+ * geometry probe both check that no two hit areas intersect.
+ *
+ * `--app-touch-target-min` is the floor, and the expansion is derived from it
+ * rather than written as a number, so a change to the floor moves this with it.
+ */
+@media (pointer: coarse) {
+  .dh-tasklist .dh-inline-edit__trigger {
+    position: relative;
+  }
+
+  /*
+   * `::before`, not `::after`: the shared state layer (`base.css`) owns this
+   * control's `::after`, and taking it would leave the trigger with no hover
+   * or pressed feedback anywhere in the product.
+   *
+   * `pointer-events: auto` is the load-bearing declaration — a state layer is
+   * decoration and is `none` by default, and a hit area that does not take
+   * pointer events is a hit area that does nothing.
+   */
+  .dh-tasklist .dh-inline-edit__trigger::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    /* A target of exactly the floor, centred on the value it edits — stated as
+       a HEIGHT rather than as an inset, so it does not depend on the trigger's
+       own measured height. A trigger that is already taller keeps its own area,
+       because the box is centred inside it. */
+    top: 50%;
+    block-size: var(--app-touch-target-min);
+    translate: 0 -50%;
+    pointer-events: auto;
+  }
+}
+
 /* -- Project: a dot and a name --------------------------------------------- */
 
 /*
@@ -735,11 +787,11 @@
   display: none;
 }
 
+/* POLISH-01 — truncation moved to the shared `.dh-inline-select__label`, which
+ * every inline select now gets. What is left here is the row's own rule: the
+ * value fills the cell it was given rather than sizing to the Project's name. */
 .dh-tasklist .dh-task-parent .dh-inline-select__value {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  inline-size: 100%;
 }
 
 /* -- Due: ordinary text, and red only when it has actually slipped ---------- */
@@ -1209,14 +1261,13 @@
   /*
    * And the project TRUNCATES with an ellipsis rather than being chopped.
    *
-   * `.dh-inline-select__value` is an `inline-flex` box holding the label and a
-   * caret, and `text-overflow` does not apply to a flex container's anonymous
-   * text item — a shrinking cell around it clips mid-glyph, which reads as a
-   * rendering fault rather than as truncation. The caret is already hidden at
-   * this width (see the note further down), so the box has one child and can be
-   * a block, where the ellipsis works.
+   * POLISH-01 gave the select's label its own element, so the ellipsis is now
+   * the shared `.dh-inline-select__label` rule rather than a phone-only
+   * override — `text-overflow` never applied to the flex container's anonymous
+   * text item, which is why a shrinking cell used to clip mid-glyph. What is
+   * still phone-only is the `.dh-inline-edit__value` half, which wraps a
+   * multi-line title on a wide row and must not here.
    */
-  .dh-taskrow__cell--project .dh-inline-select__value,
   .dh-taskrow__cell--project .dh-inline-edit__value {
     display: block;
     min-inline-size: 0;

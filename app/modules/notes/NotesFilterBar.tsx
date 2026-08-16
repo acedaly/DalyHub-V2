@@ -2,42 +2,48 @@
  * NOTES-03 — the Notes collection filter bar.
  *
  * Notes had exactly one control (the Active/Deleted segment) and were therefore
- * the least findable records in DalyHub. This adds the organisation the module
- * was missing — search, tag, Project, Area, relationship state and ordering —
- * WITHOUT inventing a Notes-only filtering system:
+ * the least findable records in DalyHub. This is the organisation the module was
+ * missing — search, tag, Project, Area, relationship state and ordering.
  *
- *   - the lifecycle state is the shared VIEW SWITCHER, in the pane header's own
- *     view slot (UIQ-013) — it selects which principal collection of Notes is
- *     shown, which is a different question from the filters here;
- *   - everything else is ONE ordinary GET `<form>` whose controls are native
- *     `<input>`/`<select>` elements. That is a deliberate accessibility and
- *     mobile choice: native controls give a real on-screen keyboard and a native
- *     picker on a phone, work with no JavaScript, are keyboard-complete for
- *     free, and every filter ends up in the URL — so a filtered view is
- *     shareable, Back/Forward-correct and restorable.
+ * ── CONTROL-01: it stopped being Notes' own filtering system ─────────────────
+ * It used to be an ordinary GET `<form>` of native `<select>`s with an "Apply"
+ * button, and the reasoning was written down: native controls give a real phone
+ * picker, work with no JavaScript, and every filter lands in the URL. All true,
+ * and it still produced a filtering interaction nothing else in DalyHub had.
+ * Tasks, People, Assets, Meetings and Reviews narrow the moment you choose;
+ * Notes made you choose, then press Apply, then look. It also meant six
+ * different controls in one band — a search input, five selects and a submit —
+ * where every other collection has a search field and one "Filter & sort".
  *
- * There is no auto-submit on change: arrowing through a `<select>` must not
- * navigate away under a keyboard user. "Apply" is the single, predictable commit
- * (DS-07's restraint rule), and "Clear" is offered only when something is set.
+ * The dimensions are unchanged and the URL is unchanged. What changed is that
+ * they are now declared as the SHARED `CollectionControlGroup` model, so they
+ * render through the same control surface as every other collection: a
+ * live-applying anchored popover on a pointer device, the shared sheet on a
+ * phone, and the shared removable chips underneath. Search moves to the shared
+ * debounced `CollectionSearchField`, which is the same 250ms commit the other
+ * five modules use.
  *
- * A full DS-07 clause builder would be the wrong tool here — these are six
- * fixed, server-side dimensions, not an open predicate language.
+ * What is genuinely lost is the no-JavaScript path for filtering. That is a real
+ * cost and it is deliberate: the rest of the collection — the rows, the state
+ * switcher, pagination — is React-rendered already, so a JavaScript-less Notes
+ * page could not display results to filter in the first place.
+ *
+ * The lifecycle state is NOT here. It is the shared VIEW SWITCHER in the pane
+ * header's view slot (UIQ-013): it selects which principal collection of Notes
+ * is shown, which is a different question from the filters below it.
  */
 
-import { Link, useSearchParams } from "react-router";
-
 import type { ViewSwitcherOption } from "~/shared/view-switcher";
+import type { CollectionControlGroup } from "~/shared/collection-layout";
 
-import type {
-  NoteCollectionState,
-  NoteFilterOption,
-  NoteFilterValues,
-} from "./note-view";
+import type { NoteSortOrder } from "~/kernel/notes";
+
+import type { NoteFilterOption, NoteFilterValues } from "./note-view";
 
 /**
  * UIQ-013 — the three lifecycle states are the collection's principal MODE, so
  * they render through the shared view switcher in the pane header's view slot,
- * not inside this filter bar. Exported for the collection to place.
+ * not among the filters. Exported for the collection to place.
  */
 export const NOTE_STATE_OPTIONS: readonly ViewSwitcherOption[] = [
   { value: "active", label: "Active" },
@@ -45,13 +51,8 @@ export const NOTE_STATE_OPTIONS: readonly ViewSwitcherOption[] = [
   { value: "deleted", label: "Deleted" },
 ];
 
-export interface NotesFilterBarProps {
-  readonly state: NoteCollectionState;
-  readonly filters: NoteFilterValues;
-  readonly tags: readonly NoteFilterOption[];
-  readonly projects: readonly NoteFilterOption[];
-  readonly areas: readonly NoteFilterOption[];
-}
+/** The order the collection falls back to when `?sort=` is absent. */
+export const DEFAULT_NOTE_SORT: NoteSortOrder = "created";
 
 /** True when any non-default filter is set (drives the Clear affordance). */
 export function hasActiveFilters(filters: NoteFilterValues): boolean {
@@ -61,233 +62,81 @@ export function hasActiveFilters(filters: NoteFilterValues): boolean {
     filters.project !== "" ||
     filters.area !== "" ||
     filters.links !== "all" ||
-    filters.sort !== "created"
+    filters.sort !== DEFAULT_NOTE_SORT
   );
 }
 
-function Select({
-  id,
-  name,
-  label,
-  value,
-  placeholder,
-  options,
-}: {
-  readonly id: string;
-  readonly name: string;
-  readonly label: string;
-  readonly value: string;
-  readonly placeholder: string;
-  readonly options: readonly NoteFilterOption[];
-}) {
-  /*
-   * UIX-06 — the label is for assistive technology; the VALUE is what names the
-   * dimension on screen.
-   *
-   * Every placeholder here already says which dimension it belongs to ("Any
-   * tag", "Any project", "Sort: Newest first"), so a visible label beside it was
-   * a second statement of the same word — and five of them turned the band into
-   * the labelled form row §29 rules out. This is the rule the search field above
-   * has followed since UIX-04; the band now applies it to all six controls.
-   */
-  return (
-    <p className="dh-notes-filters__field">
-      <label
-        className="dh-notes-filters__label dh-visually-hidden"
-        htmlFor={id}
-      >
-        {label}
-      </label>
-      <select
-        id={id}
-        name={name}
-        defaultValue={value}
-        className="dh-notes-filters__control"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </p>
-  );
-}
+/**
+ * The Notes control groups, in the shared model.
+ *
+ * The four narrowing dimensions are OPTION SETS the loader already resolved
+ * from real records — a Note's tags, the Projects and Areas it can be linked to
+ * — so they are closed sets by the time they reach here and belong in the
+ * shared control surface rather than behind a server-backed picker.
+ *
+ * A dimension with nothing to choose from is omitted entirely: a workspace with
+ * no tags yet should not be offered a "Tag" group containing only "Any tag",
+ * which is a control that cannot do anything.
+ */
+export function noteControlGroups(inputs: {
+  readonly tags: readonly NoteFilterOption[];
+  readonly projects: readonly NoteFilterOption[];
+  readonly areas: readonly NoteFilterOption[];
+}): readonly CollectionControlGroup[] {
+  const groups: CollectionControlGroup[] = [];
 
-export function NotesFilterBar({
-  state,
-  filters,
-  tags,
-  projects,
-  areas,
-}: NotesFilterBarProps) {
-  const [searchParams] = useSearchParams();
-  // Preserve unrelated params (the DS-03 `drawer` stack) when clearing, and
-  // always drop `cursor` — a cursor is bound to the filter scope that issued it.
-  const clearParams = new URLSearchParams();
-  const drawer = searchParams.get("drawer");
-  if (drawer) clearParams.set("drawer", drawer);
-  if (state !== "active") clearParams.set("state", state);
-  const clearQuery = clearParams.toString();
+  if (inputs.tags.length > 0) {
+    groups.push({
+      id: "tag",
+      label: "Tag",
+      param: "tag",
+      options: [{ value: "", label: "Any tag" }, ...inputs.tags],
+    });
+  }
+  if (inputs.projects.length > 0) {
+    groups.push({
+      id: "project",
+      label: "Project",
+      param: "project",
+      options: [{ value: "", label: "Any Project" }, ...inputs.projects],
+    });
+  }
+  if (inputs.areas.length > 0) {
+    groups.push({
+      id: "area",
+      label: "Area",
+      param: "area",
+      options: [{ value: "", label: "Any Area" }, ...inputs.areas],
+    });
+  }
 
-  // Every dimension the form's defaults are derived from.
-  const scopeKey = [
-    state,
-    filters.q,
-    filters.tag,
-    filters.project,
-    filters.area,
-    filters.links,
-    filters.sort,
-  ].join("\u0000");
+  groups.push({
+    id: "links",
+    label: "Links",
+    param: "links",
+    // `all` is the URL's own name for "not narrowed", so it is the default
+    // rather than the empty string: selecting it removes the param.
+    defaultValue: "all",
+    options: [
+      { value: "all", label: "Any link state" },
+      { value: "linked", label: "Linked to something" },
+      { value: "unlinked", label: "Unlinked" },
+    ],
+  });
 
-  return (
-    <div className="dh-notes-filters">
-      {/*
-        `key` remounts the form whenever the applied filter scope changes.
-        The controls are deliberately UNCONTROLLED (that is what lets them work
-        with no JavaScript), and React applies `defaultValue` only on mount — so
-        without this, Clear, Back, Forward or a state-segment navigation would
-        leave the previous values displayed, and pressing Apply again would
-        silently restore filters the URL and the results had already moved past.
-        Remounting is the smallest fix that keeps the no-JS behaviour intact.
-      */}
-      <form
-        key={scopeKey}
-        method="get"
-        action="/notes"
-        role="search"
-        className="dh-notes-filters__form"
-        aria-label="Filter and search notes"
-      >
-        {/* The lifecycle state is owned by the segment above; carry it through
-            so applying a filter never silently returns the user to Active. */}
-        {state !== "active" ? (
-          <input type="hidden" name="state" value={state} />
-        ) : null}
-        {drawer ? <input type="hidden" name="drawer" value={drawer} /> : null}
+  groups.push({
+    id: "sort",
+    label: "Sort",
+    param: "sort",
+    // A sort is not a filter: it narrows nothing, so it must not count on the
+    // trigger's active-filter badge or appear as a removable chip.
+    kind: "sort",
+    defaultValue: DEFAULT_NOTE_SORT,
+    options: [
+      { value: DEFAULT_NOTE_SORT, label: "Newest first" },
+      { value: "recent", label: "Recently updated" },
+    ],
+  });
 
-        {/*
-          UIX-04 §7/§37 — the search field's visible label is its placeholder.
-
-          The control is still named for assistive tech (the label element is
-          only visually hidden, never removed), and the placeholder repeats the
-          same words, so nothing is lost to anyone — but the band stops spending
-          a stacked label row on a control whose purpose a search input already
-          announces by its shape. That is most of the height §7 objects to.
-        */}
-        <p className="dh-notes-filters__field dh-notes-filters__field--grow">
-          <label
-            className="dh-notes-filters__label dh-visually-hidden"
-            htmlFor="notes-filter-q"
-          >
-            Search notes
-          </label>
-          <input
-            id="notes-filter-q"
-            name="q"
-            type="search"
-            defaultValue={filters.q}
-            placeholder="Search notes"
-            className="dh-notes-filters__control"
-            autoComplete="off"
-          />
-        </p>
-
-        <Select
-          id="notes-filter-sort"
-          name="sort"
-          label="Sort"
-          value={filters.sort === "created" ? "" : filters.sort}
-          placeholder="Sort: Newest first"
-          options={[{ value: "recent", label: "Sort: Recently updated" }]}
-        />
-
-        {/*
-         * M3X-02 — the four NARROWING dimensions move behind a disclosure.
-         *
-         * Search and Sort are what a Notes directory is used with every time;
-         * Tag, Project, Area and link state are what it is used with
-         * occasionally. Six native selects in one band spent ~150px of the
-         * widest module in the product on controls that are usually all set to
-         * "Any" (audit H8), and on a phone it collapsed into a full viewport of
-         * chrome before the first note (M4).
-         *
-         * A native `<details>`, INSIDE the same form. That matters:
-         *   - a control inside a closed `<details>` is still submitted, so
-         *     "Apply" behaves identically and the no-JS path is untouched;
-         *   - it is keyboard-complete and screen-reader-announced with no ARIA
-         *     and no JavaScript, which is why it is not a bespoke popover;
-         *   - `open` is driven by the APPLIED filters, so a narrowed result set
-         *     never hides the reason it is narrowed.
-         */}
-        <details
-          className="dh-notes-filters__more"
-          open={
-            filters.tag !== "" ||
-            filters.project !== "" ||
-            filters.area !== "" ||
-            filters.links !== "all"
-          }
-        >
-          <summary className="dh-notes-filters__more-summary">
-            More filters
-          </summary>
-          <div className="dh-notes-filters__more-fields">
-            <Select
-              id="notes-filter-tag"
-              name="tag"
-              label="Tag"
-              value={filters.tag}
-              placeholder="Any tag"
-              options={tags}
-            />
-            <Select
-              id="notes-filter-project"
-              name="project"
-              label="Project"
-              value={filters.project}
-              placeholder="Any project"
-              options={projects}
-            />
-            <Select
-              id="notes-filter-area"
-              name="area"
-              label="Area"
-              value={filters.area}
-              placeholder="Any area"
-              options={areas}
-            />
-            <Select
-              id="notes-filter-links"
-              name="links"
-              label="Links"
-              value={filters.links === "all" ? "" : filters.links}
-              placeholder="Any link state"
-              options={[
-                { value: "linked", label: "Linked to something" },
-                { value: "unlinked", label: "Unlinked" },
-              ]}
-            />
-          </div>
-        </details>
-
-        <p className="dh-notes-filters__actions">
-          <button type="submit" className="dh-btn dh-btn--secondary">
-            Apply
-          </button>
-          {hasActiveFilters(filters) ? (
-            <Link
-              to={clearQuery.length > 0 ? `/notes?${clearQuery}` : "/notes"}
-              className="dh-notes-filters__clear"
-              preventScrollReset
-            >
-              Clear filters
-            </Link>
-          ) : null}
-        </p>
-      </form>
-    </div>
-  );
+  return groups;
 }

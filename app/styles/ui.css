@@ -393,7 +393,16 @@
 }
 
 :is(.dh-control, .dh-input)::placeholder {
-  color: var(--ink-faint);
+  /*
+   * POLISH-01 — the placeholder takes the MUTED text tone, not the faint one.
+   *
+   * A placeholder is text a sighted user is expected to read ("Search Tasks",
+   * "dd/mm/yyyy"), so it owes WCAG 1.4.3's 4.5:1 like any other text. `faint`
+   * is now reserved for DISABLED foregrounds, which 1.4.3 exempts by name — and
+   * keeping the two apart is what stops "the disabled grey" and "the hint grey"
+   * being one value that has to be wrong for one of them.
+   */
+  color: var(--ink-muted);
   /* The placeholder is not a label and must not be mistaken for a value. */
   opacity: 1;
 }

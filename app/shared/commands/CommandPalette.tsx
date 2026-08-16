@@ -242,8 +242,23 @@ export default function CommandPalette({
         </div>
 
         <div className="dh-command__footer">
+          {/*
+           * The count says WHAT it is counting.
+           *
+           * It was a bare number in the corner of the footer — "37" beside the
+           * keyboard hints, with nothing to say whether it was results, recent
+           * commands or something about the palette itself. A figure with no
+           * noun is not a fact, and the August 2026 audit called it a stray
+           * count, which is what it looked like.
+           *
+           * `aria-hidden` stays: the live region below already announces the
+           * result count to assistive tech when it changes, and hearing it
+           * twice is worse than the label is short.
+           */}
           <span className="dh-command__count" aria-hidden="true">
-            {controller.view.count > 0 ? `${controller.view.count}` : ""}
+            {controller.view.count > 0
+              ? `${controller.view.count} ${controller.view.count === 1 ? "result" : "results"}`
+              : ""}
           </span>
           <span className="dh-command__hint" aria-hidden="true">
             ↑↓ to navigate · Enter to run · Esc to close

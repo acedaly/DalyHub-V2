@@ -167,7 +167,7 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     await expect(drawer).toBeVisible();
 
     const priority = drawer.getByRole("button", { name: /^Priority: / });
-    await expect(priority).toHaveAccessibleName("Priority: P1 · Urgent");
+    await expect(priority).toHaveAccessibleName("Priority: Priority 1");
     await expectMinTouchTarget(priority);
     await priority.click();
 
@@ -175,50 +175,59 @@ test.describe("EDIT-02 §3 — a selected value changes directly", () => {
     await expect(menu).toBeVisible();
     // Selection is carried by semantics, not by colour alone.
     await expect(
-      menu.getByRole("menuitemradio", { name: "P1 · Urgent" }),
+      menu.getByRole("menuitemradio", { name: "Priority 1" }),
     ).toHaveAttribute("aria-checked", "true");
     await expect(
-      menu.getByRole("menuitemradio", { name: "P3 · Normal" }),
+      menu.getByRole("menuitemradio", { name: "Priority 3" }),
     ).toHaveAttribute("aria-checked", "false");
 
     // ONE action to a different real value — no "clear it first" step.
-    await menu.getByRole("menuitemradio", { name: "P3 · Normal" }).click();
+    await menu.getByRole("menuitemradio", { name: "Priority 3" }).click();
     await expect(
-      drawer.getByRole("button", { name: "Priority: P3 · Normal" }),
+      drawer.getByRole("button", { name: "Priority: Priority 3" }),
     ).toBeVisible();
 
     // Put the shared fixture back exactly as it was.
     await drawer.getByRole("button", { name: /^Priority: / }).click();
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(
-      drawer.getByRole("button", { name: "Priority: P1 · Urgent" }),
+      drawer.getByRole("button", { name: "Priority: Priority 1" }),
     ).toBeVisible();
   });
 
-  test("clearing is one separated command, and an unset value reads as empty", async ({
-    page,
-  }) => {
+  test("priority has four values and no clear command", async ({ page }) => {
+    /*
+     * CONTROL-01 — a stored `null` IS Priority 4, so there is nothing to clear
+     * TO and the menu offers four real values and nothing else.
+     *
+     * This test used to drive a "Clear priority" command and then assert the
+     * field read "Priority: No priority". Both halves were the fifth state the
+     * priority contract does not have: the same records the drawer called "No
+     * priority" were drawn with a grey P4 flag by every row in the product, and
+     * a filter for "Priority 4" did not return them.
+     */
     await gotoFixture(page, TASK_DRAWER);
     const drawer = drawerOf(page);
     await expect(drawer).toBeVisible();
 
     await drawer.getByRole("button", { name: /^Priority: / }).click();
-    await page.getByRole("menuitemradio", { name: "Clear priority" }).click();
-
-    // §3 — the empty state is genuinely EMPTY: an untriaged task is not "set to
-    // No priority", and the menu no longer offers a clear command because there
-    // is nothing left to clear.
-    const empty = drawer.getByRole("button", { name: "Priority: No priority" });
-    await expect(empty).toBeVisible();
-    await empty.click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitemradio")).toHaveCount(4);
     await expect(
-      page.getByRole("menuitemradio", { name: "Clear priority" }),
+      page.getByRole("menuitemradio", { name: /Clear|No priority/ }),
     ).toHaveCount(0);
 
-    // Unset → set is also one action.
-    await page.getByRole("menuitemradio", { name: "P1 · Urgent" }).click();
+    // Changing to a different real value is still ONE action.
+    await page.getByRole("menuitemradio", { name: "Priority 1" }).click();
     await expect(
-      drawer.getByRole("button", { name: "Priority: P1 · Urgent" }),
+      drawer.getByRole("button", { name: "Priority: Priority 1" }),
+    ).toBeVisible();
+
+    // …and back, so the shared fixture is left exactly as it was.
+    await drawer.getByRole("button", { name: /^Priority: / }).click();
+    await page.getByRole("menuitemradio", { name: "Priority 3" }).click();
+    await expect(
+      drawer.getByRole("button", { name: "Priority: Priority 3" }),
     ).toBeVisible();
   });
 
@@ -256,12 +265,19 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
 
     const popover = page.getByRole("dialog", { name: "Edit due date" });
     await expect(popover).toBeVisible();
-    // A ROLE query, not `getByLabel`: DS-17 named this popover's clear control
-    // after the field it clears, so "Clear due date" CONTAINS "Due date" and a
-    // substring label query resolves to two elements. The date input is the
-    // only textbox in the popover.
-    await popover.getByRole("textbox", { name: "Due date" }).fill("2026-08-15");
-    await popover.getByRole("button", { name: "Save" }).click();
+    /*
+     * CONTROL-01 — DalyHub's own month grid, not a native `<input type="date">`,
+     * and a calendar day COMMITS on selection: a day is an unambiguous complete
+     * answer, unlike a half-typed `dd/mm/yyyy`, so there is no Save after it.
+     *
+     * Days are addressed by their FULL spoken date, which is what a screen
+     * reader hears; "15" alone would name nothing. `PageDown` walks the month,
+     * which is the keyboard contract the grid publishes.
+     */
+    const grid = popover.getByRole("grid", { name: "Due date" });
+    await expect(popover.locator('input[type="date"]')).toHaveCount(0);
+    await grid.press("PageDown");
+    await grid.getByRole("button", { name: "Saturday 15 August 2026" }).click();
     await expect(
       record.getByRole("button", { name: /^Due date: .*15 Aug 2026/ }),
     ).toBeVisible();
@@ -270,7 +286,7 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     await record.getByRole("button", { name: /^Due date: / }).click();
     await page
       .getByRole("dialog", { name: "Edit due date" })
-      .getByRole("button", { name: "Clear" })
+      .getByRole("button", { name: "Clear due date" })
       .click();
     await expect(
       record.getByRole("button", { name: "Due date: No due date" }),
@@ -279,8 +295,12 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     // …and the fixture goes back to the date it was seeded with.
     await record.getByRole("button", { name: /^Due date: / }).click();
     const restore = page.getByRole("dialog", { name: "Edit due date" });
-    await restore.getByRole("textbox", { name: "Due date" }).fill("2026-07-29");
-    await restore.getByRole("button", { name: "Save" }).click();
+    const restoreGrid = restore.getByRole("grid", { name: "Due date" });
+    // Unset, so the grid opens on the owner's own month; July is one back.
+    await restoreGrid.press("PageUp");
+    await restoreGrid
+      .getByRole("button", { name: "Wednesday 29 July 2026" })
+      .click();
     await expect(
       record.getByRole("button", { name: /^Due date: .*29 Jul 2026/ }),
     ).toBeVisible();

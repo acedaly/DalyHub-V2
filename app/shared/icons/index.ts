@@ -88,6 +88,13 @@ export {
   ObservationIcon,
   ReflectionIcon,
   InboxIcon,
+  /* POLISH-01 — the four glyphs that make the collapsed rail readable without
+   * labels: Upcoming, AI, Analytics and Views each had a shared or borrowed
+   * glyph before this. */
+  UpcomingIcon,
+  SparkleIcon,
+  AnalyticsIcon,
+  ViewsIcon,
   BellIcon,
   BrandMark,
   // Asset subtype icons

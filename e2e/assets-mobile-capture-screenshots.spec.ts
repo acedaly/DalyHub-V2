@@ -61,7 +61,7 @@ function typeTrigger(page: Page) {
 async function openChooser(page: Page) {
   await page
     .locator(bottomNav)
-    .getByRole("button", { name: "Capture" })
+    .getByRole("button", { name: "Add", exact: true })
     .click();
   const sheet = page.getByTestId("capture-sheet");
   await expect(sheet).toBeVisible();

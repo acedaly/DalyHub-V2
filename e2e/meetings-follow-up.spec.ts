@@ -151,7 +151,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await convertItem(page, "Agenda: confirm the budget", {
     title: "Confirm the FY budget",
     parent: "Website relaunch",
-    priority: "P1 · Urgent",
+    priority: "Priority 1",
   });
   await closeDrawer(page);
 

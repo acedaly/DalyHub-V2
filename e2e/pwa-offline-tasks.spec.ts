@@ -375,7 +375,7 @@ test.describe("PWA-12 — offline Task mutation", () => {
       await waitForQueued(page, 1);
 
       // ---- 2. priority, through the ordinary inline control -----------------
-      await setRowPriority(page, "PWA12 renamed offline", "P2 · High");
+      await setRowPriority(page, "PWA12 renamed offline", "Priority 2");
       await waitForQueued(page, 2);
 
       // ---- 3. complete a DIFFERENT task ------------------------------------
@@ -437,7 +437,7 @@ test.describe("PWA-12 — offline Task mutation", () => {
       await openTasks(page);
       await goOffline(context);
 
-      await setRowPriority(page, "PWA12 durable change", "P1 · Urgent");
+      await setRowPriority(page, "PWA12 durable change", "Priority 1");
       await waitForQueued(page, 1);
 
       // Block only the mutation path, then reload with a working document load.
@@ -600,7 +600,7 @@ test.describe("PWA-12 — offline Task mutation", () => {
       await expect(rowFor(page, "PWA12 conflict target")).toBeVisible();
 
       await goOffline(context);
-      await setRowPriority(page, "PWA12 conflict target", "P1 · Urgent");
+      await setRowPriority(page, "PWA12 conflict target", "Priority 1");
       await waitForQueued(page, 1);
 
       // Another device changes the SAME field while this one is offline.
@@ -648,7 +648,7 @@ test.describe("PWA-12 — offline Task mutation", () => {
     try {
       await openTasks(page);
       await goOffline(context);
-      await setRowPriority(page, "PWA12 server wins target", "P1 · Urgent");
+      await setRowPriority(page, "PWA12 server wins target", "Priority 1");
       await waitForQueued(page, 1);
 
       d1Execute(
@@ -689,7 +689,7 @@ test.describe("PWA-12 — offline Task mutation", () => {
       // Before PWA-12 the first mutation on a disconnected Tasks page produced a
       // refusal, and opening a task produced the framework's generic
       // "Something went wrong". Neither may happen now.
-      await setRowPriority(page, "PWA12 degradation target", "P3 · Normal");
+      await setRowPriority(page, "PWA12 degradation target", "Priority 3");
       await waitForQueued(page, 1);
 
       await expect(page.getByText("Something went wrong")).toHaveCount(0);
@@ -745,7 +745,7 @@ test.describe("PWA-12 — offline Task mutation", () => {
         // already owns. Resizing mid-session is also a real thing a device does.
         await openTasks(page);
         await goOffline(context);
-        await setRowPriority(page, `PWA12 phone ${width}`, "P2 · High");
+        await setRowPriority(page, `PWA12 phone ${width}`, "Priority 2");
         await waitForQueued(page, 1);
 
         await page.setViewportSize({ width, height: 844 });

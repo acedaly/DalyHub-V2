@@ -942,7 +942,7 @@
   /* The TRACK is neutral. `secondary-container` is a lavender in this scheme, so
    * an empty bar read as a full one in a different colour — which is exactly
    * what a progress track must never do. */
-  background: var(--dh-color-bg-sunken);
+  /* POLISH-01 — the colour is the shared meter track (`progress.css`). */
   overflow: hidden;
 }
 
@@ -950,7 +950,6 @@
   display: block;
   block-size: 100%;
   border-radius: inherit;
-  background: var(--dh-color-accent);
   /* The fill ANIMATES to its new width. Progress is the one figure on this card
    * that changes while the owner watches, and a jump reads as a re-render
    * rather than as work getting done. */
@@ -958,26 +957,16 @@
 }
 
 /*
- * IDENTITY-01 — the bar takes the RECORD's own identity hue.
+ * POLISH-01 — the bar is NOT painted in the record's identity hue.
  *
- * A gallery of twelve identical violet bars gives the eye nothing to track down
- * the grid; a gallery of bars in each record's own colour is scannable by the
- * same signal the identity tile one line above already taught.
- *
- * It reads the hue INHERITED from the card's `data-identity`, which is the same
- * property the tile reads. Six selectors naming six generated accents became no
- * selectors at all: a card and its bar cannot disagree about the record's colour
- * because there is only one place the colour is decided, and this rule does not
- * know how many slots exist.
- *
- * The percentage beside the bar states the value in words, so nothing here is
- * carried by colour alone. A record with NO identity keeps the primary fill
- * above, because `--dh-identity` is not set and the declaration below is scoped
- * to a card that has one.
+ * IDENTITY-01 pointed it at `--dh-identity` so a gallery of twelve bars would
+ * be scannable by the same signal the tile one line above already teaches. It
+ * made the gallery colourful and the bars meaningless: a completed Project drew
+ * an orange bar because orange is that Project's colour, and the eye reads a
+ * coloured bar in that position as a verdict on the work rather than as a label
+ * for the record. The tile, the dot and the mark still carry the identity; the
+ * bar carries the STATUS the surface derived (`progress.css`).
  */
-.dh-ecard[data-identity] .dh-ecard__progress-fill {
-  background: var(--dh-identity);
-}
 
 /* Forced colours discard the ramp; the bar keeps its own text colour so the
  * shape survives as structure. */
@@ -1638,7 +1627,8 @@
   min-inline-size: 0;
   block-size: 8px;
   border-radius: var(--dh-radius-pill);
-  background: var(--md-sys-color-surface-container-highest);
+  /* POLISH-01 — track and fill colour come from the shared meter
+     (`progress.css`); this owns the geometry only. */
   overflow: hidden;
 }
 
@@ -1646,7 +1636,6 @@
   display: block;
   block-size: 100%;
   border-radius: inherit;
-  background: var(--dh-color-accent);
   transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
 }
 
@@ -2400,6 +2389,18 @@
   font-variant-numeric: var(--dh-font-numeric);
 }
 
+/*
+ * CONVERGE-01 §C — the health diagnostic leads the meta line.
+ *
+ * It is the one fact on the card the owner can act on ("6 overdue"), so it goes
+ * first and takes a weight step. The tone is the LINE's — `.dh-pcard__meta`
+ * already carries `data-tone` from the same signal — so this adds emphasis
+ * rather than a second colour decision.
+ */
+.dh-pcard__meta-fact--attention {
+  font-weight: var(--dh-text-label-weight);
+}
+
 .dh-pcard__meta-sep {
   margin-inline-end: var(--dh-space-1);
   color: var(--dh-color-text-muted);
@@ -2509,7 +2510,8 @@
   inline-size: 100%;
   block-size: var(--app-progress-bar-height);
   border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-bg-sunken);
+  /* POLISH-01 — track and fill colour come from the shared meter in
+     `progress.css`; this owns the geometry only. */
   overflow: hidden;
 }
 
@@ -2517,20 +2519,7 @@
   display: block;
   block-size: 100%;
   border-radius: inherit;
-  background: var(--dh-color-accent);
   transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
-}
-
-/*
- * D6 / IDENTITY-01 — the bar takes the RECORD's identity hue, not `primary`.
- *
- * The same hue the tile above it is painted in, inherited from the card's
- * `data-identity` rather than resolved again here — one identity, not two colour
- * decisions, and no way for the two to drift. The percentage beside the bar
- * states the value in words, so the colour carries nothing on its own.
- */
-.dh-pcard[data-identity] .dh-pcard__fill {
-  background: var(--dh-identity);
 }
 
 @media (forced-colors: active) {
@@ -3035,8 +3024,24 @@
   text-decoration: underline;
 }
 
+/*
+ * POLISH-01 — the secondary reach link is not quieter, because it cannot be.
+ *
+ * It carried `opacity: 0.86`, which took `--dh-color-text-muted` (#6b6b75, held
+ * at exactly the AA floor by the token tests) down to #808088 over white:
+ * 3.91:1 on a 12.5px phone number, and the only colour-contrast failure left in
+ * the product's light appearance after the token fix. Opacity is how a value
+ * that IS contrast-tested stops being contrast-tested.
+ *
+ * There is no rung between `muted` and `faint` that clears 4.5:1 — muted is the
+ * quietest readable tone by construction — so the distinction cannot be tone.
+ * It does not need to be: the PRIMARY reach link is the accent and this one is
+ * the text ramp, which is already two different things. The modifier stays as a
+ * hook the markup and the tests name, and it now asserts that this link takes
+ * the base treatment deliberately rather than by omission.
+ */
 .dh-prow__reach-link--secondary {
-  opacity: 0.86;
+  opacity: 1;
 }
 
 /*
@@ -3895,13 +3900,13 @@
 }
 
 /*
- * The track is a HAIRLINE-derived neutral, not `--dh-color-bg-sunken`.
+ * POLISH-01 — the track is the ONE shared meter well (`progress.css`).
  *
- * REDESIGN-03 debt item 5 records that the sunken token reads as a Material
- * tonal well on a white-surface record, and §13 forbids one appearing on any
- * surface this pass creates. `--dh-color-border` is the same hairline the row
- * separators are drawn with, so an empty track reads as a rule rather than as a
- * filled container, in both appearances.
+ * It was `--dh-color-border`, a translucent hairline, on the reasoning that a
+ * sunken token reads as a Material tonal well on a white record. The reasoning
+ * held for one meter and produced three different empty states across the
+ * product: a Goal row's track was a rule, a Project card's was a well, and the
+ * shared `ProgressMeter`'s was a lavender container. One meter, one well.
  */
 .dh-mrow__track {
   display: block;
@@ -3909,7 +3914,9 @@
   block-size: var(--app-progress-bar-height);
   margin-block-start: var(--dh-space-1);
   border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-border);
+  /* POLISH-01 — the shared meter track. It was `--dh-color-border`, a
+     translucent hairline, so this meter's empty state did not match the one on
+     the card beside it. */
   overflow: hidden;
 }
 
@@ -3917,14 +3924,7 @@
   display: block;
   block-size: 100%;
   border-radius: inherit;
-  background: var(--dh-color-accent);
   transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
-}
-
-/* The SAME identity hue the mark is painted in, inherited from the row — one
- * identity, not two colour decisions (the rule `.dh-pcard` already follows). */
-.dh-mrow[data-identity] .dh-mrow__fill {
-  background: var(--dh-identity);
 }
 
 @media (forced-colors: active) {
