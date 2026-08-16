@@ -129,6 +129,15 @@ export default function CaptureSheet({
   const choose = useCallback((type: CaptureType) => {
     setActive(type);
     setActiveContext((current) => contextForCaptureType(type, current));
+    /*
+     * Land in the field even when the type did not CHANGE.
+     *
+     * The effect above keys on `active`, so pressing the chip for the type you
+     * are already capturing is a no-op to it and focus stays on the chip. That
+     * is the wrong end state for a control whose whole point is "capture this,
+     * now": a tap on a type means writing, whichever type it was.
+     */
+    window.requestAnimationFrame(() => firstFieldRef.current?.focus());
   }, []);
 
   /*
