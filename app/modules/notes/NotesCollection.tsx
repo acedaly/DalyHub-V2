@@ -20,10 +20,13 @@ import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import {
+  CollectionControls,
   CollectionLayout,
+  CollectionSearchField,
   collectionCountLabel,
   CreateActionLabel,
   useCollectionLoading,
+  useCollectionSearch,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -42,7 +45,7 @@ import { NewNoteForm } from "./NewNoteForm";
 import { NotesList } from "./NotesList";
 import {
   NOTE_STATE_OPTIONS,
-  NotesFilterBar,
+  noteControlGroups,
   hasActiveFilters,
 } from "./NotesFilterBar";
 import type {
@@ -254,6 +257,10 @@ function NotesCollection({
     filterKey,
   );
   const { restore, pendingIds, restoredIds } = useRestoreNote();
+  // CONTROL-01 — the shared debounced search controller, and the shared control
+  // groups. Both replace Notes-only implementations of the same behaviour.
+  const search = useCollectionSearch();
+  const controlGroups = useMemo(() => noteControlGroups(options), [options]);
 
   const visibleItems =
     state === "deleted"
@@ -285,6 +292,10 @@ function NotesCollection({
       // DS-08 — Notes is a flat LIST of hairline-separated rows, so it takes the
       // white ground D41 gives one. It was drawn on the card grid's grey.
       className="dh-collection--flat"
+      // CONTROL-01 — the ONE shared control row at every width, rather than a
+      // desktop filter bar and a phone sheet that drift apart. Tasks, Assets
+      // and Views already opt in; Notes was the module still forking.
+      persistentControls
       isLoading={isReloading}
       title="Notes"
       subtitle={subtitle}
@@ -299,13 +310,29 @@ function NotesCollection({
           label="Note views"
         />
       }
+      /*
+       * CONTROL-01 — the SHARED filter grammar: a debounced search field and
+       * one "Filter & sort" control, exactly as every other collection has.
+       *
+       * It was a GET form of five native selects and an Apply button — the only
+       * filtering interaction in the product that made the owner press
+       * something before the list responded.
+       */
       filterBar={
-        <NotesFilterBar
-          state={state}
-          filters={filters}
-          tags={options.tags}
-          projects={options.projects}
-          areas={options.areas}
+        <CollectionSearchField
+          value={search.draft}
+          onChange={search.setDraft}
+          label="Search Notes"
+          placeholder="Search Notes"
+          data-testid="notes-search"
+        />
+      }
+      mobileControls={
+        <CollectionControls
+          groups={controlGroups}
+          label="Filter and sort Notes"
+          triggerLabel="Filter & sort"
+          basePath="/notes"
         />
       }
       // Shell cleanup: the header's "New Note" button is gone. It opened the
