@@ -243,7 +243,11 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     for (const name of ["Table", "Checklist", "Strikethrough"] as const) {
       await expectMinTouchTarget(toolbar.getByRole("button", { name }));
     }
-    await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
+    // Exact: an accessible name matches by SUBSTRING by default, and the shell's
+    // notification bell is named "Notifications, none unread".
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: "Read", exact: true }),
+    );
 
     // Removal itself now runs through the same overflow menu measured above —
     // there is no longer a Delete button in the record header (PX-04). Notes are

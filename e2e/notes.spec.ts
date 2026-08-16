@@ -239,14 +239,19 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await expect(page.getByText("Saved")).toBeVisible();
 
     // 7. Read mode renders through the shared safe FND-08 pipeline, then back.
-    await page.getByRole("button", { name: "Read" }).click();
+    // `exact` is load-bearing: Playwright matches an accessible name by
+    // SUBSTRING by default, and the top bar's bell is named "Notifications,
+    // none unread" — which contains "read". Without it this resolves to two
+    // buttons and fails strict mode. (Pre-existing since NOTIFY-01 put a bell
+    // in the shell; it fails identically on `main`.)
+    await page.getByRole("button", { name: "Read", exact: true }).click();
     const reading = page.locator(".dh-md-editor__reading");
     await expect(
       reading.getByRole("heading", { level: 1, name: "Project kickoff" }),
     ).toBeVisible();
     await expect(reading.locator("script")).toHaveCount(0);
     await expectNoAxeViolations(page);
-    await page.getByRole("button", { name: "Write" }).click();
+    await page.getByRole("button", { name: "Write", exact: true }).click();
     await expect(editorBox(page)).toBeVisible();
 
     // 8. Reload and confirm the exact saved source round-trips.
@@ -545,7 +550,11 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
 
     // Touch targets and axe on the authoring surface (light + dark).
     await expectMinTouchTarget(toolbar.getByRole("button", { name: "Bold" }));
-    await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
+    // Exact, for the same reason as the Read-mode step above: the bell's
+    // "none unread" is a substring match for "Read".
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: "Read", exact: true }),
+    );
     await expectNoAxeViolations(page);
     await page.emulateMedia({ colorScheme: "dark" });
     await expectNoAxeViolations(page);
