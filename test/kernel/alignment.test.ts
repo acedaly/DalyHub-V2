@@ -443,6 +443,12 @@ describe("GoalRepository.listGoals — the workspace-wide Alignment collection b
       title: "Area A",
       colourRank: 0,
       iconKey: null,
+      // IDENTITY-01 — the Area's CHOSEN colour travels beside its derived rank,
+      // and is null for an Area that has chosen none. Asserted here for the
+      // same reason the rank is: a component test would pass against a query
+      // that never selected the column, which is precisely how it shipped
+      // returning null for every Area that HAD chosen one.
+      colourSlot: null,
     });
     // The SECOND Area created takes the next rank, so two Areas are two colours.
     expect(page.items[1]!.area).toMatchObject({
@@ -457,6 +463,7 @@ describe("GoalRepository.listGoals — the workspace-wide Alignment collection b
       title: "Area B",
       colourRank: 1,
       iconKey: null,
+      colourSlot: null,
     });
   });
 

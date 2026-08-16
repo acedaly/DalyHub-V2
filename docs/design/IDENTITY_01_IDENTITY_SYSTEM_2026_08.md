@@ -327,10 +327,39 @@ outdoors · Time and nature
 
 ---
 
+## 6b. Review fixes (PR #185)
+
+Four P1 findings, all real, all fixed. Three were the same shape — a value the
+schema, the kernel and the resolver all understood, that one layer never carried
+— which is the failure mode a wide additive change invites.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | **Snapshots and restore dropped every identity.** `d1-workspace-snapshot-repository` omitted `colour_slot` from Area/Project details and both new columns from Goal details; `d1-workspace-restore-repository` neither staged nor restored them. A restore silently reset every chosen identity to its default — a portability failure that looks like it worked | All four columns added to the snapshot schema, the SELECTs, the restore staging and the row mappings, with `?? null` so an archive written before IDENTITY-01 restores as "no choice". Round-trip tests added beside the existing `iconKey` ones, including the preserve-an-unrecognised-slot asymmetry |
+| 2 | **The creation forms never sent the chosen colour.** Both build `FormData` by hand and posted only `title`/`iconKey`, so the server read the absent field as "no choice": creation reported success and the choice was gone | `colourSlot` appended to both bodies, always sent and empty when unchosen. Asserted on the request BODY in both create-form tests, because nothing about the old behaviour failed |
+| 3 | **A Goal never saw its Area's CHOSEN colour.** `D1GoalRepository`'s `AREA_IDENTITY_COLUMNS` selected only the rank and the icon, so an Area that picked teal was teal on the Areas collection and its derived colour on every Goal beneath it | The column is selected, projected through the `ranked` CTE and normalised in `#toAreaContext`. Asserted end to end in `goals.test.ts` — a component test would pass against a query that never returned it |
+| 4 | **A Goal had identity fields and no way to choose them.** The schema, the kernel patch, the resolver precedence and the rendering all landed; the picker and the write path did not | A `set_identity` intent on the Goal mutation route reading through the same two trusted boundary readers the Area and Project routes use, and an Appearance field on the Goal record. A Goal has no Settings tab and one was not added — it sits in the summary beside the definition of done, the other Goal-owned field edited in place |
+
+**A fifth, found while verifying the fourth.** The Goal RECORD never set
+`data-identity`, so its progress meter and trend chart fell back to the
+application's action colour while the same Goal's card, row and Today tile wore
+its hue — one record, two colours, one screen apart. §10 claimed this surface
+was migrated and the CSS rule was correct; nothing was stamping the attribute.
+The record now resolves its identity once and stamps it on the screen root.
+
+**And a sixth, immediately after.** `D1GoalDetailsRepository`'s single-goal read
+selected the measurement columns but not `icon_key`/`colour_slot`, so a Goal's
+OWN choice reached its card (batched read) and not its record (single read). Both
+queries now select both columns, and `goal-details.test.ts` asserts the read path
+rather than only the write.
+
+---
+
 ## 7. The picker
 
 `EntityIconPicker` → **`EntityIdentityPicker`**, upgraded in place; every call
-site (Area settings, Project settings, both creation forms) moved with it.
+site moved with it — Area settings, Project settings, the Goal record's
+Appearance field, and both creation forms.
 
 - **Live preview tile** at the top of the sheet, drawn as the real §3
   construction at gallery size, updating as either half is picked. The owner is

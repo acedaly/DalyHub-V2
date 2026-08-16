@@ -59,6 +59,35 @@ describe("Area forms", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/areas/new");
   });
 
+  /*
+   * IDENTITY-01 — the creation form SUBMITS both halves of the identity.
+   *
+   * The picker staged a colour, the form posted only the title and the icon,
+   * the server read the absent field as "no choice", and creation reported
+   * success. Nothing failed and the choice was gone — which is why this asserts
+   * the request BODY rather than that the form worked.
+   */
+  it("submits the chosen icon AND colour, both empty when unchosen", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ ok: true, areaId: "a-new" }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderInRouter(<NewAreaForm onCreated={() => {}} onCancel={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText(/Title/), {
+      target: { value: "Health" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Area" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+    expect(body.get("title")).toBe("Health");
+    // Sent unconditionally: "" is the server's reset-to-default, an ABSENT
+    // field is "this form has no such control", and this form has both.
+    expect(body.get("iconKey")).toBe("");
+    expect(body.get("colourSlot")).toBe("");
+  });
+
   it("renames through /areas/:id/mutate", async () => {
     const fetchMock = vi
       .fn()

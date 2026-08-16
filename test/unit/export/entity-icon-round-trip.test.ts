@@ -74,6 +74,70 @@ function vaultFile(
   return match.contents;
 }
 
+/*
+ * IDENTITY-01 — the chosen COLOUR is the same bargain as the chosen icon, and
+ * fails the same way if it is dropped: an export that looks like it worked, and
+ * a restore that quietly resets every identity the owner set.
+ *
+ * A Goal's identity is asserted too, because a Goal did not HAVE one before
+ * this release — which makes its snapshot fields the newest and least
+ * exercised, and the ones a reader is most likely to forget.
+ */
+describe("the chosen colour survives a snapshot round trip", () => {
+  function goalDetail(snapshot: WorkspaceSnapshotV1, entityId: string) {
+    const row = snapshot.records.goalDetails.find(
+      (detail) => detail.entityId === entityId,
+    );
+    if (!row) throw new Error(`No goalDetails row for ${entityId}`);
+    return row;
+  }
+
+  it("carries a chosen slot through serialisation unchanged", () => {
+    const parsed = throughJson(makeSnapshot());
+    expect(areaDetail(parsed, IDS.area).colourSlot).toBe("teal");
+    expect(projectDetail(parsed, IDS.project).colourSlot).toBe("amber");
+    expect(goalDetail(parsed, IDS.goal).colourSlot).toBe("pink");
+    expect(goalDetail(parsed, IDS.goal).iconKey).toBe("running");
+  });
+
+  it("carries 'no choice' through as an explicit null, never undefined", () => {
+    const parsed = throughJson(makeSnapshot());
+    expect(areaDetail(parsed, IDS.areaArchived).colourSlot).toBeNull();
+    expect(projectDetail(parsed, IDS.projectDeleted).colourSlot).toBeNull();
+    expect("colourSlot" in areaDetail(parsed, IDS.areaArchived)).toBe(true);
+    expect("colourSlot" in projectDetail(parsed, IDS.projectDeleted)).toBe(
+      true,
+    );
+  });
+
+  it("preserves a slot this build no longer recognises, rather than dropping it", () => {
+    // Same asymmetry the icon has: the READ path degrades an unknown slot to
+    // the derived colour so a record still renders, and the EXPORT path keeps
+    // it verbatim so a slot retired in one release and restored in the next is
+    // not erased from every archive taken in between.
+    const base = makeSnapshot();
+    const snapshot: WorkspaceSnapshotV1 = {
+      ...base,
+      records: {
+        ...base.records,
+        areaDetails: base.records.areaDetails.map((row) =>
+          row.entityId === IDS.area ? { ...row, colourSlot: "indigo" } : row,
+        ),
+      },
+    };
+    assertValidWorkspaceSnapshot(snapshot);
+    expect(areaDetail(throughJson(snapshot), IDS.area).colourSlot).toBe(
+      "indigo",
+    );
+  });
+
+  it("stays valid with colours present, so the field is genuinely additive", () => {
+    expect(() =>
+      assertValidWorkspaceSnapshot(throughJson(makeSnapshot())),
+    ).not.toThrow();
+  });
+});
+
 describe("the chosen icon survives a snapshot round trip", () => {
   it("carries a chosen key through serialisation unchanged", () => {
     const snapshot = makeSnapshot();

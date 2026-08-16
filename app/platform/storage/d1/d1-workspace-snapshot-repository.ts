@@ -155,7 +155,7 @@ const COLLECTIONS: CollectionDescriptors = {
   },
   areaDetails: {
     table: "area_details",
-    columns: "entity_id, archived_at, icon_key, updated_at",
+    columns: "entity_id, archived_at, icon_key, colour_slot, updated_at",
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
@@ -164,6 +164,11 @@ const COLLECTIONS: CollectionDescriptors = {
       // a key whose catalogue entry has since been removed still survives the
       // round trip. Normalising belongs on the read path, not here.
       iconKey: text(row.icon_key),
+      // IDENTITY-01 — the chosen colour, on the same terms. An export that
+      // dropped it would restore a workspace with every chosen identity reset
+      // to its derived default, which is a silent loss of something the owner
+      // deliberately set.
+      colourSlot: text(row.colour_slot),
       updatedAt: requiredText(row.updated_at),
     }),
   },
@@ -171,7 +176,7 @@ const COLLECTIONS: CollectionDescriptors = {
     table: "goal_details",
     columns: `entity_id, target_date, definition_of_done, measurement_type,
       measurement_unit, measurement_direction, baseline_value, target_value,
-      updated_at`,
+      icon_key, colour_slot, updated_at`,
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
@@ -185,6 +190,10 @@ const COLLECTIONS: CollectionDescriptors = {
       measurementDirection: text(row.measurement_direction),
       baselineValue: integer(row.baseline_value),
       targetValue: integer(row.target_value),
+      // IDENTITY-01 — a Goal's OWN identity, which it did not have before this
+      // release and which is the owner's choice rather than a derivation.
+      iconKey: text(row.icon_key),
+      colourSlot: text(row.colour_slot),
       updatedAt: requiredText(row.updated_at),
     }),
   },
@@ -220,13 +229,15 @@ const COLLECTIONS: CollectionDescriptors = {
   },
   projectDetails: {
     table: "project_details",
-    columns: "entity_id, status, archived_at, icon_key, updated_at",
+    columns:
+      "entity_id, status, archived_at, icon_key, colour_slot, updated_at",
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
       status: requiredText(row.status),
       archivedAt: text(row.archived_at),
       iconKey: text(row.icon_key),
+      colourSlot: text(row.colour_slot),
       updatedAt: requiredText(row.updated_at),
     }),
   },

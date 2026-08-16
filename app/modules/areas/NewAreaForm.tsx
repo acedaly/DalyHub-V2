@@ -55,6 +55,10 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
       // control" — sending it unconditionally keeps this form in the first
       // category, which is what it is.
       body.set("iconKey", iconKey ?? "");
+      // The COLOUR travels the same way and for the same reason. Omitting it
+      // was a silent data loss: the picker staged the choice, the form reported
+      // success, and the record was created on its derived colour.
+      body.set("colourSlot", colourSlot ?? "");
       let data: CreateAreaResult;
       try {
         const response = await fetch("/areas/new", { method: "POST", body });

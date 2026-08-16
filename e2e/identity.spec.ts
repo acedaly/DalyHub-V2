@@ -243,4 +243,54 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
       page.getByRole("button", { name: "Wellbeing", exact: true }),
     );
   });
+
+  /*
+   * A GOAL's own identity, and the two things about it that are easy to ship
+   * half of: the write path (the schema and the resolver existed before any UI
+   * could reach them) and the INHERITANCE (a Goal that chooses nothing must
+   * take its Area's chosen colour, not the colour the Area's rank derives).
+   */
+  test("a Goal can choose its own identity, and inherits the Area's otherwise", async ({
+    page,
+  }) => {
+    // Give the Area a colour first, so "inherits" means "inherits the CHOSEN
+    // one" rather than the derived one the two would share by accident.
+    await openPicker(page);
+    await page.getByRole("button", { name: "Emerald", exact: true }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    await gotoFixture(page, "/goals");
+    const goalLink = page.locator("a[href*='/goals/']").first();
+    const href = await goalLink.getAttribute("href");
+    expect(href).toBeTruthy();
+
+    await gotoFixture(page, href!);
+    const trigger = page.locator(".dh-icon-picker__trigger").first();
+    await expect(trigger).toBeVisible();
+    // Before choosing, the Goal wears what it inherits — and the picker says so
+    // rather than leaving the owner to guess what "Automatic" resolves to.
+    await expect(trigger).toContainText("Automatic");
+
+    await trigger.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /^Automatic/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Rose", exact: true }).click();
+    await page.getByRole("button", { name: "Reading", exact: true }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    await expect(trigger).toContainText("Rose");
+    await expect(trigger).toContainText("Reading");
+
+    // Persisted, not held in a component — and carried onto the record itself,
+    // whose meter and trend line read the same inherited property.
+    await page.reload();
+    await expect(page.locator("[data-identity='rose']").first()).toBeVisible();
+    await expect(
+      page.locator(".dh-icon-picker__trigger").first(),
+    ).toContainText("Rose");
+  });
 });

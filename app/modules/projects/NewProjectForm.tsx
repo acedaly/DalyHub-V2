@@ -149,6 +149,10 @@ export function NewProjectForm({
       body.set("parentId", values.parentId);
       // Always sent, empty when unchosen — see the Area form.
       body.set("iconKey", iconKey ?? "");
+      // The COLOUR travels the same way and for the same reason. Omitting it
+      // was a silent data loss: the picker staged the choice, the form reported
+      // success, and the record was created on its derived colour.
+      body.set("colourSlot", colourSlot ?? "");
       let data: CreateProjectResult;
       try {
         const response = await fetch("/projects/new", {

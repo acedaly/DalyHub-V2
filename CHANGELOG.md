@@ -61,7 +61,12 @@ same order, on the same records.
 **Goals can have an identity of their own.** They used to borrow their Area's icon
 and colour with no say in it. A Goal can now choose either, or both, or neither —
 and a Goal that picks a heart but no colour keeps the heart and takes its Area's
-colour.
+colour. The control is on the Goal itself, under **Appearance**, and it tells you
+which Area colour it is currently borrowing before you decide to stop.
+
+**Your choices survive an export.** Backups and archives carry the colour and the
+icon you picked, for Areas, Projects and Goals alike, so restoring a workspace
+restores what it looked like — not a reset to the defaults.
 
 **The identity follows the record everywhere.** The colour you choose paints the
 record's tile, its progress bar, its chart line, its Area pill and its chip — on

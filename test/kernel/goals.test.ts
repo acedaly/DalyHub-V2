@@ -10,6 +10,7 @@ import {
   makeAreaRepository,
   makeContext,
   makeGoalDetailsRepository,
+  makeAreaSettingsRepository,
   makeGoalRepository,
   makeProjectSettingsRepository,
   makeSpineRepository,
@@ -51,6 +52,47 @@ describe("GoalRepository", () => {
         completedAt: null,
         area: { id: area.id, title: "Health" },
       });
+    });
+
+    /*
+     * IDENTITY-01 — a Goal inherits its Area's RESOLVED identity, which means
+     * the Area's CHOSEN colour where it made one, not the colour its rank
+     * derives.
+     *
+     * The read is where this broke: the resolver has always preferred a chosen
+     * slot, but the Goal query selected only the Area's rank and icon, so an
+     * Area that picked teal was teal on the Areas collection and its derived
+     * colour on every Goal beneath it — the same record, two colours, one
+     * screen apart.
+     */
+    it("carries the Area's CHOSEN colour, not just its derived rank", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Health" });
+      await makeAreaSettingsRepository(makeContext(WS)).setIdentity(area.id, {
+        iconKey: "heart",
+        colourSlot: "teal",
+      });
+      const goal = await s.createGoal({ title: "Run 10k", areaId: area.id });
+
+      const overview = await makeGoalRepository(
+        makeContext(WS),
+      ).getGoalOverview(goal.id);
+      expect(overview?.area.colourSlot).toBe("teal");
+      expect(overview?.area.iconKey).toBe("heart");
+      // The rank still travels: it is what an Area that chose NOTHING derives
+      // from, and the resolver needs both to walk its ladder.
+      expect(overview?.area.colourRank).toBe(0);
+    });
+
+    it("gives an Area that chose no colour a null slot, never a guess", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Health" });
+      const goal = await s.createGoal({ title: "Run 10k", areaId: area.id });
+      const overview = await makeGoalRepository(
+        makeContext(WS),
+      ).getGoalOverview(goal.id);
+      expect(overview?.area.colourSlot).toBeNull();
+      expect(overview?.area.colourRank).toBe(0);
     });
 
     it("reflects a rename and a completion", async () => {

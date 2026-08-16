@@ -65,6 +65,8 @@ function details(
   return {
     targetDate: null,
     definitionOfDone: null,
+    iconKey: null,
+    colourSlot: null,
     measurement: UNMEASURED_GOAL,
     ...over,
   };

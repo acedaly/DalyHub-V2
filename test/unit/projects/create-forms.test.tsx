@@ -107,6 +107,20 @@ describe("NewProjectForm", () => {
     expect(call).toBeDefined();
     expect(String(call![0])).toBe("/projects/new");
     expect((call![1] as RequestInit | undefined)?.method).toBe("POST");
+    /*
+     * IDENTITY-01 — both halves of the identity travel with the creation
+     * request. The picker staged a colour and the form posted only the icon, so
+     * the server read the absent field as "no choice": creation reported
+     * success and the chosen colour was silently gone. Asserting the BODY is
+     * what catches that, because nothing about it failed.
+     *
+     * Sent unconditionally, empty when unchosen: "" is the server's
+     * reset-to-default, an ABSENT field means "this form has no such control",
+     * and this form has both.
+     */
+    const body = (call![1] as RequestInit | undefined)?.body as FormData;
+    expect(body.get("iconKey")).toBe("");
+    expect(body.get("colourSlot")).toBe("");
   });
 
   it("surfaces a server field error against the parent", async () => {

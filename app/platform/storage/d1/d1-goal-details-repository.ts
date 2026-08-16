@@ -325,7 +325,9 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
                   d.measurement_unit AS measurement_unit,
                   d.measurement_direction AS measurement_direction,
                   d.baseline_value AS baseline_value,
-                  d.target_value AS target_value
+                  d.target_value AS target_value,
+                  d.icon_key AS icon_key,
+                  d.colour_slot AS colour_slot
            FROM entities e
            LEFT JOIN goal_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id

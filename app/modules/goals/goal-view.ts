@@ -72,6 +72,14 @@ function serializeGoalArea(area: {
 export type SerializedGoalDetails = {
   readonly targetDate: string | null;
   readonly definitionOfDone: string | null;
+  /**
+   * IDENTITY-01 — the Goal's OWN chosen identity, `null` on either half meaning
+   * "inherit the Area's". Carried on the details slice because that is where it
+   * is stored and where it is written; the RESOLUTION of it against the Area
+   * belongs to `resolveIdentity`, not to this serialiser.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
   /** GOAL-02 — how this Goal is measured. Already JSON-safe (primitives only),
    * so it travels to the client unchanged. `type: null` means "not measured". */
   readonly measurement: GoalMeasurementConfig;
@@ -162,6 +170,8 @@ export function serializeGoalDetails(
   return {
     targetDate: details?.targetDate ?? null,
     definitionOfDone: details?.definitionOfDone ?? null,
+    iconKey: details?.iconKey ?? null,
+    colourSlot: details?.colourSlot ?? null,
     measurement: details?.measurement ?? UNMEASURED_GOAL,
   };
 }
