@@ -190,7 +190,16 @@ consequence recorded in
   · [`NOTIFICATIONS.md`](../development/NOTIFICATIONS.md)
   · [`DESIGN_SYSTEM.md → The notification bell and inbox`](../design/DESIGN_SYSTEM.md#the-notification-bell-and-inbox-notify-01-2026-08-16)
   · [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01) ☑
-  · raised [DEBT-146](../product/PRODUCT_DEBT.md) and [DEBT-147](../product/PRODUCT_DEBT.md).
+  · raised [DEBT-146](../product/PRODUCT_DEBT.md), [DEBT-147](../product/PRODUCT_DEBT.md)
+  and [DEBT-148](../product/PRODUCT_DEBT.md).
+- **Found on the way, recorded rather than fixed.** Three E2E specs
+  (`mobile-shell`, and parts of `today` and `settings`) assert a shell TODAY-11
+  and FINAL-UI already replaced — the phone bar's labels, Today's "Focus"
+  landmark, the stat rank's presence, and a 200% reflow overflow that measures
+  to TODAY-11's reflection panel. Confirmed by running the same specs at
+  `b2622b6` in a clean worktree, and by measuring the overflow with the new bell
+  hidden. [DEBT-148](../product/PRODUCT_DEBT.md) states each drift with its
+  evidence. Not corrected here: they are another item's acceptance criteria.
 
 ### ☑ TODAY-09 - Attention rail truth and Tasks/Today wording — DELIVERED 2026-08-09
 
