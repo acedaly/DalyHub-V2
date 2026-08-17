@@ -46,6 +46,12 @@ function pageData(
     areasBounded: false,
     areasAvailable: true,
     goals: { onTrack: 5, total: 9, bounded: false },
+    overdueSeries: BUCKETS.map((bucket, index) => ({
+      key: bucket.key,
+      overdue: 10 + index,
+    })),
+    overduePrevious: 12,
+    overdueAvailable: true,
     ...over,
   };
   return {
@@ -69,7 +75,7 @@ function renderScreen(data: AnalyticsPageData, entry = "/analytics") {
 }
 
 describe("Analytics screen (UIX-05)", () => {
-  it("leads with four exact figures and the span they cover", () => {
+  it("leads with the exact figures and the span they cover", () => {
     renderScreen(pageData());
     expect(
       screen.getByRole("heading", { level: 1, name: "Analytics" }),
@@ -146,12 +152,91 @@ describe("Analytics screen (UIX-05)", () => {
           goalsCompleted: 0,
         },
         areas: [],
+        // CONVERGE-01 §8 — a quiet period is only quiet if the BACKLOG is clear
+        // too. See the test below, which is the other half of this rule.
+        overdueSeries: BUCKETS.map((bucket) => ({
+          key: bucket.key,
+          overdue: 0,
+        })),
+        overduePrevious: 0,
       }),
     );
     expect(
       screen.getByText("Nothing completed in this period"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Completion trend")).toBeNull();
+  });
+
+  /*
+   * CONVERGE-01 §8 — the empty state replaces the WHOLE surface, so a period
+   * with no completions and an overdue backlog must not reach it: "nothing
+   * completed" would be true and would hide the one thing the owner most needs
+   * to see.
+   */
+  it("keeps the surface when nothing was completed but work is overdue", () => {
+    renderScreen(
+      pageData({
+        current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
+        previous: {
+          tasksCompleted: 0,
+          projectsCompleted: 0,
+          goalsCompleted: 0,
+        },
+        areas: [],
+        overduePrevious: 0,
+      }),
+    );
+    expect(screen.queryByText("Nothing completed in this period")).toBeNull();
+    expect(screen.getByTestId("analytics-metric-overdue")).toBeInTheDocument();
+  });
+
+  /*
+   * The metric card's figure and the right-hand end of the chart are the same
+   * reading by construction, and the readout states the latest reading when
+   * nothing is selected — so the two must agree on screen, not only in the model.
+   */
+  it("draws the overdue trend and names its latest reading in the readout", () => {
+    renderScreen(pageData());
+    const card = screen.getByTestId("analytics-metric-overdue");
+    expect(card).toHaveTextContent("16");
+
+    const chart = screen.getByTestId("analytics-overdue-trend");
+    expect(within(chart).getByRole("status")).toHaveTextContent(
+      /16 overdue at the close of/,
+    );
+    // The chart takes the STATUS ramp, which is the one meter vocabulary — never
+    // a chart-local colour and never identity.
+    expect(chart).toHaveAttribute("data-meter-status", "warning");
+  });
+
+  /*
+   * CONVERGE-01 §I — the enumeration of every reading belongs to assistive tech,
+   * not to the page's body text. The visible caption is one headline line.
+   */
+  it("hides the overdue enumeration behind the visible caption", () => {
+    renderScreen(pageData());
+    const chart = screen.getByTestId("analytics-overdue-trend");
+    const caption = chart.querySelector("figcaption");
+    expect(caption?.firstChild?.textContent).toBe(
+      "16 overdue now, read at the close of each of 7 periods.",
+    );
+    expect(
+      caption?.querySelector(".dh-visually-hidden")?.textContent,
+    ).toContain("10");
+  });
+
+  it("says a failed overdue read rather than drawing a clear backlog", () => {
+    renderScreen(
+      pageData({
+        overdueSeries: [],
+        overduePrevious: null,
+        overdueAvailable: false,
+      }),
+    );
+    expect(screen.queryByTestId("analytics-overdue-trend")).toBeNull();
+    expect(screen.getByTestId("analytics-metric-overdue")).toHaveTextContent(
+      "Not available",
+    );
   });
 
   // The attribution approximation is stated on the surface, not hidden.

@@ -18,6 +18,15 @@
  *     documented approximation the surface states out loud.
  *   - **Carry-over** is exact current state: still-open Tasks whose due date, or
  *     whose waiting episode, predates the period's first day.
+ *   - **Overdue history** (CONVERGE-01 §8) reads the same two stored columns a
+ *     LIVE overdue check reads — `task_details.due_date` and
+ *     `spine_records.completed_at` — at a past moment instead of at today. Both
+ *     are stored as plain comparable strings (a date-only `YYYY-MM-DD` and an
+ *     ISO-8601 UTC instant), so the comparison carries no timezone assumption of
+ *     its own and no new column, table or index is involved. It inherits the
+ *     approximation those columns imply, which the kernel contract spells out
+ *     and the Analytics surface prints: a due date changed since, or a Task
+ *     deleted since, is read as it stands now.
  *
  * No caller-supplied value is interpolated into SQL. Ids, periods, instants and
  * limits are BOUND; entity types, structural link types and Activity types are
@@ -35,6 +44,7 @@ import {
   type PeriodContributionRow,
   type PeriodCountRequest,
   type PeriodCountResult,
+  type PeriodOverdueResult,
   type ReviewInsightRepository,
   type ReviewInsightSnapshot,
   type ReviewPeriodWindow,
@@ -215,6 +225,83 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
       tasksCompleted: totals[index].tasks,
       projectsCompleted: totals[index].projects,
       goalsCompleted: totals[index].goals,
+    }));
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* (1) Historical overdue — the backlog, read at past moments               */
+  /* ---------------------------------------------------------------------- */
+
+  async countOverdueAtPeriodEnd(
+    requests: readonly PeriodCountRequest[],
+  ): Promise<readonly PeriodOverdueResult[]> {
+    const wanted = requests.slice(0, MAX_TREND_PERIODS);
+    if (wanted.length === 0) return [];
+
+    /*
+     * ONE statement for every requested moment, and it is a different SHAPE
+     * from `countPeriodCompletions` for a reason worth stating.
+     *
+     * A completion is an EVENT: it falls in exactly one window, so the windows
+     * partition the rows and a `CASE` that names the bucket lets one grouped
+     * scan answer the whole series. Being overdue is a STATE, and one Task can
+     * be overdue at five of the six moments asked about — the moments do not
+     * partition anything. So each moment gets its own `SUM(CASE …)` COLUMN over
+     * the same single scan, rather than its own row.
+     *
+     * That is still one statement and one pass over the workspace's tasks; the
+     * column count is bounded by `MAX_TREND_PERIODS`. Only the column ALIAS
+     * index is generated, and it is an integer this method produced — every
+     * date and instant is bound.
+     */
+    const columns = wanted
+      .map(
+        (_, index) =>
+          `SUM(CASE WHEN td.due_date < ?
+                     AND (sr.completed_at IS NULL OR sr.completed_at >= ?)
+                    THEN 1 ELSE 0 END) AS n${index}`,
+      )
+      .join(",\n           ");
+    const bounds = wanted.flatMap((request) => [
+      request.window.periodEnd,
+      request.window.endInstantIso,
+    ]);
+
+    /*
+     * The scan's own filter is the WIDEST of the requested moments, so the
+     * grouped columns above are computed over a set that already excludes every
+     * Task no moment could count: no due date at all, cancelled, or parked.
+     *
+     * `completed_at` is NOT filtered here. A Task completed long ago may still
+     * have been overdue at an earlier moment, and dropping it from the scan
+     * would silently make history disagree with itself.
+     */
+    const latestDueBound = wanted.reduce(
+      (latest, request) =>
+        request.window.periodEnd > latest ? request.window.periodEnd : latest,
+      wanted[0].window.periodEnd,
+    );
+
+    const statement = this.#db
+      .prepare(
+        `SELECT ${columns}
+         FROM spine_records sr
+         JOIN entities e
+           ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
+              AND e.type = '${TASK}' AND e.deleted_at IS NULL
+         JOIN task_details td
+           ON td.workspace_id = sr.workspace_id AND td.entity_id = sr.entity_id
+         WHERE sr.workspace_id = ? AND sr.kind = '${TASK}'
+           AND td.due_date IS NOT NULL AND td.due_date < ?
+           AND COALESCE(td.status, 'todo') <> 'cancelled'
+           AND COALESCE(td.commitment_state, 'active') <> 'someday'`,
+      )
+      .bind(...bounds, this.#workspaceId, latestDueBound);
+
+    const row = await statement.first<Record<string, number | null>>();
+    return wanted.map((request, index) => ({
+      key: request.key,
+      overdue: Number(row?.[`n${index}`] ?? 0),
     }));
   }
 

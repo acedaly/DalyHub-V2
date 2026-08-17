@@ -89,4 +89,5 @@ export type {
   ReviewInsightRepository,
   PeriodCountRequest,
   PeriodCountResult,
+  PeriodOverdueResult,
 } from "./review-insight-repository";

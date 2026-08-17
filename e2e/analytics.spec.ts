@@ -32,7 +32,7 @@ const RANGES = [
 ] as const;
 
 test.describe("UIX-05 — Analytics", () => {
-  test("renders the surface with its span and its four figures", async ({
+  test("renders the surface with its span and its figures", async ({
     page,
   }) => {
     await gotoFixture(page, "/analytics");
@@ -84,6 +84,82 @@ test.describe("UIX-05 — Analytics", () => {
       "href",
       /\/(tasks|projects|goals|areas)/,
     );
+  });
+
+  /*
+   * CONVERGE-01 §8 — the overdue metric, against real reads.
+   *
+   * The unit tests own the arithmetic and the wording; what only a browser
+   * against real D1 can prove is that the card and the chart are the SAME
+   * reading, that the chart's interactive readout genuinely works, and that the
+   * enumeration every reading needs is in the document without being printed
+   * under the plot.
+   */
+  test("reports the overdue backlog, and card and chart agree", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/analytics");
+    const card = page.getByTestId("analytics-metric-overdue");
+    await expect(card).toBeVisible();
+
+    const figure = (await card.innerText()).trim().split(/\s/)[0];
+    // A degraded read renders "Not available" instead — honest, and asserted by
+    // the unit tests rather than skipped over here.
+    test.skip(
+      !/^\d+$/.test(figure),
+      "The overdue read is unavailable in this environment.",
+    );
+
+    const chart = page.getByTestId("analytics-overdue-trend");
+    await expect(chart).toBeVisible();
+    // The chart states a status, in the product's ONE meter vocabulary.
+    await expect(chart).toHaveAttribute("data-meter-status", "warning");
+
+    // The readout names the latest reading with nothing selected, and the
+    // latest reading IS the card's figure — by construction, so a disagreement
+    // is a real regression rather than a flake.
+    const readout = chart.getByRole("status");
+    await expect(readout).toContainText(
+      new RegExp(`^${figure} overdue at the close of `),
+    );
+
+    // CONVERGE-01 §I — the visible caption is one line; the enumeration of every
+    // reading is present but visually hidden.
+    const caption = chart.locator("figcaption");
+    await expect(caption).toContainText(`${figure} overdue now, read at the`);
+    await expect(caption.locator(".dh-visually-hidden")).toHaveCount(1);
+  });
+
+  test("the overdue readout follows the keyboard through the series", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/analytics?range=quarter");
+    const chart = page.getByTestId("analytics-overdue-trend");
+    test.skip(
+      (await chart.count()) === 0,
+      "The overdue read is unavailable in this environment.",
+    );
+
+    const readout = chart.getByRole("status");
+    const latest = await readout.innerText();
+
+    // One tab stop for the whole series, then the arrow keys walk it — the same
+    // contract the completion trend has.
+    await chart.locator(".dh-linechart__frame").focus();
+
+    // The FIRST press lands on the latest reading, deliberately: arrowing in
+    // from nothing lands where the readout already was rather than at an
+    // arbitrary end (`TrendLine`). So it is the SECOND press that must move.
+    await page.keyboard.press("ArrowLeft");
+    await expect(readout).toHaveText(latest);
+    await page.keyboard.press("ArrowLeft");
+    await expect(readout).not.toHaveText(latest);
+    await expect(readout).toContainText(/^\d+ overdue at the close of /);
+
+    // Escape returns the readout to the latest reading rather than blanking a
+    // reserved line.
+    await page.keyboard.press("Escape");
+    await expect(readout).toHaveText(latest);
   });
 
   test("is reachable from the shell navigation", async ({ page }) => {

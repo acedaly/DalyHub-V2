@@ -534,6 +534,152 @@ describe("carry-over", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* CONVERGE-01 §8 — overdue, read at past moments                              */
+/* -------------------------------------------------------------------------- */
+
+describe("overdue at a period's close", () => {
+  /** A moment to read the backlog at, as the loader builds one. */
+  function asOf(
+    key: string,
+    endIso: string,
+  ): {
+    key: string;
+    window: ReviewPeriodWindow;
+  } {
+    return { key, window: reviewPeriodWindow(endIso, endIso, TZ) };
+  }
+
+  it("counts a Task that was past its date and still open at that moment", async () => {
+    const context = makeContext(WS);
+    const tasks = makeTaskRepository(context);
+    await tasks.createTask({ title: "Late", dueDate: "2026-07-10" });
+
+    expect(
+      await makeReviewInsightRepository(context).countOverdueAtPeriodEnd([
+        asOf("before", "2026-07-05"),
+        asOf("after", "2026-07-20"),
+      ]),
+    ).toEqual([
+      { key: "before", overdue: 0 },
+      { key: "after", overdue: 1 },
+    ]);
+  });
+
+  /*
+   * The product's ONE overdue rule: strictly before, so due-that-day is not yet
+   * overdue. `task-views` states it and the `smart` sort obeys it; a second
+   * definition here would make the metric disagree with the view it links to.
+   */
+  it("does not call a Task due ON that day overdue", async () => {
+    const context = makeContext(WS);
+    const tasks = makeTaskRepository(context);
+    await tasks.createTask({ title: "Due today", dueDate: "2026-07-10" });
+
+    expect(
+      await makeReviewInsightRepository(context).countOverdueAtPeriodEnd([
+        asOf("same-day", "2026-07-10"),
+        asOf("next-day", "2026-07-11"),
+      ]),
+    ).toEqual([
+      { key: "same-day", overdue: 0 },
+      { key: "next-day", overdue: 1 },
+    ]);
+  });
+
+  /*
+   * The whole point of a HISTORY. A Task completed last week was still overdue
+   * the week before, and a reading that reported it as clear then would make the
+   * chart disagree with what the owner actually lived through.
+   */
+  it("still counts a Task at moments BEFORE it was completed", async () => {
+    const context = makeContext(WS);
+    const tasks = makeTaskRepository(context, {
+      clock: new FakeClock("2026-07-20T02:00:00.000Z").now,
+    });
+    const task = await tasks.createTask({
+      title: "Late, then done",
+      dueDate: "2026-07-01",
+    });
+    await tasks.completeTask(task.id);
+
+    expect(
+      await makeReviewInsightRepository(context).countOverdueAtPeriodEnd([
+        asOf("while-open", "2026-07-10"),
+        asOf("after-done", "2026-07-25"),
+      ]),
+    ).toEqual([
+      { key: "while-open", overdue: 1 },
+      { key: "after-done", overdue: 0 },
+    ]);
+  });
+
+  it("ignores work the owner deliberately parked or dropped", async () => {
+    const context = makeContext(WS);
+    const tasks = makeTaskRepository(context);
+    const someday = await tasks.createTask({
+      title: "One day",
+      dueDate: "2026-07-01",
+    });
+    await tasks.setCommitmentMany([someday.id], "someday");
+    const cancelled = await tasks.createTask({
+      title: "Dropped",
+      dueDate: "2026-07-01",
+    });
+    await tasks.setStatusMany([cancelled.id], "cancelled");
+
+    expect(
+      await makeReviewInsightRepository(context).countOverdueAtPeriodEnd([
+        asOf("now", "2026-07-20"),
+      ]),
+    ).toEqual([{ key: "now", overdue: 0 }]);
+  });
+
+  it("ignores a Task with no due date at all", async () => {
+    const context = makeContext(WS);
+    await makeTaskRepository(context).createTask({ title: "Someday, no date" });
+    expect(
+      await makeReviewInsightRepository(context).countOverdueAtPeriodEnd([
+        asOf("now", "2026-07-20"),
+      ]),
+    ).toEqual([{ key: "now", overdue: 0 }]);
+  });
+
+  it("never sees another workspace's backlog", async () => {
+    await seedCompletedWork(OTHER, { inPeriod: 0, overdueOpen: 4 });
+    expect(
+      await makeReviewInsightRepository(
+        makeContext(WS),
+      ).countOverdueAtPeriodEnd([asOf("now", "2026-07-20")]),
+    ).toEqual([{ key: "now", overdue: 0 }]);
+  });
+
+  it("performs no read at all for an empty request list", async () => {
+    const counter: Counter = { count: 0 };
+    await scopeFor(counter).reviewInsights.countOverdueAtPeriodEnd([]);
+    expect(counter.count).toBe(0);
+  });
+
+  /*
+   * The budget claim the module comment makes: ONE statement for the whole
+   * series, however many moments are asked about. A per-bucket read would be an
+   * N+1 on a page the owner opens to look at a chart.
+   */
+  it("answers every moment in ONE statement", async () => {
+    await seedCompletedWork(WS, { inPeriod: 0, overdueOpen: 3 });
+    const counter: Counter = { count: 0 };
+    const results = await scopeFor(
+      counter,
+    ).reviewInsights.countOverdueAtPeriodEnd(
+      ["2026-07-15", "2026-07-20", "2026-07-25", "2026-07-30"].map((iso) =>
+        asOf(iso, iso),
+      ),
+    );
+    expect(counter.count).toBe(1);
+    expect(results.map((row) => row.overdue)).toEqual([3, 3, 3, 3]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* The snapshot                                                                */
 /* -------------------------------------------------------------------------- */
 

@@ -48,6 +48,15 @@ export interface PeriodCountResult extends PeriodCompletionCounts {
   readonly key: string;
 }
 
+/**
+ * How much was overdue at one moment, returned against the key it was asked
+ * for. CONVERGE-01 §8.
+ */
+export interface PeriodOverdueResult {
+  readonly key: string;
+  readonly overdue: number;
+}
+
 /** The upper bound on how many periods one series read may ask for. A trend is
  * a recent shape, not an archive: loading a decade of history to draw six bars
  * is exactly the thing this limit exists to prevent. */
@@ -76,6 +85,43 @@ export interface ReviewInsightRepository {
   countPeriodCompletions(
     requests: readonly PeriodCountRequest[],
   ): Promise<readonly PeriodCountResult[]>;
+
+  /**
+   * CONVERGE-01 §8 — how much was OVERDUE at the close of each requested
+   * period. The backlog's history, as against completions' history.
+   *
+   * "Overdue at the close of a period" is the product's ONE overdue rule read at
+   * a past moment rather than at today: a Task with a due date STRICTLY BEFORE
+   * that period's last day (due-that-day is not overdue — the same rule the
+   * `overdue` system view and the `smart` sort use) which was not yet complete
+   * when the period ended (`completed_at` absent, or later than the period's
+   * exclusive end instant). Cancelled and someday work is excluded, exactly as
+   * `listCarryOverTasks` excludes it and for the reason recorded there: parked
+   * or dropped work is not an unfinished commitment.
+   *
+   * It reuses `PeriodCountRequest` unchanged because it needs exactly what a
+   * window already carries — `periodEnd` for the date comparison and
+   * `endInstantIso` for the completion one.
+   *
+   * ── Two approximations, both stated on the surface ─────────────────────────
+   * The schema stores no history for either field this reads, so:
+   *
+   *   - a Task whose DUE DATE has been changed since is measured against the
+   *     date it carries now, not the one it carried then;
+   *   - a Task DELETED since is absent from every reading, including readings
+   *     for moments when it existed.
+   *
+   * They are the same class of approximation `listPeriodContributions` makes by
+   * resolving ancestry through the current spine links, and the Analytics
+   * surface says so in its notes rather than hiding it. Fixing either would need
+   * a history table, which is a migration, which this read deliberately is not.
+   *
+   * One grouped statement regardless of how many moments are requested (capped
+   * at `MAX_TREND_PERIODS`); an empty request list performs no read at all.
+   */
+  countOverdueAtPeriodEnd(
+    requests: readonly PeriodCountRequest[],
+  ): Promise<readonly PeriodOverdueResult[]>;
 
   /**
    * Break one period's completed Tasks down by the (Project, Goal, Area) they

@@ -147,6 +147,7 @@ export function AnalyticsScreen({
         <div className="dh-analytics__panels">
           <TrendPanel data={data} />
           <DistributionPanel model={model} />
+          <OverduePanel data={data} />
         </div>
         {model.notes.length > 0 ? (
           <aside
@@ -285,6 +286,122 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
             return `${point.value} completed — ${label}`;
           }}
           data-testid="analytics-trend"
+        />
+      )}
+    </DashboardCard>
+  );
+}
+
+/**
+ * CONVERGE-01 §8 — the backlog, and which way it is going.
+ *
+ * The audit's finding is blunt and correct: the workspace's defining fact is its
+ * overdue backlog, and this screen reported nothing about it. Four figures said
+ * what had been finished; none said what had not.
+ *
+ * ── Why a second line chart, and not a second number ────────────────────────
+ * "43 overdue" is a fact an owner can already get from `/tasks`. What they
+ * cannot get anywhere is whether that 43 is the top of a climb or the bottom of
+ * one — and that is the difference between a workspace that needs a triage
+ * afternoon and one that is already recovering. The metric card carries the
+ * level; this carries the direction, and they are the same series by
+ * construction (the card's figure IS the line's last reading).
+ *
+ * ── Why the chart may shout and the text may not ────────────────────────────
+ * The line takes the status ramp's `warning`, because a backlog genuinely IS a
+ * status statement and DalyHub has one vocabulary for those. The supporting
+ * sentence beside the figure stays the row's ordinary grey — "4 fewer than the
+ * previous period (12)" — because a delta is arithmetic, not a judgement, and
+ * "calm over urgent" (AGENTS.md §2) means the product does not manufacture red
+ * for a number that went the wrong way by four.
+ *
+ * The full split CONVERGE-01 §I asks for is kept: the visible caption is one
+ * headline line, and the enumeration of every reading is in the document
+ * visually hidden, where a screen reader gets it and a sighted reader is not
+ * made to read a paragraph the axis already draws.
+ */
+function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
+  const { model } = data;
+
+  /*
+   * A failed read and an empty backlog are the same empty array, and — exactly
+   * as with the distribution — they must never be the same sentence. "Nothing is
+   * overdue" is the most reassuring thing this screen can say, which is precisely
+   * why it must never be said because a query fell over.
+   */
+  if (!model.overdueAvailable) {
+    return (
+      <DashboardCard
+        className="dh-analytics__overdue"
+        title="Overdue"
+        density="standard"
+      >
+        <p className="dh-analytics__absent">
+          This panel could not be read just now. Nothing in your workspace has
+          changed — the figures above are unaffected.
+        </p>
+      </DashboardCard>
+    );
+  }
+
+  const points: TrendLinePoint[] = model.overdueSeries.map((point, index) => ({
+    key: point.key,
+    date: data.bucketDates[index] ?? data.bucketDates[0] ?? "",
+    value: point.overdue,
+  }));
+  const values = points.map((point) => point.value);
+  const high = values.length > 0 ? Math.max(...values) : 0;
+  const low = values.length > 0 ? Math.min(...values) : 0;
+  const latest = values.length > 0 ? values[values.length - 1] : 0;
+
+  /*
+   * A LEVEL has no total, so this headline states the latest reading and the
+   * span it was read across — never a sum. Adding six readings of a backlog
+   * together would produce a number with no meaning, and the completion trend's
+   * "84 in total" is only meaningful because those are flows.
+   */
+  const headline =
+    points.length < 2
+      ? "Not enough of this period has passed to show a trend."
+      : `${latest} overdue now, read at the close of each of ${points.length} periods.`;
+  const summary =
+    points.length < 2
+      ? headline
+      : `${headline} ${model.overdueSeries
+          .map(
+            (point, index) => `${data.bucketLabels[index]}: ${point.overdue}`,
+          )
+          .join("; ")}.`;
+
+  return (
+    <DashboardCard
+      className="dh-analytics__overdue"
+      title="Overdue"
+      density="standard"
+    >
+      {points.length < 2 ? (
+        <p className="dh-analytics__absent">{headline}</p>
+      ) : (
+        <TrendLine
+          points={points}
+          summary={summary}
+          caption={headline}
+          scaleToTarget={false}
+          status="warning"
+          startLabel={data.bucketShortLabels[0] ?? ""}
+          endLabel={
+            data.bucketShortLabels[data.bucketShortLabels.length - 1] ?? ""
+          }
+          lowLabel={`${low} overdue`}
+          highLabel={`${high} overdue`}
+          describePoint={(point) => {
+            const index = model.overdueSeries.findIndex(
+              (entry) => entry.key === point.key,
+            );
+            const label = index >= 0 ? data.bucketLabels[index] : "";
+            return `${point.value} overdue at the close of ${label}`;
+          }}
+          data-testid="analytics-overdue-trend"
         />
       )}
     </DashboardCard>

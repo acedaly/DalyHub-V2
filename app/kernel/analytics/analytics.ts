@@ -12,10 +12,11 @@
  * completed, FOCUS TIME ("12h 30m"), DAILY PROGRESS ("68%") and goals on track.
  * DalyHub records no time and computes no daily percentage of a life, so two of
  * those four would have to be invented. They are not here, and nothing has been
- * substituted that pretends to be them: the surface shows the four things this
+ * substituted that pretends to be them: the surface shows the things this
  * product genuinely knows, and it says where each one comes from.
  *
- * Everything on it is therefore EXACT and from an existing read:
+ * Everything on it is therefore from an existing read, and exact except where it
+ * says otherwise:
  *
  *   - completions come from the append-only Activity stream, counted distinct
  *     per record, so they are exact for any past range as well as the current
@@ -23,7 +24,21 @@
  *   - the distribution resolves each completed Task's Area through the CURRENT
  *     spine links, which is a documented approximation the surface states out
  *     loud rather than hiding;
- *   - alignment is AREA-03's evaluator, unchanged and not re-derived here.
+ *   - alignment is AREA-03's evaluator, unchanged and not re-derived here;
+ *   - **overdue** (CONVERGE-01 §8) is the product's ONE overdue rule — a due
+ *     date strictly past, still not complete — read at each bucket's close
+ *     instead of at today, from the two stored columns a live overdue check
+ *     already reads. It carries the same kind of approximation the distribution
+ *     does, for the same reason (the schema keeps no history of a due date or of
+ *     a deletion), and says so in the notes.
+ *
+ * ── Why the fifth metric is a LEVEL, and what that costs ────────────────────
+ * The first four figures are FLOWS: things that happened inside the range. The
+ * overdue figure is a LEVEL: how deep the backlog was at a moment. The two do
+ * not mix — a level cannot be summed across buckets, and a flow cannot be read
+ * "as at". Keeping them in separate shapes (`AnalyticsSeriesPoint` against
+ * `AnalyticsOverduePoint`) is what stops the surface from ever adding six
+ * readings of a backlog together and calling the result a total.
  *
  * There is no score, no index, no productivity grade and no weighted composite
  * of unlike things — the same refusal REVIEW-03 makes, for the same reason: a
@@ -53,6 +68,20 @@ export interface AnalyticsCompletionCounts {
 /** One bucket's counts, against the bucket it was asked for. */
 export interface AnalyticsSeriesPoint extends AnalyticsCompletionCounts {
   readonly key: string;
+}
+
+/**
+ * CONVERGE-01 §8 — how much was overdue at ONE bucket's close.
+ *
+ * Deliberately not a field on `AnalyticsSeriesPoint`. Every count there is
+ * something that HAPPENED INSIDE the bucket; this is a level READ AT its close.
+ * Merging them would put a stock and a flow in one record and invite the one
+ * arithmetic this surface must never do — summing the buckets, which is
+ * meaningless for a level and already forbidden for the flows.
+ */
+export interface AnalyticsOverduePoint {
+  readonly key: string;
+  readonly overdue: number;
 }
 
 /** Completed Tasks attributed to one Area, for the distribution. */
@@ -107,6 +136,25 @@ export interface AnalyticsFacts {
   readonly areasAvailable: boolean;
   /** The Goal tally, or `null` when the read failed. */
   readonly goals: AnalyticsGoalTally | null;
+  /**
+   * CONVERGE-01 §8 — overdue at each bucket's close, oldest first, in the same
+   * order as `buckets`. Empty when the read failed.
+   */
+  readonly overdueSeries: readonly AnalyticsOverduePoint[];
+  /**
+   * Overdue at the close of the equally-long span BEFORE the range, or `null`.
+   *
+   * The comparison is level-to-level at two moments the same distance apart as
+   * the completion metrics' two windows, so "4 fewer than the previous period"
+   * means the same kind of thing on every card in the row.
+   */
+  readonly overduePrevious: number | null;
+  /**
+   * False when the overdue READ failed, as opposed to genuinely finding nothing
+   * overdue — the same distinction `areasAvailable` exists for, and the same
+   * reason: "nothing is overdue" is a claim about the workspace.
+   */
+  readonly overdueAvailable: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -163,6 +211,10 @@ export interface AnalyticsModel {
   readonly series: readonly AnalyticsSeriesPoint[];
   /** Every bucket, with its span, so the surface labels the axis itself. */
   readonly buckets: readonly AnalyticsBucket[];
+  /** Overdue at each bucket's close, aligned to `buckets`. Empty when unread. */
+  readonly overdueSeries: readonly AnalyticsOverduePoint[];
+  /** False when the overdue read failed — the panel then says so. */
+  readonly overdueAvailable: boolean;
   readonly distribution: readonly AnalyticsDistributionRow[];
   /** Tasks attributed to an Area. Never the range's whole task total. */
   readonly distributionTotal: number;
@@ -218,6 +270,24 @@ export function deltaSentence(value: AnalyticsDelta, noun: string): string {
   }
 }
 
+/**
+ * CONVERGE-01 §8 — the sentence under the overdue figure.
+ *
+ * `change` and `unavailable` are the row's shared wording, unchanged, so the
+ * five cards read as one row: "4 fewer than the previous period (12)".
+ *
+ * Only `no_basis` is written here, because the shared phrasing is about a period
+ * and this figure is about a MOMENT. "No overdue Tasks in the previous period"
+ * would be a claim that nothing was overdue during it; what the reading actually
+ * says is that nothing was overdue when it ended.
+ */
+export function overdueSentence(value: AnalyticsDelta): string {
+  if (value.kind === "no_basis") {
+    return "Nothing was overdue at the end of the previous period";
+  }
+  return deltaSentence(value, "overdue Tasks");
+}
+
 export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
   const current = facts.current;
   const tasksDelta = delta(
@@ -228,6 +298,22 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     current?.projectsCompleted ?? null,
     facts.previous?.projectsCompleted ?? null,
   );
+
+  /*
+   * The headline overdue figure is the LAST bucket's reading, not a separate
+   * read of "now".
+   *
+   * The newest bucket closes on the range's own last day (`rangeBuckets` lays
+   * the buckets backward from the end of the span, so the most recent one is
+   * always whole and always ends there), which means the figure on the card and
+   * the right-hand end of the line beneath it are the same number by
+   * construction. Reading "now" separately would let a page show a card and a
+   * chart that disagree — the failure this surface refuses everywhere else.
+   */
+  const overdueNow = facts.overdueAvailable
+    ? (facts.overdueSeries[facts.overdueSeries.length - 1]?.overdue ?? null)
+    : null;
+  const overdueDelta = delta(overdueNow, facts.overduePrevious);
 
   const attributed = facts.areas.reduce(
     (total, area) => total + area.tasksCompleted,
@@ -277,6 +363,28 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
               : `of ${plural(facts.goals.total, "Goal", "Goals")}, right now`,
       delta: null,
       to: "/goals",
+    },
+    {
+      /*
+       * CONVERGE-01 §8 — a LEVEL, and the only metric on the row that is one.
+       *
+       * "Goals on track" is a state with no comparable history, so it carries no
+       * delta. This is a state WITH one: the same reading taken at two moments
+       * the same distance apart as the completion metrics' two windows, which is
+       * what makes "4 fewer than the previous period" mean the same kind of
+       * thing here as it does two cards to the left.
+       *
+       * The word is the product's own (`/tasks` calls this view "Overdue — past
+       * its date and still open"), the rule behind the number is that view's
+       * rule, and the link goes to that view. There is one definition of overdue
+       * in DalyHub and this is a reading of it, not a second one.
+       */
+      id: "overdue",
+      label: "Overdue",
+      value: overdueNow,
+      supporting: overdueSentence(overdueDelta),
+      delta: overdueDelta,
+      to: "/tasks?system=overdue",
     },
     {
       id: "areas",
@@ -335,26 +443,54 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
       `The ${MAX_DISTRIBUTION_ROWS} Areas with the most completed work are shown; ${facts.areas.length - MAX_DISTRIBUTION_ROWS} more received some.`,
     );
   }
+  /*
+   * The overdue history's own approximation, said out loud on the surface for
+   * the same reason the distribution's is: the reader is entitled to know which
+   * of these figures are exact and which are the best a schema without history
+   * can give. Only stated when a past reading is actually drawn — on a range
+   * with one bucket there is no history to qualify.
+   */
+  if (facts.overdueAvailable && facts.overdueSeries.length > 1) {
+    notes.push(
+      "Past overdue readings use each Task’s due date as it stands today, and count only Tasks that still exist. Changing a due date, or deleting a Task, changes its history here.",
+    );
+  }
 
   const degraded =
-    current === null || facts.goals === null || !facts.areasAvailable;
+    current === null ||
+    facts.goals === null ||
+    !facts.areasAvailable ||
+    !facts.overdueAvailable;
   /*
    * "Nothing happened" requires every read to have SUCCEEDED and returned
    * nothing. A failed distribution read must not be able to produce the empty
    * state, because that state asserts a fact about the period.
+   */
+  /*
+   * CONVERGE-01 §8 — a backlog is not nothing.
+   *
+   * The empty state replaces the WHOLE surface with "Nothing completed in this
+   * period", which was true and complete while every figure on the page counted
+   * completions. It is neither now: a period with no completions and forty-three
+   * overdue Tasks is the single most important thing this screen can say, and
+   * hiding it behind a calm empty state would be the surface reporting nought
+   * for something it actually read.
    */
   const isEmpty =
     !degraded &&
     (current?.tasksCompleted ?? 0) === 0 &&
     (current?.projectsCompleted ?? 0) === 0 &&
     (current?.goalsCompleted ?? 0) === 0 &&
-    facts.areas.length === 0;
+    facts.areas.length === 0 &&
+    (overdueNow ?? 0) === 0;
 
   return {
     range: facts.range,
     metrics,
     series: facts.series,
     buckets: facts.buckets,
+    overdueSeries: facts.overdueSeries,
+    overdueAvailable: facts.overdueAvailable,
     distribution,
     distributionTotal: attributed,
     distributionAvailable: facts.areasAvailable,

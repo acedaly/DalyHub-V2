@@ -140,6 +140,25 @@
   min-inline-size: 0;
 }
 
+/*
+ * CONVERGE-01 §8 — the overdue trend takes the whole width, on its own row.
+ *
+ * It is a LINE, and the note above already says why a line gets the wider track:
+ * it needs horizontal room to have a shape at all. There is no third panel to
+ * pair it with, and half a row beside an empty half is worse than a full one —
+ * so it spans both tracks rather than leaving a hole where a fourth panel would
+ * be if one existed.
+ *
+ * It sits LAST rather than beside the completion trend, and that is the reading
+ * order rather than a ranking: "how much did I finish" and "where did it land"
+ * are both about the period, and "how deep is the backlog, and which way is it
+ * going" is the conclusion drawn under them. Nothing is moved by `order` — this
+ * is the DOM order, so the tab order and the reading order agree with it.
+ */
+.dh-analytics__overdue {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 64rem) {
   .dh-analytics__panels {
     grid-template-columns: minmax(0, 1fr);
