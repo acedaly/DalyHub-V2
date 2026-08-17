@@ -2297,6 +2297,22 @@ What IS uniform, and must stay so: the control (`ViewSwitcher`), the param (`?pr
 
 **A large collection may DEFAULT to a different presentation** ([ADR-100](../decisions/ARCHITECTURE_DECISIONS.md#adr-100-a-collections-default-presentation-follows-its-size--the-table-at-forty-projects-and-an-explicit-choice-that-is-never-overridden)). `resolveCollectionPresentation` is the one rule: above `COLLECTION_TABLE_DEFAULT_THRESHOLD` records in the CURRENT scope, the collection opens in its "large" presentation instead of its default — and an explicit `?present=` always wins, at every size. Projects opts in at forty. A collection that wants this passes its own `allowed` and `large`; it never re-derives the arithmetic.
 
+**One list container: BARE ROWS on the page background** (FINISH-01, closing CONVERGE-01 §3). A collection that draws rows rather than cards draws them directly on the canvas, separated by hairlines that the LIST owns — not by a card around each row, and not by one card around the whole run.
+
+```
+Row one                                         ← nothing above the first row
+────────────────────────────────────────────────
+Row two
+────────────────────────────────────────────────
+Row three                                       ← nothing below the last
+```
+
+The rule is what the product's row lists already do — Notes (`.dh-notes-list`), Tasks (`.dh-tasklist`) and Areas' list presentation (`.dh-erow-list`) — and People (`.dh-prow-list`) was the one outlier, drawing a white card with a resting shadow around its rows until this pass. The reasoning is the one `notes.css` already recorded for itself: *rows this close together do not need containers to be told apart; a rule is enough, and it keeps the page reading as one list rather than as a stack of cards.* A surface says "what is inside me is a thing", and a directory is not a thing — it is a run of records.
+
+Two consequences a new list must carry with it: the hairline goes on `li + li` (so the first and last edges are the page's own and two adjacent rows cannot disagree about the line between them), and under `forced-colors` that hairline is restated in `CanvasText` — never a box around the run, which would draw a container the list does not have.
+
+**The one recorded exception is a record's TAB PANEL, and it is not this rule's business.** A Project's task list sits inside `.record-tabs__panel`, which looks like a bordered card around a list and is not one: it is the record layout's own surface, drawn identically behind Overview, Links, Activity and Settings on every record in the product, and joined to the tab strip above it (M3-INT, `record-layout.css`). Taking it away for one tab of one record would make that tab the odd one out among its own siblings — a larger inconsistency than the one it would fix. RECORD-01 already defines the deliberate opt-out, `data-surface="plain"`, and states its condition precisely: *a panel whose content already IS a surface does not draw a second* (the Note editor, which draws its own outline). A task list is not already a surface, so it does not meet that condition and keeps the panel.
+
 **A module shows only what it needs.** Consistency here is placement and hierarchy, not content: Meetings and Tasks deliberately have no page-level create and pass nothing rather than filling the slot, and Areas has no view switcher because it has one view.
 
 **Responsive composition changes on purpose.** Above `md` the header is one row whose title block GROWS (`flex: 1 1 auto` with `min-inline-size: 0`) and whose controls do not — the fix for headers that wrapped while hundreds of pixels of laptop width sat unused. Below `md` it becomes a two-row grid rather than a wrapping flex row, because wrapping lets whatever happens to fit decide the composition:

@@ -278,6 +278,40 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     expect(weights.state).not.toBe(weights.name);
   });
 
+  /*
+   * CONVERGE-01 §3 — one list container, and People was the outlier.
+   *
+   * Notes, Tasks and Areas' list presentation all draw hairline-separated rows
+   * directly on the canvas; this drew a white card with a resting shadow around
+   * its four. The rule is recorded in `DESIGN_SYSTEM.md` → "One list container".
+   */
+  test("the People list is bare rows on the page, not a card", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoFixture(page, "/people");
+
+    const measured = await page.locator(".dh-prow-list").evaluate((list) => {
+      const style = getComputedStyle(list);
+      const second = list.querySelectorAll(".dh-prow-list__item")[1];
+      return {
+        background: style.backgroundColor,
+        shadow: style.boxShadow,
+        radius: style.borderTopLeftRadius,
+        // The hairline the rule keeps: drawn by the LIST between its rows, so
+        // the first and last edges belong to the page.
+        hairline: second ? getComputedStyle(second).borderTopWidth : null,
+      };
+    });
+
+    // No surface of its own — transparent, unlifted, unrounded.
+    expect(measured.background).toBe("rgba(0, 0, 0, 0)");
+    expect(measured.shadow).toBe("none");
+    expect(measured.radius).toBe("0px");
+    // …and the rows are still separated.
+    expect(measured.hairline).not.toBe("0px");
+  });
+
   test("record header actions meet the 44px touch target", async ({ page }) => {
     await createPerson(page, `${TITLE_PREFIX}${Date.now()}`);
     await expectMinTouchTarget(page.getByRole("tab", { name: "Summary" }));

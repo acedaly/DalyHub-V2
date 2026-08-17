@@ -2930,14 +2930,26 @@
  * The list owns the surface and the hairlines, so no row draws its own border
  * and two adjacent rows can never disagree about the line between them.
  */
+/*
+ * CONVERGE-01 §3 — BARE ROWS on the page background, which is the product's
+ * one list-container rule (`DESIGN_SYSTEM.md` → "One list container").
+ *
+ * This list was the outlier and the only one: Notes' rows, Tasks' rows and
+ * Areas' `.dh-erow-list` are all already hairline-separated rows directly on the
+ * canvas, and this drew a white card with a resting shadow around its four. A
+ * surface is a statement that what is inside it is a THING; a directory is not a
+ * thing, it is a run of records, and the hairlines between them already say
+ * where one ends. The card was a second boundary around a boundary that was
+ * doing its job.
+ *
+ * The hairlines stay exactly as they were, drawn by the LIST rather than by each
+ * row, so the first and last edges are the page's and no two adjacent rows can
+ * disagree about the line between them.
+ */
 .dh-prow-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--dh-color-surface);
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
-  overflow: hidden;
   /*
    * The same content cap `.dh-erow-list` takes, for the same reason: a row with
    * four columns of content stretched to a 2560 monitor puts the name and the
@@ -3275,8 +3287,18 @@
 }
 
 @media (forced-colors: active) {
-  .dh-prow-list {
-    border: var(--app-border-width-thin) solid CanvasText;
+  /*
+   * CONVERGE-01 §3 — the forced-colours border moves from the LIST to between
+   * its rows, because the list is no longer a surface to outline.
+   *
+   * Under forced colours every background collapses, so a hairline in
+   * `--dh-color-border` disappears and the rows would run together with nothing
+   * separating them. The rule that already separates them is the right one to
+   * restate in a system colour; a box around the whole run would draw a
+   * container this list deliberately no longer has.
+   */
+  .dh-prow-list__item + .dh-prow-list__item {
+    border-block-start: var(--app-border-width-thin) solid CanvasText;
   }
   .dh-prow__dot {
     background: CanvasText;
@@ -3316,9 +3338,8 @@
  * one line each, at full width.
  */
 @media (max-width: 48rem) {
-  .dh-prow-list {
-    border-radius: var(--app-shape-card);
-  }
+  /* CONVERGE-01 §3 — no radius here any more: the list has no surface to round
+   * the corners of. */
 
   .dh-prow {
     grid-template-columns: auto minmax(0, 1fr) auto;
