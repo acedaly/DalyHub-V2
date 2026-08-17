@@ -17,6 +17,8 @@
  * greyscale print and all five themes.
  */
 
+import { TagChipList } from "~/shared/ui";
+
 import { AssetDatesTab } from "./AssetDatesTab";
 import { AssetValueHistory } from "./AssetValueHistory";
 import { nextMeaningfulDate } from "./asset-dates";
@@ -221,15 +223,12 @@ export function AssetOverview({
         </dl>
       ) : null}
 
-      {asset.tags.length > 0 ? (
-        <ul className="dh-asset-summary__tags" aria-label="Tags">
-          {asset.tags.map((tag) => (
-            <li key={tag} className="dh-asset-summary__tag">
-              {tag}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {/* CONVERGE-01 §6 — the ONE shared tag chip (see `TagChip`). */}
+      <TagChipList
+        tags={asset.tags}
+        label="Tags"
+        className="dh-asset-summary__tags"
+      />
 
       {/* -- Progressive disclosure: the depth, only when asked for --------- */}
 

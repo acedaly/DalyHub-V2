@@ -266,14 +266,16 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     expect(await quiet.first().locator(".dh-prow__dot").count()).toBe(0);
     // It is genuinely quieter than the name beside it, not merely labelled so.
     const weights = await quiet.first().evaluate((node) => {
-      const row = node.closest(".dh-prow");
       const state = node.querySelector(".dh-prow__rhythm-state");
+      const name = node.closest(".dh-prow")?.querySelector(".dh-prow__name");
       return {
-        state: getComputedStyle(state).color,
-        muted: getComputedStyle(row.querySelector(".dh-prow__name")).color,
+        state: state ? getComputedStyle(state).color : null,
+        name: name ? getComputedStyle(name).color : null,
       };
     });
-    expect(weights.state).not.toBe(weights.muted);
+    expect(weights.state).not.toBeNull();
+    expect(weights.name).not.toBeNull();
+    expect(weights.state).not.toBe(weights.name);
   });
 
   test("record header actions meet the 44px touch target", async ({ page }) => {

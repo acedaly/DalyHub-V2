@@ -268,8 +268,13 @@
   margin: var(--app-space-2) 0 0;
 }
 
-.dh-person-summary__relationship-chip,
-.dh-person-summary__tag {
+/*
+ * CONVERGE-01 §6 — `.dh-person-summary__tag` is GONE; tags render the shared
+ * `.dh-tagchip` (`ui.css`). The relationship chip keeps this rule because it is
+ * not a tag: it states one value from a closed set, and its corner is the
+ * module's own.
+ */
+.dh-person-summary__relationship-chip {
   display: inline-flex;
   align-items: center;
   padding: var(--app-space-1) var(--app-space-2);

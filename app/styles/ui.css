@@ -795,6 +795,61 @@
 }
 
 /* ========================================================================== */
+/* TagChip (CONVERGE-01 §6)                                                    */
+/* ========================================================================== */
+
+/*
+ * The ONE tag chip, replacing `.dh-person-summary__tag` and
+ * `.dh-asset-summary__tag` — identical rules in two modules that disagreed only
+ * about the corner radius.
+ *
+ * The stadium wins that disagreement. A tag is a label the eye COUNTS rather
+ * than reads word by word, and fully-rounded ends are what let a run of them
+ * read as a run instead of as a row of small boxes — which is also why this is
+ * not the `Badge`'s `--dh-radius-sm`: a badge sits alone and states a state, a
+ * tag arrives in threes and states nothing.
+ *
+ * `accent-subtle` over `primary` is the pair both copies already used and the
+ * token layer already holds above 4.5:1 in both appearances, so the tint is
+ * quiet without the label ever being marginal.
+ */
+.dh-tagchip {
+  display: inline-flex;
+  align-items: center;
+  max-inline-size: 100%;
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--dh-color-accent-subtle);
+  color: var(--md-sys-color-primary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  /* A tag is one token: it ellipsises rather than wrapping mid-word, so a chip
+   * is never two lines tall in a row sized for one. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The overflow chip states a COUNT, not a tag, so it takes the text ramp rather
+ * than the accent — otherwise "+3" reads as a tag someone named "+3". */
+.dh-tagchip--more {
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-tagchip-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+/* ========================================================================== */
 /* Reduced motion                                                              */
 /* ========================================================================== */
 

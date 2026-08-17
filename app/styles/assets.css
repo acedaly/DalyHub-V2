@@ -244,13 +244,9 @@
   padding: 0;
 }
 
-.dh-asset-summary__tag {
-  padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--dh-color-accent-subtle);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-body-small-size);
-}
+/* CONVERGE-01 §6 — `.dh-asset-summary__tag` is GONE; tags render the shared
+ * `.dh-tagchip` (`ui.css`). This module's copy and People's differed only in
+ * corner radius, which is exactly the drift AGENTS.md §9.8 calls debt. */
 
 .dh-asset-summary__edit {
   margin-block-start: var(--app-space-4);
