@@ -469,7 +469,11 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
     // the case that proves below is still the default and flipping is a
     // fallback, not a habit. A Tasks row's ~713px menu cannot fit either side
     // of an 800px viewport and is therefore the wrong instrument for this.
-    await gotoFixture(page, "/projects");
+    //
+    // ADR-100 — the GALLERY, explicitly: a workspace this size now opens as a
+    // table by default, and a table row's menu is a different trigger in a
+    // different box. What this test measures is unchanged.
+    await gotoFixture(page, "/projects?present=grid");
     // UIX-02 — a Project gallery card is `.dh-pcard`; the generic `.dh-ecard`
     // it used to share with Areas is now Goals' and Assets'.
     const card = page.locator("article.dh-pcard, li .dh-pcard").first();

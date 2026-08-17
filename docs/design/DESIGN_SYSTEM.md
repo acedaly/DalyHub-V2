@@ -2283,6 +2283,20 @@ filters (selects · tags · chips)
 
 **The control row is the band beneath, and it has two ends** (REDESIGN-04). [`CollectionControlRow`](../../app/shared/collection-layout/CollectionControlRow.tsx) puts the lifecycle/mode rail at the leading edge and a **presentation toggle** at the trailing one. The toggle is still the ONE view switcher and UIQ-013's semantics are untouched — it changes how records are drawn, never which are included. It sits a band lower than the `viewSwitcher` slot only where the title row is already carrying search and the primary action, which at 1280 is where three control clusters on one line break. A collection with a sparse header keeps the switcher in the header slot.
 
+**The presentation vocabulary is THREE words and they are not synonyms** (FINISH-01, closing the audit's "Grid / Table vs Grid / List" finding). The words live in [`presentation.ts`](../../app/shared/collection-layout/presentation.ts) and each names a genuinely different drawing:
+
+| `?present=` | What it draws | Who draws it |
+| --- | --- | --- |
+| `grid` | cards in a wrapping gallery | every collection; the default |
+| `table` | a real `<table>` with `<th scope="col">` columns and row headers | Projects |
+| `list` | full-width rows separated by hairlines, one identity mark per row | Areas |
+
+The 16 August 2026 audit read Projects' "Table" beside Areas' "List" as one control saying two words, and asked for one word product-wide. **It is the opposite**: two controls, correctly named, for two different presentations. Projects' second view is a real table — columns with headers, which is what makes it scannable and what `ProjectsTable` documents as its reason for being a `<table>` rather than divs. Areas' is a row list with no columns at all. Renaming either would make a label describe something the page does not draw, which §7 ("speak in the user's nouns") forbids more strongly than it asks for uniformity.
+
+What IS uniform, and must stay so: the control (`ViewSwitcher`), the param (`?present=`), the slot (the control row's trailing edge), the first option (`grid`, always the default) and the accessible-name pattern ("Project layout", "Area layout"). **A fourth word needs a fourth drawing**, and belongs in the table above before it appears in a module.
+
+**A large collection may DEFAULT to a different presentation** ([ADR-100](../decisions/ARCHITECTURE_DECISIONS.md#adr-100-a-collections-default-presentation-follows-its-size--the-table-at-forty-projects-and-an-explicit-choice-that-is-never-overridden)). `resolveCollectionPresentation` is the one rule: above `COLLECTION_TABLE_DEFAULT_THRESHOLD` records in the CURRENT scope, the collection opens in its "large" presentation instead of its default — and an explicit `?present=` always wins, at every size. Projects opts in at forty. A collection that wants this passes its own `allowed` and `large`; it never re-derives the arithmetic.
+
 **A module shows only what it needs.** Consistency here is placement and hierarchy, not content: Meetings and Tasks deliberately have no page-level create and pass nothing rather than filling the slot, and Areas has no view switcher because it has one view.
 
 **Responsive composition changes on purpose.** Above `md` the header is one row whose title block GROWS (`flex: 1 1 auto` with `min-inline-size: 0`) and whose controls do not — the fix for headers that wrapped while hundreds of pixels of laptop width sat unused. Below `md` it becomes a two-row grid rather than a wrapping flex row, because wrapping lets whatever happens to fit decide the composition:

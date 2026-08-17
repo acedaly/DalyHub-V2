@@ -56,3 +56,69 @@ export function parseCollectionPresentation(
   const parsed = value as CollectionPresentation;
   return allowed.includes(parsed) ? parsed : "grid";
 }
+
+/**
+ * ADR-100 / CONVERGE-01 §4 — the size at which a collection stops being a
+ * gallery by default.
+ *
+ * The audit left this as an open question ("does the table become the default at
+ * ~40+ projects?"), and it is answered on the record in
+ * [ADR-100](../../../docs/decisions/ARCHITECTURE_DECISIONS.md). Forty is a
+ * measurement rather than a round number: at the gallery's own
+ * `--app-entity-card-min-width`, a 1440px canvas draws three cards a row and a
+ * ~200px card, so forty Projects is about fourteen rows and roughly four
+ * screens of scrolling — the point at which "look at them" has already become
+ * "find one", which is the question a table answers and a gallery does not.
+ */
+export const COLLECTION_TABLE_DEFAULT_THRESHOLD = 40;
+
+/**
+ * Resolve a collection's presentation from the owner's CHOICE first, and only
+ * then from its size.
+ *
+ * ── The choice always wins, and is never overridden ─────────────────────────
+ * A `?present=` value the collection actually draws is the owner speaking, and
+ * it is honoured whatever the size — including `grid` on a workspace of two
+ * hundred Projects, which is the case that makes this rule worth stating. A
+ * default that quietly re-asserted itself would be a preference the owner cannot
+ * hold, and the URL is the only place this product keeps view state precisely so
+ * that a choice survives a reload, a share and a Back.
+ *
+ * ── An absent or unusable value is NOT a choice ─────────────────────────────
+ * Absent, misspelled, tampered with, or naming a presentation this collection
+ * does not draw: none of those is the owner saying "gallery". They fall to the
+ * size rule, which is the same philosophy `parseCollectionPresentation` already
+ * applies one level down.
+ *
+ * ── An unknown size falls to the gallery ────────────────────────────────────
+ * `total` is `null` when the count read FAILED. Guessing "table" from a failed
+ * read would let a transient database error silently change what the page looks
+ * like, so an unknown size gets the default the collection has always had.
+ */
+export function resolveCollectionPresentation(input: {
+  /** The raw `?present=` value, exactly as it came off the URL. */
+  readonly param: string | null | undefined;
+  /** The presentations this collection draws. The first is its default. */
+  readonly allowed: readonly CollectionPresentation[];
+  /** How many records the CURRENT scope holds, or `null` when unknown. */
+  readonly total: number | null;
+  /** What a large collection falls to. */
+  readonly large: CollectionPresentation;
+  readonly threshold?: number;
+}): CollectionPresentation {
+  const { param, allowed, total, large } = input;
+  const threshold = input.threshold ?? COLLECTION_TABLE_DEFAULT_THRESHOLD;
+
+  if (
+    typeof param === "string" &&
+    PRESENTATION_SET.has(param) &&
+    allowed.includes(param as CollectionPresentation)
+  ) {
+    return param as CollectionPresentation;
+  }
+
+  if (total !== null && total > threshold && allowed.includes(large)) {
+    return large;
+  }
+  return allowed[0] ?? "grid";
+}
