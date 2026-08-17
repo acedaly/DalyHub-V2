@@ -106,6 +106,28 @@ export interface ViewSwitcherProps {
    * where a module's own history semantics differ.
    */
   readonly replace?: boolean;
+  /**
+   * ADR-100 — write the FIRST option's value into the URL instead of omitting
+   * it, for a collection whose default is CONDITIONAL.
+   *
+   * By default the first option is treated as "no param", which keeps a
+   * collection's canonical URL clean and is right whenever the default is
+   * fixed: `/projects` and `/projects?present=grid` mean the same thing, so
+   * only one of them needs to exist.
+   *
+   * They stop meaning the same thing the moment a default depends on something
+   * else. Projects opens as a TABLE above forty (ADR-100), and it reads an
+   * absent `?present=` as "the owner has not chosen" — so a Grid button that
+   * deletes the param hands back the very state the owner just pressed a button
+   * to leave, and the table reasserts itself on the next navigation. That is
+   * ADR-100 decision 2 ("an explicit choice is never overridden") broken by the
+   * control rather than by the rule.
+   *
+   * Set this and every option states itself, so a choice is a choice at every
+   * size. A collection with a fixed default should NOT set it: a param that
+   * only ever repeats the default is noise in a shared URL.
+   */
+  readonly alwaysWriteValue?: boolean;
   readonly className?: string;
 }
 
@@ -118,6 +140,7 @@ export function ViewSwitcher({
   onSelect,
   iconOnly = false,
   replace,
+  alwaysWriteValue = false,
   className,
 }: ViewSwitcherProps) {
   const [searchParams] = useSearchParams();
@@ -134,7 +157,7 @@ export function ViewSwitcher({
       return "?";
     }
     const next = new URLSearchParams(searchParams);
-    if (option.value === defaultValue) {
+    if (option.value === defaultValue && !alwaysWriteValue) {
       next.delete(param);
     } else {
       next.set(param, option.value);

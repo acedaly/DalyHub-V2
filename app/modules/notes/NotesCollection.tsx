@@ -338,13 +338,37 @@ function NotesCollection({
           basePath="/notes"
         />
       }
-      // Shell cleanup: the header's "New Note" button is gone. It opened the
-      // generic create drawer with no context the global capture control does not
-      // already supply — and the capture panel posts to `POST /notes/new`, the
-      // very same NOTES-01B route this drawer posts to, so nothing about how a
-      // Note is created has changed. The `?drawer=new-note` URL still resolves
-      // (deep links and the empty state below both use it), so this removes an
-      // affordance, not a path.
+      /*
+       * CONVERGE-01 §6 — "+ New note" is back in the header's primary slot.
+       *
+       * A previous shell cleanup removed it, on the reasoning that it opened the
+       * same drawer the global capture control already reaches and therefore
+       * added no path. That is true and it is not the whole question. Every other
+       * collection in DalyHub — Projects, Goals, Areas, People, Assets — keeps
+       * its own create action in this exact slot, so Notes was the one page where
+       * the answer to "how do I make one of these?" was somewhere else. The
+       * audit's phrasing is the right one: this is one more door into a room that
+       * already exists, not a second creation path.
+       *
+       * Same drawer key, same `NewNoteForm`, same `POST /notes/new` — so the
+       * `?drawer=new-note` deep link, the empty state's action and the global
+       * capture panel all still resolve to the one flow.
+       *
+       * It belongs to the ACTIVE scope only, which is People's own rule for the
+       * same slot (`canQuickAdd`): "create one of these" is not the act on a page
+       * of archived or deleted records, and offering it there would be a control
+       * whose result is invisible from where it was pressed.
+       */
+      primaryAction={
+        state === "active" ? (
+          <DrawerTrigger
+            drawerKey={NEW_NOTE_KEY}
+            className="dh-btn dh-btn--primary"
+          >
+            <CreateActionLabel>New note</CreateActionLabel>
+          </DrawerTrigger>
+        ) : undefined
+      }
       error={
         failed ? (
           <EmptyState

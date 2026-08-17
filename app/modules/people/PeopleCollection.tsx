@@ -294,20 +294,23 @@ function contextLine(person: SerializedPersonListItem): string | null {
 }
 
 /**
- * The rhythm column's detail line — when this person was last heard from.
+ * When this person was last heard from.
  *
  * The DERIVED date leads, because it cannot go stale; the hand-entered "last
- * spoke" field is the fallback, and "Nothing recorded yet" is the honest third
- * case. A Person whose signal failed to load shows no rhythm at all rather than
- * a wrong one.
+ * spoke" field is the fallback, and a Person with neither says nothing here
+ * rather than a placeholder.
  *
  * Every branch is PREFIXED with what the date means. The first screenshots of
  * this row printed a bare "24 March 2026" under "Due for follow-up", and a bare
  * date beneath a follow-up state reads just as naturally as the date the
- * follow-up is DUE — which is the opposite of what it is. A column of dates that
- * needs the reader to remember which kind they are is a column that says nothing.
+ * follow-up is DUE — which is the opposite of what it is. A run of dates that
+ * needs the reader to remember which kind they are is a run that says nothing.
+ *
+ * CONVERGE-01 §7 moved this phrase from the rhythm column's detail to the HEAD
+ * of the connection line below. The wording and its prefix rule are unchanged;
+ * only where it sits is.
  */
-function rhythmDetail(person: SerializedPersonListItem): string | null {
+function lastSharedPhrase(person: SerializedPersonListItem): string | null {
   const days = person.stayInTouch?.daysSinceLastInteraction ?? null;
   if (days !== null) {
     const dated = formatRelationshipDate(
@@ -320,6 +323,57 @@ function rhythmDetail(person: SerializedPersonListItem): string | null {
   const followUp = formatPersonDate(person.nextFollowUp);
   if (followUp) return `Follow up ${followUp}`;
   return null;
+}
+
+/**
+ * CONVERGE-01 §7 — the row's ONE supporting line, and it leads with CONNECTION.
+ *
+ * The audit's finding: the People list led with absence. Every row's loudest
+ * supporting statement was a stay-in-touch verdict, which for a Person the owner
+ * has recorded nothing about reads "No shared history yet" — the list telling
+ * you what you have not done, in the position where it could tell you what you
+ * share.
+ *
+ * So the line is composed in the audit's own priority order:
+ *
+ *   1. **the last interaction** — a Meeting, a Diary entry or a Note touching
+ *      this Person, which is what `daysSinceLastInteraction` is derived from;
+ *   2. **open commitments** — Tasks linked to them and still open, which is the
+ *      same count whether the link came from `@waiting` or from an ordinary
+ *      Task↔Person link (see `SerializedPersonStayInTouch.openTasks`);
+ *   3. **linked Projects** — the ones neither complete nor archived.
+ *
+ * ── Why the identity context is still on the line, and last ─────────────────
+ * "Family · Acme" is how two people called Sarah are told apart, which the
+ * context line's own note has said since UIX-05 and which is still true. It is
+ * not what CONNECTS you, though, so it follows rather than leads — and when the
+ * line is too long for the track it is the part that ellipsises, which is the
+ * right thing to lose because the avatar, the name and the reach column are all
+ * still disambiguating beside it.
+ *
+ * A Person with nothing shared and no context says nothing at all, exactly as
+ * before: an absence is drawn as an absence, never as a placeholder.
+ */
+function connectionLine(person: SerializedPersonListItem): string | null {
+  const parts: string[] = [];
+
+  const lastShared = lastSharedPhrase(person);
+  if (lastShared) parts.push(lastShared);
+
+  const openTasks = person.stayInTouch?.openTasks ?? 0;
+  if (openTasks > 0) {
+    parts.push(openTasks === 1 ? "1 open Task" : `${openTasks} open Tasks`);
+  }
+
+  const projects = person.stayInTouch?.activeProjects ?? 0;
+  if (projects > 0) {
+    parts.push(projects === 1 ? "1 Project" : `${projects} Projects`);
+  }
+
+  const context = contextLine(person);
+  if (context) parts.push(context);
+
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 /**
@@ -790,7 +844,7 @@ function PeopleCollection({
               />
             }
             title={person.title}
-            context={contextLine(person)}
+            context={connectionLine(person)}
             reach={person.reach[0] ?? null}
             secondaryReach={person.reach[1] ?? null}
             rhythm={
@@ -801,7 +855,20 @@ function PeopleCollection({
                       person.stayInTouch.state,
                       person.stayInTouch.tone,
                     ),
-                    detail: rhythmDetail(person),
+                    /*
+                     * CONVERGE-01 §7 — "No shared history yet" is DEMOTED, not
+                     * deleted.
+                     *
+                     * It is a true and useful thing to know, and it was the
+                     * loudest element on the row: a full-weight verdict with a
+                     * dot beside it, at the end of the line the eye lands on
+                     * last. `quiet` drops it to the muted ramp and takes the dot
+                     * away — there is no state for a dot to agree with when the
+                     * answer is "nothing recorded" — so the row's emphasis moves
+                     * to the connection line, which is where the audit asks for
+                     * it.
+                     */
+                    quiet: person.stayInTouch.state === "no_history",
                   }
                 : undefined
             }

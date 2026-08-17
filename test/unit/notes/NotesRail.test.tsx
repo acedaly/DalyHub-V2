@@ -1,5 +1,5 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { NotesList } from "~/modules/notes/NotesList";
@@ -71,11 +71,48 @@ describe("NotesList", () => {
     expect(
       screen.getByText("The current pathway assumes every student arrives…"),
     ).toBeInTheDocument();
-    expect(screen.getByText("oppo, policy")).toBeInTheDocument();
+    // CONVERGE-01 §6 — tags are CHIPS in a named list, not a comma-joined
+    // string. Each is a countable object rather than a sentence fragment.
+    const tags = screen.getByRole("list", { name: /^Tags on / });
+    expect(
+      within(tags)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["oppo", "policy"]);
     expect(screen.getByText("8 Aug 2026")).toBeInTheDocument();
     // The gallery's per-row noise, gone: no type label, no link count.
     expect(screen.queryByText("Note")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Links/)).not.toBeInTheDocument();
+  });
+
+  /*
+   * CONVERGE-01 §6 — a note may carry any number of tags, and the row's metadata
+   * column has a fixed width. The bound is stated, never silent.
+   */
+  it("bounds the chips and states the remainder rather than truncating silently", () => {
+    renderIn(
+      <NotesList
+        notes={[note({ tags: ["a", "b", "c", "d", "e"] })]}
+        ariaLabel="Notes"
+      />,
+    );
+    const items = within(
+      screen.getByRole("list", { name: /^Tags on / }),
+    ).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "a",
+      "b",
+      "c",
+      "+2",
+    ]);
+    // The two that are not drawn are still NAMED, for a reader who cannot see
+    // the row at all.
+    expect(screen.getByLabelText("2 more: d, e")).toBeInTheDocument();
+  });
+
+  it("draws no tag list at all for an untagged note", () => {
+    renderIn(<NotesList notes={[note({ tags: [] })]} ariaLabel="Notes" />);
+    expect(screen.queryByRole("list", { name: /^Tags on / })).toBeNull();
   });
 
   it("says so in WORDS when a note is archived", () => {

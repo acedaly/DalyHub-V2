@@ -27,6 +27,18 @@ test.describe("PROJ-01 — Projects", () => {
     await page.getByRole("link", { name: "Projects", exact: true }).click();
     await expect(page).toHaveURL(/\/projects$/);
 
+    /*
+     * ADR-100 — the sidebar link is what this test is about, and it lands on
+     * the collection's own default, which for a workspace this size is now the
+     * table. The card assertions below therefore switch to the gallery through
+     * the product's own control, which also proves the toggle works from here.
+     */
+    await page
+      .getByRole("group", { name: "Project layout" })
+      .getByRole("link", { name: "Grid" })
+      .click();
+    await expect(page).toHaveURL(/present=grid/);
+
     // Real project cards render with their Area context.
     const card = page.getByRole("link", { name: "Open Website relaunch" });
     await expect(card).toBeVisible();
@@ -193,7 +205,14 @@ test.describe("PROJ-01 — Projects", () => {
   test("collection: Load more reaches a project beyond the first keyset page", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery is asked for EXPLICITLY, because a workspace this
+     * size now opens as a table by default. This test is about the CARD, so it
+     * pins the presentation that draws one; what it protects is unchanged, and
+     * the default's own behaviour is asserted by "opens as a table above the
+     * threshold, and an explicit choice wins".
+     */
+    await gotoFixture(page, "/projects?present=grid");
 
     // A project on the SECOND page is not present until "Load more" is used —
     // proving the first render is a bounded page, not the whole (62-row) set.
@@ -258,7 +277,14 @@ test.describe("PROJ-01 — Projects", () => {
   test("collection: icons, parent context and the exclusive status chip", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery is asked for EXPLICITLY, because a workspace this
+     * size now opens as a table by default. This test is about the CARD, so it
+     * pins the presentation that draws one; what it protects is unchanged, and
+     * the default's own behaviour is asserted by "opens as a table above the
+     * threshold, and an explicit choice wins".
+     */
+    await gotoFixture(page, "/projects?present=grid");
 
     // The seed is deliberately partial (PR #121): `pr-website` carries a chosen
     // icon and `pr-launch` carries none, so BOTH the persisted and the fallback
@@ -324,7 +350,9 @@ test.describe("PROJ-01 — Projects", () => {
      */
     const targets = ["project-card-attention", "project-card-figures"] as const;
     for (const testid of targets) {
-      await gotoFixture(page, "/projects");
+      // ADR-100 — the gallery, explicitly: this is a CARD hit test, and a
+      // workspace this size now opens as a table by default.
+      await gotoFixture(page, "/projects?present=grid");
       const card = page.getByRole("article", { name: "Website relaunch" });
       await expect(card).toBeVisible();
       const region = card.getByTestId(testid);
@@ -360,6 +388,71 @@ test.describe("PROJ-01 — Projects", () => {
     const box = (await status.boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page).toHaveURL(/#entity-1$/);
+  });
+
+  /*
+   * ADR-100 / CONVERGE-01 §4 — a large collection opens as a TABLE, and an
+   * explicit choice is never overridden.
+   *
+   * The unit tests own the arithmetic; what only a browser over the real
+   * workspace can prove is that the rule reaches the page from the loader, that
+   * the counts feeding it are the ones the header prints, and — the property
+   * worth guarding — that a deliberate `?present=grid` survives on a collection
+   * far over the threshold.
+   */
+  test("collection: opens as a table above the threshold, and an explicit choice wins", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects");
+
+    // The header states the size this decision is made from, so the two can
+    // never disagree without the test noticing.
+    const subtitle = await page
+      .locator(".dh-pane-header__subtitle")
+      .innerText();
+    const counts = [...subtitle.matchAll(/(\d+)\s+\w+/g)].map((match) =>
+      Number(match[1]),
+    );
+    const total = counts.reduce((sum, value) => sum + value, 0);
+    test.skip(
+      total <= 40,
+      "The seeded workspace is at or below the threshold in this environment.",
+    );
+
+    // Above it, with nothing chosen, the collection is the table.
+    await expect(page.getByTestId("projects-table")).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Project layout" }).getByRole("link", {
+        name: "Table",
+      }),
+    ).toHaveAttribute("aria-current", "true");
+
+    // …and an explicit gallery is honoured at exactly the same size. This is
+    // the case the ADR exists for: a default that re-asserted itself would be a
+    // preference the owner cannot hold.
+    await gotoFixture(page, "/projects?present=grid");
+    await expect(page.getByTestId("projects-table")).toHaveCount(0);
+    await expect(page.getByTestId("project-card").first()).toBeVisible();
+
+    // The choice survives a reload, because it lives in the URL and nowhere
+    // else — no cookie, no stored preference (ADR-100 decision 2).
+    await page.reload();
+    await expect(page.getByTestId("projects-table")).toHaveCount(0);
+  });
+
+  /*
+   * …and the size that decides is the CURRENT scope's. An owner on Archived
+   * with one archived Project is looking at a collection of one, whatever the
+   * other eighty-seven are doing.
+   */
+  test("collection: a small lifecycle scope keeps its gallery", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects?state=archived");
+    const cards = page.getByTestId("project-card");
+    const shown = await cards.count();
+    test.skip(shown > 40, "The archived scope is over the threshold here.");
+    await expect(page.getByTestId("projects-table")).toHaveCount(0);
   });
 
   test("collection: the empty and filtered-empty states are distinct", async ({
@@ -445,7 +538,14 @@ test.describe("PROJ-01 — Projects", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery is asked for EXPLICITLY, because a workspace this
+     * size now opens as a table by default. This test is about the CARD, so it
+     * pins the presentation that draws one; what it protects is unchanged, and
+     * the default's own behaviour is asserted by "opens as a table above the
+     * threshold, and an explicit choice wins".
+     */
+    await gotoFixture(page, "/projects?present=grid");
     const card = page.getByRole("article", { name: "Website relaunch" });
     await expect(card).toBeVisible();
     await expectNoHorizontalOverflow(page);

@@ -79,6 +79,17 @@ export {
   type BadgeVariant,
 } from "./Badge";
 /**
+ * The tag chip — free text the owner invented, which is precisely what a `Badge`
+ * is not for (see both headers). One definition, replacing the two module-local
+ * copies People and Assets each drew with a different radius.
+ */
+export {
+  TagChip,
+  TagChipList,
+  type TagChipProps,
+  type TagChipListProps,
+} from "./TagChip";
+/**
  * The generic bounded surface. Exported as `Card` — its module-local name is
  * `SurfaceCard` so a file importing both this and `~/shared/card`'s RECORD card
  * can tell them apart.

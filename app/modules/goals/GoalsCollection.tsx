@@ -53,11 +53,7 @@ import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
-import {
-  ViewSwitcher,
-  type ViewSwitcherOption,
-  ViewTabs,
-} from "~/shared/view-switcher";
+import { ViewTabs, type ViewTabOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type { GoalAlignment } from "~/shared/alignment";
 import {
@@ -131,10 +127,68 @@ export type SerializedDeletedGoalItem = {
 /** The two lifecycle views of the Goals collection (`?state=`). */
 export type GoalCollectionState = "active" | "deleted";
 
-const STATE_OPTIONS: readonly ViewSwitcherOption[] = [
-  { value: "active", label: "Active" },
-  { value: "deleted", label: "Deleted" },
-];
+/**
+ * CONVERGE-01 §9 — ONE filter surface, and it is the tab rail.
+ *
+ * Goals carried two. `Active | Deleted` sat in the header's view slot beside the
+ * title, and `All | On track | Needs attention | Completed` sat in the filter
+ * band beneath it. DS-05 had already made them different SHAPES so a reader
+ * could tell a mode from a filter — which was right, and did not answer the
+ * audit's actual complaint: two rows of controls above the first Goal, on the
+ * calmest band of the page, for one question ("which Goals am I looking at?").
+ *
+ * ── Why this rail, and not an overflow item or a "Show deleted" toggle ──────
+ * Projects already solved this exact shape and is the convention to follow
+ * rather than a third one to invent: its lifecycle scopes — `Active · All ·
+ * Completed · Archived` — are ONE `ViewTabs` rail in the filter band, and the
+ * header's view slot is left free (`ProjectsCollection`). "Archived" sits there
+ * as a peer of "Completed" and nothing about that reads oddly, because both
+ * answer "which set?".
+ *
+ * That is also what settles the audit's own objection. "Deleted" is not a peer
+ * of "Active" — one is a scope and the other was standing in for "everything
+ * else" — but it IS a peer of "Completed": both name a set of Goals the owner
+ * is deliberately looking at instead of the live ones. In this rail it is
+ * exactly that, and it is LAST, where a rail's least-frequent destination
+ * belongs.
+ *
+ * `to` rather than a param value, because Deleted is a different SCOPE with a
+ * different server-side read: it writes `?state=deleted` while its four
+ * neighbours write `?view=`. `ViewTabs` has carried per-tab paths since CAL-02
+ * for precisely this case, so one rail can hold both without either param
+ * learning about the other.
+ */
+const GOAL_DELETED_TAB_VALUE = "__deleted";
+
+/**
+ * The one rail, built once so the two scopes cannot draw different versions of
+ * it. `counts` is absent on the Deleted scope — the counts describe the loaded
+ * ACTIVE page, and printing them beside a list of deleted Goals would be four
+ * numbers about a set that is not on screen.
+ */
+function goalViewTabs(
+  counts?: Readonly<Record<Exclude<GoalCollectionView, "all">, number>>,
+): readonly ViewTabOption[] {
+  return [
+    ...GOAL_COLLECTION_VIEWS.map((option) => ({
+      value: option,
+      label:
+        option === "all" || counts === undefined
+          ? GOAL_COLLECTION_VIEW_LABELS[option]
+          : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
+      // From the Deleted scope every status tab has to drop `?state=deleted`
+      // as well as set its own param, which a param-derived target cannot do.
+      ...(counts === undefined
+        ? { to: option === "all" ? "/goals" : `/goals?view=${option}` }
+        : {}),
+    })),
+    {
+      value: GOAL_DELETED_TAB_VALUE,
+      label: "Deleted",
+      to: "/goals?state=deleted",
+    },
+  ];
+}
 
 export interface GoalsCollectionViewProps {
   readonly goals: readonly SerializedGoalWithAlignment[];
@@ -554,12 +608,20 @@ function GoalsCollection({
                 : `${deleted.length} deleted Goals`
         }
         presentation="grid"
-        viewSwitcher={
-          <ViewSwitcher
-            param="state"
-            options={STATE_OPTIONS}
-            value={state}
+        /*
+         * The SAME one rail the active collection draws, so the two scopes are
+         * one control the owner learns once — and so the way back out of Deleted
+         * is where the way in was.
+         */
+        filterBar={
+          <ViewTabs
+            className="dh-goals-views"
+            data-testid="goals-views"
+            param="view"
+            options={goalViewTabs()}
+            value={GOAL_DELETED_TAB_VALUE}
             label="Goal views"
+            defaultValue="all"
           />
         }
         error={
@@ -633,17 +695,16 @@ function GoalsCollection({
       title="Goals"
       subtitle={subtitle}
       presentation="grid"
-      // UIQ-013 — Active/Deleted is the collection's principal mode (the two
-      // are different collections of Goals, not a narrowing of one), so it sits
-      // in the shared header view slot rather than in the filter row.
-      viewSwitcher={
-        <ViewSwitcher
-          param="state"
-          options={STATE_OPTIONS}
-          value={state}
-          label="Goal views"
-        />
-      }
+      /*
+       * CONVERGE-01 §9 — the header's view slot is EMPTY, deliberately.
+       *
+       * UIQ-013 put Active/Deleted here on the reasoning that the two are
+       * different collections rather than a narrowing of one, which is true and
+       * is not the whole rule: Projects' four lifecycle scopes are the same kind
+       * of thing and live in the filter band, leaving this slot free. Goals now
+       * matches it, so the title row carries the title and the create action and
+       * nothing else. See `goalViewTabs`.
+       */
       /*
        * UIX-06 — the status rail is a FILTER, so it lives in the filter band.
        *
@@ -678,24 +739,22 @@ function GoalsCollection({
        * `ViewTabs` writes the same `?view=` parameter to the same values, so the
        * URL contract and every count are untouched.
        */
+      /*
+       * The rail is drawn even on an EMPTY workspace now, because it is no
+       * longer only a filter: it carries the way into Deleted, and hiding it
+       * when nothing is loaded made restoring a deleted Goal from an emptied
+       * workspace unreachable — the exact state an owner reaches it from.
+       */
       filterBar={
-        counts.total > 0 ? (
-          <ViewTabs
-            className="dh-goals-views"
-            data-testid="goals-views"
-            param="view"
-            options={GOAL_COLLECTION_VIEWS.map((option) => ({
-              value: option,
-              label:
-                option === "all"
-                  ? GOAL_COLLECTION_VIEW_LABELS[option]
-                  : `${GOAL_COLLECTION_VIEW_LABELS[option]} ${counts[option]}`,
-            }))}
-            value={view}
-            label="Filter Goals by status"
-            defaultValue="all"
-          />
-        ) : undefined
+        <ViewTabs
+          className="dh-goals-views"
+          data-testid="goals-views"
+          param="view"
+          options={goalViewTabs(counts)}
+          value={view}
+          label="Goal views"
+          defaultValue="all"
+        />
       }
       error={
         failed ? (

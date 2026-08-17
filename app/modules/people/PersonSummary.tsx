@@ -30,6 +30,7 @@ import type { ReactNode } from "react";
 import type { PersonRelationship } from "~/kernel/relationships";
 import { StayInTouchPanel } from "~/shared/relationships";
 import { SummaryCards } from "~/shared/summary-cards";
+import { TagChipList } from "~/shared/ui";
 
 import { PersonAvatar } from "./PersonAvatar";
 import { personCircle, personCircleRank } from "./person-circles";
@@ -236,15 +237,13 @@ export function PersonSummary({
         </dl>
       ) : null}
 
-      {person.tags.length > 0 ? (
-        <ul className="dh-person-summary__tags" aria-label="Tags">
-          {person.tags.map((tag) => (
-            <li key={tag} className="dh-person-summary__tag">
-              {tag}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {/* CONVERGE-01 §6 — the ONE shared tag chip. This module's own copy and
+          Assets' differed only in corner radius; both now render `TagChip`. */}
+      <TagChipList
+        tags={person.tags}
+        label="Tags"
+        className="dh-person-summary__tags"
+      />
 
       <p className="dh-person-summary__edit">
         <button

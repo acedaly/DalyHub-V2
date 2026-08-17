@@ -92,6 +92,62 @@
   stroke: var(--dh-identity);
 }
 
+/*
+ * CONVERGE-01 §8 — a chart whose subject IS a status takes the status ramp.
+ *
+ * Analytics' completion trend keeps `primary`, because more completions is not
+ * "good" and fewer is not "bad" — a line with no judgement in it should not be
+ * painted as though it had one. The overdue trend is different: the backlog is a
+ * status, and the product already has exactly one vocabulary for saying so.
+ *
+ * These rules therefore reuse `data-meter-status` — the SAME attribute
+ * `progress.css` maps for every meter in the product — rather than inventing a
+ * chart-specific tone. One status, one mapping, five paints, and nothing new to
+ * keep in step.
+ *
+ * Specificity is deliberate: two classes plus an attribute outranks the
+ * `[data-identity]` rule above, so a toned chart inside a record's identity
+ * scope still says its status.
+ *
+ * The LATEST and the SELECTED readings are excluded by the selector rather than
+ * by source order, because a tone rule that merely came first would still win on
+ * specificity and silently erase both emphases. Each is an emphasis WITHIN the
+ * series — "this is the number the headline states", "this is the one you are
+ * pointing at" — and painting either in the series colour is exactly the
+ * distinction it exists to make, lost.
+ */
+.dh-linechart[data-meter-status="success"]
+  :is(
+    .dh-linechart__line,
+    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
+  ) {
+  stroke: var(--dh-color-meter-success);
+}
+
+.dh-linechart[data-meter-status="info"]
+  :is(
+    .dh-linechart__line,
+    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
+  ) {
+  stroke: var(--dh-color-meter-info);
+}
+
+.dh-linechart[data-meter-status="warning"]
+  :is(
+    .dh-linechart__line,
+    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
+  ) {
+  stroke: var(--dh-color-meter-warning);
+}
+
+.dh-linechart[data-meter-status="danger"]
+  :is(
+    .dh-linechart__line,
+    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
+  ) {
+  stroke: var(--dh-color-meter-danger);
+}
+
 /* The most recent reading is the one the page's headline states, so it carries
  * a heavier dot — an emphasis, never the only way to find it. */
 .dh-linechart__point[data-latest="true"] {

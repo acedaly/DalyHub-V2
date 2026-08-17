@@ -34,8 +34,35 @@ function facts(over: Partial<AnalyticsFacts> = {}): AnalyticsFacts {
     areasBounded: false,
     areasAvailable: true,
     goals: { onTrack: 5, total: 9, bounded: false },
+    overdueSeries: rangeBuckets("week", span).map((bucket, index) => ({
+      key: bucket.key,
+      overdue: 10 + index,
+    })),
+    overduePrevious: 12,
+    overdueAvailable: true,
     ...over,
   };
+}
+
+const BUCKET_KEYS = rangeBuckets("week", rangeSpan("week", "2026-08-10")).map(
+  (bucket) => bucket.key,
+);
+
+/**
+ * A range in which nothing at all happened — no completions, no attributed work
+ * and, unless a test says otherwise, no backlog either. Named because four tests
+ * need exactly this shape and each one spelling it out again is how a fixture
+ * drifts.
+ */
+function quietPeriod(over: Partial<AnalyticsFacts> = {}): AnalyticsFacts {
+  return facts({
+    current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
+    previous: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
+    areas: [],
+    overdueSeries: BUCKET_KEYS.map((key) => ({ key, overdue: 0 })),
+    overduePrevious: 0,
+    ...over,
+  });
 }
 
 describe("analytics ranges", () => {
@@ -205,19 +232,25 @@ describe("analytics evaluator", () => {
   });
 
   it("reports ONE empty state when nothing was completed at all", () => {
-    const model = evaluateAnalytics(
-      facts({
-        current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
-        previous: {
-          tasksCompleted: 0,
-          projectsCompleted: 0,
-          goalsCompleted: 0,
-        },
-        areas: [],
-      }),
-    );
+    const model = evaluateAnalytics(quietPeriod());
     expect(model.isEmpty).toBe(true);
     expect(model.degraded).toBe(false);
+  });
+
+  // CONVERGE-01 §8 — a backlog is not nothing. The empty state replaces the
+  // WHOLE surface, so producing it for a period with no completions and an
+  // overdue backlog would hide the most important thing this screen can say.
+  it("is NOT empty when nothing was completed but work is overdue", () => {
+    const model = evaluateAnalytics(
+      quietPeriod({
+        overdueSeries: BUCKET_KEYS.map((key) => ({ key, overdue: 7 })),
+      }),
+    );
+    expect(model.isEmpty).toBe(false);
+    expect(model.degraded).toBe(false);
+    expect(model.metrics.find((metric) => metric.id === "overdue")?.value).toBe(
+      7,
+    );
   });
 
   // Codex review, PR #156 — a bounded Goal read must not read as a workspace
@@ -253,17 +286,7 @@ describe("analytics evaluator", () => {
     // …and it must not be able to produce the empty state, which asserts a fact.
     expect(failedRead.isEmpty).toBe(false);
 
-    const genuinelyEmpty = evaluateAnalytics(
-      facts({
-        current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
-        previous: {
-          tasksCompleted: 0,
-          projectsCompleted: 0,
-          goalsCompleted: 0,
-        },
-        areas: [],
-      }),
-    );
+    const genuinelyEmpty = evaluateAnalytics(quietPeriod());
     expect(genuinelyEmpty.distributionAvailable).toBe(true);
     expect(genuinelyEmpty.isEmpty).toBe(true);
   });
@@ -274,6 +297,7 @@ describe("analytics evaluator", () => {
       "tasks",
       "projects",
       "goals",
+      "overdue",
       "areas",
     ]);
   });
@@ -282,5 +306,128 @@ describe("analytics evaluator", () => {
     expect(
       deltaSentence({ kind: "change", previous: 7, difference: 0 }, "Tasks"),
     ).toBe("Same as the previous period (7)");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* CONVERGE-01 §8 — the overdue metric                                         */
+/* -------------------------------------------------------------------------- */
+
+describe("the overdue metric", () => {
+  /*
+   * The read SILENTLY slices at `MAX_TREND_PERIODS`, so a range whose buckets
+   * plus the previous-period close exceed the cap would quietly lose its oldest
+   * reading and draw a shorter line with no indication that it had. The loader
+   * asks for `buckets.length + 1` moments in one call, so every range has to fit
+   * with one to spare — this is the assertion that makes adding a fourth range a
+   * deliberate act rather than a silent truncation.
+   */
+  it("leaves room for the previous-period reading in every range", () => {
+    for (const range of ANALYTICS_RANGES) {
+      const span = rangeSpan(range.id, "2026-08-10");
+      const buckets = rangeBuckets(range.id, span);
+      expect(buckets.length + 1).toBeLessThanOrEqual(MAX_WINDOWS_PER_READ);
+    }
+  });
+
+  it("takes its headline figure from the LAST bucket, so card and chart agree", () => {
+    const model = evaluateAnalytics(
+      facts({
+        overdueSeries: BUCKET_KEYS.map((key, index) => ({
+          key,
+          overdue: index * 2,
+        })),
+      }),
+    );
+    const overdue = model.metrics.find((metric) => metric.id === "overdue");
+    const lastReading =
+      model.overdueSeries[model.overdueSeries.length - 1]?.overdue;
+    expect(overdue?.value).toBe(lastReading);
+    expect(overdue?.value).toBe((BUCKET_KEYS.length - 1) * 2);
+  });
+
+  it("states a fall in the row's own calm wording", () => {
+    const model = evaluateAnalytics(
+      facts({
+        overdueSeries: BUCKET_KEYS.map((key) => ({ key, overdue: 8 })),
+        overduePrevious: 12,
+      }),
+    );
+    expect(
+      model.metrics.find((metric) => metric.id === "overdue")?.supporting,
+    ).toBe("4 fewer than the previous period (12)");
+  });
+
+  it("states a rise in the same wording, with no escalation", () => {
+    const model = evaluateAnalytics(
+      facts({
+        overdueSeries: BUCKET_KEYS.map((key) => ({ key, overdue: 16 })),
+        overduePrevious: 12,
+      }),
+    );
+    expect(
+      model.metrics.find((metric) => metric.id === "overdue")?.supporting,
+    ).toBe("4 more than the previous period (12)");
+  });
+
+  /*
+   * The shared `no_basis` phrasing is about a PERIOD ("No Tasks in the previous
+   * period"); this reading is about a MOMENT. Saying nothing was overdue DURING
+   * the previous period is a different — and false — claim.
+   */
+  it("words a clean previous period as a moment, not as a span", () => {
+    const model = evaluateAnalytics(
+      facts({
+        overdueSeries: BUCKET_KEYS.map((key) => ({ key, overdue: 3 })),
+        overduePrevious: 0,
+      }),
+    );
+    expect(
+      model.metrics.find((metric) => metric.id === "overdue")?.supporting,
+    ).toBe("Nothing was overdue at the end of the previous period");
+  });
+
+  it("links to the product's own Overdue view rather than a second definition", () => {
+    const model = evaluateAnalytics(facts());
+    expect(model.metrics.find((metric) => metric.id === "overdue")?.to).toBe(
+      "/tasks?system=overdue",
+    );
+  });
+
+  /*
+   * A failed read and a clear backlog are the same absence of rows, and "nothing
+   * is overdue" is the most reassuring thing this screen can say — which is
+   * exactly why it must never be said because a query fell over.
+   */
+  it("says a failed read rather than reporting a clear backlog", () => {
+    const model = evaluateAnalytics(
+      facts({
+        overdueSeries: [],
+        overduePrevious: null,
+        overdueAvailable: false,
+      }),
+    );
+    const overdue = model.metrics.find((metric) => metric.id === "overdue");
+    expect(overdue?.value).toBeNull();
+    expect(overdue?.supporting).toBe("Comparison not available");
+    expect(model.degraded).toBe(true);
+    expect(model.isEmpty).toBe(false);
+    expect(model.overdueAvailable).toBe(false);
+  });
+
+  it("states the history's approximation once a past reading is drawn", () => {
+    const model = evaluateAnalytics(facts());
+    expect(
+      model.notes.some((note) => note.includes("due date as it stands today")),
+    ).toBe(true);
+  });
+
+  it("qualifies nothing when there is no history to qualify", () => {
+    const model = evaluateAnalytics(
+      facts({ overdueSeries: [{ key: "b0", overdue: 4 }] }),
+    );
+    expect(
+      model.notes.some((note) => note.includes("due date as it stands today")),
+    ).toBe(false);
   });
 });

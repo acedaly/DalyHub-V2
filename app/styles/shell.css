@@ -2038,8 +2038,41 @@
   background: var(--dh-color-surface-bar);
   border-block-start: var(--dh-border-width) solid var(--dh-color-border);
   padding-bottom: var(--dh-safe-bottom);
-  padding-inline-start: var(--dh-safe-left);
-  padding-inline-end: var(--dh-safe-right);
+  /*
+   * MOBILE-02 §8 — the safe-area inset is honoured only as far as the LABELS
+   * can afford it.
+   *
+   * The bar spent the inset as plain `padding-inline`, which comes straight out
+   * of the five equal controls — so on a device that reports one, every label
+   * lost width and the longest ellipsised. MEASURED at 393px with a 59px inset:
+   * "Projects" went 55px -> 47px; at 320px, 55px -> 37px. A navigation label
+   * that reads "Projec…" is the "no clipped Add" half of this audit item, and
+   * the create action is the control it matters most on.
+   *
+   * The inset is a REQUEST, not a requirement — it says "keep content out of
+   * here if you can". So it is capped at whatever is left after every control
+   * has the width its label needs: below that the bar reclaims the inset and
+   * draws to the edge, which is the lesser of the two failures by a distance
+   * (the cut corner of a phone overlaps a few pixels of background; an
+   * ellipsised label overlaps the word).
+   *
+   * `--app-bottomnav-content-min` is five slots at 4rem, which is the widest
+   * base-size label ("Projects", 55px) plus its padding. It is in `rem`, so OS
+   * text scaling grows it and the inset yields sooner — the right direction.
+   * The residual, stated rather than papered over: at 150% text scaling five
+   * labels genuinely do not fit 393px and the longest still ellipsises. That is
+   * the same arithmetic the Diary week strip records for itself, and the label
+   * is not the only way to a destination — every control keeps its glyph, its
+   * accessible name and its 44px target.
+   */
+  padding-inline-start: min(
+    var(--dh-safe-left),
+    max(0px, (100% - var(--app-bottomnav-content-min)) / 2)
+  );
+  padding-inline-end: min(
+    var(--dh-safe-right),
+    max(0px, (100% - var(--app-bottomnav-content-min)) / 2)
+  );
 }
 
 .dh-bottomnav__list {
@@ -2060,10 +2093,29 @@
 .dh-bottomnav__control {
   position: relative;
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  /*
+   * MOBILE-02 §8 — the label's line is a RESERVED track, not whatever is left
+   * after the glyph.
+   *
+   * As a centred flex column the whole stack was centred as one object, so a
+   * control with a taller indicator pushed its own label closer to the bar's
+   * edge than its siblings': MEASURED at 393px, the four destinations' labels
+   * ended 11px above the bar's bottom and Add's ended 4px above it, because the
+   * Capture indicator is 44px against their 26px. Four pixels of clearance is
+   * what "the Add label clips at the viewport edge" looks like the moment
+   * anything — a safe-area inset, OS text scaling, a taller system font — takes
+   * a few of them.
+   *
+   * A two-row grid reserves the label's own line at the BOTTOM of every control
+   * and gives the indicator whatever height is left above it. Every label then
+   * sits the same `padding-block` from the bar's edge, whatever its glyph does,
+   * and the reserve is the thing that cannot be squeezed rather than the thing
+   * that is squeezed first.
+   */
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
   align-items: center;
-  justify-content: center;
   gap: var(--dh-space-1);
   min-block-size: var(--app-touch-target-min);
   min-inline-size: var(--app-touch-target-min);

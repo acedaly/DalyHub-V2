@@ -27,6 +27,7 @@ export {
   MAX_DISTRIBUTION_ROWS,
   deltaSentence,
   evaluateAnalytics,
+  overdueSentence,
   type AnalyticsAreaRow,
   type AnalyticsCompletionCounts,
   type AnalyticsDelta,
@@ -35,5 +36,6 @@ export {
   type AnalyticsGoalTally,
   type AnalyticsMetric,
   type AnalyticsModel,
+  type AnalyticsOverduePoint,
   type AnalyticsSeriesPoint,
 } from "./analytics";

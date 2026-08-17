@@ -50,7 +50,10 @@ import {
   type RefObject,
 } from "react";
 
-import { MARKDOWN_SOURCE_MAX_BYTES } from "~/kernel/markdown";
+import {
+  MARKDOWN_SOURCE_MAX_BYTES,
+  markdownSourceByteLength,
+} from "~/kernel/markdown";
 import { EntityIcon, getEntityIdentity, isEntityType } from "~/shared/entity";
 import {
   RemoteChangeBanner,
@@ -67,7 +70,41 @@ import { validateNoteContentSize } from "./note-content-validation";
 import { useOnlineStatus } from "~/shared/linked-items";
 import type { NoteMutationResult } from "./routes/mutate";
 
-const CONTENT_HELP = `Markdown — headings, lists, checklists, quotes, tables and more format as you type. Up to ${MARKDOWN_SOURCE_MAX_BYTES.toLocaleString()} bytes.`;
+/**
+ * CONVERGE-01 §6 — the help line says what the editor DOES.
+ *
+ * It used to end with "Up to 1,000,000 bytes.", permanently, under every note in
+ * the workspace. A ceiling nobody is near is not help: it is a rule printed at a
+ * writer who is a thousandth of the way to it, in the one place in DalyHub whose
+ * whole job is to get out of the way. The limit is unchanged and is still
+ * enforced in both places it was — the client courtesy check
+ * (`validateNoteContentSize`) and the server's authoritative
+ * `parseMarkdownSource`.
+ *
+ * What changed is WHEN the sentence appears: when a note is genuinely
+ * approaching the ceiling, and on the error itself. See `CONTENT_LIMIT_WARN_AT`.
+ */
+const CONTENT_HELP =
+  "Markdown — headings, lists, checklists, quotes, tables and more format as you type.";
+
+/**
+ * The share of the limit at which the ceiling becomes worth mentioning.
+ *
+ * 90% of a million bytes is ~900 KB of Markdown — a document nobody arrives at
+ * by accident, and far enough from the wall that the warning is a heads-up
+ * rather than a failure the owner has already hit. Below it the sentence is
+ * noise; above it, it is the only warning before a save is refused.
+ */
+const CONTENT_LIMIT_WARN_AT = 0.9;
+
+/** The ceiling, said once, in the same words the validation error uses. */
+function contentLimitHelp(value: string): string {
+  const used = markdownSourceByteLength(value);
+  if (used < MARKDOWN_SOURCE_MAX_BYTES * CONTENT_LIMIT_WARN_AT) {
+    return CONTENT_HELP;
+  }
+  return `${CONTENT_HELP} ${used.toLocaleString()} of ${MARKDOWN_SOURCE_MAX_BYTES.toLocaleString()} bytes used.`;
+}
 
 /**
  * A full document is a much larger, less frequently-committed payload than the
@@ -371,7 +408,7 @@ export function NoteContentForm({
         onBlur={() => {
           if (field.remoteValue === null) field.onBlur();
         }}
-        help={CONTENT_HELP}
+        help={contentLimitHelp(field.value)}
         error={field.validationError}
         placeholder="Start writing…"
         toolbarLabel="Formatting"

@@ -119,6 +119,30 @@ a.dh-btn {
  * treatment the design system gives every other wide object.
  */
 .dh-ptable__scroll {
+  /*
+   * ADR-100 — `position: relative`, and it is the whole fix for a page-level
+   * horizontal scroll that has been there since the table shipped.
+   *
+   * MEASURED at 390px on `/projects?present=table`, before this change and on
+   * `main`: `document.documentElement.scrollWidth` was 1134 against a 390px
+   * client width — a WCAG 1.4.10 reflow failure on the whole document, not just
+   * this panel. Every ancestor in the chain measured clean (the scroll box
+   * itself was 356 wide with a 1178 scroll width, doing its job; `<body>` was
+   * 390), and only `<html>` was wide. That gap between `<body>` and `<html>` is
+   * the signature: an absolutely-positioned descendant with NO positioned
+   * ancestor takes the INITIAL containing block, which puts it outside this
+   * scroller's clip and outside the body's box at once.
+   *
+   * One `position: relative` gives every such descendant a containing block
+   * inside the scroller, so it is clipped by the `overflow-x` that is already
+   * here and the document stops scrolling sideways. Nothing about the table's
+   * own layout moves — `relative` with no offsets paints identically.
+   *
+   * It surfaced now because ADR-100 makes the table the DEFAULT above forty
+   * Projects, so a phone reaches it without asking. The defect predates that:
+   * verified by stashing this branch and reproducing 1134 on the clean tree.
+   */
+  position: relative;
   inline-size: 100%;
   max-inline-size: var(--app-width-wide);
   overflow-x: auto;

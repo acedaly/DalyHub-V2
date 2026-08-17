@@ -621,6 +621,14 @@ function ProjectsCollection({
               options={PRESENTATION_OPTIONS}
               value={presentation}
               label="Project layout"
+              /*
+               * ADR-100 — Grid must WRITE `?present=grid` rather than clearing
+               * the param, because this collection's default is conditional:
+               * above forty Projects an absent param means "the owner has not
+               * chosen", which is the table. Clearing it would make the gallery
+               * a choice the owner can press and never keep.
+               */
+              alwaysWriteValue
             />
           }
         />

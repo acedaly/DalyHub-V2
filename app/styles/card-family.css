@@ -2748,6 +2748,116 @@
  * the override into dead declarations that are not inert but wrong.
  */
 
+/*
+ * MOBILE-02 §6 — and the phone block is BACK, written against the grid this
+ * time.
+ *
+ * DS-05's deletion above was right about its own change and wrong about the
+ * outcome. Everything it listed did become the default — but the card is still
+ * a COLUMN on a phone: mark on its own line, title under it, context under
+ * that, then the bar, then the meta line. MEASURED at 393x852 before this
+ * change: 180px average, the first card at y=216, and **three fully visible**.
+ * The audit asks for five or six.
+ *
+ * ── The composition, and why it is `display: contents` ───────────────────────
+ * The same technique `.dh-ecard` already uses one section up, for the same
+ * reason and with the same DOM: dissolving the head into the card's own grid
+ * lets the mark take a column and everything else indent against it, so a list
+ * of these is scanned by mark and by title rather than by counting boxes.
+ *
+ *   ┌────────────────────────────────────────┐
+ *   │ [◼]  Kitchen fit-out              ⋯    │
+ *   │      Home & Property                   │
+ *   │      ▓▓▓▓▓░░░░░░░  38%                 │
+ *   │      3 tasks past their due date       │
+ *   └────────────────────────────────────────┘
+ *
+ * Nothing is reordered and nothing is moved by `order`: this is the DOM order,
+ * so the reading order, the tab order and the accessible name are identical at
+ * both widths.
+ *
+ * ── What goes, and it is one thing ──────────────────────────────────────────
+ * The two-line DESCRIPTION. It is the only element on the card that is prose
+ * rather than a fact, it is absent on most Projects already, and the record it
+ * belongs to is one tap away. The audit's list of what must survive — identity
+ * tile, title, the single most important metric, the status line — is exactly
+ * what is left, plus the parent context, which is identity rather than
+ * decoration: "which Area is this in" is how two similarly-named Projects are
+ * told apart.
+ *
+ * ── DS-05's lesson, applied rather than repeated ────────────────────────────
+ * The note above records a phone block that broke because it was written
+ * against a flex column that had become a grid. So this block declares nothing
+ * about the card's CHILDREN's internal layout: `__progress`, `__meta` and
+ * `__titles` keep whatever model they already have, and only their PLACEMENT in
+ * the card's new grid is stated here. There is no `flex:` and no `order:` in it.
+ */
+@media (max-width: 48rem) {
+  .dh-pcard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: start;
+    /* The card no longer stretches to its row's tallest sibling: at row scale a
+     * uniform height is what a LIST gives, and the gallery's equal-height
+     * columns are a two-column idea. */
+    block-size: auto;
+    column-gap: var(--app-space-3);
+    row-gap: var(--app-space-1);
+    padding: var(--app-card-padding-compact);
+  }
+
+  .dh-pcard__head {
+    display: contents;
+  }
+
+  /* The mark spans the title and its context, which is what puts the tile
+   * beside the record rather than above it. */
+  .dh-pcard__mark {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+
+  /* The compact rung, exactly as `.dh-ecard` steps down: a 40px square on a
+   * 358px content width is a ninth of the row spent on a glyph. */
+  .dh-pcard__mark > .dh-accent-icon {
+    inline-size: var(--app-entity-icon-container-size-sm);
+    block-size: var(--app-entity-icon-container-size-sm);
+    font-size: var(--app-entity-icon-size-sm);
+  }
+
+  .dh-pcard__titles {
+    grid-column: 2;
+    min-inline-size: 0;
+  }
+
+  /*
+   * The FOOT indents under the title rather than starting at the card's edge,
+   * so the row has one text column and the eye runs down it. It spans to the
+   * card's trailing edge because the bar wants every pixel it can have.
+   */
+  .dh-pcard__foot {
+    grid-column: 2;
+    gap: var(--app-space-1);
+  }
+
+  /* Prose, not a fact. See the note above. */
+  .dh-pcard__description {
+    display: none;
+  }
+
+  /*
+   * A row's title does not wrap. Three Projects whose names run to two lines
+   * would give a list three different row heights, which is the raggedness the
+   * People row's fixed height exists to prevent — same rule, same reason.
+   */
+  .dh-pcard__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* EntityRow — the phone composition                                          */
 /* -------------------------------------------------------------------------- */
@@ -2820,14 +2930,26 @@
  * The list owns the surface and the hairlines, so no row draws its own border
  * and two adjacent rows can never disagree about the line between them.
  */
+/*
+ * CONVERGE-01 §3 — BARE ROWS on the page background, which is the product's
+ * one list-container rule (`DESIGN_SYSTEM.md` → "One list container").
+ *
+ * This list was the outlier and the only one: Notes' rows, Tasks' rows and
+ * Areas' `.dh-erow-list` are all already hairline-separated rows directly on the
+ * canvas, and this drew a white card with a resting shadow around its four. A
+ * surface is a statement that what is inside it is a THING; a directory is not a
+ * thing, it is a run of records, and the hairlines between them already say
+ * where one ends. The card was a second boundary around a boundary that was
+ * doing its job.
+ *
+ * The hairlines stay exactly as they were, drawn by the LIST rather than by each
+ * row, so the first and last edges are the page's and no two adjacent rows can
+ * disagree about the line between them.
+ */
 .dh-prow-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--dh-color-surface);
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
-  overflow: hidden;
   /*
    * The same content cap `.dh-erow-list` takes, for the same reason: a row with
    * four columns of content stretched to a 2560 monitor puts the name and the
@@ -2871,11 +2993,43 @@
   align-items: center;
   gap: var(--app-space-4);
   min-inline-size: 0;
-  /* Two comfortable lines above the touch floor. A face at 44px plus a name and
-   * a context line is what sets this, not a chosen number. */
-  min-block-size: 4.5rem;
+  /*
+   * CONVERGE-01 §7 — ONE height, not a floor.
+   *
+   * `min-block-size` alone let a row grow whenever any cell wrapped, so the
+   * directory came out ragged: measured at 393px before this pass, four rows
+   * were 68, 81, 68 and 68 — the tall one being the Person with two reach links
+   * and a longer state, i.e. the row with the MOST recorded, which is precisely
+   * backwards. A Person the owner knows well should not cost more vertical space
+   * than one they have just added.
+   *
+   * `block-size` fixes it at the same two-line measure the floor already
+   * expressed (a 44px face plus a name and its supporting line), and every cell
+   * in the row already ellipsises rather than wrapping — so a Person with less
+   * data gets a QUIETER row, never a shorter one, and a Person with more gets a
+   * truncated line rather than a taller row.
+   */
+  block-size: 4.5rem;
   padding: var(--app-space-3) var(--app-card-padding);
   transition: background var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+/*
+ * The one place the fixed height must yield, and it is arithmetic rather than a
+ * preference.
+ *
+ * On a coarse pointer every reach link takes the product's unconditional 44px
+ * touch floor (see `.dh-prow__reach-link` below), so a Person with an email AND
+ * a phone needs 88px of stacked targets — more than the two-line measure. The
+ * reach column only survives above 68rem, so this reaches exactly one device
+ * class (a tablet in landscape) and there the row grows to hold its targets
+ * rather than clipping them. Every other width keeps one height.
+ */
+@media (hover: none) and (min-width: 68rem) {
+  .dh-prow {
+    block-size: auto;
+    min-block-size: 4.5rem;
+  }
 }
 
 .dh-prow:hover {
@@ -3083,15 +3237,23 @@
   white-space: nowrap;
 }
 
-.dh-prow__rhythm-detail {
-  grid-column: 2;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
+/*
+ * CONVERGE-01 §7 — the ABSENCE state, demoted.
+ *
+ * "No shared history yet" is true and worth knowing, and before this it was the
+ * loudest thing on the row: `--dh-color-text` at weight 500 with a dot beside
+ * it, in the position the eye lands on last, on every Person the owner had not
+ * yet recorded anything about. The audit's phrasing — "the list leads with
+ * absence" — is a description of this rule.
+ *
+ * It steps down to the muted ramp and loses its dot (the markup omits it: there
+ * is no state for a dot to agree with). It is still real text at a contrast-
+ * tested tone, so nothing is hidden and nothing needs colour to be read — it
+ * simply stops outweighing the connection line beside it.
+ */
+.dh-prow__rhythm[data-quiet="true"] .dh-prow__rhythm-state {
+  font-weight: var(--md-sys-typescale-body-small-weight);
   color: var(--dh-color-text-muted);
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dh-prow__dot {
@@ -3125,8 +3287,18 @@
 }
 
 @media (forced-colors: active) {
-  .dh-prow-list {
-    border: var(--app-border-width-thin) solid CanvasText;
+  /*
+   * CONVERGE-01 §3 — the forced-colours border moves from the LIST to between
+   * its rows, because the list is no longer a surface to outline.
+   *
+   * Under forced colours every background collapses, so a hairline in
+   * `--dh-color-border` disappears and the rows would run together with nothing
+   * separating them. The rule that already separates them is the right one to
+   * restate in a system colour; a box around the whole run would draw a
+   * container this list deliberately no longer has.
+   */
+  .dh-prow-list__item + .dh-prow-list__item {
+    border-block-start: var(--app-border-width-thin) solid CanvasText;
   }
   .dh-prow__dot {
     background: CanvasText;
@@ -3166,9 +3338,8 @@
  * one line each, at full width.
  */
 @media (max-width: 48rem) {
-  .dh-prow-list {
-    border-radius: var(--app-shape-card);
-  }
+  /* CONVERGE-01 §3 — no radius here any more: the list has no surface to round
+   * the corners of. */
 
   .dh-prow {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -3178,7 +3349,27 @@
     align-items: center;
     column-gap: var(--app-space-3);
     row-gap: var(--app-space-1);
-    min-block-size: var(--app-touch-target-min);
+    /*
+     * CONVERGE-01 §7 — three lines here, and ONE height for all of them.
+     *
+     * The phone used to drop the supporting line and keep the rhythm's detail,
+     * on the reasoning that the two said the same kind of thing. That reasoning
+     * expired with this pass: the rhythm's detail moved INTO the supporting line
+     * (it is the connection line's first element now), so hiding the line would
+     * take the last shared moment off the phone entirely and leave a row that
+     * says only a name and a verdict.
+     *
+     * So the line comes back and the row is name / connection / rhythm. At the
+     * phone's own type sizes that measures under 5.5rem, which every row now
+     * takes whether or not it fills it — the same rule as the desktop row and
+     * for the same reason.
+     *
+     * Stated as a plain `block-size` rather than through a custom property: one
+     * value overridden in one place is a declaration, not a token, and the
+     * `--dh-*` layer is closed to names that are not published in
+     * `app/shared/tokens/dalyhub.ts` (asserted by `dalyhub-tokens.test.ts`).
+     */
+    block-size: 5.5rem;
     padding-inline: var(--app-card-padding-compact);
   }
 
@@ -3190,6 +3381,7 @@
   .dh-prow__identity {
     grid-area: identity;
     align-self: end;
+    min-inline-size: 0;
   }
 
   .dh-prow__rhythm {
@@ -3197,7 +3389,7 @@
     align-self: start;
     /* On the phone the rhythm sits UNDER the name rather than opposite it, so
      * it reads left-to-right with everything else on the row. */
-    justify-items: start;
+    justify-content: start;
     text-align: start;
   }
 
@@ -3205,18 +3397,8 @@
     grid-area: overflow;
   }
 
-  /*
-   * The phone drops the context line and keeps the rhythm's DETAIL, because the
-   * two say the same kind of thing — where this person sits — and only one of
-   * them changes. The circle is still carried by the avatar's accent, and the
-   * full context is on the record.
-   */
-  .dh-prow__context {
-    display: none;
-  }
-
-  /* A person with no derived rhythm has no second line, so the identity centres
-   * in the single row it does have rather than sitting high. */
+  /* A person with no derived rhythm has no third line, so the identity centres
+   * in the rows it does have rather than sitting high. */
   .dh-prow:not(:has(.dh-prow__rhythm)) .dh-prow__identity {
     align-self: center;
   }

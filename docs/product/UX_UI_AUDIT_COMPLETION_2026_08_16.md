@@ -1,14 +1,20 @@
-# UX/UI audit completion — the state of the 16 August 2026 audit after PR #188
+# UX/UI audit completion — the 16 August 2026 audit, CLOSED
 
 > An acceptance record, not a redesign proposal.
+>
+> **Every row in this document is COMPLETE as of FINISH-01 (17 August 2026).**
+> The audit's four stages closed across five pull requests — #188, #189, #190,
+> #191 and FINISH-01 — and each row below names the one that closed it, with the
+> file, the line or the measurement that proves it. Nothing is owed. Two of the
+> audit's own findings turned out to be wrong on inspection and are recorded as
+> wrong rather than implemented; see "Nothing is open".
 >
 > PR #188 ("UX/UI convergence: status colour, one editing grammar, and a
 > first-class phone") states in its own body that it implements the 16 August
 > 2026 UX/UI audit, and states equally plainly that a substantial part of that
 > audit was left out. This document measures the audit's four stages against the
-> code at `afd33e5` (the squash merge of #188 into `main`), records what this
-> follow-up pass closed, and — for every requirement still open — says why, with
-> the repository evidence that supports it.
+> code, records what each follow-up pass closed, and — for every requirement
+> still open — says why, with the repository evidence that supports it.
 >
 > **The audit itself is not committed to this repository.** The requirement text
 > below is reconstructed from the acceptance brief for this pass and from #188's
@@ -16,6 +22,33 @@
 > (`CONTROL-01 §4`, `MOBILE-02 §4`, and so on). Where the two disagree, the
 > audit's numbering is treated as authoritative. Committing the audit itself
 > would remove this ambiguity and is recommended.
+
+> ## Refreshed 17 August 2026 against `cd385cfd`
+>
+> This document was last written during #189 and measured against `afd33e5`. Two
+> pull requests landed after it — **#190** (`e6fa530`) and **#191** (`cd385cfd`)
+> — and neither reopened this file. Three rows therefore said MISSING or PARTIAL
+> about work that was already merged: **CONVERGE-01 §1** (the Today grid),
+> **MOBILE-02 §4** (Task row swipe) and **MOBILE-02 §5** (mobile Today). A
+> register that is wrong in that direction is worse than no register, because the
+> next pass reads it and rebuilds something that exists.
+>
+> Every MISSING and PARTIAL row was re-read against `cd385cfd` in this refresh,
+> not just the three. Two more rows were wrong in the OTHER direction and are
+> corrected here rather than quietly left:
+>
+> - **CONVERGE-01 §7 (People)** was recorded MISSING on the strength of a line in
+>   `PersonTimelineTab.tsx` — which is the Person RECORD's timeline tab, not the
+>   collection row the requirement is about. The row already reaches (`mailto:`
+>   / `tel:`), already carries a rhythm column and already draws identity colour.
+>   It is PARTIAL, and the open half is narrower and different from what the row
+>   claimed.
+> - **MOBILE-02 §6** named "Project **and Goal**" density. Measured at 393×852,
+>   Goals already renders at row scale — `.dh-mrow`, 64px, nine per viewport — so
+>   only the Project half is open. The measurement is in the row.
+>
+> The register's own rule is unchanged and is what this refresh applies: **a row
+> closes on evidence, and the evidence is a file and a line.**
 
 ---
 
@@ -37,7 +70,7 @@
 | 1 | Meters state STATUS, not identity, across all six meter families | COMPLETE | `app/shared/progress/meter-status.ts` defines one five-value ramp; `progress.css:91-95` maps all of `.dh-progress__fill`, `.dh-pcard__fill`, `.dh-ecard__progress-fill`, `.dh-mrow__fill`, `.dh-ptable__fill` through it. Identity stays on tiles/dots/avatars. `test/unit/tokens/identity-ramp.test.ts` is a regression guard against identity re-entering a fill. |
 | 2 | Light-mode semantic text clears WCAG AA (≥4.5:1) | COMPLETE | `test/unit/tokens/dalyhub-primitive-contrast.test.ts` locks the ratios; no axe rule was disabled to reach it. |
 | 3 | Tasks does not scroll horizontally at 820/900/1100px | COMPLETE | `tasks.css:1583-1650` — the whole box chain from `.dh-inline-select` down to `.dh-inline-select__label` is made shrinkable and ellipsising, at the `46rem` container tier only. |
-| 4 | Projects mobile header — lifecycle nav and presentation stay separate, tabs reachable, edge fade, no collision at 393px | COMPLETE | `scroll-strip.css` provides the pure-CSS scroll shadows on the element that actually scrolls; the lifecycle rail and the Grid/Table toggle are separate rows in `ProjectsCollection`. |
+| 4 | Projects mobile header — lifecycle nav and presentation stay separate, tabs reachable, edge fade, no collision at 393px | COMPLETE | `scroll-strip.css` provides the pure-CSS scroll shadows on the element that actually scrolls; the lifecycle rail and the Grid/Table toggle are separate rows in `ProjectsCollection`. FINISH-01 additionally fixed a page-level horizontal scroll the table caused at 390/320 (see CONVERGE-01 §4). |
 | 5 | Today stat charts stay inside card padding and clip | COMPLETE | `today.css:1338-1358` insets the plot by the card's own spacing and removes the double bottom padding; `today.css:1386` drops the plot entirely below the narrow tier rather than letting it cross a border. |
 | 6 | Distinct nav icons for Inbox, Upcoming, Tasks, Views, AI, Analytics | COMPLETE | `routes.manifest.ts` per module declares `navIcon` (`inbox`, `upcoming`, `views`, `ai`, `analytics`); #188 also made an explicit `navIcon` win over `entityType`. |
 | 7 | `/inbox` → "Inbox", `/upcoming` → "Upcoming" | COMPLETE | `app/kernel/task-views/task-system-views.ts:76,81`. |
@@ -65,11 +98,11 @@
 | 1 | ≥44px usable hit area on every Task metadata trigger under touch | COMPLETE | `task-list.css:721-747` — a `(pointer: coarse)` `::before` expansion to `--app-touch-target-min`, using `::before` because the shared state layer owns `::after`. |
 | 2 | **Hide empty Task metadata on touch** | **COMPLETE (this pass)** | A pointer device already faded `.dh-inline-edit__empty` to 0 until hover; a phone matched neither arm and printed "Unassigned · No due date · No priority" on every row permanently. The whole trigger is now `display: none` for `data-empty="true"` under `(pointer: coarse)` — not just its label, because a zero-width invisible button keeps a 44px hit area floating over its neighbour. |
 | 3 | One-tap capture — opens into writing, Task default, compact type switcher | COMPLETE | `CaptureSheet.tsx:144` — the chooser screen is replaced by a chip row; the field is focused on open. |
-| 4 | **Swipe actions on Task rows** | **MISSING** | `useCardSwipe`/`CardSwipeTray` exist and serve the generic `Card`, but `/tasks` renders `TaskRow`, which has no swipe. See "Still open". |
-| 5 | **Mobile Today** — compacted header, plan first, no duplicate Add | **PARTIAL** | The greeting steps down a rung at ≤48rem (`today.css:1109`) and the header action is full-width rather than crowding it (`today.css:1807-1830`). The *recomposition* — plan first, day navigation folded into the header, the duplicate full-width Add removed — is not done, because it is the same DOM reordering CONVERGE-01 §1 specifies and doing it twice would mean doing it differently twice. |
-| 6 | **Project and Goal mobile density** | **MISSING** | See "Still open". |
+| 4 | **Swipe actions on Task rows** | **COMPLETE (#191)** | `app/shared/task-record/useTaskRowSwipe.ts` is the row's own gesture, and its header states why it is not `useCardSwipe`: a `TaskRow` IS the column grid (DS-04), so the tray cannot be a sibling and the CELLS move by `transform` instead — `task-list.css:1419-1436`. Inert unless `(hover: none) and (pointer: coarse)`; `TaskRow.tsx:203-215` binds both edges to the row's OWN controls (the checkbox handler, and the inline date trigger the row already renders), so there is no swipe-only mutation. Decisions are in the pure model `app/shared/card/swipe-model.ts`, covered by `test/unit/card/row-swipe-model.test.ts`. |
+| 5 | **Mobile Today** — compacted header, plan first, no duplicate Add | **COMPLETE (#191)** | The recomposition landed with CONVERGE-01 §1, in the markup, exactly as this row said it had to. The header is now the greeting block alone (`today.css:1902-1916`) because the duplicate "+ Add task" is gone from the DOM at every width, not hidden on a phone (`TodayScreen.tsx:1126-1141`). The stat band is three cards abreast at ≤34rem, ~76px against the 171px measured before (`today.css:261-300`). The plan leads the grid's working rows. |
+| 6 | **Project and Goal mobile density** | **COMPLETE (FINISH-01)** | The GOAL half was already closed and this row's wording hid it: `/goals` renders `ProgressRow` (`.dh-mrow`), measured at 393×852 as 64px per row, nine per viewport. The PROJECT half closes here. `.dh-pcard` gains a phone composition using the SAME `display: contents` technique `.dh-ecard` already uses one section up — the head dissolves into the card's own grid so the mark takes a column and the title, the bar and the status line indent against it. Measured at 393×852: **180px → 112px per card, three → five fully visible** (5.65 by arithmetic), no horizontal overflow. Same DOM, same reading order, nothing moved by `order`. One element goes — the two-line description, the only prose on the card; the audit's four survivors (identity tile, title, the single most important metric, the status line) are all present and asserted. DS-05's recorded lesson about the previous phone block is applied rather than repeated: this one declares no layout model for the card's children, only their placement. |
 | 7 | Priority flags and short dates on Today mobile rows | COMPLETE | `TodayScreen.tsx:379` renders the shared `PriorityIndicator` and only when set; `today.css:1130+` keeps the flag on a phone and drops only its tag; `relativePastLabel` is the short shared formatter. |
-| 8 | Hide ⌘K and "/" hints on touch; FAB safe area; no clipped Add; scrolling strips with edge fades | PARTIAL | The scroll strips and their shadows are done (`scroll-strip.css`). #188 lists the FAB safe area as out of scope and it remains so. |
+| 8 | Hide ⌘K and "/" hints on touch; FAB safe area; no clipped Add; scrolling strips with edge fades | **COMPLETE (FINISH-01)** | The scroll strips were done. The safe-area half closes here, in the two places it was broken. **The inset no longer eats the labels:** it is capped at what is left after every control has the width its label needs (`--dh-bottomnav-content-min`, five slots at 4rem), so a device that reports one gets it honoured as far as it can be and reclaimed below that. Measured with a 59px inline inset: "Projects" was 55px → 47px at 393 and 55px → 37px at 320; **no label truncates at either width now.** **The label's line is reserved:** the control is a two-row grid whose bottom track is the label, so the Capture control's taller 44px indicator grows the indicator band instead of pushing its own label at the bar's edge. Measured before: four labels 11px above the bar's bottom and "Add" 4px above it; **after: one clearance value for all five.** The residual is stated rather than papered over — at 150% OS text scaling five labels genuinely do not fit 393px and the longest still ellipsises, which is the same arithmetic the Diary week strip records for itself. |
 
 ---
 
@@ -77,15 +110,15 @@
 
 | # | Requirement | Status | Evidence |
 |---|---|---|---|
-| 1 | **Today on one 12-column grid, in the specified order** | **MISSING** | `TodayScreen.tsx` still composes three named "ranks" (work / context / support) with Needs attention LAST, an Insights donut present, and no parent context on plan rows. This is the audit's single largest open item. |
-| 2 | Shared collection header grammar across the eight modules | PARTIAL | All eight render `CollectionLayout`/`CollectionControls`, and the shared state breakdown (`collectionStateBreakdown`) is in use — Projects reads "20 active · 62 completed · 1 archived". The scope-chip weight reduction is not done. |
-| 3 | One list-container rule across People, Notes, Tasks, Project-detail task lists | PARTIAL | Notes and Tasks are surfaceless rows; People and Project-detail lists have not been reconciled. |
-| 4 | Project cards expose status, diagnostic, progress, identity | COMPLETE | #188 added the textual diagnostic so a meter's colour has a visible cause ("On track", "6 overdue"). The "table becomes the default at ~40+ projects" question is not answered. |
+| 1 | **Today on one 12-column grid, in the specified order** | **COMPLETE (#191)** | `TodayScreen.tsx:1194-1209` is one `.dh-today__grid`; `today.css:482-517` gives every band the same twelve tracks (stats 4·4·4, then 7·5, 7·5, 7·5), with the pair's spans data-conditional so a lone survivor takes the full width. Needs attention now sits ABOVE Goal progress (`TodayScreen.tsx:36-47`). Insights and `todayInsight` were deleted rather than restyled. Nothing is moved by CSS `order` — the DOM order is the phone order, the reading order and the tab order. |
+| 2 | Shared collection header grammar across the eight modules | **COMPLETE (FINISH-01)** | All eight render `CollectionLayout`/`CollectionControls`, and the shared state breakdown is in use. The scope chip's weight is now reduced product-wide in the one place it is drawn (`segmented-filter.css`): `label-medium` rather than `label-large`, one space rung of inline padding rather than two, and the check glyph's whole reserved box removed from the LABELLED variant. The near-black fill is a recorded FINAL-UI decision and is untouched, and so is `min-height` — the hit area was never the complaint. The icon-only variant KEEPS its check, because there the label is visually hidden and the fill alone would be a tone with nothing beside it (AGENTS.md §15). Measured at 1440: the chip is 12px against a 26px page title, where it was `label-large` plus a glyph before. Asserted per collection in `collection-header.spec.ts`. |
+| 3 | One list-container rule across People, Notes, Tasks, Project-detail task lists | **COMPLETE (FINISH-01)** | The rule is **bare rows on the page background, hairlines owned by the list**, and it is now written down in `DESIGN_SYSTEM.md` beside the collection-header anatomy ("One list container"). Three of the four already followed it — Notes, Tasks and Areas' `.dh-erow-list`; People was the single outlier and is migrated: `.dh-prow-list` loses its surface, its radius and its resting shadow, and the `forced-colors` border moves from the list to between its rows, because a box around the run would draw a container the list no longer has. **Project detail's list keeps its container, and the reason is documented and cited:** that is `.record-tabs__panel`, the record layout's own surface, drawn identically behind Overview, Links, Activity and Settings on every record and joined to its tab strip (M3-INT, `record-layout.css`). RECORD-01 already defines the deliberate opt-out (`data-surface="plain"`) and its condition — "a panel whose content already IS a surface does not draw a second" — which a task list does not meet. Removing it for one tab of one record would make that tab the odd one out among its own siblings. Recorded as the rule's one exception. |
+| 4 | Project cards expose status, diagnostic, progress, identity | **COMPLETE (FINISH-01)** | #188 added the textual diagnostic so a meter's colour has a visible cause. The open question — "does the table become the default at ~40+ projects?" — is now **answered on the record** in [ADR-100](../decisions/ARCHITECTURE_DECISIONS.md): above forty records in the CURRENT scope, and only when the owner has not chosen, the collection opens as a table; an explicit `?present=` always wins at every size. One shared rule (`resolveCollectionPresentation`), one exported threshold, no new query (the lifecycle counts the header already prints supply the total). Two defects surfaced and fixed on the way: `ViewSwitcher` deleted the param for its first option, which made "Grid" a choice the owner could press and never keep (`alwaysWriteValue`), and `.dh-ptable__scroll` had no positioned ancestor for its absolutely-positioned descendants, so `?present=table` scrolled the whole DOCUMENT sideways at 390px — 1134px against a 390px client, reproduced on the clean tree. |
 | 5 | Areas reframed on standing load, "Updated" not the primary metric | COMPLETE | `AreasCollection.tsx:273-284` — `openTasks` is the card's `metric`; `areaRelationshipLine` carries Projects and Goals; `updatedLabel` is demoted to secondary `meta`. No fabricated metrics. |
-| 6 | **Notes as one writing workspace** | PARTIAL | The rail beside the editor already exists (`NotesRail`, UIX-04) and the excerpt pipeline is genuinely syntax-free — `cleanExcerpt` runs `markdownToPlainText` and collapses whitespace, so neither raw Markdown nor literal `\n` can reach a list. Still open: two-line excerpts (the row is one line), tags as chips (currently `tags.join(", ")`), the permanent byte-limit hint in `NoteContentForm.tsx:70`, and "+ New note". |
-| 7 | People lead with relationship context | MISSING | "No shared history yet" is still `PersonTimelineTab.tsx:131`. |
-| 8 | Analytics: no verbose description in body text, readable values, hover readout, an overdue metric | PARTIAL | The verbose description is already visually hidden behind a short `caption` (`AnalyticsScreen.tsx:272`, `TrendLine.tsx:553`). The **"Overdue and trend" metric is missing** — `app/kernel/analytics/analytics.ts` defines exactly four metrics and none is overdue. |
-| 9 | Goals: area-first "+ New goal", one filter grammar | PARTIAL | The area-first constraint is real and handled (`NewGoalFormHost` refuses and routes to Areas when none exist). The duplicated filter systems are not collapsed. |
+| 6 | **Notes as one writing workspace** | **COMPLETE (FINISH-01)** | The rail and the syntax-free excerpt pipeline were already done (UIX-04). All four remaining items close here. **"+ New note"** is back in the header's shared primary slot (`NotesCollection.tsx`), opening the same URL-backed drawer the empty state and global capture reach — one more door, not a second path — and, following People's `canQuickAdd` rule, only in the ACTIVE scope. **Two-line excerpts**: `notes.css` clamps `.dh-notes-list__excerpt` at the rendered measure; measured live, a full excerpt is 2 lines at 1280px (it was forced to 1 and ellipsised) and the clamp is what holds it to 2 at 393px, where the server's 180-character bound would otherwise draw four. **Tags as chips** through a new shared `TagChip`/`TagChipList` (`app/shared/ui/TagChip.tsx`), bounded at three per row with the remainder stated as a count and named in full — and the two module-local copies (`.dh-person-summary__tag`, `.dh-asset-summary__tag`, identical but for their radius) migrated onto it rather than a third being added. **The byte hint** is gone from `NoteContentForm`'s permanent help; the limit is unchanged and still enforced in both places, and the sentence now appears only at ≥90% of it or on the validation error. |
+| 7 | People lead with relationship context | **COMPLETE (FINISH-01)** | The old evidence cited `PersonTimelineTab.tsx:131` — the RECORD's timeline tab, not the collection row. On the row, UIX-05/UIX-06 had already delivered reach (`mailto:`/`tel:`, rendered only where the data exists — UIQ-011's rule, cited at `PersonRow.tsx`), the rhythm column and identity colour. This pass adds the missing half: `connectionLine` (`PeopleCollection.tsx`) composes the row's one supporting line in the audit's order — last interaction, open commitments (linked Tasks still open, `@waiting` included), linked active Projects — with the identity context following rather than leading. Both counts come from `relationship.summary` inside the batched `listPersonRelationshipFacts` read the page already performs: no new query, no new repository method. "No shared history yet" is demoted, not deleted — `rhythm.quiet` drops it to the muted ramp and removes the dot (`card-family.css`), because a dot agrees with a state and "nothing recorded" is not one. Row height is now fixed rather than a floor: measured 72px desktop / 88px phone on every row, against 68/81/68/68 before. |
+| 8 | Analytics: no verbose description in body text, readable values, hover readout, an overdue metric | **COMPLETE (FINISH-01)** | The verbose description was already visually hidden behind a short `caption`. The overdue metric is now the row's fifth figure (`analytics.ts` → the `overdue` entry) over a new bounded aggregate, `ReviewInsightRepository.countOverdueAtPeriodEnd` — ONE grouped statement over the two stored columns a live overdue check already reads (`d1-review-insight-repository.ts`), no table, no migration, no per-bucket query. `OverduePanel` (`AnalyticsScreen.tsx`) draws it through the SAME shared `TrendLine`, with the interactive readout and the CONVERGE-01 §I caption/enumeration split. The card's figure is the line's last reading by construction. The chart takes the status ramp's `warning` via `data-meter-status` — the product's one meter vocabulary, not a chart-local colour; the delta sentence stays the row's plain grey ("4 fewer than the previous period (12)"). Measured live at `/analytics`: 18 overdue, `+5` on the previous 7 days, `+14` on the previous 4 weeks, `+16` on the previous 12. Not wired into NOTIFY-01 — Today remains the one authority for "what needs you now". |
+| 9 | Goals: area-first "+ New goal", one filter grammar | **COMPLETE (FINISH-01)** | The area-first constraint was already handled. The two stacked filter surfaces are now ONE `ViewTabs` rail in the filter band — `All · On track · Needs attention · Completed · Deleted` (`goalViewTabs`, `GoalsCollection.tsx`) — and the header's view slot is empty. This follows Projects rather than inventing a third convention: its four lifecycle scopes (`Active · All · Completed · Archived`) are already one rail in that band with the header slot free. It also settles the audit's own objection — "Deleted" is not a peer of "Active", but it IS a peer of "Completed", and it sits last where a rail's least-frequent destination belongs. Deleted keeps `?state=deleted` through `ViewTabOption.to` (CAL-02's per-tab path), so neither param learns about the other, and the same rail is drawn on the deleted scope so the way out is where the way in was. |
 
 ---
 
@@ -164,36 +197,77 @@ See the table above.
 
 ---
 
-## Still open, and why
+## What #190 and #191 closed
 
-**MOBILE-02 §4 (swipe), MOBILE-02 §6 (Project/Goal phone density),
-CONVERGE-01 §1 (the Today grid), §6's remaining Notes items, §7 (People) and
-§8's overdue metric are not implemented by this pass.**
+The two passes after #189 answered the sequencing this document set out, and in
+the order it set out.
 
-They are not out of scope — the audit asked for them and they remain owed. They
-were not attempted here because each is a composition change to a surface with
-its own live E2E coverage, and the honest sequencing is:
+**CONVERGE-01 §1 had to come before MOBILE-02 §5**, because both reorder Today's
+DOM and Today's phone composition *is* its DOM order. #190/#191 did the
+reordering once, in the markup, and the phone composition fell out of it — which
+is why both rows close together and neither needed a media query to move an
+element. `today.css:449-454` records the constraint at the grid itself.
 
-1. **CONVERGE-01 §1 must come before MOBILE-02 §5.** Both reorder Today's DOM.
-   Today's phone composition *is* its DOM order (`TodayScreen` states this
-   explicitly: "Nothing on this screen is moved by CSS `order`"), so doing the
-   mobile compaction first would mean doing the same reordering twice, by two
-   different rules, and reconciling them afterwards.
-2. **MOBILE-02 §4 (swipe) needs a decision this pass did not have the evidence
-   to make.** `useCardSwipe` exists and is proven on the generic `Card`, but
-   `TaskRow` is a grid row whose columns are the *list's* columns — a swipe tray
-   behind it cannot be a sibling in the same grid without breaking the column
-   alignment DS-04 exists to protect. Either the tray becomes a
-   `position: absolute` layer inside the row, or the row gains a wrapper and the
-   grid moves up one level. The second is a change to the locked desktop Task-row
-   anatomy and should not be made without measuring it.
+**MOBILE-02 §4 (swipe) needed a decision, and the decision was neither of the two
+options this document listed.** It said the tray had to become an absolutely
+positioned layer inside the row, or the row had to gain a wrapper and the grid
+move up a level — and rejected the second as a change to the locked desktop
+Task-row anatomy. The implementation takes a third route: the row keeps its grid
+untouched and the CELLS move by `transform`. A transform does not participate in
+layout, so every column's x-origin is identical during a swipe, after a swipe and
+on a desktop that never swipes — the constraint DS-04 exists to protect, held
+without touching the anatomy. `useTaskRowSwipe.ts:9-45` states it, and the
+transform is applied only while `[data-swipe-edge]` exists so a permanent
+identity transform never becomes a containing block for the row's anchored
+popovers.
 
-**CONVERGE-01 §8's overdue metric** is the smallest of these and the most nearly
-free: `app/kernel/analytics/analytics.ts` already computes four metrics from the
-same reads, and an overdue count is available from the existing task query. It is
-listed here rather than done because a metric added without its trend and its
-range semantics settled would be the fabricated-analytics failure the audit
-forbids.
+## Nothing is open
+
+**Every row in the four tables above is COMPLETE.** The 16 August 2026 audit is
+closed, on evidence, at FINISH-01.
+
+The last eight rows closed in one package, in the order the register set out:
+
+| Row | Closed by |
+|---|---|
+| CONVERGE-01 §8 | The overdue metric and its trend, over a new bounded aggregate that adds no table and no migration. |
+| CONVERGE-01 §7 | The People row's connection line, and "No shared history yet" demoted rather than deleted. |
+| CONVERGE-01 §6 | "+ New note", two-line excerpts, tag chips through a new shared `TagChip`, and the byte hint only when it matters. |
+| CONVERGE-01 §9 + §2 | One `ViewTabs` rail on Goals, and the scope chip's weight reduced product-wide. |
+| CONVERGE-01 §4 | [ADR-100](../decisions/ARCHITECTURE_DECISIONS.md) — the table as the default above forty, and an explicit choice that is never overridden. |
+| MOBILE-02 §6 + §8 | The Project card at row scale on a phone; the bottom bar's labels fitting inside a safe-area inset. |
+| CONVERGE-01 §3 | Bare rows as the one list container, with the record tab panel recorded as its single exception. |
+
+### Two things this pass found that the audit had wrong
+
+Both are recorded because a register that only ever agrees with its brief is not
+being read against the code.
+
+- **CONVERGE-01 §7 was narrower than it looked.** The row already reached
+  (`mailto:`/`tel:`, only where the data exists) and already drew identity
+  colour; the evidence line pointed at the Person RECORD's timeline tab rather
+  than at the collection row. Corrected in Phase 0, closed in Phase 2.
+- **The "Grid / Table vs Grid / List" finding was the opposite of drift.** The
+  audit read two words for one control; they are the right words for two
+  different drawings, and `presentation.ts` had already defined them as "not
+  synonyms". Renaming either would have made a label describe something the page
+  does not draw. Nothing was renamed; the vocabulary is now recorded in
+  `DESIGN_SYSTEM.md` with the rule that a fourth word needs a fourth drawing.
+
+### Three defects found by driving the product, not by reading it
+
+None was in the audit, and each was reproduced on the clean tree before it was
+fixed:
+
+- **`?present=table` scrolled the whole DOCUMENT sideways at 390px** — 1134px
+  against a 390px client, a WCAG 1.4.10 reflow failure. An absolutely-positioned
+  descendant with no positioned ancestor was escaping the table's own scroll
+  container. One `position: relative`.
+- **`ViewSwitcher` made a conditional default's choice unexpressible.** It
+  deletes the param for its first option, so pressing "Grid" produced a URL the
+  new rule reads as "has not chosen".
+- **The phone bar spent the safe-area inset out of its labels**, and reserved no
+  line for them, so "Add" sat closest to the edge of the five.
 
 ---
 

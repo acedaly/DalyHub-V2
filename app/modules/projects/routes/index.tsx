@@ -18,7 +18,7 @@ import type { ProjectLifecycleCounts } from "~/kernel/projects";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
 import {
-  parseCollectionPresentation,
+  resolveCollectionPresentation,
   type CollectionPresentation,
 } from "~/shared/collection-layout";
 import type { SelectOption } from "~/shared/forms/types";
@@ -63,6 +63,9 @@ function parseState(value: string | null): ProjectState {
  */
 const PROJECTS_GOAL_SUMMARY_LIMIT = 3;
 
+/** The two presentations Projects draws. The first is its default. */
+const PROJECT_PRESENTATIONS = ["grid", "table"] as const;
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const params = new URL(request.url).searchParams;
@@ -71,10 +74,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Both are ordinary URL state, so a narrowed or tabular collection is
   // shareable, bookmarkable and Back/Forward-correct.
   const query = params.get("q") ?? "";
-  const presentation = parseCollectionPresentation(params.get("present"), [
-    "grid",
-    "table",
-  ]);
+  /*
+   * ADR-100 — the presentation is resolved AFTER the lifecycle counts, because
+   * a collection this large defaults to the table. The raw param travels until
+   * then; `resolveCollectionPresentation` is the one place the rule lives.
+   */
+  const presentParam = params.get("present");
   // An opaque keyset cursor for the NEXT page, echoed back from a prior page's
   // `nextCursor`. It is validated (and scope-checked) in the repository; an absent
   // or malformed value simply yields the first page or a calm error — never an
@@ -94,7 +99,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       goals: [] as readonly GoalSummary[],
       goalsFailed: true,
       query,
-      presentation,
+      // No scope resolved, so no count: an unknown size falls to the gallery,
+      // and an explicit choice is still honoured.
+      presentation: resolveCollectionPresentation({
+        param: presentParam,
+        allowed: PROJECT_PRESENTATIONS,
+        total: null,
+        large: "table",
+      }),
       state,
       failed: true,
     };
@@ -212,6 +224,39 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   } catch {
     counts = null;
   }
+
+  /*
+   * ADR-100 / CONVERGE-01 §4 — a large collection opens as a TABLE.
+   *
+   * The audit left "does the table become the default at ~40+ projects?" open;
+   * it is answered on the record in ADR-100 and enforced by the one shared rule
+   * in `resolveCollectionPresentation`, so a second collection adopting it
+   * cannot adopt a different arithmetic.
+   *
+   * The size that decides it is the CURRENT lifecycle scope's, not the
+   * workspace's: an owner on "Archived" with three archived Projects is looking
+   * at a collection of three, whatever the other two hundred are doing. A count
+   * that failed (`null`) leaves the gallery alone rather than guessing.
+   *
+   * The counts are already read for the header's "20 active · 62 completed"
+   * line, so this adds no query.
+   */
+  const scopeTotal =
+    counts === null
+      ? null
+      : state === "all"
+        ? counts.active + counts.completed + counts.archived
+        : state === "completed"
+          ? counts.completed
+          : state === "archived"
+            ? counts.archived
+            : counts.active;
+  const presentation = resolveCollectionPresentation({
+    param: presentParam,
+    allowed: PROJECT_PRESENTATIONS,
+    total: scopeTotal,
+    large: "table",
+  });
 
   /*
    * REDESIGN-04 §5.3 — the compact Goals section beneath the gallery.

@@ -73,6 +73,13 @@
    * survives forced colours, the fill is now a genuine tone inversion rather
    * than a lifted white chip, and the label steps to the fill's own foreground.
    * What is removed is the container the UNSELECTED segments were sitting in.
+   *
+   * ── CONVERGE-01 §2 amends the two notes above ──────────────────────────────
+   * Both say the leading check is still drawn. It is not, on a LABELLED segment:
+   * that variant now carries the semantic, the tone inversion and the
+   * forced-colours pair, and nothing else. The icon-only variant keeps its check
+   * and needs it. The reasoning is at the `::before` rule; the colour decision in
+   * this block is untouched.
    */
   border: none;
   border-radius: var(--app-shape-control);
@@ -102,16 +109,38 @@
    * (tokens.css), so nothing a thumb touches got smaller — this is the same
    * bargain every other control in the product already makes.
    */
+  /*
+   * CONVERGE-01 §2 — the chip no longer OUTWEIGHS the page title beside it.
+   *
+   * The audit's finding is about rank, not colour: on a collection header the
+   * selected scope was a near-black filled chip at `label-large`, on a
+   * `--dh-control-height` box, with a check glyph — and the page's own `h1` sat
+   * next to it in ordinary text. The loudest object on the band was the answer
+   * to "which subset?", above the answer to "what is this page?".
+   *
+   * What changes is the WEIGHT. The near-black fill is a recorded decision
+   * (FINAL-UI, below) and it stands: the tone inversion is what the approved
+   * concepts draw, and spending the accent here would put two primaries in one
+   * header. What is spent instead is everything else — `label-medium` rather
+   * than `label-large`, one space rung of inline padding rather than two, and
+   * the check glyph's whole reserved box (see the note where it used to be).
+   *
+   * `min-height` is deliberately NOT reduced. It is the hit area, it already
+   * floors to `--app-touch-target-min` under `(pointer: coarse)`, and the point
+   * of this change is that the chip should stop SHOUTING, not that it should get
+   * harder to press. A control that reads quieter and hits the same is the whole
+   * trade available here.
+   */
   min-height: var(--dh-control-height);
   min-inline-size: 0;
   flex: none;
-  padding-inline: var(--app-space-3);
+  padding-inline: var(--app-space-2);
   border-radius: var(--app-shape-control);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
@@ -138,19 +167,37 @@
 /*
  * The selection GLYPH — M3's leading check.
  *
- * Selection is therefore a SHAPE as well as a tone, which is what keeps the
- * control readable under forced colours and to a colour-blind owner
- * (AGENTS.md §15).
+ * CONVERGE-01 §2 — it is GONE from the labelled control, and kept on the
+ * icon-only one. The split is not a compromise; the two cases are different.
  *
- * UIQ-013 — the box is reserved in EVERY segment and revealed by opacity,
- * where it used to be inserted only on the selected one. Inserting it moved
- * every label in the control each time the selection changed: the brief's "no
- * layout movement when state changes", and a real one — at 1280 the Tasks
- * switcher shifted ~26px as you moved between List and Board. Reserving costs
- * one glyph width per segment and buys geometry that is identical whichever
- * view is active.
+ * On a LABELLED segment the check was the third statement of a fact the reader
+ * already has twice over: the label is right there, and the selected segment
+ * inverts to a near-black fill with its own foreground. It cost a glyph's width
+ * plus a gap in EVERY segment (reserved, per the UIQ-013 note below) on a
+ * control that appears in the header of seven collections — which is most of
+ * why the chip outweighed the page title beside it. Removing it from all
+ * segments rather than just the selected one keeps the UIQ-013 contract intact:
+ * nothing is inserted on selection, so no label moves.
+ *
+ * On an ICON-ONLY segment the label is visually hidden, so without the check the
+ * ONLY visible difference between selected and unselected is the fill — a tone
+ * alone, which is exactly what AGENTS.md §15 forbids. It keeps its glyph, and
+ * the rules further down that swap icon for check are untouched.
+ *
+ * What still carries selection on the labelled control: `aria-current` /
+ * `aria-pressed` (semantic, and what assistive tech actually uses), a full tone
+ * INVERSION rather than a tint, and — under forced colours — the explicit
+ * `Highlight` / `HighlightText` pair at the end of this file. None of the three
+ * is a hue, so none of them is lost to a colour-blind reader or a monochrome
+ * rendering.
+ *
+ * UIQ-013's original note, kept because the rule it states still governs the
+ * icon-only variant: the box is reserved in EVERY segment and revealed by
+ * opacity, where it used to be inserted only on the selected one. Inserting it
+ * moved every label in the control each time the selection changed — at 1280 the
+ * Tasks switcher shifted ~26px between List and Board.
  */
-.dh-segmented__option::before {
+.dh-segmented--icon-only .dh-segmented__option::before {
   content: "";
   inline-size: 1.125rem;
   block-size: 1.125rem;
@@ -199,8 +246,10 @@
  * shifts under the pointer.
  */
 
-.dh-segmented__option[aria-current="true"]::before,
-.dh-segmented__option[aria-pressed="true"]::before {
+/* Kept beside the icon-only rules further down, which is where the glyph now
+ * lives; a labelled segment draws no `::before` at all. */
+.dh-segmented--icon-only .dh-segmented__option[aria-current="true"]::before,
+.dh-segmented--icon-only .dh-segmented__option[aria-pressed="true"]::before {
   opacity: 1;
 }
 
@@ -304,8 +353,6 @@
   background: var(--dh-color-surface);
 }
 
-/* The check reserves a smaller box here, in proportion with the smaller label. */
-.dh-segmented--subtle .dh-segmented__option::before {
-  inline-size: 1rem;
-  block-size: 1rem;
-}
+/* CONVERGE-01 §2 — the subtle variant reserved a smaller check box, in
+ * proportion with its smaller label. There is no check on a labelled segment any
+ * more, so there is nothing left here to size. */

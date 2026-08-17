@@ -342,6 +342,56 @@ describe("NoteContentForm", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  /*
+   * CONVERGE-01 §6 — a writer does not need a ceiling on screen while nowhere
+   * near it. The LIMIT is unchanged and still enforced in both places; only the
+   * permanent sentence about it is gone.
+   */
+  describe("the byte limit is mentioned only when it matters", () => {
+    function renderEditor(initialContent = "") {
+      renderInRouter(
+        <NoteContentForm
+          contentUpdatedAt={null}
+          noteId="n1"
+          initialContent={initialContent}
+          onSaved={() => {}}
+        />,
+      );
+    }
+
+    it("says nothing about bytes to a writer nowhere near the limit", () => {
+      renderEditor("A short note.");
+      expect(
+        screen.getByText(/^Markdown — headings, lists/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/bytes/)).toBeNull();
+    });
+
+    it("names the ceiling once the note is approaching it", () => {
+      renderEditor("a".repeat(Math.ceil(MARKDOWN_SOURCE_MAX_BYTES * 0.95)));
+      expect(screen.getByText(/bytes used\.$/)).toBeInTheDocument();
+    });
+
+    it("appears as the value crosses the threshold, not before", () => {
+      renderEditor("");
+      const textbox = screen.getByRole("textbox", { name: "Note" });
+
+      fireEvent.change(textbox, {
+        target: {
+          value: "a".repeat(Math.floor(MARKDOWN_SOURCE_MAX_BYTES * 0.89)),
+        },
+      });
+      expect(screen.queryByText(/bytes/)).toBeNull();
+
+      fireEvent.change(textbox, {
+        target: {
+          value: "a".repeat(Math.ceil(MARKDOWN_SOURCE_MAX_BYTES * 0.91)),
+        },
+      });
+      expect(screen.getByText(/bytes used\.$/)).toBeInTheDocument();
+    });
+  });
+
   describe("navigation guard", () => {
     it("blocks navigation while unsaved, and Leave discards", async () => {
       const fetchMock = vi.fn();

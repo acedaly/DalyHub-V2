@@ -45,6 +45,51 @@ visual redesign or add speculative capability.
 
 ### NOW
 
+### ☑ FINISH-01 - Close the 16 August audit: analytics, people, notes, and one grammar — **DELIVERED 2026-08-17**
+
+The last eight rows of the [16 August 2026 UX/UI audit](../product/UX_UI_AUDIT_COMPLETION_2026_08_16.md),
+after #188–#191 had closed the rest. **The register is now COMPLETE in every row**
+and the audit is closed on evidence.
+
+- **The register was made true first, alone, before anything else was built.**
+  #190 and #191 landed without reopening it, so three rows claimed work was owed
+  that was already merged (the Today grid, Task row swipe, mobile Today). Every
+  other MISSING/PARTIAL row was re-read against `cd385cfd` rather than trusted,
+  and two were wrong in the other direction.
+- **Analytics gained the overdue metric and its trend** (CONVERGE-01 §8), over
+  one new bounded aggregate — no table, no column, no migration. It is the
+  product's ONE overdue rule read at a past moment.
+- **The People row leads with connection** (§7); **Notes' four finishing items**
+  (§6), which produced the shared `TagChip` and retired two module-local copies;
+  **one filter rail on Goals** (§9) and **a lighter scope chip everywhere** (§2);
+  **the Project card at row scale on a phone** and **the bottom bar's labels
+  fitting inside a safe-area inset** (MOBILE-02 §6, §8); **bare rows as the one
+  list container** (§3), with the record tab panel recorded as its exception.
+- **The audit's open question is answered on the record.**
+  [ADR-100](../decisions/ARCHITECTURE_DECISIONS.md) — the Projects table becomes
+  the default above forty in the current scope, and an explicit choice is never
+  overridden.
+- **Two audit findings were wrong, and are recorded as wrong rather than
+  implemented.** CONVERGE-01 §7 was narrower than its evidence line suggested,
+  and the "Grid / Table vs Grid / List" finding was the opposite of drift — two
+  correct words for two different drawings, which `presentation.ts` had already
+  defined as "not synonyms". Nothing was renamed; the vocabulary is recorded in
+  `DESIGN_SYSTEM.md` instead.
+- **No migration, and none was needed** — the phase brief said every item was
+  expressible against the existing schema, and each one was.
+- **Record:** [ADR-100](../decisions/ARCHITECTURE_DECISIONS.md)
+  · [`DESIGN_SYSTEM.md → One list container`](../design/DESIGN_SYSTEM.md#the-collection-header-anatomy-uiq-013uiq-014)
+  · [`UX_UI_AUDIT_COMPLETION_2026_08_16.md`](../product/UX_UI_AUDIT_COMPLETION_2026_08_16.md)
+  · raised [DEBT-149](../product/PRODUCT_DEBT.md).
+- **Found on the way, recorded rather than fixed.** Sixteen E2E journeys across
+  five specs fail on `main` for reasons unrelated to this change, each verified
+  by stashing the branch and re-running on the clean tree.
+  [DEBT-149](../product/PRODUCT_DEBT.md) states the set with its evidence. Three
+  defects this pass DID find and fix, none of them in the audit: a page-level
+  horizontal scroll the Projects table caused at 390px, a `ViewSwitcher` that
+  made a conditional default's choice unexpressible, and the bottom bar spending
+  its safe-area inset out of its own labels.
+
 ### ☑ NOTIFY-01 - Notifications: an event ledger, an in-app inbox, and Pushover — **DELIVERED 2026-08-16**
 
 DalyHub knows things the owner does not — an asset obligation approaching, a waiting

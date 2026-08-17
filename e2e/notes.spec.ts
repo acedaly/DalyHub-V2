@@ -76,13 +76,11 @@ async function waitForEditor(page: Page, timeout = 30_000): Promise<void> {
  * on `/notes?drawer=new-note`. Waiting for the network to settle (a real
  * condition, not a fixed delay) closes that window deterministically. */
 async function openNewNoteDialog(page: Page) {
-  // The shell cleanup removed the Notes header's "New Note" button as a duplicate
-  // of the global capture control. The DRAWER it opened is untouched and still
-  // URL-backed, so this spec — which is about the NOTES-05 editor, not about
-  // where the button lives — reaches it by its canonical URL. Creating a Note
-  // through the global control end to end is covered by
-  // `mobile-capture-journeys.spec.ts`, and the button's absence by
-  // `creation-controls.spec.ts`.
+  // The drawer is URL-backed, so this spec — which is about the NOTES-05 editor,
+  // not about where the button lives — reaches it by its canonical URL. The
+  // header's "+ New note" (CONVERGE-01 §6), the empty state's action and the
+  // global capture control all open THIS, and that they do is asserted in
+  // `creation-controls.spec.ts` and `mobile-capture-journeys.spec.ts`.
   await page.goto("/notes?drawer=new-note");
   const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
@@ -667,6 +665,112 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
+  });
+
+  /*
+   * CONVERGE-01 §6 — the collection row, measured.
+   *
+   * The clamp is a RENDERED-width decision (see `notes.css`), so it can only be
+   * proven with a layout engine: this asserts the excerpt occupies at most two
+   * line boxes and that a long one genuinely uses both, at the list's own
+   * measure rather than at a character count guessed server-side.
+   */
+  test("a row's preview is two lines, clamped at the list's own measure", async ({
+    page,
+  }) => {
+    const noteTitle = uniqueNoteTitle("excerpt");
+    await createNote(page, noteTitle);
+    // Long enough that the server's own 180-character excerpt bound is reached,
+    // so the row is measuring a full excerpt rather than a short sentence.
+    await clearAndType(
+      page,
+      "The current pathway assumes every student arrives with the same preparation, the same amount of time and the same reasons for being here, which is not true of any cohort this programme has ever taught and has not been true for a decade.",
+    );
+    await blurEditor(page);
+    await expect(page.getByText("Saved")).toBeVisible();
+
+    /*
+     * Measured at two widths, because the two bounds do different jobs.
+     *
+     * At the desktop measure a full excerpt is TWO lines — which is the change:
+     * the row used to force it to one and ellipsise the rest, throwing away half
+     * of a payload it had already paid for.
+     *
+     * At 393px the same string is about four lines, so the CSS clamp is what
+     * holds the row to two — proven by removing it and watching the box grow,
+     * not by `scrollHeight` (under `-webkit-box` a browser sizes the box to the
+     * clamped lines and reports `scrollHeight === clientHeight`, so that
+     * comparison would pass on an unclamped element too).
+     */
+    for (const width of [1280, 393]) {
+      await page.setViewportSize({ width, height: 852 });
+      await gotoFixture(page, "/notes");
+      const row = page
+        .locator(".dh-notes-list__row")
+        .filter({ hasText: noteTitle });
+      await expect(row).toBeVisible();
+
+      const measured = await row
+        .locator(".dh-notes-list__excerpt")
+        .evaluate((node) => {
+          const element = node as HTMLElement;
+          const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+          const clamped = element.getBoundingClientRect().height;
+          // `none`, not `unset`: `unset` on `-webkit-line-clamp` resolves to the
+          // inherited value, which is the clamp itself, so the box would not
+          // grow and the assertion would pass for the wrong reason.
+          element.style.setProperty("-webkit-line-clamp", "none");
+          const unclamped = element.getBoundingClientRect().height;
+          element.style.removeProperty("-webkit-line-clamp");
+          return { lines: clamped / lineHeight, clamped, unclamped };
+        });
+
+      expect(measured.lines).toBeGreaterThan(1.5);
+      expect(measured.lines).toBeLessThanOrEqual(2.05);
+      if (width === 393) {
+        expect(measured.unclamped).toBeGreaterThan(measured.clamped);
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 720 });
+  });
+
+  /*
+   * …and its tags are chips, through the ONE shared `TagChip` the Person and
+   * Asset summaries now also render.
+   */
+  test("a row's tags are chips in a named list, not a comma-joined string", async ({
+    page,
+  }) => {
+    const noteTitle = uniqueNoteTitle("tags");
+    await createNote(page, noteTitle);
+
+    // Tags live in the ONE shared overflow, like every other record action.
+    await page.getByRole("button", { name: /^More actions for / }).click();
+    await page.getByRole("menuitem", { name: "Edit tags" }).click();
+    const tagsDialog = page.getByRole("dialog", { name: "Edit tags" });
+    await expect(tagsDialog).toBeVisible();
+    for (const tag of ["research", "draft"]) {
+      await tagsDialog.getByRole("textbox").first().fill(tag);
+      await page.keyboard.press("Enter");
+    }
+    await tagsDialog.getByRole("button", { name: "Save tags" }).click();
+    await expect(tagsDialog).toBeHidden();
+
+    await gotoFixture(page, "/notes");
+    const row = page
+      .locator(".dh-notes-list__row")
+      .filter({ hasText: noteTitle });
+    const chips = row.locator(".dh-tagchip");
+    await expect(chips).toHaveCount(2);
+    // The SET, not the order: tags are lower-cased, de-duplicated and stored in
+    // the module's own order, which is not this test's business.
+    expect(await chips.allTextContents()).toEqual(
+      expect.arrayContaining(["research", "draft"]),
+    );
+    // A list, so a screen reader hears "Tags on <note>, list, 2 items".
+    await expect(
+      row.getByRole("list", { name: `Tags on ${noteTitle}` }),
+    ).toBeVisible();
   });
 });
 

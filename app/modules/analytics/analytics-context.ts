@@ -16,10 +16,17 @@
  *   - **Goals on track** is AREA-03's own alignment evaluator over one bounded
  *     page of Goals, exactly as `review-insights-context.ts` composes it.
  *
+ *   - **overdue at each bucket's close** (CONVERGE-01 §8) comes from
+ *     `ReviewInsightRepository.countOverdueAtPeriodEnd` — one grouped statement
+ *     over the two stored columns a live overdue check already reads, at past
+ *     moments instead of at today. No new table, no migration, no per-bucket
+ *     query.
+ *
  * The query budget is therefore FLAT with respect to workspace size and does not
- * grow with the range: one bucketed series read, one totals read, one
- * contribution read, one Area page, one Goal page, one Goal-contribution read
- * and one alignment-facts read — seven grouped statements, every time.
+ * grow with the range: one bucketed series read, one totals read, one overdue
+ * read, one contribution read, one Area page, one Goal page, one
+ * Goal-contribution read and one alignment-facts read — eight grouped
+ * statements, every time.
  *
  * Failure is SAID, not zeroed. A read that fails leaves its half of the model
  * `null`, and the evaluator turns that into "Not available" rather than into a
@@ -179,6 +186,34 @@ export async function loadAnalytics(
     { key: "previous", window: toWindow(previous, input.timezone) },
   ];
 
+  /*
+   * CONVERGE-01 §8 — the overdue series, as ONE more grouped statement.
+   *
+   * Every bucket's close, plus the close of the previous span, which is the
+   * moment the metric card's comparison is against. That is `buckets.length + 1`
+   * moments, and it fits inside `MAX_TREND_PERIODS` for every range in
+   * `ANALYTICS_RANGES` by construction — 7+1, 4+1 and 6+1 against a cap of 8.
+   * `test/unit/analytics/overdue-series.test.ts` asserts that rather than
+   * leaving it as a coincidence, because the read SILENTLY slices at the cap and
+   * a range added later without checking would quietly lose its oldest bucket.
+   *
+   * The previous-span close is asked for in the same call rather than as a
+   * second statement, unlike the completion totals: overdue is a LEVEL read at a
+   * moment, so there is no double-counting hazard to keep the totals away from
+   * the buckets, and no reason to spend a second scan.
+   */
+  const PREVIOUS_OVERDUE_KEY = "previous";
+  const overdueRequests: PeriodCountRequest[] = [
+    ...buckets.map((bucket) => ({
+      key: bucket.key,
+      window: toWindow(bucket, input.timezone),
+    })),
+    {
+      key: PREVIOUS_OVERDUE_KEY,
+      window: toWindow(previous, input.timezone),
+    },
+  ];
+
   let series: AnalyticsSeriesPoint[] = [];
   let current: AnalyticsCompletionCounts | null = null;
   let previousCounts: AnalyticsCompletionCounts | null = null;
@@ -220,9 +255,10 @@ export async function loadAnalytics(
     failed = true;
   }
 
-  const [areas, goals] = await Promise.all([
+  const [areas, goals, overdue] = await Promise.all([
     readDistribution(input, span),
     readGoalTally(input),
+    readOverdue(input, overdueRequests, PREVIOUS_OVERDUE_KEY),
   ]);
 
   const model = evaluateAnalytics({
@@ -235,6 +271,12 @@ export async function loadAnalytics(
     areasBounded: areas.bounded,
     areasAvailable: areas.available,
     goals,
+    overdueSeries: buckets.map((bucket) => ({
+      key: bucket.key,
+      overdue: overdue.byKey.get(bucket.key) ?? 0,
+    })),
+    overduePrevious: overdue.previous,
+    overdueAvailable: overdue.available,
   });
 
   return {
@@ -246,6 +288,37 @@ export async function loadAnalytics(
     bucketDates: buckets.map((bucket) => bucket.endIso),
     failed,
   };
+}
+
+/**
+ * CONVERGE-01 §8 — the backlog at each requested moment.
+ *
+ * One grouped statement over the same tasks a live overdue check reads; no new
+ * table, no migration and no per-bucket query. A failure leaves `available`
+ * false, so the surface says "not available" rather than drawing a flat line at
+ * zero and telling the owner their backlog is clear.
+ */
+async function readOverdue(
+  input: AnalyticsContextInput,
+  requests: readonly PeriodCountRequest[],
+  previousKey: string,
+): Promise<{
+  byKey: Map<string, number>;
+  previous: number | null;
+  available: boolean;
+}> {
+  try {
+    const rows =
+      await input.scope.reviewInsights.countOverdueAtPeriodEnd(requests);
+    const byKey = new Map(rows.map((row) => [row.key, row.overdue]));
+    return {
+      byKey,
+      previous: byKey.get(previousKey) ?? null,
+      available: true,
+    };
+  } catch {
+    return { byKey: new Map(), previous: null, available: false };
+  }
 }
 
 /**

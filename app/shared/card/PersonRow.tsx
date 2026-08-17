@@ -12,12 +12,13 @@
  * the row is composed as those four things, in that order, across the width:
  *
  *     ┌──────────────────────────────────────────────────────────────────────┐
- *     │ (SJ)  Sarah Johnson         sarah@…      ● Due for a catch-up     ⋯  │
- *     │       Family · Acme         0412 345…      Last spoke 6 weeks ago    │
+ *     │ (SJ)  Sarah Johnson                      sarah@…    ● It's been a  ⋯ │
+ *     │       Last spoke 24 Mar · 2 open Tasks   0412 345…    while           │
+ *     │       · 3 Projects · Family · Acme                                    │
  *     └──────────────────────────────────────────────────────────────────────┘
- *        ^identity              ^reach          ^rhythm
+ *        ^identity + connection              ^reach        ^rhythm
  *
- * Four rules make it a Person row rather than a row with Person data in it:
+ * Five rules make it a Person row rather than a row with Person data in it:
  *
  * 1. **The face leads.** A photo or generated initials, at the row's full height
  *    and fully round — the one circular mark in a product whose every other
@@ -27,16 +28,23 @@
  *    or `tel:`, so the most common thing an owner does from a People list — write
  *    to someone — is one click from the list rather than a record visit away. It
  *    sits above the row's own whole-row link, like every other real control in
- *    the family.
- * 3. **The rhythm is the trailing column.** DalyHub's People module derives a
- *    stay-in-touch state (PEOPLE-03) and, before this pass, spent it as one item
+ *    the family. It is rendered ONLY where the data exists, which is UIQ-011's
+ *    rule ("a control that can never do anything is not a control") applied to a
+ *    row: a dash where an address would be is a target that cannot be pressed.
+ * 3. **The supporting line leads with CONNECTION** (CONVERGE-01 §7). What the
+ *    owner shares with this Person comes before who this Person is, because a
+ *    list of relationships opened to answer "what is between us?" should not
+ *    lead with a job title. The caller composes it; see `context`.
+ * 4. **The rhythm is the trailing column.** DalyHub's People module derives a
+ *    stay-in-touch state (PEOPLE-03) and, before UIX-05, spent it as one item
  *    in a run of six metadata facts at equal weight. It is the single most
  *    decision-relevant thing on the row — "who have I not spoken to?" is the
  *    question a People list is opened with — so it gets the position the eye
- *    lands on last and stays.
- * 4. **An absence is an absence.** No contact recorded draws nothing, not a dash.
- *    No relationship recorded says nothing, not "Other". No shared history says
- *    "Nothing recorded yet", which is an invitation rather than a deficiency.
+ *    lands on last and stays. Its one ABSENCE state is drawn quiet (`quiet`),
+ *    because the audit's finding was that every row ended in one.
+ * 5. **An absence is an absence.** No contact recorded draws nothing, not a dash.
+ *    No relationship recorded says nothing, not "Other". No shared history is
+ *    said once, quietly, rather than shouted at the end of every row.
  *
  * Presentation only. It resolves no relationships, no circles and no colours —
  * a caller hands it a rendered avatar and already-derived display data, which is
@@ -67,8 +75,14 @@ export type PersonRowProps = {
   readonly title: string;
   readonly headingLevel?: 2 | 3 | 4;
   /**
-   * The one identity line under the name — "Family · Acme", "Colleague". Never
-   * a run of every fact the record holds; the record is where those live.
+   * The one supporting line under the name. Never a run of every fact the record
+   * holds; the record is where those live.
+   *
+   * CONVERGE-01 §7 — the CALLER composes it, and what it composes changed: the
+   * People collection now leads it with what connects the owner to this Person
+   * (last interaction, open commitments, linked Projects) and puts the identity
+   * context after. This component stays presentation-only and takes the finished
+   * sentence, exactly as it takes a rendered avatar — see the module note.
    */
   readonly context?: string | null;
   /** The preferred way to reach this person, or nothing at all. */
@@ -76,13 +90,23 @@ export type PersonRowProps = {
   /** A second reachable contact, shown only where the row has the width. */
   readonly secondaryReach?: PersonRowReach | null;
   /**
-   * The derived stay-in-touch state. `text` is the state, `detail` is the last
-   * shared moment, and both are always words — the dot only agrees with them.
+   * The derived stay-in-touch state. `text` is the state and it is always words
+   * — the dot only agrees with it.
+   *
+   * CONVERGE-01 §7 — `quiet` is for the state that is an ABSENCE ("No shared
+   * history yet"). It is true, it is worth knowing, and it must not be the
+   * loudest thing on a row about a relationship: quiet drops it to the muted
+   * ramp and removes the dot, because a dot exists to agree with a state and
+   * "nothing recorded" is not one. The words stay exactly as they were.
+   *
+   * The former `detail` line is gone from this column: the last shared moment is
+   * now the head of the caller's connection line, and a row must not print one
+   * fact twice.
    */
   readonly rhythm?: {
     readonly text: string;
     readonly tone: PersonRowTone;
-    readonly detail?: string | null;
+    readonly quiet?: boolean;
   };
   readonly overflow?: ReactNode;
   readonly href: string;
@@ -164,16 +188,17 @@ export function PersonRow({
         <p
           className="dh-prow__rhythm"
           data-tone={rhythm.tone}
+          data-quiet={rhythm.quiet ? "true" : undefined}
           // Named so a test can aim at the REGION without reaching for a
           // styling class.
           data-testid="person-row-rhythm"
         >
-          {/* Decorative — the state is the text beside it. */}
-          <span className="dh-prow__dot" aria-hidden="true" />
+          {/* Decorative — the state is the text beside it. Absent for a quiet
+              state, which has nothing for a dot to agree with. */}
+          {rhythm.quiet ? null : (
+            <span className="dh-prow__dot" aria-hidden="true" />
+          )}
           <span className="dh-prow__rhythm-state">{rhythm.text}</span>
-          {rhythm.detail ? (
-            <span className="dh-prow__rhythm-detail">{rhythm.detail}</span>
-          ) : null}
         </p>
       ) : null}
 

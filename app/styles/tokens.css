@@ -6096,6 +6096,20 @@
   --app-bottomnav-bar-height: 4.125rem; /* 66 */
   /** The central Create control's filled circle. */
   --app-bottomnav-capture-size: 2.5rem; /* 40 */
+  /*
+   * MOBILE-02 §8 — the width the bar's five labels need before a safe-area
+   * inset may take any of it.
+   *
+   * Five slots at 4rem, which is the widest label at the base size
+   * ("Projects", 55px) plus its control's padding. `shell.css` caps the inline
+   * safe-area inset at whatever is left after this, so a notched device gets
+   * the inset honoured as far as it can be and reclaimed below that — an
+   * ellipsised navigation label costs more than a few pixels of background
+   * under a rounded corner.
+   *
+   * In `rem`, so OS text scaling grows it and the inset yields sooner.
+   */
+  --app-bottomnav-content-min: 20rem; /* 5 x 64 */
 
   /*
    * The band anchored to the BOTTOM of the window: everything a scroll

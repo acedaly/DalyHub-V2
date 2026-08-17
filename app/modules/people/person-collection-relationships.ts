@@ -82,6 +82,11 @@ export async function loadPageStayInTouch(
       reasons: relationship.reasons.slice(0, 1),
       lastInteractionDate: relationship.summary.lastInteractionDate,
       daysSinceLastInteraction: relationship.cadence.daysSinceLastInteraction,
+      // CONVERGE-01 §7 — the connection line's two counts, from the summary this
+      // evaluation already produced. No second read, and no second definition of
+      // "open" or "active": both are the relationship evaluator's own.
+      openTasks: relationship.summary.openTasks,
+      activeProjects: relationship.summary.activeProjects,
     });
   }
   return signals;

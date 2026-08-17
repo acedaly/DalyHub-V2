@@ -26,7 +26,13 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
   test("narrows by search, opens a project, and comes back to the same view", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery, explicitly. A workspace this size opens as a table
+     * by default now, and this test names CARDS; the presentation deliberately
+     * does not follow the search (it would flip layout under the owner's
+     * fingers as they type), so the choice has to be made in the URL.
+     */
+    await gotoFixture(page, "/projects?present=grid");
 
     const search = page.getByRole("searchbox", { name: "Search projects" });
     await expect(search).toBeVisible();

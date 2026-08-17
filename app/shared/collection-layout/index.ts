@@ -107,6 +107,8 @@ export {
  */
 export {
   COLLECTION_PRESENTATIONS,
+  COLLECTION_TABLE_DEFAULT_THRESHOLD,
   parseCollectionPresentation,
+  resolveCollectionPresentation,
   type CollectionPresentation,
 } from "./presentation";

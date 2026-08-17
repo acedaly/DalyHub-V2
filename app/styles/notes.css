@@ -85,10 +85,18 @@
   white-space: nowrap;
 }
 
-/* Preview on the left, metadata on the right, on ONE line. */
+/* Preview on the left, metadata on the right. */
 .dh-notes-list__line {
   display: flex;
-  align-items: baseline;
+  /*
+   * CONVERGE-01 §6 — `start`, not `baseline`.
+   *
+   * The excerpt is two lines now, and a baseline alignment would pin the tag
+   * chips and the date to the SECOND of them — so the date column, which the
+   * note above this rule exists to keep straight, would sit at a different
+   * height on a one-line row than on a two-line one.
+   */
+  align-items: start;
   justify-content: space-between;
   gap: var(--app-space-4);
   margin-block-start: var(--app-space-px);
@@ -98,12 +106,41 @@
   line-height: var(--md-sys-typescale-body-medium-line-height);
 }
 
+/*
+ * CONVERGE-01 §6 — TWO lines of preview, clamped at the list's own measure.
+ *
+ * One line was not enough to be a preview: a note's opening sentence rarely
+ * survives 60 characters, so every row ended in an ellipsis after the first
+ * clause and told the reader nothing the title had not. Two lines is what the
+ * audit asks for and is what a list of documents is for.
+ *
+ * ── The clamp and the server bound do different jobs ────────────────────────
+ * `cleanExcerpt` already bounds the string at `MAX_EXCERPT_LENGTH` (180 chars)
+ * — that is a PAYLOAD bound, and it is why a row never ships a paragraph. This
+ * is the LAYOUT bound, and only it can know the rendered measure: 180 characters
+ * is about two lines at the list's own width and about four at 393px, so without
+ * a clamp the phone would get a four-line row and with a character count tuned
+ * for the phone the desktop would get a stub. One bound cannot be both.
+ *
+ * A clamp also cuts at a LINE break and draws its own ellipsis, which is where
+ * "no mid-word cut without an ellipsis" comes from: the browser breaks between
+ * words, so a word is never halved.
+ *
+ * `max-inline-size` is what makes the clamp fire in a flex row: without a bound
+ * the box grows to its content and there is no measure to clamp against. The
+ * excerpt is a plain string by the time it reaches here (`cleanExcerpt` runs
+ * `markdownToPlainText`), so nothing in it can introduce a line box of its own.
+ */
 .dh-notes-list__excerpt {
   flex: 1 1 auto;
   min-inline-size: 0;
+  max-inline-size: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .dh-notes-list__excerpt--empty {
@@ -119,12 +156,13 @@
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
+/* The chips' own container is the shared `.dh-tagchip-list`; this only bounds
+ * the track it occupies inside the row, so a long tag cannot push the date out
+ * of the column the row is laid out to keep straight. The LIST bounds its own
+ * count at three (`NotesList`), so this is a belt to that brace. */
 .dh-notes-list__tags {
-  color: var(--dh-color-text-muted);
-  max-inline-size: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-inline-size: 16rem;
+  flex-wrap: nowrap;
 }
 
 /* Lifecycle is state, so it is stated in WORDS — never a colour or a glyph
@@ -153,8 +191,13 @@
    * sentence rendered as one 1112px line and pushed the whole document sideways
    * at 320px — a page-level horizontal scroll, which §55 rules out.
    */
+  /*
+   * The clamp survives the phone; only the box model changes. `-webkit-box` is
+   * already a block-level box, so the `display: block` this rule used to set is
+   * gone — restoring it would turn the two-line clamp back into one line of
+   * ellipsised text, which is the defect this item exists to fix.
+   */
   .dh-notes-list__excerpt {
-    display: block;
     max-inline-size: 100%;
   }
 

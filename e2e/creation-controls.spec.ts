@@ -215,14 +215,48 @@ test.describe("removed duplicates — the page header no longer repeats capture"
     await expectNoHorizontalOverflow(page);
   });
 
-  test("Notes has no header New Note", async ({ page }) => {
+  /*
+   * CONVERGE-01 §6 — Notes DOES have a header "+ New note", and this test now
+   * protects that rather than its absence.
+   *
+   * The removal it used to assert was a defensible cleanup with one flaw the
+   * audit found: every other collection in DalyHub keeps its create action in
+   * this exact slot, so Notes was the one page where "how do I make one of
+   * these?" was answered somewhere else. What the removal was right about is
+   * unchanged and is still asserted here — there is no SECOND creation path. The
+   * header's control opens the same URL-backed drawer the empty state and the
+   * global capture panel reach, and the same `POST /notes/new` behind it.
+   */
+  test("Notes has one header New note, and it is the same door", async ({
+    page,
+  }) => {
     await gotoFixture(page, "/notes");
-    await expect(
-      paneHeader(page).getByRole("button", { name: /New note/i }),
-    ).toHaveCount(0);
+    const action = paneHeader(page).getByRole("link", { name: /New note/i });
+    await expect(action).toHaveCount(1);
+    await expect(action).toHaveAttribute("href", /drawer=new-note/);
+
+    await action.click();
+    await expect(page.getByRole("dialog", { name: "New Note" })).toBeVisible();
+    await expect(page).toHaveURL(/drawer=new-note/);
+    await page.keyboard.press("Escape");
+
     await expect(
       paneHeader(page).getByRole("heading", { name: "Notes" }),
     ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  /*
+   * …and it belongs to the ACTIVE scope only, which is People's own rule for
+   * this slot: "create one of these" is not the act on a page of deleted records.
+   */
+  test("the Notes header create action is absent in the Deleted scope", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/notes?state=deleted");
+    await expect(
+      paneHeader(page).getByRole("link", { name: /New note/i }),
+    ).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
   });
 

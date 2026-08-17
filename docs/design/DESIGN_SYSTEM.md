@@ -2283,6 +2283,36 @@ filters (selects · tags · chips)
 
 **The control row is the band beneath, and it has two ends** (REDESIGN-04). [`CollectionControlRow`](../../app/shared/collection-layout/CollectionControlRow.tsx) puts the lifecycle/mode rail at the leading edge and a **presentation toggle** at the trailing one. The toggle is still the ONE view switcher and UIQ-013's semantics are untouched — it changes how records are drawn, never which are included. It sits a band lower than the `viewSwitcher` slot only where the title row is already carrying search and the primary action, which at 1280 is where three control clusters on one line break. A collection with a sparse header keeps the switcher in the header slot.
 
+**The presentation vocabulary is THREE words and they are not synonyms** (FINISH-01, closing the audit's "Grid / Table vs Grid / List" finding). The words live in [`presentation.ts`](../../app/shared/collection-layout/presentation.ts) and each names a genuinely different drawing:
+
+| `?present=` | What it draws | Who draws it |
+| --- | --- | --- |
+| `grid` | cards in a wrapping gallery | every collection; the default |
+| `table` | a real `<table>` with `<th scope="col">` columns and row headers | Projects |
+| `list` | full-width rows separated by hairlines, one identity mark per row | Areas |
+
+The 16 August 2026 audit read Projects' "Table" beside Areas' "List" as one control saying two words, and asked for one word product-wide. **It is the opposite**: two controls, correctly named, for two different presentations. Projects' second view is a real table — columns with headers, which is what makes it scannable and what `ProjectsTable` documents as its reason for being a `<table>` rather than divs. Areas' is a row list with no columns at all. Renaming either would make a label describe something the page does not draw, which §7 ("speak in the user's nouns") forbids more strongly than it asks for uniformity.
+
+What IS uniform, and must stay so: the control (`ViewSwitcher`), the param (`?present=`), the slot (the control row's trailing edge), the first option (`grid`, always the default) and the accessible-name pattern ("Project layout", "Area layout"). **A fourth word needs a fourth drawing**, and belongs in the table above before it appears in a module.
+
+**A large collection may DEFAULT to a different presentation** ([ADR-100](../decisions/ARCHITECTURE_DECISIONS.md#adr-100-a-collections-default-presentation-follows-its-size--the-table-at-forty-projects-and-an-explicit-choice-that-is-never-overridden)). `resolveCollectionPresentation` is the one rule: above `COLLECTION_TABLE_DEFAULT_THRESHOLD` records in the CURRENT scope, the collection opens in its "large" presentation instead of its default — and an explicit `?present=` always wins, at every size. Projects opts in at forty. A collection that wants this passes its own `allowed` and `large`; it never re-derives the arithmetic.
+
+**One list container: BARE ROWS on the page background** (FINISH-01, closing CONVERGE-01 §3). A collection that draws rows rather than cards draws them directly on the canvas, separated by hairlines that the LIST owns — not by a card around each row, and not by one card around the whole run.
+
+```
+Row one                                         ← nothing above the first row
+────────────────────────────────────────────────
+Row two
+────────────────────────────────────────────────
+Row three                                       ← nothing below the last
+```
+
+The rule is what the product's row lists already do — Notes (`.dh-notes-list`), Tasks (`.dh-tasklist`) and Areas' list presentation (`.dh-erow-list`) — and People (`.dh-prow-list`) was the one outlier, drawing a white card with a resting shadow around its rows until this pass. The reasoning is the one `notes.css` already recorded for itself: *rows this close together do not need containers to be told apart; a rule is enough, and it keeps the page reading as one list rather than as a stack of cards.* A surface says "what is inside me is a thing", and a directory is not a thing — it is a run of records.
+
+Two consequences a new list must carry with it: the hairline goes on `li + li` (so the first and last edges are the page's own and two adjacent rows cannot disagree about the line between them), and under `forced-colors` that hairline is restated in `CanvasText` — never a box around the run, which would draw a container the list does not have.
+
+**The one recorded exception is a record's TAB PANEL, and it is not this rule's business.** A Project's task list sits inside `.record-tabs__panel`, which looks like a bordered card around a list and is not one: it is the record layout's own surface, drawn identically behind Overview, Links, Activity and Settings on every record in the product, and joined to the tab strip above it (M3-INT, `record-layout.css`). Taking it away for one tab of one record would make that tab the odd one out among its own siblings — a larger inconsistency than the one it would fix. RECORD-01 already defines the deliberate opt-out, `data-surface="plain"`, and states its condition precisely: *a panel whose content already IS a surface does not draw a second* (the Note editor, which draws its own outline). A task list is not already a surface, so it does not meet that condition and keeps the panel.
+
 **A module shows only what it needs.** Consistency here is placement and hierarchy, not content: Meetings and Tasks deliberately have no page-level create and pass nothing rather than filling the slot, and Areas has no view switcher because it has one view.
 
 **Responsive composition changes on purpose.** Above `md` the header is one row whose title block GROWS (`flex: 1 1 auto` with `min-inline-size: 0`) and whose controls do not — the fix for headers that wrapped while hundreds of pixels of laptop width sat unused. Below `md` it becomes a two-row grid rather than a wrapping flex row, because wrapping lets whatever happens to fit decide the composition:

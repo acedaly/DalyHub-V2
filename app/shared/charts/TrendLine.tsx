@@ -80,6 +80,11 @@
 
 import { useCallback, useId, useMemo, useState } from "react";
 
+import {
+  meterStatusAttribute,
+  type MeterStatus,
+} from "~/shared/progress/meter-status";
+
 /** One reading on the line. */
 export interface TrendLinePoint {
   readonly key: string;
@@ -164,6 +169,21 @@ export interface TrendLineProps {
    * interactive, because there would be nothing to say about a selected point.
    */
   readonly describePoint?: (point: TrendLinePoint) => string;
+  /**
+   * CONVERGE-01 §8 — the series' STATUS, for a line whose subject is one.
+   *
+   * A completion trend has no status: more is not "good" and fewer is not "bad",
+   * which is why the default line is `primary` and why nothing about it
+   * editorialises. A BACKLOG does — "how much is past its date" is a status
+   * statement, in the same vocabulary a meter makes one in.
+   *
+   * So this is the meter ramp's own attribute (`~/shared/progress/meter-status`)
+   * rather than a colour or a second vocabulary: there is ONE mapping from
+   * status to paint in DalyHub and this reuses it. It is presentation only — the
+   * caption, the readout and the axis state every number in words, so the tone
+   * adds emphasis and never carries meaning of its own (AGENTS.md §15).
+   */
+  readonly status?: MeterStatus;
   /** Height of the plotted area in pixels. The width is always fluid. */
   readonly height?: number;
   readonly "data-testid"?: string;
@@ -208,6 +228,7 @@ export function TrendLine({
   lowLabel,
   highLabel,
   describePoint,
+  status,
   height = 168,
   "data-testid": testId,
 }: TrendLineProps) {
@@ -333,7 +354,11 @@ export function TrendLine({
   const selectedPoint = selected === null ? null : points[selected];
 
   return (
-    <figure className="dh-linechart" data-testid={testId}>
+    <figure
+      className="dh-linechart"
+      data-testid={testId}
+      {...meterStatusAttribute(status)}
+    >
       {/* One tab stop for the whole series (see the module comment): the group
           is focusable, the arrow keys walk it, and every value it can reveal is
           also printed in the history list below. */}

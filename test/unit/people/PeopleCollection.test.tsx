@@ -7,7 +7,10 @@ import {
   type PeopleView,
 } from "~/modules/people/PeopleCollection";
 import { FeedbackProvider } from "~/shared/feedback";
-import type { SerializedPersonListItem } from "~/modules/people/person-view";
+import type {
+  SerializedPersonListItem,
+  SerializedPersonStayInTouch,
+} from "~/modules/people/person-view";
 
 function personItem(
   over: Partial<SerializedPersonListItem> = {},
@@ -31,6 +34,24 @@ function personItem(
     archived: false,
     createdAt: "2026-07-01T00:00:00.000Z",
     updatedAt: "2026-07-02T00:00:00.000Z",
+    ...over,
+  };
+}
+
+/**
+ * A stay-in-touch signal with the honest zero shape for the two connection
+ * counts, so a test names only the fields it is actually about.
+ */
+function signal(
+  over: Partial<SerializedPersonStayInTouch> &
+    Pick<SerializedPersonStayInTouch, "state" | "label" | "tone">,
+): SerializedPersonStayInTouch {
+  return {
+    reasons: [],
+    lastInteractionDate: null,
+    daysSinceLastInteraction: null,
+    openTasks: 0,
+    activeProjects: 0,
     ...over,
   };
 }
@@ -141,14 +162,14 @@ describe("People collection", () => {
   it("shows the derived stay-in-touch state as text on the row", () => {
     renderCollection([
       personItem({
-        stayInTouch: {
+        stayInTouch: signal({
           state: "due_for_follow_up",
           label: "Due for follow-up",
           tone: "info",
           reasons: [],
           lastInteractionDate: "2026-05-01",
           daysSinceLastInteraction: 60,
-        },
+        }),
       }),
     ]);
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });
@@ -158,14 +179,14 @@ describe("People collection", () => {
   it("escalates an overdue rhythm to the attention tone, with the words beside it", () => {
     renderCollection([
       personItem({
-        stayInTouch: {
+        stayInTouch: signal({
           state: "out_of_touch",
           label: "Out of touch",
           tone: "neutral",
           reasons: [],
           lastInteractionDate: "2025-01-01",
           daysSinceLastInteraction: 400,
-        },
+        }),
       }),
     ]);
     const rhythm = screen.getByTestId("person-row-rhythm");
@@ -173,24 +194,175 @@ describe("People collection", () => {
     expect(rhythm).toHaveTextContent("Out of touch");
   });
 
+  /* ------------------------------------------------------------------------ */
+  /* CONVERGE-01 §7 — the row leads with connection                            */
+  /* ------------------------------------------------------------------------ */
+
+  it("leads the supporting line with what connects, in the audit's order", () => {
+    renderCollection([
+      personItem({
+        stayInTouch: signal({
+          state: "in_touch",
+          label: "In touch",
+          tone: "neutral",
+          lastInteractionDate: "2026-07-25",
+          daysSinceLastInteraction: 3,
+          openTasks: 2,
+          activeProjects: 1,
+        }),
+      }),
+    ]);
+    const row = screen.getByRole("article", { name: /Ada Lovelace/ });
+    // Last interaction, then open commitments, then Projects, then who they
+    // are — the identity context follows rather than leads.
+    expect(row.querySelector(".dh-prow__context")?.textContent).toBe(
+      "Last spoke 25 July 2026 · 2 open Tasks · 1 Project · Colleague · Mathematician · Analytical Engines",
+    );
+  });
+
+  it("omits what does not exist rather than drawing a zero", () => {
+    renderCollection([
+      personItem({
+        stayInTouch: signal({
+          state: "in_touch",
+          label: "In touch",
+          tone: "neutral",
+          lastInteractionDate: "2026-07-25",
+          daysSinceLastInteraction: 3,
+        }),
+      }),
+    ]);
+    const line = screen
+      .getByRole("article", { name: /Ada Lovelace/ })
+      .querySelector(".dh-prow__context")?.textContent;
+    expect(line).not.toMatch(/0 open Tasks|0 Projects/);
+    expect(line).toBe(
+      "Last spoke 25 July 2026 · Colleague · Mathematician · Analytical Engines",
+    );
+  });
+
+  it("says nothing at all for a Person with nothing shared and no context", () => {
+    renderCollection([
+      personItem({
+        role: null,
+        organisation: null,
+        relationship: null,
+        relationshipLabel: null,
+        stayInTouch: signal({
+          state: "no_history",
+          label: "No shared history yet",
+          tone: "neutral",
+        }),
+      }),
+    ]);
+    const row = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(row.querySelector(".dh-prow__context")).toBeNull();
+  });
+
+  /*
+   * The audit's actual finding: every row ENDED in an absence. The words stay —
+   * deleting them would lose a true fact — but they stop being the loudest
+   * thing on a row about a relationship, and they lose the dot, which exists to
+   * agree with a state and has nothing to agree with here.
+   */
+  it("demotes 'No shared history yet' instead of deleting it", () => {
+    renderCollection([
+      personItem({
+        stayInTouch: signal({
+          state: "no_history",
+          label: "No shared history yet",
+          tone: "neutral",
+        }),
+      }),
+    ]);
+    const rhythm = screen.getByTestId("person-row-rhythm");
+    expect(rhythm).toHaveTextContent("No shared history yet");
+    expect(rhythm).toHaveAttribute("data-quiet", "true");
+    expect(rhythm.querySelector(".dh-prow__dot")).toBeNull();
+  });
+
+  it("keeps a real state loud, with its dot", () => {
+    renderCollection([
+      personItem({
+        stayInTouch: signal({
+          state: "out_of_touch",
+          label: "Out of touch",
+          tone: "neutral",
+          daysSinceLastInteraction: 400,
+        }),
+      }),
+    ]);
+    const rhythm = screen.getByTestId("person-row-rhythm");
+    expect(rhythm).not.toHaveAttribute("data-quiet");
+    expect(rhythm.querySelector(".dh-prow__dot")).not.toBeNull();
+  });
+
+  /*
+   * UIQ-011 — "a control that can never do anything is not a control". The rule
+   * was written for the Person RECORD and holds identically on the row: a dash
+   * where an address would be is a target that cannot be pressed.
+   */
+  it("renders no reach control at all for a Person with nothing to reach", () => {
+    renderCollection([personItem({ reach: [] })]);
+    const row = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(
+      within(row).queryByRole("link", { name: /Email|Mobile/ }),
+    ).not.toBeInTheDocument();
+    // …and the cell itself still holds its track, so the columns stay aligned.
+    expect(row.querySelector(".dh-prow__reach")).not.toBeNull();
+    expect(row.querySelector(".dh-prow__reach")?.textContent).toBe("");
+  });
+
+  it("renders both reach controls when both exist", () => {
+    renderCollection([
+      personItem({
+        reach: [
+          {
+            kind: "Email",
+            value: "ada@example.com",
+            href: "mailto:ada@example.com",
+          },
+          { kind: "Mobile", value: "0412 345 678", href: "tel:0412345678" },
+        ],
+      }),
+    ]);
+    const row = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(
+      within(row).getByRole("link", { name: /Email Ada Lovelace/ }),
+    ).toHaveAttribute("href", "mailto:ada@example.com");
+    expect(
+      within(row).getByRole("link", { name: /Mobile Ada Lovelace/ }),
+    ).toHaveAttribute("href", "tel:0412345678");
+  });
+
+  // PersonAvatar carries identity colour, and it is the row's own mark.
+  it("draws the identity avatar on every row", () => {
+    renderCollection([personItem()]);
+    const row = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(row.querySelector(".dh-prow__face")?.textContent).toContain("AL");
+  });
+
   it("prefers the DERIVED last interaction over the hand-entered field", () => {
     renderCollection([
       personItem({
         lastInteraction: "2020-01-01",
-        stayInTouch: {
+        stayInTouch: signal({
           state: "recently_connected",
           label: "Recently connected",
           tone: "success",
           reasons: [],
           lastInteractionDate: "2026-07-25",
           daysSinceLastInteraction: 3,
-        },
+        }),
       }),
     ]);
+    // CONVERGE-01 §7 — the last shared moment now LEADS the row's connection
+    // line rather than trailing the rhythm column, so it is asserted as the
+    // start of that line rather than as a standalone element.
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });
-    expect(
-      within(row).getByText("Last spoke 25 July 2026"),
-    ).toBeInTheDocument();
+    expect(row.querySelector(".dh-prow__context")?.textContent).toMatch(
+      /^Last spoke 25 July 2026/,
+    );
     expect(within(row).queryByText(/1 January 2020/)).not.toBeInTheDocument();
   });
 
@@ -198,20 +370,20 @@ describe("People collection", () => {
     renderCollection([
       personItem({
         lastInteraction: "2020-01-01",
-        stayInTouch: {
+        stayInTouch: signal({
           state: "no_history",
           label: "No shared history yet",
           tone: "neutral",
           reasons: [],
           lastInteractionDate: null,
           daysSinceLastInteraction: null,
-        },
+        }),
       }),
     ]);
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });
-    expect(
-      within(row).getByText("Last spoke 1 January 2020"),
-    ).toBeInTheDocument();
+    expect(row.querySelector(".dh-prow__context")?.textContent).toMatch(
+      /^Last spoke 1 January 2020/,
+    );
   });
 
   // UIX-05 — the row can reach the person without opening the record.
@@ -236,14 +408,14 @@ describe("People collection", () => {
   it("adds no extra tab stop inside the row for the signal", () => {
     renderCollection([
       personItem({
-        stayInTouch: {
+        stayInTouch: signal({
           state: "in_touch",
           label: "In touch",
           tone: "neutral",
           reasons: [],
           lastInteractionDate: "2026-06-01",
           daysSinceLastInteraction: 40,
-        },
+        }),
       }),
     ]);
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });
@@ -256,26 +428,26 @@ describe("People collection", () => {
       personItem({
         id: "p1",
         title: "Ada Lovelace",
-        stayInTouch: {
+        stayInTouch: signal({
           state: "in_touch",
           label: "In touch",
           tone: "neutral",
           reasons: [],
           lastInteractionDate: "2026-07-01",
           daysSinceLastInteraction: 10,
-        },
+        }),
       }),
       personItem({
         id: "p2",
         title: "Grace Hopper",
-        stayInTouch: {
+        stayInTouch: signal({
           state: "out_of_touch",
           label: "Out of touch",
           tone: "neutral",
           reasons: [],
           lastInteractionDate: "2025-01-01",
           daysSinceLastInteraction: 400,
-        },
+        }),
       }),
     ]);
     const toggle = screen.getByRole("button", { name: /Needs a catch-up/ });

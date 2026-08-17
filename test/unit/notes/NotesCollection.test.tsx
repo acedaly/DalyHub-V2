@@ -157,20 +157,29 @@ describe("Notes collection", () => {
     const link = screen.getByRole("link", { name: /Reading list/ });
     expect(link).toHaveAttribute("href", "/notes/n1");
     expect(screen.getByText("1 Note")).toBeInTheDocument();
-    // Shell cleanup: a POPULATED Notes collection carries no create action of its
-    // own. "New note" duplicated the global capture control, which is on every
-    // page at every width and posts to the same `POST /notes/new` route, so the
-    // header stopped spending its most valuable space on a second door.
-    expect(screen.queryByText("New note")).not.toBeInTheDocument();
+    /*
+     * CONVERGE-01 §6 — the header carries "+ New note" again.
+     *
+     * A shell cleanup had removed it because it duplicated the global capture
+     * control. That was true and it was not the whole question: every other
+     * collection keeps its create action in this slot, so Notes was the one page
+     * where "how do I make one of these?" was answered somewhere else. Same
+     * drawer, same route — one more door into a room that exists.
+     */
+    const headerAction = document.querySelector(
+      ".dh-pane-header__primary a",
+    ) as HTMLAnchorElement | null;
+    expect(headerAction?.textContent).toContain("New note");
+    expect(headerAction?.getAttribute("href")).toContain("drawer=new-note");
   });
 
   it("shows a genuinely-empty state when there are no notes at all", () => {
     renderCollection({ notes: [], nextCursor: null, failed: false });
     expect(screen.getByText("No Notes yet")).toBeInTheDocument();
-    // The empty state KEEPS its create action. It is the one place a page-level
-    // create still earns its keep: there is nothing else on the screen to act on,
-    // and an empty state must teach the next action (AGENTS.md §6).
-    expect(screen.getByText("New note")).toBeInTheDocument();
+    // The empty state KEEPS its own create action, beside the header's: an empty
+    // state must teach the next action where the reader is looking (AGENTS.md
+    // §6), which is the same reason Projects and People carry both.
+    expect(screen.getAllByText("New note")).toHaveLength(2);
   });
 
   it("shows a calm, retryable error state distinct from empty", () => {
@@ -242,6 +251,9 @@ describe("Notes collection", () => {
         failed: false,
       });
       expect(screen.getByText("No deleted Notes")).toBeInTheDocument();
+      // The create action belongs to the ACTIVE scope only — People's own rule
+      // for this slot. "Create one of these" is not the act on a page of deleted
+      // records.
       expect(screen.queryByText("New note")).not.toBeInTheDocument();
       // The generic "No Notes yet" empty state must never leak into this view.
       expect(screen.queryByText("No Notes yet")).not.toBeInTheDocument();

@@ -331,6 +331,58 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  /*
+   * MOBILE-02 §6 — the Project card is a ROW on a phone.
+   *
+   * The audit's complaint is arithmetic, so this test is too. Measured at
+   * 393×852 before the change: 180px per card, the first at y=216, three fully
+   * visible. The requirement is five or six, and what a card may keep is
+   * enumerated — identity tile, title, the single most important metric, the
+   * status line — so all four are asserted present rather than the height being
+   * bought by deleting the record's meaning.
+   */
+  test("collection: cards are row-scale on a phone, and still say everything", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    // ADR-100 — the gallery explicitly; this is about the CARD.
+    await gotoFixture(page, "/projects?present=grid");
+
+    const cards = page.getByTestId("project-card");
+    await expect(cards.first()).toBeVisible();
+
+    const measured = await cards.evaluateAll((nodes) => {
+      const boxes = nodes.map((node) => node.getBoundingClientRect());
+      return {
+        heights: boxes.map((box) => box.height),
+        firstTop: boxes[0]?.top ?? 0,
+        fullyVisible: boxes.filter(
+          (box) => box.top >= 0 && box.bottom <= window.innerHeight,
+        ).length,
+        viewport: window.innerHeight,
+      };
+    });
+
+    const average =
+      measured.heights.reduce((sum, value) => sum + value, 0) /
+      measured.heights.length;
+    const perViewport = (measured.viewport - measured.firstTop) / average;
+    expect(
+      perViewport,
+      `${average.toFixed(0)}px per card gives ${perViewport.toFixed(1)} per viewport`,
+    ).toBeGreaterThanOrEqual(5);
+    expect(measured.fullyVisible).toBeGreaterThanOrEqual(5);
+
+    // …and the row still carries what the audit says must survive.
+    const first = cards.first();
+    await expect(first.locator(".dh-pcard__mark")).toBeVisible();
+    await expect(first.locator(".dh-pcard__title")).toBeVisible();
+    await expect(first.getByRole("progressbar")).toBeVisible();
+    await expect(first.locator(".dh-pcard__meta")).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("keeps pagination, filters and sheets stable at the narrowest phone width", async ({
     page,
   }) => {
