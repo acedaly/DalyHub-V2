@@ -2056,7 +2056,7 @@
    * (the cut corner of a phone overlaps a few pixels of background; an
    * ellipsised label overlaps the word).
    *
-   * `--dh-bottomnav-content-min` is five slots at 4rem, which is the widest
+   * `--app-bottomnav-content-min` is five slots at 4rem, which is the widest
    * base-size label ("Projects", 55px) plus its padding. It is in `rem`, so OS
    * text scaling grows it and the inset yields sooner — the right direction.
    * The residual, stated rather than papered over: at 150% text scaling five
@@ -2065,14 +2065,13 @@
    * is not the only way to a destination — every control keeps its glyph, its
    * accessible name and its 44px target.
    */
-  --dh-bottomnav-content-min: 20rem;
   padding-inline-start: min(
     var(--dh-safe-left),
-    max(0px, (100% - var(--dh-bottomnav-content-min)) / 2)
+    max(0px, (100% - var(--app-bottomnav-content-min)) / 2)
   );
   padding-inline-end: min(
     var(--dh-safe-right),
-    max(0px, (100% - var(--dh-bottomnav-content-min)) / 2)
+    max(0px, (100% - var(--app-bottomnav-content-min)) / 2)
   );
 }
 

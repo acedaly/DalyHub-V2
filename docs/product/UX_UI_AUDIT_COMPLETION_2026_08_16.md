@@ -1,6 +1,13 @@
-# UX/UI audit completion — the state of the 16 August 2026 audit
+# UX/UI audit completion — the 16 August 2026 audit, CLOSED
 
 > An acceptance record, not a redesign proposal.
+>
+> **Every row in this document is COMPLETE as of FINISH-01 (17 August 2026).**
+> The audit's four stages closed across five pull requests — #188, #189, #190,
+> #191 and FINISH-01 — and each row below names the one that closed it, with the
+> file, the line or the measurement that proves it. Nothing is owed. Two of the
+> audit's own findings turned out to be wrong on inspection and are recorded as
+> wrong rather than implemented; see "Nothing is open".
 >
 > PR #188 ("UX/UI convergence: status colour, one editing grammar, and a
 > first-class phone") states in its own body that it implements the 16 August
@@ -214,25 +221,53 @@ transform is applied only while `[data-swipe-edge]` exists so a permanent
 identity transform never becomes a containing block for the row's anchored
 popovers.
 
-## Still open, and why
+## Nothing is open
 
-**MOBILE-02 §6 (the Project half), MOBILE-02 §8 (the safe-area inset),
-CONVERGE-01 §2 (scope-chip weight), §3 (list containers), §6's four Notes items,
-§7's connection line, §8's overdue metric and §9's second filter surface remain
-owed.** Each row above carries its own evidence at `cd385cfd` and its own
-measurement where one exists.
+**Every row in the four tables above is COMPLETE.** The 16 August 2026 audit is
+closed, on evidence, at FINISH-01.
 
-**CONVERGE-01 §8's overdue metric** is the smallest of these and the most nearly
-free: `analytics.ts` already computes four metrics from the same reads, and an
-overdue count is available from the existing task query. It was listed rather
-than done because a metric added without its trend and its range semantics
-settled would be the fabricated-analytics failure the audit forbids — so the
-range semantics are the first thing the closing pass has to write down, not the
-last.
+The last eight rows closed in one package, in the order the register set out:
 
-**CONVERGE-01 §4's open question — "does the table become the default at ~40+
-projects?" — is still unanswered.** It is a product decision, not an
-implementation gap, and it stays open until someone writes it on the record.
+| Row | Closed by |
+|---|---|
+| CONVERGE-01 §8 | The overdue metric and its trend, over a new bounded aggregate that adds no table and no migration. |
+| CONVERGE-01 §7 | The People row's connection line, and "No shared history yet" demoted rather than deleted. |
+| CONVERGE-01 §6 | "+ New note", two-line excerpts, tag chips through a new shared `TagChip`, and the byte hint only when it matters. |
+| CONVERGE-01 §9 + §2 | One `ViewTabs` rail on Goals, and the scope chip's weight reduced product-wide. |
+| CONVERGE-01 §4 | [ADR-100](../decisions/ARCHITECTURE_DECISIONS.md) — the table as the default above forty, and an explicit choice that is never overridden. |
+| MOBILE-02 §6 + §8 | The Project card at row scale on a phone; the bottom bar's labels fitting inside a safe-area inset. |
+| CONVERGE-01 §3 | Bare rows as the one list container, with the record tab panel recorded as its single exception. |
+
+### Two things this pass found that the audit had wrong
+
+Both are recorded because a register that only ever agrees with its brief is not
+being read against the code.
+
+- **CONVERGE-01 §7 was narrower than it looked.** The row already reached
+  (`mailto:`/`tel:`, only where the data exists) and already drew identity
+  colour; the evidence line pointed at the Person RECORD's timeline tab rather
+  than at the collection row. Corrected in Phase 0, closed in Phase 2.
+- **The "Grid / Table vs Grid / List" finding was the opposite of drift.** The
+  audit read two words for one control; they are the right words for two
+  different drawings, and `presentation.ts` had already defined them as "not
+  synonyms". Renaming either would have made a label describe something the page
+  does not draw. Nothing was renamed; the vocabulary is now recorded in
+  `DESIGN_SYSTEM.md` with the rule that a fourth word needs a fourth drawing.
+
+### Three defects found by driving the product, not by reading it
+
+None was in the audit, and each was reproduced on the clean tree before it was
+fixed:
+
+- **`?present=table` scrolled the whole DOCUMENT sideways at 390px** — 1134px
+  against a 390px client, a WCAG 1.4.10 reflow failure. An absolutely-positioned
+  descendant with no positioned ancestor was escaping the table's own scroll
+  container. One `position: relative`.
+- **`ViewSwitcher` made a conditional default's choice unexpressible.** It
+  deletes the param for its first option, so pressing "Grid" produced a URL the
+  new rule reads as "has not chosen".
+- **The phone bar spent the safe-area inset out of its labels**, and reserved no
+  line for them, so "Add" sat closest to the edge of the five.
 
 ---
 

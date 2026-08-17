@@ -17,6 +17,65 @@ no version number to group them under.
 
 ---
 
+## Overdue, on the record — and the lists get out of the way
+
+**Analytics now says what you have NOT finished.** It reported four things you
+had completed and nothing about the backlog, which for most workspaces is the
+more useful half. There is a fifth figure — how much is overdue — and a chart
+beneath the other two showing which way it has gone over the period you are
+looking at. The chart is drawn in the product's amber, because a backlog really
+is a status; the sentence beside the figure stays the same calm grey as its
+neighbours, because "4 fewer than the previous period" is arithmetic and not a
+telling-off. Nothing about this goes into your notifications — Today is still
+the one place that says what needs you now.
+
+Two honest limits are printed under the figures rather than buried: a past
+reading uses each task's due date **as it stands today**, and counts only tasks
+that still exist. Change a due date or delete a task and its history here changes
+with it, because DalyHub keeps no record of what a due date used to be.
+
+**People leads with what connects you to someone, not with what is missing.**
+Every row used to end in "No shared history yet" — a list of relationships whose
+loudest statement was a reproach. A row now opens with the things you actually
+share: when you last spoke, how many open tasks are between you, which projects
+you are both on. "No shared history yet" is still there, quietly, where it
+belongs. Rows are all the same height now too, so a person you know well no
+longer takes up more of the screen than one you have just added.
+
+**Notes.** "+ New note" is back at the top of the page, where every other
+collection keeps its create button. Previews are two lines instead of one, so the
+opening sentence of a note is actually readable from the list. Tags are chips you
+can count rather than a comma-separated run of grey text. And the editor has
+stopped printing the maximum note size under everything you write — the limit has
+not changed, you are simply only told about it when you are near it.
+
+**Goals had two rows of filters; now it has one.** All, On track, Needs
+attention, Completed and Deleted are one strip, and the space beside the page
+title is empty again. Nothing moved anywhere you cannot find it: Deleted is the
+last tab, and the same strip is there when you are in it, so the way back is
+where the way in was.
+
+**Projects opens as a table when you have a lot of them.** Above forty in
+whatever you are looking at, the page starts in the table view instead of the
+gallery — at that size you are looking _for_ a project, not _at_ your projects.
+If you pick a view yourself it is remembered in the address, honoured whatever
+the size, and never quietly changed back.
+
+**On a phone, project cards are rows.** They were nearly a third of the screen
+each, so three fit; now five or six do, and everything that mattered on them —
+the mark, the name, the progress, the line telling you what is wrong — is still
+there. Only the description went, and that is on the project itself.
+
+**Smaller things you may notice.** The chip showing which subset you are looking
+at no longer shouts louder than the name of the page it sits next to. The labels
+on the phone's bottom bar no longer get trimmed on handsets with a rounded screen
+or a home indicator, and "Add" sits level with its neighbours instead of a few
+pixels nearer the edge. The People list has lost the white card it sat on, so it
+reads like the Notes and Tasks lists do. And the Projects table no longer makes
+the whole page slide sideways on a phone.
+
+---
+
 ## DalyHub can now tell you things
 
 Until now, everything DalyHub knew reached you only when you opened it. A

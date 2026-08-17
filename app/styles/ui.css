@@ -817,12 +817,21 @@
   display: inline-flex;
   align-items: center;
   max-inline-size: 100%;
-  padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-accent-subtle);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  /*
+   * `--dh-color-text-on-accent-subtle`, not `primary`.
+   *
+   * Both module copies painted the label in the raw `primary` role, which is a
+   * colour chosen against the PAGE rather than against this tint. The DalyHub
+   * layer publishes the on-colour for exactly this container, and the contrast
+   * suite holds the pair in both appearances — so the chip cannot exist in a
+   * state where its own label is marginal.
+   */
+  color: var(--dh-color-text-on-accent-subtle);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   /* A tag is one token: it ellipsises rather than wrapping mid-word, so a chip
    * is never two lines tall in a row sized for one. */
   overflow: hidden;
@@ -835,14 +844,14 @@
 .dh-tagchip--more {
   background: var(--dh-color-surface-subtle);
   color: var(--dh-color-text-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--dh-font-numeric);
 }
 
 .dh-tagchip-list {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--app-space-1);
+  gap: var(--dh-space-1);
   list-style: none;
   margin: 0;
   padding: 0;

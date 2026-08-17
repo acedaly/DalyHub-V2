@@ -3009,7 +3009,7 @@
    * data gets a QUIETER row, never a shorter one, and a Person with more gets a
    * truncated line rather than a taller row.
    */
-  block-size: var(--dh-prow-height, 4.5rem);
+  block-size: 4.5rem;
   padding: var(--app-space-3) var(--app-card-padding);
   transition: background var(--dh-motion-fast) var(--dh-ease-standard);
 }
@@ -3363,8 +3363,13 @@
      * phone's own type sizes that measures under 5.5rem, which every row now
      * takes whether or not it fills it — the same rule as the desktop row and
      * for the same reason.
+     *
+     * Stated as a plain `block-size` rather than through a custom property: one
+     * value overridden in one place is a declaration, not a token, and the
+     * `--dh-*` layer is closed to names that are not published in
+     * `app/shared/tokens/dalyhub.ts` (asserted by `dalyhub-tokens.test.ts`).
      */
-    --dh-prow-height: 5.5rem;
+    block-size: 5.5rem;
     padding-inline: var(--app-card-padding-compact);
   }
 
