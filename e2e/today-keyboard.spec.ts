@@ -202,8 +202,21 @@ test.describe("an open task record owns its shortcuts", () => {
       await clear.first().click();
       await expect(planning.getByText("Not planned")).toBeVisible();
     }
-    const completion = taskDialog.getByRole("checkbox");
-    await expect(completion).not.toBeChecked();
+    /*
+     * CONTROL-01 §4 (#189) promoted completion out of the drawer body and onto
+     * the record header, as "Complete task" / "Reopen task" — a lifecycle act
+     * beside the status chip that says the current state in words, rather than
+     * a checkbox inside the record. `task-drawer.spec.ts` was updated with that
+     * change and this journey was not, so `getByRole("checkbox")` matched
+     * nothing here and every assertion about the task's state below was
+     * asserting on an element that does not exist.
+     *
+     * The claim is unchanged — the task behind the stacked help drawer must not
+     * be completed by a keystroke — and reads off the control that ships: while
+     * the task is open, the header offers "Complete task".
+     */
+    const stillOpen = taskDialog.getByRole("button", { name: "Complete task" });
+    await expect(stillOpen).toBeVisible();
 
     // Stack the keyboard-help drawer ABOVE the task drawer (the task drawer
     // stays mounted but is no longer the interactive top).
@@ -220,13 +233,13 @@ test.describe("an open task record owns its shortcuts", () => {
     ).toHaveCount(0);
     // The target task itself, asserted directly rather than only through the
     // absence of feedback: it is still open behind the stacked help drawer.
-    await expect(completion).not.toBeChecked();
+    await expect(stillOpen).toBeVisible();
 
     // Close help → the task drawer is the top again; it was left untouched.
     await page.keyboard.press("Escape");
     await expect(help).toBeHidden();
     await expect(planning.getByText("Not planned")).toBeVisible();
-    await expect(completion).not.toBeChecked();
+    await expect(stillOpen).toBeVisible();
 
     // Now that it is top again, its shortcuts work: P plans it.
     await taskDialog.getByRole("button", { name: /close/i }).first().focus();

@@ -1413,6 +1413,48 @@
   }
 }
 
+/*
+ * HARDEN-05 — the reflow tier: 200% zoom on a phone (WCAG 1.4.10).
+ *
+ * SC 1.4.10 asks that content reflow at 320 CSS px, which a 390px phone zoomed
+ * to 200% expresses as a ~195px viewport — and `mobile-shell.spec.ts` checks
+ * exactly that. MEASURED on `/today` at 195px on `main` @ f994aa0: the shell's
+ * gutters leave the list 113px, of which the completion control and the
+ * overflow trigger take 72 by right (both are touch targets and neither is a
+ * responsive decision), so the metadata line had 17px for a project cell with a
+ * 64px floor and a priority mark of 51. It did not shrink — it OVERFLOWED, and
+ * the document scrolled sideways to 204px.
+ *
+ * The answer is the same one the tiers above use: RECOMPOSE, never squeeze. The
+ * metadata takes a full row of its own beneath the title, spanning the lead and
+ * the actions rather than sharing their line, and wraps within it. Nothing is
+ * hidden and nothing is clipped — the row simply becomes three lines at the one
+ * width where two cannot be honest.
+ *
+ * This is the residual DEBT-148 recorded at this width and attributed to the
+ * reflection panel's button; that button measures inside the viewport now, and
+ * the row is what was left.
+ */
+@container tasklist (max-width: 12rem) {
+  .dh-taskrow {
+    grid-template-areas:
+      "lead main actions"
+      "meta meta meta";
+  }
+
+  .dh-taskrow__meta {
+    flex-wrap: wrap;
+    row-gap: var(--dh-space-1);
+  }
+
+  /* With a row of its own there is no trailing edge to pin to, and the auto
+   * margin would push the mark onto a line by itself. */
+  .dh-taskrow__cell--priority {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* MOBILE-02 §4 — the row's swipe                                              */
 /* -------------------------------------------------------------------------- */

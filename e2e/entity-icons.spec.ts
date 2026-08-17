@@ -15,6 +15,16 @@
  *
  * Mutations are confined to `a-dh` and restored at the end of the test that makes
  * them, so the shared-D1 suite is left exactly as it was found.
+ *
+ * ── The control is the IDENTITY picker (HARDEN-05) ──────────────────────────
+ * IDENTITY-01 replaced the icon-only control with `EntityIdentityPicker`, which
+ * chooses a COLOUR and an icon together — "there is no `AreaIdentityPicker` and
+ * no `ProjectIdentityPicker`, because there is one identity", in its own words.
+ * So the trigger is named "Identity" and reads "Default icon, Automatic", the
+ * sheet is "Choose an identity", and resetting is "Use the defaults" (plural:
+ * it clears both halves). Every assertion below is the same claim about the
+ * same stored choice, made against the control that ships — the icon half is
+ * still what is chosen, saved, reloaded and reset.
  */
 
 import { expect, test } from "@playwright/test";
@@ -77,11 +87,11 @@ test.describe("ICON-02 — choosing, reloading and resetting", () => {
   }) => {
     await openSettingsTab(page, AREA_WITHOUT_ICON);
 
-    const trigger = page.getByRole("button", { name: /^Icon/ });
+    const trigger = page.getByRole("button", { name: /^Identity/ });
     await expect(trigger).toContainText("Default icon");
     await trigger.click();
 
-    const dialog = page.getByRole("dialog", { name: "Choose an icon" });
+    const dialog = page.getByRole("dialog", { name: "Choose an identity" });
     await expect(dialog).toBeVisible();
     // Focus lands in the search field, not on the first of thirty-four glyphs:
     // a keyboard user should be able to narrow before they navigate.
@@ -102,19 +112,19 @@ test.describe("ICON-02 — choosing, reloading and resetting", () => {
     // THE ASSERTION THIS SPEC EXISTS FOR: a full reload, not a revalidation.
     // Anything held only in React state dies here.
     await page.reload();
-    await expect(page.getByRole("button", { name: /^Icon/ })).toContainText(
+    await expect(page.getByRole("button", { name: /^Identity/ })).toContainText(
       "Travel",
     );
     await expect(headerIcon(page)).toHaveAttribute("data-icon-key", "travel");
 
     // Reset to default, and prove THAT survives a reload too — clearing is a
     // real stored value (null), not merely the absence of a save.
-    await page.getByRole("button", { name: /^Icon/ }).click();
-    const reopened = page.getByRole("dialog", { name: "Choose an icon" });
-    await reopened.getByRole("button", { name: "Use the default" }).click();
+    await page.getByRole("button", { name: /^Identity/ }).click();
+    const reopened = page.getByRole("dialog", { name: "Choose an identity" });
+    await reopened.getByRole("button", { name: "Use the defaults" }).click();
     await reopened.getByRole("button", { name: "Apply" }).click();
     await page.reload();
-    await expect(page.getByRole("button", { name: /^Icon/ })).toContainText(
+    await expect(page.getByRole("button", { name: /^Identity/ })).toContainText(
       "Default icon",
     );
     await expect(headerIcon(page)).not.toHaveAttribute("data-icon-key", /./);
@@ -124,10 +134,10 @@ test.describe("ICON-02 — choosing, reloading and resetting", () => {
     page,
   }) => {
     await openSettingsTab(page, AREA_WITHOUT_ICON);
-    const trigger = page.getByRole("button", { name: /^Icon/ });
+    const trigger = page.getByRole("button", { name: /^Identity/ });
     await trigger.click();
 
-    const dialog = page.getByRole("dialog", { name: "Choose an icon" });
+    const dialog = page.getByRole("dialog", { name: "Choose an identity" });
     await dialog.getByRole("button", { name: "Property", exact: true }).click();
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
@@ -137,14 +147,14 @@ test.describe("ICON-02 — choosing, reloading and resetting", () => {
     await trigger.click();
     await expect(
       page
-        .getByRole("dialog", { name: "Choose an icon" })
+        .getByRole("dialog", { name: "Choose an identity" })
         .getByRole("button", { name: "Property", exact: true }),
     ).toHaveAttribute("aria-pressed", "false");
 
     // Escape closes the topmost surface and returns focus to what opened it.
     await page.keyboard.press("Escape");
     await expect(
-      page.getByRole("dialog", { name: "Choose an icon" }),
+      page.getByRole("dialog", { name: "Choose an identity" }),
     ).toBeHidden();
     await expect(trigger).toBeFocused();
   });
@@ -153,8 +163,8 @@ test.describe("ICON-02 — choosing, reloading and resetting", () => {
     page,
   }) => {
     await openSettingsTab(page, PROJECT_WITHOUT_ICON);
-    await page.getByRole("button", { name: /^Icon/ }).click();
-    const dialog = page.getByRole("dialog", { name: "Choose an icon" });
+    await page.getByRole("button", { name: /^Identity/ }).click();
+    const dialog = page.getByRole("dialog", { name: "Choose an identity" });
     const search = dialog.getByRole("searchbox", { name: "Search icons" });
 
     // A synonym the label does not contain — the reason `searchTerms` exists.
@@ -176,9 +186,9 @@ test.describe("ICON-02 — choosing, reloading and resetting", () => {
 test.describe("ICON-03 — the picker meets the shared baseline", () => {
   test("is axe-clean and meets touch targets", async ({ page }) => {
     await openSettingsTab(page, AREA_WITHOUT_ICON);
-    await page.getByRole("button", { name: /^Icon/ }).click();
+    await page.getByRole("button", { name: /^Identity/ }).click();
     await expect(
-      page.getByRole("dialog", { name: "Choose an icon" }),
+      page.getByRole("dialog", { name: "Choose an identity" }),
     ).toBeVisible();
 
     await expectNoAxeViolations(page);
@@ -191,9 +201,9 @@ test.describe("ICON-03 — the picker meets the shared baseline", () => {
   test("has no horizontal overflow at 320px", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await openSettingsTab(page, AREA_WITHOUT_ICON);
-    await page.getByRole("button", { name: /^Icon/ }).click();
+    await page.getByRole("button", { name: /^Identity/ }).click();
     await expect(
-      page.getByRole("dialog", { name: "Choose an icon" }),
+      page.getByRole("dialog", { name: "Choose an identity" }),
     ).toBeVisible();
 
     // The grid's `minmax(min(5.5rem, 100%), 1fr)` is what makes this pass: a

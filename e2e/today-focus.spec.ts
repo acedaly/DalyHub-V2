@@ -374,9 +374,19 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     await viewAll.click();
     await expect(page).toHaveURL(/\/tasks\?system=today/);
     await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
-    await expect(page.locator(".dh-pane-header__subtitle")).toHaveText(
-      `${stated![1]!} Tasks`,
-    );
+    /*
+     * The destination's own SIZE, counted, rather than the shape of its
+     * subtitle.
+     *
+     * CONVERGE-01 §B replaced "93 Tasks under a page titled Tasks" with a state
+     * breakdown ("16 active · 2 overdue"), which is drawn whenever it is a
+     * complete statement about the list on screen — so `${n} Tasks` is only one
+     * of the two lines this header can legitimately carry, and asserting it
+     * pinned the wording rather than the claim. What Today promises is that the
+     * number on its "View all" link is the TRUE size of the view it links to,
+     * and the rows on that view are that size directly.
+     */
+    await expect(taskRows(page)).toHaveCount(Number(stated![1]!));
   });
 
   test("keeps the title dominant and the panel accessible on a phone", async ({

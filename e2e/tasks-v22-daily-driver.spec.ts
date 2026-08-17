@@ -645,10 +645,38 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
      */
     await openQuickEdit(page, `E2E phone ${stamp} 0`);
     const quickEdit = page.getByRole("dialog", { name: "Task" });
-    const priority = quickEdit.getByRole("combobox", { name: /^Priority/ });
-    await priority.click();
-    await quickEdit.getByRole("option", { name: "Priority 2" }).click();
+    /*
+     * The record's priority is the shared INLINE editor, not a combobox.
+     *
+     * CONTROL-01 §4 merged the two Task drawers and gave the record the same
+     * inline controls the row carries — a trigger named "Priority: <value>"
+     * that opens the shared select — so `getByRole("combobox")` matched
+     * nothing here and this journey spent its whole 120s budget on it.
+     *
+     * EDIT-03 gives that select two presentations: an anchored menu on a
+     * pointer device and a Sheet of large option rows on a phone. This block
+     * runs at 390px, so it gets the Sheet — the option is therefore waited for
+     * by NAME rather than by the surface that happens to host it, exactly as
+     * `pwa-offline-tasks.spec.ts` does for the same control.
+     */
+    await quickEdit
+      .getByRole("button", { name: /^Priority: / })
+      .first()
+      .click();
+    const choice = page
+      .getByRole("menuitemradio", { name: "Priority 2" })
+      .or(page.getByRole("button", { name: "Priority 2" }))
+      .last();
+    await expect(choice).toBeVisible();
+    await choice.click();
+    // The record has taken the choice before the drawer is closed — so Escape
+    // is about the drawer, and the assertion below is about the ROW reflecting
+    // what the record already holds.
+    await expect(
+      quickEdit.getByRole("button", { name: "Priority: Priority 2" }),
+    ).toBeVisible();
     await page.keyboard.press("Escape");
+    await expect(quickEdit).toHaveCount(0);
     await expect(cardFor(page, `E2E phone ${stamp} 0`)).toContainText("P2");
 
     // Multi-select through the EXPLICIT control (the touch hold is an accelerator,
