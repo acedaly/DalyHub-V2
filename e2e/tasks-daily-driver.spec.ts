@@ -194,8 +194,18 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
     await gotoFixture(page, LIST);
     await quickAdd(page, title);
 
+    /*
+     * CONTROL-01 §4 — the searchable parent picker is ON the Task record now.
+     *
+     * `task-move:` opened a THIRD variant of the retired quick-edit panel,
+     * titled "Move task", carrying one control. That control — the shared
+     * server-backed picker over `/tasks/parent-options` — moved onto the record
+     * with everything else, so the key still resolves and the menu item still
+     * lands on a searchable picker; it simply lands on the one record rather
+     * than on a drawer that existed to hold a single field.
+     */
     await chooseOverflow(page, title, "Move to Project or Area…");
-    const drawer = page.getByRole("dialog", { name: "Move task" });
+    const drawer = page.getByRole("dialog", { name: "Task" });
     await expect(drawer).toBeVisible();
 
     const picker = drawer.getByRole("combobox", { name: /Project or Area/ });
@@ -208,8 +218,8 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
     await expect(option).toBeVisible();
     await option.click();
     await expect(
-      page.locator("[role='status']").filter({ hasText: /filed under/i }),
-    ).toBeAttached();
+      page.getByRole("group", { name: /filed under/i }),
+    ).toBeVisible();
 
     await page.keyboard.press("Escape");
     await gotoFixture(page, LIST);
@@ -325,15 +335,23 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     ).toHaveCount(1);
   });
 
-  test("sets and removes a repeat from the row's quick edit", async ({
+  test("sets and removes a repeat from the row's Task record", async ({
     page,
   }) => {
     const title = `E2E repeat control ${RUN}`;
     await gotoFixture(page, LIST);
     await quickAdd(page, `${title} tomorrow`);
 
-    await chooseOverflow(page, title, "Priority, dates and repeat…");
-    const drawer = page.getByRole("dialog", { name: "Quick edit" });
+    /*
+     * CONTROL-01 §4 — one Task drawer, so one place a repeat is authored.
+     *
+     * This drove `TaskQuickEditPanel`, the SECOND drawer the row's overflow used
+     * to open beside the record. That panel was the shared recurrence editor's
+     * only host, so the merge moved the editor onto the record rather than
+     * leaving a custom interval authorable nowhere but quick capture.
+     */
+    await chooseOverflow(page, title, "Open task");
+    const drawer = page.getByRole("dialog", { name: "Task" });
     await expect(drawer).toBeVisible();
 
     // TASKS-07 — the preset path: one choice, saved immediately.
@@ -345,8 +363,19 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await expect(monthly).toBeVisible();
     await monthly.click();
     await expect(
-      page.locator("[role='status']").filter({ hasText: /repeats/i }),
-    ).toBeAttached();
+      /*
+       * The product's own announcement channel.
+       *
+       * This waited on `[role="status"]`, which was the live region the retired
+       * quick-edit DRAWER HOST rendered around the panel. The record announces
+       * through the shared feedback system instead, and that system deliberately
+       * uses `aria-live` rather than an implicit `role="status"` — the reason is
+       * recorded in `NotificationCenter`: two elements resolving to the same
+       * implicit role made `getByRole` ambiguous. The toast is a labelled group,
+       * so it is asked for by the name it publishes.
+       */
+      page.getByRole("group", { name: /repeats/i }),
+    ).toBeVisible();
 
     await page.keyboard.press("Escape");
     await gotoFixture(page, LIST);
@@ -360,21 +389,28 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     );
   });
 
-  test("the row's quick edit holds the 320px and accessibility baselines", async ({
+  test("the row's Task record holds the 320px and accessibility baselines", async ({
     page,
   }) => {
     const title = `E2E quick edit narrow ${RUN}`;
     await gotoFixture(page, LIST);
     await quickAdd(page, title);
 
-    // The panel is the row's quick edits on a phone too — a Task is triaged from a
-    // pocket at least as often as from a desk.
+    // The record is the row's editing surface on a phone too — a Task is triaged
+    // from a pocket at least as often as from a desk.
     await page.setViewportSize({ width: 320, height: 720 });
-    await chooseOverflow(page, title, "Priority, dates and repeat…");
+    await chooseOverflow(page, title, "Open task");
+    await expect(page.getByRole("dialog", { name: "Task" })).toBeVisible();
+    // CONTROL-01 §4 — every property the retired quick-edit panel carried is a
+    // pressable control on this one record.
+    const record = page.getByRole("dialog", { name: "Task" });
     await expect(
-      page.getByRole("dialog", { name: "Quick edit" }),
+      record.getByRole("combobox", { name: /Project or Area/ }),
     ).toBeVisible();
-    await expect(page.getByTestId("task-quick-edit")).toBeVisible();
+    await expect(page.getByTestId("task-priority-edit")).toBeVisible();
+    await expect(page.getByTestId("task-horizon-edit")).toBeVisible();
+    await expect(page.getByTestId("task-commitment-edit")).toBeVisible();
+    await expect(record.getByTestId("task-recurrence-editor")).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
     // Scoped to the Drawer, which is what this test is about: the list behind it has

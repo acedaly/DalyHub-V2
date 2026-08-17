@@ -224,7 +224,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
     const taskDialog = page.getByRole("dialog").filter({
       hasText: COMPLETED_TASK,
     });
-    await taskDialog.getByRole("checkbox", { name: /Mark complete/ }).check();
+    await taskDialog.getByRole("button", { name: "Complete task" }).click();
     await expect(
       taskDialog.getByText("Completed", { exact: true }).first(),
     ).toBeVisible();

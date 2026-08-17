@@ -1179,6 +1179,18 @@ export function TodayScreen({
         <section
           className="dh-today__panel dh-today__panel--card dh-today__timeline"
           aria-labelledby="today-day-heading"
+          /*
+           * The stable landmark for "this IS the Today workspace".
+           *
+           * The screen's `h1` is the owner's GREETING, which changes with the
+           * hour and with who is signed in, so a spec cannot wait on it; and the
+           * region's accessible NAME is product copy that has now moved twice
+           * ("My day" → "Focus" → "Today's plan"), taking the shared E2E helper
+           * with it each time and timing out every dependent spec on a page that
+           * had rendered perfectly. A test id at this architectural boundary is
+           * the thing that is allowed to be stable while the copy is not.
+           */
+          data-testid="today-plan"
         >
           <div className="dh-today__panel-head">
             <h2 className="dh-today__panel-title" id="today-day-heading">

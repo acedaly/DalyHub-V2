@@ -39,6 +39,17 @@ export interface OverflowMenuItem {
   readonly tone?: OverflowMenuItemTone;
   /** Start a new visual group above this item (a hairline rule). Decorative. */
   readonly separatorBefore?: boolean;
+  /**
+   * CONTROL-01 §5 — the keyboard shortcut this item duplicates, e.g. `E` or
+   * `⌘K`, shown at the item's trailing edge.
+   *
+   * Only ever set it where the shortcut GENUINELY EXISTS and is bound on this
+   * surface. A hint is a promise: printing one for a key that does nothing
+   * teaches a keystroke that then fails silently, which is worse than printing
+   * none. It is `aria-hidden`, because the item's accessible name is the action
+   * and a screen-reader user is not helped by hearing "E" appended to it.
+   */
+  readonly shortcut?: string;
 }
 
 /** Props for the one shared overflow menu. */

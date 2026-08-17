@@ -36,6 +36,7 @@ import {
   TASK_GROUP_BYS,
   TASK_PRESENTATIONS,
 } from "~/kernel/task-views";
+import { taskPriorityTag } from "~/shared/task-record/task-view";
 
 import {
   COMPLETED_VISIBILITY_LABELS,
@@ -128,6 +129,10 @@ export function buildTasksControlGroups(
         ...TASK_PRIORITIES.map((priority) => ({
           value: priority,
           label: PRIORITY_FILTER_LABELS[priority] ?? priority,
+          // The applied chip already says "Priority:", so it takes the short tag
+          // and stops reading "Priority: Priority 1". The MENU keeps the full
+          // label, where an option stands alone and a bare "P1" is a code.
+          chipLabel: taskPriorityTag(priority),
           mark: { kind: "priority" as const, value: priority },
         })),
       ],

@@ -355,10 +355,18 @@ test.describe("TASKS-01 — full journey", () => {
       .click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    // Reopen via the canonical completion toggle.
-    await dialog.getByRole("checkbox", { name: "Completed" }).uncheck();
+    /*
+     * Reopen via the canonical completion action.
+     *
+     * CONTROL-01 §4 made this the record header's action rather than a checkbox
+     * in the summary column, in the same slot and the same words a Project's
+     * lifecycle act uses ("Complete project" / "Reopen project"). It is two
+     * named commands rather than one toggle, so the assertion that the record
+     * flipped is that the button now offers the OTHER act.
+     */
+    await dialog.getByRole("button", { name: "Reopen task" }).click();
     await expect(
-      dialog.getByRole("checkbox", { name: "Mark complete" }),
+      dialog.getByRole("button", { name: "Complete task" }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
 

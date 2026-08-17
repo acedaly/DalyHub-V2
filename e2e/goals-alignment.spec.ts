@@ -78,47 +78,98 @@ test.describe("AREA-03 — Alignment view", () => {
     await gotoFixture(page, "/goals");
     await expectNoAxeViolations(page);
 
+    /*
+     * ── Where the alignment WORD lives on this surface ─────────────────────
+     * REDESIGN-04 (#184) replaced the Goals gallery with the master–detail
+     * workspace, and made a deliberate, recorded decision about ADR-040's
+     * alignment state: the ROW does not draw it — a bar beside a row already
+     * answers "how is it going?", and a second state word next to it competes
+     * with the measure — so it is carried by the row's ACCESSIBLE NAME
+     * (`openAriaLabel` in `GoalWorkspace`) and shown in full on the pane
+     * beside the list, which step 4 below asserts.
+     *
+     * So this step asserts ATTRIBUTION — that the Goal this test just gave
+     * genuinely recent Task activity is classified `active`, and the seeded
+     * 2020-anchored Goal is not — through the name the product actually
+     * publishes. The rule under test is unchanged; only the assumption that
+     * the word is a visible text node has been dropped, and it was dropped by
+     * #184, not by the audit implementation.
+     */
     const activeCard = page.getByRole("article", { name: goalTitle });
     await expect(activeCard).toBeVisible();
-    await expect(activeCard.getByText("Recently active")).toBeVisible();
+    await expect(
+      activeCard.getByRole("link", { name: /Recently active/ }),
+    ).toBeVisible();
 
     /*
-     * M3X-02 — the seeded Goal has a contributing Project, so its card draws the
-     * MEASURE and the alignment word, and drops the reason sentence that would
-     * restate what the bar beside it shows. The honest reason survives where it
-     * is the only explanation available: on a Goal nothing advances (asserted in
-     * the unit suite) and on the Goal record's own summary band, which step 4
-     * below still checks in full.
+     * The seeded Goal has a contributing Project but no recent Task activity,
+     * so it reads `neglected` with the honest reason attached to the same
+     * name. The reason sentence is NOT a separate visible paragraph on the
+     * row — it would restate, in a list, what the pane explains in full.
      */
     const neglectedCard = page.getByRole("article", { name: "Learn Spanish" });
     await expect(neglectedCard).toBeVisible();
-    await expect(neglectedCard.getByText("No recent action")).toBeVisible();
-    await expect(neglectedCard.getByRole("progressbar")).toBeVisible();
+    await expect(
+      neglectedCard.getByRole("link", { name: /No recent action/ }),
+    ).toBeVisible();
+    /*
+     * And it draws NO meter. `Learn Spanish` is seeded with a contributing
+     * Project but no measurable target, and REDESIGN-04's rule for that case is
+     * explicit — "no bar, and no zero, for a Goal nothing advances"
+     * (`goalRowValue` returns `null` and the row draws no track). A 0% bar here
+     * would be fabricated precision: it would state a measurement the owner
+     * never asked for, in the position the eye reads as progress.
+     *
+     * This replaces an assertion that the card DID draw a bar, which described
+     * the M3X-02 Goal card that #184 retired along with the gallery.
+     */
+    await expect(neglectedCard.getByRole("progressbar")).toHaveCount(0);
     await expect(
       neglectedCard.getByText(
         "Projects exist, but no recent Task activity was found.",
       ),
     ).toHaveCount(0);
 
-    // 3. Keyboard operation: focus the active Goal's open link and activate
-    // it with Enter (no pointer), landing on the canonical Goal record.
+    /*
+     * 3. Keyboard operation: focus the active Goal's row link and activate it
+     * with Enter (no pointer).
+     *
+     * REDESIGN-04 made `/goals` a master–detail workspace, so activating a row
+     * is a change of SELECTION rather than a change of page: it stays on
+     * `/goals` and updates the pane beside the list, which is what makes Back
+     * leave the workspace instead of walking every Goal the owner glanced at.
+     * The keyboard contract under test — reachable, focusable, Enter opens the
+     * Goal — is unchanged; only the destination is the workspace's own URL.
+     */
     const openLink = activeCard.getByRole("link", {
-      name: `Open ${goalTitle}`,
+      name: new RegExp(goalTitle),
     });
     await openLink.focus();
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(goalUrl);
-    await expect(page.getByRole("heading", { name: goalTitle })).toBeVisible();
+    await expect(page).toHaveURL(/\/goals\?goal=/);
+    /*
+     * Scoped to the PANE, because on a master–detail workspace the Goal's name
+     * is legitimately on screen twice — once as the selected row's heading and
+     * once as the pane's. Asking the page for "the heading called X" is a
+     * question with two right answers there; the one this step is making a claim
+     * about is the pane, since the claim is "the pane opened on this Goal".
+     */
+    await expect(
+      page.getByTestId("goal-workspace-pane").getByRole("heading", {
+        name: goalTitle,
+      }),
+    ).toBeVisible();
 
     /*
-     * 4. The Goal's summary explains WHY this Goal reads as active, and lists
-     * the real contributing Task with working navigation.
+     * 4. The Goal RECORD's summary explains WHY this Goal reads as active, and
+     * lists the real contributing Task with working navigation.
      *
      * RECORD-01 — the alignment STATE is the summary band's chip beside the
      * contribution meter it explains, and its reasons are the band's signal
      * line. The evidence keeps its own section, headed "Recent contribution"
      * and rendered only where there is evidence.
      */
+    await gotoFixture(page, goalUrl);
     const goalSummary = page.getByRole("region", { name: "Summary" });
     await expect(goalSummary.getByText("Recently active")).toBeVisible();
     await expect(

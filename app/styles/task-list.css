@@ -745,6 +745,34 @@
     translate: 0 -50%;
     pointer-events: auto;
   }
+
+  /*
+   * MOBILE-02 §2 — an UNUSED dimension is BLANK on a phone, not a placeholder.
+   *
+   * A pointer device already hides these: `@media (hover: hover)` fades
+   * `.dh-inline-edit__empty` to 0 until the row is hovered, because "Unassigned
+   * · No due date · No priority" repeated down a list is a column of the
+   * product announcing that a dimension was NOT used. A phone matched neither
+   * arm of that rule, so it got the placeholders permanently — three italic
+   * absences per row, on the screen with the least room for them, competing
+   * with the one thing the row is for.
+   *
+   * The whole TRIGGER goes, not just its label, and that is deliberate. Leaving
+   * a zero-width invisible button behind would keep a 44px `::before` hit area
+   * (above) floating over the neighbouring value, so a thumb aimed at the
+   * project name would open the date editor instead — a worse defect than the
+   * one being fixed. `data-empty` is the shell's own attribute, so this asks the
+   * question the component already answers rather than inferring it from a
+   * child's class.
+   *
+   * The editor is NOT lost. Every one of these properties is a pressable control
+   * in the ONE Task drawer the row's title and its overflow both open
+   * (CONTROL-01 §4), which is the phone's editing path anyway — the desktop's
+   * hover-to-reveal inline edit has no thumb equivalent to begin with.
+   */
+  .dh-tasklist .dh-taskrow__cell .dh-inline-edit__trigger[data-empty="true"] {
+    display: none;
+  }
 }
 
 /* -- Project: a dot and a name --------------------------------------------- */

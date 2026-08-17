@@ -55,7 +55,16 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { useCapture } from "~/shared/capture";
 import { OverflowMenu } from "~/shared/overflow-menu";
-import { PlusIcon } from "~/shared/icons";
+import {
+  ArchiveIcon,
+  ChevronRightIcon,
+  EditIcon,
+  PlusIcon,
+  ProjectIcon,
+  RepeatIcon,
+  TaskIcon,
+  TodayIcon,
+} from "~/shared/icons";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
@@ -63,7 +72,6 @@ import { useFeedback } from "~/shared/feedback";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
-import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
 import {
@@ -294,21 +302,29 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
           children: <TaskRecordDrawer taskId={id} />,
         };
       }
-      // TASKS-04 — the row's quick edits (and its parent change) open the ONE shared
-      // quick-edit panel in the ONE shared Drawer, rather than a bespoke popover per
-      // field. Both keys carry the task id, so the state is URL-backed and Back works.
+      /*
+       * CONTROL-01 §4 — `task-quick:` and `task-move:` open the SAME record.
+       *
+       * They used to open `TaskQuickEditPanel`, a second editor for the same
+       * object: the row's overflow offered "Priority, dates and repeat…" (the
+       * quick panel) *and* "Open task record" (the record), and the project
+       * editor's escape hatch opened a third variant of the quick panel titled
+       * "Move task". Three doors, one task, and each door showed a different
+       * subset of its properties — so "where do I change the horizon?" had a
+       * different answer from "where do I change the description?".
+       *
+       * The record drawer now carries every property either door edited, each
+       * one a pressable control rather than a printed value, so these keys
+       * resolve to it. They are KEPT rather than deleted because they are URL
+       * state: a bookmarked or Back-stacked `?drawer=task-quick:<id>` from
+       * before this change still opens the task it names, and Back/Forward and
+       * focus restoration are unchanged.
+       */
       if ((kind === "task-quick" || kind === "task-move") && id.length > 0) {
-        const item = findLoadedTask(data, id);
-        if (!item) return null;
         return {
-          title: kind === "task-move" ? "Move task" : "Quick edit",
-          description:
-            kind === "task-move"
-              ? "File this task under a Project or an Area, or leave it in Inbox."
-              : "Dates, sector, commitment and repeat.",
-          children: (
-            <TaskQuickEditDrawerHost item={item} todayIso={data.todayIso} />
-          ),
+          title: "Task",
+          description: "Task record",
+          children: <TaskRecordDrawer taskId={id} />,
         };
       }
       if (entry.key === NEW_TASK_KEY) {
@@ -334,54 +350,19 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
   );
 }
 
-/**
- * The task a Drawer key refers to, from whichever payload the current presentation
- * loaded it into: the flat page, or a bucket of the server-grouped result. One
- * lookup, so a grouped Sectors row can open the same panel a list row does.
+/*
+ * CONTROL-01 §4 — `findLoadedTask` and `TaskQuickEditDrawerHost` are GONE.
+ *
+ * Both existed only to feed the second Task editor: the host needed a task, and
+ * the lookup found one in whichever payload the current presentation had loaded
+ * it into. The record drawer loads the task from its own canonical route, so it
+ * needs neither — and it works for a task that is not on the loaded page at all,
+ * which the lookup could not (a `?drawer=task-quick:<id>` for a row past the
+ * first keyset page rendered nothing).
+ *
+ * Removed rather than left unreferenced: a helper with no caller is sediment,
+ * and the next reader cannot tell dead code from dormant code.
  */
-function findLoadedTask(
-  data: TasksPageData,
-  id: string,
-): SerializedTaskListItem | null {
-  const flat = data.items.find((task) => task.id === id);
-  if (flat) return flat;
-  for (const group of data.grouping?.groups ?? []) {
-    const found = group.items.find((task) => task.id === id);
-    if (found) return found;
-  }
-  return null;
-}
-
-/**
- * Hosts the shared quick-edit panel in the Drawer. It revalidates the list after each
- * canonical mutation and announces the outcome through a live region, so the row the
- * user came from reflects the SERVER rather than an optimistic guess.
- */
-function TaskQuickEditDrawerHost({
-  item,
-  todayIso,
-}: {
-  readonly item: SerializedTaskListItem;
-  readonly todayIso: string;
-}) {
-  const revalidator = useRevalidator();
-  const [announcement, setAnnouncement] = useState<string | null>(null);
-  return (
-    <>
-      <TaskQuickEditPanel
-        task={item}
-        todayIso={todayIso}
-        onChanged={(message) => {
-          setAnnouncement(message);
-          revalidator.revalidate();
-        }}
-      />
-      <p className="dh-visually-hidden" role="status">
-        {announcement ?? ""}
-      </p>
-    </>
-  );
-}
 
 /** Hosts the create form: reflects the new task, then opens it in the shared Drawer. */
 function NewTaskDrawerHost({
@@ -1278,11 +1259,28 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
        * replaces the title), the searchable full parent picker, the composed
        * quick-edit panel, the commitment change, and the recurrence-series operations.
        */
+      /*
+       * ── CONTROL-01 §5, the menu's own anatomy ──────────────────────────────
+       * Every item carries a LEADING ICON, so the menu is scannable by shape
+       * before it is read and every row is the same height whether or not it has
+       * one — a menu where three of seven items have a glyph reads as three
+       * kinds of item. Descriptions appear only where the label genuinely leaves
+       * a question open ("Skip this occurrence" — and does that complete it?);
+       * where it does not, a second line is noise that makes the row taller than
+       * its neighbours for nothing.
+       *
+       * The RECORD-LEVEL action sits below a separator at the foot, on its own,
+       * because it is the only item that changes surface rather than changing
+       * the task in place. There is exactly ONE of them now: "Priority, dates and
+       * repeat…" and "Open task record" pointed at two different editors for one
+       * object, and §4 merged them.
+       */
       const overflowActions = viewingDeleted
         ? [
             {
               id: "open-record",
-              label: "Open task record",
+              label: "Open task",
+              icon: <TaskIcon />,
               description: "Read-only until it is restored.",
               onSelect: () => openDrawer(`task:${card.id}`),
             },
@@ -1291,7 +1289,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           ? [
               {
                 id: "reopen-record",
-                label: "Open task record",
+                label: "Open task",
+                icon: <TaskIcon />,
                 onSelect: () => openDrawer(`task:${card.id}`),
               },
             ]
@@ -1301,6 +1300,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                     {
                       id: "plan-today",
                       label: "Plan for today",
+                      icon: <TodayIcon />,
                       // No `ariaLabel` naming the task: the MENU is already
                       // "More actions for <title>", so repeating it on the item
                       // makes a screen reader say the title twice and makes the
@@ -1312,17 +1312,20 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
               {
                 id: "rename",
                 label: "Rename",
+                icon: <EditIcon />,
                 onSelect: () => setEditingTitleId(card.id),
               },
               {
                 id: "move-to",
                 label: "Move to Project or Area…",
+                icon: <ProjectIcon />,
                 description: "Search the whole workspace.",
                 onSelect: () => openDrawer(`task-move:${card.id}`),
               },
               {
                 id: "someday",
                 label: "Move to Someday / Maybe",
+                icon: <ArchiveIcon />,
                 separatorBefore: true,
                 onSelect: () =>
                   quick.setField(
@@ -1341,6 +1344,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                     {
                       id: "skip-occurrence",
                       label: "Skip this occurrence",
+                      icon: <ChevronRightIcon />,
                       description:
                         "Moves to the next date without completing it.",
                       separatorBefore: true,
@@ -1354,6 +1358,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                     {
                       id: "stop-repeat",
                       label: "Stop repeating",
+                      icon: <RepeatIcon />,
                       description: "Past occurrences are kept.",
                       onSelect: () =>
                         quick.setRecord(
@@ -1365,15 +1370,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                   ]
                 : []),
               {
-                id: "quick-edit",
-                label: "Priority, dates and repeat…",
-                separatorBefore: true,
-                onSelect: () => openDrawer(`task-quick:${card.id}`),
-              },
-              {
+                /*
+                 * The ONE record-level item, below the group break.
+                 *
+                 * It replaces the pair this menu used to end on. "Priority,
+                 * dates and repeat…" opened `task-quick:`, "Open task record"
+                 * opened `task:`, and an owner had to know which of the two held
+                 * the property they wanted — the exact split CONTROL-01 §4
+                 * closes. Both keys now resolve to this one record, so the menu
+                 * needs one door to it.
+                 */
                 id: "open-record",
-                label: "Open task record",
-                description: "For delegation, waiting and removal.",
+                label: "Open task",
+                icon: <TaskIcon />,
+                description: "Every property, plus delegation and removal.",
+                separatorBefore: true,
                 onSelect: () => openDrawer(`task:${card.id}`),
               },
             ];

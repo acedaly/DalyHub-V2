@@ -47,17 +47,34 @@ async function box(locator: Locator) {
 /**
  * The first task row in the Tasks collection.
  *
- * This contract used to be measured on Today, whose task list was a DS-04 Card
- * collection. The Today redesign replaced that list with plain rows — there is
- * no hover-revealed action rail on the day any more — so the rule is measured
- * where the Card collection actually lives. The rule is unchanged and is a
- * SHARED Card contract, not a Today one.
+ * ── Why this is no longer a `.dh-card` ──────────────────────────────────────
+ * This contract was written against the generic Card in list presentation, which
+ * is what `/tasks` rendered at the time. DS-04 replaced it with the product-level
+ * `TaskRow`: a grid row with no surface of its own, whose columns are the LIST's
+ * columns. So the old locator (`.dh-card-collection--list .dh-card--list`) now
+ * matches nothing on this route and the three tests below spent their whole
+ * timeout waiting for a component generation the product deliberately retired.
+ *
+ * The RULE is unchanged and is exactly the CONTROL-01 §6 contract: a control the
+ * row holds back until it is engaged with must already own its space, so
+ * revealing it moves nothing. Only the anatomy it is measured on has moved —
+ * from an absolutely-positioned action rail over a card to a reserved grid
+ * column and reserved inline carets. Tasks are NOT going back to cards.
  */
 function firstRow(page: Page) {
-  return page.locator(".dh-card-collection--list .dh-card--list").first();
+  return page.getByTestId("task-row").first();
 }
 
 const ROW_SURFACE = "/tasks?system=all";
+
+/** The x-origin of each of the row's four metadata cells, left to right. */
+async function columnOrigins(row: Locator): Promise<readonly number[]> {
+  return row.evaluate((el) =>
+    [...el.querySelectorAll(".dh-taskrow__cell")].map(
+      (cell) => Math.round(cell.getBoundingClientRect().x * 100) / 100,
+    ),
+  );
+}
 
 test.describe("UIQ — task-row hover contract (Tasks)", () => {
   test("at rest the row owns its width and concealed actions are truly absent", async ({
@@ -69,39 +86,35 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     const row = firstRow(page);
     await expect(row).toBeVisible();
 
-    // UIQ-001 — the touch tray does not paint on a fine-pointer device.
-    const tray = row.locator(".dh-card__swipe-tray");
+    // UIQ-001 — the touch swipe affordance does not paint on a fine pointer.
+    const tray = row.locator(".dh-taskrow__swipe-tray");
     if ((await tray.count()) > 0) {
       await expect(tray).toHaveCSS("display", "none");
     }
 
-    // UIQ-002 — concealed means out of the layout and out of hit-testing,
-    // while STAYING keyboard/AT-reachable (so not `visibility: hidden`).
-    const actions = row.locator(".dh-card__actions");
-    await expect(actions).toHaveCSS("pointer-events", "none");
-    await expect(actions).toHaveCSS("position", "absolute");
+    // UIQ-002 — concealed means INVISIBLE, never removed: the overflow trigger
+    // and every inline caret are opacity-0 at rest and still in the
+    // accessibility tree, so a screen reader and the keyboard reach a row that
+    // was never hovered.
+    const overflow = row.locator(".dh-taskrow__overflow");
+    await expect(overflow).toHaveCSS("opacity", "0");
+    await expect(overflow).toHaveAttribute("aria-haspopup", /menu|true/);
 
-    // The row body (title + metadata) owns the row instead of ceding a third
-    // of it to an invisible rail. Pre-fix this ratio measured 0.50 on Today.
-    const rowBox = await box(row);
-    const bodyBox = await box(row.locator(".dh-card__body"));
+    const carets = row.locator(".dh-inline-select__caret");
     expect(
-      bodyBox.width / rowBox.width,
-      "row body should own the row at rest (no reserved action rail)",
-    ).toBeGreaterThan(0.8);
+      await carets.count(),
+      "the row's inline editors draw their carets",
+    ).toBeGreaterThan(0);
+    await expect(carets.first()).toHaveCSS("opacity", "0");
 
-    // Nothing interactive hides in the trailing zone at rest: the topmost
-    // element under the old rail position is not a button.
-    const hit = await page.evaluate(() => {
-      const card = document.querySelector(
-        ".dh-card-collection--list .dh-card--list",
-      );
-      if (!card) return "no-card";
-      const r = card.getBoundingClientRect();
-      const el = document.elementFromPoint(r.right - 40, r.top + r.height / 2);
-      return el ? el.closest("button")?.className || "none" : "none";
-    });
-    expect(hit, "no invisible clickable action at rest").toBe("none");
+    // The TITLE owns the row rather than ceding a third of it to a rail: the
+    // title cell is the list grid's only `1fr`. Pre-DS-04 this measured 0.50.
+    const rowBox = await box(row);
+    const mainBox = await box(row.locator(".dh-taskrow__main"));
+    expect(
+      mainBox.width / rowBox.width,
+      "the title should own the row's flexible width",
+    ).toBeGreaterThan(0.3);
   });
 
   test("hover reveals actions inside the row without moving anything, over an opaque surface", async ({
@@ -113,29 +126,36 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     const row = firstRow(page);
     await expect(row).toBeVisible();
     const before = await box(row);
-    const bodyBefore = await box(row.locator(".dh-card__body"));
+    const mainBefore = await box(row.locator(".dh-taskrow__main"));
+    const columnsBefore = await columnOrigins(row);
 
     await row.hover();
-    const actions = row.locator(".dh-card__actions");
-    await expect(actions).toBeVisible();
+    const overflow = row.locator(".dh-taskrow__overflow");
+    await expect(overflow).toBeVisible();
+    await expect(overflow).toHaveCSS("opacity", "1");
 
-    // Stable geometry: the row and its content do not move or resize.
+    // CONTROL-01 §6 — the reveal is opacity ONLY. The row does not resize, the
+    // title does not narrow, and no metadata column is shoved sideways, because
+    // both the overflow column and each caret already occupied their space.
     const after = await box(row);
-    const bodyAfter = await box(row.locator(".dh-card__body"));
+    const mainAfter = await box(row.locator(".dh-taskrow__main"));
     expect(after.width).toBe(before.width);
     expect(after.height).toBe(before.height);
-    expect(bodyAfter.width).toBe(bodyBefore.width);
+    expect(mainAfter.width).toBe(mainBefore.width);
+    expect(
+      await columnOrigins(row),
+      "revealing the row's controls must not move a metadata column",
+    ).toEqual(columnsBefore);
 
-    // Revealed actions sit INSIDE the row's own bounds (the audit found them
-    // half-clipped at the card edge with tray labels interleaving).
-    const actionsBox = await box(actions);
-    expect(actionsBox.x).toBeGreaterThanOrEqual(after.x);
-    expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(
+    // Revealed controls sit INSIDE the row's own bounds.
+    const overflowBox = await box(overflow);
+    expect(overflowBox.x).toBeGreaterThanOrEqual(after.x);
+    expect(overflowBox.x + overflowBox.width).toBeLessThanOrEqual(
       after.x + after.width + 1,
     );
 
-    // UIQ-001 — the hovered surface is opaque, so nothing behind it can show
-    // through (the tray leak was exactly a translucent hover background).
+    // UIQ-001 — the hovered row's wash is opaque, so nothing behind it shows
+    // through (the original defect was a translucent hover uncovering slabs).
     const bg = await row.evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(alphaOf(bg), `hover background must be opaque, got ${bg}`).toBe(1);
   });
@@ -147,30 +167,31 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     await gotoFixture(page, ROW_SURFACE);
 
     const row = firstRow(page);
-    await row.locator(".dh-card__open").first().focus();
-    const actions = row.locator(".dh-card__actions");
-    await expect(actions).toHaveCSS("opacity", "1");
+    const columnsBefore = await columnOrigins(row);
+
+    // Focus anywhere in the row — the title link is the first stop — and the
+    // row's held-back controls appear, exactly as they do on hover.
+    await row.getByTestId("task-row-open").focus();
+    const overflow = row.locator(".dh-taskrow__overflow");
+    await expect(overflow).toHaveCSS("opacity", "1");
+    await expect(row.locator(".dh-inline-select__caret").first()).not.toHaveCSS(
+      "opacity",
+      "0",
+    );
 
     /*
-     * The concealed buttons themselves stay focusable (they are opacity-0 with
-     * pointer-events off, never `visibility: hidden`): on a surface without a
-     * roving model, Tab must still reach the rail's controls directly — losing
-     * that would break the DS-04 "keyboard/AT reachable" contract for keyboard
-     * users. Focusing one reveals the rail via `:focus-within`.
-     *
-     * HARDEN-02 — this asked for `.dh-card__action`, the class a QUICK ACTION
-     * button carries, and UIX-01 took every permanent action button off the task
-     * row ("Complete" became the leading circle, "Today" moved into the overflow
-     * and the swipe tray). The rail on this surface now holds exactly one
-     * control, the overflow trigger, so the locator matched nothing and the test
-     * spent its whole timeout waiting for it. Asking the RAIL for its buttons
-     * keeps asserting the contract — whatever the rail holds is reachable — and
-     * survives quick actions coming back.
+     * The concealed control itself stays focusable — it is opacity-0, never
+     * `display: none` or `visibility: hidden` — so Tab reaches the row's long
+     * tail directly on a row the pointer never touched. Losing that would break
+     * the DS-04 "keyboard/AT reachable" contract for keyboard users.
      */
-    const firstAction = row.locator(".dh-card__actions button").first();
-    await firstAction.focus();
-    await expect(firstAction).toBeFocused();
-    await expect(actions).toHaveCSS("opacity", "1");
+    await overflow.focus();
+    await expect(overflow).toBeFocused();
+    await expect(overflow).toHaveCSS("opacity", "1");
+    expect(
+      await columnOrigins(row),
+      "focus must not move a metadata column either",
+    ).toEqual(columnsBefore);
   });
 });
 

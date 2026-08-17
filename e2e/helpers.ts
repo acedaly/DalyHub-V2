@@ -428,15 +428,20 @@ export function postSameOrigin(
  * is the same at every hour. Asserting a landmark rather than a class also keeps
  * the check on the accessibility tree, where the product's contract lives.
  *
- * It is **Focus**. It was "My day" until M3X-02 (#145) renamed the heading the
- * region is labelled by, and this helper was not renamed with it — so from that
- * merge onwards `todayDayPanel()` resolved to nothing and every spec that waited
- * on it waited out its timeout. Fixed here rather than worked around at the four
- * call sites: a landmark helper that names a landmark the product does not have
- * is one bug, not four.
+ * It is NOT addressed by its accessible NAME any more. That name has moved twice
+ * — "My day" until M3X-02 (#145), then "Focus", and TODAY-11 renamed it again to
+ * "Today's plan" — and each rename silently broke this helper, so every spec that
+ * waited on it waited out its timeout on a page that had rendered perfectly. The
+ * region's name is product COPY, and copy is not this helper's contract; "the
+ * Today workspace exists and holds the day's task rows" is.
+ *
+ * So it asks for the panel's stable test id, placed on the same `<section>` in
+ * `TodayScreen`. The panel is still a labelled region, and the specs that assert
+ * Today's HEADINGS still assert them by name — this helper simply stops being
+ * the thing that breaks when the words change.
  */
 export function todayDayPanel(page: Page): Locator {
-  return page.getByRole("region", { name: "Focus" });
+  return page.getByTestId("today-plan");
 }
 
 /**

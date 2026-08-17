@@ -25,7 +25,7 @@ import {
   TIME_SECTORS,
   type TaskRecurrenceInput,
 } from "~/kernel/tasks";
-import { DateField, FormButton, SelectField } from "~/shared/forms";
+import { CalendarDateField, FormButton, SelectField } from "~/shared/forms";
 
 import { recurrenceFormFields } from "./recurrence-authoring";
 import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
@@ -258,11 +258,22 @@ export function TaskQuickEditPanel({
         }
       />
 
+      {/*
+       * CONTROL-01 §2 — ONE DalyHub date control.
+       *
+       * These two were the browser's native `<input type="date">`, which is a
+       * different control on every platform, offers none of the product's own
+       * presets, and on a phone hands the owner an OS wheel instead of the month
+       * grid every other Task date in DalyHub opens. `CalendarDateField` is the
+       * same shared grid and preset set wearing the `Field` chrome, so the
+       * Review Inbox triages a date exactly as the Task record edits one.
+       */}
       <div className="dh-task-quick-edit__dates">
-        <DateField
+        <CalendarDateField
           label="Scheduled date"
           id={`${groupId}-scheduled`}
           value={task.scheduledDate ?? ""}
+          todayIso={todayIso}
           disabled={busy}
           onChange={(value) =>
             value.length === 0
@@ -276,10 +287,11 @@ export function TaskQuickEditPanel({
                 )
           }
         />
-        <DateField
+        <CalendarDateField
           label="Due date"
           id={`${groupId}-due`}
           value={task.dueDate ?? ""}
+          todayIso={todayIso}
           disabled={busy}
           onChange={(value) =>
             bulk(

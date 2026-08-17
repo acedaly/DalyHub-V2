@@ -21,7 +21,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
-import { TASK_PRIORITIES } from "~/kernel/tasks";
+import {
+  TASK_PRIORITIES,
+  TIME_SECTORS,
+  type TaskRecurrenceInput,
+} from "~/kernel/tasks";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { useDrawer } from "~/shared/drawer";
 import { useCapture } from "~/shared/capture";
@@ -29,7 +33,7 @@ import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { useFeedback } from "~/shared/feedback";
-import { FormButton, type SubmitOutcome } from "~/shared/forms";
+import { FormButton, SelectField, type SubmitOutcome } from "~/shared/forms";
 import type {
   EntityLinkSelection,
   EntityLinkTargetOption,
@@ -55,7 +59,10 @@ import {
   type WaitingActionOutcome,
 } from "./TaskWaitingSection";
 import { PriorityFlag } from "./PriorityIndicator";
+import { recurrenceFormFields } from "./recurrence-authoring";
+import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
 import { UrgencyChip } from "./UrgencyChip";
+import { useTaskParentSearch } from "./use-task-parent-search";
 import {
   isTaskComplete,
   taskDisplayState,
@@ -86,6 +93,38 @@ const PRIORITY_OPTIONS = TASK_PRIORITIES.map((priority) => ({
   value: priority,
   label: taskPriorityLabel(priority),
 }));
+
+/**
+ * CONTROL-01 §4 — the horizon, in the owner's words.
+ *
+ * The persisted field is `timeSector` and the stored values are unchanged; what
+ * changes is the WORD on the label. "Time Sector" is DalyHub's internal name for
+ * it — capitalised like a proper noun, and meaningless to anyone who has not
+ * read the schema — while every value it holds ("This Week", "Next Month",
+ * "Long Term") is plainly a HORIZON. The audit called this out by name, and the
+ * rule it gave is the one followed here: rename the language, never the
+ * persisted value or the API field.
+ */
+const HORIZON_LABEL = "Horizon";
+
+const HORIZON_OPTIONS = TIME_SECTORS.map((sector) => ({
+  value: sector,
+  label: timeSectorLabel(sector),
+}));
+
+/**
+ * …and the same for `commitmentState`, whose two values are "active" and
+ * "someday". "Commitment" names the column; it does not name the question the
+ * owner is answering, which is whether this is something they are actually
+ * doing or something parked. The values already speak plainly, so only the
+ * field's own label moves.
+ */
+const COMMITMENT_LABEL = "Doing this";
+
+const COMMITMENT_OPTIONS = [
+  { value: "active", label: "Yes — active" },
+  { value: "someday", label: "Someday / Maybe" },
+];
 
 /**
  * The live task-record API a host module can observe to add behaviour AROUND the
@@ -140,11 +179,33 @@ export function TaskRecordDrawer({
   const { closeDrawer } = useDrawer();
   const capture = useCapture();
   const { notifySuccess, notifyError } = useFeedback();
+  /*
+   * CONTROL-01 §4 — the parent picker's option source, the SAME bounded,
+   * workspace-scoped `/tasks/parent-options` endpoint the row's project editor
+   * and the create form already use. Not a second parent model.
+   */
+  const parentSearch = useTaskParentSearch();
 
   const [data, setData] = useState<DetailResponse | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [isEditing, setEditing] = useState(false);
   const [completionPending, setCompletionPending] = useState(false);
+  /*
+   * CONTROL-01 §4 — the parent's OWN pending value and in-flight lock.
+   *
+   * `SelectField` closes on selection and re-syncs its input from `props.value`.
+   * Driving it straight from the last LOADED record therefore snaps the input
+   * back to the previous parent for as long as the mutation and the reload take
+   * — the owner picks "Kitchen renovation" and watches it revert to "Home". And
+   * with no lock, two quick changes race: whichever response lands last wins,
+   * which may not be the one the owner chose last.
+   *
+   * The retired `TaskQuickEditPanel` solved both with local state plus
+   * `disabled={busy}`, and that behaviour is preserved here rather than lost in
+   * the merge. `null` means "no pending choice — show what the record says".
+   */
+  const [pendingParent, setPendingParent] = useState<string | null>(null);
+  const [parentPending, setParentPending] = useState(false);
   const [optimisticComplete, setOptimisticComplete] = useState<boolean | null>(
     null,
   );
@@ -172,6 +233,34 @@ export function TaskRecordDrawer({
     }
   });
 
+  /*
+   * A different task: whatever parent choice was pending belonged to the
+   * PREVIOUS one and must not be shown against this one.
+   *
+   * Its own effect, keyed on the task, rather than a line inside the loader
+   * above — that one deliberately runs on every render behind a ref guard, and a
+   * state setter in a dependency-less effect is the shape of an update loop even
+   * when this particular guard prevents it.
+   */
+  useEffect(() => {
+    setPendingParent(null);
+    setParentPending(false);
+  }, [detailUrl]);
+
+  /*
+   * Retire the pending parent once the RECORD agrees with it.
+   *
+   * The local value exists only to bridge the round trip; leaving it set after
+   * the reload would make it a second source of truth, and a parent changed
+   * elsewhere (the row's inline editor, a bulk move) would then be overridden on
+   * this surface by a value the server has already superseded.
+   */
+  useEffect(() => {
+    if (pendingParent === null || data === null || "error" in data) return;
+    const settled = data.task.project?.id ?? data.task.area?.id ?? "";
+    if (settled === pendingParent) setPendingParent(null);
+  }, [data, pendingParent]);
+
   const postAction = useCallback(
     async (form: FormData): Promise<TaskActionData> => {
       const response = await fetch(detailUrl, { method: "POST", body: form });
@@ -195,9 +284,12 @@ export function TaskRecordDrawer({
       // here any more: they are edited on the record, and carrying them would
       // let this Save revert a change made in the Summary while the form was
       // open. The action treats an absent key as unchanged.
+      //
+      // CONTROL-01 §4 — the horizon and the Someday/Maybe state join them, for
+      // the identical reason: both became pressable controls in the Summary when
+      // the second Task drawer was merged into this one, so submitting the
+      // form's stale copy of either would revert an edit made beside it.
       form.set("status", values.status);
-      form.set("timeSector", values.timeSector);
-      form.set("commitmentState", values.commitmentState);
       form.set("delegateTo", values.delegateTo);
       form.set("delegatedOn", values.delegatedOn);
       form.set("followUpOn", values.followUpOn);
@@ -309,6 +401,109 @@ export function TaskRecordDrawer({
     [postBulkField],
   );
 
+  /*
+   * CONTROL-01 §4 — the three properties that used to live ONLY in the second
+   * drawer.
+   *
+   * `TaskQuickEditPanel` was a competing editor for this same object: the row's
+   * overflow opened `task-quick:<id>` for the parent, the horizon, the
+   * Someday/Maybe state and the repeat, while the title link opened
+   * `task:<id>` for everything else. Two drawers over one record is two places
+   * to look and two places for the two of them to disagree.
+   *
+   * They post through the SAME `/tasks/bulk` single-id path the priority and
+   * the due date already use, so folding them in adds no fourth server path.
+   */
+  const setSector = useCallback(
+    (sector: string) => postBulkField({ intent: "set_sector", sector }),
+    [postBulkField],
+  );
+
+  const setCommitment = useCallback(
+    (commitment: string) =>
+      postBulkField({ intent: "set_commitment", commitment }),
+    [postBulkField],
+  );
+
+  /**
+   * The parent goes through the canonical `/tasks/:id` `set_parent` intent
+   * rather than the bulk path, because it carries a KIND alongside the id — a
+   * Task's one parent is an Area or a Project and the route is told which.
+   * Clearing it is Inbox, stated in those words.
+   */
+  const setParent = useCallback(
+    async (parentId: string): Promise<InlineSaveOutcome> => {
+      // Show the owner's choice immediately and hold it until the record has
+      // reloaded with the server's answer.
+      setPendingParent(parentId);
+      setParentPending(true);
+      /*
+       * The KIND comes from the picker's own index, and falls back to the task's
+       * CURRENT parent — because that one option is synthesised from the record
+       * rather than fetched (see `parentOptions` below), so the index has never
+       * seen it. Without the fallback, re-selecting the parent a task already has
+       * would be refused as "not in the list".
+       */
+      const loaded = data !== null && !("error" in data) ? data.task : null;
+      const kind =
+        parentId.length === 0
+          ? ""
+          : parentId === loaded?.project?.id
+            ? "project"
+            : parentId === loaded?.area?.id
+              ? "area"
+              : parentSearch.kindOf(parentId);
+      if (kind === null) {
+        setPendingParent(null);
+        setParentPending(false);
+        return {
+          ok: false,
+          message: "Choose a Project or an Area from the list.",
+        };
+      }
+      const form = new FormData();
+      form.set("intent", "set_parent");
+      form.set("parentId", parentId);
+      form.set("parentKind", kind);
+      try {
+        const result = await postAction(form);
+        if (result.kind === "update" && result.status === "success") {
+          // Announced like every other mutation on this record, and in the
+          // product's own words for the two outcomes this control has.
+          notifySuccess(
+            parentId.length === 0
+              ? "Moved to Inbox."
+              : `Filed under the chosen ${kind}.`,
+          );
+          refresh();
+          setParentPending(false);
+          return { ok: true };
+        }
+        // Refused: drop the optimistic value so the control returns to the
+        // parent the record actually has, rather than showing a move that did
+        // not happen.
+        setPendingParent(null);
+        setParentPending(false);
+        return {
+          ok: false,
+          message:
+            (result.kind === "update" && result.status === "error"
+              ? (result.fieldErrors?.parentId ?? result.formError)
+              : undefined) ??
+            "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      } catch {
+        setPendingParent(null);
+        setParentPending(false);
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      }
+    },
+    [data, notifySuccess, parentSearch, postAction, refresh],
+  );
+
   const toggleCompletion = useCallback(
     async (complete: boolean) => {
       setCompletionPending(true);
@@ -417,6 +612,66 @@ export function TaskRecordDrawer({
       return body.options ?? [];
     },
     [detailUrl],
+  );
+
+  /**
+   * CONTROL-01 §4 — authoring a REPEAT, on the record.
+   *
+   * `TaskRecurrenceEditor` had exactly one host: the quick-edit panel. Pointing
+   * the row's overflow at the record without bringing the editor with it would
+   * have made a custom interval or a weekday-pinned rule authorable nowhere but
+   * quick capture — DEBT-66 reopened, and the "merge preserves existing Task
+   * functionality" clause broken by the merge itself.
+   *
+   * It posts the SAME canonical `intent=set_recurrence` the row's overflow
+   * series operations use, so the kernel still validates the rule against the
+   * task's own anchor date and still refuses one that could never compute a
+   * successor.
+   */
+  const saveRecurrence = useCallback(
+    async (
+      rule: TaskRecurrenceInput | null,
+    ): Promise<{ ok: boolean; message?: string }> => {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(recurrenceFormFields(rule))) {
+        form.set(key, value);
+      }
+      /*
+       * The rejection path is caught HERE, and that is load-bearing rather than
+       * defensive habit. `TaskRecurrenceEditor.commit()` sets `saving = true` and
+       * only clears it once this promise SETTLES with a value — so a network
+       * failure or a non-JSON response would reject, leave the editor disabled
+       * with no way back, and surface as an unhandled rejection. Every other
+       * inline mutation on this record already answers with `{ ok: false }`
+       * instead of throwing; this one was the odd one out.
+       */
+      try {
+        const result = await postAction(form);
+        if (result.kind === "update" && result.status === "success") {
+          notifySuccess(
+            rule === null
+              ? "This task no longer repeats."
+              : "This task now repeats.",
+          );
+          refresh();
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          message:
+            (result.kind === "update" && result.status === "error"
+              ? (result.fieldErrors?.recurrence ?? result.formError)
+              : undefined) ??
+            "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      }
+    },
+    [notifySuccess, postAction, refresh],
   );
 
   const setWaiting = useCallback(
@@ -603,6 +858,43 @@ export function TaskRecordDrawer({
     waiting: waitingActive ? task.waiting : null,
   });
   const status = { label: displayState.label, tone: displayState.tone };
+  /*
+   * The Task's ONE structural parent, whichever kind it is — the owner's PENDING
+   * choice while one is in flight, and the record's own answer otherwise.
+   *
+   * The pending value is cleared by the effect below once the reloaded record
+   * agrees with it, so the local state is a bridge across the round trip rather
+   * than a second source of truth that could drift from the server.
+   */
+  const recordParent = task.project?.id ?? task.area?.id ?? "";
+  const parentValue = pendingParent ?? recordParent;
+  /*
+   * The picker's options, with the CURRENT parent guaranteed to be among them.
+   *
+   * `/tasks/parent-options` is bounded — it returns a page, and typing searches
+   * the rest — so on a workspace with more Projects than one page the task's own
+   * parent may simply not be in the list. `withSelected` can only re-offer an
+   * option the endpoint has already returned once, so the field would have shown
+   * an EMPTY parent for a task that has one, which is worse than not offering the
+   * control at all. The record already knows the parent's id AND its title, so it
+   * supplies that one option itself.
+   */
+  const parentOptions =
+    parentValue === "" ||
+    parentSearch
+      .withSelected(parentValue)
+      .some((option) => option.value === parentValue)
+      ? parentSearch.withSelected(parentValue)
+      : [
+          {
+            value: parentValue,
+            label:
+              parentValue === recordParent
+                ? (task.project?.title ?? task.area?.title ?? parentValue)
+                : parentValue,
+          },
+          ...parentSearch.withSelected(parentValue),
+        ];
 
   // Scheduled + Due are shown by the Planning section (TODAY-04), so they are not
   // duplicated here; the summary metadata carries the remaining task facts.
@@ -651,18 +943,47 @@ export function TaskRecordDrawer({
       value: <UrgencyChip task={task} todayIso={data.todayIso} />,
     });
   }
+  /*
+   * CONTROL-01 §4 — every one of these is now PRESSABLE.
+   *
+   * They were a static property sheet: the record told you the Time Sector, the
+   * commitment and the parent and gave you nowhere to change them, so changing
+   * any of the three meant closing this drawer and opening the *other* one from
+   * the row's overflow. A record that states a value it will not let you edit is
+   * a record that sends you somewhere else — which is exactly the second editor
+   * this pass removes.
+   */
   metadata.push({
     id: "sector",
-    label: "Time Sector",
-    value: timeSectorLabel(task.timeSector),
+    label: HORIZON_LABEL,
+    value: (
+      <InlineSelectField
+        label={HORIZON_LABEL}
+        value={task.timeSector ?? ""}
+        options={HORIZON_OPTIONS}
+        onSave={setSector}
+        emptyLabel="No horizon"
+        clearable
+        clearLabel="Clear horizon"
+        data-testid="task-horizon-edit"
+      />
+    ),
   });
-  if (task.commitmentState === "someday") {
-    metadata.push({
-      id: "commitment",
-      label: "Commitment",
-      value: "Someday / Maybe",
-    });
-  }
+  metadata.push({
+    id: "commitment",
+    label: COMMITMENT_LABEL,
+    value: (
+      <InlineSelectField
+        label={COMMITMENT_LABEL}
+        // A Task with no stored commitment IS active — the same "null is not a
+        // fifth state" rule the priority contract settled.
+        value={task.commitmentState === "someday" ? "someday" : "active"}
+        options={COMMITMENT_OPTIONS}
+        onSave={setCommitment}
+        data-testid="task-commitment-edit"
+      />
+    ),
+  });
   if (task.delegation) {
     metadata.push({
       id: "delegated",
@@ -670,23 +991,21 @@ export function TaskRecordDrawer({
       value: task.delegation.to,
     });
   }
-  if (task.project) {
-    metadata.push({
-      id: "project",
-      label: "Project",
-      value: task.project.title,
-    });
-  }
+  /*
+   * The parent is NOT in this metadata list.
+   *
+   * It is a server-backed searchable picker in the summary's control column
+   * below, because a Task's parent is the one property whose option set is the
+   * whole workspace: the record used to print up to three separate facts here
+   * (Project, Goal, Area) plus a fourth "Parent: Unassigned" row when it had
+   * none — four labels for a field the model says holds exactly one value — and
+   * the only way to CHANGE it was the second drawer this pass retired.
+   *
+   * The Goal stays here, read-only, because a Goal is the PROJECT's goal and not
+   * a parent this control could set.
+   */
   if (task.goal) {
     metadata.push({ id: "goal", label: "Goal", value: task.goal.title });
-  }
-  if (task.area) {
-    metadata.push({ id: "area", label: "Area", value: task.area.title });
-  }
-  // TASKS-04 — an Inbox task has NO structural parent, and the record says so with the
-  // product's word for it. Silence would read as "we lost it".
-  if (!task.project && !task.area) {
-    metadata.push({ id: "parent", label: "Parent", value: "Unassigned" });
   }
   // A stored recurrence rule is a fact about the task, so it is reported here in the
   // same restrained vocabulary the parser and the Repeat control use.
@@ -754,13 +1073,88 @@ export function TaskRecordDrawer({
          */
         icon={<EntityIcon type="task" />}
         status={status}
+        /*
+         * CONTROL-01 §4 — completion is the Task record's FIRST-CLASS action.
+         *
+         * It was a checkbox in the middle of the summary column, at the same
+         * visual rank as the horizon and the repeat rule, so the one act the
+         * record exists to let you perform sat among its properties. It is now
+         * the header's action, in the slot every other record in DalyHub already
+         * puts its lifecycle act in, and in the SAME words a Project uses
+         * ("Complete project" / "Reopen project") so one vocabulary covers both.
+         *
+         * `secondary` rather than filled, for the reason RECORD-01 recorded for
+         * the Project: finishing a task is a lifecycle act, not the next thing
+         * the owner came to this surface to do, and the loudest control on a
+         * record should not be the one that ends it. The current state is not
+         * inferred from the button — the header's status chip beside it says
+         * "Completed" in words.
+         */
+        primaryAction={{
+          id: completed ? "reopen" : "complete",
+          label: completed ? "Reopen task" : "Complete task",
+          variant: "secondary",
+          disabled: completionPending,
+          onSelect: () => toggleCompletion(!completed),
+        }}
         summary={{
           description: (
             <div className="dh-task-drawer__summary-controls">
-              <TaskCompletion
-                completed={completed}
-                pending={completionPending}
-                onToggle={toggleCompletion}
+              {/*
+               * CONTROL-01 §4 — the parent, where it can be SEARCHED.
+               *
+               * The shared server-backed picker over `/tasks/parent-options`,
+               * the same control the retired quick-edit panel carried and the
+               * same endpoint the row's inline editor uses. It is in the control
+               * column rather than the metadata list because it is the one Task
+               * property whose options are the whole workspace: a bounded menu
+               * of the first page would have quietly turned "move this task
+               * anywhere" into "move it somewhere near the top of the list".
+               */}
+              <SelectField
+                label="Project or Area"
+                /*
+                 * TASKS-04 — an Inbox task has NO structural parent, and the
+                 * record STATES that rather than leaving an empty control the
+                 * reader has to interpret. Silence here reads as "we lost it";
+                 * an instruction ("leave blank to…") tells the owner what to do
+                 * without telling them where the task currently is. So the help
+                 * line is the FACT when there is no parent, and the instruction
+                 * only once there is one to clear.
+                 */
+                help={
+                  parentValue === ""
+                    ? "Unassigned — this task is in Inbox."
+                    : "Clear it to move this task back to Inbox."
+                }
+                showOptionalCue={false}
+                placeholder="Search Projects and Areas"
+                value={parentValue}
+                options={parentOptions}
+                onSearch={parentSearch.search}
+                loading={parentSearch.loading}
+                emptyMessage="No matching Projects or Areas"
+                // Serialised, not queued: a second change cannot be started
+                // until the first has been answered, so the record can never
+                // settle on whichever response happened to land last.
+                disabled={parentPending}
+                /*
+                 * A refusal is REPORTED, never swallowed. `SelectField` has no
+                 * per-field error slot on this surface, so a rejected parent
+                 * change goes through the same feedback channel every other
+                 * mutation on this record uses — the alternative is a control
+                 * that appears to have moved the task and has not.
+                 */
+                onChange={(value) => {
+                  void setParent(value).then((outcome) => {
+                    if (!outcome.ok) {
+                      notifyError(
+                        outcome.message ??
+                          "That couldn’t be saved. Nothing was changed — try again.",
+                      );
+                    }
+                  });
+                }}
               />
               <TaskWaitingSection
                 waiting={task.waiting}
@@ -777,6 +1171,22 @@ export function TaskRecordDrawer({
                 onPlan={planTask}
                 onClear={clearPlan}
                 onSetDue={setDueDate}
+              />
+              {/*
+               * CONTROL-01 §4 — the repeat rule, beside the plan it advances.
+               *
+               * The shared editor, moved here from the retired second drawer. It
+               * sits after Planning because a rule needs an anchor that exists
+               * and the anchor is the plan directly above it.
+               */}
+              <TaskRecurrenceEditor
+                task={{
+                  recurrence: task.recurrence ?? null,
+                  scheduledDate: task.scheduledDate,
+                  dueDate: task.dueDate,
+                }}
+                onSave={saveRecurrence}
+                disabled={completed}
               />
             </div>
           ),
@@ -819,28 +1229,5 @@ export function TaskRecordDrawer({
         ]}
       />
     </div>
-  );
-}
-
-/** The completion control shown in the Summary — an accessible, 44px checkbox. */
-function TaskCompletion({
-  completed,
-  pending,
-  onToggle,
-}: {
-  readonly completed: boolean;
-  readonly pending: boolean;
-  readonly onToggle: (complete: boolean) => void;
-}) {
-  return (
-    <label className="dh-task-drawer__completion">
-      <input
-        type="checkbox"
-        checked={completed}
-        disabled={pending}
-        onChange={(event) => onToggle(event.target.checked)}
-      />
-      <span>{completed ? "Completed" : "Mark complete"}</span>
-    </label>
   );
 }
