@@ -1136,6 +1136,49 @@ resume", and the last planned hardening pass. Full record:
   selector widened, no sleep added (one was REMOVED), no test deleted, no
   coverage removed, no production contact.
 
+### ☑ HARDEN-05 - Restore a genuinely green `main` - **DELIVERED 2026-08-17**
+
+HARDEN-01…04 made the suite FINISH and made its result READABLE. What they could
+not do is make it TRUE: by 17 August `main` carried a standing red set, and the
+register's own census of it (DEBT-149) was less than a quarter of the real size.
+Full record: [`HARDEN_05_GREEN_MAIN_2026_08.md`](../product/HARDEN_05_GREEN_MAIN_2026_08.md).
+
+- **The baseline was MEASURED at `f994aa0` before any edit, not inherited.**
+  Ten partitions, each against a fresh local D1 and the production build — which
+  is what a CI partition job is: **73 failing / 1678, across 26 spec files**,
+  where DEBT-149 recorded 16 and then 36. CI run 32019461430 at the same SHA
+  agrees, and its `p01` names exactly the same three failures the local `p01`
+  produced.
+- **73 failures, EIGHT root causes.** Sixty-four were one shape — a spec
+  addressing an anatomy the product deliberately replaced: DS-04's `TaskRow`,
+  CONTROL-01's controls popover and merged Task record, REDESIGN-04's Goals
+  workspace and metric trio, ADR-100's default table, NOTES-06's shared filter
+  grammar, IDENTITY-01's identity picker, CONVERGE-01 §B's state breakdown.
+  Every one is corrected to the shipped contract with the change that caused it
+  named at the assertion.
+- **Nine were the product being wrong**, each measured before and after: a task
+  row's open target at 19.6px on a phone (the MOBILE-01 rule had been pointing
+  at the retired Card since DS-04), two fields under the 16px iOS-zoom floor,
+  Today's document at 204px against a 195px viewport (WCAG 1.4.10 — the residual
+  DEBT-148 could not attribute), an unnamed open link on the Projects table, and
+  a `<span>` where `SelectField` should have had a `<label>`.
+- **One ceiling moved, with evidence and a debt entry.** The shell precache is
+  1,321 kB against a budget written at 674 kB. It is re-baselined rather than
+  repaired — 731 kB of it is the stylesheet, ~200 kB of that the multi-scheme
+  colour layer, and reducing either is a performance-architecture decision — and
+  the ratchet TIGHTENS in exchange: ~10% headroom instead of ~1.8×, plus a new
+  ceiling on the compressed bytes the suite could not see at all. Raised as
+  DEBT-151.
+- **Non-goals held:** no `.skip`/`.fixme`/`describe.skip`, no retry (`retries: 0`
+  unchanged), no `workers` increase, no global or test timeout raised, no
+  `waitForTimeout` or sleep added, no assertion weakened to an existence check,
+  no selector widened to generic CSS, no test deleted, no accessibility check
+  removed, no CI check made informational or `continue-on-error`, no production
+  contact. One width-based touch-floor change was made and then REVERTED,
+  because `dalyhub-tokens.test.ts` refuses it and is right — the tests were
+  emulating a phone by width alone, and a phone is a width AND a pointer.
+- **Closes DEBT-135, DEBT-148 and DEBT-149.**
+
 ### NEXT
 
 **The DS programme — the DalyHub design system replaces Material Design 3 as the
