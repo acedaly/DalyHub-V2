@@ -7471,12 +7471,28 @@
 /*
  * The responsive DEFAULT, for a document that has not chosen.
  *
- * `(pointer: coarse)` rather than a width query, for the same reason the
- * anti-zoom floor above uses `(hover: none)`: what makes a comfortable target
- * necessary is the INPUT MECHANISM, not the window. A 1024px tablet held in two
- * hands wants touch; a 1024px browser window on a laptop does not.
+ * `(pointer: coarse)` was the whole rule, for the same reason the anti-zoom
+ * floor above uses `(hover: none)`: what makes a comfortable target necessary
+ * is the INPUT MECHANISM, not the window. A 1024px tablet held in two hands
+ * wants touch; a 1024px browser window on a laptop does not.
+ *
+ * HARDEN-05 adds the second half of that sentence, which the product had
+ * already written down twice and never applied to the density model. Below the
+ * `md` boundary the desktop rail is hidden and the phone bottom bar IS the
+ * navigation (`shell.css`), so the frame on screen is the phone's whatever the
+ * pointer claims to be — and `task-signals.css` says so in these words: "a
+ * 390px window on a laptop reports `pointer: fine`, and that is exactly the
+ * viewport a phone-shaped review — and MOBILE-01's own `expectMinTouchTarget`
+ * assertions — look at."
+ *
+ * MEASURED at 390px on `main` @ f994aa0: `.dh-collection-controls__trigger`
+ * (whose own comment promises "this token is the one that `@media (pointer:
+ * coarse)` raises to 44px") at 32px on `/views`, and the Diary day surface's
+ * controls at 36px. Both are phone layouts with desktop hit areas.
+ *
+ * It only ever grows a target. Above `md` with a mouse nothing here applies.
  */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 47.99rem) {
   :root:not([data-dh-density]) {
     --dh-control-height: 44px;
     --dh-menu-item-height: 44px;

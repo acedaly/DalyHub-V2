@@ -495,7 +495,28 @@
   );
 }
 
-@media (hover: none) {
+/*
+ * The touch floor, on a touch device OR at a phone WIDTH.
+ *
+ * HARDEN-05 added the width half, and it is the same bargain `task-signals.css`
+ * already strikes for the task row, written down there in these words: "a 390px
+ * window on a laptop reports `pointer: fine`, and that is exactly the viewport a
+ * phone-shaped review — and MOBILE-01's own `expectMinTouchTarget` assertions —
+ * look at". Below `md` the desktop rail is hidden and the phone bottom bar is
+ * the navigation (`shell.css`), so the frame on screen is the phone's whatever
+ * the pointer claims to be, and a 36px primary action in it is a 36px primary
+ * action on a phone.
+ *
+ * MEASURED on `main` @ f994aa0 at 390px: `.dh-btn--primary` at 36px on the Goal
+ * check-in action and the Diary day surface, and `.dh-btn--sm` at 32px on the
+ * Asset obligation actions and the cross-module views — four journeys failing
+ * their own touch floor for one reason, and the reason was that the rule only
+ * ever asked about the input device.
+ *
+ * It is a FLOOR and it only ever grows a control: above `md` with a mouse
+ * nothing here applies and the density model is untouched.
+ */
+@media (hover: none), (max-width: 47.99rem) {
   :is(.dh-button, .dh-btn) {
     min-block-size: var(--button-height-touch);
   }

@@ -27,6 +27,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openCollectionControls,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -599,19 +600,20 @@ test("the collection surfaces the obligation signal and filters on it", async ({
   await gotoFixture(page, "/assets");
   await expect(page.getByText("1 obligation overdue")).toBeVisible();
 
-  // The obligation facet lives in the shared Filter & sort SHEET, not inline on
-  // the collection header — UIX-05 moved every control except search and the tag
-  // field behind that one trigger, and this test had been reaching for a
-  // combobox that is not in the document until the sheet is open (one of the
-  // failures DEBT-125 carried as "not yet diagnosed").
-  await page.getByRole("button", { name: "Filter & sort" }).click();
-  const controls = page.getByRole("dialog", { name: "Filter and sort assets" });
-  await controls
-    .getByRole("group", { name: "Obligations" })
-    .getByRole("button", { name: "Overdue" })
-    .click();
-  await controls.getByRole("button", { name: "Apply" }).click();
-  await expect(controls).toBeHidden();
+  /*
+   * The obligation facet lives behind the shared Filter & sort trigger, not
+   * inline on the collection header — UIX-05 moved every control except search
+   * and the tag field behind it.
+   *
+   * CONTROL-01 then made the SHEET the phone presentation and gave a pointer
+   * device an anchored, live-applying popover, so at this journey's width there
+   * is no `dialog` named "Filter and sort assets" to open and no Apply to
+   * press: this waited out its budget on a group inside a surface that never
+   * mounted. `openCollectionControls` drives whichever one the width gets.
+   */
+  const controls = await openCollectionControls(page);
+  await controls.choose("obligations", "overdue");
+  await controls.commit();
   await expect(
     page.getByRole("link", { name: new RegExp(overdue) }),
   ).toBeVisible();

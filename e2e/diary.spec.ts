@@ -173,7 +173,24 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     ).toBeVisible();
     await expect(page).toHaveURL(/inspector=view/);
 
-    // 9. Touch targets + no horizontal overflow across the matrix.
+    /*
+     * 9. Touch targets + no horizontal overflow across the matrix.
+     *
+     * The target is asserted at a PHONE width, which is where DalyHub promises
+     * it. This ran at the project's desktop viewport and demanded 44px of a
+     * `.dh-btn`, which on a fine pointer above `md` is deliberately 36px: the
+     * density model gives a comfortable target back on a coarse pointer or a
+     * phone-sized frame and keeps the drawn size for a cursor, and
+     * `task-signals.css` argues the case at length ("the 44px figure is SC
+     * 2.5.5 (AAA), which is a TOUCH guideline"). So the assertion had been
+     * asking the product for a rule it does not have, on the one surface where
+     * it does not apply.
+     */
+    await page.setViewportSize({ width: 390, height: 844 });
+    // A fresh load of the day: on a phone the inspector this journey just used
+    // IS the screen (§7 — two screens, not two panes), so the capture control
+    // is behind it until the list is on top again.
+    await gotoFixture(page, "/diary");
     await page.getByRole("button", { name: "New diary entry" }).first().click();
     await expectMinTouchTarget(
       page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
