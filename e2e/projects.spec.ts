@@ -323,8 +323,21 @@ test.describe("PROJ-01 — Projects", () => {
     page,
   }) => {
     await page.emulateMedia({ colorScheme: "dark" });
-    await gotoFixture(page, "/projects");
+
+    /*
+     * ADR-100 — BOTH drawings, each asked for explicitly. The collection has
+     * two presentations and which one a bare `/projects` opens now depends on
+     * how many Projects the workspace holds, so scanning the default would
+     * scan whichever drawing the seeded data happened to produce and quietly
+     * stop covering the other. Naming both keeps the dark scan deterministic
+     * and doubles what it covers.
+     */
+    await gotoFixture(page, "/projects?present=grid");
     await expect(page.getByRole("article").first()).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await gotoFixture(page, "/projects?present=table");
+    await expect(page.getByTestId("projects-table")).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

@@ -61,7 +61,9 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
   test("says so, and offers a way out, when a search matches nothing", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    // ADR-100 — the gallery, explicitly, for the same reason as above: the way
+    // out is proved by the RECORDS coming back, and this test names cards.
+    await gotoFixture(page, "/projects?present=grid");
     await page
       .getByRole("searchbox", { name: "Search projects" })
       .fill("zzzz-no-such-project");
