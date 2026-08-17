@@ -52,7 +52,21 @@ const SWITCHER_SURFACES = [
    * the right one directly beneath a page title. `projects.spec.ts` and
    * `projects-mobile.spec.ts` assert the rail's own contract.
    */
-  { name: "Goals", path: "/goals", group: "Goal views" },
+  /*
+   * CONVERGE-01 §9 — Goals is no longer in this list either, for exactly the
+   * reason Projects is not (see the note above it).
+   *
+   * Goals used to draw TWO control rails: `Active | Deleted` as a segmented
+   * switcher in this header slot, and the four status views as a tab rail
+   * beneath it. The audit's finding was the doubling, not either control, so the
+   * two collapsed into ONE `ViewTabs` rail carrying `All · On track · Needs
+   * attention · Completed · Deleted` — the same shape Projects already uses for
+   * its own four lifecycle scopes.
+   *
+   * The switcher's contract is untouched and is still asserted below on Assets;
+   * Goals simply has none in this slot any more. `goals.spec.ts` asserts the
+   * rail's own contract, including that Deleted is reachable and returnable.
+   */
   { name: "Notes", path: "/notes", group: "Note views" },
   { name: "People", path: "/people", group: "People circles" },
   { name: "Meetings", path: "/meetings/upcoming", group: "Meeting views" },
@@ -138,6 +152,59 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
       expect(width).toBeCloseTo(widthsBefore[index], 0);
     }
   });
+
+  /*
+   * CONVERGE-01 §2 — the selected scope chip no longer outweighs the page title.
+   *
+   * The audit's finding is about RANK: on a collection header the selected scope
+   * was a near-black filled chip at `label-large` with a check glyph, and the
+   * page's own `h1` sat beside it in ordinary text — the loudest object on the
+   * band answered "which subset?" above "what page is this?".
+   *
+   * What must NOT change is the colour (a recorded FINAL-UI decision) or the hit
+   * area, so all three are asserted together on every collection that still
+   * renders the control: quieter type than the title, the same near-black fill,
+   * and a target that still clears the AA floor.
+   */
+  for (const surface of SWITCHER_SURFACES) {
+    test(`${surface.name}'s selected scope chip is quieter than its title`, async ({
+      page,
+    }) => {
+      await gotoFixture(page, surface.path);
+      const group = page.getByRole("group", { name: surface.group });
+      await expect(group).toBeVisible();
+
+      const measured = await group.evaluate((node) => {
+        const selected = node.querySelector(
+          '[aria-current="true"], [aria-pressed="true"]',
+        ) as HTMLElement | null;
+        const title = document.querySelector(
+          ".dh-pane-header__title",
+        ) as HTMLElement | null;
+        if (!selected || !title) return null;
+        const chipStyle = getComputedStyle(selected);
+        return {
+          chipSize: parseFloat(chipStyle.fontSize),
+          chipBackground: chipStyle.backgroundColor,
+          chipHeight: selected.getBoundingClientRect().height,
+          titleSize: parseFloat(getComputedStyle(title).fontSize),
+          // The check's reserved box is gone from the labelled variant; its
+          // absence is what most of the width reduction came from.
+          check: getComputedStyle(selected, "::before").content,
+        };
+      });
+      expect(measured).not.toBeNull();
+
+      // Quieter than the page's own title, which is the whole point.
+      expect(measured!.chipSize).toBeLessThan(measured!.titleSize);
+      // The near-black fill STANDS — this changed weight, never colour.
+      expect(measured!.chipBackground).not.toBe("rgba(0, 0, 0, 0)");
+      // …and the target is untouched (WCAG 2.2 SC 2.5.8's AA floor on a fine
+      // pointer; the coarse floor is asserted in `iphone-daily-driver.spec.ts`).
+      expect(measured!.chipHeight).toBeGreaterThanOrEqual(24);
+      expect(measured!.check).toBe("none");
+    });
+  }
 });
 
 test.describe("UIQ-014 — the primary action, in one place", () => {

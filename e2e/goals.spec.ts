@@ -213,6 +213,62 @@ test.describe("AREA-02 — Goals", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  /*
+   * CONVERGE-01 §9 — ONE filter surface on Goals.
+   *
+   * The collection used to draw two control rails, one above the other: a
+   * segmented `Active | Deleted` in the header's view slot and the four status
+   * views as a tab rail beneath it. The audit's finding was the doubling, and
+   * this is what "one grammar" has to mean in a browser — one rail, and nothing
+   * in the header slot at all.
+   */
+  test("draws ONE filter rail, and the header's view slot is empty", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/goals");
+
+    const rail = page.getByTestId("goals-views");
+    await expect(rail).toBeVisible();
+    // Every scope the collection has, in one control the owner learns once.
+    await expect(rail.locator(".dh-viewtabs__tab")).toHaveCount(5);
+    await expect(rail.locator(".dh-viewtabs__tab").last()).toHaveText(
+      "Deleted",
+    );
+
+    // Nothing left in the header's view slot — no second rail, no segmented
+    // control beside the title.
+    await expect(page.locator(".dh-pane-header__views")).toHaveCount(0);
+    await expect(page.getByRole("group", { name: /Goal views/ })).toHaveCount(
+      0,
+    );
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("the one rail reaches Deleted and comes back the same way", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/goals");
+    await page
+      .getByTestId("goals-views")
+      .getByRole("link", { name: "Deleted" })
+      .click();
+    await expect(page).toHaveURL(/state=deleted/);
+
+    // The SAME rail is drawn on the deleted scope, with Deleted current — so
+    // the way out is where the way in was, and the counts are gone because they
+    // describe the active page.
+    const rail = page.getByTestId("goals-views");
+    await expect(rail.getByRole("link", { name: "Deleted" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(rail.getByRole("link", { name: "All" })).toBeVisible();
+
+    await rail.getByRole("link", { name: "All" }).click();
+    await expect(page).not.toHaveURL(/state=deleted/);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("has no horizontal overflow across representative desktop and mobile widths", async ({
     page,
   }) => {
