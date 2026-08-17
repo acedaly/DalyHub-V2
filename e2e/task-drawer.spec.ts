@@ -194,10 +194,23 @@ test.describe("TODAY-02 — desktop", () => {
       const wanted = target ? "Complete task" : "Reopen task";
       const settled = target ? "Reopen task" : "Complete task";
       const action = dialog.getByRole("button", { name: wanted });
-      if ((await action.count()) === 0) return;
+      const opposite = dialog.getByRole("button", { name: settled });
+      /*
+       * Already in the target state — but PROVE it rather than assume it.
+       *
+       * An early bare `return` here would let this whole test pass on a record
+       * that renders NO completion control at all: all three calls would find no
+       * `wanted` button, return, and assert nothing. The record must always
+       * offer exactly one of the two commands, so the absence of one is a claim
+       * that the other is present and usable.
+       */
+      if ((await action.count()) === 0) {
+        await expect(opposite).toBeEnabled();
+        return;
+      }
       await expect(action).toBeEnabled();
       await action.click();
-      await expect(dialog.getByRole("button", { name: settled })).toBeEnabled();
+      await expect(opposite).toBeEnabled();
     };
     await setCompleted(false); // normalise to open
     await setCompleted(true); // complete

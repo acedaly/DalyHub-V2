@@ -190,6 +190,22 @@ export function TaskRecordDrawer({
   const [loadError, setLoadError] = useState(false);
   const [isEditing, setEditing] = useState(false);
   const [completionPending, setCompletionPending] = useState(false);
+  /*
+   * CONTROL-01 §4 — the parent's OWN pending value and in-flight lock.
+   *
+   * `SelectField` closes on selection and re-syncs its input from `props.value`.
+   * Driving it straight from the last LOADED record therefore snaps the input
+   * back to the previous parent for as long as the mutation and the reload take
+   * — the owner picks "Kitchen renovation" and watches it revert to "Home". And
+   * with no lock, two quick changes race: whichever response lands last wins,
+   * which may not be the one the owner chose last.
+   *
+   * The retired `TaskQuickEditPanel` solved both with local state plus
+   * `disabled={busy}`, and that behaviour is preserved here rather than lost in
+   * the merge. `null` means "no pending choice — show what the record says".
+   */
+  const [pendingParent, setPendingParent] = useState<string | null>(null);
+  const [parentPending, setParentPending] = useState(false);
   const [optimisticComplete, setOptimisticComplete] = useState<boolean | null>(
     null,
   );
@@ -216,6 +232,34 @@ export function TaskRecordDrawer({
       void load();
     }
   });
+
+  /*
+   * A different task: whatever parent choice was pending belonged to the
+   * PREVIOUS one and must not be shown against this one.
+   *
+   * Its own effect, keyed on the task, rather than a line inside the loader
+   * above — that one deliberately runs on every render behind a ref guard, and a
+   * state setter in a dependency-less effect is the shape of an update loop even
+   * when this particular guard prevents it.
+   */
+  useEffect(() => {
+    setPendingParent(null);
+    setParentPending(false);
+  }, [detailUrl]);
+
+  /*
+   * Retire the pending parent once the RECORD agrees with it.
+   *
+   * The local value exists only to bridge the round trip; leaving it set after
+   * the reload would make it a second source of truth, and a parent changed
+   * elsewhere (the row's inline editor, a bulk move) would then be overridden on
+   * this surface by a value the server has already superseded.
+   */
+  useEffect(() => {
+    if (pendingParent === null || data === null || "error" in data) return;
+    const settled = data.task.project?.id ?? data.task.area?.id ?? "";
+    if (settled === pendingParent) setPendingParent(null);
+  }, [data, pendingParent]);
 
   const postAction = useCallback(
     async (form: FormData): Promise<TaskActionData> => {
@@ -389,6 +433,10 @@ export function TaskRecordDrawer({
    */
   const setParent = useCallback(
     async (parentId: string): Promise<InlineSaveOutcome> => {
+      // Show the owner's choice immediately and hold it until the record has
+      // reloaded with the server's answer.
+      setPendingParent(parentId);
+      setParentPending(true);
       /*
        * The KIND comes from the picker's own index, and falls back to the task's
        * CURRENT parent — because that one option is synthesised from the record
@@ -406,6 +454,8 @@ export function TaskRecordDrawer({
               ? "area"
               : parentSearch.kindOf(parentId);
       if (kind === null) {
+        setPendingParent(null);
+        setParentPending(false);
         return {
           ok: false,
           message: "Choose a Project or an Area from the list.",
@@ -426,8 +476,14 @@ export function TaskRecordDrawer({
               : `Filed under the chosen ${kind}.`,
           );
           refresh();
+          setParentPending(false);
           return { ok: true };
         }
+        // Refused: drop the optimistic value so the control returns to the
+        // parent the record actually has, rather than showing a move that did
+        // not happen.
+        setPendingParent(null);
+        setParentPending(false);
         return {
           ok: false,
           message:
@@ -437,6 +493,8 @@ export function TaskRecordDrawer({
             "That couldn’t be saved. Nothing was changed — try again.",
         };
       } catch {
+        setPendingParent(null);
+        setParentPending(false);
         return {
           ok: false,
           message: "That couldn’t be saved. Nothing was changed — try again.",
@@ -578,24 +636,40 @@ export function TaskRecordDrawer({
       for (const [key, value] of Object.entries(recurrenceFormFields(rule))) {
         form.set(key, value);
       }
-      const result = await postAction(form);
-      if (result.kind === "update" && result.status === "success") {
-        notifySuccess(
-          rule === null
-            ? "This task no longer repeats."
-            : "This task now repeats.",
-        );
-        refresh();
-        return { ok: true };
+      /*
+       * The rejection path is caught HERE, and that is load-bearing rather than
+       * defensive habit. `TaskRecurrenceEditor.commit()` sets `saving = true` and
+       * only clears it once this promise SETTLES with a value — so a network
+       * failure or a non-JSON response would reject, leave the editor disabled
+       * with no way back, and surface as an unhandled rejection. Every other
+       * inline mutation on this record already answers with `{ ok: false }`
+       * instead of throwing; this one was the odd one out.
+       */
+      try {
+        const result = await postAction(form);
+        if (result.kind === "update" && result.status === "success") {
+          notifySuccess(
+            rule === null
+              ? "This task no longer repeats."
+              : "This task now repeats.",
+          );
+          refresh();
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          message:
+            (result.kind === "update" && result.status === "error"
+              ? (result.fieldErrors?.recurrence ?? result.formError)
+              : undefined) ??
+            "That couldn’t be saved. Nothing was changed — try again.",
+        };
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Nothing was changed — try again.",
+        };
       }
-      return {
-        ok: false,
-        message:
-          (result.kind === "update" && result.status === "error"
-            ? (result.fieldErrors?.recurrence ?? result.formError)
-            : undefined) ??
-          "That couldn’t be saved. Nothing was changed — try again.",
-      };
     },
     [notifySuccess, postAction, refresh],
   );
@@ -784,8 +858,16 @@ export function TaskRecordDrawer({
     waiting: waitingActive ? task.waiting : null,
   });
   const status = { label: displayState.label, tone: displayState.tone };
-  /* The Task's ONE structural parent, whichever kind it is. */
-  const parentValue = task.project?.id ?? task.area?.id ?? "";
+  /*
+   * The Task's ONE structural parent, whichever kind it is — the owner's PENDING
+   * choice while one is in flight, and the record's own answer otherwise.
+   *
+   * The pending value is cleared by the effect below once the reloaded record
+   * agrees with it, so the local state is a bridge across the round trip rather
+   * than a second source of truth that could drift from the server.
+   */
+  const recordParent = task.project?.id ?? task.area?.id ?? "";
+  const parentValue = pendingParent ?? recordParent;
   /*
    * The picker's options, with the CURRENT parent guaranteed to be among them.
    *
@@ -806,7 +888,10 @@ export function TaskRecordDrawer({
       : [
           {
             value: parentValue,
-            label: task.project?.title ?? task.area?.title ?? parentValue,
+            label:
+              parentValue === recordParent
+                ? (task.project?.title ?? task.area?.title ?? parentValue)
+                : parentValue,
           },
           ...parentSearch.withSelected(parentValue),
         ];
@@ -1049,6 +1134,10 @@ export function TaskRecordDrawer({
                 onSearch={parentSearch.search}
                 loading={parentSearch.loading}
                 emptyMessage="No matching Projects or Areas"
+                // Serialised, not queued: a second change cannot be started
+                // until the first has been answered, so the record can never
+                // settle on whichever response happened to land last.
+                disabled={parentPending}
                 /*
                  * A refusal is REPORTED, never swallowed. `SelectField` has no
                  * per-field error slot on this surface, so a rejected parent
