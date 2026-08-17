@@ -28,6 +28,21 @@
   margin-block-end: var(--app-space-4);
 }
 
+/*
+ * MOBILE-02 §5 — on a phone the rail does not pay for its spacing twice.
+ *
+ * The bottom margin exists because the desktop header is spaced for the stat
+ * row that follows it. At phone widths `.dh-today` already puts `--app-space-4`
+ * between every child, so the margin was stacking on top of the gap and buying
+ * 16px of nothing directly above the day's first useful content. The rail's own
+ * height is untouched — it is a touch target and stays at the 45px floor.
+ */
+@media (max-width: 48rem) {
+  .dh-schedule__nav {
+    margin-block-end: 0;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Agenda rows                                                                 */
 /* -------------------------------------------------------------------------- */

@@ -54,6 +54,33 @@
   max-inline-size: calc(
     var(--app-width-dashboard) + 2 * var(--app-page-padding)
   );
+  /*
+   * CONVERGE-01 §1 / the ultra-wide standard — the CONTENT CANVAS is centred
+   * once the viewport outgrows it.
+   *
+   * Measured on `/today` before this change: at 3440 the rail took 224px and
+   * the canvas capped at 1808px, start-aligned — leaving a 1408px column of
+   * empty canvas down the right-hand side of the page and nothing on it. The
+   * cap was already correct; what was missing was anywhere for the leftover
+   * width to GO. Balanced margins read as a deliberate measure; 1408px of void
+   * on one side reads as a layout that ran out.
+   *
+   * ── This is a scoped, recorded DEPARTURE from the one-origin rule ─────────
+   * AGENTS.md §6 says a page start-aligns and never centres, because the rail is
+   * on the left and a centred column drifts away from it. That rule's ACTUAL
+   * requirement — "a page's title and the first row of its content start on the
+   * same vertical line" — is preserved, because the whole collection moves
+   * together: `.dh-collection--dashboard` centres its header, its filters and
+   * its content as one block (see `collection-layout.css`), so nothing inside
+   * Today detaches from anything else inside Today.
+   *
+   * What no longer shares that line is the SHELL's top bar, which stays
+   * full-width — and the audit permits exactly that ("shell/topbar may remain
+   * full-width"). Below the cap `margin-inline: auto` resolves to zero and the
+   * page is start-aligned exactly as before, so 1280/1440/1728 — every width the
+   * owner actually works at — are pixel-identical to the previous behaviour.
+   */
+  margin-inline: auto;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -100,12 +127,42 @@
    * every count: three cards share the width, two sit side by side at a
    * card's width rather than half a page each, and one is a card.
    */
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--dh-space-3);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/*
+ * CONVERGE-01 §1 / the audit's 4 · 4 · 4 — three equal cards, EQUAL HEIGHTS.
+ *
+ * The strip was `flex-wrap` with `flex: 1 1 13rem; max-inline-size: 24rem`,
+ * which gave three equal widths and — because a wrapped flex line stretches its
+ * items — usually equal heights as well. "Usually" is the problem: the audit
+ * asks for cards that are coherent as a set, and a rank whose heights agree by
+ * side-effect disagrees the moment one card's note wraps to two lines. Explicit
+ * tracks make it structural; grid rows stretch their items unconditionally.
+ */
+@container today (min-width: 34rem) {
+  .dh-today__summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /*
+   * Fewer than three REAL measures is a normal state — every figure on this
+   * page is conditional on its own count — and the surviving cards then share
+   * the full width rather than sitting beside an empty track that reads as a
+   * card which failed to render.
+   */
+  .dh-today__summary:has(> :last-child:nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dh-today__summary:has(> :only-child) {
+    grid-template-columns: minmax(0, 24rem);
+  }
 }
 
 /*
@@ -118,8 +175,6 @@
 .dh-today__measure {
   display: flex;
   flex-direction: column;
-  flex: 1 1 13rem;
-  max-inline-size: 24rem;
   min-inline-size: 0;
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
@@ -204,64 +259,89 @@
 }
 
 /*
- * REDESIGN-03 — on a PHONE a measure is a ROW, not a card of its own height.
+ * MOBILE-02 §5 — on a PHONE the three measures are ONE COMPACT BAND.
  *
- * Stacked label-over-figure-over-note is right when three cards sit side by
- * side and the eye is comparing figures. In one narrow column it is three
- * ~113px blocks — 340px of the first viewport — and nothing is being compared,
- * because they are read one after another anyway.
+ * ── What was here, and what it cost ─────────────────────────────────────────
+ * REDESIGN-03 made each measure a full-width ROW (label and note on the left,
+ * figure at the end of the line), on the reasoning that three stacked cards were
+ * "340px of the first viewport" and that a phone reads them one after another
+ * rather than comparing them. The rows were a real improvement on the stack and
+ * they were still THREE FULL-WIDTH BLOCKS: measured at 393 before this pass,
+ * 171px of band, with the first task row at y=474 of an 844px viewport — 56% of
+ * the first screen spent before the day, which is the number the audit measured
+ * and asked to move.
  *
- * The reference's phone keeps the three measures to a single compact band. Two
- * ways to get there: three tiny cards abreast, or three short rows. Rows win on
- * this content: "Last 7 days · −6 on the previous 7" is a real note this
- * product prints, and at a third of 358px it wraps to four lines and the card
- * is tall again. A row gives the words the width they need and the figure the
- * end of the line, which is also where a figure is looked for in a list.
+ * ── What it is now ──────────────────────────────────────────────────────────
+ * Three cards ABREAST, ~112px each at 393, carrying the figure and its label and
+ * nothing else — about 76px of band instead of 171.
  *
- * Same DOM, same reading order, ~52px each. Nothing is hidden and nothing is
- * moved by `order`.
+ * The note is what makes the difference and it is what goes. "Last 7 days · −6
+ * on the previous 7" is a real string this product prints, and at a third of a
+ * phone it wraps to four lines and the band is tall again — which is exactly why
+ * the row form was chosen over the card form last time. But the note is
+ * SUPPORTING EVIDENCE for a figure, in the same class as the sparkline that this
+ * width already drops for the same reason, and the figure and its label are the
+ * measure. The full note is one tap away on every card that links.
+ *
+ * Same DOM, same reading order, nothing hidden that carries a fact the screen
+ * does not otherwise state, and nothing moved by `order`.
  */
 @container today (max-width: 34rem) {
-  .dh-today__measure,
-  .dh-today__measure-link {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    column-gap: var(--dh-space-4);
-    row-gap: 0;
+  .dh-today__summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--dh-space-2);
   }
 
-  .dh-today__measure-link {
-    grid-column: 1 / -1;
+  /* Fewer than three real measures share the band, rather than leaving a track
+     that reads as a card which failed to render. */
+  .dh-today__summary:has(> :last-child:nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dh-today__measure-label {
-    grid-column: 1;
-    grid-row: 1;
+  .dh-today__summary:has(> :only-child) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .dh-today__measure-note {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  /* The figure spans both rows at the end of the line, so a one-line note and a
-     two-line note produce the same row rather than two different heights. */
+  /*
+   * The card keeps its DESKTOP reading order — label, then figure — so a phone
+   * card is the same object as the one beside it on a laptop, and so nothing
+   * here needs CSS `order`, which would leave a screen reader hearing the two
+   * parts in the opposite order from the one they are drawn in.
+   */
   .dh-today__measure-value {
-    grid-column: 2;
-    grid-row: 1 / span 2;
     font: var(--t-heading);
     letter-spacing: var(--t-heading-tracking);
   }
 
-  .dh-today__measure
-    > :where(.dh-today__measure-label, .dh-today__measure-link) {
-    padding-block-start: var(--dh-space-3);
+  .dh-today__measure-note {
+    display: none;
+  }
+
+  /* The inset moves onto the CARD, so the three parts sit on one rhythm instead
+     of each paying for its own block padding. */
+  .dh-today__measure,
+  .dh-today__measure-link {
+    padding: var(--dh-space-3);
+    gap: 0;
+  }
+
+  .dh-today__measure > .dh-today__measure-link {
+    padding: 0;
   }
 
   .dh-today__measure
-    > :where(.dh-today__measure-note, .dh-today__measure-link) {
-    padding-block-end: var(--dh-space-3);
+    > :where(
+      .dh-today__measure-label,
+      .dh-today__measure-value,
+      .dh-today__measure-note
+    ),
+  .dh-today__measure-link
+    > :where(
+      .dh-today__measure-label,
+      .dh-today__measure-value,
+      .dh-today__measure-note
+    ) {
+    padding: 0;
   }
 }
 
@@ -334,25 +414,45 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * TODAY-11 — the page is a stack of RANKS, and each rank is its own grid.
+ * CONVERGE-01 §1 — ONE TWELVE-COLUMN GRID, and everything sits on it.
  *
- * MOCKUP 5 draws four horizontal bands: the measures, the work (plan beside
- * schedule), the context (goals · insights · the two doorways) and — this
- * screen's own addition — support. A rank is a grid; the page is a column of
- * ranks; nothing spans two of them.
+ * ── What this replaces ──────────────────────────────────────────────────────
+ * TODAY-11 gave the page three separately-defined "ranks", each with its own
+ * `grid-template-columns` chosen for its own contents:
  *
- * Why ranks rather than the two-column body REDESIGN-03 built: with SEVEN
- * panels, two tall columns end at wildly different heights and leave the hole
- * under the shorter one that every previous Today layout has been chasing. A
- * rank cannot produce that hole, because it ends when its own row ends and the
- * next rank starts at the full width of the page.
+ *   work     minmax(0, 1.55fr) minmax(19rem, 1fr)
+ *   context  minmax(0, 1.2fr) minmax(0, 1fr) minmax(17rem, 1fr)
+ *   support  repeat(2, minmax(0, 1fr))
  *
- * Every rank collapses to one column below its own breakpoint, and the DOM
- * order IS the phone order — nothing on this screen is moved by CSS `order`,
- * because `order` moves pixels and leaves the reading order and the tab order
- * behind.
+ * Each was defensible on its own and no two of them agreed, so no vertical line
+ * survived from one band to the next. Measured at 3440 on the seeded fixture,
+ * the panel x-origins down the page were 264 / 1322, then 264 / 917 / 1465, then
+ * 264 / 1138 — three gutters, three column systems, one page. That is precisely
+ * the "widget board rather than one workspace" reading the audit names, and no
+ * amount of spacing or colour work fixes it, because the defect is the geometry.
+ *
+ * Twelve tracks fix it by construction: every panel's edges land on the same
+ * lines as every other panel's, at every width, in every band.
+ *
+ * ── The spans ───────────────────────────────────────────────────────────────
+ *   stats                 4 · 4 · 4      (inside the strip's own three tracks)
+ *   plan / schedule       7 · 5
+ *   attention / continue  7 · 5
+ *   goals / support       7 · 5
+ *
+ * 7/5 rather than 8/4 or 6/6: the left column of every row is a list of TITLES
+ * (task titles, record labels, Goal names) and wants the measure; the right is
+ * a strip of times, a short run of facts and two small doorways, which read
+ * comfortably narrower. 6/6 gives the schedule width it has nothing to do with;
+ * 8/4 takes the week strip below the width seven day-columns need.
+ *
+ * ── Below the two-column step ───────────────────────────────────────────────
+ * One track, and every cell spans it. The DOM order IS the phone order —
+ * nothing on this screen is moved by `order`, because `order` moves pixels and
+ * leaves the reading order and the tab order behind. That is why CONVERGE-01 §1
+ * had to land before MOBILE-02 §5 rather than beside it.
  */
-.dh-today__rank {
+.dh-today__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--app-space-5);
@@ -371,84 +471,70 @@
 }
 
 /*
- * REDESIGN-03 — the day, and ONE rail of context beside it.
+ * The TWO-COLUMN step: twelve real tracks.
  *
- *   ┌──────────────────────────┐┌──────────────┐
- *   │ Focus                    ││ Needs        │
- *   │  overdue                 ││ attention    │
- *   │  due today               ││ Schedule     │
- *   │  planned today           ││ Goal progress│
- *   │                          ││ continue     │
- *   └──────────────────────────┘└──────────────┘
- *
- * ── Why the three-region grid went ──────────────────────────────────────────
- * UIX-01 replaced a column-and-rail with three side-by-side regions, on the
- * reasoning that a rail beside a short task list "ends a 1440px window in a tall
- * thin column next to empty canvas". The diagnosis was right and the cure made
- * it worse, because three regions in a GRID are forced to a common row height
- * and the day's own work is almost never the tallest of them.
- *
- * Measured on the seeded design fixture at 1440px on the base commit: Focus ran
- * to ~300px and the region beside it to ~780px, so the grid held open a
- * ~470×640px rectangle of empty canvas directly beneath the day's tasks — the
- * single worst place on the screen to put nothing. The merge had also landed
- * Goal progress in the middle track rather than the full-width row its own
- * comment still described, which is what made the hole that large.
- *
- * Two columns cannot produce it. The rail's sections stack in normal flow, so
- * each column ends where its content ends; a short day is a short page.
- *
- * The step to two columns is a container query on the PANE rather than the
- * viewport, so the layout is correct with the navigation drawer open, collapsed
- * or in a narrow window. 52rem against the pane puts the two columns in place at
- * the 1280px review width (pane ≈ 64rem) as well as on a wide monitor.
- *
- * Focus takes the wider track because it is the actionable one and it is a list
- * of titles; the rail is short runs of label-and-fact rows that read comfortably
- * narrower. Nothing here is moved by `order`.
+ * The step is a container query on the PANE rather than the viewport, so the
+ * layout is correct with the navigation drawer open, collapsed or in a narrow
+ * window. 52rem against the pane puts the columns in place at the 1280px review
+ * width (pane ≈ 64rem) as well as on a wide monitor.
  */
 @container today (min-width: 52rem) {
-  /*
-   * The WORK rank: the plan takes the wider track because it is the actionable
-   * one and it is a list of titles; the schedule is a strip and short runs of
-   * time-and-name rows, which read comfortably narrower. Roughly the mockup's
-   * three-fifths / two-fifths.
-   */
-  .dh-today__rank--work {
-    grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 1fr);
+  .dh-today__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  /* The strip of measures owns the full width and splits it three ways: the
+     audit's 4 · 4 · 4. */
+  .dh-today__summary {
+    grid-column: span 12;
+  }
+
+  /* The MAJOR cell of each working row — the list of titles. */
+  .dh-today__timeline,
+  .dh-today__attention,
+  .dh-today__goals {
+    grid-column: span 7;
+  }
+
+  /* The MINOR cell — the strip, the short run of facts, the two doorways. */
+  .dh-today__schedule,
+  .dh-today__continue,
+  .dh-today__stack {
+    grid-column: span 5;
   }
 
   /*
-   * The CONTEXT rank: three cells, with the doorway stack last, exactly as the
-   * mockup arranges them. Goal progress takes a little more because it holds a
-   * grid of tiles; the other two are single objects.
+   * The decision row is DATA-CONDITIONAL, so its spans are too.
+   *
+   * "Needs attention" and "Continue working" each render only when they hold
+   * something. With one of the pair absent, a fixed 7/5 would leave five (or
+   * seven) columns of hole beside the survivor and push the Goal row down past
+   * it — a gap that reads as a panel that failed to load rather than as a panel
+   * that had nothing to say. A lone survivor takes the full twelve.
    */
-  .dh-today__rank--context {
-    grid-template-columns:
-      minmax(0, 1.2fr) minmax(0, 1fr)
-      minmax(17rem, 1fr);
-  }
-
-  /* The SUPPORT rank: two equal lists of label-and-fact rows. */
-  .dh-today__rank--support {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .dh-today__grid[data-support="attention"] .dh-today__attention,
+  .dh-today__grid[data-support="continue"] .dh-today__continue {
+    grid-column: span 12;
   }
 }
 
 /*
- * A middle rung, so the context rank is not three 200px columns on a tablet.
- * Between 34rem and 52rem it is two cells with the stack spanning both, which
- * keeps the capture field wide enough to read as a field.
+ * A middle rung, so a tablet is not twelve 40px tracks.
+ *
+ * Between 34rem and 52rem the grid is two equal halves and every cell takes one
+ * of them — which is the same composition, at the count the width can hold.
  */
 @container today (min-width: 34rem) and (max-width: 51.999rem) {
-  .dh-today__rank--context,
-  .dh-today__rank--support {
+  .dh-today__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dh-today__rank--context > .dh-today__stack {
+  /* The plan and the measures keep the full width: the plan is the page's
+     subject, and three measures side by side in half a tablet are three
+     unreadable figures. */
+  .dh-today__summary,
+  .dh-today__timeline {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1206,15 +1292,26 @@
   min-inline-size: 0;
 }
 
+/*
+ * CONVERGE-01 §1 A8 — a TWO-UP rail, and it stops at two.
+ *
+ * The rail used to step to four columns at 62rem. Inside the new seven-column
+ * cell that step lands at ~1000px on an ultra-wide, which is 250px per Goal —
+ * and a Goal tile carries a mark, a name, its Area, a current reading, a target,
+ * a percentage, a change figure, a status word and a meter. At 250px the
+ * reading line ("8.1 km  Target 10 km") and the status line ("76% · ↑ 3.3 km
+ * this month · Ahead") both wrap, so four columns bought density in width and
+ * spent it in height while making every tile harder to read.
+ *
+ * Two is the audit's number and it is the right one for this content: ~500px per
+ * Goal at 3440 and ~327px at 1440, which is one line for the reading and one for
+ * the status at both. The alternative failure the audit names — "sparse 900px
+ * tall Goal columns" — is a ONE-up rail, and the 28rem step below is what stops
+ * that.
+ */
 @container today-goals (min-width: 28rem) {
   .dh-today__goal-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container today-goals (min-width: 62rem) {
-  .dh-today__goal-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -1315,44 +1412,82 @@
  * than by a dark-mode override.
  */
 
-.dh-today__head-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  flex: none;
-}
 
 /* -------------------------------------------------------------------------- */
 /* The stat cards' charts                                                      */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The chart sits UNDER the figure and its note, inside the card's own padding,
- * exactly as the mockup draws it — a sparkline on each daily series, a meter on
- * goals.
+ * POLISH-01 §5 / CONVERGE-01 §1 A3 — the PLOT REGION.
  *
- * It is deliberately short. A 32px plot beside a 24px figure is evidence for the
- * number above it; a taller one turns a measure into a chart, and Analytics is
- * where a chart is the subject.
+ * The chart sits UNDER the figure and its note, inside the card's own padding —
+ * a sparkline on each daily series, a meter on goals. It is deliberately short:
+ * a 32px plot beside a 24px figure is evidence for the number above it; a taller
+ * one turns a measure into a chart, and Analytics is where a chart is the
+ * subject.
+ *
+ * ── Why the inset is PADDING on a wrapper, and not margin on the plot ────────
+ * It was `margin-inline: var(--dh-space-4)` applied directly to the plot, and
+ * the plot is an `inline-size: 100%` element in both of its forms (`.dh-spark`
+ * and `.dh-progress__track` each set it, because an SVG with a viewBox and a
+ * bare `<div>` bar have no intrinsic width to stretch from). A percentage width
+ * resolves against the containing block and margins are added OUTSIDE it, so
+ * the plot was laid out 16px in from the card's content edge at the card's FULL
+ * content width — putting its right edge exactly 16px past the card. Measured on
+ * `/today` before this change, and identical at every width because it is a
+ * constant rather than a wide-screen artefact:
+ *
+ *   3440  card content [265, 647]   sparkline ink [278.8, 665.3]   18.3px out
+ *   1440  card content [265, 634]   sparkline ink [278.8, 651.9]   18.3px out
+ *   3440  card content [1057, 1439] goals meter  [1073, 1455]      16px out
+ *
+ * The sparkline's extra 2.3px is its end marker's 4.5px stroke radius, which
+ * `.dh-spark`'s own `overflow-clip-margin` correctly allows. That clip was never
+ * the bug — it was clipping a box that had been placed in the wrong position.
+ *
+ * With the inset as padding on a wrapper the plot fills that wrapper's content
+ * box at the 100% it asks for, and there is no margin left for a percentage to
+ * be added to. `overflow: clip` bounds the GRAPH REGION rather than the card,
+ * which is what keeps a card's focus ring and any future popover unclipped.
  */
-.dh-today__measure-chart {
-  margin-block-start: var(--dh-space-2);
-  margin-inline: var(--dh-space-4);
-  margin-block-end: var(--dh-space-4);
+.dh-today__measure-plot {
+  padding-block-start: var(--dh-space-2);
+  padding-inline: var(--dh-space-4);
+  padding-block-end: var(--dh-space-4);
   min-inline-size: 0;
+  overflow: clip;
+  /*
+   * The clip is on the region's PADDING box, so the end marker's radius still
+   * has its room and the stroke is never sliced — while nothing can reach the
+   * card's border, let alone the card beside it.
+   */
+  overflow-clip-margin: 0;
+  /*
+   * A4 — one internal rhythm for all three cards.
+   *
+   * A sparkline is 32px tall and a meter track is 6px, so a "Goals on track"
+   * card sat 26px shorter than its two neighbours and its bottom padding read as
+   * a different value. The region reserves the plot's height and centres a short
+   * plot in it, which makes the three cards one set without stretching a 6px
+   * meter into a bar it is not.
+   */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-block-size: calc(32px + var(--dh-space-2) + var(--dh-space-4));
 }
 
 /*
- * A card WITH a chart does not pay for its note's bottom padding as well.
+ * A card WITH a plot does not pay for its note's bottom padding as well.
  *
  * The note's padding is what closes the card when the note is the last thing in
- * it. When a plot follows, that padding plus the column gap plus the plot's own
- * top margin stacked to ~28px of nothing between a one-line note and a 32px
- * line — measured at 1440, a 160px stat card, which is a dashboard tile rather
- * than the shallow rank §3.1 promised. Collapsing the note's half brings the
- * card back to ~120px without touching the chartless case.
+ * it. When a plot follows, that padding plus the plot's own top padding stacked
+ * to ~28px of nothing between a one-line note and a 32px line — measured at
+ * 1440, a 160px stat card, which is a dashboard tile rather than the shallow
+ * rank §3.1 promised. Collapsing the note's half brings the card back to ~120px
+ * without touching the plotless case.
  */
-.dh-today__measure:has(.dh-today__measure-chart)
+.dh-today__measure:has(.dh-today__measure-plot)
   > :where(.dh-today__measure-note, .dh-today__measure-link) {
   padding-block-end: 0;
 }
@@ -1377,13 +1512,18 @@
   }
 }
 
+/*
+ * On a phone a measure is a two-column ROW (label and note left, figure right),
+ * and a plot under it would put a third band in a 52px row. The figures and
+ * their notes carry every fact; the plots are supporting evidence, and evidence
+ * is what a narrow screen drops first.
+ *
+ * The plot REGION is now an ordinary `<div>` this stylesheet owns, so one class
+ * is enough — the two-class selector this rule used to need was working around
+ * `.dh-spark` setting its own `display` from a stylesheet loaded later.
+ */
 @container today (max-width: 34rem) {
-  /* TWO class selectors, for the reason the `.dh-priority` rule above records:
-   * the shared `.dh-spark` sets its own `display` and `charts.css` is loaded
-   * after this file, so a single class ties on specificity and loses on source
-   * order. Measured before this fix: the sparkline was still painting a third
-   * band inside a 52px phone row. */
-  .dh-today__measure .dh-today__measure-chart {
+  .dh-today__measure-plot {
     display: none;
   }
 }
@@ -1548,50 +1688,6 @@
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Insights                                                                    */
-/* -------------------------------------------------------------------------- */
-
-.dh-today__insight {
-  display: flex;
-  align-items: center;
-  gap: var(--dh-space-4);
-  flex-wrap: wrap;
-  min-inline-size: 0;
-}
-
-.dh-today__insight-facts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
-  align-items: start;
-  min-inline-size: 0;
-}
-
-.dh-today__insight-percent {
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-record-title-size);
-  line-height: 1;
-  font-weight: 600;
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-.dh-today__insight-label {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-.dh-today__insight-value {
-  margin: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 500;
-  font-variant-numeric: var(--dh-font-numeric);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1806,28 +1902,15 @@
 
 @media (max-width: 48rem) {
   /*
-   * MOBILE-02 §5 — the header's "+ Add task" goes on a phone.
+   * MOBILE-02 §5 — the greeting block IS the header.
    *
-   * It was full width under the greeting, because at 320 a button beside "Good
-   * afternoon, Aidan" leaves the greeting ~150px and wraps it to three lines.
-   * That was the right fix for the wrong problem: the phone shell already
-   * carries a create action, in the bottom bar's centre slot, under the thumb —
-   * and it opens the SAME capture sheet on the SAME Task panel. So the header's
-   * copy was a second, worse-placed control for one action, spending ~60px of a
-   * first viewport that the audit measured as ~55% consumed before the first
-   * task.
-   *
-   * `display: none`, not removal: the button is the DESKTOP header's create
-   * action and stays exactly where every other collection puts one. Nothing is
-   * unreachable — the bottom bar's Add is one thumb away at every phone width,
-   * and the tab order simply no longer runs through a duplicate.
+   * The "+ Add task" this rule used to hide on a phone is now gone from the DOM
+   * on every device (CONVERGE-01 §1 A9 — see `TodayScreen`), so the header has
+   * exactly one child and stops being a two-column row waiting for a second
+   * column. Nothing became unreachable: the phone shell's bottom bar carries the
+   * create action under the thumb, and it opens the same capture sheet on the
+   * same Task panel this button did.
    */
-  .dh-today__head-actions {
-    display: none;
-  }
-
-  /* With the action gone the greeting block IS the header, so it stops being a
-   * two-column row waiting for a second column. */
   .dh-today__head {
     display: block;
   }
