@@ -2748,6 +2748,116 @@
  * the override into dead declarations that are not inert but wrong.
  */
 
+/*
+ * MOBILE-02 §6 — and the phone block is BACK, written against the grid this
+ * time.
+ *
+ * DS-05's deletion above was right about its own change and wrong about the
+ * outcome. Everything it listed did become the default — but the card is still
+ * a COLUMN on a phone: mark on its own line, title under it, context under
+ * that, then the bar, then the meta line. MEASURED at 393x852 before this
+ * change: 180px average, the first card at y=216, and **three fully visible**.
+ * The audit asks for five or six.
+ *
+ * ── The composition, and why it is `display: contents` ───────────────────────
+ * The same technique `.dh-ecard` already uses one section up, for the same
+ * reason and with the same DOM: dissolving the head into the card's own grid
+ * lets the mark take a column and everything else indent against it, so a list
+ * of these is scanned by mark and by title rather than by counting boxes.
+ *
+ *   ┌────────────────────────────────────────┐
+ *   │ [◼]  Kitchen fit-out              ⋯    │
+ *   │      Home & Property                   │
+ *   │      ▓▓▓▓▓░░░░░░░  38%                 │
+ *   │      3 tasks past their due date       │
+ *   └────────────────────────────────────────┘
+ *
+ * Nothing is reordered and nothing is moved by `order`: this is the DOM order,
+ * so the reading order, the tab order and the accessible name are identical at
+ * both widths.
+ *
+ * ── What goes, and it is one thing ──────────────────────────────────────────
+ * The two-line DESCRIPTION. It is the only element on the card that is prose
+ * rather than a fact, it is absent on most Projects already, and the record it
+ * belongs to is one tap away. The audit's list of what must survive — identity
+ * tile, title, the single most important metric, the status line — is exactly
+ * what is left, plus the parent context, which is identity rather than
+ * decoration: "which Area is this in" is how two similarly-named Projects are
+ * told apart.
+ *
+ * ── DS-05's lesson, applied rather than repeated ────────────────────────────
+ * The note above records a phone block that broke because it was written
+ * against a flex column that had become a grid. So this block declares nothing
+ * about the card's CHILDREN's internal layout: `__progress`, `__meta` and
+ * `__titles` keep whatever model they already have, and only their PLACEMENT in
+ * the card's new grid is stated here. There is no `flex:` and no `order:` in it.
+ */
+@media (max-width: 48rem) {
+  .dh-pcard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: start;
+    /* The card no longer stretches to its row's tallest sibling: at row scale a
+     * uniform height is what a LIST gives, and the gallery's equal-height
+     * columns are a two-column idea. */
+    block-size: auto;
+    column-gap: var(--app-space-3);
+    row-gap: var(--app-space-1);
+    padding: var(--app-card-padding-compact);
+  }
+
+  .dh-pcard__head {
+    display: contents;
+  }
+
+  /* The mark spans the title and its context, which is what puts the tile
+   * beside the record rather than above it. */
+  .dh-pcard__mark {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+
+  /* The compact rung, exactly as `.dh-ecard` steps down: a 40px square on a
+   * 358px content width is a ninth of the row spent on a glyph. */
+  .dh-pcard__mark > .dh-accent-icon {
+    inline-size: var(--app-entity-icon-container-size-sm);
+    block-size: var(--app-entity-icon-container-size-sm);
+    font-size: var(--app-entity-icon-size-sm);
+  }
+
+  .dh-pcard__titles {
+    grid-column: 2;
+    min-inline-size: 0;
+  }
+
+  /*
+   * The FOOT indents under the title rather than starting at the card's edge,
+   * so the row has one text column and the eye runs down it. It spans to the
+   * card's trailing edge because the bar wants every pixel it can have.
+   */
+  .dh-pcard__foot {
+    grid-column: 2;
+    gap: var(--app-space-1);
+  }
+
+  /* Prose, not a fact. See the note above. */
+  .dh-pcard__description {
+    display: none;
+  }
+
+  /*
+   * A row's title does not wrap. Three Projects whose names run to two lines
+   * would give a list three different row heights, which is the raggedness the
+   * People row's fixed height exists to prevent — same rule, same reason.
+   */
+  .dh-pcard__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* EntityRow — the phone composition                                          */
 /* -------------------------------------------------------------------------- */

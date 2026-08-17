@@ -118,6 +118,67 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
     }
   });
 
+  /*
+   * MOBILE-02 §8 — the safe-area half, which needs a device that reports one.
+   *
+   * Chromium has no way to emulate `env(safe-area-inset-*)`, so the ONE token
+   * layer that reads them is overridden instead. That is a fair test rather
+   * than a convenient one: `tokens.css` is explicit that no rule anywhere else
+   * may read a raw `env(safe-area-inset-*)`, so overriding those four names IS
+   * what a notched device does to this product.
+   */
+  const SAFE_AREA_DEVICE = `:root{
+    --app-safe-area-bottom:34px;
+    --app-safe-area-left:59px;
+    --app-safe-area-right:59px;
+  }`;
+
+  for (const size of [PHONE, NARROW]) {
+    test(`no label clips inside the safe area at ${size.width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(size);
+      await gotoFixture(page, "/today");
+      await page.addStyleTag({ content: SAFE_AREA_DEVICE });
+
+      const measured = await page
+        .locator(`${bottomNav} .dh-bottomnav__label`)
+        .evaluateAll((nodes) =>
+          nodes.map((node) => ({
+            text: node.textContent,
+            // `scrollWidth > clientWidth` IS the ellipsis: the label sets
+            // `text-overflow`, so this is the product telling us it gave up.
+            truncated: node.scrollWidth > node.clientWidth + 0.5,
+          })),
+        );
+      expect(measured.length).toBe(5);
+      expect(measured.filter((label) => label.truncated)).toEqual([]);
+    });
+  }
+
+  /*
+   * …and the other half: the label's line is RESERVED, so the Capture control's
+   * taller indicator cannot push its own label closer to the bar's edge than
+   * its siblings'. Measured before this change at 393px: four labels 11px above
+   * the bar's bottom and "Add" 4px above it.
+   */
+  test("every label sits the same distance from the bar's edge", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/today");
+    const clearances = await page.locator(bottomNav).evaluate((bar) => {
+      const list = bar.querySelector(".dh-bottomnav__list");
+      const bottom = list!.getBoundingClientRect().bottom;
+      return [...bar.querySelectorAll(".dh-bottomnav__label")].map((label) =>
+        Number((bottom - label.getBoundingClientRect().bottom).toFixed(1)),
+      );
+    });
+    expect(clearances.length).toBe(5);
+    // One value, whatever the glyph above it does.
+    expect(new Set(clearances).size).toBe(1);
+    expect(clearances[0]).toBeGreaterThan(0);
+  });
+
   test("is hidden on desktop, where the rail is unchanged", async ({
     page,
   }) => {
