@@ -175,7 +175,15 @@ test.describe("MOBILE-01 secondary module journeys", () => {
   test("Project record: summary first, tabs reachable through More sections", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery, explicitly. The seeded workspace is over the
+     * 40-Project threshold, so a bare `/projects` opens as the table, whose row
+     * link is named for the title alone; only the card names its open
+     * affordance `Open <title>`, which is what the locator below asks for. This
+     * journey is about the RECORD it reaches, so either presentation would do —
+     * it names the one the locator matches.
+     */
+    await gotoFixture(page, "/projects?present=grid");
     // Gate D moved the Projects collection onto the entity card. Opening by the
     // card's accessible name rather than a styling class keeps this assertion
     // about the journey instead of about the component's class names.

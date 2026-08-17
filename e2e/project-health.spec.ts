@@ -31,7 +31,14 @@ test.describe("PROJ-02 — Project health", () => {
   test("surfaces at-risk / blocked / on-track / stale states on the collection", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery, explicitly. The seeded workspace is far over the
+     * 40-Project threshold, so a bare `/projects` opens as the TABLE, and every
+     * assertion below names a CARD (`.dh-pcard__meta`, the card's foot, its
+     * state dot). What this test protects is health's treatment ON A CARD, so it
+     * asks for the presentation that draws one.
+     */
+    await gotoFixture(page, "/projects?present=grid");
 
     /*
      * UIX-02 — ONE attention LINE per card, not a chip plus the sentence
@@ -177,7 +184,15 @@ test.describe("PROJ-02 — Project health", () => {
   });
 
   test("pagination still works with health present", async ({ page }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — the gallery, explicitly, and this one was passing for the WRONG
+     * REASON. The loop below iterates `getByRole("article")`; on the table there
+     * are no articles, so it iterated nothing and the test stayed green while
+     * asserting about no cards at all. A vacuous pass is worse than a failure,
+     * because nothing reports it. Pinning the gallery gives the loop its
+     * subjects back.
+     */
+    await gotoFixture(page, "/projects?present=grid");
     // The seed has more than one page of projects; the shared Load-more affordance
     // fetches the next keyset page (health rides along on each item).
     const loadMore = page.getByRole("button", { name: "Load more projects" });

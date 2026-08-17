@@ -327,7 +327,10 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     const title = uniqueNoteTitle("project-knowledge");
     await createNote(page, title);
 
-    await gotoFixture(page, "/projects");
+    // ADR-100 — the gallery, explicitly: only the card names its open
+    // affordance `Open <title>`, and the seeded workspace is over the threshold
+    // that makes a bare `/projects` open as the table.
+    await gotoFixture(page, "/projects?present=grid");
     const firstProject = page.getByRole("link", { name: /^Open / }).first();
     await expect(firstProject).toBeVisible();
     await firstProject.click();
@@ -407,7 +410,8 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     const title = uniqueNoteTitle("from-project");
     ownNote(title);
 
-    await gotoFixture(page, "/projects");
+    // ADR-100 — the gallery, explicitly, for the same reason as above.
+    await gotoFixture(page, "/projects?present=grid");
     await page
       .getByRole("link", { name: /^Open / })
       .first()
