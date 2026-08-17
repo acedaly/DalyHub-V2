@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openCollectionControls,
 } from "./helpers";
 import {
   cleanupAllNoteFixtures,
@@ -265,23 +266,42 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     const title = uniqueNoteTitle("filters");
     await createNote(page, title);
 
+    /*
+     * CONTROL-01 gave Notes the SHARED filter grammar and this journey follows
+     * it there.
+     *
+     * `role="search"` named "Filter and search notes" was Notes' own GET form
+     * of five native selects and an Apply button — "the only filtering
+     * interaction in the product that made the owner press something before the
+     * list responded", in `NotesCollection`'s own words. It is now the debounced
+     * `CollectionSearchField` plus the one "Filter & sort" control every other
+     * collection has, so nothing in this journey resolved and it timed out.
+     *
+     * The claim is unchanged: every control is reachable and labelled with no
+     * custom widget semantics, sorting writes the URL, and clearing is offered
+     * only once something is set. It is simply made against the shared surface.
+     */
     await gotoFixture(page, "/notes");
-    const form = page.getByRole("search", { name: "Filter and search notes" });
-    await expect(form).toBeVisible();
+    const search = page.getByTestId("notes-search").getByLabel("Search Notes");
+    await expect(search).toBeVisible();
+    await search.fill(title);
+    // The field is DEBOUNCED and writes `?q=` itself; wait for that write to
+    // land before touching another control, or the later one is superseded by
+    // the search's own navigation rather than by anything this journey did.
+    await expect(page).toHaveURL(/[?&]q=/);
 
-    // Every control is reachable and labelled — no custom widget semantics.
-    await form.getByLabel("Search notes").fill(title);
-    await form.getByLabel("Sort").selectOption("recent");
-    await form.getByRole("button", { name: "Apply" }).press("Enter");
-
+    const controls = await openCollectionControls(page);
+    await controls.choose("sort", "recent");
+    await controls.commit();
     await expect(page).toHaveURL(/sort=recent/);
     await expect(
       page.getByRole("link", { name: `Open ${title}` }),
     ).toBeVisible();
 
     // Clearing is offered only once something is set, and restores the default.
-    await page.getByRole("link", { name: "Clear filters" }).click();
-    await expect(page).toHaveURL(/\/notes$/);
+    await gotoFixture(page, "/notes?links=unlinked");
+    await page.getByTestId("collection-reset-filters").click();
+    await expect(page).not.toHaveURL(/links=unlinked/);
 
     await expectNoAxeViolations(page);
   });
@@ -433,60 +453,80 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     ).toBeVisible();
   });
 
-  test("works on a phone: readable, filterable, exportable, 44px targets, axe-clean", async ({
-    page,
-  }) => {
-    test.setTimeout(150_000);
-    await page.setViewportSize({ width: 390, height: 844 });
-    const title = uniqueNoteTitle("mobile");
-    await createNote(page, title);
-    await writeBody(
-      page,
-      "# Mobile\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n```\nvery-long-code-token-that-must-not-widen-the-page\n```",
-    );
-
-    // A wide table and a long code token must not make the PAGE scroll sideways.
-    await expectNoHorizontalOverflow(page);
-
-    await page.goto(`${page.url().split("?")[0]}?tab=backlinks`);
-    await expect(
-      page.getByRole("heading", { name: "Referenced by" }),
-    ).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page);
-
-    await gotoFixture(page, "/notes");
-    const form = page.getByRole("search", { name: "Filter and search notes" });
-    await expectMinTouchTarget(form.getByLabel("Search notes"));
+  test.describe("on a real phone", () => {
     /*
-     * Tag, Project, Area and Links live behind a "More filters" `<details>`
-     * that is only open when one of them is APPLIED (see NotesFilterBar) — a
-     * deliberate choice, so a phone's filter band is one row rather than five.
-     * The touch-target contract still applies to them, so this opens the
-     * disclosure the way a person does rather than asserting against a control
-     * the product intends to be collapsed. The summary itself is a target too,
-     * and is checked first: it is the thing a thumb has to hit to get here.
+     * A phone is a WIDTH and a touch pointer, and the touch-target half of this
+     * journey needs both. `hasTouch` is what makes the browser report
+     * `(pointer: coarse)`, which is the condition DalyHub's 44px floor is
+     * written against — deliberately on the input mechanism rather than on the
+     * window (`tokens.css`: "a 27-inch monitor driven by a trackpad is not
+     * compact"). Setting the viewport alone reports a FINE pointer, so the
+     * assertion measured 32px against a control that is 44px on every real
+     * phone.
      */
-    const moreFilters = form.getByText("More filters");
-    await expectMinTouchTarget(moreFilters);
-    await moreFilters.click();
-    await expect(form.getByLabel("Tag")).toBeVisible();
-    await expectMinTouchTarget(form.getByLabel("Tag"));
-    await expectMinTouchTarget(form.getByRole("button", { name: "Apply" }));
-    await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page);
+    test.use({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    });
 
-    // Export works from the phone overflow too.
-    await page.getByRole("link", { name: `Open ${title}` }).click();
-    const downloadPromise = page.waitForEvent("download");
-    await openOverflow(page);
-    await page
-      .getByRole("menuitem", { name: "Export as Markdown (.md)" })
-      .click();
-    await expect((await downloadPromise).suggestedFilename()).toMatch(/\.md$/);
+    test("works on a phone: readable, filterable, exportable, 44px targets, axe-clean", async ({
+      page,
+    }) => {
+      test.setTimeout(150_000);
+      const title = uniqueNoteTitle("mobile");
+      await createNote(page, title);
+      await writeBody(
+        page,
+        "# Mobile\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n```\nvery-long-code-token-that-must-not-widen-the-page\n```",
+      );
 
-    await page.setViewportSize({ width: 320, height: 720 });
-    await expectNoHorizontalOverflow(page);
+      // A wide table and a long code token must not make the PAGE scroll sideways.
+      await expectNoHorizontalOverflow(page);
+
+      await page.goto(`${page.url().split("?")[0]}?tab=backlinks`);
+      await expect(
+        page.getByRole("heading", { name: "Referenced by" }),
+      ).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+
+      /*
+       * The filter surface, on the phone, through the shared grammar CONTROL-01
+       * gave Notes (see the sibling journey above for what it replaced). Tag,
+       * Project, Area, Links and Sort are all inside the one sheet now, which is
+       * what removed the "More filters" `<details>` this used to open.
+       *
+       * The touch-target contract is unchanged and is asserted on each control a
+       * thumb actually reaches for: the trigger, the search field it sits beside,
+       * and an option row inside the sheet.
+       */
+      await gotoFixture(page, "/notes");
+      await expectMinTouchTarget(page.getByTestId("collection-filter-trigger"));
+      const controls = await openCollectionControls(page);
+      expect(controls.compact).toBe(true);
+      await expectMinTouchTarget(
+        controls.surface.getByTestId("collection-sheet-links-unlinked"),
+      );
+      await expectMinTouchTarget(page.getByTestId("collection-sheet-apply"));
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+      await page.keyboard.press("Escape");
+
+      // Export works from the phone overflow too.
+      await page.getByRole("link", { name: `Open ${title}` }).click();
+      const downloadPromise = page.waitForEvent("download");
+      await openOverflow(page);
+      await page
+        .getByRole("menuitem", { name: "Export as Markdown (.md)" })
+        .click();
+      await expect((await downloadPromise).suggestedFilename()).toMatch(
+        /\.md$/,
+      );
+
+      await page.setViewportSize({ width: 320, height: 720 });
+      await expectNoHorizontalOverflow(page);
+    });
   });
 
   /* ---------------------------------------------------------------------- */

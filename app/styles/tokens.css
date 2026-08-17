@@ -7475,6 +7475,16 @@
  * anti-zoom floor above uses `(hover: none)`: what makes a comfortable target
  * necessary is the INPUT MECHANISM, not the window. A 1024px tablet held in two
  * hands wants touch; a 1024px browser window on a laptop does not.
+ *
+ * HARDEN-05 tried adding `(max-width: 47.99rem)` here, to make a phone-WIDTH
+ * window keep the floor too, and reverted it. `dalyhub-tokens.test.ts` forbids
+ * exactly that in as many words — "A 27-inch monitor driven by a trackpad is
+ * not compact, and a large tablet is not default; tying density to width would
+ * decide both wrongly" — and it is right: a real phone reports a coarse
+ * pointer, so the product was never the thing at fault. Four E2E journeys that
+ * measured a 32px or 36px target at 390px were emulating a phone by WIDTH
+ * ALONE, which reports `pointer: fine`; they now emulate touch as well, which
+ * is what a phone is.
  */
 @media (pointer: coarse) {
   :root:not([data-dh-density]) {

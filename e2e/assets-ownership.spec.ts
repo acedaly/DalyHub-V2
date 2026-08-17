@@ -27,6 +27,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openCollectionControls,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -599,19 +600,20 @@ test("the collection surfaces the obligation signal and filters on it", async ({
   await gotoFixture(page, "/assets");
   await expect(page.getByText("1 obligation overdue")).toBeVisible();
 
-  // The obligation facet lives in the shared Filter & sort SHEET, not inline on
-  // the collection header — UIX-05 moved every control except search and the tag
-  // field behind that one trigger, and this test had been reaching for a
-  // combobox that is not in the document until the sheet is open (one of the
-  // failures DEBT-125 carried as "not yet diagnosed").
-  await page.getByRole("button", { name: "Filter & sort" }).click();
-  const controls = page.getByRole("dialog", { name: "Filter and sort assets" });
-  await controls
-    .getByRole("group", { name: "Obligations" })
-    .getByRole("button", { name: "Overdue" })
-    .click();
-  await controls.getByRole("button", { name: "Apply" }).click();
-  await expect(controls).toBeHidden();
+  /*
+   * The obligation facet lives behind the shared Filter & sort trigger, not
+   * inline on the collection header — UIX-05 moved every control except search
+   * and the tag field behind it.
+   *
+   * CONTROL-01 then made the SHEET the phone presentation and gave a pointer
+   * device an anchored, live-applying popover, so at this journey's width there
+   * is no `dialog` named "Filter and sort assets" to open and no Apply to
+   * press: this waited out its budget on a group inside a surface that never
+   * mounted. `openCollectionControls` drives whichever one the width gets.
+   */
+  const controls = await openCollectionControls(page);
+  await controls.choose("obligations", "overdue");
+  await controls.commit();
   await expect(
     page.getByRole("link", { name: new RegExp(overdue) }),
   ).toBeVisible();
@@ -651,30 +653,51 @@ test("the whole workflow is keyboard-operable with visible focus", async ({
   ).toHaveCount(1);
 });
 
-test("obligation and history actions meet the minimum touch target", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 780 });
-  const title = uniqueAssetTitle("ownership-touch");
-  const url = await createAsset(page, title);
+test.describe("on a real phone", () => {
+  /*
+   * A phone is a WIDTH and a touch pointer, and this block needs both.
+   *
+   * `hasTouch` is what makes the browser report `(pointer: coarse)`, and that
+   * is the condition DalyHub's touch guarantees are actually written against —
+   * `tokens.css` floors every compact target back to 44px there, deliberately
+   * on the input mechanism rather than on the window ("a 27-inch monitor driven
+   * by a trackpad is not compact"). Setting the viewport alone reports a FINE
+   * pointer, so a target-floor assertion made that way is asserting DalyHub's
+   * touch contract in a context the contract explicitly does not cover — and it
+   * duly measured 32-36px on `main` @ f994aa0 against controls that are 44px on
+   * every real phone. `collection-header.spec.ts` records the same diagnosis in
+   * the same words for its own narrow block.
+   */
+  test.use({
+    viewport: { width: 390, height: 780 },
+    hasTouch: true,
+    isMobile: true,
+  });
 
-  await page.goto(`${url}?tab=obligations`);
-  await page.getByRole("button", { name: "Add obligation" }).click();
-  await drawer(page)
-    .getByRole("textbox", { name: /^Title/ })
-    .fill("Touch target");
-  await drawer(page)
-    .getByRole("textbox", { name: /^Due date/ })
-    .fill(isoInDays(4));
-  await drawer(page).getByRole("button", { name: "Add obligation" }).click();
+  test("obligation and history actions meet the minimum touch target", async ({
+    page,
+  }) => {
+    const title = uniqueAssetTitle("ownership-touch");
+    const url = await createAsset(page, title);
 
-  // The compact action row must still be reachable with a thumb.
-  await expectMinTouchTarget(
-    page.getByRole("button", { name: /^Complete Touch target/ }),
-  );
-  await expectMinTouchTarget(
-    page.getByRole("button", { name: /^Hold Touch target/ }),
-  );
+    await page.goto(`${url}?tab=obligations`);
+    await page.getByRole("button", { name: "Add obligation" }).click();
+    await drawer(page)
+      .getByRole("textbox", { name: /^Title/ })
+      .fill("Touch target");
+    await drawer(page)
+      .getByRole("textbox", { name: /^Due date/ })
+      .fill(isoInDays(4));
+    await drawer(page).getByRole("button", { name: "Add obligation" }).click();
+
+    // The compact action row must still be reachable with a thumb.
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /^Complete Touch target/ }),
+    );
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /^Hold Touch target/ }),
+    );
+  });
 });
 
 for (const width of [320, 375, 390, 430]) {

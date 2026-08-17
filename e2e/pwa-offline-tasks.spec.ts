@@ -26,7 +26,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { d1Execute, d1Query, sqlLiteral } from "./d1";
-import { clickCardAction, completeTaskRow } from "./helpers";
+import { clickCardAction, completeTaskRow, taskRow } from "./helpers";
 
 const WORKSPACE_ID = "local-dev-workspace";
 
@@ -261,12 +261,15 @@ async function openTasks(page: Page): Promise<void> {
 /**
  * The row for a task.
  *
- * A Card renders as an `article` whose accessible name is its OPEN control's —
- * `Open <title>` — which is the shape every other Tasks journey addresses rows
- * by, through the same helpers used below.
+ * DS-04 replaced the generic Card on `/tasks` with the product-level `TaskRow`:
+ * an `<li>` in a real `<ul>`, which has no accessible name of its own (its
+ * content is its name). `getByRole("article", { name: "Open <title>" })` was a
+ * statement about the CARD, and it stopped resolving the day the row shipped.
+ * The shared `taskRow()` helper in `helpers.ts` exists for exactly this and is
+ * the one locator the suite uses for a task row.
  */
 function rowFor(page: Page, title: string) {
-  return page.getByRole("article", { name: `Open ${title}` }).first();
+  return taskRow(page, title).first();
 }
 
 /**

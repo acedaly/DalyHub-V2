@@ -933,7 +933,23 @@
 
 .dh-collection--tasks .dh-tasks-quickadd__input {
   min-block-size: var(--dh-row-height);
-  font-size: var(--dh-text-row-size);
+  /*
+   * HARDEN-05 — the row's type, but never under the anti-zoom floor.
+   *
+   * DS-04 set this field to `--dh-text-row-size` so quick capture reads as the
+   * first row of the list it adds to, which is right. What it also did was
+   * step OUTSIDE `--app-field-font-size-compact`, the token MOBILE-01 created
+   * precisely so that "every module control written afterwards" could not miss
+   * the 16px floor (tokens.css says so in those words). MEASURED at 390px on
+   * `main` @ f994aa0: 14px, so focusing quick capture zoomed iOS Safari and
+   * left `/tasks` horizontally scrolled.
+   *
+   * `max()` keeps both claims. On a pointer device the compact token resolves
+   * to body-medium — the same 14px — so the desktop list is drawn exactly as
+   * before; on a touch device the token carries its floor and the field cannot
+   * trigger the zoom.
+   */
+  font-size: max(var(--dh-text-row-size), var(--app-field-font-size-compact));
 }
 
 /*
@@ -1159,7 +1175,22 @@
     align-items: start;
     padding-block: var(--dh-space-3);
     column-gap: var(--dh-space-3);
-    row-gap: var(--dh-space-1);
+    /*
+     * HARDEN-05 — the gap under the title is the OPEN target's lower half.
+     *
+     * The rule at the foot of this block gives `.dh-taskrow__title` symmetric
+     * block padding up to the touch floor and cancels it with negative margin,
+     * so the link's hit area grows without the row's layout changing. That
+     * padding needs somewhere to land: it takes the row's own 12px block
+     * padding above the title, and it needs the same below, or the lower half
+     * of the target would sit ON the metadata line's inline editors and steal
+     * taps meant for them.
+     *
+     * `--dh-space-1` (4px) was not enough for that, so the gap is the same 12px
+     * as the padding above. It costs 8px of row height on a phone, which is the
+     * price of the row's primary act being reachable by a thumb.
+     */
+    row-gap: var(--dh-space-3);
   }
 
   .dh-taskrow__lead {
@@ -1379,6 +1410,48 @@
    */
   .dh-taskrow__cell--project::before {
     content: none;
+  }
+}
+
+/*
+ * HARDEN-05 — the reflow tier: 200% zoom on a phone (WCAG 1.4.10).
+ *
+ * SC 1.4.10 asks that content reflow at 320 CSS px, which a 390px phone zoomed
+ * to 200% expresses as a ~195px viewport — and `mobile-shell.spec.ts` checks
+ * exactly that. MEASURED on `/today` at 195px on `main` @ f994aa0: the shell's
+ * gutters leave the list 113px, of which the completion control and the
+ * overflow trigger take 72 by right (both are touch targets and neither is a
+ * responsive decision), so the metadata line had 17px for a project cell with a
+ * 64px floor and a priority mark of 51. It did not shrink — it OVERFLOWED, and
+ * the document scrolled sideways to 204px.
+ *
+ * The answer is the same one the tiers above use: RECOMPOSE, never squeeze. The
+ * metadata takes a full row of its own beneath the title, spanning the lead and
+ * the actions rather than sharing their line, and wraps within it. Nothing is
+ * hidden and nothing is clipped — the row simply becomes three lines at the one
+ * width where two cannot be honest.
+ *
+ * This is the residual DEBT-148 recorded at this width and attributed to the
+ * reflection panel's button; that button measures inside the viewport now, and
+ * the row is what was left.
+ */
+@container tasklist (max-width: 12rem) {
+  .dh-taskrow {
+    grid-template-areas:
+      "lead main actions"
+      "meta meta meta";
+  }
+
+  .dh-taskrow__meta {
+    flex-wrap: wrap;
+    row-gap: var(--dh-space-1);
+  }
+
+  /* With a row of its own there is no trailing edge to pin to, and the auto
+   * margin would push the mark onto a line by itself. */
+  .dh-taskrow__cell--priority {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
   }
 }
 

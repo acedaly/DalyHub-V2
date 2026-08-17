@@ -35,7 +35,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { enterTaskSelection, waitForInteractive } from "./helpers";
+import { enterTaskSelection, taskRows, waitForInteractive } from "./helpers";
 
 const PROD_BASE = "http://localhost:4174";
 
@@ -361,7 +361,10 @@ test.describe("AUDIT-10 — normal application use raises no CSP violation", () 
     await waitForInteractive(page);
 
     // An inline priority menu, anchored and opened on the row.
-    const row = page.getByRole("article").first();
+    // DS-04 — the Tasks collection's row is `TaskRow`, an `<li>`, not an
+    // `article`; `getByRole("article")` matched nothing here and the journey
+    // spent its whole 180s budget on the hover that followed.
+    const row = taskRows(page).first();
     await row.hover();
     await row
       .getByRole("button", { name: /^Priority/ })

@@ -4,6 +4,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRow,
 } from "./helpers";
 
 /**
@@ -36,14 +37,22 @@ test.describe("TASKS-01 — desktop", () => {
     await expect(
       dialog.getByRole("heading", { level: 3, name: "Draft the proposal" }),
     ).toBeVisible();
-    // TASKS-02: the canonical priority renders as the shared coloured
-    // PriorityIndicator — the short "P1" tag is visible and the everyday priority
-    // label is carried in the element (available to assistive tech), never colour
-    // alone.
+    /*
+     * TASKS-02: the canonical priority renders as the shared coloured
+     * `PriorityIndicator`, and the fact is carried in WORDS rather than by
+     * colour alone (AGENTS.md §15).
+     *
+     * The words are "Priority 1". They were "P1 · Urgent": the Eisenhower
+     * action vocabulary went with the Matrix, and `taskPriorityLabel` is now
+     * the ONE name a priority has anywhere in the product — the short "P1" tag
+     * is what an ordinary ROW draws, and a surface with room (this drawer, a
+     * menu, a filter) spells it out. Asserting both the accessible name and the
+     * visible text is what keeps "never colour alone" a real check.
+     */
     const priority = dialog.locator('.dh-priority[data-priority="p1"]');
     await expect(priority).toBeVisible();
-    await expect(priority).toContainText("P1");
-    await expect(priority).toContainText("Urgent");
+    await expect(priority).toHaveAttribute("aria-label", "Priority 1");
+    await expect(priority).toContainText("Priority 1");
 
     // Escape closes the Drawer and restores the Tasks context.
     await page.keyboard.press("Escape");
@@ -63,31 +72,40 @@ test.describe("TASKS-01 — desktop", () => {
      * locator is unambiguous and independent of the Project Health journey
      * mutating `pht-overdue`.
      *
-     * UIX-01 — those words are now the DATE ITSELF ("9718 days ago"), and the
-     * separate "Overdue" chip beside it is gone. The rule DEBT-28 records is
-     * intact and is what this asserts: the row does not rely on the colour, it
-     * states the slip in language.
+     * UIX-01 — those words are now the DATE ITSELF, and the separate "Overdue"
+     * chip beside it is gone. The rule DEBT-28 records is intact and is what
+     * this asserts: the row does not rely on the colour, it states the slip in
+     * language.
+     *
+     * The words for THIS task are "Over a year ago", not "9718 days ago".
+     * `elapsedPhrase` bounds the ladder at every distance — days, then months,
+     * then "Over a year ago" — precisely so a seeded 1 Jan 2000 due date reads
+     * as a sentence rather than as a five-digit count. What is asserted is
+     * therefore the row's own `data-urgency="overdue"` plus the elapsed phrase
+     * the ladder produces, which is the contract rather than one rung of it.
      *
      * There is deliberately no "Overdue" band to look for here: the Overdue
      * view is one due state, so UIX-01 left it FLAT while grouping All active,
      * Inbox and Upcoming by due state. A single group under a heading repeating
      * the view's own name is chrome, not structure.
      */
-    const overdueCard = page.getByRole("article", {
-      name: "Open Review the overdue signal",
-    });
-    await expect(overdueCard.getByText(/days ago/)).toBeVisible();
+    // DS-04 — a task row is `TaskRow`, an `<li>` with no accessible name of its
+    // own; `taskRow()` is the suite's one locator for it.
+    const overdueRow = taskRow(page, "Review the overdue signal");
+    await expect(
+      overdueRow.getByText(/(days|months?) ago|Over a year ago/),
+    ).toBeVisible();
     await expect(page.getByRole("region", { name: "Overdue" })).toHaveCount(0);
 
     // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
     // is no longer an absent/colour-free grey chip (DEBT-27).
     await gotoFixture(page, "/tasks?view=list&system=all");
-    const p1Card = page.getByRole("article", {
-      name: "Open Draft the proposal",
-    });
-    const priority = p1Card.locator('.dh-priority[data-priority="p1"]');
+    const p1Row = taskRow(page, "Draft the proposal");
+    const priority = p1Row.locator('.dh-priority[data-priority="p1"]');
     await expect(priority).toBeVisible();
+    // A ROW draws the short tag; the accessible name is still the full one.
     await expect(priority).toContainText("P1");
+    await expect(priority).toHaveAttribute("aria-label", "Priority 1");
   });
 
   test("groups the list by priority — the banded triage the Matrix used to provide", async ({

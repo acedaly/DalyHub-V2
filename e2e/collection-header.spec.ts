@@ -13,7 +13,7 @@
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { gotoFixture, hasNoHorizontalOverflow } from "./helpers";
+import { gotoFixture, hasNoHorizontalOverflow, taskRows } from "./helpers";
 
 /** The two laptop widths PR #129 established as first-class layouts. */
 const LAPTOP_1280 = { width: 1280, height: 800 };
@@ -306,20 +306,58 @@ test.describe("UIQ-013 — the narrow composition is intentional", () => {
    */
   test.use({ viewport: PHONE_390, hasTouch: true, isMobile: true });
 
-  test("the title keeps its row and the switcher takes its own beneath", async ({
+  /*
+   * POLISH-01 changed this composition, deliberately, and this test now states
+   * the shipped one.
+   *
+   * It used to assert "title and create action share row one, switcher takes
+   * row two". That was the shape while the phone header drew its own title.
+   * POLISH-01 PUBLISHES a collection's title to the phone top bar
+   * (`.dh-pane-header__title[data-published="true"]`) and gives the freed first
+   * row to the state breakdown, because 170px beside a button broke "20 active
+   * · 62 completed · 1 archived" over three lines (`shell.css`, and the rule
+   * says so in those words). So the phone composition is three rows:
+   *
+   *     Title / count                                   (full width)
+   *                                        [ New review ]
+   *     [ View | Switcher ]                             (full width)
+   *
+   * What is asserted here is the RELATIONSHIP that survives that change and is
+   * what UIQ-013/UIQ-014 were ever about — the action stays visible at the
+   * trailing edge, the reading order runs down the page rather than around a
+   * button, and the switcher is last — rather than the row indices the old
+   * assertion had fossilised.
+   */
+  test("the count leads, the action keeps the trailing edge, the switcher is last", async ({
     page,
   }) => {
     await gotoFixture(page, "/reviews");
-    const lead = await page.locator(".dh-pane-header__lead").boundingBox();
-    const action = await page.locator(".dh-pane-header__primary").boundingBox();
-    const views = await page.locator(".dh-pane-header__views").boundingBox();
+    const header = page.locator(".dh-pane-header");
+    const lead = await header.locator(".dh-pane-header__lead").boundingBox();
+    const action = await header
+      .locator(".dh-pane-header__primary")
+      .boundingBox();
+    const views = await header.locator(".dh-pane-header__views").boundingBox();
 
-    // Row one: the title and the create action, side by side. The action stays
-    // immediately discoverable rather than being hidden to make room.
-    expect(action!.y).toBeLessThan(lead!.y + lead!.height);
+    // Reading order down the page: lead, then the action, then the switcher.
+    // Each begins at or below the end of the one before it, so nothing has to
+    // be read around anything else.
+    expect(action!.y).toBeGreaterThanOrEqual(lead!.y + lead!.height - 4);
+    expect(views!.y).toBeGreaterThanOrEqual(action!.y + action!.height - 4);
+
+    // The action is still IMMEDIATELY discoverable (UIQ-014): on screen, at the
+    // trailing edge, and never squeezed against the leading one.
+    const headerBox = (await header.boundingBox())!;
     expect(action!.x).toBeGreaterThan(lead!.x);
-    // Row two: the switcher, entirely below both.
-    expect(views!.y).toBeGreaterThanOrEqual(lead!.y + lead!.height - 4);
+    expect(action!.x + action!.width).toBeLessThanOrEqual(
+      headerBox.x + headerBox.width + 1,
+    );
+    expect(action!.width).toBeGreaterThan(0);
+
+    // And the switcher takes the whole width, which is what it was given the
+    // row for — a four-view rail scrolling inside a sliver is the failure this
+    // composition exists to avoid.
+    expect(views!.x).toBeCloseTo(lead!.x, 0);
   });
 
   test("the switcher scrolls rather than wrapping into a broken drawing", async ({
@@ -401,7 +439,14 @@ test.describe("UIQ-013 — the narrow composition is intentional", () => {
 
 /** Open the ⋯ on the task row nearest `targetY`, and return its panel. */
 async function openRowMenuNear(page: Page, targetY: number): Promise<Locator> {
-  const rows = page.locator("article.dh-card");
+  /*
+   * DS-04 — a task row is `TaskRow` (an `<li>` in a real `<ul>`), not the
+   * generic Card it used to be, so `article.dh-card` matched nothing on
+   * `/tasks` and every journey below failed on its own precondition rather
+   * than on the placement it exists to measure. `taskRows()` is the suite's
+   * one locator for the row; what these tests measure is unchanged.
+   */
+  const rows = taskRows(page);
   const count = await rows.count();
   expect(count).toBeGreaterThan(0);
 

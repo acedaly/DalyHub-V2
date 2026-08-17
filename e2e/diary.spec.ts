@@ -173,14 +173,17 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     ).toBeVisible();
     await expect(page).toHaveURL(/inspector=view/);
 
-    // 9. Touch targets + no horizontal overflow across the matrix.
-    await page.getByRole("button", { name: "New diary entry" }).first().click();
-    await expectMinTouchTarget(
-      page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
-        name: "Capture",
-      }),
-    );
-    await page.keyboard.press("Escape");
+    /*
+     * 9. No horizontal overflow across the matrix.
+     *
+     * The Capture control's TOUCH TARGET moved to its own test below, which
+     * emulates a real phone. It was asserted here, at this journey's desktop
+     * viewport, and demanded 44px of a `.dh-btn` — which on a fine pointer is
+     * deliberately 36px, because `tokens.css` floors targets on the INPUT
+     * MECHANISM ("a 27-inch monitor driven by a trackpad is not compact") and a
+     * mouse is not a thumb. Asserting DalyHub's touch floor in a context the
+     * contract does not cover is not a check of the contract.
+     */
     for (const viewport of RESPONSIVE_VIEWPORTS) {
       await page.setViewportSize(viewport);
       await expectNoHorizontalOverflow(page);
@@ -338,5 +341,34 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(page).toHaveURL(/\/diary/);
     await page.goForward();
     await expect(page).toHaveURL(/date=2026-05-25/);
+  });
+});
+
+/*
+ * DIARY-01B — the day's capture control, on a REAL phone.
+ *
+ * Split out of the long day-mode journey above, which runs at this project's
+ * desktop viewport. A touch target is a promise DalyHub makes on a coarse
+ * pointer (`tokens.css` floors every compact target back to 44px there,
+ * deliberately on the input mechanism rather than on the window), so it has to
+ * be measured in a context that reports one — `hasTouch` is what makes the
+ * browser say `(pointer: coarse)`. Asserted at 390px because that is where a
+ * thumb meets this control.
+ */
+test.describe("DIARY-01B — capture on a phone", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("the day's capture action meets the touch floor", async ({ page }) => {
+    await gotoFixture(page, "/diary");
+    await page.getByRole("button", { name: "New diary entry" }).first().click();
+    await expectMinTouchTarget(
+      page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
+        name: "Capture",
+      }),
+    );
   });
 });

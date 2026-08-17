@@ -310,9 +310,40 @@ function SelectCombobox(props: SelectFieldProps) {
     >
       {labelledBy ? null : (
         <div className="dh-field__label-row">
-          <span id={labelId} className="dh-field__label-text">
-            {label}
-          </span>
+          {/*
+           * A real `<label>` for a single select, exactly as `Field` does it
+           * ("native semantics first; ARIA only to fill gaps", AGENTS.md §15).
+           *
+           * This was a `<span>` named through `aria-labelledby`, which produces
+           * the right accessible NAME and no native association at all — so the
+           * label was not clickable, and axe's `label-title-only` reported the
+           * control as labelled only by its description. That is a real report
+           * of a real gap even though the name resolves: the check looks for a
+           * `<label>` and finds none, and every field beside this one on the
+           * same surface has one. MEASURED on `main` @ f994aa0 on the Task
+           * drawer's "Project or Area" (`accessibility.spec.ts` → "Task
+           * priority inline menu has no violations"), which is the first
+           * surface to render this field WITH help text — `aria-describedby` is
+           * what makes the check look.
+           *
+           * A MULTI select keeps the span: its wrapper is the labelled `group`
+           * (see the note above), and a `<label>` pointing at the combobox
+           * inside it would give one field two labelled things — which is the
+           * exact defect that note exists to prevent.
+           */}
+          {multiple ? (
+            <span id={labelId} className="dh-field__label-text">
+              {label}
+            </span>
+          ) : (
+            <label
+              id={labelId}
+              className="dh-field__label-text"
+              htmlFor={baseId}
+            >
+              {label}
+            </label>
+          )}
           {required ? (
             <span className="dh-field__required">
               <span aria-hidden="true">*</span>

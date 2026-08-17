@@ -133,6 +133,18 @@ function ProjectTableRow({
           <Link
             className="dh-ptable__open"
             to={`/projects/${encodeURIComponent(card.id)}`}
+            /*
+             * "Open <title>" is the product-wide accessible name for a record's
+             * open link — `TaskRow`, `Card` and `EntityCard` all say it, and
+             * AGENTS.md §7 makes one vocabulary a rule rather than a habit.
+             * This row was the one collection surface that named itself
+             * differently, so the same act was announced with different words
+             * depending on which presentation of Projects the owner was in —
+             * and after ADR-100 made the table the DEFAULT at forty Projects,
+             * that is the announcement most owners get. The visible text is
+             * contained in the name, so WCAG 2.5.3 (Label in Name) holds.
+             */
+            aria-label={`Open ${card.title}`}
           >
             {card.title}
           </Link>

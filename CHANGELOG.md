@@ -17,6 +17,28 @@ no version number to group them under.
 
 ---
 
+## A phone can reach what a phone can see
+
+**Four things on a phone were smaller, or further away, than they were meant to
+be, and now are not.**
+
+- **Opening a task from a list.** The strip of a task row that actually opened
+  the task was 20 pixels tall inside a 73-pixel row, so a thumb aimed at the
+  title and hit nothing. The whole line is the target now, and the row is a
+  little airier for it.
+- **Typing into quick capture.** Tapping the "Add a task" field on Tasks, or the
+  search field on any collection, zoomed the page in and left it there — the
+  fields were a shade under the size iOS treats as readable. They are not any
+  more, and nothing looks different on a computer.
+- **Reading Today at 200% zoom.** The day's rows pushed the page sideways, so
+  the screen had to be scrolled in two directions to read one task. At that size
+  a row now puts its project, date and priority on a line of their own instead
+  of squeezing them off the edge.
+- **A Project in the table.** Opening a Project from the table announced only its
+  name to a screen reader, where every other list in DalyHub says "Open" first.
+
+Nothing else about these screens changed.
+
 ## Today's tasks are the same tasks
 
 **You can now change a task from Today without leaving it.** The rows on Today's

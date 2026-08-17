@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -91,16 +92,36 @@ test.describe("MOBILE-01 mobile forms", () => {
    * shared classes in `forms.css`; every module control written afterwards fell
    * outside it, and the audit measured 14px on all eight of these.
    */
-  const FIELDS: readonly (readonly [string, string])[] = [
-    ["/notes", ".dh-notes-filters__control"],
-    ["/people", ".dh-people-filters__input"],
-    ["/reviews", ".dh-select"],
-    ["/tasks", ".dh-tasks-quickadd__input"],
+  /*
+   * `/notes`'s row became `/projects`, and the control it names became the
+   * SHARED collection search field.
+   *
+   * `.dh-notes-filters__control` was the bespoke Notes filter bar. The Notes
+   * collection moved onto `CollectionSearchField` plus the shared collection
+   * controls, and the class survives only as a rule in `references.css` with
+   * nothing rendering it — so this check had been passing over a control that
+   * does not exist. Naming the shipped one is what makes it a check again, and
+   * it immediately caught the same 14px this block exists for.
+   *
+   * `/projects` rather than `/notes` because a collection that supplies mobile
+   * controls hides its header search on a phone (`.dh-collection__filters` is
+   * `display: none` under `--has-mobile-controls`), and Notes is one of them —
+   * so on `/notes` the field is not a phone control at all. Projects draws it,
+   * COLLAPSED behind its own toggle exactly as the handset frame does, so the
+   * journey opens it the way an owner does. It is the same shared component
+   * every collection uses, so the floor is proven for all of them.
+   */
+  const FIELDS: readonly (readonly [string, string, boolean])[] = [
+    ["/projects", ".dh-csearch__input", true],
+    ["/people", ".dh-people-filters__input", false],
+    ["/reviews", ".dh-select", false],
+    ["/tasks", ".dh-tasks-quickadd__input", false],
   ];
 
-  for (const [route, selector] of FIELDS) {
+  for (const [route, selector, collapsed] of FIELDS) {
     test(`${route} — ${selector} never triggers iOS zoom`, async ({ page }) => {
       await gotoFixture(page, route);
+      if (collapsed) await page.locator(".dh-csearch__toggle").first().click();
       await expect(page.locator(selector).first()).toBeVisible();
       expect(await fontSizePx(page, selector)).toBeGreaterThanOrEqual(16);
     });
@@ -147,15 +168,26 @@ test.describe("MOBILE-01 mobile forms", () => {
 /* §3 — one overlay architecture: the overflow menu is a sheet on a phone      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The ⋯ trigger on the first task row of `/tasks`.
+ *
+ * DS-04 replaced the generic Card on this collection with `TaskRow`, so the
+ * trigger moved from `.dh-card__actions` to `.dh-taskrow__actions`. It is the
+ * SAME shared `OverflowMenu` — `.dh-overflow-menu__trigger` is still on it —
+ * which is exactly what these three journeys are about: one overlay
+ * architecture, whatever hosts the trigger.
+ */
+function taskRowOverflow(page: Page) {
+  return taskRows(page).first().locator(".dh-overflow-menu__trigger");
+}
+
 test.describe("MOBILE-01 the shared overflow menu", () => {
   test("opens as a full-width sheet with comfortable rows", async ({
     page,
   }) => {
     await gotoFixture(page, "/tasks");
 
-    const trigger = page
-      .locator(".dh-card__actions .dh-overflow-menu__trigger")
-      .first();
+    const trigger = taskRowOverflow(page);
     await expectMinTouchTarget(trigger);
     await trigger.click();
 
@@ -190,9 +222,7 @@ test.describe("MOBILE-01 the shared overflow menu", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    const trigger = page
-      .locator(".dh-card__actions .dh-overflow-menu__trigger")
-      .first();
+    const trigger = taskRowOverflow(page);
     await trigger.click();
     await expect(page.getByRole("dialog")).toBeVisible();
 
@@ -204,10 +234,7 @@ test.describe("MOBILE-01 the shared overflow menu", () => {
   test("but stays an anchored menu on a pointer device", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await gotoFixture(page, "/tasks");
-    await page
-      .locator(".dh-card__actions .dh-overflow-menu__trigger")
-      .first()
-      .click();
+    await taskRowOverflow(page).click();
 
     await expect(
       page.locator('.dh-overflow-menu__panel[data-presentation="anchored"]'),
@@ -238,11 +265,10 @@ test.describe("MOBILE-01 touch targets", () => {
 
   test("a task row's open link is comfortably tall", async ({ page }) => {
     await gotoFixture(page, "/tasks");
-    const link = page
-      .locator(
-        ".dh-collection--tasks .dh-card__open, .dh-tasklist .dh-card__open",
-      )
-      .first();
+    // DS-04 — the row's open control is `TaskRow`'s title link. The selector
+    // named the Card's, which stopped existing on this collection, and the
+    // 44px rule in `task-signals.css` had stopped matching anything with it.
+    const link = taskRows(page).first().getByTestId("task-row-open");
     await expect(link).toBeVisible();
     const box = await link.boundingBox();
     expect(box).not.toBeNull();

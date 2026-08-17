@@ -323,8 +323,17 @@ test.describe("PROJ-01 — Projects", () => {
     page,
   }) => {
     await page.emulateMedia({ colorScheme: "dark" });
-    await gotoFixture(page, "/projects");
+    /*
+     * BOTH presentations, because ADR-100 means the owner gets whichever their
+     * workspace's size selects — and an axe scan of only the one this seed
+     * happens not to open would be a scan of the page nobody sees.
+     */
+    await gotoFixture(page, "/projects?present=grid");
     await expect(page.getByRole("article").first()).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    await gotoFixture(page, "/projects?present=table");
+    await expect(page.getByRole("table")).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

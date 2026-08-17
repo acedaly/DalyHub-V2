@@ -6,6 +6,8 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRow,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -31,13 +33,26 @@ import {
  */
 
 const PHONE = { width: 390, height: 844 };
-const CARD = '.dh-card[data-card-id="t-drawer"]';
 
 test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 
-/** The task card article on the Tasks collection (the swipe surface). */
-function taskCard(page: Page): Locator {
-  return page.locator(CARD);
+/**
+ * The task row on the Tasks collection — the swipe surface.
+ *
+ * It was `.dh-card[data-card-id="t-drawer"]`. DS-04 §5 replaced the generic
+ * Card on this collection with `TaskRow` and records that it "did not keep the
+ * swipe tray — it went with the Card", replacing it with the row's own two
+ * COMMITTING gestures (`useTaskRowSwipe`): pull towards the inline end to
+ * complete, towards the inline start to open the scheduler. A tray is a mode;
+ * a commit is an act, in the hook's own words.
+ *
+ * So the three journeys below assert the gesture the product HAS, on the
+ * surface they always ran against (`/tasks`, at a phone viewport with touch
+ * emulated). `today-task-convergence.spec.ts` proves the same layer on Today;
+ * this file is what proves it on the collection.
+ */
+function taskSwipeRow(page: Page): Locator {
+  return taskRows(page).first();
 }
 
 /**
@@ -49,38 +64,46 @@ function taskCard(page: Page): Locator {
  * touch compatibility-click behaviour this feature depends on. So we dispatch the
  * real `pointerdown`/`pointermove`/`pointerup` sequence with `pointerType: "touch"`
  * and real client coordinates. This drives the SAME hook path a finger does.
+ *
+ * `release: false` leaves the finger DOWN, which is the only way to observe the
+ * row mid-gesture: the edge is drawn while `[data-swipe-edge]` is set and the
+ * hook clears it on release (`useTaskRowSwipe` — a permanent transform would
+ * move every anchored popover the row opens, so the attribute cannot outlive
+ * the gesture).
  */
-async function touchSwipe(card: Locator) {
-  const box = await card.boundingBox();
+async function touchSwipe(
+  row: Locator,
+  { release = true }: { release?: boolean } = {},
+) {
+  const box = await row.boundingBox();
   if (box === null) {
-    throw new Error("task card has no layout box");
+    throw new Error("task row has no layout box");
   }
   const y = box.y + box.height / 2;
-  const startX = box.x + box.width - 16;
+  const startX = box.x + 24;
+  const endX = box.x + box.width - 8;
   const base = { pointerId: 1, pointerType: "touch", bubbles: true } as const;
-  await card.dispatchEvent("pointerdown", {
+  await row.dispatchEvent("pointerdown", {
     ...base,
     button: 0,
     clientX: startX,
     clientY: y,
   });
-  // Cross the intent threshold, then pull the tray fully open (past its width so
-  // it clamps to fully revealed).
-  await card.dispatchEvent("pointermove", {
-    ...base,
-    clientX: startX - 30,
-    clientY: y,
-  });
-  await card.dispatchEvent("pointermove", {
-    ...base,
-    clientX: startX - box.width,
-    clientY: y,
-  });
-  await card.dispatchEvent("pointerup", {
-    ...base,
-    clientX: startX - box.width,
-    clientY: y,
-  });
+  // Cross the intent threshold, then pull well past the commit point.
+  for (let step = 1; step <= 6; step += 1) {
+    await row.dispatchEvent("pointermove", {
+      ...base,
+      clientX: startX + ((endX - startX) * step) / 6,
+      clientY: y,
+    });
+  }
+  if (release) {
+    await row.dispatchEvent("pointerup", {
+      ...base,
+      clientX: endX,
+      clientY: y,
+    });
+  }
 }
 
 test.describe("the Today screen on a phone", () => {
@@ -181,52 +204,68 @@ test.describe("the Today screen on a phone", () => {
 });
 
 test.describe("touch accelerators on the Tasks collection", () => {
-  test("swipes a task to reveal its tray, and the tray acts through the shared route", async ({
+  test("swipes a task to complete it, through the row's own control", async ({
     page,
   }) => {
     await gotoFixture(page, "/tasks?system=all");
-    const card = taskCard(page);
-    await expect(card).toBeVisible();
+    const row = taskSwipeRow(page);
+    await expect(row).toBeVisible();
+    // The gesture layer arms itself after mount, and only on a touch-first
+    // device — so this attribute is also the precondition for the two tests
+    // below, which would otherwise pass by doing nothing.
+    await expect(row).toHaveAttribute("data-swipe-enabled", "true");
+    const title = (await row.getByTestId("task-row-open").innerText()).trim();
 
-    await touchSwipe(card);
-    // The tray is `aria-hidden` on purpose — it is an ACCELERATOR over the
-    // always-available visible controls, never a gesture-only capability — so
-    // it is located structurally rather than by role.
-    const tray = page.locator(".dh-card__swipe-tray").first();
-    await expect(tray).toBeVisible();
-    const revealed = await card.evaluate(
-      (element) =>
-        Number.parseFloat(
-          getComputedStyle(element).getPropertyValue("--swipe-reveal"),
-        ) || 0,
-    );
-    expect(revealed).toBeGreaterThan(0);
+    // Mid-gesture the row draws the edge it would commit; on release it fires
+    // that edge's action. Pulling towards the inline END reveals the START
+    // edge, which is completion.
+    await touchSwipe(row, { release: false });
+    await expect(row).toHaveAttribute("data-swipe-edge", "start");
+    await row.dispatchEvent("pointerup", {
+      pointerId: 1,
+      pointerType: "touch",
+      bubbles: true,
+      clientX: (await row.boundingBox())!.x + 360,
+      clientY: (await row.boundingBox())!.y + 8,
+    });
+
+    /*
+     * The accelerator fires the row's OWN control, never a swipe-only mutation
+     * (`useTaskRowSwipe`: "Complete calls `onCompletedChange`, which is the
+     * checkbox's own handler"), so the proof is the checkbox's own state.
+     */
+    await expect(
+      taskRow(page, title).getByRole("checkbox", { name: `Reopen ${title}` }),
+    ).toBeChecked();
   });
 
   test("a swipe never opens the record it was performed on", async ({
     page,
   }) => {
     await gotoFixture(page, "/tasks?system=all");
-    const card = taskCard(page);
-    await expect(card).toBeVisible();
+    const row = taskSwipeRow(page);
+    await expect(row).toBeVisible();
+    await expect(row).toHaveAttribute("data-swipe-enabled", "true");
 
-    // The compatibility click a touch drag would otherwise fire is suppressed:
-    // swiping a row reveals its tray and does NOT open the record underneath.
-    // (The converse — a later deliberate tap still opening it — is covered by
-    // `test/unit/card/CardSwipe.test.tsx`, which can drive the hook's own tap
-    // path directly rather than through synthesised pointer events.)
-    await touchSwipe(card);
+    // The compatibility click a touch drag would otherwise fire is suppressed
+    // by the hook's capture-phase guard: swiping a row acts on it and does NOT
+    // open the record underneath. (The converse — a later deliberate tap still
+    // opening it — is covered by the hook's own unit tests, which can drive the
+    // tap path directly rather than through synthesised pointer events.)
+    await touchSwipe(row);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page).toHaveURL(/\/tasks/);
   });
 
-  test("holds the accessibility baseline with a swipe tray open", async ({
-    page,
-  }) => {
+  test("holds the accessibility baseline mid-swipe", async ({ page }) => {
     await gotoFixture(page, "/tasks?system=all");
-    const card = taskCard(page);
-    await expect(card).toBeVisible();
-    await touchSwipe(card);
+    const row = taskSwipeRow(page);
+    await expect(row).toBeVisible();
+    await expect(row).toHaveAttribute("data-swipe-enabled", "true");
+    // Scanned with the finger still DOWN, because that is the only state in
+    // which the row draws its swipe affordance at all.
+    await touchSwipe(row, { release: false });
+    await expect(row).toHaveAttribute("data-swipe-edge", "start");
     await expectNoAxeViolations(page);
   });
 });

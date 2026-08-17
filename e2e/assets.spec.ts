@@ -20,6 +20,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openCollectionControls,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -117,9 +118,17 @@ test("create, edit, search, filter, archive, restore, delete", async ({
    * Apply — which is why the assertion follows the Apply and not the option tap.
    */
   await gotoFixture(page, "/assets");
-  await page.getByTestId("collection-filter-trigger").click();
-  await page.getByTestId("collection-sheet-type-vehicle").click();
-  await page.getByTestId("collection-sheet-apply").click();
+  /*
+   * CONTROL-01 made the Sheet the PHONE presentation and gave a pointer device
+   * an anchored, live-applying popover. This journey runs at the project's
+   * desktop viewport and drove `collection-sheet-*`, which has not rendered
+   * here since — so it timed out on `collection-sheet-type-vehicle` and took
+   * the whole Asset lifecycle down with it. `openCollectionControls` drives
+   * whichever presentation the width gets; the URL state it writes is the same.
+   */
+  const controls = await openCollectionControls(page);
+  await controls.choose("type", "vehicle");
+  await controls.commit();
   await expect.poll(() => page.url()).toContain("type=vehicle");
   await expect(
     page.getByRole("link", { name: new RegExp(vehicle) }),

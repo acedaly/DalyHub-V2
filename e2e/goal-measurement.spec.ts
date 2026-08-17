@@ -110,14 +110,27 @@ test.describe("GOAL-02 — measurable Goals", () => {
      * replaced.
      */
     const metrics = panel.getByTestId("goal-metrics");
-    await expect(metrics).toContainText("Start");
-    await expect(metrics).toContainText("85 kg");
-    await expect(metrics).toContainText("Now");
+    await expect(metrics).toContainText("Current");
     await expect(metrics).toContainText("79 kg");
     await expect(metrics).toContainText("Target");
     await expect(metrics).toContainText("70 kg");
-    await expect(metrics).toContainText("Remaining");
-    await expect(metrics).toContainText("9 kg to go");
+    /*
+     * REDESIGN-04 recomposed the strip into the reference's TRIO —
+     * `Current · Target · Target date` — and moved "what remains" to the state
+     * line: "'1.9 km to go' is a statement about progress, not a fourth
+     * measurement, and beside the status word is where it reads as one"
+     * (`GoalMeasurementPanel`). `Start` left the strip with it, because the
+     * baseline is what the JOURNEY line states.
+     *
+     * Every figure this journey required is still on the page and still
+     * asserted; two of them are one line lower than they were. This is the
+     * assertion `goals-outcomes.spec.ts` also had to move, and it is the real
+     * cause of the two `goal-measurement` failures DEBT-149 attributed to
+     * accumulated measurements — the readings were fine, the labels had moved.
+     */
+    await expect(panel.locator(".dh-goal-measure__state")).toContainText(
+      "9 kg to go",
+    );
     await expect(panel.getByText("40%", { exact: true })).toBeVisible();
     // The journey, in the same words the gallery card uses for this Goal.
     await expect(panel.getByText("from 85 kg → 70 kg")).toBeVisible();
@@ -154,8 +167,9 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expect(editSheet).toHaveCount(0);
     await expect(panel.getByText("77.5 kg").first()).toBeVisible();
     await expect(panel.getByText(/50%/)).toBeVisible();
-    // The Remaining figure recomputes from the corrected reading.
-    await expect(panel.getByTestId("goal-metrics")).toContainText(
+    // What remains recomputes from the corrected reading — on the state line,
+    // for the reason given at the trio above.
+    await expect(panel.locator(".dh-goal-measure__state")).toContainText(
       "7.5 kg to go",
     );
 
@@ -175,22 +189,24 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expect(panel.getByText("79.3 kg").first()).toBeVisible();
     await expect(history.getByRole("listitem")).toHaveCount(2);
 
-    // 8. The Goals gallery card carries the same numbers, from the same
-    //    evaluator — a collection can never disagree with a record.
-    await gotoFixture(page, "/goals");
-    const card = page
-      .getByTestId("goal-card")
-      .filter({ hasText: title })
-      .first();
     /*
-     * UIX-03 — the card leads with the reading and states the whole JOURNEY
-     * beneath it. The old label repeated the reading ("79.3 kg → 70 kg"
-     * directly under "79.3 kg"); the journey states the START instead, which is
-     * the fact that makes the percentage checkable by eye.
+     * 8. The COLLECTION carries the same numbers, from the same evaluator — a
+     *    collection can never disagree with a record.
+     *
+     * REDESIGN-04 replaced the Goals gallery card with the workspace's
+     * `ProgressRow`, so the same claim is read off the row: its value states
+     * both terms of the journey (`goalRowValue`) and its bar announces the
+     * evaluator's whole sentence (`goalProgressSummaryText`) — which is a
+     * STRONGER check that the two surfaces agree than the card's prose was,
+     * because the sentence is generated once and consumed by both.
      */
-    await expect(card).toContainText("79.3 kg");
-    await expect(card).toContainText("from 85 kg → 70 kg");
-    await expect(card).toContainText("9.3 kg to go");
+    await gotoFixture(page, "/goals");
+    const row = page.getByTestId("goal-row").filter({ hasText: title }).first();
+    await expect(row.locator(".dh-mrow__value")).toHaveText("79.3 / 70 kg");
+    await expect(row.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuetext",
+      /79.3 kg · \d+% complete · 9.3 kg remaining/,
+    );
 
     // 9. And the record is still reachable and correct.
     await gotoFixture(page, goalUrl);
@@ -215,35 +231,56 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expectNoAxeViolations(page);
   });
 
-  test("check in from a phone without horizontal scrolling", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const title = `Phone goal ${Date.now()}`;
-    await createMeasurableGoal(page, title);
+  test.describe("on a real phone", () => {
+    /*
+     * A phone is a WIDTH and a touch pointer, and this block needs both.
+     *
+     * `hasTouch` is what makes the browser report `(pointer: coarse)`, and that
+     * is the condition DalyHub's touch guarantees are actually written against —
+     * `tokens.css` floors every compact target back to 44px there, deliberately
+     * on the input mechanism rather than on the window ("a 27-inch monitor driven
+     * by a trackpad is not compact"). Setting the viewport alone reports a FINE
+     * pointer, so a target-floor assertion made that way is asserting DalyHub's
+     * touch contract in a context the contract explicitly does not cover — and it
+     * duly measured 32-36px on `main` @ f994aa0 against controls that are 44px on
+     * every real phone. `collection-header.spec.ts` records the same diagnosis in
+     * the same words for its own narrow block.
+     */
+    test.use({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    });
 
-    const record = page.getByTestId("goal-record-measurement").first();
-    await expect(record).toContainText("Log weight");
-    await expectMinTouchTarget(record);
-    await record.click();
+    test("check in from a phone without horizontal scrolling", async ({
+      page,
+    }) => {
+      const title = `Phone goal ${Date.now()}`;
+      await createMeasurableGoal(page, title);
 
-    const sheet = page.getByTestId("goal-check-in-sheet");
-    await expect(sheet).toBeVisible();
-    // The numeric field summons a decimal keypad rather than a QWERTY keyboard.
-    const value = sheet.getByRole("textbox", { name: /^Measurement/ });
-    await expect(value).toHaveAttribute("inputmode", "decimal");
-    // The date defaults to the owner's today, which is what it nearly always is.
-    await expect(sheet.getByLabel("Date")).toHaveValue(ownerToday());
-    await expectMinTouchTarget(page.getByTestId("goal-check-in-save"));
-    await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page);
+      const record = page.getByTestId("goal-record-measurement").first();
+      await expect(record).toContainText("Log weight");
+      await expectMinTouchTarget(record);
+      await record.click();
 
-    await value.fill("79.4");
-    await sheet.getByLabel("Date").fill("2026-08-09");
-    await page.getByTestId("goal-check-in-save").click();
-    await expect(sheet).toHaveCount(0);
-    await expect(page.getByTestId("goal-progress")).toContainText("79.4 kg");
-    await expectNoHorizontalOverflow(page);
+      const sheet = page.getByTestId("goal-check-in-sheet");
+      await expect(sheet).toBeVisible();
+      // The numeric field summons a decimal keypad rather than a QWERTY keyboard.
+      const value = sheet.getByRole("textbox", { name: /^Measurement/ });
+      await expect(value).toHaveAttribute("inputmode", "decimal");
+      // The date defaults to the owner's today, which is what it nearly always is.
+      await expect(sheet.getByLabel("Date")).toHaveValue(ownerToday());
+      await expectMinTouchTarget(page.getByTestId("goal-check-in-save"));
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+
+      await value.fill("79.4");
+      await sheet.getByLabel("Date").fill("2026-08-09");
+      await page.getByTestId("goal-check-in-save").click();
+      await expect(sheet).toHaveCount(0);
+      await expect(page.getByTestId("goal-progress")).toContainText("79.4 kg");
+      await expectNoHorizontalOverflow(page);
+    });
   });
 
   test("the Goal record fits every phone width the contract names", async ({
