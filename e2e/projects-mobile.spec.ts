@@ -193,7 +193,18 @@ test.describe("PROJ-06 — mobile Projects", () => {
     // collection rule is about the wording, not about the control.
     const filter = page.getByRole("navigation", { name: "Project views" });
     await expect(filter).toBeVisible();
-    for (const label of ["All", "Open", "Completed", "Archived"]) {
+    /*
+     * "Active", not "Open".
+     *
+     * REDESIGN-04 took the mockup's WORD for the `open` lifecycle scope and
+     * says so at `STATE_OPTIONS`: "`mockup3.png` draws three tabs — Active /
+     * All / Archived — and 'Active' is the word it uses for what this
+     * repository calls `open`. The label follows the reference; the VALUE does
+     * not change, so every `?state=open` link, bookmark and test in the product
+     * still resolves." The rail's labels are the shipped vocabulary and this
+     * list was the last place still asking for the old one.
+     */
+    for (const label of ["All", "Active", "Completed", "Archived"]) {
       await expectMinTouchTarget(
         filter.getByRole("link", { name: label, exact: true }),
       );

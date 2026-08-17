@@ -31,7 +31,19 @@ test.describe("PROJ-02 — Project health", () => {
   test("surfaces at-risk / blocked / on-track / stale states on the collection", async ({
     page,
   }) => {
-    await gotoFixture(page, "/projects");
+    /*
+     * ADR-100 — `?present=grid`, EXPLICITLY, because this test is about the
+     * gallery CARD.
+     *
+     * A collection's default presentation now follows its size: at forty
+     * Projects `/projects` opens as a table, and the seeded workspace is well
+     * past that, so this journey was measuring `.dh-pcard__meta` on a page that
+     * draws table rows. Decision 2 of the ADR is that an explicit `?present=`
+     * always wins at every size, which is exactly what a test about one
+     * presentation should be saying. The table's own health rendering is
+     * asserted by `spine-workspaces.spec.ts`.
+     */
+    await gotoFixture(page, "/projects?present=grid");
 
     /*
      * UIX-02 — ONE attention LINE per card, not a chip plus the sentence
@@ -177,7 +189,8 @@ test.describe("PROJ-02 — Project health", () => {
   });
 
   test("pagination still works with health present", async ({ page }) => {
-    await gotoFixture(page, "/projects");
+    // The gallery, explicitly — see the note on the first journey (ADR-100).
+    await gotoFixture(page, "/projects?present=grid");
     // The seed has more than one page of projects; the shared Load-more affordance
     // fetches the next keyset page (health rides along on each item).
     const loadMore = page.getByRole("button", { name: "Load more projects" });
