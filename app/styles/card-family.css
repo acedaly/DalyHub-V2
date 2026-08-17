@@ -2871,11 +2871,43 @@
   align-items: center;
   gap: var(--app-space-4);
   min-inline-size: 0;
-  /* Two comfortable lines above the touch floor. A face at 44px plus a name and
-   * a context line is what sets this, not a chosen number. */
-  min-block-size: 4.5rem;
+  /*
+   * CONVERGE-01 §7 — ONE height, not a floor.
+   *
+   * `min-block-size` alone let a row grow whenever any cell wrapped, so the
+   * directory came out ragged: measured at 393px before this pass, four rows
+   * were 68, 81, 68 and 68 — the tall one being the Person with two reach links
+   * and a longer state, i.e. the row with the MOST recorded, which is precisely
+   * backwards. A Person the owner knows well should not cost more vertical space
+   * than one they have just added.
+   *
+   * `block-size` fixes it at the same two-line measure the floor already
+   * expressed (a 44px face plus a name and its supporting line), and every cell
+   * in the row already ellipsises rather than wrapping — so a Person with less
+   * data gets a QUIETER row, never a shorter one, and a Person with more gets a
+   * truncated line rather than a taller row.
+   */
+  block-size: var(--dh-prow-height, 4.5rem);
   padding: var(--app-space-3) var(--app-card-padding);
   transition: background var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+/*
+ * The one place the fixed height must yield, and it is arithmetic rather than a
+ * preference.
+ *
+ * On a coarse pointer every reach link takes the product's unconditional 44px
+ * touch floor (see `.dh-prow__reach-link` below), so a Person with an email AND
+ * a phone needs 88px of stacked targets — more than the two-line measure. The
+ * reach column only survives above 68rem, so this reaches exactly one device
+ * class (a tablet in landscape) and there the row grows to hold its targets
+ * rather than clipping them. Every other width keeps one height.
+ */
+@media (hover: none) and (min-width: 68rem) {
+  .dh-prow {
+    block-size: auto;
+    min-block-size: 4.5rem;
+  }
 }
 
 .dh-prow:hover {
@@ -3083,15 +3115,23 @@
   white-space: nowrap;
 }
 
-.dh-prow__rhythm-detail {
-  grid-column: 2;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
+/*
+ * CONVERGE-01 §7 — the ABSENCE state, demoted.
+ *
+ * "No shared history yet" is true and worth knowing, and before this it was the
+ * loudest thing on the row: `--dh-color-text` at weight 500 with a dot beside
+ * it, in the position the eye lands on last, on every Person the owner had not
+ * yet recorded anything about. The audit's phrasing — "the list leads with
+ * absence" — is a description of this rule.
+ *
+ * It steps down to the muted ramp and loses its dot (the markup omits it: there
+ * is no state for a dot to agree with). It is still real text at a contrast-
+ * tested tone, so nothing is hidden and nothing needs colour to be read — it
+ * simply stops outweighing the connection line beside it.
+ */
+.dh-prow__rhythm[data-quiet="true"] .dh-prow__rhythm-state {
+  font-weight: var(--md-sys-typescale-body-small-weight);
   color: var(--dh-color-text-muted);
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dh-prow__dot {
@@ -3178,7 +3218,22 @@
     align-items: center;
     column-gap: var(--app-space-3);
     row-gap: var(--app-space-1);
-    min-block-size: var(--app-touch-target-min);
+    /*
+     * CONVERGE-01 §7 — three lines here, and ONE height for all of them.
+     *
+     * The phone used to drop the supporting line and keep the rhythm's detail,
+     * on the reasoning that the two said the same kind of thing. That reasoning
+     * expired with this pass: the rhythm's detail moved INTO the supporting line
+     * (it is the connection line's first element now), so hiding the line would
+     * take the last shared moment off the phone entirely and leave a row that
+     * says only a name and a verdict.
+     *
+     * So the line comes back and the row is name / connection / rhythm. At the
+     * phone's own type sizes that measures under 5.5rem, which every row now
+     * takes whether or not it fills it — the same rule as the desktop row and
+     * for the same reason.
+     */
+    --dh-prow-height: 5.5rem;
     padding-inline: var(--app-card-padding-compact);
   }
 
@@ -3190,6 +3245,7 @@
   .dh-prow__identity {
     grid-area: identity;
     align-self: end;
+    min-inline-size: 0;
   }
 
   .dh-prow__rhythm {
@@ -3197,7 +3253,7 @@
     align-self: start;
     /* On the phone the rhythm sits UNDER the name rather than opposite it, so
      * it reads left-to-right with everything else on the row. */
-    justify-items: start;
+    justify-content: start;
     text-align: start;
   }
 
@@ -3205,18 +3261,8 @@
     grid-area: overflow;
   }
 
-  /*
-   * The phone drops the context line and keeps the rhythm's DETAIL, because the
-   * two say the same kind of thing — where this person sits — and only one of
-   * them changes. The circle is still carried by the avatar's accent, and the
-   * full context is on the record.
-   */
-  .dh-prow__context {
-    display: none;
-  }
-
-  /* A person with no derived rhythm has no second line, so the identity centres
-   * in the single row it does have rather than sitting high. */
+  /* A person with no derived rhythm has no third line, so the identity centres
+   * in the rows it does have rather than sitting high. */
   .dh-prow:not(:has(.dh-prow__rhythm)) .dh-prow__identity {
     align-self: center;
   }

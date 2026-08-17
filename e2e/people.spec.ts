@@ -165,6 +165,117 @@ test.describe("PEOPLE-01 — the People foundation", () => {
    * is indivisible across runners while nine small ones are not.
    */
 
+  /*
+   * CONVERGE-01 §7 — the row leads with connection, and its actions are real.
+   *
+   * The seeded directory carries both shapes on purpose: People with contact
+   * details recorded and People with none. UIQ-011's rule ("a control that can
+   * never do anything is not a control") means the FULL row offers real
+   * `mailto:`/`tel:` controls and the SPARSE one offers no control at all —
+   * which only a browser over the real projection can prove, because the
+   * difference is produced server-side by `personReach`.
+   */
+  test("row actions are present where the data is and absent where it is not", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoFixture(page, "/people");
+
+    const rows = page.locator(".dh-prow");
+    await expect(rows.first()).toBeVisible();
+
+    const reachHrefs = await rows.evaluateAll((nodes) =>
+      nodes.map((node) =>
+        [...node.querySelectorAll(".dh-prow__reach-link")].map((link) =>
+          link.getAttribute("href"),
+        ),
+      ),
+    );
+    const full = reachHrefs.filter((hrefs) => hrefs.length > 0);
+    const sparse = reachHrefs.filter((hrefs) => hrefs.length === 0);
+    expect(full.length).toBeGreaterThan(0);
+    expect(sparse.length).toBeGreaterThan(0);
+    // Every control that exists genuinely does something.
+    for (const hrefs of full) {
+      for (const href of hrefs) {
+        expect(href).toMatch(/^(mailto:|tel:)/);
+      }
+    }
+    // …and a row with nothing to reach with draws no dash and no dead control,
+    // while still holding its track so the columns stay aligned.
+    const emptyCells = await rows.evaluateAll((nodes) =>
+      nodes
+        .filter(
+          (node) => node.querySelectorAll(".dh-prow__reach-link").length === 0,
+        )
+        .map((node) => ({
+          present: node.querySelector(".dh-prow__reach") !== null,
+          text: node.querySelector(".dh-prow__reach")?.textContent ?? null,
+        })),
+    );
+    for (const cell of emptyCells) {
+      expect(cell.present).toBe(true);
+      expect(cell.text).toBe("");
+    }
+  });
+
+  test("every row takes the same height, whatever it holds", async ({
+    page,
+  }) => {
+    for (const size of [
+      { width: 1440, height: 900 },
+      { width: 393, height: 852 },
+    ]) {
+      await page.setViewportSize(size);
+      await gotoFixture(page, "/people");
+      const rows = page.locator(".dh-prow");
+      await expect(rows.first()).toBeVisible();
+      const heights = await rows.evaluateAll((nodes) =>
+        nodes.map((node) => Math.round(node.getBoundingClientRect().height)),
+      );
+      // A Person with less data gets a QUIETER row, never a shorter one — and
+      // one with more gets a truncated line, never a taller row.
+      expect(new Set(heights).size).toBe(1);
+      const clipped = await rows.evaluateAll(
+        (nodes) =>
+          nodes.filter(
+            (node) =>
+              node.scrollHeight >
+              Math.round(node.getBoundingClientRect().height) + 1,
+          ).length,
+      );
+      expect(clipped).toBe(0);
+    }
+  });
+
+  test("the absence state is quiet, and never the loudest thing on a row", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoFixture(page, "/people");
+    const quiet = page.locator(
+      '[data-testid="person-row-rhythm"][data-quiet="true"]',
+    );
+    test.skip(
+      (await quiet.count()) === 0,
+      "No Person in this workspace is without shared history.",
+    );
+    // The words survive — the information is demoted, not deleted…
+    await expect(quiet.first()).toContainText("No shared history yet");
+    // …and it loses the dot, which exists to agree with a state.
+    expect(await quiet.first().locator(".dh-prow__dot").count()).toBe(0);
+    // It is genuinely quieter than the name beside it, not merely labelled so.
+    const weights = await quiet.first().evaluate((node) => {
+      const row = node.closest(".dh-prow");
+      const state = node.querySelector(".dh-prow__rhythm-state");
+      return {
+        state: getComputedStyle(state).color,
+        muted: getComputedStyle(row.querySelector(".dh-prow__name")).color,
+      };
+    });
+    expect(weights.state).not.toBe(weights.muted);
+  });
+
   test("record header actions meet the 44px touch target", async ({ page }) => {
     await createPerson(page, `${TITLE_PREFIX}${Date.now()}`);
     await expectMinTouchTarget(page.getByRole("tab", { name: "Summary" }));

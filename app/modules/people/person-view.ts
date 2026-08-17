@@ -41,6 +41,23 @@ export type SerializedPersonStayInTouch = {
   readonly lastInteractionDate: string | null;
   /** Owner-calendar days since that moment, or null when there is none. */
   readonly daysSinceLastInteraction: number | null;
+  /**
+   * CONVERGE-01 §7 — the two counts the row's CONNECTION line is built from.
+   *
+   * Both come out of the same batched `listPersonRelationshipFacts` read the
+   * signal above already performs (`relationship.summary`), so the row leads
+   * with what connects the owner to this Person at no extra query and no new
+   * repository method.
+   *
+   * `openTasks` is the honest single answer to "what have I got outstanding with
+   * them": a `task.waiting_on` link and an ordinary Task↔Person link are both
+   * active EntityLinks from a Task to this Person, so the inventory counts them
+   * together and the row says "open Tasks" rather than claiming a distinction
+   * the count does not make.
+   */
+  readonly openTasks: number;
+  /** Linked Projects that are neither complete nor archived. */
+  readonly activeProjects: number;
 };
 
 /**
