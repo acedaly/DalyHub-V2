@@ -57,28 +57,49 @@ test.describe("visual system — Today reference layout", () => {
 
     const header = page.locator(".dh-today__head");
     const day = page.locator(".dh-today__timeline");
-    // UIX-01 — the rail became sibling REGIONS; "Needs attention" is the one
-    // that always renders, so it stands for the context column here.
-    const rail = page
-      .locator(".dh-today__col")
-      .filter({ has: page.getByRole("heading", { name: "Needs attention" }) });
+    /*
+     * CONVERGE-01 §1 put Today on ONE grid.
+     *
+     * `.dh-today__col` was the two-column arrangement's wrapper and no longer
+     * exists: the day and every supporting panel are now siblings placed on a
+     * twelve-column `.dh-today__grid`, which is what "Today on one grid" means.
+     * The hierarchy this test pins is unchanged and is what is asserted — a
+     * header of page content above everything, the day leading, and supporting
+     * context BESIDE it rather than under it — so the beside-ness is read off
+     * whichever panel the grid actually places in the day's band, rather than
+     * off a wrapper element the layout stopped having.
+     */
+    const beside = page
+      .locator(".dh-today__grid > .dh-today__panel")
+      .filter({ hasNot: page.locator(".dh-today__timeline") });
     await expect(header).toBeVisible();
     await expect(day).toBeVisible();
-    await expect(rail).toBeVisible();
 
     const headerBox = (await header.boundingBox())!;
     const dayBox = (await day.boundingBox())!;
-    const railBox = (await rail.boundingBox())!;
 
-    // The greeting block is PAGE CONTENT above both columns — no card around it.
+    // The greeting block is PAGE CONTENT above the grid — no card around it.
     expect(headerBox.y).toBeLessThan(dayBox.y);
-    expect(headerBox.y).toBeLessThan(railBox.y);
     await expect(header).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 
-    // The day leads; the rail is beside it, on the same row and narrower.
-    expect(dayBox.x).toBeLessThan(railBox.x);
-    expect(Math.abs(dayBox.y - railBox.y)).toBeLessThanOrEqual(4);
-    expect(railBox.width).toBeLessThan(dayBox.width);
+    // At least one supporting panel shares the day's band, starts after it, and
+    // is narrower than it: the day leads, its context sits beside it.
+    const boxes = await beside.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width };
+      }),
+    );
+    const alongside = boxes.filter(
+      (box) => box.x > dayBox.x && Math.abs(box.y - dayBox.y) <= 4,
+    );
+    expect(
+      alongside.length,
+      "no supporting panel shares the day's band",
+    ).toBeGreaterThan(0);
+    for (const box of alongside) {
+      expect(box.width).toBeLessThan(dayBox.width);
+    }
   });
 
   test("each column is ONE tonal surface, with no outline and no shadow", async ({
@@ -146,8 +167,10 @@ test.describe("visual system — Today reference layout", () => {
 
     const headerTop = await boxTop(".dh-today__head")(page);
     const dayTop = await boxTop(".dh-today__timeline")(page);
+    // The panel itself, for the reason above: CONVERGE-01 §1 removed the
+    // `.dh-today__col` wrapper when Today went onto one grid.
     const railTop = await boxTop(
-      ".dh-today__col:has(.dh-today__panel[aria-labelledby='today-attention-heading'])",
+      ".dh-today__panel[aria-labelledby='today-attention-heading']",
     )(page);
     expect(headerTop).toBeLessThan(dayTop);
     expect(dayTop).toBeLessThan(railTop);
@@ -193,14 +216,18 @@ test.describe("visual system — surface hierarchy", () => {
      * unseen inside the tests shards 4 and 8 never started before
      * `globalTimeout`.
      *
-     * `.dh-gcard` on `/goals` is a real, seeded, in-flow card of the same family,
-     * governed by the same block of `card-family.css`, so the contract below is
-     * the one this test was written to pin — asserted on a card that exists.
+     * REDESIGN-04 then took `.dh-gcard` too: `/goals` became a master-detail
+     * WORKSPACE whose list is `ProgressRow` (`.dh-mrow`), not a gallery of
+     * cards. `.dh-ecard` — the EntityCard this file's own comment calls "the
+     * in-flow card of the product" — is back, and `/areas` is where a seeded
+     * workspace renders one. It is the member of the family `card-family.css`
+     * names, so the contract below is the one this test was written to pin,
+     * asserted on a card that exists.
      */
-    await gotoFixture(page, "/goals");
+    await gotoFixture(page, "/areas");
 
     const widgetStyle = await page
-      .locator(".dh-gcard")
+      .locator(".dh-ecard")
       .first()
       .evaluate((element) => {
         const style = getComputedStyle(element);

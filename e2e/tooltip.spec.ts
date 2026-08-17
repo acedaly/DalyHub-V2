@@ -19,6 +19,7 @@ import {
   expectMinTouchTarget,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRows,
 } from "./helpers";
 
 const TOOLTIP = "[role='tooltip']";
@@ -230,19 +231,20 @@ test.describe("the shared tooltip", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    // A CARD's ⋯ trigger — the same component the record header and every
-    // EntityCard render, and the highest-traffic icon-only control in the
-    // product. Its tooltip must say exactly what its accessible name says.
-    const overflow = page.locator(".dh-card__action--overflow").first();
+    // A task ROW's ⋯ trigger — the same shared `OverflowMenu` the record header
+    // and every EntityCard render, and the highest-traffic icon-only control in
+    // the product. Its tooltip must say exactly what its accessible name says.
+    //
+    // DS-04 — it was `.dh-card__action--overflow` on `.dh-card--list`, the
+    // anatomy the Tasks collection stopped rendering; neither class exists on
+    // this page now, so the journey spent its budget waiting for a trigger.
+    const row = taskRows(page).first();
+    const overflow = row.locator(".dh-overflow-menu__trigger");
     const name = await overflow.getAttribute("aria-label");
     expect(name).toBeTruthy();
     // UIQ-002 — the rail is pointer-inert until its row is hovered; point at
     // the row first, as a person does, so the trigger can receive the pointer.
-    await page
-      .locator(".dh-card--list")
-      .filter({ has: overflow })
-      .first()
-      .hover();
+    await row.hover();
     await hover(overflow);
     await expect(tooltip(page)).toHaveText(name!);
 

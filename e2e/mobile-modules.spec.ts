@@ -5,6 +5,8 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRow,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -108,8 +110,8 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     // The first row that is genuinely OPEN — `sort=updated` puts whatever was
     // touched most recently first, which may be a task an earlier journey
     // completed, and "the first card" is not the same thing as "an open task".
-    const card = page
-      .locator(".dh-card")
+    // DS-04 — the Tasks collection renders `TaskRow`, not the generic Card.
+    const card = taskRows(page)
       .filter({ has: page.getByRole("checkbox", { name: /^Complete / }) })
       .first();
     await expect(card).toBeVisible();
@@ -129,7 +131,7 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     await complete.click();
 
     // The row reflects the SERVER after revalidation, not an optimistic guess.
-    const row = page.locator(".dh-card").filter({ hasText: taskTitle });
+    const row = taskRow(page, taskTitle);
     await expect(
       row.getByRole("checkbox", { name: `Reopen ${taskTitle}` }),
     ).toBeVisible({ timeout: 15_000 });
@@ -146,7 +148,7 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
   }) => {
     await gotoFixture(page, "/tasks?view=list&system=all");
 
-    await page.locator(".dh-card__open").first().click();
+    await taskRows(page).first().getByTestId("task-row-open").click();
 
     const drawer = page.getByRole("dialog", { name: "Task" });
     await expect(drawer).toBeVisible();
