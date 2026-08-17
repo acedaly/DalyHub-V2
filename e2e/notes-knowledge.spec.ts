@@ -453,61 +453,80 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     ).toBeVisible();
   });
 
-  test("works on a phone: readable, filterable, exportable, 44px targets, axe-clean", async ({
-    page,
-  }) => {
-    test.setTimeout(150_000);
-    await page.setViewportSize({ width: 390, height: 844 });
-    const title = uniqueNoteTitle("mobile");
-    await createNote(page, title);
-    await writeBody(
-      page,
-      "# Mobile\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n```\nvery-long-code-token-that-must-not-widen-the-page\n```",
-    );
-
-    // A wide table and a long code token must not make the PAGE scroll sideways.
-    await expectNoHorizontalOverflow(page);
-
-    await page.goto(`${page.url().split("?")[0]}?tab=backlinks`);
-    await expect(
-      page.getByRole("heading", { name: "Referenced by" }),
-    ).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page);
-
+  test.describe("on a real phone", () => {
     /*
-     * The filter surface, on the phone, through the shared grammar CONTROL-01
-     * gave Notes (see the sibling journey above for what it replaced). Tag,
-     * Project, Area, Links and Sort are all inside the one sheet now, which is
-     * what removed the "More filters" `<details>` this used to open.
-     *
-     * The touch-target contract is unchanged and is asserted on each control a
-     * thumb actually reaches for: the trigger, the search field it sits beside,
-     * and an option row inside the sheet.
+     * A phone is a WIDTH and a touch pointer, and the touch-target half of this
+     * journey needs both. `hasTouch` is what makes the browser report
+     * `(pointer: coarse)`, which is the condition DalyHub's 44px floor is
+     * written against — deliberately on the input mechanism rather than on the
+     * window (`tokens.css`: "a 27-inch monitor driven by a trackpad is not
+     * compact"). Setting the viewport alone reports a FINE pointer, so the
+     * assertion measured 32px against a control that is 44px on every real
+     * phone.
      */
-    await gotoFixture(page, "/notes");
-    await expectMinTouchTarget(page.getByTestId("collection-filter-trigger"));
-    const controls = await openCollectionControls(page);
-    expect(controls.compact).toBe(true);
-    await expectMinTouchTarget(
-      controls.surface.getByTestId("collection-sheet-links-unlinked"),
-    );
-    await expectMinTouchTarget(page.getByTestId("collection-sheet-apply"));
-    await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page);
-    await page.keyboard.press("Escape");
+    test.use({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    });
 
-    // Export works from the phone overflow too.
-    await page.getByRole("link", { name: `Open ${title}` }).click();
-    const downloadPromise = page.waitForEvent("download");
-    await openOverflow(page);
-    await page
-      .getByRole("menuitem", { name: "Export as Markdown (.md)" })
-      .click();
-    await expect((await downloadPromise).suggestedFilename()).toMatch(/\.md$/);
+    test("works on a phone: readable, filterable, exportable, 44px targets, axe-clean", async ({
+      page,
+    }) => {
+      test.setTimeout(150_000);
+      const title = uniqueNoteTitle("mobile");
+      await createNote(page, title);
+      await writeBody(
+        page,
+        "# Mobile\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n```\nvery-long-code-token-that-must-not-widen-the-page\n```",
+      );
 
-    await page.setViewportSize({ width: 320, height: 720 });
-    await expectNoHorizontalOverflow(page);
+      // A wide table and a long code token must not make the PAGE scroll sideways.
+      await expectNoHorizontalOverflow(page);
+
+      await page.goto(`${page.url().split("?")[0]}?tab=backlinks`);
+      await expect(
+        page.getByRole("heading", { name: "Referenced by" }),
+      ).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+
+      /*
+       * The filter surface, on the phone, through the shared grammar CONTROL-01
+       * gave Notes (see the sibling journey above for what it replaced). Tag,
+       * Project, Area, Links and Sort are all inside the one sheet now, which is
+       * what removed the "More filters" `<details>` this used to open.
+       *
+       * The touch-target contract is unchanged and is asserted on each control a
+       * thumb actually reaches for: the trigger, the search field it sits beside,
+       * and an option row inside the sheet.
+       */
+      await gotoFixture(page, "/notes");
+      await expectMinTouchTarget(page.getByTestId("collection-filter-trigger"));
+      const controls = await openCollectionControls(page);
+      expect(controls.compact).toBe(true);
+      await expectMinTouchTarget(
+        controls.surface.getByTestId("collection-sheet-links-unlinked"),
+      );
+      await expectMinTouchTarget(page.getByTestId("collection-sheet-apply"));
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+      await page.keyboard.press("Escape");
+
+      // Export works from the phone overflow too.
+      await page.getByRole("link", { name: `Open ${title}` }).click();
+      const downloadPromise = page.waitForEvent("download");
+      await openOverflow(page);
+      await page
+        .getByRole("menuitem", { name: "Export as Markdown (.md)" })
+        .click();
+      await expect((await downloadPromise).suggestedFilename()).toMatch(
+        /\.md$/,
+      );
+
+      await page.setViewportSize({ width: 320, height: 720 });
+      await expectNoHorizontalOverflow(page);
+    });
   });
 
   /* ---------------------------------------------------------------------- */
