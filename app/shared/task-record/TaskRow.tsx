@@ -38,13 +38,15 @@
  * (DS-04 §61).
  */
 
-import type { ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { useCardLongPress } from "~/shared/card/useCardLongPress";
 import { Menu, type MenuItem } from "~/shared/ui";
-import { RepeatIcon } from "~/shared/icons";
+import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
 import type { TaskPriority } from "~/kernel/tasks";
+
+import { useTaskRowSwipe } from "./useTaskRowSwipe";
 
 import {
   InlineTaskDate,
@@ -175,6 +177,43 @@ export function TaskRow({
     ...(onLongPress ? { onLongPress } : {}),
   });
 
+  /*
+   * MOBILE-02 §4 — the two swipe acts, and why they are these two.
+   *
+   * They are the row's two most frequent acts and the two whose ordinary
+   * controls are the smallest: completion is a 20px ring at the leading edge,
+   * and the date is an inline trigger in a 7rem column that a phone drops
+   * entirely at the narrow tier. A thumb that can reach neither can reach both
+   * by pulling the row.
+   *
+   * ── Both fire the row's OWN controls, not a second path ────────────────────
+   * Complete calls `onCompletedChange`, which is the checkbox's own handler.
+   * Schedule ACTIVATES the inline date trigger this row already renders, so the
+   * gesture opens the same shared DalyHub date control the trigger opens, writes
+   * through the same `onInlineSave`, and cannot drift from it. There is no
+   * swipe-only mutation anywhere in this component — which is also what keeps
+   * the gesture an accelerator rather than the only way to reach either act.
+   */
+  const dateCellRef = useRef<HTMLSpanElement | null>(null);
+  const openScheduler = useCallback(() => {
+    // The cell holds exactly one control: `InlineTaskDate`'s trigger button.
+    dateCellRef.current?.querySelector("button")?.click();
+  }, []);
+
+  const swipe = useTaskRowSwipe({
+    // A read-only row (the Deleted view) offers neither: every mutation on a
+    // soft-deleted task is invisible, so a gesture there could only ever fail.
+    ...(readOnly
+      ? {}
+      : {
+          onStartEdge: () => onCompletedChange(!task.completed),
+          // A completed task has no plan to change; the column is disabled for
+          // the same reason, so the gesture yields with it rather than opening a
+          // control the row is already refusing.
+          ...(disabled ? {} : { onEndEdge: openScheduler }),
+        }),
+  });
+
   return (
     <li
       className="dh-taskrow"
@@ -183,16 +222,81 @@ export function TaskRow({
       data-overdue={overdue ? "true" : undefined}
       data-selected={selection?.selected ? "true" : undefined}
       data-pending={pending ? "true" : undefined}
-      {...(longPress.enabled
+      /*
+       * The gesture's whole visual footprint: an edge, an armed flag and a
+       * distance. The stylesheet selects on `[data-swipe-edge]`, so the cells'
+       * transform exists ONLY mid-gesture on a touch device — a permanent
+       * identity transform would make every cell a containing block and quietly
+       * move the anchored popovers the inline editors open.
+       */
+      data-swipe-enabled={swipe.enabled ? "true" : undefined}
+      data-swipe-edge={swipe.edge ?? undefined}
+      data-swipe-armed={swipe.armed ? "true" : undefined}
+      data-swipe-dragging={swipe.dragging ? "true" : undefined}
+      style={
+        swipe.offset === 0
+          ? undefined
+          : ({
+              "--swipe-offset": `${swipe.offset}px`,
+            } as React.CSSProperties)
+      }
+      {...(longPress.enabled || swipe.enabled
         ? {
-            onPointerDown: longPress.onPointerDown,
-            onPointerMove: longPress.onPointerMove,
-            onPointerUp: longPress.onPointerUp,
-            onPointerCancel: longPress.onPointerCancel,
-            onClickCapture: longPress.onClickCapture,
+            onPointerDown: (event) => {
+              longPress.onPointerDown(event);
+              swipe.onPointerDown(event);
+            },
+            onPointerMove: (event) => {
+              longPress.onPointerMove(event);
+              swipe.onPointerMove(event);
+            },
+            onPointerUp: (event) => {
+              longPress.onPointerUp(event);
+              swipe.onPointerUp(event);
+            },
+            onPointerCancel: (event) => {
+              longPress.onPointerCancel(event);
+              swipe.onPointerCancel(event);
+            },
+            onClickCapture: (event) => {
+              longPress.onClickCapture(event);
+              swipe.onClickCapture(event);
+            },
           }
         : {})}
     >
+      {/*
+       * The progressive affordance.
+       *
+       * `position: absolute`, so it takes no grid track and the row's column
+       * geometry is byte-identical with it and without it. `aria-hidden`,
+       * because it is a visual accelerator for two controls that are both
+       * present on this row as ordinary, keyboard-reachable elements — the same
+       * rule `CardSwipeTray` states for itself.
+       *
+       * Rendered only once the gesture is live, which is after mount and only on
+       * a touch-first device: this is the most repeated component in the product
+       * (fifty rows a page) and a desktop should not carry fifty inert spans it
+       * can never reveal. It appears in a post-mount re-render rather than
+       * during hydration, so there is no mismatch.
+       */}
+      {swipe.enabled && swipe.edge !== null ? (
+        <span className="dh-taskrow__swipe" aria-hidden="true">
+          <span className="dh-taskrow__swipe-action">
+            {swipe.edge === "start" ? (
+              <>
+                <CheckCircleIcon />
+                {task.completed ? "Reopen" : "Complete"}
+              </>
+            ) : (
+              <>
+                <ScheduleIcon />
+                Schedule
+              </>
+            )}
+          </span>
+        </span>
+      ) : null}
       <span className="dh-taskrow__lead">
         {selection ? (
           <label className="dh-taskrow__select">
@@ -352,7 +456,10 @@ export function TaskRow({
          * and a row that says nothing about when it is due to happen is a row
          * that cannot be planned from.
          */}
-        <span className="dh-taskrow__cell dh-taskrow__cell--due">
+        <span
+          className="dh-taskrow__cell dh-taskrow__cell--due"
+          ref={dateCellRef}
+        >
           {task.dueDate === null && task.scheduledDate !== null ? (
             <InlineTaskDate
               taskId={task.id}

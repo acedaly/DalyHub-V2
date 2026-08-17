@@ -75,6 +75,14 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-meter-info",
   "dh-color-meter-warning",
   "dh-color-meter-danger",
+  /**
+   * MOBILE-02 §4 — the Task row's swipe affordance. Named apart from the meter
+   * ramp because it states what releasing WILL DO rather than how something is
+   * going; see the block in `tokens.css`.
+   */
+  "dh-color-swipe-rest",
+  "dh-color-swipe-complete",
+  "dh-color-swipe-schedule",
   "dh-color-focus",
   "dh-color-scrim",
 ] as const;

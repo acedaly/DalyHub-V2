@@ -314,4 +314,3 @@ describe("the stat rank", () => {
     ).toBeNull();
   });
 });
-

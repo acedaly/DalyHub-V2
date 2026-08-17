@@ -1390,36 +1390,33 @@ export function TodayScreen({
             aria-labelledby="today-attention-heading"
             data-testid="today-attention"
           >
-              <div className="dh-today__panel-head">
-                <h2
-                  className="dh-today__panel-title"
-                  id="today-attention-heading"
-                >
-                  Needs attention
-                </h2>
-              </div>
-              <ul className="dh-day-list">
-                {data.attention.map((item: AttentionItem) => (
-                  <li
-                    className="dh-day-row dh-day-row--attention"
-                    key={item.id}
-                  >
-                    {/* UIX-01 — the subject KIND as a small tonal tile, which
+            <div className="dh-today__panel-head">
+              <h2
+                className="dh-today__panel-title"
+                id="today-attention-heading"
+              >
+                Needs attention
+              </h2>
+            </div>
+            <ul className="dh-day-list">
+              {data.attention.map((item: AttentionItem) => (
+                <li className="dh-day-row dh-day-row--attention" key={item.id}>
+                  {/* UIX-01 — the subject KIND as a small tonal tile, which
                         is what makes a mixed rail scannable before it is read.
                         Decorative: the row's label and detail carry every fact,
                         and the tone is identity, never a state. */}
-                    <ToneIcon size="sm" tone={ATTENTION_TONES[item.kind]}>
-                      <AttentionGlyph kind={item.kind} />
-                    </ToneIcon>
-                    <span className="dh-day-row__stack">
-                      <Link className="dh-day-row__title" to={item.href}>
-                        {item.label}
-                      </Link>
-                      <span className="dh-day-row__meta">{item.detail}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                  <ToneIcon size="sm" tone={ATTENTION_TONES[item.kind]}>
+                    <AttentionGlyph kind={item.kind} />
+                  </ToneIcon>
+                  <span className="dh-day-row__stack">
+                    <Link className="dh-day-row__title" to={item.href}>
+                      {item.label}
+                    </Link>
+                    <span className="dh-day-row__meta">{item.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
 
@@ -1431,53 +1428,47 @@ export function TodayScreen({
             aria-labelledby="today-continue-heading"
             data-testid="today-continue"
           >
-              <div className="dh-today__panel-head">
-                <h2
-                  className="dh-today__panel-title"
-                  id="today-continue-heading"
-                >
-                  Continue working
-                </h2>
-                <Link className="dh-today__panel-action" to="/projects">
-                  All projects
-                </Link>
-              </div>
-              <ul className="dh-day-list">
-                {data.continueProjects.map((project: ContinueProject) => (
-                  <li
-                    className="dh-day-row dh-day-row--project"
-                    key={project.id}
-                  >
-                    {/*
-                     * UIX-01 — the project's OWN persisted identity mark, from
-                     * the same stored `iconKey`/`colourRank` the Projects
-                     * gallery and the Project record draw. Identity is
-                     * recognition before reading, and one record must not have
-                     * two appearances.
-                     */}
-                    <AccentIcon
-                      entityType="project"
-                      colourSlot={project.colourSlot}
-                      iconKey={project.iconKey}
-                      colourRank={project.colourRank}
-                      size="sm"
-                    />
-                    <span className="dh-day-row__stack">
-                      <Link
-                        className="dh-day-row__title"
-                        to={`/projects/${encodeURIComponent(project.id)}`}
-                      >
-                        {project.title}
-                      </Link>
-                      <span className="dh-day-row__meta">
-                        {project.openCount} open{" "}
-                        {project.openCount === 1 ? "task" : "tasks"} ·{" "}
-                        {project.statusLabel}
-                      </span>
+            <div className="dh-today__panel-head">
+              <h2 className="dh-today__panel-title" id="today-continue-heading">
+                Continue working
+              </h2>
+              <Link className="dh-today__panel-action" to="/projects">
+                All projects
+              </Link>
+            </div>
+            <ul className="dh-day-list">
+              {data.continueProjects.map((project: ContinueProject) => (
+                <li className="dh-day-row dh-day-row--project" key={project.id}>
+                  {/*
+                   * UIX-01 — the project's OWN persisted identity mark, from
+                   * the same stored `iconKey`/`colourRank` the Projects
+                   * gallery and the Project record draw. Identity is
+                   * recognition before reading, and one record must not have
+                   * two appearances.
+                   */}
+                  <AccentIcon
+                    entityType="project"
+                    colourSlot={project.colourSlot}
+                    iconKey={project.iconKey}
+                    colourRank={project.colourRank}
+                    size="sm"
+                  />
+                  <span className="dh-day-row__stack">
+                    <Link
+                      className="dh-day-row__title"
+                      to={`/projects/${encodeURIComponent(project.id)}`}
+                    >
+                      {project.title}
+                    </Link>
+                    <span className="dh-day-row__meta">
+                      {project.openCount} open{" "}
+                      {project.openCount === 1 ? "task" : "tasks"} ·{" "}
+                      {project.statusLabel}
                     </span>
-                  </li>
-                ))}
-              </ul>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
 
@@ -1534,7 +1525,11 @@ export function TodayScreen({
  * text-button class, and it is what every other foot control on this screen
  * already is, so the row reads as one set rather than as two kinds of link.
  */
-function AddTaskButton({ testId = "today-plan-add" }: { readonly testId?: string }) {
+function AddTaskButton({
+  testId = "today-plan-add",
+}: {
+  readonly testId?: string;
+}) {
   const capture = useCapture();
   const ref = useRef<HTMLButtonElement>(null);
   if (capture === null) return null;

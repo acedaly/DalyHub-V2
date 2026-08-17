@@ -1367,3 +1367,161 @@
     content: none;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-02 §4 — the row's swipe                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Two acts, one gesture, and NOT ONE PIXEL of column geometry spent on it.
+ *
+ *   pull towards the inline-end   →  reveals the START edge  →  Complete/Reopen
+ *   pull towards the inline-start →  reveals the END edge    →  Schedule
+ *
+ * ── The rule that protects the protected row ────────────────────────────────
+ * The cells are moved by TRANSFORM, and a transform does not participate in
+ * layout. The grid template, the tracks, the header's alignment and every
+ * column's x-origin are therefore identical during a swipe, after a swipe and on
+ * a desktop that never swipes — which is the constraint DS-04's row anatomy is
+ * under and the one the audit restates for this work. Nothing is wrapped and
+ * nothing new sits in a track: the affordance is `position: absolute` and the
+ * cells stay exactly where the grid put them.
+ *
+ * The selector is `[data-swipe-edge]` rather than the row itself, so the
+ * transform exists only while a gesture is live. `transform: translateX(0)` is
+ * not free — it makes an element a containing block for fixed-position
+ * descendants, and these cells host inline editors whose popovers are anchored.
+ * A permanent identity transform would move them.
+ */
+/*
+ * `touch-action` has to be declared BEFORE the gesture, not during it.
+ *
+ * This rule was scoped to `[data-swipe-edge]` — i.e. it only applied once the
+ * swipe had already started — and the gesture then never started at all.
+ * Measured with real touch input: the row received `pointerdown` and two
+ * `pointermove`s, and then nothing, while `touchmove` kept arriving. That is
+ * Chromium deciding the horizontal pan belongs to the scroller and CANCELLING
+ * the pointer stream, which is exactly what `touch-action` exists to arbitrate —
+ * and the browser reads it at gesture start, so a value that appears afterwards
+ * is a value that never applied.
+ *
+ * `pan-y` claims the horizontal axis for this row and leaves the vertical to the
+ * page, which is the same contract the model enforces (a tie goes to the
+ * scroll). It is declared on the touch-first query only, so a desktop row's
+ * behaviour is untouched.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .dh-taskrow {
+    touch-action: pan-y;
+  }
+}
+
+.dh-taskrow[data-swipe-edge] {
+  position: relative;
+  /* The revealed edge must not paint over the row beside it. */
+  overflow: clip;
+}
+
+.dh-taskrow[data-swipe-edge] > :not(.dh-taskrow__swipe) {
+  /* `--swipe-offset` is a runtime STATE variable set by the gesture hook, not a
+     design token — the same convention (and the same unprefixed naming) as the
+     Card tray's `--swipe-reveal` in `card.css`. */
+  transform: translateX(var(--swipe-offset, 0px));
+}
+
+/* The spring back. Absent while the finger is down, because a row that eases
+   towards a moving thumb feels broken rather than smooth. */
+.dh-taskrow[data-swipe-edge]:not([data-swipe-dragging])
+  > :not(.dh-taskrow__swipe) {
+  transition: transform var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+/*
+ * The affordance under the row.
+ *
+ * It fills the row and aligns its label to the edge being revealed, so the words
+ * appear from under the cells rather than sliding in from somewhere else.
+ */
+.dh-taskrow__swipe {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--dh-inset-inline);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.dh-taskrow[data-swipe-edge="start"] .dh-taskrow__swipe {
+  justify-content: start;
+  background: var(--dh-color-swipe-rest);
+}
+
+.dh-taskrow[data-swipe-edge="end"] .dh-taskrow__swipe {
+  justify-content: end;
+  background: var(--dh-color-swipe-rest);
+}
+
+/*
+ * ARMED is a real change of state, not a fade.
+ *
+ * Below the commit point the affordance is a quiet grey hint that a gesture is
+ * happening; at the commit point the icon and the word take the act's own colour
+ * and the label steps up a weight — releasing WILL do this.
+ *
+ * ── Why the colour is on the LABEL and not the panel ────────────────────────
+ * A filled success panel behind a phone row reads decisively, and it needs a
+ * guaranteed on-colour for its text. `--dh-color-swipe-complete` resolves to the
+ * product's `--success`, which is authored as a colour for TEXT AND ICONS ON A
+ * SURFACE and is asserted against exactly that pairing in
+ * `test/unit/tokens/contrast.test.ts`. Painting it as a background instead would
+ * put the label on a pair no test covers, in five colour schemes and two
+ * appearances. The sliding row is already the loud part of this gesture; the
+ * affordance only has to say which act, and it says it in the product's own
+ * status colours on the surface they were checked against.
+ *
+ * Colour is never the only signal: the icon and the word are both there from the
+ * first pixel of travel, and the weight change carries the threshold as well.
+ */
+.dh-taskrow__swipe-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 500;
+}
+
+.dh-taskrow[data-swipe-armed="true"] .dh-taskrow__swipe-action {
+  font-weight: 700;
+}
+
+.dh-taskrow[data-swipe-armed="true"][data-swipe-edge="start"]
+  .dh-taskrow__swipe-action {
+  color: var(--dh-color-swipe-complete);
+}
+
+.dh-taskrow[data-swipe-armed="true"][data-swipe-edge="end"]
+  .dh-taskrow__swipe-action {
+  color: var(--dh-color-swipe-schedule);
+}
+
+.dh-taskrow__swipe-action svg {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+}
+
+/*
+ * AGENTS.md §15 — motion never carries meaning that motion-off users lose.
+ *
+ * The spring back is the only animation in this gesture, and it is decoration:
+ * the row still follows the finger, the affordance still arms at the threshold
+ * and the action still fires on release. Motion-off simply snaps.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .dh-taskrow[data-swipe-edge]:not([data-swipe-dragging])
+    > :not(.dh-taskrow__swipe) {
+    transition: none;
+  }
+}

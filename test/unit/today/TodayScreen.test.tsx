@@ -1268,7 +1268,9 @@ describe("CONVERGE-01 §1: the Insights panel is deleted", () => {
     expect(screen.queryByText("Insights")).toBeNull();
     expect(screen.queryByText("24 of 30 captured")).toBeNull();
     expect(screen.queryByText("80%")).toBeNull();
-    expect(screen.queryByRole("img", { name: /tasks completed against/ })).toBeNull();
+    expect(
+      screen.queryByRole("img", { name: /tasks completed against/ }),
+    ).toBeNull();
 
     // The facts themselves stay, in the one place that owns them.
     const summary = screen.getByTestId("today-summary");
@@ -1343,7 +1345,9 @@ describe("TODAY-11: the Quick capture card", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(screen.getByTestId("today-plan-add")).toBeVisible();
     expect(screen.queryByTestId("today-add-task")).toBeNull();
-    expect(screen.getAllByRole("button", { name: /add task/i })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /add task/i })).toHaveLength(
+      1,
+    );
   });
 });
 

@@ -207,4 +207,3 @@ export function daySeriesSummary(
     .join(", ");
   return `${label} over the last ${points.length} days, ${total} in total: ${detail}.`;
 }
-
