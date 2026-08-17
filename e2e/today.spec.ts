@@ -101,13 +101,19 @@ test.describe("Today — the day surface", () => {
     }
 
     /*
-     * TODAY-11 — the header's one action is "+ Add task", as MOCKUP 5 draws it,
-     * and it opens the SHARED capture sheet on the Task panel. It replaced
-     * "Plan day", whose destination (`/tasks?system=today`) is still one click
-     * away from the plan's own "View all N tasks for today" whenever the day
-     * exceeds its bound.
+     * CONVERGE-01 §1 A9 — "+ Add task" appears ONCE, at the foot of the plan.
+     *
+     * TODAY-11 drew it twice: filled in the page header and quiet under the
+     * list. Both opened the same shared capture sheet on the same Task panel
+     * with the same context, so the header's copy was duplication — and on a
+     * phone it was a full-width primary button between the greeting and the
+     * first task. The header one is gone from the DOM on every device.
+     *
+     * Global capture is untouched and is NOT this control: the shell's `+`, the
+     * `C` shortcut and the phone bottom bar all still reach the same sheet.
      */
-    await expect(page.getByTestId("today-add-task")).toBeVisible();
+    await expect(page.getByTestId("today-plan-add")).toBeVisible();
+    await expect(page.getByTestId("today-add-task")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Plan day" })).toHaveCount(0);
 
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
@@ -185,11 +191,24 @@ test.describe("Today — the day surface", () => {
       test.skip(true, "the shared dev workspace has nothing overdue right now");
     }
 
-    // At most three rows, plus an honest remainder row when there are more.
+    /*
+     * At most three OPEN rows, plus an honest remainder row when there are more.
+     *
+     * The bound counts open work and never bounds away a completion: a slipped
+     * task finished this morning is still drawn, dimmed, at the end of the band
+     * it was already in (`boundBand` — "a bound counts OPEN rows; a completion
+     * is never bounded away"). Counting every row therefore asserted a rule the
+     * product does not have, and passed only on a workspace that happened to
+     * have completed nothing overdue — measured failing at 5 rows (3 open + 2
+     * done) on a workspace that had.
+     */
     const taskRows = page.locator(
       ".dh-day-list--overdue .dh-day-row:not(.dh-day-row--more)",
     );
-    expect(await taskRows.count()).toBeLessThanOrEqual(3);
+    const openRows = page.locator(
+      '.dh-day-list--overdue .dh-day-row:not(.dh-day-row--more):not([data-done="true"])',
+    );
+    expect(await openRows.count()).toBeLessThanOrEqual(3);
     const more = page.getByRole("link", { name: /^\+\d+ more overdue$/ });
     if ((await more.count()) === 1) {
       await expect(more).toHaveAttribute("href", "/tasks?system=overdue");
@@ -289,7 +308,24 @@ test.describe("Today — the day surface", () => {
     await expect(
       record.getByRole("heading", { name: title }).first(),
     ).toBeVisible();
-    await expect(record.getByRole("checkbox").first()).toBeChecked();
+    /*
+     * CONTROL-01 §4 — the record's lifecycle act is a BUTTON, not a checkbox.
+     *
+     * #189 merged the three Task drawers into `TaskRecordDrawer` and promoted
+     * completion out of the summary column into the record header's action, in
+     * the same words a Project uses. It updated `task-drawer.spec.ts` and left
+     * this one, which had been asserting on a control the record no longer
+     * draws — measured failing at `acc5f32`, the commit before this pass.
+     *
+     * A completed task therefore offers "Reopen task"; the presence of that
+     * button IS the statement that the record reads as complete.
+     */
+    await expect(
+      record.getByRole("button", { name: "Reopen task" }),
+    ).toBeVisible();
+    await expect(
+      record.getByRole("button", { name: "Complete task" }),
+    ).toHaveCount(0);
   });
 
   test("a task row opens its record in the Drawer over the page", async ({
@@ -326,8 +362,17 @@ test.describe("Today — the day surface", () => {
     await expect(rail.getByText("All clear")).toHaveCount(0);
     for (let index = 0; index < count; index += 1) {
       const href = await links.nth(index).getAttribute("href");
+      /*
+       * `/assets` (plural) is the AGGREGATE row's destination and belongs in
+       * this set: `buildAttention` names a single obligation's own Asset when
+       * there is exactly one, and falls back to "N obligations need attention"
+       * pointing at the collection when there are several. The pattern only
+       * carried the singular `/asset/:id` form, so the assertion passed on a
+       * workspace with one obligation and failed on any workspace with two —
+       * measured failing at `acc5f32`, the commit before this pass.
+       */
       expect(href).toMatch(
-        /^\/(tasks\?system=inbox|today\/waiting|asset\/|projects\/|goals\/)/,
+        /^\/(tasks\?system=inbox|today\/waiting|assets|asset\/|projects\/|goals\/)/,
       );
     }
   });
