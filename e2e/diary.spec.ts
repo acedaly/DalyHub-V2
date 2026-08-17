@@ -174,30 +174,16 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(page).toHaveURL(/inspector=view/);
 
     /*
-     * 9. Touch targets + no horizontal overflow across the matrix.
+     * 9. No horizontal overflow across the matrix.
      *
-     * The target is asserted at a PHONE width, which is where DalyHub promises
-     * it. This ran at the project's desktop viewport and demanded 44px of a
-     * `.dh-btn`, which on a fine pointer above `md` is deliberately 36px: the
-     * density model gives a comfortable target back on a coarse pointer or a
-     * phone-sized frame and keeps the drawn size for a cursor, and
-     * `task-signals.css` argues the case at length ("the 44px figure is SC
-     * 2.5.5 (AAA), which is a TOUCH guideline"). So the assertion had been
-     * asking the product for a rule it does not have, on the one surface where
-     * it does not apply.
+     * The Capture control's TOUCH TARGET moved to its own test below, which
+     * emulates a real phone. It was asserted here, at this journey's desktop
+     * viewport, and demanded 44px of a `.dh-btn` — which on a fine pointer is
+     * deliberately 36px, because `tokens.css` floors targets on the INPUT
+     * MECHANISM ("a 27-inch monitor driven by a trackpad is not compact") and a
+     * mouse is not a thumb. Asserting DalyHub's touch floor in a context the
+     * contract does not cover is not a check of the contract.
      */
-    await page.setViewportSize({ width: 390, height: 844 });
-    // A fresh load of the day: on a phone the inspector this journey just used
-    // IS the screen (§7 — two screens, not two panes), so the capture control
-    // is behind it until the list is on top again.
-    await gotoFixture(page, "/diary");
-    await page.getByRole("button", { name: "New diary entry" }).first().click();
-    await expectMinTouchTarget(
-      page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
-        name: "Capture",
-      }),
-    );
-    await page.keyboard.press("Escape");
     for (const viewport of RESPONSIVE_VIEWPORTS) {
       await page.setViewportSize(viewport);
       await expectNoHorizontalOverflow(page);
@@ -355,5 +341,34 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(page).toHaveURL(/\/diary/);
     await page.goForward();
     await expect(page).toHaveURL(/date=2026-05-25/);
+  });
+});
+
+/*
+ * DIARY-01B — the day's capture control, on a REAL phone.
+ *
+ * Split out of the long day-mode journey above, which runs at this project's
+ * desktop viewport. A touch target is a promise DalyHub makes on a coarse
+ * pointer (`tokens.css` floors every compact target back to 44px there,
+ * deliberately on the input mechanism rather than on the window), so it has to
+ * be measured in a context that reports one — `hasTouch` is what makes the
+ * browser say `(pointer: coarse)`. Asserted at 390px because that is where a
+ * thumb meets this control.
+ */
+test.describe("DIARY-01B — capture on a phone", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("the day's capture action meets the touch floor", async ({ page }) => {
+    await gotoFixture(page, "/diary");
+    await page.getByRole("button", { name: "New diary entry" }).first().click();
+    await expectMinTouchTarget(
+      page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
+        name: "Capture",
+      }),
+    );
   });
 });

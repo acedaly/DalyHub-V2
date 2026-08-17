@@ -231,35 +231,56 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expectNoAxeViolations(page);
   });
 
-  test("check in from a phone without horizontal scrolling", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const title = `Phone goal ${Date.now()}`;
-    await createMeasurableGoal(page, title);
+  test.describe("on a real phone", () => {
+    /*
+     * A phone is a WIDTH and a touch pointer, and this block needs both.
+     *
+     * `hasTouch` is what makes the browser report `(pointer: coarse)`, and that
+     * is the condition DalyHub's touch guarantees are actually written against —
+     * `tokens.css` floors every compact target back to 44px there, deliberately
+     * on the input mechanism rather than on the window ("a 27-inch monitor driven
+     * by a trackpad is not compact"). Setting the viewport alone reports a FINE
+     * pointer, so a target-floor assertion made that way is asserting DalyHub's
+     * touch contract in a context the contract explicitly does not cover — and it
+     * duly measured 32-36px on `main` @ f994aa0 against controls that are 44px on
+     * every real phone. `collection-header.spec.ts` records the same diagnosis in
+     * the same words for its own narrow block.
+     */
+    test.use({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    });
 
-    const record = page.getByTestId("goal-record-measurement").first();
-    await expect(record).toContainText("Log weight");
-    await expectMinTouchTarget(record);
-    await record.click();
+    test("check in from a phone without horizontal scrolling", async ({
+      page,
+    }) => {
+      const title = `Phone goal ${Date.now()}`;
+      await createMeasurableGoal(page, title);
 
-    const sheet = page.getByTestId("goal-check-in-sheet");
-    await expect(sheet).toBeVisible();
-    // The numeric field summons a decimal keypad rather than a QWERTY keyboard.
-    const value = sheet.getByRole("textbox", { name: /^Measurement/ });
-    await expect(value).toHaveAttribute("inputmode", "decimal");
-    // The date defaults to the owner's today, which is what it nearly always is.
-    await expect(sheet.getByLabel("Date")).toHaveValue(ownerToday());
-    await expectMinTouchTarget(page.getByTestId("goal-check-in-save"));
-    await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page);
+      const record = page.getByTestId("goal-record-measurement").first();
+      await expect(record).toContainText("Log weight");
+      await expectMinTouchTarget(record);
+      await record.click();
 
-    await value.fill("79.4");
-    await sheet.getByLabel("Date").fill("2026-08-09");
-    await page.getByTestId("goal-check-in-save").click();
-    await expect(sheet).toHaveCount(0);
-    await expect(page.getByTestId("goal-progress")).toContainText("79.4 kg");
-    await expectNoHorizontalOverflow(page);
+      const sheet = page.getByTestId("goal-check-in-sheet");
+      await expect(sheet).toBeVisible();
+      // The numeric field summons a decimal keypad rather than a QWERTY keyboard.
+      const value = sheet.getByRole("textbox", { name: /^Measurement/ });
+      await expect(value).toHaveAttribute("inputmode", "decimal");
+      // The date defaults to the owner's today, which is what it nearly always is.
+      await expect(sheet.getByLabel("Date")).toHaveValue(ownerToday());
+      await expectMinTouchTarget(page.getByTestId("goal-check-in-save"));
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+
+      await value.fill("79.4");
+      await sheet.getByLabel("Date").fill("2026-08-09");
+      await page.getByTestId("goal-check-in-save").click();
+      await expect(sheet).toHaveCount(0);
+      await expect(page.getByTestId("goal-progress")).toContainText("79.4 kg");
+      await expectNoHorizontalOverflow(page);
+    });
   });
 
   test("the Goal record fits every phone width the contract names", async ({

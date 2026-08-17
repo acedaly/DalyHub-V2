@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openCollectionControls,
   setSwitch,
 } from "./helpers";
 
@@ -274,25 +275,52 @@ test.describe("cross-module views", () => {
     await expect(page.getByText(SEEDED_NOTE).first()).toBeVisible();
   });
 
-  test("is usable on a phone", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await gotoFixture(page, "/views");
-    await expectNoHorizontalOverflow(page);
+  test.describe("on a real phone", () => {
+    /*
+     * A phone is a WIDTH and a touch pointer, and this block needs both.
+     *
+     * `hasTouch` is what makes the browser report `(pointer: coarse)`, and that
+     * is the condition DalyHub's touch guarantees are actually written against —
+     * `tokens.css` floors every compact target back to 44px there, deliberately
+     * on the input mechanism rather than on the window ("a 27-inch monitor driven
+     * by a trackpad is not compact"). Setting the viewport alone reports a FINE
+     * pointer, so a target-floor assertion made that way is asserting DalyHub's
+     * touch contract in a context the contract explicitly does not cover — and it
+     * duly measured 32-36px on `main` @ f994aa0 against controls that are 44px on
+     * every real phone. `collection-header.spec.ts` records the same diagnosis in
+     * the same words for its own narrow block.
+     */
+    test.use({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    });
 
-    // The shared collection sheet is the control surface at this width.
-    const trigger = page.getByTestId("collection-filter-trigger");
-    await expect(trigger).toBeVisible();
-    await expectMinTouchTarget(trigger);
-    await trigger.click();
-    const sheet = page.getByTestId("collection-sheet");
-    await sheet.waitFor();
-    await expect(
-      sheet.getByRole("heading", { name: "Needs attention" }),
-    ).toBeVisible();
-    await page.keyboard.press("Escape");
+    test("is usable on a phone", async ({ page }) => {
+      // The shared `beforeEach` cleanup deliberately works at a desktop width
+      // (the switcher it drives is not on screen at a phone one), and
+      // `setViewportSize` outlives the hook — so the phone width is restored
+      // here. `hasTouch`/`isMobile` come from `test.use` and are unaffected by
+      // a resize, which is the half that decides `(pointer: coarse)`.
+      await page.setViewportSize({ width: 390, height: 844 });
+      await gotoFixture(page, "/views");
+      await expectNoHorizontalOverflow(page);
 
-    await page.setViewportSize({ width: 320, height: 720 });
-    await expectNoHorizontalOverflow(page);
+      // The shared collection sheet is the control surface at this width.
+      const trigger = page.getByTestId("collection-filter-trigger");
+      await expect(trigger).toBeVisible();
+      await expectMinTouchTarget(trigger);
+      const controls = await openCollectionControls(page);
+      // CONTROL-01 — a phone gets the Sheet, and this block is a phone.
+      expect(controls.compact).toBe(true);
+      await expect(
+        controls.surface.getByRole("heading", { name: "Needs attention" }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+
+      await page.setViewportSize({ width: 320, height: 720 });
+      await expectNoHorizontalOverflow(page);
+    });
   });
 
   test("is reachable and operable by keyboard, and axe-clean", async ({
